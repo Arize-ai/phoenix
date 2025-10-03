@@ -103,7 +103,8 @@ export function DeleteDatasetLabelButton(props: DeleteDatasetLabelButtonProps) {
                             onError: () => {
                               notifyError({
                                 title: "Failed to delete label",
-                                message: "Failed to delete dataset label. Please try again.",
+                                message:
+                                  "Failed to delete dataset label. Please try again.",
                               });
                             },
                           });
