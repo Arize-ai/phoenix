@@ -64,10 +64,11 @@ export function PrimaryInferencesTimeRange(_: PrimaryInferencesTimeRangeProps) {
       <FieldColorDesignation color={"designationTurquoise"}>
         <TooltipTrigger>
           <Select
-            selectedKey={selectedTimePreset}
+            size="S"
+            value={selectedTimePreset}
             data-testid="inferences-time-range"
             aria-label={`Time range for the primary inferences`}
-            onSelectionChange={(key) => {
+            onChange={(key) => {
               if (key !== selectedTimePreset) {
                 setTimePreset(key as TimePreset);
               }
