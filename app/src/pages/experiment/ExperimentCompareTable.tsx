@@ -405,7 +405,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 <ExperimentActionMenu
                   experimentId={experimentId}
                   metadata={metadata}
-                  isQuiet={true}
                   projectId={projectId}
                   canDeleteExperiment={false}
                 />
