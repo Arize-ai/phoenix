@@ -31,6 +31,7 @@ import {
   View,
 } from "@phoenix/components";
 import { NewDatasetLabelDialog } from "@phoenix/components/dataset/NewDatasetLabelDialog";
+import { useNotifyError } from "@phoenix/contexts";
 
 import { DatasetLabelConfigButton_allLabels$key } from "./__generated__/DatasetLabelConfigButton_allLabels.graphql";
 import { DatasetLabelConfigButton_datasetLabels$key } from "./__generated__/DatasetLabelConfigButton_datasetLabels.graphql";
@@ -77,6 +78,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
                       onNewLabelPress={() => {
                         setShowNewLabelDialog(true);
                       }}
+                      onClose={() => setIsOpen(false)}
                     />
                   </Suspense>
                 </DialogContent>
@@ -108,6 +110,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
 function DatasetLabelSelectionDialogContent(props: {
   datasetId: string;
   onNewLabelPress: () => void;
+  onClose: () => void;
 }) {
   const { datasetId } = props;
   const query = useLazyLoadQuery<DatasetLabelConfigButtonQuery>(
@@ -131,11 +134,14 @@ function DatasetLabelList({
   query,
   dataset,
   onNewLabelPress,
+  onClose,
 }: {
   dataset: DatasetLabelConfigButton_datasetLabels$key;
   query: DatasetLabelConfigButton_allLabels$key;
   onNewLabelPress: () => void;
+  onClose: () => void;
 }) {
+  const notifyError = useNotifyError();
   const datasetData = useFragment<DatasetLabelConfigButton_datasetLabels$key>(
     graphql`
       fragment DatasetLabelConfigButton_datasetLabels on Dataset {
@@ -171,6 +177,7 @@ function DatasetLabelList({
   const [selected, setSelected] = useState<Selection>(
     () => new Set(selectedLabelIds)
   );
+  const [hasChanges, setHasChanges] = useState(false);
 
   const [setDatasetLabels] =
     useMutation<DatasetLabelConfigButtonSetLabelsMutation>(graphql`
@@ -182,7 +189,18 @@ function DatasetLabelList({
           input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
         ) {
           query {
-            __typename
+            datasets(first: 100) @connection(key: "DatasetsTable_datasets") {
+              edges {
+                node {
+                  id
+                  labels {
+                    id
+                    name
+                    color
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -198,7 +216,18 @@ function DatasetLabelList({
           input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
         ) {
           query {
-            __typename
+            datasets(first: 100) @connection(key: "DatasetsTable_datasets") {
+              edges {
+                node {
+                  id
+                  labels {
+                    id
+                    name
+                    color
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -214,7 +243,23 @@ function DatasetLabelList({
     if (selection === "all") {
       return;
     }
+    setSelected(selection);
+
+    // Check if there are changes from the original selection
     const newLabelIds = [...selection] as string[];
+    const originalSet = new Set(selectedLabelIds);
+    const newSet = new Set(newLabelIds);
+
+    const hasActualChanges =
+      originalSet.size !== newSet.size ||
+      [...originalSet].some((id) => !newSet.has(id)) ||
+      [...newSet].some((id) => !originalSet.has(id));
+
+    setHasChanges(hasActualChanges);
+  };
+
+  const handleSave = () => {
+    const newLabelIds = [...selected] as string[];
     const labelIdsToAdd: string[] = newLabelIds.filter(
       (id) => !selectedLabelIds.includes(id)
     );
@@ -222,23 +267,42 @@ function DatasetLabelList({
       (id) => !newLabelIds.includes(id)
     );
 
+    const promises = [];
+
     if (labelIdsToAdd.length) {
-      setDatasetLabels({
-        variables: {
-          datasetIds: [datasetData.id],
-          datasetLabelIds: labelIdsToAdd,
-        },
-      });
+      promises.push(
+        setDatasetLabels({
+          variables: {
+            datasetIds: [datasetData.id],
+            datasetLabelIds: labelIdsToAdd,
+          },
+        })
+      );
     }
     if (labelIdsToRemove.length) {
-      unsetDatasetLabels({
-        variables: {
-          datasetIds: [datasetData.id],
-          datasetLabelIds: labelIdsToRemove,
-        },
-      });
+      promises.push(
+        unsetDatasetLabels({
+          variables: {
+            datasetIds: [datasetData.id],
+            datasetLabelIds: labelIdsToRemove,
+          },
+        })
+      );
     }
-    setSelected(selection);
+
+    // Close modal after all mutations complete
+    Promise.all(promises)
+      .then(() => {
+        setHasChanges(false);
+        onClose();
+      })
+      .catch(() => {
+        // Keep modal open on error so user can retry
+        notifyError({
+          title: "Failed to save label changes",
+          message: "Failed to save label changes. Please try again.",
+        });
+      });
   };
 
   return (
@@ -269,12 +333,22 @@ function DatasetLabelList({
           justifyContent="space-between"
           alignItems="center"
         >
-          <Button variant="quiet" size="S" onPress={onNewLabelPress}>
-            Create New Label
+          <Flex direction="row" gap="size-100">
+            <Button variant="quiet" size="S" onPress={onNewLabelPress}>
+              Create New Label
+            </Button>
+            <LinkButton variant="quiet" size="S" to="/settings/datasets">
+              Manage Labels
+            </LinkButton>
+          </Flex>
+          <Button
+            variant="primary"
+            size="S"
+            onPress={handleSave}
+            isDisabled={!hasChanges}
+          >
+            Save Changes
           </Button>
-          <LinkButton variant="quiet" size="S" to="/settings/datasets">
-            Manage Labels
-          </LinkButton>
         </Flex>
       </Flex>
     </View>
