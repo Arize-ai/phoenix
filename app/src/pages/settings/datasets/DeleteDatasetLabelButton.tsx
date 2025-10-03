@@ -18,7 +18,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { DeleteDatasetLabelButtonMutation } from "./__generated__/DeleteDatasetLabelButtonMutation.graphql";
 
@@ -30,6 +30,7 @@ export function DeleteDatasetLabelButton(props: DeleteDatasetLabelButtonProps) {
   const { datasetLabelId } = props;
   const [isOpen, setIsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
   const [deleteLabel, isDeleting] =
     useMutation<DeleteDatasetLabelButtonMutation>(graphql`
       mutation DeleteDatasetLabelButtonMutation(
@@ -100,11 +101,11 @@ export function DeleteDatasetLabelButton(props: DeleteDatasetLabelButtonProps) {
                               setIsOpen(false);
                             },
                             onError: () => {
-                              alert(
-                                "Failed to delete dataset label. Please try again"
-                              );
+                              notifyError({
+                                title: "Failed to delete label",
+                                message: "Failed to delete dataset label. Please try again.",
+                              });
                             },
-                            // Intentionally omitting error until we have migrated to toast
                           });
                         }}
                       >
