@@ -258,7 +258,7 @@ type ExperimentRunSelectionState = {
   selected: boolean;
 };
 
-function ExperimentRunOutputs({
+export function ExperimentRunOutputs({
   baseExperimentId,
   compareExperimentIds,
   experimentsById,
@@ -555,7 +555,7 @@ const experimentItemCSS = css`
 /**
  * Shows a single experiment's output and annotations
  */
-function ExperimentItem({
+export function ExperimentItem({
   experiment,
   experimentRun,
   experimentIndex,
@@ -618,10 +618,17 @@ function ExperimentItem({
             >
               <ExperimentRunMetadata {...experimentRun} />
             </View>
-            <ExperimentAnnotationStack
-              experimentRun={experimentRun}
-              annotationSummaries={annotationSummaries}
-            />
+            <View
+              paddingX="size-100"
+              paddingBottom="size-100"
+              borderBottomColor="grey-300"
+              borderBottomWidth="thin"
+            >
+              <ExperimentAnnotationStack
+                experimentRun={experimentRun}
+                annotationSummaries={annotationSummaries}
+              />
+            </View>
             <View flex={1} minHeight={200}>
               {experimentRun.error ? (
                 <View padding="size-200">{experimentRun.error}</View>
@@ -683,7 +690,7 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
   );
 }
 
-function ExperimentAnnotationStack({
+export function ExperimentAnnotationStack({
   experimentRun,
   annotationSummaries,
 }: {
@@ -693,10 +700,6 @@ function ExperimentAnnotationStack({
   return (
     <ul
       css={css`
-        padding: 0 var(--ac-global-dimension-size-100)
-          var(--ac-global-dimension-size-100)
-          var(--ac-global-dimension-size-100);
-        border-bottom: 1px solid var(--ac-global-border-color-default);
         /* show scrollbar only if there are annotations */
         overflow-y: ${experimentRun.annotations?.edges.length > 0
           ? "auto"
