@@ -8,7 +8,15 @@ import { defineConfig } from "vite";
 import relay from "vite-plugin-relay";
 
 export default defineConfig(() => {
-  const plugins = [react(), relay, lezer()];
+  const plugins = [
+    react({
+      babel: {
+        plugins: ["babel-plugin-react-compiler"],
+      },
+    }),
+    relay,
+    lezer(),
+  ];
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());
   return {
