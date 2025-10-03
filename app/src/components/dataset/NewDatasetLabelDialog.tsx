@@ -41,6 +41,26 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
     `
   );
   const onSubmit = (label: LabelParams) => {
+    // Convert RGBA to hex format for backend
+    const convertToHex = (color: string): string => {
+      if (color.startsWith("#")) return color;
+
+      const rgba = color.match(
+        /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/
+      );
+      if (rgba) {
+        const [, r, g, b] = rgba;
+        const hex =
+          "#" +
+          [r, g, b]
+            .map((x) => parseInt(x).toString(16).padStart(2, "0"))
+            .join("");
+        return hex;
+      }
+
+      return color; // fallback to original color
+    };
+
     const connections = [
       ConnectionHandler.getConnectionID(
         "client:root",
@@ -48,7 +68,13 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
       ),
     ];
     addLabel({
-      variables: { label, connections },
+      variables: {
+        label: {
+          ...label,
+          color: convertToHex(label.color),
+        },
+        connections,
+      },
       onCompleted,
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);

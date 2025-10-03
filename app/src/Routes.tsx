@@ -363,6 +363,13 @@ const router = createBrowserRouter(
               }}
             />
             <Route
+              path="datasets"
+              element={<SettingsDatasetsPage />}
+              handle={{
+                crumb: () => "Datasets",
+              }}
+            />
+            <Route
               path="annotations"
               loader={settingsAnnotationsPageLoader}
               element={<SettingsAnnotationsPage />}
@@ -383,13 +390,6 @@ const router = createBrowserRouter(
               element={<SettingsPromptsPage />}
               handle={{
                 crumb: () => "Prompts",
-              }}
-            />
-            <Route
-              path="datasets"
-              element={<SettingsDatasetsPage />}
-              handle={{
-                crumb: () => "Datasets",
               }}
             />
           </Route>

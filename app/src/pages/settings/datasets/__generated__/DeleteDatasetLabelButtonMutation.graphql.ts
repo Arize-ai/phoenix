@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d27a12eacf525578977f1699ad7a2696>>
+ * @generated SignedSource<<85442ebe33ba401aa450498d51463d3a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,6 @@ export type DeleteDatasetLabelsInput = {
   datasetLabelIds: ReadonlyArray<string>;
 };
 export type DeleteDatasetLabelButtonMutation$variables = {
-  connections: ReadonlyArray<string>;
   input: DeleteDatasetLabelsInput;
 };
 export type DeleteDatasetLabelButtonMutation$data = {
@@ -29,17 +28,14 @@ export type DeleteDatasetLabelButtonMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connections"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
+  }
+],
+v1 = [
   {
     "alias": null,
     "args": [
@@ -78,26 +74,20 @@ v2 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DeleteDatasetLabelButtonMutation",
-    "selections": (v2/*: any*/),
+    "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "DeleteDatasetLabelButtonMutation",
-    "selections": (v2/*: any*/)
+    "selections": (v1/*: any*/)
   },
   "params": {
     "cacheID": "b8a0548c9df74137476118cf38dfcc9c",
@@ -110,6 +100,6 @@ return {
 };
 })();
 
-(node as any).hash = "519ffcac85d00b2af31ebfc4df91abfd";
+(node as any).hash = "865e34a2a79804aaaef98cc9590b1021";
 
 export default node;

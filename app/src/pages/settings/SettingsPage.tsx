@@ -45,9 +45,9 @@ export function SettingsPage() {
             <Tab id="general">General</Tab>
             <Tab id="providers">AI Providers</Tab>
             <Tab id="models">Models</Tab>
+            {isDatasetLabelEnabled && <Tab id="datasets">Datasets</Tab>}
             <Tab id="annotations">Annotations</Tab>
             <Tab id="prompts">Prompts</Tab>
-            {isDatasetLabelEnabled && <Tab id="datasets">Datasets</Tab>}
             <Tab id="data">Data Retention</Tab>
           </TabList>
           <LazyTabPanel id="general" padded>
@@ -59,17 +59,17 @@ export function SettingsPage() {
           <LazyTabPanel id="models" padded>
             <Outlet />
           </LazyTabPanel>
+          {isDatasetLabelEnabled && (
+            <LazyTabPanel id="datasets" padded>
+              <Outlet />
+            </LazyTabPanel>
+          )}
           <LazyTabPanel id="annotations" padded>
             <Outlet />
           </LazyTabPanel>
           <LazyTabPanel id="prompts" padded>
             <Outlet />
           </LazyTabPanel>
-          {isDatasetLabelEnabled && (
-            <LazyTabPanel id="datasets" padded>
-              <Outlet />
-            </LazyTabPanel>
-          )}
           <LazyTabPanel id="data" padded>
             <Outlet />
           </LazyTabPanel>
