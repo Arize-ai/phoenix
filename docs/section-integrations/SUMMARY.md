@@ -38,6 +38,8 @@
 
 ## TypeScript
 
+* [BeeAI](typescript/beeai/README.md)
+  * [BeeAI Tracing (JS)](typescript/beeai/beeai-tracing-js.md)
 * [Mastra](typescript/mastra/README.md)
   * [Mastra Tracing](typescript/mastra/mastra-tracing.md)
 * [MCP Tracing](typescript/mcp-tracing.md)
@@ -63,7 +65,6 @@
   * [AutoGen Tracing](python/autogen/autogen-tracing.md)
   * [AutoGen AgentChat Tracing](python/autogen/autogen-agentchat-tracing.md)
 * [BeeAI](python/beeai/README.md)
-  * [BeeAI Tracing (JS)](python/beeai/beeai-tracing-js.md)
   * [BeeAI Tracing (Python)](python/beeai/beeai-tracing-python.md)
 * [CrewAI](python/crewai/README.md)
   * [CrewAI Tracing](python/crewai/crewai-tracing.md)
