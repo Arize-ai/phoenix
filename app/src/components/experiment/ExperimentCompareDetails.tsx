@@ -618,56 +618,10 @@ function ExperimentItem({
             >
               <ExperimentRunMetadata {...experimentRun} />
             </View>
-            <ul
-              css={css`
-                padding: 0 var(--ac-global-dimension-size-100)
-                  var(--ac-global-dimension-size-100)
-                  var(--ac-global-dimension-size-100);
-                border-bottom: 1px solid var(--ac-global-border-color-default);
-                /* show scrollbar only if there are annotations */
-                overflow-y: ${experimentRun.annotations?.edges.length > 0
-                  ? "auto"
-                  : "hidden"};
-                min-height: ${Math.min(annotationSummaries?.length ?? 0, 2) *
-                ANNOTATION_ITEM_HEIGHT}px;
-                display: grid;
-                grid-template-columns:
-                  minmax(100px, max-content) minmax(32px, max-content)
-                  minmax(150px, 1fr);
-                column-gap: var(--ac-global-dimension-size-200);
-              `}
-            >
-              {annotationSummaries?.map((annotationSummary) => {
-                const annotation = experimentRun.annotations?.edges.find(
-                  (edge) =>
-                    edge.annotation.name === annotationSummary.annotationName
-                )?.annotation;
-                return annotation ? (
-                  <li
-                    key={annotationSummary.annotationName}
-                    css={css`
-                      height: ${ANNOTATION_ITEM_HEIGHT}px;
-                      display: grid;
-                      grid-template-columns: subgrid;
-                      grid-column: 1 / -1;
-                    `}
-                  >
-                    <ExperimentAnnotationDetails
-                      annotation={annotation}
-                      annotationSummary={annotationSummary}
-                    />
-                  </li>
-                ) : (
-                  // placeholder to ensure alignment when some experiments are missing annotations
-                  <div
-                    css={css`
-                      height: ${ANNOTATION_ITEM_HEIGHT}px;
-                      grid-column: 1 / -1;
-                    `}
-                  />
-                );
-              })}
-            </ul>
+            <ExperimentAnnotationStack
+              experimentRun={experimentRun}
+              annotationSummaries={annotationSummaries}
+            />
             <View flex={1} minHeight={200}>
               {experimentRun.error ? (
                 <View padding="size-200">{experimentRun.error}</View>
@@ -729,7 +683,67 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
   );
 }
 
-function ExperimentAnnotationGridItem({
+function ExperimentAnnotationStack({
+  experimentRun,
+  annotationSummaries,
+}: {
+  experimentRun: ExperimentRun;
+  annotationSummaries?: AnnotationSummaries;
+}) {
+  return (
+    <ul
+      css={css`
+        padding: 0 var(--ac-global-dimension-size-100)
+          var(--ac-global-dimension-size-100)
+          var(--ac-global-dimension-size-100);
+        border-bottom: 1px solid var(--ac-global-border-color-default);
+        /* show scrollbar only if there are annotations */
+        overflow-y: ${experimentRun.annotations?.edges.length > 0
+          ? "auto"
+          : "hidden"};
+        min-height: ${Math.min(annotationSummaries?.length ?? 0, 2) *
+        ANNOTATION_ITEM_HEIGHT}px;
+        display: grid;
+        grid-template-columns:
+          minmax(100px, max-content) minmax(32px, max-content)
+          minmax(150px, 1fr);
+        column-gap: var(--ac-global-dimension-size-200);
+      `}
+    >
+      {annotationSummaries?.map((annotationSummary) => {
+        const annotation = experimentRun.annotations?.edges.find(
+          (edge) => edge.annotation.name === annotationSummary.annotationName
+        )?.annotation;
+        return annotation ? (
+          <li
+            key={annotationSummary.annotationName}
+            css={css`
+              height: ${ANNOTATION_ITEM_HEIGHT}px;
+              display: grid;
+              grid-template-columns: subgrid;
+              grid-column: 1 / -1;
+            `}
+          >
+            <ExperimentAnnotationDetails
+              annotation={annotation}
+              annotationSummary={annotationSummary}
+            />
+          </li>
+        ) : (
+          // placeholder to ensure alignment when some experiments are missing annotations
+          <div
+            css={css`
+              height: ${ANNOTATION_ITEM_HEIGHT}px;
+              grid-column: 1 / -1;
+            `}
+          />
+        );
+      })}
+    </ul>
+  );
+}
+
+function ExperimentAnnotationStackItem({
   annotation,
   annotationSummary,
 }: {
@@ -817,7 +831,7 @@ function ExperimentAnnotationDetails({
 }) {
   return (
     <DialogTrigger>
-      <ExperimentAnnotationGridItem
+      <ExperimentAnnotationStackItem
         annotation={annotation}
         annotationSummary={annotationSummary}
       />
