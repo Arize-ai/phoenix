@@ -248,6 +248,21 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { Switch } from '@phoenix/components'",
       },
+      {
+        name: "DropdownButton",
+        module: "@arizeai/components",
+        use: "import { Button, DialogTrigger } from '@phoenix/components'",
+      },
+      {
+        name: "DropdownTrigger",
+        module: "@arizeai/components",
+        use: "import { DialogTrigger } from '@phoenix/components'",
+      },
+      {
+        name: "DropdownMenu",
+        module: "@arizeai/components",
+        use: "import { Popover, Dialog } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },
