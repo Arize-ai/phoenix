@@ -151,39 +151,13 @@ export function DatasetsTable(props: DatasetsTableProps) {
               `}
             >
               {row.original.labels.map((label) => (
-                <li
-                  key={label.id}
-                  css={css`
-                    min-width: 0;
-                    max-width: 200px;
-                  `}
-                >
-                  <Token
-                    color={label.color}
-                    css={css`
-                      min-width: 0;
-                      max-width: 100%;
-                      span {
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
-                        min-width: 0;
-                      }
-                    `}
-                  >
-                    <span
-                      css={css`
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
-                        min-width: 0;
-                      `}
-                      title={label.name}
-                    >
-                      {label.name}
-                    </span>
-                  </Token>
-                </li>
+<li key={label.id}>
+  <Token color={label.color}>
+    <Truncate maxWidth={200}>
+      {label.name}
+    </Truncate>
+  </Token>
+</li>
               ))}
             </ul>
           );
