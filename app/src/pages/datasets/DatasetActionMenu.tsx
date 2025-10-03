@@ -86,7 +86,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
             justifyContent={"start"}
             alignItems={"center"}
           >
-            <Icon svg={<Icons.ImageOutline />} />
+            <Icon svg={<Icons.PriceTagsOutline />} />
             <Text>Labels</Text>
           </Flex>
         </Item>

@@ -55,7 +55,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
         <Button
           variant="quiet"
           size="S"
-          leadingVisual={<Icon svg={<Icons.ImageOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
           aria-label="Configure dataset labels"
         >
           Labels
