@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import { Pressable } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   ImperativePanelHandle,
@@ -23,6 +24,8 @@ import {
   Icons,
   Popover,
   PopoverArrow,
+  ProgressBar,
+  Text,
   View,
 } from "@phoenix/components";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
@@ -34,12 +37,14 @@ import {
 } from "@phoenix/components/resize";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import { useWordColor } from "@phoenix/hooks";
+import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
+import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import {
   ExperimentCompareDetailsQuery,
   ExperimentCompareDetailsQuery$data,
 } from "./__generated__/ExperimentCompareDetailsQuery.graphql";
-import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
 import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
 
 export type ExperimentCompareDetailsProps = {
@@ -58,6 +63,8 @@ type Experiment = NonNullable<
 type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
 >["edges"][number]["run"];
+
+type Annotation = ExperimentRun["annotations"]["edges"][number]["annotation"];
 
 type AnnotationSummaries = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
@@ -623,6 +630,11 @@ function ExperimentItem({
                   : "hidden"};
                 min-height: ${Math.min(annotationSummaries?.length ?? 0, 2) *
                 ANNOTATION_ITEM_HEIGHT}px;
+                display: grid;
+                grid-template-columns:
+                  minmax(100px, max-content) minmax(32px, max-content)
+                  minmax(150px, 1fr);
+                column-gap: var(--ac-global-dimension-size-200);
               `}
             >
               {annotationSummaries?.map((annotationSummary) => {
@@ -635,25 +647,22 @@ function ExperimentItem({
                     key={annotationSummary.annotationName}
                     css={css`
                       height: ${ANNOTATION_ITEM_HEIGHT}px;
+                      display: grid;
+                      grid-template-columns: subgrid;
+                      grid-column: 1 / -1;
                     `}
                   >
-                    <DialogTrigger>
-                      <ExperimentAnnotationButton annotation={annotation} />
-                      <Popover placement="top">
-                        <PopoverArrow />
-                        <Dialog style={{ width: 400 }}>
-                          <View padding="size-200">
-                            <AnnotationDetailsContent annotation={annotation} />
-                          </View>
-                        </Dialog>
-                      </Popover>
-                    </DialogTrigger>
+                    <ExperimentAnnotationDetails
+                      annotation={annotation}
+                      annotationSummary={annotationSummary}
+                    />
                   </li>
                 ) : (
                   // placeholder to ensure alignment when some experiments are missing annotations
                   <div
                     css={css`
                       height: ${ANNOTATION_ITEM_HEIGHT}px;
+                      grid-column: 1 / -1;
                     `}
                   />
                 );
@@ -717,6 +726,110 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
       <CopyToClipboardButton text={strValue} />
       <FullSizeJSONBlock value={strValue} />
     </div>
+  );
+}
+
+function ExperimentAnnotationGridItem({
+  annotation,
+  annotationSummary,
+}: {
+  annotation: Annotation;
+  annotationSummary: AnnotationSummaries[number];
+}) {
+  const annotationColor = useWordColor(annotation.name);
+  const labelValue =
+    annotation.score != null
+      ? formatFloat(annotation.score)
+      : annotation.label || "n/a";
+
+  return (
+    <Pressable>
+      <button
+        className="button--reset"
+        css={css`
+          cursor: pointer;
+          padding: var(--ac-global-dimension-size-50)
+            var(--ac-global-dimension-size-100);
+          border-radius: var(--ac-global-rounding-small);
+          width: 100%;
+          display: grid;
+          grid-template-columns: subgrid;
+          grid-column: 1 / -1;
+          &:hover {
+            background-color: var(--ac-global-color-grey-200);
+          }
+        `}
+      >
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          justifySelf="start"
+          minWidth={0}
+          maxWidth="100%"
+        >
+          <span
+            css={css`
+              flex: none;
+            `}
+          >
+            <ColorSwatch color={annotationColor} shape="circle" />
+          </span>
+
+          <Text weight="heavy" color="inherit" minWidth={0}>
+            <Truncate maxWidth="100%">{annotation.name}</Truncate>
+          </Text>
+        </Flex>
+
+        <Text fontFamily="mono" justifySelf="start" maxWidth="100%">
+          <Truncate maxWidth="100%">{labelValue}</Truncate>
+        </Text>
+
+        {annotation.score != null ? (
+          <ProgressBar
+            css={css`
+              align-self: center;
+              --mod-barloader-fill-color: ${annotationColor};
+            `}
+            value={calculateAnnotationScorePercentile(
+              annotation.score,
+              annotationSummary.minScore,
+              annotationSummary.maxScore
+            )}
+            height="var(--ac-global-dimension-size-50)"
+            width="100%"
+            aria-label={`${annotation.name} score`}
+          />
+        ) : (
+          <div />
+        )}
+      </button>
+    </Pressable>
+  );
+}
+
+function ExperimentAnnotationDetails({
+  annotation,
+  annotationSummary,
+}: {
+  annotation: Annotation;
+  annotationSummary: AnnotationSummaries[number];
+}) {
+  return (
+    <DialogTrigger>
+      <ExperimentAnnotationGridItem
+        annotation={annotation}
+        annotationSummary={annotationSummary}
+      />
+      <Popover placement="top">
+        <PopoverArrow />
+        <Dialog style={{ width: 400 }}>
+          <View padding="size-200">
+            <AnnotationDetailsContent annotation={annotation} />
+          </View>
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
   );
 }
 
