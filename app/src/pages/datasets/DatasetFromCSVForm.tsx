@@ -345,6 +345,7 @@ function ColumnMultiSelector(
               onChange(Array.from(keys) as string[]);
             }}
             selectedKeys={new Set(selectedColumns)}
+            style={{ maxHeight: "40vh", overflowY: "auto" }}
           >
             {columns.map((column) => (
               <Item key={column}>{column}</Item>
