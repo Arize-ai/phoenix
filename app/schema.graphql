@@ -701,6 +701,7 @@ type DatasetExperimentAnnotationSummary {
 input DatasetFilter {
   col: DatasetFilterColumn!
   value: String!
+  labelIds: [ID!]
 }
 
 enum DatasetFilterColumn {

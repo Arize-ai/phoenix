@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5dda4bc48964078a2de9ab61f0a93709>>
+ * @generated SignedSource<<a8a63c4798b60c2cddc7e13c256890d0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type DatasetFilterColumn = "name";
 export type SortDir = "asc" | "desc";
 export type DatasetFilter = {
   col: DatasetFilterColumn;
+  labelIds?: ReadonlyArray<string> | null;
   value: string;
 };
 export type DatasetSort = {
