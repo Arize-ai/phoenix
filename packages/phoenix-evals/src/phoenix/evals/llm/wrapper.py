@@ -283,7 +283,6 @@ class LLM:
             )
             {"label": "yes"}
         """
-        # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
         result: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
         return result
@@ -371,7 +370,6 @@ class LLM:
         Returns:
             Dict[str, Any]: The generated classification.
         """
-        # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
         result: Dict[str, Any] = await self.async_generate_object(prompt, schema, **kwargs)
         return result

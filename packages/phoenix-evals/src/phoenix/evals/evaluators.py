@@ -204,27 +204,34 @@ class Evaluator(ABC):
         return self._input_schema
 
     @abstractmethod
-    def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+    def _evaluate(self, eval_input: EvalInput, **kwargs: Any) -> List[Score]:
         """Implement core logic assuming `eval_input` has required fields per schema/mapping."""
         raise NotImplementedError("Subclasses must implement _evaluate")
 
-    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
+    async def _async_evaluate(self, eval_input: EvalInput, **kwargs: Any) -> List[Score]:
         """Implement async core logic assuming `eval_input` has required fields per schema/mapping.
 
         By default, this runs the synchronous _evaluate method in a thread pool.
         Subclasses can override this for more efficient async implementations.
         """
-        result = await to_thread(self._evaluate)(eval_input)
+        result = await to_thread(self._evaluate)(eval_input, **kwargs)
         return cast(List[Score], result)
 
     def evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None, **kwargs: Any
     ) -> List[Score]:
         """
         Validate and remap `eval_input` using the evaluator's input fields (from
         `input_schema` when available, otherwise from the provided `input_mapping`). An optional
         per-call `input_mapping` maps evaluator-required field names to keys/paths in `eval_input`.
 
+        Args:
+            eval_input: Input data as a dictionary to be evaluated.
+            input_mapping: Optional mapping to remap input field names.
+            **kwargs: Additional keyword arguments passed to the underlying _evaluate
+                implementation. For LLM evaluators, these can include model parameters like
+                temperature, max_tokens, etc.
+
         Returns:
             A list of Score objects.
         """
@@ -241,14 +248,21 @@ class Evaluator(ABC):
                 remapped_eval_input = model_instance.model_dump()
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
-        return self._evaluate(remapped_eval_input)
+        return self._evaluate(remapped_eval_input, **kwargs)
 
     async def async_evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None, **kwargs: Any
     ) -> List[Score]:
         """
         Async variant of `evaluate`. Validates and remaps input as described in `evaluate`.
 
+        Args:
+            eval_input: Input data as a dictionary to be evaluated.
+            input_mapping: Optional mapping to remap input field names.
+            **kwargs: Additional keyword arguments passed to the underlying _async_evaluate
+                implementation. For LLM evaluators, these can include model parameters like
+                temperature, max_tokens, etc.
+
         Returns:
             A list of Score objects.
         """
@@ -265,7 +279,7 @@ class Evaluator(ABC):
                 remapped_eval_input = model_instance.model_dump()
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
-        return await self._async_evaluate(remapped_eval_input)
+        return await self._async_evaluate(remapped_eval_input, **kwargs)
 
     def bind(self, input_mapping: InputMappingType) -> None:
         """Binds an evaluator with a fixed input mapping."""
@@ -372,21 +386,21 @@ class LLMEvaluator(Evaluator):
         self.prompt_template = prompt_template
         self.schema = schema
 
-    def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+    def _evaluate(self, eval_input: EvalInput, **kwargs: Any) -> List[Score]:
         raise NotImplementedError("Subclasses must implement _evaluate")
 
-    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
+    async def _async_evaluate(self, eval_input: EvalInput, **kwargs: Any) -> List[Score]:
         raise NotImplementedError("Subclasses must implement _async_evaluate")
 
     def evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None, **kwargs: Any
     ) -> List[Score]:
-        return super().evaluate(eval_input, input_mapping)
+        return super().evaluate(eval_input, input_mapping, **kwargs)
 
     async def async_evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None, **kwargs: Any
     ) -> List[Score]:
-        return await super().async_evaluate(eval_input, input_mapping)
+        return await super().async_evaluate(eval_input, input_mapping, **kwargs)
 
 
 # --- LLM ClassificationEvaluator ---
@@ -528,7 +542,7 @@ class ClassificationEvaluator(LLMEvaluator):
         self.label_score_map = score_map
         self.labels = labels
 
-    def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+    def _evaluate(self, eval_input: EvalInput, **kwargs: Any) -> List[Score]:
         prompt_filled = self.prompt_template.render(variables=eval_input)
         method = (
             ObjectGenerationMethod.TOOL_CALLING
@@ -540,6 +554,7 @@ class ClassificationEvaluator(LLMEvaluator):
             labels=self.labels,
             include_explanation=self.include_explanation,
             method=method,
+            **kwargs,
         )
         label = response["label"]
         explanation = response.get("explanation", None)
@@ -567,7 +582,7 @@ class ClassificationEvaluator(LLMEvaluator):
             )
         ]
 
-    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
+    async def _async_evaluate(self, eval_input: EvalInput, **kwargs: Any) -> List[Score]:
         prompt_filled = self.prompt_template.render(variables=eval_input)
         method = (
             ObjectGenerationMethod.TOOL_CALLING
@@ -579,6 +594,7 @@ class ClassificationEvaluator(LLMEvaluator):
             labels=self.labels,
             include_explanation=self.include_explanation,
             method=method,
+            **kwargs,
         )
         label = response["label"]
         explanation = response.get("explanation", None)
@@ -834,10 +850,10 @@ def create_evaluator(
                     self._fn = fn
                     self._docstring = original_docstring
 
-                def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+                def _evaluate(self, eval_input: EvalInput, **kwargs: Any) -> List[Score]:
                     raise NotImplementedError("Async evaluator must use async_evaluate")
 
-                async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
+                async def _async_evaluate(self, eval_input: EvalInput, **kwargs: Any) -> List[Score]:
                     result = await self._fn(**eval_input)
                     score = _convert_to_score(result, name, source, direction)
                     return [score]
@@ -882,7 +898,7 @@ def create_evaluator(
                     self._fn = fn
                     self._docstring = original_docstring
 
-                def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+                def _evaluate(self, eval_input: EvalInput, **kwargs: Any) -> List[Score]:
                     result = self._fn(**eval_input)
                     score = _convert_to_score(result, name, source, direction)
                     return [score]
@@ -1176,6 +1192,8 @@ def evaluate_dataframe(
     tqdm_bar_format: Optional[str] = None,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
+    eval_kwargs: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
 ) -> pd.DataFrame:
     """
     Evaluate a dataframe with a list of evaluators and return an augmented dataframe.
@@ -1193,6 +1211,12 @@ def evaluate_dataframe(
             If None, uses SyncExecutor's default (True).
         max_retries: Optional number of times to retry on exceptions. If None, uses SyncExecutor's
             default (10).
+        eval_kwargs: Optional mapping of evaluator names to keyword arguments to pass to
+            each evaluator. For example: {"sentiment": {"temperature": 0.5}} will pass
+            temperature=0.5 to the evaluator named "sentiment". Useful for passing model
+            parameters to LLM evaluators.
+        **kwargs: Additional keyword arguments passed to all evaluators. These are merged
+            with eval_kwargs (eval_kwargs takes precedence for evaluator-specific settings).
 
     Returns:
         A copy of the input dataframe with additional columns for scores and exceptions.
@@ -1285,7 +1309,11 @@ def evaluate_dataframe(
         eval_input_index, evaluator_index = task_input
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
-        scores = evaluator.evaluate(eval_input)
+        task_kwargs: Dict[str, Any] = (
+            eval_kwargs.get(evaluator.name, {}) if eval_kwargs else {}
+        )
+        task_kwargs.update(kwargs)
+        scores = evaluator.evaluate(eval_input, **task_kwargs)
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
@@ -1315,6 +1343,8 @@ async def async_evaluate_dataframe(
     tqdm_bar_format: Optional[str] = None,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
+    eval_kwargs: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
 ) -> pd.DataFrame:
     """
     Evaluate a dataframe with a list of evaluators and return an augmented dataframe.
@@ -1334,6 +1364,12 @@ async def async_evaluate_dataframe(
             error. If None, uses AsyncExecutor's default (True).
         max_retries: Optional number of times to retry on exceptions. If None, uses
             AsyncExecutor's default (10).
+        eval_kwargs: Optional mapping of evaluator names to keyword arguments to pass to
+            each evaluator. For example: {"sentiment": {"temperature": 0.5}} will pass
+            temperature=0.5 to the evaluator named "sentiment". Useful for passing model
+            parameters to LLM evaluators.
+        **kwargs: Additional keyword arguments passed to all evaluators. These are merged
+            with eval_kwargs (eval_kwargs takes precedence for evaluator-specific settings).
 
     Returns:
         A copy of the input dataframe with additional columns for scores and exceptions.
@@ -1450,7 +1486,11 @@ async def async_evaluate_dataframe(
         eval_input_index, evaluator_index = task_input
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
-        scores = await evaluator.async_evaluate(eval_input)
+        task_kwargs: Dict[str, Any] = (
+            eval_kwargs.get(evaluator.name, {}) if eval_kwargs else {}
+        )
+        task_kwargs.update(kwargs)
+        scores = await evaluator.async_evaluate(eval_input, **task_kwargs)
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults
