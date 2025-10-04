@@ -77,7 +77,7 @@ function ListBox<T extends object>(
 
 type ListBoxComponent = <T extends object>(
   props: ListBoxProps<T> & React.RefAttributes<HTMLDivElement>
-) => React.ReactElement | null;
+) => React.ReactElement<unknown> | null;
 
 const _ListBox = forwardRef(ListBox) as ListBoxComponent;
 export { _ListBox as ListBox };

@@ -416,7 +416,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 <ExperimentActionMenu
                   experimentId={experimentId}
                   metadata={metadata}
-                  isQuiet={true}
                   projectId={projectId}
                   canDeleteExperiment={false}
                 />
@@ -711,7 +710,7 @@ function TableBody<T>({
   tableContainerRef,
 }: {
   table: Table<T>;
-  tableContainerRef: RefObject<HTMLDivElement>;
+  tableContainerRef: RefObject<HTMLDivElement | null>;
 }) {
   const rows = table.getRowModel().rows;
   const virtualizer = useVirtualizer({

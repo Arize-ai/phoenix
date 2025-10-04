@@ -12,7 +12,7 @@ type MaybeDimensions = Dimensions | null;
  * @param ref - The ref of the element
  * @returns The dimensions of the element
  */
-export const useDimensions = (ref: React.RefObject<HTMLElement>) => {
+export const useDimensions = (ref: React.RefObject<HTMLElement | null>) => {
   const [dimensions, setDimensions] = useState<MaybeDimensions>(null);
 
   useEffect(() => {
