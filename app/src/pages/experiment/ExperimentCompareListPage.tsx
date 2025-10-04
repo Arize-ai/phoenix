@@ -1,4 +1,12 @@
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   graphql,
   PreloadedQuery,
@@ -11,7 +19,9 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
   Getter,
+  SortingState,
   Table,
   useReactTable,
 } from "@tanstack/react-table";
@@ -64,6 +74,11 @@ import type {
   ExperimentCompareListPage_comparisons$data,
   ExperimentCompareListPage_comparisons$key,
 } from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
+import type {
+  ExperimentRunMetric,
+  ExperimentRunSort,
+  SortDir,
+} from "./__generated__/ExperimentCompareListPageQuery.graphql";
 import { calculateAnnotationScorePercentile } from "./utils";
 
 const PAGE_SIZE = 50;
@@ -80,11 +95,22 @@ const tableWrapCSS = css`
   }
 `;
 
+interface Annotation {
+  name: string;
+  score: number | null;
+  label: string | null;
+}
+type AnnotationName = string;
+type ExperimentId = string;
 type BaseExperimentRun = NonNullable<
   ExperimentCompareListPage_comparisons$data["experiment"]["runs"]
 >["edges"][number]["run"];
+type BaseExperimentRunAnnotation =
+  BaseExperimentRun["annotations"]["edges"][number]["annotation"];
 type CompareExperimentRun =
   BaseExperimentRun["example"]["experimentRepeatedRunGroups"][number]["runs"][number];
+type CompareExperimentRunAnnotation =
+  CompareExperimentRun["annotations"]["edges"][number]["annotation"];
 
 type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
@@ -104,7 +130,8 @@ export function ExperimentCompareListPage({
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
   >(null);
-
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const isFirstRender = useRef<boolean>(true);
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -156,75 +183,80 @@ export function ExperimentCompareListPage({
       `,
       preloadedData
     );
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    ExperimentCompareListPageQuery,
-    ExperimentCompareListPage_comparisons$key
-  >(
-    graphql`
-      fragment ExperimentCompareListPage_comparisons on Query
-      @refetchable(queryName: "ExperimentCompareListPageQuery")
-      @argumentDefinitions(
-        first: { type: "Int", defaultValue: 50 }
-        after: { type: "String", defaultValue: null }
-        baseExperimentId: { type: "ID!" }
-        compareExperimentIds: { type: "[ID!]!" }
-      ) {
-        experiment: node(id: $baseExperimentId) {
-          ... on Experiment {
-            id
-            runs(first: $first, after: $after)
-              @connection(key: "ExperimentCompareListPage_runs") {
-              edges {
-                run: node {
-                  id
-                  repetitionNumber
-                  output
-                  startTime
-                  endTime
-                  costSummary {
-                    total {
-                      tokens
-                      cost
-                    }
-                  }
-                  annotations {
-                    edges {
-                      annotation: node {
-                        name
-                        score
-                        label
-                        id
+
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<
+      ExperimentCompareListPageQuery,
+      ExperimentCompareListPage_comparisons$key
+    >(
+      graphql`
+        fragment ExperimentCompareListPage_comparisons on Query
+        @refetchable(queryName: "ExperimentCompareListPageQuery")
+        @argumentDefinitions(
+          first: { type: "Int", defaultValue: 50 }
+          after: { type: "ID", defaultValue: null }
+          baseExperimentId: { type: "ID!" }
+          compareExperimentIds: { type: "[ID!]!" }
+          sort: { type: "ExperimentRunSort", defaultValue: null }
+        ) {
+          experiment: node(id: $baseExperimentId) {
+            ... on Experiment {
+              id
+              runs(first: $first, after: $after, sort: $sort)
+                @connection(key: "ExperimentCompareListPage_runs") {
+                edges {
+                  run: node {
+                    id
+                    repetitionNumber
+                    output
+                    startTime
+                    endTime
+                    costSummary {
+                      total {
+                        tokens
+                        cost
                       }
                     }
-                  }
-                  example {
-                    id
-                    revision {
-                      input
-                      referenceOutput: output
-                    }
-                    experimentRepeatedRunGroups(
-                      experimentIds: $compareExperimentIds
-                    ) {
-                      experimentId
-                      runs {
-                        id
-                        output
-                        startTime
-                        endTime
-                        costSummary {
-                          total {
-                            tokens
-                            cost
-                          }
+                    annotations {
+                      edges {
+                        annotation: node {
+                          name
+                          score
+                          label
+                          id
                         }
-                        annotations {
-                          edges {
-                            annotation: node {
-                              name
-                              score
-                              label
-                              id
+                      }
+                    }
+                    example {
+                      id
+                      revision {
+                        input
+                        referenceOutput: output
+                      }
+                      experimentRepeatedRunGroups(
+                        experimentIds: $compareExperimentIds
+                      ) {
+                        experimentId
+                        runs {
+                          id
+                          experimentId
+                          output
+                          startTime
+                          endTime
+                          costSummary {
+                            total {
+                              tokens
+                              cost
+                            }
+                          }
+                          annotations {
+                            edges {
+                              annotation: node {
+                                name
+                                score
+                                label
+                                id
+                              }
                             }
                           }
                         }
@@ -236,10 +268,9 @@ export function ExperimentCompareListPage({
             }
           }
         }
-      }
-    `,
-    preloadedData
-  );
+      `,
+      preloadedData
+    );
 
   const experiments = useMemo(() => {
     const experimentsById: Record<string, Experiment> = {};
@@ -266,9 +297,10 @@ export function ExperimentCompareListPage({
 
   const datasetId = aggregateData?.dataset.id;
   const baseExperiment = experiments[0];
-  const compareExperimentIds = experiments
-    .slice(1)
-    .map((experiment) => experiment.id);
+  const compareExperimentIds = useMemo(
+    () => experiments.slice(1).map((experiment) => experiment.id),
+    [experiments]
+  );
 
   const tableData = useMemo(() => {
     return (
@@ -282,6 +314,61 @@ export function ExperimentCompareListPage({
         const baseExperimentRun: BaseExperimentRun = run;
         const compareExperimentRuns: (CompareExperimentRun | undefined)[] =
           repeatedRunGroups.map((group) => group.runs[0]);
+
+        const baseExperimentRunAnnotationsByName: Record<
+          AnnotationName,
+          BaseExperimentRunAnnotation
+        > = {};
+        run.annotations.edges.forEach((edge) => {
+          const annotation = edge.annotation;
+          baseExperimentRunAnnotationsByName[annotation.name] = annotation;
+        });
+
+        const compareExperimentRunAnnotationsByNameAndExperimentId: Record<
+          AnnotationName,
+          Record<ExperimentId, CompareExperimentRunAnnotation>
+        > = {};
+
+        run.example.experimentRepeatedRunGroups.forEach((group) => {
+          group.runs.forEach((run) => {
+            const experimentId = run.experimentId;
+            run.annotations.edges.forEach((edge) => {
+              const annotation = edge.annotation;
+              if (
+                !compareExperimentRunAnnotationsByNameAndExperimentId[
+                  annotation.name
+                ]
+              ) {
+                compareExperimentRunAnnotationsByNameAndExperimentId[
+                  annotation.name
+                ] = {};
+              }
+              compareExperimentRunAnnotationsByNameAndExperimentId[
+                annotation.name
+              ][experimentId] = annotation;
+            });
+          });
+        });
+        const compareExperimentRunAnnotationsByName: Record<
+          AnnotationName,
+          (CompareExperimentRunAnnotation | undefined)[]
+        > = {};
+        annotationSummaries?.forEach((annotationSummary) => {
+          const annotationName = annotationSummary.annotationName;
+          if (!compareExperimentRunAnnotationsByName[annotationName]) {
+            compareExperimentRunAnnotationsByName[annotationName] = [];
+          }
+          compareExperimentIds.forEach((experimentId) => {
+            const annotation =
+              compareExperimentRunAnnotationsByNameAndExperimentId[
+                annotationName
+              ][experimentId];
+            compareExperimentRunAnnotationsByName[annotationName].push(
+              annotation
+            );
+          });
+        });
+
         const tableData = {
           id: example.id,
           example: example.id,
@@ -317,26 +404,13 @@ export function ExperimentCompareListPage({
               (run) => run?.costSummary.total.cost
             ),
           },
-          annotations: {
-            baseExperimentValue: run.annotations.edges.map((edge) => ({
-              name: edge.annotation.name,
-              score: edge.annotation.score,
-              label: edge.annotation.label,
-            })),
-            compareExperimentValues: compareExperimentRuns.map(
-              (run) =>
-                run?.annotations.edges.map((edge) => ({
-                  name: edge.annotation.name,
-                  score: edge.annotation.score,
-                  label: edge.annotation.label,
-                })) ?? []
-            ),
-          },
+          baseExperimentRunAnnotationsByName,
+          compareExperimentRunAnnotationsByName,
         };
         return tableData;
       }) ?? []
     );
-  }, [data, experimentIds]);
+  }, [data, annotationSummaries, compareExperimentIds, experimentIds]);
 
   type TableRow = (typeof tableData)[number];
 
@@ -602,6 +676,7 @@ export function ExperimentCompareListPage({
         accessorKey: "latencyMs",
         minSize: 150,
         enableResizing: false,
+        enableSorting: true,
         cell: ({ getValue }) => {
           const latencyMs = getValue() as TableRow["latencyMs"];
           return (
@@ -776,19 +851,45 @@ export function ExperimentCompareListPage({
             </ul>
           </Flex>
         ),
-        accessorKey: "annotations",
+        accessorFn: (row: TableRow) => {
+          const baseExperimentRunAnnotation =
+            row.baseExperimentRunAnnotationsByName[
+              annotationSummary.annotationName
+            ];
+          const compareExperimentRunAnnotations =
+            row.compareExperimentRunAnnotationsByName[
+              annotationSummary.annotationName
+            ];
+          return {
+            baseExperimentRunAnnotation,
+            compareExperimentRunAnnotations,
+          };
+        },
+        id: annotationSummary.annotationName, // ID for sorting
         minSize: 200,
         enableResizing: false,
-        cell: ({ getValue }: { getValue: Getter<TableRow["annotations"]> }) => {
-          const annotations = getValue();
-          const baseExperimentAnnotationValue = getAnnotationValue(
-            annotations.baseExperimentValue,
-            annotationSummary.annotationName
+        cell: ({
+          getValue,
+        }: {
+          getValue: Getter<{
+            baseExperimentRunAnnotation: BaseExperimentRunAnnotation;
+            compareExperimentRunAnnotations: (
+              | CompareExperimentRunAnnotation
+              | undefined
+            )[];
+          }>;
+        }) => {
+          const {
+            baseExperimentRunAnnotation,
+            compareExperimentRunAnnotations,
+          } = getValue();
+          const baseExperimentRunAnnotationValue = getAnnotationValue(
+            baseExperimentRunAnnotation
           );
-          const baseExperimentAnnotationValueFormatted =
-            typeof baseExperimentAnnotationValue === "number"
-              ? numberFormatter(baseExperimentAnnotationValue)
-              : baseExperimentAnnotationValue;
+          const baseExperimentRunAnnotationValueFormatted =
+            typeof baseExperimentRunAnnotationValue === "number"
+              ? numberFormatter(baseExperimentRunAnnotationValue)
+              : baseExperimentRunAnnotationValue;
 
           return (
             <ul
@@ -805,15 +906,15 @@ export function ExperimentCompareListPage({
               >
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <Text size="S" fontFamily="mono">
-                    {baseExperimentAnnotationValueFormatted}
+                    {baseExperimentRunAnnotationValueFormatted}
                   </Text>
                 </Flex>
-                {typeof baseExperimentAnnotationValue === "number" ? (
+                {typeof baseExperimentRunAnnotationValue === "number" ? (
                   <ProgressBar
                     width="100%"
                     height="var(--ac-global-dimension-size-25)"
                     value={calculateAnnotationScorePercentile(
-                      baseExperimentAnnotationValue,
+                      baseExperimentRunAnnotationValue,
                       annotationSummary.minScore,
                       annotationSummary.maxScore
                     )}
@@ -823,45 +924,47 @@ export function ExperimentCompareListPage({
                   <ProgressBarPlaceholder />
                 )}
               </li>
-              {annotations.compareExperimentValues.map((values, index) => {
-                const compareExperimentAnnotationValue = getAnnotationValue(
-                  values,
-                  annotationSummary.annotationName
-                );
-                const compareExperimentAnnotationValueFormatted =
-                  typeof compareExperimentAnnotationValue === "number"
-                    ? numberFormatter(compareExperimentAnnotationValue)
-                    : compareExperimentAnnotationValue;
-                const color = getExperimentColor(index);
-                return (
-                  <li
-                    key={index}
-                    css={css`
-                      --mod-barloader-fill-color: ${color};
-                    `}
-                  >
-                    <Flex direction="row" gap="size-100" alignItems="center">
-                      <Text size="S" fontFamily="mono">
-                        {compareExperimentAnnotationValueFormatted}
-                      </Text>
-                    </Flex>
-                    {typeof compareExperimentAnnotationValue === "number" ? (
-                      <ProgressBar
-                        width="100%"
-                        height="var(--ac-global-dimension-size-25)"
-                        value={calculateAnnotationScorePercentile(
-                          compareExperimentAnnotationValue,
-                          annotationSummary.minScore,
-                          annotationSummary.maxScore
-                        )}
-                        aria-label={`${annotationSummary.annotationName} score`}
-                      />
-                    ) : (
-                      <ProgressBarPlaceholder />
-                    )}
-                  </li>
-                );
-              })}
+              {compareExperimentRunAnnotations.map(
+                (
+                  annotation: CompareExperimentRunAnnotation | undefined,
+                  index: number
+                ) => {
+                  const compareAnnotationValue = getAnnotationValue(annotation);
+                  const compareAnnotationValueFormatted =
+                    typeof compareAnnotationValue === "number"
+                      ? numberFormatter(compareAnnotationValue)
+                      : compareAnnotationValue;
+                  const color = getExperimentColor(index);
+                  return (
+                    <li
+                      key={index}
+                      css={css`
+                        --mod-barloader-fill-color: ${color};
+                      `}
+                    >
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <Text size="S" fontFamily="mono">
+                          {compareAnnotationValueFormatted}
+                        </Text>
+                      </Flex>
+                      {typeof compareAnnotationValue === "number" ? (
+                        <ProgressBar
+                          width="100%"
+                          height="var(--ac-global-dimension-size-25)"
+                          value={calculateAnnotationScorePercentile(
+                            compareAnnotationValue,
+                            annotationSummary.minScore,
+                            annotationSummary.maxScore
+                          )}
+                          aria-label={`${annotationSummary.annotationName} score`}
+                        />
+                      ) : (
+                        <ProgressBarPlaceholder />
+                      )}
+                    </li>
+                  );
+                }
+              )}
             </ul>
           );
         },
@@ -873,14 +976,54 @@ export function ExperimentCompareListPage({
   const table = useReactTable({
     data: tableData,
     columns,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     columnResizeMode: "onChange",
     state: {
+      sorting,
       columnVisibility: {
         repetitionNumber: baseExperiment.repetitions > 1 ? true : false,
       },
     },
+    manualSorting: true,
   });
+
+  // Refetch data when sorting changes
+  useEffect(() => {
+    // Skip the first render. It's been loaded by the parent
+    if (isFirstRender.current === true) {
+      isFirstRender.current = false;
+      return;
+    }
+    let gqlSort: ExperimentRunSort | undefined = undefined;
+    if (sorting.length > 0) {
+      const sort = sorting[0];
+      const dir: SortDir = sort.desc ? "desc" : "asc";
+      const sortId = sort.id;
+      let metric: ExperimentRunMetric | undefined = undefined;
+      let annotationName: string | undefined = undefined;
+      if (isExperimentRunMetric(sortId)) {
+        metric = sortId;
+      } else {
+        annotationName = sortId;
+      }
+      gqlSort = {
+        col: { metric, annotationName },
+        dir,
+      };
+    }
+    startTransition(() => {
+      refetch(
+        {
+          after: null,
+          first: 50,
+          sort: gqlSort,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
+    });
+  }, [sorting, refetch]);
 
   const rows = table.getRowModel().rows;
   const virtualizer = useVirtualizer({
@@ -957,10 +1100,36 @@ export function ExperimentCompareListPage({
                     >
                       {header.isPlaceholder ? null : (
                         <>
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          <div
+                            {...{
+                              className: header.column.getCanSort()
+                                ? "sort"
+                                : "",
+                              onClick: header.column.getToggleSortingHandler(),
+                              style: {
+                                cursor: header.column.getCanSort()
+                                  ? "pointer"
+                                  : "default",
+                              },
+                            }}
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                            {header.column.getIsSorted() && (
+                              <Icon
+                                className="sort-icon"
+                                svg={
+                                  header.column.getIsSorted() === "asc" ? (
+                                    <Icons.ArrowUpFilled />
+                                  ) : (
+                                    <Icons.ArrowDownFilled />
+                                  )
+                                }
+                              />
+                            )}
+                          </div>
                           {header.column.getCanResize() && (
                             <div
                               {...{
@@ -1101,13 +1270,7 @@ export const MemoizedTableBody = memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
-const getAnnotationValue = (
-  values: { name: string; score: number | null; label: string | null }[],
-  annotationName: string
-) => {
-  const annotation = values.find(
-    (annotation) => annotation.name === annotationName
-  );
+const getAnnotationValue = (annotation: Annotation | undefined) => {
   return annotation?.score ?? annotation?.label ?? "--";
 };
 
@@ -1176,4 +1339,11 @@ const progressBarPlaceholderCSS = css`
 
 function ProgressBarPlaceholder() {
   return <div css={progressBarPlaceholderCSS} />;
+}
+
+/**
+ * Type guard for ExperimentRunMetric
+ */
+function isExperimentRunMetric(sortId: string): sortId is ExperimentRunMetric {
+  return sortId === "latencyMs";
 }

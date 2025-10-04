@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f6ef973fa935a0f6758771a50fb8f862>>
+ * @generated SignedSource<<6e77ac9ef32f395df0d80683da2941cf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -54,6 +54,7 @@ export type ExperimentCompareListPage_comparisons$data = {
                   };
                 };
                 readonly endTime: string;
+                readonly experimentId: string;
                 readonly id: string;
                 readonly output: any | null;
                 readonly startTime: string;
@@ -205,6 +206,13 @@ v6 = {
     }
   ],
   "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "experimentId",
+  "storageKey": null
 };
 return {
   "argumentDefinitions": [
@@ -227,6 +235,11 @@ return {
       "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "sort"
     }
   ],
   "kind": "Fragment",
@@ -274,7 +287,13 @@ return {
             (v1/*: any*/),
             {
               "alias": "runs",
-              "args": null,
+              "args": [
+                {
+                  "kind": "Variable",
+                  "name": "sort",
+                  "variableName": "sort"
+                }
+              ],
               "concreteType": "ExperimentRunConnection",
               "kind": "LinkedField",
               "name": "__ExperimentCompareListPage_runs_connection",
@@ -357,13 +376,7 @@ return {
                               "name": "experimentRepeatedRunGroups",
                               "plural": true,
                               "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "experimentId",
-                                  "storageKey": null
-                                },
+                                (v7/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -373,6 +386,7 @@ return {
                                   "plural": true,
                                   "selections": [
                                     (v1/*: any*/),
+                                    (v7/*: any*/),
                                     (v2/*: any*/),
                                     (v3/*: any*/),
                                     (v4/*: any*/),
@@ -459,6 +473,6 @@ return {
 };
 })();
 
-(node as any).hash = "c2010c992e145834d41d622abbb57522";
+(node as any).hash = "752a84c3ec902e956f9110ae08eb088b";
 
 export default node;
