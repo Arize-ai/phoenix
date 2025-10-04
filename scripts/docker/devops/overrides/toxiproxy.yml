@@ -1,0 +1,14 @@
+services:
+  phoenix:
+    depends_on:
+      toxiproxy-init:
+        condition: service_completed_successfully
+      oidc-dev:
+        condition: service_started
+      smtp-dev:
+        condition: service_started
+    environment:
+      - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@toxiproxy:5433/postgres
+    labels:
+      - "network.simulation=true"
+

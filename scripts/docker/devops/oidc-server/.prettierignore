@@ -1,0 +1,7 @@
+node_modules
+dist
+frontend/node_modules
+frontend/dist
+dist-frontend
+runtime
+pnpm-lock.yaml

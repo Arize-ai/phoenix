@@ -1,0 +1,37 @@
+# OIDC runtime files managed by Docker named volume (no disk files)
+
+# Control Tower build outputs
+control-tower/frontend/dist/
+control-tower/frontend/node_modules/
+control-tower/backend/dist/
+control-tower/backend/node_modules/
+
+# OIDC server runtime files (mounted development)
+oidc-server/node_modules/
+oidc-server/dist/
+oidc-server/dist-frontend/
+oidc-server/frontend/node_modules/
+oidc-server/frontend/dist/
+oidc-server/runtime/
+
+# Exclude any generated Docker volumes/data
+volumes/
+.volumes/
+
+# Exclude any runtime logs or temporary files
+*.log
+logs/
+dumps/
+profiles/
+
+# Exclude any Docker secrets or certificates that might be generated
+secrets/
+certs/
+*.key
+*.pem
+*.crt
+
+# Exclude any local environment overrides
+docker-compose.override.yml
+.env.local
+.env.*.local
