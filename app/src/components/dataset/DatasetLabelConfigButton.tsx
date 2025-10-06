@@ -41,26 +41,46 @@ import { DatasetLabelConfigButtonUnsetLabelsMutation } from "./__generated__/Dat
 
 type DatasetLabelConfigButtonProps = {
   datasetId: string;
+  /**
+   * Controlled state for the dialog.
+   * If provided, the dialog will be controlled by the parent component.
+   */
+  isOpen?: boolean;
+  /**
+   * Callback when the dialog open state changes.
+   * If provided, the dialog will be controlled by the parent component.
+   */
+  onOpenChange?: (isOpen: boolean) => void;
 };
 
 export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
-  const { datasetId } = props;
+  const { datasetId, isOpen: controlledIsOpen, onOpenChange } = props;
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+
+  // Use controlled state if provided, otherwise use internal state
+  const isControlled =
+    controlledIsOpen !== undefined && onOpenChange !== undefined;
+  const isOpen = isControlled ? controlledIsOpen : internalIsOpen;
+  const setIsOpen = isControlled ? onOpenChange : setInternalIsOpen;
+
   return (
     <>
       <DialogTrigger
         isOpen={isOpen && !showNewLabelDialog}
         onOpenChange={(newIsOpen) => setIsOpen(newIsOpen)}
       >
-        <Button
-          variant="quiet"
-          size="S"
-          leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
-          aria-label="Configure dataset labels"
-        >
-          Labels
-        </Button>
+        {/* Only render the button trigger when used standalone (uncontrolled) */}
+        {!isControlled && (
+          <Button
+            variant="quiet"
+            size="S"
+            leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+            aria-label="Configure dataset labels"
+          >
+            Labels
+          </Button>
+        )}
         <ModalOverlay>
           <Modal size="S">
             <Dialog>

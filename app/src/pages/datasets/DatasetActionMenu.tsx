@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { ActionMenu, Item } from "@arizeai/components";
 
@@ -37,7 +37,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
   } = props;
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const labelsButtonRef = useRef<HTMLDivElement>(null);
+  const [isLabelsOpen, setIsLabelsOpen] = useState(false);
 
   return (
     <div
@@ -59,12 +59,9 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
             case DatasetAction.EDIT:
               setIsEditOpen(true);
               break;
-            case DatasetAction.LABELS: {
-              // Find and click the labels button
-              const button = labelsButtonRef.current?.querySelector("button");
-              button?.click();
+            case DatasetAction.LABELS:
+              setIsLabelsOpen(true);
               break;
-            }
           }
         }}
       >
@@ -125,10 +122,12 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         onOpenChange={setIsEditOpen}
       />
 
-      {/* Hidden Labels Button - triggered programmatically */}
-      <div ref={labelsButtonRef} style={{ display: "none" }}>
-        <DatasetLabelConfigButton datasetId={datasetId} />
-      </div>
+      {/* Labels Configuration Dialog */}
+      <DatasetLabelConfigButton
+        datasetId={datasetId}
+        isOpen={isLabelsOpen}
+        onOpenChange={setIsLabelsOpen}
+      />
     </div>
   );
 }
