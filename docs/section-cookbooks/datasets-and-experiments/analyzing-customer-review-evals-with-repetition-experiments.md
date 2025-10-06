@@ -4,7 +4,7 @@ Large Language Models (LLMs) are probabilistic; the same prompt can yield differ
 
 **Repetitions** help address this by running the same input multiple times, reducing uncertainty and revealing stable patterns. In evals, repetitions ensure metrics are more reliable, comparisons between experiments are meaningful, and improvements can be validated with confidence.
 
-{% embed url="https://youtu.be/ucq9hV8cR2U" %}
+{% embed url="https://www.youtube.com/watch?v=ucq9hV8cR2U" %}
 
 This guide walks through how to:
 
@@ -17,7 +17,7 @@ Along the way, we’ll show both **code snippets** and **Phoenix UI screenshots*
 
 ## Notebook Walkthrough <a href="#notebook-walkthrough" id="notebook-walkthrough"></a>
 
-\[link]
+{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/experiments/running_experiments_with_repetitions.ipynb" %}
 
 ### Create Synthetic Customer Review Data&#x20;
 
