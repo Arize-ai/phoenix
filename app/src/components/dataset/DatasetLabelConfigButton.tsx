@@ -91,7 +91,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
                     <DialogCloseButton />
                   </DialogTitleExtra>
                 </DialogHeader>
-                <DialogContent>
+                <View>
                   <Suspense fallback={<Loading />}>
                     <DatasetLabelSelectionDialogContent
                       datasetId={datasetId}
@@ -101,7 +101,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
                       onClose={() => setIsOpen(false)}
                     />
                   </Suspense>
-                </DialogContent>
+                </View>
               </DialogContent>
             </Dialog>
           </Modal>
@@ -118,7 +118,10 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
         >
           <Modal size="S">
             <NewDatasetLabelDialog
-              onCompleted={() => setShowNewLabelDialog(false)}
+              onCompleted={() => {
+                setShowNewLabelDialog(false);
+                setIsOpen(false);
+              }}
             />
           </Modal>
         </ModalOverlay>
