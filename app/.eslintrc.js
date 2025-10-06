@@ -273,6 +273,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { MenuItem } from '@phoenix/components'",
       },
+      {
+        name: "Dropdown",
+        module: "@arizeai/components",
+        use: "import { Select } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },
