@@ -278,6 +278,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { Select } from '@phoenix/components'",
       },
+      {
+        name: "ContextualHelp",
+        module: "@arizeai/components",
+        use: "import { ContextualHelp } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },
