@@ -577,9 +577,11 @@ export function ExperimentItem({
       : getExperimentColor(experimentIndex - 1);
 
   const hasExperimentResult = experimentRun !== undefined;
-  const experimentRunOutputStr = experimentRun
-    ? JSON.stringify(experimentRun.output, null, 2)
-    : undefined;
+  const experimentRunOutputStr = useMemo(
+    () =>
+      experimentRun ? JSON.stringify(experimentRun.output, null, 2) : undefined,
+    [experimentRun]
+  );
   return (
     <div css={experimentItemCSS}>
       <Flex direction="column">
@@ -609,7 +611,7 @@ export function ExperimentItem({
                 </Heading>
               </>
             )}
-            {experimentRunOutputStr && (
+            {experimentRunOutputStr && !experimentRun?.error && (
               <div
                 css={css`
                   margin-left: auto;
@@ -648,9 +650,7 @@ export function ExperimentItem({
               {experimentRun.error ? (
                 <View padding="size-200">{experimentRun.error}</View>
               ) : (
-                <JSONBlock
-                  value={JSON.stringify(experimentRun.output, null, 2)}
-                />
+                <JSONBlock value={experimentRunOutputStr} />
               )}
             </View>
           </>
