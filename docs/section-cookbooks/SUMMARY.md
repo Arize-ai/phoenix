@@ -50,6 +50,7 @@
 * [Model Comparison for an Email Text Extraction Service](datasets-and-experiments/model-comparison-for-an-email-text-extraction-service.md)
 * [Comparing LlamaIndex Query Engines with a Pairwise Evaluator](datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator.md)
 * [Prompt Template Iteration for a Summarization Service](datasets-and-experiments/summarization.md)
+* [Analyzing Customer Review Evals with Repetition Experiments](datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments.md)
 * [Text2SQL Experiments](datasets-and-experiments/text2sql.md)
 * [More Cookbooks](datasets-and-experiments/cookbooks.md)
 
