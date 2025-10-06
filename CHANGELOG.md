@@ -1,5 +1,22 @@
 # Changelog
 
+## [12.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.2.0...arize-phoenix-v12.3.0) (2025-10-06)
+
+
+### Features
+
+* dataset label tab in setting page ([#9768](https://github.com/Arize-ai/phoenix/issues/9768)) ([78a68d7](https://github.com/Arize-ai/phoenix/commit/78a68d7284d347faf5eb614610fa2b50804ba280))
+* datasets table label column ([#9788](https://github.com/Arize-ai/phoenix/issues/9788)) ([af9f163](https://github.com/Arize-ai/phoenix/commit/af9f163e8c0c6b61aed7b57fad3b9201be77ea55))
+* **experiments:** experiment compare slideover UI updates ([#9784](https://github.com/Arize-ai/phoenix/issues/9784)) ([8280b37](https://github.com/Arize-ai/phoenix/commit/8280b3796b4f055eb750a3c099e2c543b105e73e))
+* **experiments:** paginate experiment comparison slideover on list page ([#9621](https://github.com/Arize-ai/phoenix/issues/9621)) ([981e4bd](https://github.com/Arize-ai/phoenix/commit/981e4bd63401d25010ea1821c5492c37311dcf08))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#9798](https://github.com/Arize-ai/phoenix/issues/9798)) ([09a81fa](https://github.com/Arize-ai/phoenix/commit/09a81faa088d0f868a929a274cdb1f148cccdd4e))
+* don't display untrusted query parameters ([#9792](https://github.com/Arize-ai/phoenix/issues/9792)) ([c875856](https://github.com/Arize-ai/phoenix/commit/c875856c032c0231b68dbd9fb93bdb211a7dbc61))
+* improve error handling for OIDC ([#9763](https://github.com/Arize-ai/phoenix/issues/9763)) ([440fe5e](https://github.com/Arize-ai/phoenix/commit/440fe5ebc94d86eee7df2d4dd915138182bb2b3a))
+
 ## [12.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.1.0...arize-phoenix-v12.2.0) (2025-10-03)
 
 
