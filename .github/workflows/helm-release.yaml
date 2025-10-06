@@ -33,6 +33,10 @@ jobs:
       uses: azure/setup-helm@v3
       with:
         version: 'latest'
+    - name: Add Helm repositories
+      run: |
+        helm repo add groundhog2k https://groundhog2k.github.io/helm-charts/
+        helm repo update
     - name: Package Helm chart
       run: |
         helm dependency build helm/
