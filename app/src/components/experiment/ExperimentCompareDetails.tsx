@@ -577,6 +577,9 @@ export function ExperimentItem({
       : getExperimentColor(experimentIndex - 1);
 
   const hasExperimentResult = experimentRun !== undefined;
+  const experimentRunOutputStr = experimentRun
+    ? JSON.stringify(experimentRun.output, null, 2)
+    : undefined;
   return (
     <div css={experimentItemCSS}>
       <Flex direction="column">
@@ -605,6 +608,16 @@ export function ExperimentItem({
                   repetition&nbsp;{experimentRun.repetitionNumber}
                 </Heading>
               </>
+            )}
+            {experimentRunOutputStr && (
+              <div
+                css={css`
+                  margin-left: auto;
+                  padding-left: var(--ac-global-dimension-size-100);
+                `}
+              >
+                <CopyToClipboardButton text={experimentRunOutputStr} />
+              </div>
             )}
           </Flex>
         </View>
@@ -635,7 +648,9 @@ export function ExperimentItem({
               {experimentRun.error ? (
                 <View padding="size-200">{experimentRun.error}</View>
               ) : (
-                <JSONBlockWithCopy value={experimentRun.output} />
+                <JSONBlock
+                  value={JSON.stringify(experimentRun.output, null, 2)}
+                />
               )}
             </View>
           </>
@@ -662,31 +677,6 @@ function FullSizeJSONBlock({ value }: { value: string }) {
       `}
     >
       <JSONBlock value={value} />
-    </div>
-  );
-}
-
-function JSONBlockWithCopy({ value }: { value: unknown }) {
-  const strValue = JSON.stringify(value, null, 2);
-  return (
-    <div
-      css={css`
-        position: relative;
-        height: 100%;
-        & button {
-          position: absolute;
-          top: var(--ac-global-dimension-size-100);
-          right: var(--ac-global-dimension-size-100);
-          z-index: 10000;
-          display: none;
-        }
-        &:hover button {
-          display: block;
-        }
-      `}
-    >
-      <CopyToClipboardButton text={strValue} />
-      <JSONBlock value={strValue} />
     </div>
   );
 }
