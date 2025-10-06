@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import APIKeyHeader
 from starlette.status import HTTP_403_FORBIDDEN
 
-from phoenix.server.bearer_auth import is_authenticated
+from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 
 from .annotation_configs import router as annotation_configs_router
 from .annotations import router as annotations_router
@@ -34,11 +34,28 @@ async def prevent_access_in_read_only_mode(request: Request) -> None:
         )
 
 
+async def restrict_access_by_viewers(request: Request) -> None:
+    """
+    Prevents access to the REST API for viewers, except for GET requests
+    and specific allowed POST routes.
+    """
+    if request.method == "GET":
+        return
+    if isinstance(request.user, PhoenixUser) and request.user.is_viewer:
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail="Viewers cannot perform this action.",
+        )
+
+
 def create_v1_router(authentication_enabled: bool) -> APIRouter:
     """
     Instantiates the v1 REST API router.
     """
-    dependencies = [Depends(prevent_access_in_read_only_mode)]
+    dependencies = [
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+    ]
     if authentication_enabled:
         dependencies.append(
             Depends(

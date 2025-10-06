@@ -12,18 +12,32 @@ Usage:
 import argparse
 import ast
 import sys
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Literal, Set, Tuple, Union
+from typing import Dict, List, Literal, NamedTuple, Set, Tuple, Union
 
 # Define issue type
-IssueType = Literal["no_permission_classes", "missing_is_not_read_only"]
+IssueType = Literal["no_permission_classes", "missing_is_not_read_only", "missing_is_not_viewer"]
 
 # Define issue descriptions
 ISSUE_DESCRIPTIONS: Dict[IssueType, str] = {
     "no_permission_classes": "Missing permission_classes keyword",
     "missing_is_not_read_only": "permission_classes exists but missing IsNotReadOnly",
+    "missing_is_not_viewer": "permission_classes exists but missing IsNotViewer",
 }
+
+# Mutations that are allowed to skip IsNotViewer check
+# patch_viewer allows viewers to update their own profile
+SKIP_IS_NOT_VIEWER_CHECK = frozenset({"patch_viewer"})
+
+
+class PermissionCheck(NamedTuple):
+    """Result of checking permissions on a mutation decorator."""
+
+    has_permission_classes: bool
+    has_is_not_read_only: bool
+    has_is_not_viewer: bool
 
 
 @dataclass
@@ -106,41 +120,35 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
             node: The function definition node to check.
         """
         for decorator in node.decorator_list:
-            if self._is_strawberry_mutation(decorator):
-                self.mutations_found += 1  # Increment counter for each mutation found
+            if not self._is_strawberry_mutation(decorator):
+                continue
 
-                has_permission_classes, has_is_not_read_only = self._check_permissions(decorator)
+            self.mutations_found += 1
+            permissions = self._check_permissions(decorator)
 
-                if not has_permission_classes:
-                    # Issue: No permission_classes keyword found
-                    self.issues.append(
-                        Issue(
-                            file_path=self.current_file,
-                            line_number=node.lineno,
-                            function_name=node.name,
-                            issue_type="no_permission_classes",
-                        )
+            issue_type = None
+            if not permissions.has_permission_classes:
+                issue_type = "no_permission_classes"
+            elif not permissions.has_is_not_read_only:
+                issue_type = "missing_is_not_read_only"
+            elif not permissions.has_is_not_viewer and node.name not in SKIP_IS_NOT_VIEWER_CHECK:
+                issue_type = "missing_is_not_viewer"
+
+            if issue_type:
+                self.issues.append(
+                    Issue(
+                        file_path=self.current_file,
+                        line_number=node.lineno,
+                        function_name=node.name,
+                        issue_type=issue_type,
                     )
-                elif not has_is_not_read_only:
-                    # Issue: permission_classes exists but missing IsNotReadOnly
-                    self.issues.append(
-                        Issue(
-                            file_path=self.current_file,
-                            line_number=node.lineno,
-                            function_name=node.name,
-                            issue_type="missing_is_not_read_only",
-                        )
-                    )
+                )
 
     def _is_strawberry_mutation(self, decorator: ast.expr) -> bool:
         """
         Determine if the decorator represents a strawberry.mutation.
 
-        Supports different styles:
-            - strawberry.mutation()
-            - mutation() (when imported directly)
-            - strawberry.mutation
-            - mutation
+        Supports: strawberry.mutation(), mutation(), strawberry.mutation, mutation
 
         Args:
             decorator: The decorator AST node to check.
@@ -148,72 +156,59 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
         Returns:
             True if the decorator is recognized as strawberry.mutation; otherwise False.
         """
-        # Case 1: strawberry.mutation() call
-        if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute):
-            if (
-                isinstance(decorator.func.value, ast.Name)
-                and decorator.func.value.id == "strawberry"
-                and decorator.func.attr == "mutation"
-            ):
-                return True
+        # Extract the actual function/attribute from calls: @mutation() -> mutation
+        func = decorator.func if isinstance(decorator, ast.Call) else decorator
 
-        # Case 2: mutation() call (imported directly)
-        if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name):
-            if decorator.func.id == "mutation" and "mutation" in self.imported_names:
-                return True
+        # Check for strawberry.mutation (attribute access)
+        if isinstance(func, ast.Attribute):
+            return (
+                isinstance(func.value, ast.Name)
+                and func.value.id == "strawberry"
+                and func.attr == "mutation"
+            )
 
-        # Case 3: strawberry.mutation attribute
-        if isinstance(decorator, ast.Attribute):
-            if (
-                isinstance(decorator.value, ast.Name)
-                and decorator.value.id == "strawberry"
-                and decorator.attr == "mutation"
-            ):
-                return True
-
-        # Case 4: mutation attribute (imported directly)
-        if isinstance(decorator, ast.Name):
-            if decorator.id == "mutation" and "mutation" in self.imported_names:
-                return True
+        # Check for mutation (direct import)
+        if isinstance(func, ast.Name):
+            return func.id == "mutation" and "mutation" in self.imported_names
 
         return False
 
-    def _check_permissions(self, decorator: ast.expr) -> Tuple[bool, bool]:
+    def _check_permissions(self, decorator: ast.expr) -> PermissionCheck:
         """
-        Check if the decorator includes permission_classes and if it includes IsNotReadOnly.
+        Check if the decorator includes permission_classes and required permissions.
 
         Args:
             decorator: The decorator AST node to check.
 
         Returns:
-            A tuple with two booleans:
-            - First boolean indicates if permission_classes is present
-            - Second boolean indicates if IsNotReadOnly is found in permission_classes
+            PermissionCheck with flags for each required permission.
         """
-        # If not a call, we can't have permission_classes
         if not isinstance(decorator, ast.Call):
-            return False, False
+            return PermissionCheck(False, False, False)
 
-        has_permission_classes = False
-        has_is_not_read_only = False
+        # Find the permission_classes keyword argument
+        permission_classes = next(
+            (kw.value for kw in decorator.keywords if kw.arg == "permission_classes"),
+            None,
+        )
 
-        for keyword in decorator.keywords:
-            if keyword.arg == "permission_classes":
-                has_permission_classes = True
+        if permission_classes is None:
+            return PermissionCheck(False, False, False)
 
-                # Check for IsNotReadOnly in the list
-                if isinstance(keyword.value, ast.List):
-                    for elt in keyword.value.elts:
-                        if isinstance(elt, ast.Name) and elt.id == "IsNotReadOnly":
-                            has_is_not_read_only = True
-                            break
-                # Also support imported permissions from a module
-                elif isinstance(keyword.value, ast.Attribute):
-                    # Check for cases like permissions.IsNotReadOnly
-                    if keyword.value.attr == "IsNotReadOnly":
-                        has_is_not_read_only = True
+        # Extract permission names from the list
+        permission_names = set()
+        if isinstance(permission_classes, ast.List):
+            for elt in permission_classes.elts:
+                if isinstance(elt, ast.Name):
+                    permission_names.add(elt.id)
+                elif isinstance(elt, ast.Attribute):
+                    permission_names.add(elt.attr)
 
-        return has_permission_classes, has_is_not_read_only
+        return PermissionCheck(
+            has_permission_classes=True,
+            has_is_not_read_only="IsNotReadOnly" in permission_names,
+            has_is_not_viewer="IsNotViewer" in permission_names,
+        )
 
 
 def check_files(directory: Path) -> Tuple[List[Issue], int]:
@@ -269,11 +264,7 @@ def format_issues(issues: List[Issue], total_mutations: int) -> None:
         return
 
     # Group issues by issue type
-    by_issue_type: Dict[IssueType, List[Issue]] = {
-        "no_permission_classes": [],
-        "missing_is_not_read_only": [],
-    }
-
+    by_issue_type = defaultdict(list)
     for issue in issues:
         by_issue_type[issue.issue_type].append(issue)
 
@@ -281,10 +272,9 @@ def format_issues(issues: List[Issue], total_mutations: int) -> None:
 
     # Print each issue type separately
     for issue_type, type_issues in by_issue_type.items():
-        if type_issues:
-            print(f"\n{ISSUE_DESCRIPTIONS[issue_type]} ({len(type_issues)} occurrences):")
-            for issue in type_issues:
-                print(f"  - {issue}")
+        print(f"\n{ISSUE_DESCRIPTIONS[issue_type]} ({len(type_issues)} occurrences):")
+        for issue in type_issues:
+            print(f"  - {issue}")
 
 
 def main() -> int:

@@ -9,7 +9,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.models import UserRoleName
-from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.queries import Query
@@ -61,7 +61,7 @@ class DeleteApiKeyMutationPayload:
 
 @strawberry.type
 class ApiKeyMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin, IsLocked])  # type: ignore
     async def create_system_api_key(
         self, info: Info[Context, None], input: CreateApiKeyInput
     ) -> CreateSystemApiKeyMutationPayload:
@@ -102,7 +102,7 @@ class ApiKeyMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_user_api_key(
         self, info: Info[Context, None], input: CreateUserApiKeyInput
     ) -> CreateUserApiKeyMutationPayload:
@@ -137,7 +137,7 @@ class ApiKeyMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin])  # type: ignore
     async def delete_system_api_key(
         self, info: Info[Context, None], input: DeleteApiKeyInput
     ) -> DeleteApiKeyMutationPayload:
@@ -148,7 +148,7 @@ class ApiKeyMutationMixin:
         await token_store.revoke(ApiKeyId(api_key_id))
         return DeleteApiKeyMutationPayload(apiKeyId=input.id, query=Query())
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_user_api_key(
         self, info: Info[Context, None], input: DeleteApiKeyInput
     ) -> DeleteApiKeyMutationPayload:

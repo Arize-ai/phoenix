@@ -89,6 +89,7 @@ _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 
 _ADMIN = UserRoleInput.ADMIN
 _MEMBER = UserRoleInput.MEMBER
+_VIEWER = UserRoleInput.VIEWER
 
 _ProjectName: TypeAlias = str
 _SpanName: TypeAlias = str
@@ -345,13 +346,21 @@ class _LoggedInTokens(_CanLogOut[None]):
 class _LoggedInUser(_User, _CanLogOut[_User]):
     tokens: _LoggedInTokens
 
+    @property
+    def user(self) -> _User:
+        return _User(self.gid, self.role, self.profile)
+
     @override
     def log_out(self, app: _AppInfo) -> _User:
         self.tokens.access_token.log_out(app)
-        return _User(self.gid, self.role, self.profile)
+        return self.user
 
     def refresh(self, app: _AppInfo) -> _LoggedInUser:
         return replace(self, tokens=self.tokens.refresh(app))
+
+    def visit(self, app: _AppInfo, expected_status_code: int = 200) -> None:
+        response = _httpx_client(app, self).get("/graphql")
+        assert response.status_code == expected_status_code
 
 
 _RoleOrUser = Union[UserRoleInput, _User]
@@ -1145,7 +1154,12 @@ def _json(
     assert (resp_dict := cast(dict[str, Any], resp.json()))
     if errers := resp_dict.get("errors"):
         msg = errers[0]["message"]
-        if "not auth" in msg or IsAdmin.message in msg:
+        # Raise Unauthorized for permission-related errors
+        if (
+            "not auth" in msg
+            or IsAdmin.message in msg
+            or "Viewers cannot perform this action" in msg
+        ):
             raise Unauthorized(msg)
         raise RuntimeError(msg)
     return resp_dict

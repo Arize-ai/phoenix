@@ -170,7 +170,7 @@ async def refresh_tokens(request: Request) -> Response:
         or (expiration_time := refresh_token_claims.expiration_time) is None
     ):
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-    if expiration_time.timestamp() < datetime.now().timestamp():
+    if expiration_time.timestamp() <= datetime.now(timezone.utc).timestamp():
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired refresh token")
     await token_store.revoke(refresh_token_id)
 
@@ -262,7 +262,7 @@ async def reset_password(request: Request) -> Response:
         not (token := data.get("token"))
         or not isinstance((claims := await token_store.read(token)), PasswordResetTokenClaims)
         or not claims.expiration_time
-        or claims.expiration_time < datetime.now(timezone.utc)
+        or claims.expiration_time <= datetime.now(timezone.utc)
     ):
         raise INVALID_TOKEN
     assert (user_id := claims.subject)
