@@ -334,6 +334,9 @@ importers:
       vite:
         specifier: ^6.3.6
         version: 6.3.6(@types/node@22.17.0)(yaml@2.8.0)
+      vite-plugin-react-fallback-throttle:
+        specifier: ^0.1.1
+        version: 0.1.1(react-dom@19.2.0(react@19.2.0))(vite@6.3.6(@types/node@22.17.0)(yaml@2.8.0))
       vite-plugin-relay:
         specifier: ^2.1.0
         version: 2.1.0(babel-plugin-relay@20.1.1)(vite@6.3.6(@types/node@22.17.0)(yaml@2.8.0))
@@ -5274,6 +5277,12 @@ packages:
     resolution: {integrity: sha512-EbKSKh+bh1E1IFxeO0pg1n4dvoOTt0UDiXMd/qn++r98+jPO1xtJilvXldeuQ8giIB5IkpjCgMleHMNEsGH6pg==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
+
+  vite-plugin-react-fallback-throttle@0.1.1:
+    resolution: {integrity: sha512-3PegJQi4YIMJpY+LoZy1HRsKhqeRfxm3xexeEEZsIXKl6iFxykw1bNQyJYhnnr9POlrILHztScmQguuiehcLkw==}
+    peerDependencies:
+      react-dom: ^19.0.0
+      vite: '>=5.4.12'
 
   vite-plugin-relay@2.1.0:
     resolution: {integrity: sha512-k7tQFeJQlJy0S6OrQxuk5WrauHouGfRgFFCos0PatYiUY2gnwPZPi30KPuUtvdrzTPPTgZVHj51xJAp/3oMRiQ==}
@@ -12038,6 +12047,11 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  vite-plugin-react-fallback-throttle@0.1.1(react-dom@19.2.0(react@19.2.0))(vite@6.3.6(@types/node@22.17.0)(yaml@2.8.0)):
+    dependencies:
+      react-dom: 19.2.0(react@19.2.0)
+      vite: 6.3.6(@types/node@22.17.0)(yaml@2.8.0)
 
   vite-plugin-relay@2.1.0(babel-plugin-relay@20.1.1)(vite@6.3.6(@types/node@22.17.0)(yaml@2.8.0)):
     dependencies:

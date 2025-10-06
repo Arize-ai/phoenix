@@ -190,30 +190,28 @@ export function ExperimentComparePage() {
           gap="size-150"
           alignItems="end"
         >
-          <Suspense>
-            <ExperimentMultiSelector
-              queryRef={multiSelectorQueryReference}
-              selectedBaseExperimentId={baseExperimentId}
-              selectedCompareExperimentIds={compareExperimentIds}
-              onChange={(newBaseExperimentId, newCompareExperimentIds) => {
-                startTransition(() => {
-                  if (newBaseExperimentId == null) {
-                    navigate(`/datasets/${datasetId}/compare`);
-                  } else {
-                    searchParams.delete("experimentId");
-                    [newBaseExperimentId, ...newCompareExperimentIds].forEach(
-                      (experimentId) => {
-                        searchParams.append("experimentId", experimentId);
-                      }
-                    );
-                    navigate(
-                      `/datasets/${datasetId}/compare?${searchParams.toString()}`
-                    );
-                  }
-                });
-              }}
-            />
-          </Suspense>
+          <ExperimentMultiSelector
+            queryRef={multiSelectorQueryReference}
+            selectedBaseExperimentId={baseExperimentId}
+            selectedCompareExperimentIds={compareExperimentIds}
+            onChange={(newBaseExperimentId, newCompareExperimentIds) => {
+              startTransition(() => {
+                if (newBaseExperimentId == null) {
+                  navigate(`/datasets/${datasetId}/compare`);
+                } else {
+                  searchParams.delete("experimentId");
+                  [newBaseExperimentId, ...newCompareExperimentIds].forEach(
+                    (experimentId) => {
+                      searchParams.append("experimentId", experimentId);
+                    }
+                  );
+                  navigate(
+                    `/datasets/${datasetId}/compare?${searchParams.toString()}`
+                  );
+                }
+              });
+            }}
+          />
           <View flex="1" paddingBottom={5}>
             <Suspense>
               {selectedCompareExperimentsQueryReference && (
@@ -259,19 +257,25 @@ function ExperimentComparePageContent({
   const viewMode = searchParams.get("view") ?? "grid";
   if (viewMode === "grid") {
     return compareGridQueryReference ? (
-      <ExperimentCompareGridPage queryRef={compareGridQueryReference} />
+      <Suspense fallback={<Loading />}>
+        <ExperimentCompareGridPage queryRef={compareGridQueryReference} />
+      </Suspense>
     ) : (
       <Loading />
     );
   } else if (viewMode === "metrics") {
     return compareMetricsQueryReference ? (
-      <ExperimentCompareMetricsPage queryRef={compareMetricsQueryReference} />
+      <Suspense fallback={<Loading />}>
+        <ExperimentCompareMetricsPage queryRef={compareMetricsQueryReference} />
+      </Suspense>
     ) : (
       <Loading />
     );
   } else if (viewMode === "list") {
     return compareListQueryReference ? (
-      <ExperimentCompareListPage queryRef={compareListQueryReference} />
+      <Suspense fallback={<Loading />}>
+        <ExperimentCompareListPage queryRef={compareListQueryReference} />
+      </Suspense>
     ) : (
       <Loading />
     );
