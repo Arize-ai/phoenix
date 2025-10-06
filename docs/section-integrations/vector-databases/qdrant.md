@@ -6,7 +6,7 @@ description: >-
 
 # Qdrant
 
-<figure><img src="https://qdrant.tech/img/qdrant-logo.svg" alt=""Qdrant Logo><figcaption></figcaption></figure>
+<figure><img src="https://qdrant.tech/img/qdrant-logo.svg" alt="Qdrant Logo"><figcaption></figcaption></figure>
 
 **Website:** [qdrant.tech](https://qdrant.tech/)
 
