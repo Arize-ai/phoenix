@@ -2,14 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import {
-  Dropdown,
-  DropdownProps,
-  Field,
-  FieldProps,
-  Item,
-  ListBox,
-} from "@arizeai/components";
+import { Field, FieldProps } from "@arizeai/components";
 
 import {
   Button,
@@ -18,6 +11,12 @@ import {
   Form,
   Input,
   Label,
+  ListBox,
+  ListBoxItem,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectValue,
   Text,
   TextArea,
   TextField,
@@ -297,16 +296,15 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
 }
 
 function ColumnMultiSelector(
-  props: Omit<DropdownProps, "menu" | "children"> &
-    Pick<
-      FieldProps,
-      "label" | "validationState" | "description" | "errorMessage"
-    > & {
-      label: string;
-      columns: string[];
-      selectedColumns: string[];
-      onChange: (selectedColumns: string[]) => void;
-    }
+  props: Pick<
+    FieldProps,
+    "label" | "validationState" | "description" | "errorMessage"
+  > & {
+    label: string;
+    columns: string[];
+    selectedColumns: string[];
+    onChange: (selectedColumns: string[]) => void;
+  }
 ) {
   const {
     columns,
@@ -316,17 +314,12 @@ function ColumnMultiSelector(
     validationState,
     description,
     errorMessage,
-    ...restProps
   } = props;
   const noColumns = columns.length === 0;
-  const displayText = useMemo(() => {
-    if (noColumns) {
-      return "No columns to select";
-    }
-    return selectedColumns.length > 0
-      ? `${selectedColumns.join(", ")}`
-      : "No columns selected";
-  }, [selectedColumns, noColumns]);
+  const items = useMemo(() => {
+    return columns.map((column) => ({ id: column, value: column }));
+  }, [columns]);
+
   return (
     <Field
       label={label}
@@ -335,29 +328,31 @@ function ColumnMultiSelector(
       description={description}
       errorMessage={errorMessage}
     >
-      <Dropdown
+      <Select
         isDisabled={noColumns}
-        {...restProps}
-        menu={
-          <ListBox
-            selectionMode="multiple"
-            onSelectionChange={(keys) => {
-              onChange(Array.from(keys) as string[]);
-            }}
-            selectedKeys={new Set(selectedColumns)}
-            style={{ maxHeight: "40vh", overflowY: "auto" }}
-          >
-            {columns.map((column) => (
-              <Item key={column}>{column}</Item>
-            ))}
-          </ListBox>
-        }
-        triggerProps={{
-          placement: "bottom end",
+        placeholder="Select columns"
+        selectionMode="multiple"
+        onChange={(keys) => {
+          if (keys === "all") {
+            return onChange(columns);
+          }
+          return onChange(Array.from(keys as string[]));
         }}
+        value={selectedColumns}
       >
-        {displayText}
-      </Dropdown>
+        <Button>
+          <SelectValue />
+          <SelectChevronUpDownIcon />
+        </Button>
+        <Popover>
+          <ListBox
+            renderEmptyState={() => "No columns to select"}
+            items={items}
+          >
+            {(item) => <ListBoxItem id={item.id}>{item.value}</ListBoxItem>}
+          </ListBox>
+        </Popover>
+      </Select>
     </Field>
   );
 }
