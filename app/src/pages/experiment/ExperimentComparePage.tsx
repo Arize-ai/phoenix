@@ -1,4 +1,10 @@
-import { startTransition, useCallback, useEffect, useMemo } from "react";
+import {
+  startTransition,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+} from "react";
 import {
   graphql,
   PreloadedQuery,
@@ -184,41 +190,43 @@ export function ExperimentComparePage() {
           gap="size-150"
           alignItems="end"
         >
-          <ExperimentMultiSelector
-            queryRef={multiSelectorQueryReference}
-            selectedBaseExperimentId={baseExperimentId}
-            selectedCompareExperimentIds={compareExperimentIds}
-            onChange={(newBaseExperimentId, newCompareExperimentIds) => {
-              startTransition(() => {
-                if (newBaseExperimentId == null) {
-                  navigate(`/datasets/${datasetId}/compare`);
-                } else {
-                  searchParams.delete("experimentId");
-                  [newBaseExperimentId, ...newCompareExperimentIds].forEach(
-                    (experimentId) => {
-                      searchParams.append("experimentId", experimentId);
-                    }
-                  );
-                  navigate(
-                    `/datasets/${datasetId}/compare?${searchParams.toString()}`
-                  );
-                }
-              });
-            }}
-          />
-          <View flex="1" paddingBottom={5}>
-            {selectedCompareExperimentsQueryReference && (
-              <SelectedCompareExperiments
-                queryRef={selectedCompareExperimentsQueryReference}
-              />
-            )}
-          </View>
-          {
-            <ExperimentCompareViewModeToggle
-              viewMode={viewMode}
-              onViewModeChange={onViewModeChange}
+          <Suspense>
+            <ExperimentMultiSelector
+              queryRef={multiSelectorQueryReference}
+              selectedBaseExperimentId={baseExperimentId}
+              selectedCompareExperimentIds={compareExperimentIds}
+              onChange={(newBaseExperimentId, newCompareExperimentIds) => {
+                startTransition(() => {
+                  if (newBaseExperimentId == null) {
+                    navigate(`/datasets/${datasetId}/compare`);
+                  } else {
+                    searchParams.delete("experimentId");
+                    [newBaseExperimentId, ...newCompareExperimentIds].forEach(
+                      (experimentId) => {
+                        searchParams.append("experimentId", experimentId);
+                      }
+                    );
+                    navigate(
+                      `/datasets/${datasetId}/compare?${searchParams.toString()}`
+                    );
+                  }
+                });
+              }}
             />
-          }
+          </Suspense>
+          <View flex="1" paddingBottom={5}>
+            <Suspense>
+              {selectedCompareExperimentsQueryReference && (
+                <SelectedCompareExperiments
+                  queryRef={selectedCompareExperimentsQueryReference}
+                />
+              )}
+            </Suspense>
+          </View>
+          <ExperimentCompareViewModeToggle
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+          />
         </Flex>
       </View>
       {baseExperimentId == null ? (
