@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, Union, cast, overload
@@ -514,7 +515,11 @@ class Spans:
             timeout=timeout,
         )
 
-        if response.status_code not in (400, 422):
+        if response.status_code == 404:
+            raise SpanCreationError(
+                f"Project not found. Please verify the project {project_identifier} exists."
+            )
+        elif response.status_code not in (400, 422):
             response.raise_for_status()
 
         result = _parse_log_spans_response(response, spans)
@@ -2660,10 +2665,26 @@ def _extract_invalid_span_from_log_spans_error(
 
     span: Any = spans[span_index]
     span_dict = cast(dict[str, Any], span)
+
+    error_message = error.get("msg", "Validation error")
+
+    if error.get("type") == "missing":
+        # “NotRequired” marker is ignored at runtime in ≤3.10 — so all keys are treated as required
+        if sys.version_info < (3, 11):
+            required = frozenset(
+                {"name", "context", "span_kind", "start_time", "end_time", "status_code"}
+            )
+        else:
+            required = Span.__required_keys__
+
+        missing = [key for key in required if key not in span]
+        if missing:
+            error_message = f"Missing required keys in Span: {missing}"
+
     return {
         "span_id": span_dict.get("context", {}).get("span_id", "unknown"),
         "trace_id": span_dict.get("context", {}).get("trace_id", "unknown"),
-        "error": error.get("msg", "Validation error"),
+        "error": error_message,
     }
 
 
