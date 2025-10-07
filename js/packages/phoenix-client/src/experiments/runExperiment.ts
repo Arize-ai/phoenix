@@ -310,6 +310,8 @@ export async function runExperiment({
     concurrency,
     dryRun,
     tracerProvider: provider,
+    diagLogLevel,
+    useBatchSpanProcessor,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
