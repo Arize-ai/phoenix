@@ -511,8 +511,9 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: "status",
         accessorKey: "statusCode",
-        maxSize: 30,
         enableSorting: false,
+        minSize: 50,
+        maxSize: 75,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) {
             return null;
