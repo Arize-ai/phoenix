@@ -11,10 +11,8 @@ import { css } from "@emotion/react";
 
 import { Link } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
-import {
-  useNotifySuccess,
-  useViewerCanManageRetentionPolicy,
-} from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
+import { useViewerCanManageRetentionPolicy } from "@phoenix/contexts/ViewerContext";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { createPolicyScheduleSummaryText } from "@phoenix/utils/retentionPolicyUtils";
 
@@ -87,14 +85,18 @@ export const RetentionPoliciesTable = ({
   );
 
   const connectionId = data.projectTraceRetentionPolicies.__id;
-  const tableData = data.projectTraceRetentionPolicies.edges.map((edge) => {
-    const node = edge.node;
-    const data = readInlineData<RetentionPoliciesTable_retentionPolicy$key>(
-      RETENTION_POLICY_FRAGMENT,
-      node
-    );
-    return data;
-  });
+  const tableData = useMemo(
+    () =>
+      data.projectTraceRetentionPolicies.edges.map((edge) => {
+        const node = edge.node;
+        const data = readInlineData<RetentionPoliciesTable_retentionPolicy$key>(
+          RETENTION_POLICY_FRAGMENT,
+          node
+        );
+        return data;
+      }),
+    [data]
+  );
 
   const columns: ColumnDef<(typeof tableData)[number]>[] = useMemo(() => {
     const columns: ColumnDef<(typeof tableData)[number]>[] = [
@@ -193,7 +195,7 @@ export const RetentionPoliciesTable = ({
     return columns;
   }, [canManageRetentionPolicy, notifySuccess, connectionId]);
 
-  const table = useReactTable<(typeof tableData)[number]>({
+  const table = useReactTable({
     columns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
