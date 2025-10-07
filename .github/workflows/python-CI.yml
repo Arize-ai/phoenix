@@ -89,7 +89,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
-        py: ["3.10", 3.12]
+        py: [3.9, 3.12]
         os: [ubuntu-latest, windows-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
@@ -113,7 +113,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", 3.12]
+        py: [3.9, 3.12]
         os: [ubuntu-latest, windows-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
@@ -136,7 +136,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
-        py: ["3.10", 3.12]
+        py: [3.9, 3.12]
         os: [ubuntu-latest, windows-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
@@ -587,7 +587,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10"]
+        py: [3.9]
         pkg: [openai, google_generativeai] # NOTE: bypass Anthropic check while types are changing
     steps:
       - name: Checkout repository
