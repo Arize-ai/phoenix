@@ -396,6 +396,9 @@ export function ExperimentRunOutputs({
             {experimentIds.map((experimentId, experimentIndex) => {
               const experiment = experimentsById[experimentId];
               const experimentRuns = experimentRunsByExperimentId[experimentId];
+              if (!experiment || !experimentRuns) {
+                return null;
+              }
               return range(experiment.repetitions).map((repetitionIndex) => {
                 const repetitionNumber = repetitionIndex + 1;
                 return (
