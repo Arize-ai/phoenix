@@ -898,7 +898,6 @@ async def get_dataset_examples(
             )
             async for example, revision, split_ids_str in await session.stream(query)
         ]
-    print(f"🗂️ resolved_split_ids: {resolved_split_ids}")
     return ListDatasetExamplesResponseBody(
         data=ListDatasetExamplesData(
             dataset_id=str(GlobalID("Dataset", str(resolved_dataset_id))),
