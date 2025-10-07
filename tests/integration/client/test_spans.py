@@ -7,6 +7,7 @@ from typing import Any, Sequence, cast
 
 import pandas as pd
 import pytest
+from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 from phoenix.client.__generated__ import v1
@@ -1032,12 +1033,21 @@ class TestClientForSpanCreation:
         assert error.total_invalid == 1
         assert error.total_queued == 0
 
-        # Test 4: Error handling for non-existent project
+        # Test 4: Non-existent project name is accepted (may be auto-created)
+        # Only GlobalIDs are validated for existence
+        result_nonexistent = client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+            project_identifier="non_existent_project_xyz",
+            spans=[self._create_test_span("test")],
+        )
+        assert result_nonexistent["total_received"] == 1
+        assert result_nonexistent["total_queued"] == 1
+
+        # Test 5: Error handling for non-existent project by GlobalID
         import httpx
 
         with pytest.raises(httpx.HTTPStatusError) as http_exc_info:
             client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                project_identifier="non_existent_project_xyz",
+                project_identifier=str(GlobalID("Project", "999999")),  # Non-existent GlobalID
                 spans=[self._create_test_span("test")],
             )
         assert http_exc_info.value.response.status_code == 404
