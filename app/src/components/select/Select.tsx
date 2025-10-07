@@ -11,8 +11,10 @@ import { SizeProvider } from "@phoenix/contexts";
 
 import { fieldBaseCSS } from "../field/styles";
 
-export interface SelectProps<T extends object, M extends "single" | "multiple">
-  extends AriaSelectProps<T, M>,
+export interface SelectProps<
+  T extends object = object,
+  M extends "single" | "multiple" = "single",
+> extends AriaSelectProps<T, M>,
     SizingProps,
     StylableProps {}
 
