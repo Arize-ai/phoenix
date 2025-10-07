@@ -134,11 +134,11 @@ class Dataset:
 
     def __len__(self) -> int:
         """Number of examples in this dataset version."""
-        return len(self._examples_data["examples"])
+        return len(self.examples)
 
     def __iter__(self) -> Iterator[DatasetExample]:
         """Iterate over examples."""
-        return iter(self._examples_data["examples"])
+        return iter(self.examples)
 
     def __getitem__(self, index: int) -> DatasetExample:
         """Get example by index."""
