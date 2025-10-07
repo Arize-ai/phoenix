@@ -8,6 +8,12 @@ set -e
 DEV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DEV_DIR"
 
+# Constants
+readonly PROJECT_NAME="devops"
+readonly HEALTH_URL="http://localhost:18273/phoenix/healthz"
+readonly HEALTH_TIMEOUT=60
+readonly HEALTH_LOG_CHECK=15
+
 # Global variables
 CURRENT_PROFILES=""
 CURRENT_SCHEMA=""
@@ -20,6 +26,53 @@ log_info() { echo "🔵 $1"; }
 log_success() { echo "✅ $1"; }
 log_warning() { echo "⚠️  $1"; }
 log_error() { echo "❌ $1"; }
+
+# Check dependencies
+check_dependencies() {
+    local missing=()
+    command -v docker >/dev/null 2>&1 || missing+=("docker")
+    command -v docker-compose >/dev/null 2>&1 || missing+=("docker-compose")
+    
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log_error "Missing required dependencies: ${missing[*]}"
+        echo "Please install: ${missing[*]}"
+        exit 1
+    fi
+}
+
+# Stop all containers for this project
+stop_all_containers() {
+    local containers
+    containers=$(docker ps -aq --filter "label=com.docker.compose.project=${PROJECT_NAME}" 2>/dev/null || true)
+    
+    if [[ -n "$containers" ]]; then
+        echo "$containers" | xargs docker stop >/dev/null 2>&1 || true
+        echo "$containers" | xargs docker rm >/dev/null 2>&1 || true
+    fi
+}
+
+# Get volume names for this project
+get_volumes() {
+    docker volume ls --format "{{.Name}}" | grep "^${PROJECT_NAME}_" || true
+}
+
+# Add a profile to CURRENT_PROFILES
+add_profile() {
+    local profile="$1"
+    
+    # Handle dynamic schema profiles
+    if [[ "$profile" =~ ^schema= ]]; then
+        CURRENT_SCHEMA="${profile#schema=}"
+        log_info "Using dynamic schema profile with schema: $CURRENT_SCHEMA"
+    fi
+    
+    # Add profile to the list
+    if [[ -z "$CURRENT_PROFILES" ]]; then
+        CURRENT_PROFILES="$profile"
+    else
+        CURRENT_PROFILES="$CURRENT_PROFILES $profile"
+    fi
+}
 
 # Profile configurations - maps profile names to required override files
 get_profile_config() {
@@ -132,20 +185,7 @@ parse_args() {
                     log_error "Profile name required after --profile"
                     exit 1
                 fi
-                local profile="$2"
-                
-                # Handle dynamic schema profiles
-                if [[ "$profile" =~ ^schema= ]]; then
-                    CURRENT_SCHEMA="${profile#schema=}"
-                    log_info "Using dynamic schema profile with schema: $CURRENT_SCHEMA"
-                fi
-                
-                # Add profile to the list
-                if [[ -z "$CURRENT_PROFILES" ]]; then
-                    CURRENT_PROFILES="$profile"
-                else
-                    CURRENT_PROFILES="$CURRENT_PROFILES $profile"
-                fi
+                add_profile "$2"
                 shift 2
                 ;;
             --profiles)
@@ -153,26 +193,12 @@ parse_args() {
                     log_error "Profile list required after --profiles"
                     exit 1
                 fi
-                local profiles_list="$2"
-                
                 # Split comma-separated profiles
-                IFS=',' read -ra PROFILE_ARRAY <<< "$profiles_list"
+                IFS=',' read -ra PROFILE_ARRAY <<< "$2"
                 for profile in "${PROFILE_ARRAY[@]}"; do
                     # Trim whitespace
                     profile=$(echo "$profile" | xargs)
-                    
-                    # Handle dynamic schema profiles
-                    if [[ "$profile" =~ ^schema= ]]; then
-                        CURRENT_SCHEMA="${profile#schema=}"
-                        log_info "Using dynamic schema profile with schema: $CURRENT_SCHEMA"
-                    fi
-                    
-                    # Add profile to the list
-                    if [[ -z "$CURRENT_PROFILES" ]]; then
-                        CURRENT_PROFILES="$profile"
-                    else
-                        CURRENT_PROFILES="$CURRENT_PROFILES $profile"
-                    fi
+                    add_profile "$profile"
                 done
                 shift 2
                 ;;
@@ -218,11 +244,10 @@ compose_cmd() {
 # Wait for Phoenix health check
 wait_for_phoenix() {
     echo "⏳ Waiting for Phoenix to be ready..."
-    local max_attempts=60
     local attempt=1
     
-    while [ $attempt -le $max_attempts ]; do
-        if curl -s -f http://localhost:18273/phoenix/healthz > /dev/null 2>&1; then
+    while [ $attempt -le $HEALTH_TIMEOUT ]; do
+        if curl -s -f "$HEALTH_URL" > /dev/null 2>&1; then
             echo ""
             log_success "Phoenix is ready!"
             return 0
@@ -233,11 +258,12 @@ wait_for_phoenix() {
         fi
         echo -n "."
 
-        if [ $attempt -eq 15 ]; then
+        if [ $attempt -eq $HEALTH_LOG_CHECK ]; then
             echo ""
             echo "💡 Phoenix is taking longer than expected. Recent logs:"
             echo "────────────────────────────────────────────────────────"
-            local logs=$($(compose_cmd) logs phoenix --tail=100)
+            local logs
+            logs=$($(compose_cmd) logs phoenix --tail=100 2>&1)
             echo "$logs"
             echo "────────────────────────────────────────────────────────"
             
@@ -256,7 +282,7 @@ wait_for_phoenix() {
     done
     
     echo ""
-    log_error "Phoenix health check failed after 1 minute"
+    log_error "Phoenix health check failed after ${HEALTH_TIMEOUT} seconds"
     echo "   Check logs: $(compose_cmd) logs phoenix"
     return 1
 }
@@ -348,6 +374,9 @@ list_profiles() {
     echo "  ./dev.sh up --profiles vite,grafana      # Multiple profiles"
 }
 
+# Check dependencies
+check_dependencies
+
 # Parse arguments first
 parse_args "$@"
 
@@ -394,7 +423,8 @@ case "${COMMAND:-help}" in
     
     "down")
         log_info "Stopping environment..."
-        $(compose_cmd) down
+        stop_all_containers
+        log_success "All services stopped"
         ;;
 
     "destroy")
@@ -404,10 +434,16 @@ case "${COMMAND:-help}" in
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             log_info "Stopping all services..."
-            $(compose_cmd) down
+            stop_all_containers
+            
             log_info "Removing data volumes..."
-            docker volume rm devops_dev_database_data devops_dev_grafana_data devops_dev_prometheus_data 2>/dev/null || true
-            log_success "All data destroyed! Run './dev.sh up' to start fresh."
+            VOLUMES=$(get_volumes)
+            if [[ -n "$VOLUMES" ]]; then
+                echo "$VOLUMES" | xargs docker volume rm 2>/dev/null || true
+                log_success "All data destroyed! Run './dev.sh up' to start fresh."
+            else
+                log_warning "No volumes found to remove"
+            fi
         else
             log_error "Operation cancelled."
         fi
@@ -416,10 +452,17 @@ case "${COMMAND:-help}" in
     "reset")
         log_info "Resetting all images (will rebuild on next 'up' command)..."
         log_info "Stopping all services..."
-        $(compose_cmd) down
+        stop_all_containers
+        
         log_info "Removing all images..."
-        docker rmi devops-phoenix devops-oidc-dev devops-smtp-dev devops-vite-dev 2>/dev/null || true
-        log_success "All images removed! Run './dev.sh up' to rebuild and start."
+        # Get images for this project
+        IMAGES=$(docker images --format "{{.Repository}}" | grep "^${PROJECT_NAME}-" || true)
+        if [[ -n "$IMAGES" ]]; then
+            echo "$IMAGES" | xargs docker rmi 2>/dev/null || true
+            log_success "All images removed! Run './dev.sh up' to rebuild and start."
+        else
+            log_warning "No project images found to remove"
+        fi
         ;;
 
     "status")
