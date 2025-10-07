@@ -5,7 +5,6 @@ services:
   
   traefik:
     image: traefik:v3.1
-    platform: linux/arm64
     restart: unless-stopped
     command:
       - "--api.insecure=true"
@@ -169,7 +168,6 @@ services:
 
   db:
     image: postgres:17-alpine
-    platform: linux/arm64
     restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
@@ -252,7 +250,6 @@ services:
   
   prometheus:
     image: prom/prometheus:latest
-    platform: linux/arm64
     profiles: ["grafana"]
     restart: always
     expose:
@@ -275,7 +272,6 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    platform: linux/arm64
     profiles: ["grafana"]
     restart: always
     expose:
