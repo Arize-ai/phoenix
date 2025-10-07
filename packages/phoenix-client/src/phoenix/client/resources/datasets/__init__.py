@@ -26,155 +26,6 @@ DatasetExample = v1.DatasetExample
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
-class ExamplesSplits:
-    """Helper class to get/set splits on a collection of examples."""
-
-    def __init__(
-        self,
-        examples: "ExamplesCollection",
-        dataset: "Dataset",
-        client: Union[httpx.Client, httpx.AsyncClient],
-    ):
-        self._examples = examples
-        self._dataset = dataset
-        self._client = client
-
-    @property
-    def names(self) -> list[str]:
-        """Get unique split IDs across the examples in this collection.
-
-        Returns:
-            list[str]: List of unique split IDs found across the examples.
-        """
-        all_split_ids: set[str] = set()
-        for example in self._examples:
-            split_ids = example.get("split_ids", [])
-            if split_ids and isinstance(split_ids, list):
-                all_split_ids.update(split_ids)
-        return sorted(all_split_ids)
-
-    def __repr__(self) -> str:
-        return f"ExamplesSplits(examples={len(self._examples)})"
-
-
-class ExamplesCollection:
-    """A collection of dataset examples with split management capabilities.
-
-    This class wraps a list of examples and provides split get/set functionality.
-    Supports slicing and behaves like a list in most ways.
-    """
-
-    def __init__(
-        self,
-        examples: list[DatasetExample],
-        dataset: "Dataset",
-        client: Optional[Union[httpx.Client, httpx.AsyncClient]] = None,
-    ):
-        self._examples = examples
-        self._dataset = dataset
-        self._client = client
-        self._splits: Optional[ExamplesSplits] = None
-
-    @property
-    def splits(self) -> ExamplesSplits:
-        """Access splits for this collection of examples.
-
-        Returns:
-            ExamplesSplits: Helper object for getting/setting splits.
-
-        Raises:
-            ValueError: If no client is available.
-        """
-        if self._splits is None:
-            if self._client is None:
-                raise ValueError(
-                    "Examples collection was not created with a client reference. "
-                    "Cannot access splits functionality."
-                )
-            self._splits = ExamplesSplits(self, self._dataset, self._client)
-        return self._splits
-
-    @splits.setter
-    def splits(self, split_names: Union[str, list[str]]) -> None:
-        """Set splits for all examples in this collection.
-
-        Args:
-            split_names: Either a single split name or list of split names.
-
-        Raises:
-            ValueError: If no client is available or split names are invalid.
-            TypeError: If using async client (sync required for property setter).
-            httpx.HTTPStatusError: If the API request fails.
-
-        Example::
-
-            # Assign all examples to test split
-            dataset.examples.splits = 'test'
-
-            # Assign examples 0-10 to multiple splits
-            dataset.examples[0:10].splits = ['train', 'validation']
-        """
-        if self._client is None:
-            raise ValueError(
-                "Examples collection was not created with a client reference. Cannot set splits."
-            )
-
-        if not isinstance(self._client, httpx.Client):
-            raise TypeError(
-                "Setting splits requires a synchronous httpx.Client. "
-                "Use AsyncDatasets methods directly for async operations."
-            )
-
-        # Normalize to list
-        splits_list = [split_names] if isinstance(split_names, str) else list(split_names)
-
-        # Get example IDs
-        example_ids = [example["id"] for example in self._examples]
-
-        # Build parameters
-        params: dict[str, Any] = {"splits": splits_list}
-
-        # Only include example_ids if not updating all examples
-        if len(example_ids) < len(self._dataset._examples_data["examples"]):
-            params["example_ids"] = example_ids
-
-        # Call PATCH endpoint
-        response = self._client.patch(
-            url=f"v1/datasets/{quote(self._dataset.id)}/examples",
-            params=params,
-            headers={"accept": "application/json"},
-            timeout=DEFAULT_TIMEOUT_IN_SECONDS,
-        )
-
-        response.raise_for_status()
-
-    def __len__(self) -> int:
-        """Return the number of examples."""
-        return len(self._examples)
-
-    def __iter__(self) -> Iterator[DatasetExample]:
-        """Iterate over examples."""
-        return iter(self._examples)
-
-    def __getitem__(self, index: Union[int, slice]) -> Union[DatasetExample, "ExamplesCollection"]:
-        """Get example(s) by index or slice.
-
-        Args:
-            index: Integer index or slice object.
-
-        Returns:
-            Single example if index is int, ExamplesCollection if slice.
-        """
-        if isinstance(index, slice):
-            sliced_examples = self._examples[index]
-            return ExamplesCollection(sliced_examples, self._dataset, self._client)
-        else:
-            return self._examples[index]
-
-    def __repr__(self) -> str:
-        return f"ExamplesCollection({len(self._examples)} examples)"
-
-
 def _is_valid_dataset_example(obj: Any) -> bool:
     """Check if an object is a valid DatasetExample using the TypedDict's annotations.
 
@@ -192,92 +43,6 @@ def _is_valid_dataset_example(obj: Any) -> bool:
     if not required_fields.issubset(obj.keys()):  # pyright: ignore[reportUnknownArgumentType]
         return False
     return True
-
-
-class DatasetSplits:
-    """Helper class to manage dataset splits with dictionary-like access.
-
-    This class provides convenient access to dataset splits, allowing you to filter
-    examples by split name using dictionary syntax.
-
-    Example::
-
-        dataset = client.datasets.get_dataset(dataset="my-dataset")
-
-        # Get all split names
-        print(dataset.splits.names)  # ['train', 'test', 'validation']
-
-        # Filter dataset by split (returns a new Dataset with filtered examples)
-        train_dataset = dataset.splits['train']
-        test_dataset = dataset.splits['test']
-
-        # Filter by multiple splits
-        combined = dataset.splits[['train', 'validation']]
-
-        # Assign all examples to a split
-        dataset.splits = ['test']
-    """
-
-    def __init__(self, dataset: "Dataset", client: Union[httpx.Client, httpx.AsyncClient]):
-        self._dataset = dataset
-        self._client = client
-
-    @property
-    def names(self) -> list[str]:
-        """Get the unique split IDs across all examples in this dataset.
-
-        Returns:
-            list[str]: List of unique split IDs found across all examples in this dataset.
-                Empty list if no examples have splits.
-        """
-        # Collect all unique split IDs from all examples
-        all_split_ids: set[str] = set()
-        for example in self._dataset._examples_data["examples"]:
-            split_ids = example.get("split_ids", [])
-            if split_ids and isinstance(split_ids, list):
-                all_split_ids.update(split_ids)
-        return sorted(all_split_ids)
-
-    def __getitem__(self, split_name: Union[str, list[str]]) -> "Dataset":
-        """Get a new Dataset filtered by the specified split(s).
-
-        Args:
-            split_name: Either a single split name or a list of split names to filter by.
-
-        Returns:
-            Dataset: A new Dataset object containing only examples from the specified split(s).
-
-        Raises:
-            ValueError: If the split name is invalid or not found.
-            httpx.HTTPStatusError: If the API request fails.
-
-        Example::
-
-            # Get training split
-            train_data = dataset.splits['train']
-
-            # Get multiple splits
-            combined = dataset.splits[['train', 'validation']]
-        """
-        # Normalize to list
-        splits = [split_name] if isinstance(split_name, str) else list(split_name)
-
-        # Use the Datasets class to fetch filtered dataset
-        # Only httpx.Client is supported for now (not AsyncClient)
-        if not isinstance(self._client, httpx.Client):
-            raise TypeError(
-                "splits[] access requires a synchronous httpx.Client. "
-                "Use AsyncDatasets.get_dataset() directly for async operations."
-            )
-        datasets_client = Datasets(self._client)
-        return datasets_client.get_dataset(
-            dataset=self._dataset.id,
-            version_id=self._dataset.version_id,
-            splits=splits,
-        )
-
-    def __repr__(self) -> str:
-        return f"DatasetSplits(dataset={self._dataset.name!r})"
 
 
 class Dataset:
@@ -304,8 +69,6 @@ class Dataset:
         self._dataset_info = dataset_info
         self._examples_data = examples_data
         self._client = client
-        self._splits: Optional[DatasetSplits] = None
-        self._examples_collection: Optional[ExamplesCollection] = None
 
     @property
     def id(self) -> str:
@@ -333,65 +96,9 @@ class Dataset:
         return self._examples_data.get("split_ids", [])  # type: ignore[return-value]
 
     @property
-    def splits(self) -> DatasetSplits:
-        """Access dataset splits with dictionary-like syntax.
-
-        Returns:
-            DatasetSplits: A helper object that allows filtering the dataset by split.
-
-        Example::
-
-            # Get all examples in the 'train' split
-            train_dataset = dataset.splits['train']
-
-            # Get examples from multiple splits
-            combined = dataset.splits[['train', 'validation']]
-
-            # Get split names
-            print(dataset.splits.names)
-
-            # Assign all examples to splits
-            dataset.splits = ['test']
-        """
-        if self._splits is None:
-            if self._client is None:
-                raise ValueError(
-                    "Dataset was not created with a client reference. "
-                    "Cannot access splits functionality."
-                )
-            self._splits = DatasetSplits(self, self._client)
-        return self._splits
-
-    @splits.setter
-    def splits(self, split_names: Union[str, list[str]]) -> None:
-        """Set splits for all examples in this dataset.
-
-        Args:
-            split_names: Either a single split name or list of split names.
-
-        Raises:
-            ValueError: If no client is available.
-            TypeError: If using async client (sync required for property setter).
-            httpx.HTTPStatusError: If the API request fails.
-
-        Example::
-
-            # Assign all examples to test split
-            dataset.splits = 'test'
-
-            # Assign all examples to multiple splits
-            dataset.splits = ['train', 'validation']
-        """
-        # Delegate to the examples collection
-        self.examples.splits = split_names  # type: ignore[assignment]
-
-    @property
-    def examples(self) -> ExamplesCollection:
-        """Collection of examples in this version with split management."""
-        if self._examples_collection is None:
-            examples_list = list(self._examples_data["examples"])
-            self._examples_collection = ExamplesCollection(examples_list, self, self._client)
-        return self._examples_collection
+    def examples(self) -> list[DatasetExample]:
+        """List of examples in this version."""
+        return list(self._examples_data["examples"])
 
     @property
     def metadata(self) -> dict[str, Any]:
@@ -417,7 +124,7 @@ class Dataset:
         """Number of examples in this version."""
         if "example_count" in self._dataset_info:
             return self._dataset_info["example_count"]
-        return len(self._examples_data["examples"])
+        return len(self.examples)
 
     def __repr__(self) -> str:
         return (
@@ -433,8 +140,8 @@ class Dataset:
         """Iterate over examples."""
         return iter(self._examples_data["examples"])
 
-    def __getitem__(self, index: Union[int, slice]) -> Union[DatasetExample, ExamplesCollection]:
-        """Get example by index or slice."""
+    def __getitem__(self, index: int) -> DatasetExample:
+        """Get example by index."""
         return self.examples[index]
 
     def to_dataframe(self) -> "pd.DataFrame":
