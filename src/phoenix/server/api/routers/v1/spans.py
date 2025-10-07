@@ -27,7 +27,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
-from phoenix.trace.attributes import flatten
+from phoenix.trace.attributes import flatten, unflatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.trace.schemas import (
     Span as SpanForInsertion,
@@ -989,6 +989,7 @@ async def create_spans(
         # Add back the openinference.span.kind attribute since it's stored separately in the API
         attributes = dict(api_span.attributes)
         attributes["openinference.span.kind"] = api_span.span_kind
+        attributes = unflatten(attributes.items())
 
         # Create span for insertion - note we ignore the 'id' field as it's server-generated
         return SpanForInsertion(
