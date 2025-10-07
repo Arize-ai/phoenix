@@ -974,18 +974,20 @@ class OAuth2ClientConfig:
     idp_name: str
     idp_display_name: str
 
-    # OAuth2 client credentials
+    # OAuth2 client credentials (RFC 6749 §2)
     client_id: str
-    client_secret: Optional[str]  # Optional when using PKCE
+    client_secret: Optional[
+        str
+    ]  # Optional when token_endpoint_auth_method is "none" (RFC 6749 §2.3.1)
     oidc_config_url: str
 
     # Authentication behavior
     allow_sign_up: bool
     auto_login: bool
-    use_pkce: bool
-    token_endpoint_auth_method: Optional[str]
+    use_pkce: bool  # Proof Key for Code Exchange (RFC 7636)
+    token_endpoint_auth_method: Optional[str]  # OIDC Core §9
 
-    # Scopes and permissions
+    # Scopes and permissions (RFC 6749 §3.3: space-delimited)
     scopes: str
 
     # Group-based access control
@@ -1035,15 +1037,6 @@ class OAuth2ClientConfig:
         auto_login = get_env_oauth2_auto_login(idp_name)
         use_pkce = _bool_val(f"{idp_prefix}_USE_PKCE", False)
 
-        # CLIENT_SECRET: required for confidential clients, optional for PKCE
-        client_secret: Optional[str] = None
-        if use_pkce:
-            # PKCE: client_secret is optional (public clients don't need it)
-            client_secret = _get_optional("CLIENT_SECRET")
-        else:
-            # Traditional flow: client_secret is required
-            client_secret = _get_required("CLIENT_SECRET", "Client secret")
-
         # Token endpoint auth method validation
         token_endpoint_auth_method = None
         if auth_method := _get_optional("TOKEN_ENDPOINT_AUTH_METHOD"):
@@ -1056,15 +1049,26 @@ class OAuth2ClientConfig:
                 )
             token_endpoint_auth_method = auth_method
 
-        # Validate: client_secret required for auth methods that need it
-        if (
-            token_endpoint_auth_method in ("client_secret_basic", "client_secret_post")
-            and not client_secret
-        ):
-            raise ValueError(
-                f"CLIENT_SECRET is required for {idp_name} when "
-                f"TOKEN_ENDPOINT_AUTH_METHOD is '{token_endpoint_auth_method}'"
-            )
+        # CLIENT_SECRET: required based on TOKEN_ENDPOINT_AUTH_METHOD (OIDC Core §9)
+        client_secret: Optional[str] = None
+
+        # Determine if CLIENT_SECRET is required based on TOKEN_ENDPOINT_AUTH_METHOD:
+        # - "none": CLIENT_SECRET is optional (public clients, RFC 8252 §8.1)
+        # - "client_secret_basic" or "client_secret_post": CLIENT_SECRET is required
+        # - Not set: Default to requiring CLIENT_SECRET (assumes confidential client with
+        #   client_secret_basic)
+        #
+        # Note: PKCE (USE_PKCE, RFC 7636) is orthogonal to client authentication. PKCE can be
+        # used with both public clients (no secret) and confidential clients (with secret) to
+        # protect the authorization code from interception.
+
+        if token_endpoint_auth_method == "none":
+            # Public client - no client authentication required
+            client_secret = _get_optional("CLIENT_SECRET")
+        else:
+            # Confidential client (either explicitly set to client_secret_* or using default)
+            # CLIENT_SECRET is required
+            client_secret = _get_required("CLIENT_SECRET", "Client secret")
 
         # Build scopes: start with required baseline, add custom scopes (deduplicated)
         scopes = ["openid", "email", "profile"]
@@ -1093,6 +1097,14 @@ class OAuth2ClientConfig:
                     "GROUPS_ATTRIBUTE_PATH must be configured to use group-based access control."
                 )
 
+        # Validate: GROUPS_ATTRIBUTE_PATH requires ALLOWED_GROUPS
+        if groups_attribute_path and not allowed_groups:
+            raise ValueError(
+                f"GROUPS_ATTRIBUTE_PATH is set for {idp_name} but ALLOWED_GROUPS is not. "
+                "If you want to extract groups, you must specify which groups are allowed. "
+                "If you don't need group-based access control, remove GROUPS_ATTRIBUTE_PATH."
+            )
+
         return cls(
             idp_name=idp_name,
             idp_display_name=_get_optional("DISPLAY_NAME")
@@ -1112,14 +1124,16 @@ class OAuth2ClientConfig:
 
 _OAUTH2_CONFIG_SUFFIXES = (
     "DISPLAY_NAME",  # User-friendly name shown in login UI
-    "CLIENT_ID",  # OAuth2 client ID from your identity provider
-    "CLIENT_SECRET",  # OAuth2 client secret (required unless using PKCE)
+    "CLIENT_ID",  # OAuth2 client ID from your identity provider (RFC 6749 §2.2)
+    # OAuth2 client secret (RFC 6749 §2.3.1, required by default, optional with auth method "none")
+    "CLIENT_SECRET",
     "OIDC_CONFIG_URL",  # OpenID Connect discovery URL (.well-known/openid-configuration)
     "ALLOW_SIGN_UP",  # Whether to allow new user registration (default: true)
     "AUTO_LOGIN",  # Automatically redirect to this provider (default: false)
-    "USE_PKCE",  # Enable PKCE for public clients like mobile apps (default: false)
-    "TOKEN_ENDPOINT_AUTH_METHOD",  # How to authenticate at token endpoint
-    "SCOPES",  # Additional OAuth2 scopes beyond "openid email profile"
+    "USE_PKCE",  # Enable PKCE for authorization code protection (RFC 7636, default: false)
+    "TOKEN_ENDPOINT_AUTH_METHOD",  # How to authenticate at token endpoint (OIDC Core §9)
+    # Additional OAuth2 scopes beyond "openid email profile" (RFC 6749 §3.3: space-delimited)
+    "SCOPES",
     "GROUPS_ATTRIBUTE_PATH",  # JMESPath expression to extract groups from ID token
     "ALLOWED_GROUPS",  # Comma-separated list of groups allowed to sign in
 )
@@ -1149,8 +1163,8 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ID: The OAuth2 client ID issued by the identity provider
 
         - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider.
-          Required for confidential clients (traditional web apps). Not required when using USE_PKCE=true
-          for public clients (mobile apps, SPAs).
+          Required by default for confidential clients. Only optional when TOKEN_ENDPOINT_AUTH_METHOD is
+          explicitly set to "none" (for public clients without client authentication).
 
         - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS
           except for localhost). This URL typically ends with /.well-known/openid-configuration and is
@@ -1167,16 +1181,25 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
           Note: Only one provider should have AUTO_LOGIN enabled if you configure multiple IDPs.
 
         - PHOENIX_OAUTH2_{IDP_NAME}_USE_PKCE: Enable PKCE (Proof Key for Code Exchange) with S256 code challenge
-          method for enhanced security with public clients such as mobile apps or single-page applications
-          (when enabled, CLIENT_SECRET is not required)
+          method for enhanced security. PKCE protects the authorization code from interception and can be used
+          with both public clients and confidential clients. This setting is orthogonal to client authentication -
+          whether CLIENT_SECRET is required is determined solely by TOKEN_ENDPOINT_AUTH_METHOD, not by USE_PKCE.
 
         - PHOENIX_OAUTH2_{IDP_NAME}_TOKEN_ENDPOINT_AUTH_METHOD: OAuth2 token endpoint authentication method.
-          Options:
-            • client_secret_basic (default): Send credentials in HTTP Basic Auth header (most common)
-            • client_secret_post: Send credentials in POST body (required by some providers)
-            • none: No client authentication (used with PKCE for public clients)
+          This setting determines how the client authenticates with the token endpoint and whether
+          CLIENT_SECRET is required. If not set, defaults to requiring CLIENT_SECRET (confidential client).
 
-          Most providers work with the default. Change only if your provider requires a specific method.
+          Options:
+            • client_secret_basic: Send credentials in HTTP Basic Auth header (most common).
+              CLIENT_SECRET is required. This is the assumed default behavior if not set.
+            • client_secret_post: Send credentials in POST body (required by some providers).
+              CLIENT_SECRET is required.
+            • none: No client authentication (for public clients).
+              CLIENT_SECRET is not required. Use this for public clients that cannot
+              securely store a client secret, typically in combination with PKCE.
+
+          Most providers work with the default behavior. Set this explicitly only if your provider requires
+          a specific method or if you're configuring a public client.
 
         - PHOENIX_OAUTH2_{IDP_NAME}_SCOPES: Additional OAuth2 scopes to request (space-separated).
           These are added to the required baseline scopes "openid email profile". For example, set to
@@ -1271,6 +1294,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         For public clients using PKCE (no client secret needed):
             PHOENIX_OAUTH2_MOBILE_CLIENT_ID=mobile_app_id
             PHOENIX_OAUTH2_MOBILE_OIDC_CONFIG_URL=https://auth.example.com/.well-known/openid-configuration
+            PHOENIX_OAUTH2_MOBILE_TOKEN_ENDPOINT_AUTH_METHOD=none
             PHOENIX_OAUTH2_MOBILE_USE_PKCE=true
 
         Multiple identity providers (users can choose):

@@ -53,6 +53,13 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
                 "Group-based access control requires both parameters to be set."
             )
 
+        if self._groups_attribute_path and not self._allowed_groups:
+            raise ValueError(
+                "allowed_groups must be specified when groups_attribute_path is configured. "
+                "Group-based access control requires both parameters to be set. "
+                "If you don't need group-based access control, remove groups_attribute_path."
+            )
+
         self._compiled_groups_path = self._compile_jmespath_expression(self._groups_attribute_path)
         super().__init__(framework=None, *args, **kwargs)
 
@@ -90,22 +97,41 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
 
     def has_sufficient_claims(self, claims: dict[str, Any]) -> bool:
         """
-        Check if the provided claims contain all necessary information for authorization.
+        Check if the ID token contains all application-required claims.
 
-        Currently checks for group claims when group-based access control is configured.
-        Returns True if no additional claims are needed from the userinfo endpoint.
+        OIDC Core §2 mandates that ID tokens contain authentication claims (iss, sub, aud,
+        exp, iat), but user profile claims (email, name, groups) are optional and may only
+        be available via UserInfo endpoint (§5.4, §5.5). This method determines if we need
+        to call UserInfo.
+
+        Application-required claims:
+        - email: Required for user identification and account creation
+        - groups: Required if group-based access control is configured
+
+        If any required claim is missing, returns False to trigger UserInfo endpoint call.
 
         Args:
-            claims: Claims from ID token or userinfo endpoint
+            claims: Claims from ID token (OIDC Core §3.1.3.3)
 
         Returns:
-            True if claims are sufficient for authorization, False if userinfo is needed
+            True if all application-required claims are present (UserInfo not needed)
+            False if additional claims must be fetched from UserInfo endpoint
         """
-        if not self._compiled_groups_path:
-            return True
+        # Check for email claim (required by application)
+        email = claims.get("email")
+        if not email or not isinstance(email, str) or not email.strip():
+            # Email missing or invalid, need UserInfo
+            return False
 
-        groups = self._extract_groups_from_claims(claims)
-        return len(groups) > 0
+        # Check for group claims if group-based access control is configured
+        if self._compiled_groups_path:
+            groups = self._extract_groups_from_claims(claims)
+            if len(groups) == 0:
+                # Groups required but not present, need UserInfo
+                return False
+
+        # All required claims present
+        return True
 
     def validate_access(self, user_claims: dict[str, Any]) -> None:
         """
@@ -115,7 +141,9 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         to support organization-based or other claim-based authorization mechanisms.
 
         Args:
-            user_claims: Claims from the OIDC ID token or userinfo endpoint
+            user_claims: Claims from the OIDC ID token (OIDC Core §3.1.3.3) or userinfo
+                endpoint (OIDC Core §5.3). Custom claims for groups/roles are extracted
+                per OIDC Core §5.1.2 (Additional Claims).
 
         Raises:
             PermissionError: If user doesn't meet the access requirements
@@ -192,19 +220,21 @@ class OAuth2Clients:
     def add_client(self, config: OAuth2ClientConfig) -> None:
         if (idp_name := config.idp_name) in self._clients:
             raise ValueError(f"oauth client already registered: {idp_name}")
+        # RFC 6749 §3.3: scope parameter (space-delimited list of scopes)
         client_kwargs = {"scope": config.scopes}
 
         if config.token_endpoint_auth_method:
+            # OIDC Core §9: Client authentication method at token endpoint
             client_kwargs["token_endpoint_auth_method"] = config.token_endpoint_auth_method
         if config.use_pkce:
-            # Always use S256 for PKCE
+            # Always use S256 for PKCE (RFC 7636 §4.2: SHA-256 code challenge method)
             client_kwargs["code_challenge_method"] = "S256"
 
         client = OAuth2Client(
             name=config.idp_name,
-            client_id=config.client_id,
-            client_secret=config.client_secret,
-            server_metadata_url=config.oidc_config_url,
+            client_id=config.client_id,  # RFC 6749 §2.2
+            client_secret=config.client_secret,  # RFC 6749 §2.3.1
+            server_metadata_url=config.oidc_config_url,  # OIDC Discovery §4
             client_kwargs=client_kwargs,
             display_name=config.idp_display_name,
             allow_sign_up=config.allow_sign_up,

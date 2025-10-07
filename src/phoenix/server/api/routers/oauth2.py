@@ -145,15 +145,15 @@ async def login(
 async def create_tokens(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
-    state: str = Query(),
-    authorization_code: Optional[str] = Query(default=None, alias="code"),
-    error: Optional[str] = Query(default=None),
+    state: str = Query(),  # RFC 6749 §4.1.1: CSRF protection via state parameter
+    authorization_code: Optional[str] = Query(default=None, alias="code"),  # RFC 6749 §4.1.2
+    error: Optional[str] = Query(default=None),  # RFC 6749 §4.1.2.1: Error response
     error_description: Optional[str] = Query(default=None),
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
-    stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
+    stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),  # OIDC Core §3.1.2.1
     code_verifier: Optional[str] = Cookie(
         default=None, alias=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME
-    ),
+    ),  # RFC 7636 §4.1
 ) -> RedirectResponse:
     # Security Note: Query parameters should be treated as untrusted user input. Never display
     # these values directly to users as they could be manipulated for XSS, phishing, or social
@@ -172,6 +172,7 @@ async def create_tokens(
         logger.error("OAuth2 callback missing authorization code for IDP %s", idp_name)
         return _redirect_to_login(request=request, error="auth_failed")
     secret = request.app.state.get_secret()
+    # RFC 6749 §10.12: CSRF protection - validate state parameter
     if state != stored_state:
         return _redirect_to_login(request=request, error="invalid_state")
     try:
@@ -186,14 +187,15 @@ async def create_tokens(
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
     try:
+        # RFC 6749 §4.1.3: Token request - exchange authorization code for tokens
         fetch_kwargs: dict[str, Any] = dict(
             state=state,
             code=authorization_code,
-            redirect_uri=_get_create_tokens_endpoint(
+            redirect_uri=_get_create_tokens_endpoint(  # RFC 6749 §3.1.2
                 request=request, origin_url=payload["origin_url"], idp_name=idp_name
             ),
         )
-        # PKCE validation: code_verifier is required when PKCE is enabled
+        # PKCE validation: code_verifier is required when PKCE is enabled (RFC 7636 §4.5)
         if oauth2_client.use_pkce:
             if not code_verifier:
                 logger.error(
@@ -298,29 +300,58 @@ async def _fetch_and_merge_userinfo_claims(
     id_token_claims: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Fetch additional claims from userinfo endpoint and merge with ID token claims.
+    Fetch claims from UserInfo endpoint and merge with ID token claims.
 
-    Attempts to fetch extended claims (e.g., groups, custom attributes) from the
-    userinfo endpoint. Falls back to ID token claims if the request fails.
+    Why this is necessary (OIDC Core §5.4, §5.5):
+    When claims are requested via scopes (e.g., "profile", "email"), OIDC Core §5.4
+    specifies which claims are "REQUESTED" but does not mandate WHERE they must be
+    returned. Similarly, §5.5 allows requesting specific claims via the "claims"
+    parameter, but providers have discretion on whether to return them in the ID token
+    or UserInfo response. In practice, providers often return certain claims (especially
+    large ones like groups) only via UserInfo to keep ID tokens compact.
+
+    The UserInfo endpoint (OIDC Core §5.3) provides additional claims beyond what's
+    in the ID token, such as group memberships or custom attributes. This function:
+
+    1. Calls the UserInfo endpoint using the access token (OIDC Core §5.3.1, RFC 6750)
+    2. Merges userinfo claims with ID token claims
+    3. ID token claims override userinfo claims when both contain the same claim
+
+    Why ID token takes precedence (OIDC Core §5.3.2):
+    - ID tokens are signed JWTs that have been cryptographically verified
+    - UserInfo responses may be unsigned
+    - Signed claims are the authoritative source when present in both
+
+    Fallback behavior:
+    If the UserInfo request fails, returns only ID token claims. The returned claims
+    may be incomplete (missing email or groups), but subsequent validation will catch this:
+    - Missing email: _parse_user_info() raises MissingEmailScope
+    - Missing groups: validate_access() raises PermissionError if access is denied
 
     Args:
         oauth2_client: The OAuth2 client to use for fetching userinfo
-        token_data: The token response containing the access token
-        id_token_claims: Claims already extracted from the ID token
+        token_data: Token response containing the access token (RFC 6749 §5.1)
+        id_token_claims: Claims from the verified ID token (OIDC Core §3.1.3.3)
 
     Returns:
-        Merged claims dictionary with userinfo as base and ID token taking precedence
+        Merged claims dictionary with ID token claims overriding userinfo claims
     """
     try:
+        # OIDC Core §5.3.1: UserInfo request authenticated with access token
         userinfo_claims = await oauth2_client.userinfo(token=token_data)
+        # ID token claims take precedence (signed and verified)
         return {**userinfo_claims, **id_token_claims}
     except Exception:
+        # Fallback: ID token has essential claims for authentication
         return id_token_claims
 
 
 def _validate_token_data(token_data: dict[str, Any]) -> None:
     """
     Performs basic validations on the token data returned by the IDP.
+
+    RFC 6749 §5.1: Successful response must include access_token and token_type.
+    RFC 6750 §1.1: Bearer token type for HTTP authentication.
     """
     assert isinstance(token_data.get("access_token"), str)
     assert isinstance(token_type := token_data.get("token_type"), str)
@@ -344,11 +375,25 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
         InvalidUserInfo: If required claims are missing or malformed
         MissingEmailScope: If email claim is missing or invalid
 
-    OIDC Standard Claims Reference:
-        - sub (required): Subject Identifier, MUST be a string
-        - email (required by app): Email address
-        - name (optional): Full name
-        - picture (optional): Profile picture URL
+    ID Token Required Claims (OIDC Core §2, §3.1.3.3):
+        - iss (issuer): Identifier for the OpenID Provider
+        - sub (subject): Unique identifier for the End-User at the Issuer
+        - aud (audience): Client ID this ID token is intended for
+        - exp (expiration): Expiration time
+        - iat (issued at): Time the JWT was issued
+        - nonce (if sent in auth request): Value sent in the Authentication Request
+
+    Application-Required Claims:
+        - email: Required by this application for user identification
+
+    Optional Standard Claims (OIDC Core §5.1):
+        - name: Full name
+        - picture: Profile picture URL
+        - Other profile, email, address, and phone claims
+
+    Note: While iss, sub, aud, exp, iat are REQUIRED in all ID tokens per spec,
+    other claims like email, name, groups are optional and may appear in the ID token,
+    UserInfo response, or both depending on what was requested and provider implementation.
     """
     # Validate 'sub' claim (OIDC required, MUST be a string per spec)
     subject = user_info.get("sub")
