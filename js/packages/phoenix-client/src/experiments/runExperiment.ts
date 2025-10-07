@@ -23,7 +23,12 @@ import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
 import { createProvider, createNoOpProvider } from "./instrumentation";
-import { SpanStatusCode, Tracer, trace } from "@opentelemetry/api";
+import {
+  type DiagLogLevel,
+  SpanStatusCode,
+  Tracer,
+  trace,
+} from "@opentelemetry/api";
 import {
   MimeType,
   OpenInferenceSpanKind,
@@ -111,6 +116,11 @@ export type RunExperimentParams = ClientFn & {
    * @default true
    */
   useBatchSpanProcessor?: boolean;
+  /**
+   * Log level to set for the default DiagConsoleLogger when tracing.
+   * Omit to disable default diag logging, or to bring your own.
+   */
+  diagLogLevel?: DiagLogLevel;
 };
 
 /**
@@ -160,6 +170,7 @@ export async function runExperiment({
   setGlobalTracerProvider = true,
   repetitions = 1,
   useBatchSpanProcessor = true,
+  diagLogLevel,
 }: RunExperimentParams): Promise<RanExperiment> {
   // Validation
   assert(
@@ -227,6 +238,7 @@ export async function runExperiment({
       baseUrl,
       headers: client.config.headers ?? {},
       useBatchSpanProcessor,
+      diagLogLevel,
     });
     // Register the provider
     if (setGlobalTracerProvider) {
@@ -468,6 +480,7 @@ export async function evaluateExperiment({
   setGlobalTracerProvider = true,
   useBatchSpanProcessor = true,
   tracerProvider: paramsTracerProvider,
+  diagLogLevel,
 }: {
   /**
    * The experiment to evaluate
@@ -502,6 +515,11 @@ export async function evaluateExperiment({
    * Intended as a pass-through from runExperiment
    */
   tracerProvider?: NodeTracerProvider | null;
+  /**
+   * Log level to set for the default DiagConsoleLogger when tracing.
+   * Omit to disable default diag logging, or to bring your own.
+   */
+  diagLogLevel?: DiagLogLevel;
 }): Promise<RanExperiment> {
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
@@ -521,6 +539,7 @@ export async function evaluateExperiment({
       baseUrl,
       headers: client.config.headers ?? {},
       useBatchSpanProcessor,
+      diagLogLevel,
     });
     if (setGlobalTracerProvider) {
       provider.register();
