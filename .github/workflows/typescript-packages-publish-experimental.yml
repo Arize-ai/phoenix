@@ -28,6 +28,8 @@ jobs:
               - 'js/packages/phoenix-client/**'
             phoenix-mcp:
               - 'js/packages/phoenix-mcp/**'
+            phoenix-evals:
+              - 'js/packages/phoenix-evals/**'
             workflow_file:
               - '.github/workflows/typescript-packages-publish-experimental.yml'
 
@@ -59,4 +61,4 @@ jobs:
 
       - name: Publish
         working-directory: ./js
-        run: pnpx pkg-pr-new publish ./packages/phoenix-client ./packages/phoenix-mcp
+        run: pnpx pkg-pr-new publish ./packages/phoenix-client ./packages/phoenix-mcp ./packages/phoenix-evals
