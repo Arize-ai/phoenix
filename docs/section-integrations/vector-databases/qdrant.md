@@ -62,5 +62,3 @@ def search_documents(query_vector):
 ## Further Reading
 
 - [Qdrant Docs](https://qdrant.tech/documentation/)
-- [LangChain Integration](https://python.langchain.com/docs/integrations/vectorstores/qdrant/)
-- [LlamaIndex Integration](https://developers.llamaindex.ai/python/framework-api-reference/storage/vector_store/qdrant/)
