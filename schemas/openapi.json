@@ -4757,13 +4757,19 @@
             "description": "ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)"
           },
           "split_ids": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Split Ids",
-            "description": "List of dataset split names to filter by",
-            "default": []
+            "description": "List of dataset split names to filter by"
           },
           "repetitions": {
             "type": "integer",
