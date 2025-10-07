@@ -1436,6 +1436,7 @@ class _OIDCServer:
             code_verifier = form_data.get("code_verifier")
 
             if self._use_pkce and code in self._code_challenges:
+                # Reject missing or empty code_verifier
                 if not code_verifier:
                     return JSONResponse(
                         {
@@ -1479,18 +1480,31 @@ class _OIDCServer:
                 # If client_secret is in the request, it must be valid
                 if auth_header or form_data.get("client_secret"):
                     if not client_authenticated:
-                        return JSONResponse({"error": "invalid_client"}, status_code=400)
+                        return JSONResponse(
+                            {
+                                "error": "invalid_client",
+                                "error_description": "Invalid client credentials",
+                            },
+                            status_code=400,
+                        )
             else:
-                # Standard flow: client_secret required
-                if not client_authenticated:
-                    return JSONResponse({"error": "invalid_client"}, status_code=400)
-
-                # Reject code_verifier in non-PKCE flow (strict validation)
-                if code_verifier:
+                # Standard flow (non-PKCE): Validate code_verifier BEFORE client auth
+                # to avoid leaking information about server configuration
+                if code_verifier is not None and code_verifier != "":
                     return JSONResponse(
                         {
                             "error": "invalid_request",
                             "error_description": "code_verifier not allowed when PKCE is not enabled",
+                        },
+                        status_code=400,
+                    )
+
+                # Now validate client authentication
+                if not client_authenticated:
+                    return JSONResponse(
+                        {
+                            "error": "invalid_client",
+                            "error_description": "Invalid client credentials",
                         },
                         status_code=400,
                     )

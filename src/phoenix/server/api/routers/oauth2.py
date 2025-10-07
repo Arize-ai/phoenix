@@ -193,9 +193,16 @@ async def create_tokens(
                 request=request, origin_url=payload["origin_url"], idp_name=idp_name
             ),
         )
-        # Include PKCE code_verifier only when PKCE is enabled for this client
-        # and the code_verifier cookie exists
-        if oauth2_client.use_pkce and code_verifier:
+        # PKCE validation: code_verifier is required when PKCE is enabled
+        if oauth2_client.use_pkce:
+            if not code_verifier:
+                logger.error(
+                    "PKCE enabled but code_verifier cookie missing for IDP %s. "
+                    "This may indicate a cookie issue, CORS misconfiguration, or "
+                    "browser compatibility problem.",
+                    idp_name,
+                )
+                return _redirect_to_login(request=request, error="auth_failed")
             fetch_kwargs["code_verifier"] = code_verifier
         token_data = await oauth2_client.fetch_access_token(**fetch_kwargs)
     except OAuthError as e:

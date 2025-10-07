@@ -1023,18 +1023,14 @@ class TestOAuth2ClientConfigFromEnv:
         "allowed_groups_value",
         [
             "admin,users,admin,developers,users",  # Comma-separated with duplicates
-            "admin users admin developers users",  # Space-separated with duplicates
-            "admin, users, admin, developers,users",  # Mixed comma and space
+            "admin, users, admin, developers,users",  # Comma-separated with spaces
             "admin , users , admin , developers , users",  # Spaces around commas
         ],
     )
     def test_groups_deduplication(
         self, monkeypatch: MonkeyPatch, allowed_groups_value: str
     ) -> None:
-        """Test that duplicate allowed groups are removed while preserving order.
-
-        Supports both comma and space delimiters (like Grafana) for flexibility.
-        """
+        """Test that duplicate allowed groups are removed while preserving order."""
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
         monkeypatch.setenv(
@@ -1058,7 +1054,7 @@ class TestOAuth2ClientConfigFromEnv:
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_DISPLAY_NAME", "  My Provider  ")
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_SCOPES", "  groups   offline_access  ")
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "  groups  ")
-        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "  admin   developers  ")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "  admin , developers  ")
 
         config = OAuth2ClientConfig.from_env("test")
         assert config.client_id == "client_id"
@@ -1092,3 +1088,80 @@ class TestOAuth2ClientConfigFromEnv:
         config = OAuth2ClientConfig.from_env("google")
         assert config.idp_name == "google"
         assert config.client_id == "client_id"
+
+    def test_allowed_groups_comma_separated(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that ALLOWED_GROUPS can be parsed as comma-separated."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "admin,developers,viewers")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.allowed_groups == ["admin", "developers", "viewers"]
+
+    def test_allowed_groups_space_delimited_not_supported(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that space-delimited groups are no longer supported (treated as single group)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "admin developers viewers")
+
+        config = OAuth2ClientConfig.from_env("test")
+        # Space-delimited is NOT supported, so this is treated as one single group name
+        assert config.allowed_groups == ["admin developers viewers"]
+
+    def test_pkce_with_client_secret_auth_method_requires_secret(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """Test that PKCE with client_secret auth methods requires CLIENT_SECRET."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_USE_PKCE", "true")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_TOKEN_ENDPOINT_AUTH_METHOD", "client_secret_basic")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        # CLIENT_SECRET not set - should fail
+
+        with pytest.raises(ValueError, match="CLIENT_SECRET is required.*client_secret_basic"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_pkce_with_client_secret_post_requires_secret(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that PKCE with client_secret_post auth method requires CLIENT_SECRET."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_USE_PKCE", "true")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_TOKEN_ENDPOINT_AUTH_METHOD", "client_secret_post")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        # CLIENT_SECRET not set - should fail
+
+        with pytest.raises(ValueError, match="CLIENT_SECRET is required.*client_secret_post"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_pkce_with_none_auth_method_allows_missing_secret(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """Test that PKCE with 'none' auth method works without CLIENT_SECRET (public client)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_USE_PKCE", "true")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_TOKEN_ENDPOINT_AUTH_METHOD", "none")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        # CLIENT_SECRET not set - should succeed with 'none' method
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.client_secret is None
+        assert config.token_endpoint_auth_method == "none"
+        assert config.use_pkce is True

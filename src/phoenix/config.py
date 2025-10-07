@@ -1056,6 +1056,16 @@ class OAuth2ClientConfig:
                 )
             token_endpoint_auth_method = auth_method
 
+        # Validate: client_secret required for auth methods that need it
+        if (
+            token_endpoint_auth_method in ("client_secret_basic", "client_secret_post")
+            and not client_secret
+        ):
+            raise ValueError(
+                f"CLIENT_SECRET is required for {idp_name} when "
+                f"TOKEN_ENDPOINT_AUTH_METHOD is '{token_endpoint_auth_method}'"
+            )
+
         # Build scopes: start with required baseline, add custom scopes (deduplicated)
         scopes = ["openid", "email", "profile"]
         if custom_scopes := _get_optional("SCOPES"):
@@ -1067,12 +1077,11 @@ class OAuth2ClientConfig:
         groups_attribute_path = _get_optional("GROUPS_ATTRIBUTE_PATH")
         allowed_groups: list[str] = []
         if raw_groups := _get_optional("ALLOWED_GROUPS"):
-            # Split on both commas and whitespace for flexibility (like Grafana)
+            # Parse as comma-delimited
             # Deduplicate while preserving order
-            import re
-
             seen = set()
-            for g in re.split(r"[,\s]+", raw_groups):
+            for g in raw_groups.split(","):
+                g = g.strip()
                 if g and g not in seen:
                     allowed_groups.append(g)
                     seen.add(g)
@@ -1112,7 +1121,7 @@ _OAUTH2_CONFIG_SUFFIXES = (
     "TOKEN_ENDPOINT_AUTH_METHOD",  # How to authenticate at token endpoint
     "SCOPES",  # Additional OAuth2 scopes beyond "openid email profile"
     "GROUPS_ATTRIBUTE_PATH",  # JMESPath expression to extract groups from ID token
-    "ALLOWED_GROUPS",  # Whitespace/comma-separated list of groups allowed to sign in
+    "ALLOWED_GROUPS",  # Comma-separated list of groups allowed to sign in
 )
 
 
@@ -1204,11 +1213,12 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
           If not set, group-based access control is disabled for this provider.
 
-        - PHOENIX_OAUTH2_{IDP_NAME}_ALLOWED_GROUPS: Space-separated list of group names that are permitted
-          to sign in. Users must belong to at least one of these groups (extracted via GROUPS_ATTRIBUTE_PATH)
-          to authenticate successfully.
+        - PHOENIX_OAUTH2_{IDP_NAME}_ALLOWED_GROUPS: Comma-separated list of group names that
+          are permitted to sign in. Users must belong to at least one of these groups (extracted via
+          GROUPS_ATTRIBUTE_PATH) to authenticate successfully.
 
-          Example: PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS="admin developers viewers"
+          Example:
+            PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS="admin,developers,viewers"
 
           Works together with GROUPS_ATTRIBUTE_PATH to implement group-based access control. If not set,
           all authenticated users can sign in (subject to ALLOW_SIGN_UP restrictions).
