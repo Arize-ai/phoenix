@@ -398,33 +398,18 @@ export function ExperimentRunOutputs({
               const experimentRuns = experimentRunsByExperimentId[experimentId];
               return range(experiment.repetitions).map((repetitionIndex) => {
                 const repetitionNumber = repetitionIndex + 1;
-                const isSelected = !!selectedExperimentRuns.find(
-                  (runSelection) =>
-                    runSelection.experimentId === experimentId &&
-                    runSelection.repetitionNumber === repetitionNumber
-                )?.selected;
-                if (!isSelected) {
-                  return null;
-                }
-                const experimentRun = experimentRuns.find(
-                  (run) => run.repetitionNumber === repetitionNumber
-                );
                 return (
-                  <li
-                    key={experimentId + "-" + repetitionNumber}
-                    css={css`
-                      flex: none;
-                    `}
-                  >
-                    <ExperimentItem
-                      experiment={experiment}
-                      experimentRun={experimentRun}
-                      experimentIndex={experimentIndex}
-                      includeRepetitions={includeRepetitions}
-                      annotationSummaries={annotationSummaries}
-                      repetitionNumber={repetitionNumber}
-                    />
-                  </li>
+                  <ExperimentListItemIfSelected
+                    key={`${experimentId}-${repetitionNumber}`}
+                    experimentId={experimentId}
+                    repetitionNumber={repetitionNumber}
+                    experiment={experiment}
+                    experimentRuns={experimentRuns}
+                    experimentIndex={experimentIndex}
+                    selectedExperimentRuns={selectedExperimentRuns}
+                    includeRepetitions={includeRepetitions}
+                    annotationSummaries={annotationSummaries}
+                  />
                 );
               });
             })}
@@ -434,6 +419,64 @@ export function ExperimentRunOutputs({
     </PanelGroup>
   );
 }
+
+const ExperimentListItemIfSelected = ({
+  experimentId,
+  repetitionNumber,
+  experiment,
+  experimentRuns,
+  experimentIndex,
+  selectedExperimentRuns,
+  includeRepetitions,
+  annotationSummaries,
+}: {
+  experimentId: string;
+  repetitionNumber: number;
+  experiment: Experiment;
+  experimentRuns: ExperimentRun[];
+  experimentIndex: number;
+  selectedExperimentRuns: ExperimentRunSelectionState[];
+  includeRepetitions: boolean;
+  annotationSummaries?: AnnotationSummaries;
+}) => {
+  const isSelected = useMemo(
+    () =>
+      selectedExperimentRuns.some(
+        (runSelection) =>
+          runSelection.experimentId === experimentId &&
+          runSelection.repetitionNumber === repetitionNumber &&
+          runSelection.selected
+      ),
+    [selectedExperimentRuns, experimentId, repetitionNumber]
+  );
+
+  const experimentRun = useMemo(
+    () =>
+      experimentRuns.find((run) => run.repetitionNumber === repetitionNumber),
+    [experimentRuns, repetitionNumber]
+  );
+
+  if (!isSelected) {
+    return null;
+  }
+
+  return (
+    <li
+      css={css`
+        flex: none;
+      `}
+    >
+      <ExperimentItem
+        experiment={experiment}
+        experimentRun={experimentRun}
+        experimentIndex={experimentIndex}
+        includeRepetitions={includeRepetitions}
+        annotationSummaries={annotationSummaries}
+        repetitionNumber={repetitionNumber}
+      />
+    </li>
+  );
+};
 
 function ExperimentRunOutputsSidebar({
   experimentIds,
