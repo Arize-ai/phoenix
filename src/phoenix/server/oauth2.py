@@ -83,10 +83,8 @@ class OAuth2Clients:
             self._auto_login_client = client
         self._clients[config.idp_name] = client
 
-    def get_client(self, idp_name: str) -> OAuth2Client:
-        if (client := self._clients.get(idp_name)) is None:
-            raise ValueError(f"unknown or unregistered OAuth2 client: {idp_name}")
-        return client
+    def get_client(self, idp_name: str) -> Optional[OAuth2Client]:
+        return self._clients.get(idp_name)
 
     @classmethod
     def from_configs(cls, configs: Iterable[OAuth2ClientConfig]) -> "OAuth2Clients":

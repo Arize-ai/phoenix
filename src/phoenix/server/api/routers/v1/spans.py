@@ -14,12 +14,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy import exists, select, update
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
-from starlette.status import (
-    HTTP_202_ACCEPTED,
-    HTTP_400_BAD_REQUEST,
-    HTTP_404_NOT_FOUND,
-    HTTP_422_UNPROCESSABLE_ENTITY,
-)
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
@@ -33,7 +27,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
-from phoenix.trace.attributes import flatten
+from phoenix.trace.attributes import flatten, unflatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.trace.schemas import (
     Span as SpanForInsertion,
@@ -440,7 +434,7 @@ class SpansResponseBody(PaginatedResponseBody[Span]):
     "/spans",
     operation_id="querySpans",
     summary="Query spans with query DSL",
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses([404, 422]),
     include_in_schema=False,
 )
 async def query_spans_handler(
@@ -467,7 +461,7 @@ async def query_spans_handler(
     except Exception as e:
         raise HTTPException(
             detail=f"Invalid query: {e}",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
         )
 
     async with request.app.state.db() as session:
@@ -490,7 +484,7 @@ async def query_spans_handler(
             )
             results.append(df)
     if not results:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND)
+        raise HTTPException(status_code=404)
 
     if accept == "application/json":
         boundary_token = token_urlsafe(64)
@@ -574,7 +568,7 @@ def _to_any_value(value: Any) -> OtlpAnyValue:
     summary="Search spans with simple filters (no DSL)",
     description="Return spans within a project filtered by time range. "
     "Supports cursor-based pagination.",
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses([404, 422]),
 )
 async def span_search_otlpv1(
     request: Request,
@@ -617,7 +611,7 @@ async def span_search_otlpv1(
             cursor_rowid = int(GlobalID.from_id(cursor).node_id)
             stmt = stmt.where(models.Span.id <= cursor_rowid)
         except Exception:
-            raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid cursor")
+            raise HTTPException(status_code=422, detail="Invalid cursor")
 
     stmt = stmt.limit(limit + 1)
 
@@ -711,7 +705,7 @@ async def span_search_otlpv1(
     summary="List spans with simple filters (no DSL)",
     description="Return spans within a project filtered by time range. "
     "Supports cursor-based pagination.",
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses([404, 422]),
 )
 async def span_search(
     request: Request,
@@ -751,7 +745,7 @@ async def span_search(
         try:
             cursor_rowid = int(GlobalID.from_id(cursor).node_id)
         except Exception:
-            raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid cursor")
+            raise HTTPException(status_code=422, detail="Invalid cursor")
         stmt = stmt.where(models.Span.id <= cursor_rowid)
 
     stmt = stmt.limit(limit + 1)
@@ -867,9 +861,7 @@ class AnnotateSpansResponseBody(ResponseBody[list[InsertedSpanAnnotation]]):
     dependencies=[Depends(is_not_locked)],
     operation_id="annotateSpans",
     summary="Create span annotations",
-    responses=add_errors_to_responses(
-        [{"status_code": HTTP_404_NOT_FOUND, "description": "Span not found"}]
-    ),
+    responses=add_errors_to_responses([{"status_code": 404, "description": "Span not found"}]),
     response_description="Span annotations inserted successfully",
     include_in_schema=True,
 )
@@ -915,7 +907,7 @@ async def annotate_spans(
         if missing_span_ids:
             raise HTTPException(
                 detail=f"Spans with IDs {', '.join(missing_span_ids)} do not exist.",
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
             )
         inserted_ids = []
         dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -957,8 +949,8 @@ class CreateSpansResponseBody(V1RoutesBaseModel):
         "Submit spans to be inserted into a project. If any spans are invalid or "
         "duplicates, no spans will be inserted."
     ),
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_400_BAD_REQUEST]),
-    status_code=HTTP_202_ACCEPTED,
+    responses=add_errors_to_responses([404, 400]),
+    status_code=202,
 )
 async def create_spans(
     request: Request,
@@ -997,6 +989,7 @@ async def create_spans(
         # Add back the openinference.span.kind attribute since it's stored separately in the API
         attributes = dict(api_span.attributes)
         attributes["openinference.span.kind"] = api_span.span_kind
+        attributes = unflatten(attributes.items())
 
         # Create span for insertion - note we ignore the 'id' field as it's server-generated
         return SpanForInsertion(
@@ -1015,8 +1008,23 @@ async def create_spans(
             conversation=None,  # Unused
         )
 
-    async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(project_identifier),
+            "Project",
+        )
+    except Exception:
+        project_name = project_identifier
+    else:
+        stmt = select(models.Project).filter_by(id=id_)
+        async with request.app.state.db() as session:
+            project = await session.scalar(stmt)
+        if project is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Project with ID {project_identifier} not found",
+            )
+        project_name = project.name
 
     total_received = len(request_body.data)
     duplicate_spans: list[dict[str, str]] = []
@@ -1044,7 +1052,7 @@ async def create_spans(
 
         try:
             span_for_insertion = convert_api_span_for_insertion(api_span)
-            spans_to_queue.append((span_for_insertion, project.name))
+            spans_to_queue.append((span_for_insertion, project_name))
         except Exception as e:
             invalid_spans.append(
                 {
@@ -1066,7 +1074,7 @@ async def create_spans(
             "invalid_spans": invalid_spans,
         }
         raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail=json.dumps(error_detail),
         )
 
@@ -1102,7 +1110,7 @@ async def create_spans(
         **Note**: This operation is irreversible and may create orphaned spans.
         """
     ),
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+    responses=add_errors_to_responses([404]),
     status_code=204,  # No Content for successful deletion
 )
 async def delete_span(
@@ -1154,7 +1162,7 @@ async def delete_span(
 
         if target_span is None:
             raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
                 detail=error_detail,
             )
 

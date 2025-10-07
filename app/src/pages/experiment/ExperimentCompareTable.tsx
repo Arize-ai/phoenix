@@ -102,7 +102,7 @@ type Experiment = NonNullable<
   ExperimentCompareTable_comparisons$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type ExperimentInfoMap = Record<string, Experiment>;
+type ExperimentInfoMap = Partial<Record<string, Experiment>>;
 
 type ExperimentComparison =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"];
@@ -136,9 +136,9 @@ const tableWrapCSS = css`
 const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
-    null
-  );
+  const [selectedExampleIndex, setSelectedExampleIndex] = useState<
+    number | null
+  >(null);
   const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId, baseExperimentId, compareExperimentIds } = props;
   const [filterCondition, setFilterCondition] = useState("");
@@ -325,7 +325,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                         setDialog(
                           <ExampleDetailsDialog
                             exampleId={row.original.example.id}
-                            datasetVersionId={baseExperiment.datasetVersionId}
+                            datasetVersionId={baseExperiment?.datasetVersionId}
                           />
                         );
                       }}
@@ -376,7 +376,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         ),
       },
     ];
-  }, [baseExperiment.datasetVersionId, displayFullText, setDialog]);
+  }, [baseExperiment?.datasetVersionId, displayFullText, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [baseExperimentId, ...compareExperimentIds].map(
@@ -438,14 +438,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 
           return (
             <ExperimentRunOutputCell
+              rowIndex={row.index}
               experimentRepetitionCount={
                 experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
               displayFullText={displayFullText}
               setDialog={setDialog}
-              setSelectedExampleId={setSelectedExampleId}
-              tableRow={row.original}
+              setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
             />
           );
@@ -654,35 +654,39 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         </div>
       </Flex>
       <ModalOverlay
-        isOpen={!!selectedExampleId}
-        onOpenChange={() => {
-          setSelectedExampleId(null);
+        isOpen={selectedExampleIndex !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedExampleIndex(null);
+          }
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {selectedExampleId && (
-            <ExperimentCompareDetailsDialog
-              datasetId={datasetId}
-              datasetVersionId={baseExperiment.datasetVersionId}
-              selectedExampleId={selectedExampleId}
-              baseExperimentId={baseExperimentId}
-              compareExperimentIds={compareExperimentIds}
-              exampleIds={exampleIds}
-              onNextExample={(nextId) => {
-                setSelectedExampleId(nextId);
-                if (
-                  nextId === exampleIds[exampleIds.length - 1] &&
-                  !isLoadingNext &&
-                  hasNext
-                ) {
-                  loadNext(PAGE_SIZE);
-                }
-              }}
-              onPreviousExample={(previousId) =>
-                setSelectedExampleId(previousId)
-              }
-            />
-          )}
+          {selectedExampleIndex !== null &&
+            exampleIds[selectedExampleIndex] &&
+            baseExperiment && (
+              <ExperimentCompareDetailsDialog
+                datasetId={datasetId}
+                datasetVersionId={baseExperiment.datasetVersionId}
+                selectedExampleIndex={selectedExampleIndex}
+                selectedExampleId={exampleIds[selectedExampleIndex]}
+                baseExperimentId={baseExperimentId}
+                compareExperimentIds={compareExperimentIds}
+                exampleIds={exampleIds}
+                onExampleChange={(exampleIndex) => {
+                  if (
+                    exampleIndex === exampleIds.length - 1 &&
+                    !isLoadingNext &&
+                    hasNext
+                  ) {
+                    loadNext(PAGE_SIZE);
+                  }
+                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
+                    setSelectedExampleIndex(exampleIndex);
+                  }
+                }}
+              />
+            )}
         </Modal>
       </ModalOverlay>
       <ModalOverlay
@@ -1064,16 +1068,16 @@ function ExperimentRunOutputCell({
   repeatedRunGroup,
   displayFullText,
   setDialog,
-  setSelectedExampleId,
-  tableRow,
+  rowIndex,
+  setSelectedExampleIndex,
   annotationSummaries,
 }: {
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
   displayFullText: boolean;
   setDialog: (dialog: ReactNode) => void;
-  setSelectedExampleId: (id: string) => void;
-  tableRow: TableRow;
+  rowIndex: number;
+  setSelectedExampleIndex: (index: number) => void;
   annotationSummaries: readonly AnnotationSummary[];
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
@@ -1118,7 +1122,7 @@ function ExperimentRunOutputCell({
           size="S"
           aria-label="View example run details"
           onPress={() => {
-            setSelectedExampleId(tableRow.id);
+            setSelectedExampleIndex(rowIndex);
           }}
         >
           <Icon svg={<Icons.ExpandOutline />} />

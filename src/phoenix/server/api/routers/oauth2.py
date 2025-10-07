@@ -1,3 +1,4 @@
+import logging
 import re
 from dataclasses import dataclass
 from datetime import timedelta
@@ -18,7 +19,6 @@ from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore
 from starlette.datastructures import URL, Secret, URLPath
 from starlette.responses import RedirectResponse
 from starlette.routing import Router
-from starlette.status import HTTP_302_FOUND
 from typing_extensions import Annotated, NotRequired, TypeGuard
 
 from phoenix.auth import (
@@ -38,8 +38,8 @@ from phoenix.config import (
     get_env_disable_rate_limit,
 )
 from phoenix.db import models
+from phoenix.server.api.auth_messages import AuthErrorCode
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
-from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
@@ -49,6 +49,8 @@ from phoenix.server.types import TokenStore
 from phoenix.server.utils import get_root_path, prepend_root_path
 
 _LOWERCASE_ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
+
+logger = logging.getLogger(__name__)
 
 login_rate_limiter = fastapi_ip_rate_limiter(
     ServerRateLimiter(
@@ -88,11 +90,12 @@ async def login(
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
     return_url: Optional[str] = Query(default=None, alias="returnUrl"),
 ) -> RedirectResponse:
+    # Security Note: Query parameters should be treated as untrusted user input. Never display
+    # these values directly to users as they could be manipulated for XSS, phishing, or social
+    # engineering attacks.
+    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
+        return _redirect_to_login(request=request, error="unknown_idp")
     secret = request.app.state.get_secret()
-    if not isinstance(
-        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
-    ):
-        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     if (referer := request.headers.get("referer")) is not None:
         # if the referer header is present, use it as the origin URL
         parsed_url = urlparse(referer)
@@ -113,7 +116,7 @@ async def login(
     assert isinstance(authorization_url := authorization_url_data.get("url"), str)
     assert isinstance(state := authorization_url_data.get("state"), str)
     assert isinstance(nonce := authorization_url_data.get("nonce"), str)
-    response = RedirectResponse(url=authorization_url, status_code=HTTP_302_FOUND)
+    response = RedirectResponse(url=authorization_url, status_code=302)
     response = set_oauth2_state_cookie(
         response=response,
         state=state,
@@ -132,28 +135,42 @@ async def create_tokens(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
     state: str = Query(),
-    authorization_code: str = Query(alias="code"),
+    authorization_code: Optional[str] = Query(default=None, alias="code"),
+    error: Optional[str] = Query(default=None),
+    error_description: Optional[str] = Query(default=None),
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
     stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
 ) -> RedirectResponse:
+    # Security Note: Query parameters should be treated as untrusted user input. Never display
+    # these values directly to users as they could be manipulated for XSS, phishing, or social
+    # engineering attacks.
+    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
+        return _redirect_to_login(request=request, error="unknown_idp")
+    if error or error_description:
+        logger.error(
+            "OAuth2 authentication failed for IDP %s: error=%s, description=%s",
+            idp_name,
+            error,
+            error_description,
+        )
+        return _redirect_to_login(request=request, error="auth_failed")
+    if authorization_code is None:
+        logger.error("OAuth2 callback missing authorization code for IDP %s", idp_name)
+        return _redirect_to_login(request=request, error="auth_failed")
     secret = request.app.state.get_secret()
     if state != stored_state:
-        return _redirect_to_login(request=request, error=_INVALID_OAUTH2_STATE_MESSAGE)
+        return _redirect_to_login(request=request, error="invalid_state")
     try:
         payload = _parse_state_payload(secret=secret, state=state)
     except JoseError:
-        return _redirect_to_login(request=request, error=_INVALID_OAUTH2_STATE_MESSAGE)
+        return _redirect_to_login(request=request, error="invalid_state")
     if (return_url := payload.get("return_url")) is not None and not _is_relative_url(
         unquote(return_url)
     ):
-        return _redirect_to_login(request=request, error="Attempting login with unsafe return URL.")
+        return _redirect_to_login(request=request, error="unsafe_return_url")
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
-    if not isinstance(
-        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
-    ):
-        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     try:
         token_data = await oauth2_client.fetch_access_token(
             state=state,
@@ -162,19 +179,19 @@ async def create_tokens(
                 request=request, origin_url=payload["origin_url"], idp_name=idp_name
             ),
         )
-    except OAuthError as error:
-        return _redirect_to_login(request=request, error=str(error))
+    except OAuthError as e:
+        logger.error("OAuth2 error for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="oauth_error")
     _validate_token_data(token_data)
     if "id_token" not in token_data:
-        return _redirect_to_login(
-            request=request,
-            error=f"OAuth2 IDP {idp_name} does not appear to support OpenID Connect.",
-        )
+        logger.error("OAuth2 IDP %s does not appear to support OpenID Connect", idp_name)
+        return _redirect_to_login(request=request, error="no_oidc_support")
     user_info = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
     try:
         user_info = _parse_user_info(user_info)
-    except MissingEmailScope as error:
-        return _redirect_to_login(request=request, error=str(error))
+    except MissingEmailScope as e:
+        logger.error("Missing email scope for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="missing_email_scope")
 
     try:
         async with request.app.state.db() as session:
@@ -184,8 +201,12 @@ async def create_tokens(
                 user_info=user_info,
                 allow_sign_up=oauth2_client.allow_sign_up,
             )
-    except (EmailAlreadyInUse, SignInNotAllowed) as error:
-        return _redirect_to_login(request=request, error=str(error))
+    except EmailAlreadyInUse as e:
+        logger.error("Email already in use for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="email_in_use")
+    except SignInNotAllowed as e:
+        logger.error("Sign in not allowed for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="sign_in_not_allowed")
     access_token, refresh_token = await create_access_and_refresh_tokens(
         user=user,
         token_store=token_store,
@@ -195,7 +216,7 @@ async def create_tokens(
     redirect_path = prepend_root_path(request.scope, return_url or "/")
     response = RedirectResponse(
         url=redirect_path,
-        status_code=HTTP_302_FOUND,
+        status_code=302,
     )
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
@@ -560,9 +581,10 @@ class MissingEmailScope(Exception):
     pass
 
 
-def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
+def _redirect_to_login(*, request: Request, error: AuthErrorCode) -> RedirectResponse:
     """
-    Creates a RedirectResponse to the login page to display an error message.
+    Creates a RedirectResponse to the login page to display an error code.
+    The error code will be validated and mapped to a user-friendly message on the frontend.
     """
     # TODO: this needs some cleanup
     login_path = prepend_root_path(
@@ -661,7 +683,4 @@ def _is_oauth2_state_payload(maybe_state_payload: Any) -> TypeGuard[_OAuth2State
 
 
 _JWT_ALGORITHM = "HS256"
-_INVALID_OAUTH2_STATE_MESSAGE = (
-    "Received invalid state parameter during OAuth2 authorization code flow for IDP {idp_name}."
-)
 _RELATIVE_URL_PATTERN = re.compile(r"^/($|\w)")

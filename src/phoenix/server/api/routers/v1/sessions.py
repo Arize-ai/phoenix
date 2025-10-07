@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
-from starlette.status import HTTP_404_NOT_FOUND
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -39,9 +38,7 @@ class AnnotateSessionsResponseBody(ResponseBody[list[InsertedSessionAnnotation]]
     dependencies=[Depends(is_not_locked)],
     operation_id="annotateSessions",
     summary="Create session annotations",
-    responses=add_errors_to_responses(
-        [{"status_code": HTTP_404_NOT_FOUND, "description": "Session not found"}]
-    ),
+    responses=add_errors_to_responses([{"status_code": 404, "description": "Session not found"}]),
     response_description="Session annotations inserted successfully",
     include_in_schema=True,
 )
@@ -88,7 +85,7 @@ async def annotate_sessions(
     if missing_session_ids:
         raise HTTPException(
             detail=f"Sessions with IDs {', '.join(missing_session_ids)} do not exist.",
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
         )
 
     async with request.app.state.db() as session:

@@ -13,3 +13,11 @@ def create_openai_client(model: str, is_async: bool, **kwargs: Any) -> LiteLLMCl
 
 def create_litellm_client(model: str, is_async: bool, **kwargs: Any) -> LiteLLMClient:
     return LiteLLMClient(provider="litellm", model=model, **kwargs)
+
+
+def create_vertex_client(model: str, is_async: bool, **kwargs: Any) -> LiteLLMClient:
+    return LiteLLMClient(provider="vertex_ai", model=model, **kwargs)
+
+
+def create_bedrock_client(model: str, is_async: bool, **kwargs: Any) -> LiteLLMClient:
+    return LiteLLMClient(provider="bedrock", model=model, **kwargs)

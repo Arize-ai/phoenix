@@ -7,6 +7,7 @@ import {
 import { RouterProvider } from "react-router/dom";
 
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
+import { RootLayout } from "@phoenix/pages/RootLayout";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -85,6 +86,7 @@ import {
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
   SessionPage,
+  SettingsDatasetsPage,
   settingsGeneralPageLoader,
   SettingsPage,
   SettingsPromptsPage,
@@ -96,7 +98,7 @@ import {
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route path="/" errorElement={<ErrorElement />}>
+    <Route path="/" errorElement={<ErrorElement />} element={<RootLayout />}>
       {/*
         Using /v1/* below redirects all /v1/* routes that don't have a GET method to the root path.
         In particular, this redirects /v1/traces to the root path (/). This route is for the
@@ -359,6 +361,13 @@ const router = createBrowserRouter(
               element={<SettingsModelsPage />}
               handle={{
                 crumb: () => "Models",
+              }}
+            />
+            <Route
+              path="datasets"
+              element={<SettingsDatasetsPage />}
+              handle={{
+                crumb: () => "Datasets",
               }}
             />
             <Route

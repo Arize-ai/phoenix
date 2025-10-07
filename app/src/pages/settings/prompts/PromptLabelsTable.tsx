@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
   flexRender,
@@ -37,7 +38,10 @@ export function PromptLabelsTable({
     `,
     query
   );
-  const tableData = data.promptLabels.edges.map((edge) => edge.node);
+  const tableData = useMemo(
+    () => data.promptLabels.edges.map((edge) => edge.node),
+    [data.promptLabels.edges]
+  );
 
   const table = useReactTable<(typeof tableData)[number]>({
     columns: [
