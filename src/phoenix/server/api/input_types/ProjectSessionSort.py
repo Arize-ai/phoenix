@@ -185,5 +185,5 @@ class ProjectSessionSort:
                 column_data_type=anno_attr.data_type,
             )
         raise ValueError(
-            "Exactly one of `col` or `evalResultKey` must be specified on `ProjectSessionSort`."
+            "Exactly one of `col` or `annoResultKey` must be specified on `ProjectSessionSort`."
         )
