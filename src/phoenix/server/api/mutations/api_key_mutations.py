@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 
 import strawberry
 from sqlalchemy import select
@@ -114,6 +114,7 @@ class ApiKeyMutationMixin:
             raise ValueError("User not found")
         issued_at = datetime.now(timezone.utc)
         # Determine user role for API key
+        user_role: Literal["ADMIN", "MEMBER", "VIEWER"]
         if user.is_admin:
             user_role = "ADMIN"
         elif user.is_viewer:
