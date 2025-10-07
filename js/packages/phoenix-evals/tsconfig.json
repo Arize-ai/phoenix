@@ -7,11 +7,6 @@
     "noUncheckedIndexedAccess": true
   },
   "files": [],
-  "include": [
-    "src/**/*.ts",
-    "examples/**/*.ts",
-    "test/**/*.ts",
-    "benchmark/**/*.ts"
-  ],
+  "include": ["src/**/*.ts"],
   "references": []
 }
