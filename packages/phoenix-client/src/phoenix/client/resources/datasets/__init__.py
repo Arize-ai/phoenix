@@ -122,8 +122,6 @@ class Dataset:
     @property
     def example_count(self) -> int:
         """Number of examples in this version."""
-        if "example_count" in self._dataset_info:
-            return self._dataset_info["example_count"]
         return len(self.examples)
 
     def __repr__(self) -> str:
