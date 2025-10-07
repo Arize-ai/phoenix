@@ -164,8 +164,8 @@ export function MetricSelector({
   );
   const hasNumericDimensions = numericDimensions.length > 0;
   const onSelectionChange = useCallback(
-    (key: Key | null) => {
-      if (!key) {
+    (key: Key | Key[] | null) => {
+      if (!key || typeof key !== "string") {
         return;
       }
       const metricDefinition = parseMetricKey({
