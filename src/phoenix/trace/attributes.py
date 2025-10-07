@@ -1,18 +1,63 @@
 """
+OpenTelemetry Span Attribute Flattening/Unflattening for Phoenix
+
+This module handles the conversion between flattened dot-separated key-value pairs
+(as received from OpenTelemetry protobuf) and nested dictionary structures (as used
+internally by Phoenix).
+
+Basic Behavior
+--------------
 Span attribute keys have a special relationship with the `.` separator. When
 a span attribute is ingested from protobuf, it's in the form of a key value
-pair such as `("llm.token_count.completion", 123)`. What we need to do is to split
-the key by the `.` separator and turn it into part of a nested dictionary such
-as {"llm": {"token_count": {"completion": 123}}}. We also need to reverse this
-process, which is to flatten the nested dictionary into a list of key value
-pairs. This module provides functions to do both of these operations.
+pair such as `("llm.token_count.completion", 123)`. We split the key by the `.`
+separator and turn it into a nested dictionary:
+    {"llm": {"token_count": {"completion": 123}}}
 
-Note that digit keys are treated as indices of a nested array. For example,
-the digits inside `("retrieval.documents.0.document.content", 'A')` and
-`("retrieval.documents.1.document.content": 'B')` turn the sub-keys following
-them into a nested list of dictionaries i.e.
-{`retrieval: {"documents": [{"document": {"content": "A"}}, {"document":
-{"content": "B"}}]}`.
+Array Creation Rule
+-------------------
+Numeric keys are treated specially to support array-like structures in OpenTelemetry
+semantic conventions. A numeric key becomes an array index ONLY when:
+1. The numeric key has additional segments after it (e.g., "documents.0.content")
+2. Those segments lead to mappings (dictionaries), not scalar values
+
+Examples:
+    ("documents.0.content", "A"), ("documents.1.content", "B")
+    → {"documents": [{"content": "A"}, {"content": "B"}]}  # Array created
+
+    ("tags.0", "python"), ("tags.1", "ai")
+    → {"tags": {"0": "python", "1": "ai"}}  # Dict with string keys, NOT array
+
+Rationale: In OpenTelemetry semantic conventions, arrays typically contain structured
+objects (like documents or events), not primitive values. This rule ensures that only
+semantically meaningful arrays are created, avoiding ambiguity with numeric string keys.
+
+Terminal Value Node Behavior
+----------------------------
+When a path receives an explicit value (typically from pre-nested input), that node
+becomes "terminal" and cannot have children added via flattened keys. Instead,
+attempted extensions become separate dotted keys:
+
+    ("a", {"b": 1}), ("a.c", 2)
+    → {"a": {"b": 1}, "a.c": 2}  # "a.c" becomes dotted key, not nested
+
+This preserves all data during OpenTelemetry ingestion where:
+- Pre-nested values (dicts/arrays) come from the OTEL data model
+- Flattened keys come from custom instrumentation
+- Both must be preserved to avoid data loss
+
+Edge Cases
+----------
+- None values: Skipped entirely during processing
+- Leading zeros: Normalized ("00" → "0", treated as same key)
+- Negative numbers: Treated as string keys, not array indices
+- Empty key segments: Ignored ("a..b" → "a.b")
+- Alphanumeric keys: "0a", "1x" are string keys, not array indices
+- Whitespace: Stripped from key segments (" key " → "key")
+- Empty string key: Valid key, preserved as-is
+- Duplicate keys: Last write wins
+
+These edge cases are handled consistently to ensure reliable round-tripping
+between flattened and nested representations.
 """
 
 import inspect
@@ -107,6 +152,13 @@ def has_mapping(sequence: Iterable[Any]) -> bool:
     only contain primitive types, such as strings, integers, etc. Conversely,
     we'll only un-flatten digit sub-keys if it can be interpreted the index of
     an array of dictionaries.
+
+    This is the key function that implements the "arrays only for mappings" rule.
+    In OpenTelemetry semantic conventions, arrays typically contain structured
+    objects (e.g., retrieval.documents[0], llm.messages[1]) not primitive arrays
+    like ["tag1", "tag2"]. This check ensures semantic correctness during round-
+    trip conversions: primitive arrays stay as-is, only structured arrays are
+    flattened/unflattened with numeric indices.
     """
     for item in sequence:
         if isinstance(item, Mapping):
@@ -189,7 +241,9 @@ class _Trie(defaultdict[Union[str, int], "_Trie"]):
 
     def set_value(self, value: Any) -> None:
         self.value = value
-        # value and indices must not coexist
+        # value and indices must not coexist - convert indices to branches
+        # This handles the case where a numeric key ends a path (scalar value)
+        # vs. continues a path (array index). Example: "a.0" vs "a.0.b"
         self.branches.update(self.indices)
         self.indices.clear()
 
@@ -230,8 +284,14 @@ def _build_trie(
                 separator,
                 prefix_exclusions,
             )
+            # Strip whitespace from key segments for cleaner attribute keys
+            prefix = prefix.strip()
             if prefix.isdigit():
                 index = int(prefix)
+                # Key decision: numeric key with suffix → array index (add_index)
+                #               numeric key without suffix → dict key (add_branch)
+                # This ensures arrays only contain mappings, not scalar values,
+                # matching OpenTelemetry semantic conventions.
                 t = t.add_index(index) if suffix else t.add_branch(index)
             else:
                 t = t.add_branch(prefix)
@@ -253,8 +313,15 @@ def _walk(
     yield the prefix and the value. If the Trie node has indices, then yield the
     prefix and a list of dictionaries. If the Trie node has branches, then yield
     the prefix and a dictionary.
+
+    Conflict Resolution: When a node has both a value and child nodes, both are
+    yielded. The value is yielded with its current prefix, and children create
+    additional dotted keys. This preserves all data from mixed flattened/nested
+    input, avoiding data loss during OpenTelemetry span ingestion.
     """
     if trie.value is not None:
+        # Yield the value first - if there are also branches, those will become
+        # separate dotted keys (e.g., "a" and "a.b" coexist)
         yield prefix, trie.value
     elif prefix and trie.indices:
         yield (

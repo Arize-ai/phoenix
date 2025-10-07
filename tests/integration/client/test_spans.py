@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from random import choice, random, sample
 from secrets import token_hex
@@ -19,6 +20,7 @@ from .._helpers import (
     _ExistingProject,
     _ExistingSpan,
     _GetUser,  # pyright: ignore[reportPrivateUsage]
+    _gql,
     _RoleOrUser,
     _until_spans_exist,
 )
@@ -1485,6 +1487,216 @@ class TestClientForSpanCreation:
             assert compare_nested_objects(
                 row["attributes.llm.output_messages"], orig_row["attributes.llm.output_messages"]
             )
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_unflatten_attributes_on_span_creation(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that flattened attributes are properly unflattened when creating spans.
+
+        This test verifies that the unflatten() function correctly converts
+        flattened dot-separated keys into nested structures when spans are created.
+        It uses GraphQL to check the raw database structure (nested) and the REST API
+        to verify round-trip behavior (flattened).
+        """
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+        trace_id = f"trace_{token_hex(16)}"
+        span_id = f"span_{token_hex(8)}"
+
+        # Create a span with MIX of flattened and already-nested attributes
+        # This tests robustness of unflatten() handling both formats
+        test_span = self._create_test_span(
+            "test_unflatten",
+            context={"trace_id": trace_id, "span_id": span_id},
+            attributes={
+                # Flattened attributes
+                "llm.model": "gpt-4",
+                "llm.token_count.prompt": 100,
+                "llm.token_count.completion": 50,
+                "llm.token_count.total": 150,
+                # Already nested attribute (should be preserved as-is)
+                "metadata": {
+                    "user": {"id": "user123", "name": "Test User"},
+                    "session": {"id": "session456"},
+                },
+                # Array-like structure (numeric keys with nested content)
+                "documents.0.content": "First document",
+                "documents.0.id": "doc1",
+                "documents.1.content": "Second document",
+                "documents.1.id": "doc2",
+            },
+        )
+
+        # Create the span
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name,
+                spans=[test_span],
+            )
+        )
+        assert result["total_received"] == 1
+        assert result["total_queued"] == 1
+
+        # Wait for span to be processed
+        await _until_spans_exist(_app, [span_id])
+
+        # Use GraphQL to check the nested structure in the database
+        gql_query = """
+        query GetSpanAttributes($spanId: ID!) {
+            node(id: $spanId) {
+                ... on Span {
+                    spanId
+                    attributes
+                }
+            }
+        }
+        """
+
+        # Get the span's Global ID using GraphQL - query project directly by its Global ID
+        trace_query = """
+        query GetTraceSpans($projectId: ID!, $traceId: ID!) {
+            node(id: $projectId) {
+                ... on Project {
+                    trace(traceId: $traceId) {
+                        spans {
+                            edges {
+                                node {
+                                    id
+                                    spanId
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        trace_result, _ = _gql(
+            _app,
+            user,
+            query=trace_query,
+            variables={"projectId": str(_existing_project.id), "traceId": trace_id},
+        )
+        assert not trace_result.get("errors"), f"GraphQL errors: {trace_result.get('errors')}"
+
+        # Find our span's Global ID
+        trace = trace_result["data"]["node"]["trace"]
+        assert trace is not None, f"Could not find trace with traceId {trace_id}"
+
+        span_global_id = None
+        for span_edge in trace["spans"]["edges"]:
+            if span_edge["node"]["spanId"] == span_id:
+                span_global_id = span_edge["node"]["id"]
+                break
+
+        assert span_global_id is not None, f"Could not find span with spanId {span_id}"
+
+        # Now query for the attributes using the Global ID
+        attr_result, _ = _gql(_app, user, query=gql_query, variables={"spanId": span_global_id})
+        assert not attr_result.get("errors"), f"GraphQL errors: {attr_result.get('errors')}"
+
+        # Get the nested attributes from GraphQL (as stored in the database)
+        # GraphQL returns the attributes as a JSON string, so we need to parse it
+        db_attrs_json = attr_result["data"]["node"]["attributes"]
+        db_attrs = json.loads(db_attrs_json)
+
+        # Verify the attributes are stored in nested structure in the database
+        assert isinstance(db_attrs, dict)
+
+        # Check OpenInference attributes
+        assert "openinference" in db_attrs
+        assert isinstance(db_attrs["openinference"], dict)
+        assert "span" in db_attrs["openinference"]
+        assert isinstance(db_attrs["openinference"]["span"], dict)
+        assert "kind" in db_attrs["openinference"]["span"]
+        assert db_attrs["openinference"]["span"]["kind"] == "CHAIN"
+
+        # Check LLM attributes
+        assert "llm" in db_attrs
+        assert isinstance(db_attrs["llm"], dict)
+        assert db_attrs["llm"]["model"] == "gpt-4"
+        assert "token_count" in db_attrs["llm"]
+        assert isinstance(db_attrs["llm"]["token_count"], dict)
+        assert db_attrs["llm"]["token_count"]["prompt"] == 100
+        assert db_attrs["llm"]["token_count"]["completion"] == 50
+        assert db_attrs["llm"]["token_count"]["total"] == 150
+
+        # Check already-nested attributes are preserved
+        assert "metadata" in db_attrs
+        assert isinstance(db_attrs["metadata"], dict)
+        assert "user" in db_attrs["metadata"]
+        assert isinstance(db_attrs["metadata"]["user"], dict)
+        assert db_attrs["metadata"]["user"]["id"] == "user123"
+        assert db_attrs["metadata"]["user"]["name"] == "Test User"
+        assert "session" in db_attrs["metadata"]
+        assert isinstance(db_attrs["metadata"]["session"], dict)
+        assert db_attrs["metadata"]["session"]["id"] == "session456"
+
+        # Check array-like structures are converted to arrays
+        assert "documents" in db_attrs
+        assert isinstance(db_attrs["documents"], list)
+        assert len(db_attrs["documents"]) == 2
+        assert db_attrs["documents"][0]["content"] == "First document"
+        assert db_attrs["documents"][0]["id"] == "doc1"
+        assert db_attrs["documents"][1]["content"] == "Second document"
+        assert db_attrs["documents"][1]["id"] == "doc2"
+
+        # Now verify the REST API round-trip (should be flattened on retrieval)
+        spans = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                limit=100,
+            )
+        )
+
+        # Find our test span
+        test_span_retrieved = None
+        for span in spans:
+            if span["context"]["span_id"] == span_id:
+                test_span_retrieved = span
+                break
+
+        assert test_span_retrieved is not None, "Test span should be found in retrieved spans"
+
+        # Verify the attributes are flattened when retrieved via REST API
+        assert "attributes" in test_span_retrieved
+        rest_attrs = test_span_retrieved["attributes"]
+        assert isinstance(rest_attrs, dict)
+
+        # These should be flattened (dot-separated keys)
+        assert "llm.model" in rest_attrs
+        assert rest_attrs["llm.model"] == "gpt-4"
+        assert "llm.token_count.prompt" in rest_attrs
+        assert rest_attrs["llm.token_count.prompt"] == 100
+        assert "llm.token_count.completion" in rest_attrs
+        assert rest_attrs["llm.token_count.completion"] == 50
+
+        # Verify originally-nested metadata is flattened in REST response
+        assert "metadata.user.id" in rest_attrs
+        assert rest_attrs["metadata.user.id"] == "user123"
+        assert "metadata.session.id" in rest_attrs
+        assert rest_attrs["metadata.session.id"] == "session456"
+
+        # Verify documents array is flattened back to dotted keys
+        assert "documents.0.content" in rest_attrs
+        assert rest_attrs["documents.0.content"] == "First document"
+        assert "documents.0.id" in rest_attrs
+        assert rest_attrs["documents.0.id"] == "doc1"
+        assert "documents.1.content" in rest_attrs
+        assert rest_attrs["documents.1.content"] == "Second document"
 
 
 class TestClientForSpanDeletion:
