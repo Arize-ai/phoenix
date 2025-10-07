@@ -1033,14 +1033,37 @@ class TestClientForSpanCreation:
         assert error.total_queued == 0
 
         # Test 4: Error handling for non-existent project
-        import httpx
-
-        with pytest.raises(httpx.HTTPStatusError) as http_exc_info:
+        with pytest.raises(SpanCreationError) as exc_info:
             client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier="non_existent_project_xyz",
                 spans=[self._create_test_span("test")],
             )
-        assert http_exc_info.value.response.status_code == 404
+        assert "Project not found" in str(exc_info.value)
+
+        # Test 5: Error handling for missing required fields
+        trace_id = f"trace_{token_hex(16)}"
+        span_id = f"span_{token_hex(8)}"
+
+        invalid_span = {
+            "name": "llm_call",
+            "context": {"trace_id": trace_id, "span_id": span_id},
+            "start_time": "2024-01-15T10:00:00Z",
+            "end_time": "2024-01-15T10:00:05Z",
+            "span_kind": "LLM",
+            # "status_code": "OK"
+            # status_code intentionally omitted
+        }
+
+        with pytest.raises(SpanCreationError) as exc_info:
+            client.spans.log_spans(
+                project_identifier=project_name,
+                spans=[invalid_span],
+            )
+
+        error_message = str(exc_info.value)
+        assert "Missing required keys in Span" in error_message
+        assert "status_code" in error_message
+        assert span_id in error_message
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_helper_functions_round_trip(
