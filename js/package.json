@@ -11,6 +11,7 @@
     "prettier:check": "prettier --check .",
     "prettier:write": "prettier --write .",
     "type:check": "pnpm run -r type:check",
+    "test": "pnpm run -r test run",
     "lint": "eslint",
     "build": "pnpm run -r build",
     "ci:version": "pnpm changeset version",
