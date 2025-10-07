@@ -33,7 +33,7 @@ For non-mac users, you can follow the instruction [here](https://docs.astral.sh/
 Create a new virtual environment. In general, we recommend developing on the lowest Python version compatible with Phoenix (currently 3.9) to make it easier to write code that is compatible across all supported versions.
 
 ```bash
-uv venv --python 3.9
+uv venv --python 3.10
 ```
 
 Activate your virtual environment before continuing.
