@@ -7,6 +7,7 @@ import {
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
+import { range } from "lodash";
 import { css } from "@emotion/react";
 
 import {
@@ -254,7 +255,7 @@ export function ExperimentCompareDetails({
 
 type ExperimentRunSelectionState = {
   experimentId: string;
-  runId?: string;
+  repetitionNumber: number;
   selected: boolean;
 };
 
@@ -281,7 +282,7 @@ export function ExperimentRunOutputs({
     initializeSelectionState(
       experimentIds,
       baseExperimentId,
-      experimentRunsByExperimentId,
+      experimentsById,
       defaultSelectedRepetitionNumber
     )
   );
@@ -300,10 +301,13 @@ export function ExperimentRunOutputs({
   );
 
   const updateRepetitionSelection = useCallback(
-    (runId: string, checked: boolean) => {
+    (experimentId: string, repetitionNumber: number, checked: boolean) => {
       setSelectedExperimentRuns((prev) =>
         prev.map((run) =>
-          run.runId === runId ? { ...run, selected: checked } : run
+          run.experimentId === experimentId &&
+          run.repetitionNumber === repetitionNumber
+            ? { ...run, selected: checked }
+            : run
         )
       );
     },
@@ -333,7 +337,6 @@ export function ExperimentRunOutputs({
           <ExperimentRunOutputsSidebar
             experimentIds={experimentIds}
             experimentsById={experimentsById}
-            experimentRunsByExperimentId={experimentRunsByExperimentId}
             selectedExperimentRuns={selectedExperimentRuns}
             updateExperimentSelection={updateExperimentSelection}
             updateRepetitionSelection={updateRepetitionSelection}
@@ -393,52 +396,37 @@ export function ExperimentRunOutputs({
             {experimentIds.map((experimentId, experimentIndex) => {
               const experiment = experimentsById[experimentId];
               const experimentRuns = experimentRunsByExperimentId[experimentId];
-              const experimentRunsToDisplay = getSelectedExperimentRuns(
-                experimentId,
-                selectedExperimentRuns,
-                experimentRunsByExperimentId
-              );
-              const renderNoRunCard = shouldRenderNoRunCard(
-                experimentId,
-                experimentRuns,
-                selectedExperimentRuns
-              );
-
-              if (renderNoRunCard) {
+              return range(experiment.repetitions).map((repetitionIndex) => {
+                const repetitionNumber = repetitionIndex + 1;
+                const isSelected = !!selectedExperimentRuns.find(
+                  (runSelection) =>
+                    runSelection.experimentId === experimentId &&
+                    runSelection.repetitionNumber === repetitionNumber
+                )?.selected;
+                if (!isSelected) {
+                  return null;
+                }
+                const experimentRun = experimentRuns.find(
+                  (run) => run.repetitionNumber === repetitionNumber
+                );
                 return (
                   <li
-                    key={experimentId}
+                    key={experimentId + "-" + repetitionNumber}
                     css={css`
-                      // Make them all the same size
                       flex: none;
                     `}
                   >
                     <ExperimentItem
                       experiment={experiment}
+                      experimentRun={experimentRun}
                       experimentIndex={experimentIndex}
                       includeRepetitions={includeRepetitions}
+                      annotationSummaries={annotationSummaries}
+                      repetitionNumber={repetitionNumber}
                     />
                   </li>
                 );
-              }
-
-              return experimentRunsToDisplay.map((run) => (
-                <li
-                  key={run.id}
-                  css={css`
-                    // Make them all the same size
-                    flex: none;
-                  `}
-                >
-                  <ExperimentItem
-                    experiment={experiment}
-                    experimentRun={run}
-                    experimentIndex={experimentIndex}
-                    includeRepetitions={includeRepetitions}
-                    annotationSummaries={annotationSummaries}
-                  />
-                </li>
-              ));
+              });
             })}
           </ul>
         </Flex>
@@ -450,7 +438,6 @@ export function ExperimentRunOutputs({
 function ExperimentRunOutputsSidebar({
   experimentIds,
   experimentsById,
-  experimentRunsByExperimentId,
   selectedExperimentRuns,
   updateExperimentSelection,
   updateRepetitionSelection,
@@ -458,10 +445,13 @@ function ExperimentRunOutputsSidebar({
 }: {
   experimentIds: string[];
   experimentsById: Record<string, Experiment>;
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
   selectedExperimentRuns: ExperimentRunSelectionState[];
   updateExperimentSelection: (experimentId: string, checked: boolean) => void;
-  updateRepetitionSelection: (runId: string, checked: boolean) => void;
+  updateRepetitionSelection: (
+    experimentId: string,
+    repetitionNumber: number,
+    checked: boolean
+  ) => void;
   includeRepetitions: boolean;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
@@ -481,7 +471,6 @@ function ExperimentRunOutputsSidebar({
       <Flex direction="column" gap="size-200">
         {experimentIds.map((experimentId, experimentIndex) => {
           const experiment = experimentsById[experimentId];
-          const experimentRuns = experimentRunsByExperimentId[experimentId];
           const allExperimentRunsSelected = areAllExperimentRunsSelected(
             experimentId,
             selectedExperimentRuns
@@ -520,21 +509,31 @@ function ExperimentRunOutputsSidebar({
               {includeRepetitions && (
                 <View paddingStart="size-500">
                   <Flex direction="column" gap="size-200">
-                    {experimentRuns.map((run) => (
-                      <Checkbox
-                        key={run.id}
-                        isSelected={
-                          selectedExperimentRuns.find(
-                            (runSelection) => runSelection.runId === run.id
-                          )?.selected
-                        }
-                        onChange={(isSelected) =>
-                          updateRepetitionSelection(run.id, isSelected)
-                        }
-                      >
-                        repetition {run.repetitionNumber}
-                      </Checkbox>
-                    ))}
+                    {range(experiment.repetitions).map((repetitionIndex) => {
+                      const repetitionNumber = repetitionIndex + 1;
+                      return (
+                        <Checkbox
+                          key={repetitionNumber}
+                          isSelected={
+                            selectedExperimentRuns.find(
+                              (runSelection) =>
+                                runSelection.experimentId === experimentId &&
+                                runSelection.repetitionNumber ===
+                                  repetitionNumber
+                            )?.selected
+                          }
+                          onChange={(isSelected) =>
+                            updateRepetitionSelection(
+                              experimentId,
+                              repetitionNumber,
+                              isSelected
+                            )
+                          }
+                        >
+                          repetition {repetitionNumber}
+                        </Checkbox>
+                      );
+                    })}
                   </Flex>
                 </View>
               )}
@@ -563,12 +562,14 @@ export function ExperimentItem({
   experimentIndex,
   includeRepetitions,
   annotationSummaries,
+  repetitionNumber,
 }: {
   experiment: Experiment;
   experimentRun?: ExperimentRun;
   experimentIndex: number;
   includeRepetitions: boolean;
   annotationSummaries?: AnnotationSummaries;
+  repetitionNumber: number;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const color =
@@ -603,11 +604,11 @@ export function ExperimentItem({
             >
               <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
             </Heading>
-            {includeRepetitions && experimentRun && (
+            {includeRepetitions && (
               <>
                 <Icon svg={<Icons.ChevronRight />} />
                 <Heading weight="heavy" level={3}>
-                  repetition&nbsp;{experimentRun.repetitionNumber}
+                  repetition&nbsp;{repetitionNumber}
                 </Heading>
               </>
             )}
@@ -624,7 +625,7 @@ export function ExperimentItem({
           </Flex>
         </View>
         {!hasExperimentResult ? (
-          <Empty message="No Runs" />
+          <Empty message="Did not run" />
         ) : (
           <>
             <View
@@ -838,32 +839,26 @@ function ExperimentRunAnnotation({
 function initializeSelectionState(
   experimentIds: string[],
   baseExperimentId: string,
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>,
+  experimentsById: Record<string, Experiment>,
   defaultSelectedRepetitionNumber?: number
 ): ExperimentRunSelectionState[] {
   return experimentIds.flatMap((experimentId) => {
-    const runs = experimentRunsByExperimentId[experimentId];
-    if (!runs.length) {
-      return [
-        {
-          experimentId,
-          selected: true,
-        } as ExperimentRunSelectionState,
-      ];
-    }
-    return runs.map((run) => {
+    const experiment = experimentsById[experimentId];
+    return range(experiment.repetitions).map((repetitionIndex) => {
+      const repetitionNumber = repetitionIndex + 1;
       return {
         experimentId,
-        runId: run.id,
+        repetitionNumber,
         selected:
           experimentId === baseExperimentId &&
           defaultSelectedRepetitionNumber !== undefined
-            ? run.repetitionNumber === defaultSelectedRepetitionNumber
+            ? repetitionNumber === defaultSelectedRepetitionNumber
             : true,
       };
     });
   });
 }
+
 function areAllExperimentRunsSelected(
   experimentId: string,
   selectedExperimentRuns: ExperimentRunSelectionState[]
@@ -880,33 +875,4 @@ function areSomeExperimentRunsSelected(
   return selectedExperimentRuns
     .filter((run) => run.experimentId === experimentId)
     .some((run) => run.selected);
-}
-
-function getSelectedExperimentRuns(
-  experimentId: string,
-  selectedExperimentRuns: ExperimentRunSelectionState[],
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>
-): ExperimentRun[] {
-  const experimentRuns = experimentRunsByExperimentId[experimentId];
-  return selectedExperimentRuns
-    .filter((run) => run.experimentId === experimentId && run.selected)
-    .flatMap(
-      (run) =>
-        experimentRuns.find(
-          (experimentRun) => experimentRun.id === run.runId
-        ) ?? []
-    );
-}
-
-function shouldRenderNoRunCard(
-  experimentId: string,
-  experimentRuns: ExperimentRun[],
-  selectedExperimentRuns: ExperimentRunSelectionState[]
-): boolean {
-  const experimentDidRun = experimentRuns.length > 0;
-  const isExperimentSelected =
-    selectedExperimentRuns.find((run) => run.experimentId === experimentId)
-      ?.selected ?? false;
-
-  return !experimentDidRun && isExperimentSelected;
 }
