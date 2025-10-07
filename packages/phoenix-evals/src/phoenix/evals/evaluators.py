@@ -335,6 +335,7 @@ class LLMEvaluator(Evaluator):
             a model is dynamically created from the prompt variables (all str, required).
         direction: The score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
+        **kwargs: Invocation parameters forwarded to the LLM client
     """
 
     def __init__(
@@ -345,6 +346,7 @@ class LLMEvaluator(Evaluator):
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
+        **kwargs: Any,
     ):
         # Infer required fields from prompt_template
         if isinstance(prompt_template, str):
@@ -361,6 +363,8 @@ class LLMEvaluator(Evaluator):
                 model_name,
                 **cast(Any, field_defs),
             )
+
+        self.invocation_parameters = kwargs
 
         super().__init__(
             name=name,
@@ -418,6 +422,7 @@ class ClassificationEvaluator(LLMEvaluator):
             a model is automatically created from prompt template variables.
         direction: Score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
+        **kwargs: Invocation parameters forwarded to the LLM client
 
     Returns:
         List[Score]: A list containing a single Score object with the classification
@@ -496,6 +501,7 @@ class ClassificationEvaluator(LLMEvaluator):
         include_explanation: bool = True,
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
+        **kwargs: Any,
     ):
         super().__init__(
             name=name,
@@ -503,6 +509,7 @@ class ClassificationEvaluator(LLMEvaluator):
             prompt_template=prompt_template,
             input_schema=input_schema,
             direction=direction,
+            **kwargs,
         )
 
         self.include_explanation = include_explanation
@@ -540,6 +547,7 @@ class ClassificationEvaluator(LLMEvaluator):
             labels=self.labels,
             include_explanation=self.include_explanation,
             method=method,
+            **self.invocation_parameters,
         )
         label = response["label"]
         explanation = response.get("explanation", None)
@@ -579,6 +587,7 @@ class ClassificationEvaluator(LLMEvaluator):
             labels=self.labels,
             include_explanation=self.include_explanation,
             method=method,
+            **self.invocation_parameters,
         )
         label = response["label"]
         explanation = response.get("explanation", None)
