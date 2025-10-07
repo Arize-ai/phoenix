@@ -120,8 +120,8 @@ async function main() {
   });
 
   const task: ExperimentTask = async (example) => {
-    const useHalluination = Math.random() < 0.2;
-    const answer = useHalluination
+    const useHallucination = Math.random() < 0.2;
+    const answer = useHallucination
       ? example.output?.hallucinated_answer
       : example.output?.answer;
 
@@ -132,7 +132,7 @@ async function main() {
     });
 
     return {
-      expected_label: useHalluination ? "hallucinated" : "factual",
+      expected_label: useHallucination ? "hallucinated" : "factual",
       ...evalResult,
     };
   };
