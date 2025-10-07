@@ -45,7 +45,6 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
-from starlette.status import HTTP_401_UNAUTHORIZED
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
 from strawberry.extensions import SchemaExtension
@@ -352,7 +351,7 @@ class RequestOriginHostnameValidator(BaseHTTPMiddleware):
             if not (url := headers.get(key)):
                 continue
             if urlparse(url).hostname not in self._trusted_hostnames:
-                return Response(f"untrusted {key}", status_code=HTTP_401_UNAUTHORIZED)
+                return Response(f"untrusted {key}", status_code=401)
         return await call_next(request)
 
 

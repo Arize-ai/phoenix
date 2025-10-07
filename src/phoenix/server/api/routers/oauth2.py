@@ -19,7 +19,6 @@ from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore
 from starlette.datastructures import URL, Secret, URLPath
 from starlette.responses import RedirectResponse
 from starlette.routing import Router
-from starlette.status import HTTP_302_FOUND
 from typing_extensions import Annotated, NotRequired, TypeGuard
 
 from phoenix.auth import (
@@ -117,7 +116,7 @@ async def login(
     assert isinstance(authorization_url := authorization_url_data.get("url"), str)
     assert isinstance(state := authorization_url_data.get("state"), str)
     assert isinstance(nonce := authorization_url_data.get("nonce"), str)
-    response = RedirectResponse(url=authorization_url, status_code=HTTP_302_FOUND)
+    response = RedirectResponse(url=authorization_url, status_code=302)
     response = set_oauth2_state_cookie(
         response=response,
         state=state,
@@ -217,7 +216,7 @@ async def create_tokens(
     redirect_path = prepend_root_path(request.scope, return_url or "/")
     response = RedirectResponse(
         url=redirect_path,
-        status_code=HTTP_302_FOUND,
+        status_code=302,
     )
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry

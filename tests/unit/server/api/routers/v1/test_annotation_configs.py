@@ -3,12 +3,6 @@ from typing import Any, Optional
 
 import pytest
 from httpx import AsyncClient
-from starlette.status import (
-    HTTP_200_OK,
-    HTTP_400_BAD_REQUEST,
-    HTTP_404_NOT_FOUND,
-    HTTP_409_CONFLICT,
-)
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
@@ -91,7 +85,7 @@ async def test_crud_operations(
         "/v1/annotation_configs",
         json=create_config,
     )
-    assert create_response.status_code == HTTP_200_OK
+    assert create_response.status_code == 200
     created_config = create_response.json()["data"]
     config_id = created_config["id"]
 
@@ -101,19 +95,19 @@ async def test_crud_operations(
 
     # List annotation configs
     list_response = await httpx_client.get("/v1/annotation_configs")
-    assert list_response.status_code == HTTP_200_OK
+    assert list_response.status_code == 200
     configs = list_response.json()["data"]
     assert len(configs) == 1
     assert configs[0] == created_config
 
     # Get config by ID
     get_response = await httpx_client.get(f"/v1/annotation_configs/{config_id}")
-    assert get_response.status_code == HTTP_200_OK
+    assert get_response.status_code == 200
     assert get_response.json()["data"] == created_config
 
     # Get config by name
     get_by_name_response = await httpx_client.get("/v1/annotation_configs/config-name")
-    assert get_by_name_response.status_code == HTTP_200_OK
+    assert get_by_name_response.status_code == 200
     assert get_by_name_response.json()["data"] == created_config
 
     # Update the annotation config
@@ -121,7 +115,7 @@ async def test_crud_operations(
         f"/v1/annotation_configs/{config_id}",
         json=update_config,
     )
-    assert update_response.status_code == HTTP_200_OK
+    assert update_response.status_code == 200
     updated_config = update_response.json()["data"]
     expected_updated_config = update_config
     expected_updated_config["id"] = config_id
@@ -129,18 +123,18 @@ async def test_crud_operations(
 
     # Delete the annotation config
     delete_response = await httpx_client.delete(f"/v1/annotation_configs/{config_id}")
-    assert delete_response.status_code == HTTP_200_OK
+    assert delete_response.status_code == 200
     assert delete_response.json()["data"] == expected_updated_config
 
     # Verify the config is deleted by listing
     list_response = await httpx_client.get("/v1/annotation_configs")
-    assert list_response.status_code == HTTP_200_OK
+    assert list_response.status_code == 200
     configs = list_response.json()["data"]
     assert len(configs) == 0
 
     # Verify the config is deleted by getting
     get_response = await httpx_client.get(f"/v1/annotation_configs/{config_id}")
-    assert get_response.status_code == HTTP_404_NOT_FOUND
+    assert get_response.status_code == 404
 
 
 @pytest.mark.parametrize(
@@ -185,7 +179,7 @@ async def test_cannot_create_annotation_config_with_reserved_name_for_notes(
     annotation_config: dict[str, Any],
 ) -> None:
     response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
-    assert response.status_code == HTTP_409_CONFLICT
+    assert response.status_code == 409
     assert "The name 'note' is reserved" in response.text
 
 
@@ -232,14 +226,14 @@ async def test_cannot_update_annotation_config_name_to_reserved_name_for_notes(
 ) -> None:
     # First create a config
     response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
-    assert response.status_code == HTTP_200_OK
+    assert response.status_code == 200
     config_id = response.json()["data"]["id"]
 
     # Try to update the name to "note"
     update_config = deepcopy(annotation_config)
     update_config["name"] = "note"
     response = await httpx_client.put(f"/v1/annotation_configs/{config_id}", json=update_config)
-    assert response.status_code == HTTP_409_CONFLICT
+    assert response.status_code == 409
     assert "The name 'note' is reserved" in response.text
 
 
@@ -285,11 +279,11 @@ async def test_cannot_create_annotation_config_with_duplicate_name(
     annotation_config: dict[str, Any],
 ) -> None:
     response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
-    assert response.status_code == HTTP_200_OK
+    assert response.status_code == 200
 
     # Try to create another config with same name
     response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
-    assert response.status_code == HTTP_409_CONFLICT
+    assert response.status_code == 409
     assert "name of the annotation configuration is already taken" in response.text
 
 
@@ -303,7 +297,7 @@ async def test_create_categorical_config_with_empty_values_returns_expected_erro
         "values": [],  # empty values are disallowed
     }
     response = await httpx_client.post("/v1/annotation_configs", json=config)
-    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.status_code == 400
     assert "Values must be non-empty" in response.text
 
 
@@ -355,18 +349,18 @@ async def test_updated_annotation_config_name_cannot_collide_with_existing_confi
         "description": "config description",
     }
     response = await httpx_client.post("/v1/annotation_configs", json=first_config)
-    assert response.status_code == HTTP_200_OK
+    assert response.status_code == 200
 
     # Create second config
     response = await httpx_client.post("/v1/annotation_configs", json=config)
-    assert response.status_code == HTTP_200_OK
+    assert response.status_code == 200
     config_id = response.json()["data"]["id"]
 
     # Try to update second config name to collide with first
     update_config = config.copy()
     update_config["name"] = "collide-config-name"
     response = await httpx_client.put(f"/v1/annotation_configs/{config_id}", json=update_config)
-    assert response.status_code == HTTP_409_CONFLICT
+    assert response.status_code == 409
     assert "name of the annotation configuration is already taken" in response.text
 
 
@@ -383,7 +377,7 @@ async def test_update_continuous_annotation_config_with_invalid_bounds_returns_e
         "upper_bound": 1.0,
     }
     response = await httpx_client.post("/v1/annotation_configs", json=config)
-    assert response.status_code == HTTP_200_OK
+    assert response.status_code == 200
     config_id = response.json()["data"]["id"]
 
     # Try to update with invalid bounds
@@ -392,7 +386,7 @@ async def test_update_continuous_annotation_config_with_invalid_bounds_returns_e
     update_config["upper_bound"] = 0.0
 
     response = await httpx_client.put(f"/v1/annotation_configs/{config_id}", json=update_config)
-    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.status_code == 400
     assert "Lower bound must be strictly less than upper bound" in response.text
 
 
@@ -453,7 +447,7 @@ async def test_list_annotation_configs_pagination_without_cursor(
     expected_next_cursor: Optional[str],
 ) -> None:
     response = await httpx_client.get(f"/v1/annotation_configs?limit={limit}")
-    assert response.status_code == HTTP_200_OK
+    assert response.status_code == 200
     data = response.json()
     assert len(data["data"]) == expected_page_size
     assert data["next_cursor"] == expected_next_cursor
@@ -491,7 +485,7 @@ async def test_list_annotation_configs_pagination_with_cursor(
 ) -> None:
     # First get first page
     first_response = await httpx_client.get("/v1/annotation_configs?limit=2")
-    assert first_response.status_code == HTTP_200_OK
+    assert first_response.status_code == 200
     first_data = first_response.json()
     assert len(first_data["data"]) == 2
     cursor = first_data["next_cursor"]
@@ -499,7 +493,7 @@ async def test_list_annotation_configs_pagination_with_cursor(
 
     # Then get second page using cursor
     response = await httpx_client.get(f"/v1/annotation_configs?limit={limit}&cursor={cursor}")
-    assert response.status_code == HTTP_200_OK
+    assert response.status_code == 200
     data = response.json()
     assert len(data["data"]) == expected_page_size
     assert data["next_cursor"] == expected_next_cursor
