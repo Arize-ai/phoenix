@@ -9,19 +9,26 @@ Usage:
     python ensure_graphql_mutations_have_permission_classes.py [directory]
 """
 
+from __future__ import annotations
+
 import argparse
 import ast
 import sys
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Literal, NamedTuple, Set, Tuple, Union
+from typing import Literal, NamedTuple
 
 # Define issue type
-IssueType = Literal["no_permission_classes", "missing_is_not_read_only", "missing_is_not_viewer"]
+IssueType = Literal[
+    "no_permission_classes",
+    "missing_is_not_read_only",
+    "missing_is_not_viewer",
+]
 
 # Define issue descriptions
-ISSUE_DESCRIPTIONS: Dict[IssueType, str] = {
+ISSUE_DESCRIPTIONS: dict[IssueType, str] = {
     "no_permission_classes": "Missing permission_classes keyword",
     "missing_is_not_read_only": "permission_classes exists but missing IsNotReadOnly",
     "missing_is_not_viewer": "permission_classes exists but missing IsNotViewer",
@@ -29,7 +36,14 @@ ISSUE_DESCRIPTIONS: Dict[IssueType, str] = {
 
 # Mutations that are allowed to skip IsNotViewer check
 # patch_viewer allows viewers to update their own profile
-SKIP_IS_NOT_VIEWER_CHECK = frozenset({"patch_viewer"})
+# create_user_api_key and delete_user_api_key allow viewers to manage their own API keys
+SKIP_IS_NOT_VIEWER_CHECK = frozenset(
+    {
+        "patch_viewer",
+        "create_user_api_key",
+        "delete_user_api_key",
+    }
+)
 
 
 class PermissionCheck(NamedTuple):
@@ -69,11 +83,11 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
             current_file: Path to the file being analyzed.
         """
         super().__init__()
-        self.issues: List[Issue] = []
+        self.issues: list[Issue] = []
         self.current_file: Path = current_file
         self.mutations_found: int = 0  # Track total number of mutations found
         # Keep track of imported names to better detect strawberry mutations
-        self.imported_names: Set[str] = set()
+        self.imported_names: set[str] = set()
 
     def visit_Import(self, node: ast.Import) -> None:
         """Track imported modules."""
@@ -110,9 +124,7 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
         self._check_function_decorators(node)
         self.generic_visit(node)
 
-    def _check_function_decorators(
-        self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
-    ) -> None:
+    def _check_function_decorators(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         """
         Check if a function has a strawberry.mutation decorator without proper permission classes.
 
@@ -125,14 +137,7 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
 
             self.mutations_found += 1
             permissions = self._check_permissions(decorator)
-
-            issue_type = None
-            if not permissions.has_permission_classes:
-                issue_type = "no_permission_classes"
-            elif not permissions.has_is_not_read_only:
-                issue_type = "missing_is_not_read_only"
-            elif not permissions.has_is_not_viewer and node.name not in SKIP_IS_NOT_VIEWER_CHECK:
-                issue_type = "missing_is_not_viewer"
+            issue_type = self._determine_issue_type(permissions, node.name)
 
             if issue_type:
                 self.issues.append(
@@ -143,6 +148,27 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
                         issue_type=issue_type,
                     )
                 )
+
+    def _determine_issue_type(
+        self, permissions: PermissionCheck, function_name: str
+    ) -> IssueType | None:
+        """
+        Determine the issue type based on permission checks.
+
+        Args:
+            permissions: The permission check results.
+            function_name: The name of the function being checked.
+
+        Returns:
+            The issue type if an issue is found, otherwise None.
+        """
+        if not permissions.has_permission_classes:
+            return "no_permission_classes"
+        if not permissions.has_is_not_read_only:
+            return "missing_is_not_read_only"
+        if not permissions.has_is_not_viewer and function_name not in SKIP_IS_NOT_VIEWER_CHECK:
+            return "missing_is_not_viewer"
+        return None
 
     def _is_strawberry_mutation(self, decorator: ast.expr) -> bool:
         """
@@ -196,13 +222,7 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
             return PermissionCheck(False, False, False)
 
         # Extract permission names from the list
-        permission_names = set()
-        if isinstance(permission_classes, ast.List):
-            for elt in permission_classes.elts:
-                if isinstance(elt, ast.Name):
-                    permission_names.add(elt.id)
-                elif isinstance(elt, ast.Attribute):
-                    permission_names.add(elt.attr)
+        permission_names = self._extract_permission_names(permission_classes)
 
         return PermissionCheck(
             has_permission_classes=True,
@@ -210,8 +230,29 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
             has_is_not_viewer="IsNotViewer" in permission_names,
         )
 
+    def _extract_permission_names(self, permission_classes: ast.expr) -> set[str]:
+        """
+        Extract permission class names from the AST node.
 
-def check_files(directory: Path) -> Tuple[List[Issue], int]:
+        Args:
+            permission_classes: The AST node containing permission classes.
+
+        Returns:
+            A set of permission class name strings.
+        """
+        if not isinstance(permission_classes, ast.List):
+            return set()
+
+        names = set()
+        for elt in permission_classes.elts:
+            if isinstance(elt, ast.Name):
+                names.add(elt.id)
+            elif isinstance(elt, ast.Attribute):
+                names.add(elt.attr)
+        return names
+
+
+def check_files(directory: Path) -> tuple[list[Issue], int]:
     """
     Recursively check all Python files in the specified directory for issues.
 
@@ -223,17 +264,14 @@ def check_files(directory: Path) -> Tuple[List[Issue], int]:
             - A list of issues
             - Total number of mutations found across all files
     """
-    issues: List[Issue] = []
-    total_mutations_found: int = 0
-    files_checked: int = 0
+    issues: list[Issue] = []
+    total_mutations_found = 0
 
-    for py_file in directory.glob("**/*.py"):
-        files_checked += 1
+    py_files = list(directory.glob("**/*.py"))
+    for py_file in py_files:
         print(f"Checking {py_file}")
         try:
-            with py_file.open("r", encoding="utf-8") as f:
-                file_contents: str = f.read()
-            tree = ast.parse(file_contents, filename=str(py_file))
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
             visitor = StrawberryMutationVisitor(py_file)
             visitor.visit(tree)
             issues.extend(visitor.issues)
@@ -243,11 +281,11 @@ def check_files(directory: Path) -> Tuple[List[Issue], int]:
         except Exception as e:
             print(f"Error processing {py_file}: {e}", file=sys.stderr)
 
-    print(f"Checked {files_checked} Python files")
+    print(f"Checked {len(py_files)} Python files")
     return issues, total_mutations_found
 
 
-def format_issues(issues: List[Issue], total_mutations: int) -> None:
+def format_issues(issues: Sequence[Issue], total_mutations: int) -> None:
     """
     Print formatted issue messages.
 
@@ -263,14 +301,13 @@ def format_issues(issues: List[Issue], total_mutations: int) -> None:
         print(f"No issues found! All {total_mutations} mutations have proper permission_classes.")
         return
 
-    # Group issues by issue type
+    print(f"\nFound {len(issues)} issue(s) out of {total_mutations} total mutations:")
+
+    # Group and print issues by issue type
     by_issue_type = defaultdict(list)
     for issue in issues:
         by_issue_type[issue.issue_type].append(issue)
 
-    print(f"\nFound {len(issues)} issue(s) out of {total_mutations} total mutations:")
-
-    # Print each issue type separately
     for issue_type, type_issues in by_issue_type.items():
         print(f"\n{ISSUE_DESCRIPTIONS[issue_type]} ({len(type_issues)} occurrences):")
         for issue in type_issues:

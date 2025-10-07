@@ -102,7 +102,7 @@ class ApiKeyMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def create_user_api_key(
         self, info: Info[Context, None], input: CreateUserApiKeyInput
     ) -> CreateUserApiKeyMutationPayload:
@@ -113,12 +113,19 @@ class ApiKeyMutationMixin:
         except AttributeError:
             raise ValueError("User not found")
         issued_at = datetime.now(timezone.utc)
+        # Determine user role for API key
+        if user.is_admin:
+            user_role = "ADMIN"
+        elif user.is_viewer:
+            user_role = "VIEWER"
+        else:
+            user_role = "MEMBER"
         claims = ApiKeyClaims(
             subject=user.identity,
             issued_at=issued_at,
             expiration_time=input.expires_at or None,
             attributes=ApiKeyAttributes(
-                user_role="ADMIN" if user.is_admin else "MEMBER",
+                user_role=user_role,
                 name=input.name,
                 description=input.description,
             ),
@@ -148,7 +155,7 @@ class ApiKeyMutationMixin:
         await token_store.revoke(ApiKeyId(api_key_id))
         return DeleteApiKeyMutationPayload(apiKeyId=input.id, query=Query())
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def delete_user_api_key(
         self, info: Info[Context, None], input: DeleteApiKeyInput
     ) -> DeleteApiKeyMutationPayload:

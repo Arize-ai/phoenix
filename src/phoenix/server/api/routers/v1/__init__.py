@@ -52,10 +52,7 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     """
     Instantiates the v1 REST API router.
     """
-    dependencies = [
-        Depends(prevent_access_in_read_only_mode),
-        Depends(restrict_access_by_viewers),
-    ]
+    dependencies = [Depends(prevent_access_in_read_only_mode)]
     if authentication_enabled:
         dependencies.append(
             Depends(
@@ -68,6 +65,7 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
             )
         )
         dependencies.append(Depends(is_authenticated))
+        dependencies.append(Depends(restrict_access_by_viewers))
 
     router = APIRouter(
         prefix="/v1",

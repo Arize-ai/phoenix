@@ -1105,7 +1105,7 @@ class TestCreateApiKey:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
-            (_VIEWER, _DENIED),
+            (_VIEWER, _OK),
             (_MEMBER, _OK),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
@@ -1146,7 +1146,7 @@ class TestCreateApiKey:
 
 
 class TestDeleteApiKey:
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN])
     def test_delete_user_api_key(
         self,
         role_or_user: _RoleOrUser,
