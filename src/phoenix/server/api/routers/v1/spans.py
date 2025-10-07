@@ -1015,8 +1015,23 @@ async def create_spans(
             conversation=None,  # Unused
         )
 
-    async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(project_identifier),
+            "Project",
+        )
+    except Exception:
+        project_name = project_identifier
+    else:
+        stmt = select(models.Project).filter_by(id=id_)
+        async with request.app.state.db() as session:
+            project = await session.scalar(stmt)
+        if project is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Project with ID {project_identifier} not found",
+            )
+        project_name = project.name
 
     total_received = len(request_body.data)
     duplicate_spans: list[dict[str, str]] = []
@@ -1044,7 +1059,7 @@ async def create_spans(
 
         try:
             span_for_insertion = convert_api_span_for_insertion(api_span)
-            spans_to_queue.append((span_for_insertion, project.name))
+            spans_to_queue.append((span_for_insertion, project_name))
         except Exception as e:
             invalid_spans.append(
                 {
