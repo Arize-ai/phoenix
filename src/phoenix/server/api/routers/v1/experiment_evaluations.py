@@ -5,7 +5,6 @@ from dateutil.parser import isoparse
 from fastapi import APIRouter, HTTPException
 from pydantic import Field, model_validator
 from starlette.requests import Request
-from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 from typing_extensions import Self
 
@@ -72,7 +71,7 @@ class UpsertExperimentEvaluationResponseBody(
     operation_id="upsertExperimentEvaluation",
     summary="Create or update evaluation for an experiment run",
     responses=add_errors_to_responses(
-        [{"status_code": HTTP_404_NOT_FOUND, "description": "Experiment run not found"}]
+        [{"status_code": 404, "description": "Experiment run not found"}]
     ),
 )
 async def upsert_experiment_evaluation(
@@ -85,7 +84,7 @@ async def upsert_experiment_evaluation(
     except ValueError:
         raise HTTPException(
             detail=f"ExperimentRun with ID {experiment_run_gid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
         )
     name = request_body.name
     annotator_kind = request_body.annotator_kind

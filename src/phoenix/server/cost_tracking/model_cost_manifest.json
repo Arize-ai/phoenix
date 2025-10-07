@@ -450,6 +450,60 @@
       ]
     },
     {
+      "name": "claude-sonnet-4-5",
+      "name_pattern": "claude-sonnet-4-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "claude-sonnet-4-5-20250929",
+      "name_pattern": "claude-sonnet-4-5-20250929",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "gemini-2.0-flash",
       "name_pattern": "gemini-2.0-flash(@[a-zA-Z0-9]+)?",
       "source": "litellm",
@@ -1023,60 +1077,6 @@
         },
         {
           "base_rate": 7e-7,
-          "is_prompt": true,
-          "token_type": "audio"
-        }
-      ]
-    },
-    {
-      "name": "gemini-flash-latest",
-      "name_pattern": "gemini-flash-latest",
-      "source": "litellm",
-      "token_prices": [
-        {
-          "base_rate": 3e-7,
-          "is_prompt": true,
-          "token_type": "input"
-        },
-        {
-          "base_rate": 2.5e-6,
-          "is_prompt": false,
-          "token_type": "output"
-        },
-        {
-          "base_rate": 7.5e-8,
-          "is_prompt": true,
-          "token_type": "cache_read"
-        },
-        {
-          "base_rate": 1e-6,
-          "is_prompt": true,
-          "token_type": "audio"
-        }
-      ]
-    },
-    {
-      "name": "gemini-flash-lite-latest",
-      "name_pattern": "gemini-flash-lite-latest",
-      "source": "litellm",
-      "token_prices": [
-        {
-          "base_rate": 1e-7,
-          "is_prompt": true,
-          "token_type": "input"
-        },
-        {
-          "base_rate": 4e-7,
-          "is_prompt": false,
-          "token_type": "output"
-        },
-        {
-          "base_rate": 2.5e-8,
-          "is_prompt": true,
-          "token_type": "cache_read"
-        },
-        {
-          "base_rate": 3e-7,
           "is_prompt": true,
           "token_type": "audio"
         }

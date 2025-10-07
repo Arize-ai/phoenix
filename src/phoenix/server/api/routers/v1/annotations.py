@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import Field
 from sqlalchemy import exists, select
 from starlette.requests import Request
-from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -198,11 +197,11 @@ class SessionAnnotationsResponseBody(PaginatedResponseBody[SessionAnnotation]):
     "/projects/{project_identifier}/span_annotations",
     operation_id="listSpanAnnotationsBySpanIds",
     summary="Get span annotations for a list of span_ids.",
-    status_code=HTTP_200_OK,
+    status_code=200,
     responses=add_errors_to_responses(
         [
-            {"status_code": HTTP_404_NOT_FOUND, "description": "Project or spans not found"},
-            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid parameters"},
+            {"status_code": 404, "description": "Project or spans not found"},
+            {"status_code": 422, "description": "Invalid parameters"},
         ]
     ),
 )
@@ -240,7 +239,7 @@ async def list_span_annotations(
     span_ids = list({*span_ids})
     if len(span_ids) > MAX_SPAN_IDS:
         raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=f"Too many span_ids supplied: {len(span_ids)} (max {MAX_SPAN_IDS})",
         )
 
@@ -248,7 +247,7 @@ async def list_span_annotations(
         project = await _get_project_by_identifier(session, project_identifier)
         if not project:
             raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
                 detail=f"Project with identifier {project_identifier} not found",
             )
 
@@ -280,7 +279,7 @@ async def list_span_annotations(
                 cursor_id = int(GlobalID.from_id(cursor).node_id)
             except ValueError:
                 raise HTTPException(
-                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=422,
                     detail="Invalid cursor value",
                 )
             stmt = stmt.where(models.SpanAnnotation.id <= cursor_id)
@@ -310,7 +309,7 @@ async def list_span_annotations(
             if not spans_exist:
                 raise HTTPException(
                     detail="None of the supplied span_ids exist in this project",
-                    status_code=HTTP_404_NOT_FOUND,
+                    status_code=404,
                 )
 
             return SpanAnnotationsResponseBody(data=[], next_cursor=None)
@@ -343,11 +342,11 @@ async def list_span_annotations(
     "/projects/{project_identifier}/trace_annotations",
     operation_id="listTraceAnnotationsByTraceIds",
     summary="Get trace annotations for a list of trace_ids.",
-    status_code=HTTP_200_OK,
+    status_code=200,
     responses=add_errors_to_responses(
         [
-            {"status_code": HTTP_404_NOT_FOUND, "description": "Project or traces not found"},
-            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid parameters"},
+            {"status_code": 404, "description": "Project or traces not found"},
+            {"status_code": 422, "description": "Invalid parameters"},
         ]
     ),
 )
@@ -385,7 +384,7 @@ async def list_trace_annotations(
     trace_ids = list({*trace_ids})
     if len(trace_ids) > MAX_TRACE_IDS:
         raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=f"Too many trace_ids supplied: {len(trace_ids)} (max {MAX_TRACE_IDS})",
         )
 
@@ -393,7 +392,7 @@ async def list_trace_annotations(
         project = await _get_project_by_identifier(session, project_identifier)
         if not project:
             raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
                 detail=f"Project with identifier {project_identifier} not found",
             )
 
@@ -424,7 +423,7 @@ async def list_trace_annotations(
                 cursor_id = int(GlobalID.from_id(cursor).node_id)
             except ValueError:
                 raise HTTPException(
-                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=422,
                     detail="Invalid cursor value",
                 )
             stmt = stmt.where(models.TraceAnnotation.id <= cursor_id)
@@ -450,7 +449,7 @@ async def list_trace_annotations(
             if not traces_exist:
                 raise HTTPException(
                     detail="None of the supplied trace_ids exist in this project",
-                    status_code=HTTP_404_NOT_FOUND,
+                    status_code=404,
                 )
 
             return TraceAnnotationsResponseBody(data=[], next_cursor=None)
@@ -483,11 +482,11 @@ async def list_trace_annotations(
     "/projects/{project_identifier}/session_annotations",
     operation_id="listSessionAnnotationsBySessionIds",
     summary="Get session annotations for a list of session_ids.",
-    status_code=HTTP_200_OK,
+    status_code=200,
     responses=add_errors_to_responses(
         [
-            {"status_code": HTTP_404_NOT_FOUND, "description": "Project or sessions not found"},
-            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid parameters"},
+            {"status_code": 404, "description": "Project or sessions not found"},
+            {"status_code": 422, "description": "Invalid parameters"},
         ]
     ),
 )
@@ -525,7 +524,7 @@ async def list_session_annotations(
     session_ids = list({*session_ids})
     if len(session_ids) > MAX_SESSION_IDS:
         raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=f"Too many session_ids supplied: {len(session_ids)} (max {MAX_SESSION_IDS})",
         )
 
@@ -533,7 +532,7 @@ async def list_session_annotations(
         project = await _get_project_by_identifier(session, project_identifier)
         if not project:
             raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
                 detail=f"Project with identifier {project_identifier} not found",
             )
 
@@ -571,7 +570,7 @@ async def list_session_annotations(
                 cursor_id = int(GlobalID.from_id(cursor).node_id)
             except ValueError:
                 raise HTTPException(
-                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=422,
                     detail="Invalid cursor value",
                 )
             stmt = stmt.where(models.ProjectSessionAnnotation.id <= cursor_id)
@@ -597,7 +596,7 @@ async def list_session_annotations(
             if not sessions_exist:
                 raise HTTPException(
                     detail="None of the supplied session_ids exist in this project",
-                    status_code=HTTP_404_NOT_FOUND,
+                    status_code=404,
                 )
 
             return SessionAnnotationsResponseBody(data=[], next_cursor=None)

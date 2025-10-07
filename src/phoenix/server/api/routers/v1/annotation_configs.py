@@ -7,11 +7,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
-from starlette.status import (
-    HTTP_400_BAD_REQUEST,
-    HTTP_404_NOT_FOUND,
-    HTTP_409_CONFLICT,
-)
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
@@ -206,7 +201,7 @@ async def list_annotation_configs(
         except ValueError:
             raise HTTPException(
                 detail=f"Invalid cursor: {cursor}",
-                status_code=HTTP_400_BAD_REQUEST,
+                status_code=400,
             )
         if cursor_gid.type_name not in (
             CategoricalAnnotationConfigType.__name__,
@@ -215,7 +210,7 @@ async def list_annotation_configs(
         ):
             raise HTTPException(
                 detail=f"Invalid cursor: {cursor}",
-                status_code=HTTP_400_BAD_REQUEST,
+                status_code=400,
             )
         cursor_id = int(cursor_gid.node_id)
 
@@ -261,9 +256,7 @@ async def get_annotation_config_by_name_or_id(
             query = query.where(models.AnnotationConfig.name == config_identifier)
         config = await session.scalar(query)
         if not config:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND, detail="Annotation configuration not found"
-            )
+            raise HTTPException(status_code=404, detail="Annotation configuration not found")
         return GetAnnotationConfigResponseBody(data=db_to_api_annotation_config(config))
 
 
@@ -282,7 +275,7 @@ async def create_annotation_config(
     try:
         db_config = _to_db_annotation_config(input_config)
     except ValueError as error:
-        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=str(error))
+        raise HTTPException(status_code=400, detail=str(error))
 
     async with request.app.state.db() as session:
         annotation_config = models.AnnotationConfig(
@@ -294,7 +287,7 @@ async def create_annotation_config(
             await session.commit()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise HTTPException(
-                status_code=HTTP_409_CONFLICT,
+                status_code=409,
                 detail="The name of the annotation configuration is already taken",
             )
         return CreateAnnotationConfigResponseBody(
@@ -321,22 +314,18 @@ async def update_annotation_config(
         ContinuousAnnotationConfigType.__name__,
         FreeformAnnotationConfigType.__name__,
     ):
-        raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST, detail="Invalid annotation configuration ID"
-        )
+        raise HTTPException(status_code=400, detail="Invalid annotation configuration ID")
     config_rowid = int(config_gid.node_id)
 
     try:
         db_config = _to_db_annotation_config(input_config)
     except ValueError as error:
-        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=str(error))
+        raise HTTPException(status_code=400, detail=str(error))
 
     async with request.app.state.db() as session:
         existing_config = await session.get(models.AnnotationConfig, config_rowid)
         if not existing_config:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND, detail="Annotation configuration not found"
-            )
+            raise HTTPException(status_code=404, detail="Annotation configuration not found")
 
         existing_config.name = input_config.name
         existing_config.config = db_config
@@ -345,7 +334,7 @@ async def update_annotation_config(
             await session.commit()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise HTTPException(
-                status_code=HTTP_409_CONFLICT,
+                status_code=409,
                 detail="The name of the annotation configuration is already taken",
             )
 
@@ -366,9 +355,7 @@ async def delete_annotation_config(
         ContinuousAnnotationConfigType.__name__,
         FreeformAnnotationConfigType.__name__,
     ):
-        raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST, detail="Invalid annotation configuration ID"
-        )
+        raise HTTPException(status_code=400, detail="Invalid annotation configuration ID")
     config_rowid = int(config_gid.node_id)
     async with request.app.state.db() as session:
         stmt = (
@@ -378,9 +365,7 @@ async def delete_annotation_config(
         )
         annotation_config = await session.scalar(stmt)
         if annotation_config is None:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND, detail="Annotation configuration not found"
-            )
+            raise HTTPException(status_code=404, detail="Annotation configuration not found")
         await session.commit()
     return DeleteAnnotationConfigResponseBody(data=db_to_api_annotation_config(annotation_config))
 
@@ -400,9 +385,7 @@ def _get_annotation_config_db_id(config_gid: str) -> int:
 def _reserve_note_annotation_name(data: AnnotationConfigData) -> str:
     name = data.name
     if name == "note":
-        raise HTTPException(
-            status_code=HTTP_409_CONFLICT, detail="The name 'note' is reserved for span notes"
-        )
+        raise HTTPException(status_code=409, detail="The name 'note' is reserved for span notes")
     return name
 
 

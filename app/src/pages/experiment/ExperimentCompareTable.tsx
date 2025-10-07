@@ -102,7 +102,7 @@ type Experiment = NonNullable<
   ExperimentCompareTable_comparisons$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type ExperimentInfoMap = Record<string, Experiment>;
+type ExperimentInfoMap = Partial<Record<string, Experiment>>;
 
 type ExperimentComparison =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"];
@@ -325,7 +325,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                         setDialog(
                           <ExampleDetailsDialog
                             exampleId={row.original.example.id}
-                            datasetVersionId={baseExperiment.datasetVersionId}
+                            datasetVersionId={baseExperiment?.datasetVersionId}
                           />
                         );
                       }}
@@ -376,7 +376,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         ),
       },
     ];
-  }, [baseExperiment.datasetVersionId, displayFullText, setDialog]);
+  }, [baseExperiment?.datasetVersionId, displayFullText, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [baseExperimentId, ...compareExperimentIds].map(
@@ -663,7 +663,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       >
         <Modal variant="slideover" size="fullscreen">
           {selectedExampleIndex !== null &&
-            exampleIds[selectedExampleIndex] && (
+            exampleIds[selectedExampleIndex] &&
+            baseExperiment && (
               <ExperimentCompareDetailsDialog
                 datasetId={datasetId}
                 datasetVersionId={baseExperiment.datasetVersionId}

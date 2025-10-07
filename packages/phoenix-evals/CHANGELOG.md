@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.4.0...arize-phoenix-evals-v2.5.0) (2025-10-07)
+
+
+### Features
+
+* **evals:** add regex evaluator ([#9756](https://github.com/Arize-ai/phoenix/issues/9756)) ([d3ba324](https://github.com/Arize-ai/phoenix/commit/d3ba324a75a7863d54f028f2f1d92fc2d8b00966))
+* Improve binding ergonomics ([#9612](https://github.com/Arize-ai/phoenix/issues/9612)) ([2989a91](https://github.com/Arize-ai/phoenix/commit/2989a914ef3249327a0f06592aa2cc226d2d367c))
+* support more providers with LLM ([#9701](https://github.com/Arize-ai/phoenix/issues/9701)) ([b6bd07d](https://github.com/Arize-ai/phoenix/commit/b6bd07d295cb2553bf80030c5fd1f8bd15c46e82))
+
+
+### Documentation
+
+* **evals:** update classification evaluator doc string ([#9715](https://github.com/Arize-ai/phoenix/issues/9715)) ([cb71cfd](https://github.com/Arize-ai/phoenix/commit/cb71cfded1458d76ccfb7b6bae5348d016a11266))
+
 ## [2.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.3.0...arize-phoenix-evals-v2.4.0) (2025-10-02)
 
 
