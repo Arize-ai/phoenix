@@ -1261,6 +1261,27 @@
               "title": "Version Id"
             },
             "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
+          },
+          {
+            "name": "splits",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The names of the dataset splits to filter by",
+              "title": "Splits"
+            },
+            "description": "The names of the dataset splits to filter by"
           }
         ],
         "responses": {
@@ -1293,6 +1314,119 @@
               }
             },
             "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Patch dataset examples by setting their splits",
+        "description": "Set splits for dataset examples.\n\nIf example_ids is provided, only those examples will be updated.\nIf example_ids is None/empty, all examples in the dataset will be updated.",
+        "operationId": "patchDatasetExamples",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset",
+              "title": "Id"
+            },
+            "description": "The ID of the dataset"
+          },
+          {
+            "name": "example_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The IDs of specific examples to patch. If not provided, all examples in the dataset will be updated.",
+              "title": "Example Ids"
+            },
+            "description": "The IDs of specific examples to patch. If not provided, all examples in the dataset will be updated."
+          },
+          {
+            "name": "splits",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The names of the dataset splits to set on the examples",
+              "title": "Splits"
+            },
+            "description": "The names of the dataset splits to set on the examples"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "422": {
             "description": "Validation Error",
@@ -4622,6 +4756,15 @@
             "title": "Version Id",
             "description": "ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)"
           },
+          "split_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Split Ids",
+            "description": "List of dataset split names to filter by",
+            "default": []
+          },
           "repetitions": {
             "type": "integer",
             "title": "Repetitions",
@@ -4973,6 +5116,13 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "split_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Split Ids"
           }
         },
         "type": "object",
@@ -4981,7 +5131,8 @@
           "input",
           "output",
           "metadata",
-          "updated_at"
+          "updated_at",
+          "split_ids"
         ],
         "title": "DatasetExample"
       },
@@ -5719,6 +5870,13 @@
             "type": "string",
             "title": "Version Id"
           },
+          "split_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Split Ids"
+          },
           "examples": {
             "items": {
               "$ref": "#/components/schemas/DatasetExample"
@@ -5731,6 +5889,7 @@
         "required": [
           "dataset_id",
           "version_id",
+          "split_ids",
           "examples"
         ],
         "title": "ListDatasetExamplesData"
