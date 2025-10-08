@@ -444,7 +444,6 @@ export function SessionsTable(props: SessionsTableProps) {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    getRowId: (row) => row.id,
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
