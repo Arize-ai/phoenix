@@ -50,10 +50,10 @@ function DatasetCodeDialogContent() {
 
   const pythonCode = useMemo(() => {
     return (
-      `import phoenix as px\n\n` +
-      `client = px.Client()\n` +
+      `from phoenix.client import Client\n\n` +
+      `client = Client()\n` +
       `# Get the current dataset version\n` +
-      `dataset = client.get_dataset(id="${datasetId}"${version ? `, version_id="${version.id}"` : ""})`
+      `dataset = client.datasets.get_dataset(dataset="${datasetId}"${version ? `, version_id="${version.id}"` : ""})`
     );
   }, [datasetId, version]);
 
