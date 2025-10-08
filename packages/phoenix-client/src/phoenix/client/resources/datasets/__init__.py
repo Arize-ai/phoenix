@@ -58,6 +58,7 @@ class Dataset:
         created_at (datetime): When the dataset was created.
         updated_at (datetime): When the dataset was last updated.
         example_count (int): Number of examples in this version.
+        split_ids (list[str]): List of dataset split names.
     """
 
     def __init__(
@@ -93,7 +94,7 @@ class Dataset:
     @property
     def split_ids(self) -> list[str]:
         """The dataset splits."""
-        return self._examples_data.get("split_ids", [])  # type: ignore[return-value]
+        return list(self._examples_data.get("split_ids", []))
 
     @property
     def examples(self) -> list[DatasetExample]:
