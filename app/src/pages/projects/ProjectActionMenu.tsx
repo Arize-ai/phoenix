@@ -24,6 +24,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
@@ -112,7 +113,7 @@ export function ProjectActionMenu({
   }, []);
 
   return (
-    <>
+    <StopPropagation>
       <MenuTrigger>
         <Button
           size="S"
@@ -307,6 +308,6 @@ export function ProjectActionMenu({
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
-    </>
+    </StopPropagation>
   );
 }

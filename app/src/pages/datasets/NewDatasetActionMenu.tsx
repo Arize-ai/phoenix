@@ -18,6 +18,7 @@ import {
   Popover,
 } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -48,7 +49,7 @@ export function NewDatasetActionMenu({
     setDatasetFromCSVDialogOpen(true);
   };
   return (
-    <>
+    <StopPropagation>
       <MenuTrigger>
         <Button leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}>
           Create Dataset
@@ -153,6 +154,6 @@ export function NewDatasetActionMenu({
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
-    </>
+    </StopPropagation>
   );
 }
