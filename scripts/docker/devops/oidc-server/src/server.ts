@@ -233,13 +233,23 @@ async function setupRoutes() {
       ? await oidcServer.handlePKCEAuth(query)
       : await oidcServer.handleAuth(query);
 
+    // If there's a valid redirectUrl, use it (even if there's an error - this follows OAuth2 spec)
+    // Only show custom error page when there's no valid redirect_uri (completely malformed requests)
+    if (result.redirectUrl) {
+      return reply.redirect(result.redirectUrl);
+    }
+
+    // No valid redirect_uri, show error page on OIDC server
     if (result.error) {
-      // Redirect to error page instead of returning JSON
       const errorUrl = `${PUBLIC_BASE_URL}/?error=${encodeURIComponent(result.error)}&error_description=${encodeURIComponent(result.error_description || "")}&state=${encodeURIComponent(query.state || "")}`;
       return reply.redirect(errorUrl);
     }
 
-    return reply.redirect(result.redirectUrl);
+    // This should not happen, but just in case
+    return reply.code(500).send({
+      error: "server_error",
+      error_description: "Invalid server response",
+    });
   });
 
   fastify.post("/token", async (request, reply) => {

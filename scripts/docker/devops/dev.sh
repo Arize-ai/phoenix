@@ -236,8 +236,27 @@ parse_args() {
     fi
 }
 
-# Build docker-compose command
+# Build docker-compose command as array and execute it
 compose_cmd() {
+    local cmd=(docker-compose)
+    
+    # Add compose files
+    local IFS=' '
+    for arg in $COMPOSE_FILES; do
+        cmd+=("$arg")
+    done
+    
+    # Add profile flags
+    for arg in $PROFILE_FLAGS; do
+        cmd+=("$arg")
+    done
+    
+    # Execute the command with any additional arguments
+    "${cmd[@]}" "$@"
+}
+
+# Get docker-compose command as string (for display purposes)
+compose_cmd_str() {
     echo "docker-compose $COMPOSE_FILES $PROFILE_FLAGS"
 }
 
@@ -263,7 +282,7 @@ wait_for_phoenix() {
             echo "💡 Phoenix is taking longer than expected. Recent logs:"
             echo "────────────────────────────────────────────────────────"
             local logs
-            logs=$($(compose_cmd) logs phoenix --tail=100 2>&1)
+            logs=$(compose_cmd logs phoenix --tail=100 2>&1)
             echo "$logs"
             echo "────────────────────────────────────────────────────────"
             
@@ -283,7 +302,7 @@ wait_for_phoenix() {
     
     echo ""
     log_error "Phoenix health check failed after ${HEALTH_TIMEOUT} seconds"
-    echo "   Check logs: $(compose_cmd) logs phoenix"
+    echo "   Check logs: $(compose_cmd_str) logs phoenix"
     return 1
 }
 
@@ -328,7 +347,7 @@ show_services() {
 show_status() {
     log_info "Checking Docker services status..."
     
-    if $(compose_cmd) ps --format table 2>/dev/null | grep -q "Up"; then
+    if compose_cmd ps --format table 2>/dev/null | grep -q "Up"; then
         log_success "Services are running"
         
         if [[ -n "$CURRENT_PROFILES" ]]; then
@@ -390,7 +409,7 @@ case "${COMMAND:-help}" in
         fi
         
         echo "📦 Starting all services..."
-        $(compose_cmd) up -d --build
+        compose_cmd up -d --build
         
         if wait_for_phoenix; then
             log_success "Environment ready!"
@@ -408,9 +427,9 @@ case "${COMMAND:-help}" in
             log_info "Force rebuilding Phoenix (standard mode)"
         fi
         
-        DOCKER_BUILDKIT=1 $(compose_cmd) build --no-cache
+        DOCKER_BUILDKIT=1 compose_cmd build --no-cache
         echo "📦 Starting all services..."
-        $(compose_cmd) up -d --force-recreate
+        compose_cmd up -d --force-recreate
         
         if wait_for_phoenix; then
             log_success "Environment ready!"
@@ -475,14 +494,14 @@ case "${COMMAND:-help}" in
 
     "env")
         # Check if Phoenix container is running
-        if ! $(compose_cmd) ps phoenix | grep -q "Up"; then
+        if ! compose_cmd ps phoenix | grep -q "Up"; then
             log_error "Phoenix container is not running" >&2
             echo "Use './dev.sh up' to start the Phoenix container first" >&2
             exit 1
         fi
         
         # Get container name
-        container_name=$($(compose_cmd) ps -q phoenix)
+        container_name=$(compose_cmd ps -q phoenix)
         if [[ -z "$container_name" ]]; then
             log_error "Could not find Phoenix container" >&2
             exit 1
