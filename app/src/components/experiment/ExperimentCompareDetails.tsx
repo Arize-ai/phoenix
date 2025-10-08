@@ -936,19 +936,22 @@ function ExperimentRunAnnotation({
         </Popover>
       </DialogTrigger>
       {hasTrace ? (
-        <IconButton
-          size="S"
-          aria-label="View evaluation trace"
-          onPress={() => {
-            openTraceDialog(
-              traceId || "",
-              projectId || "",
-              `Evaluator Trace: ${annotation.name}`
-            );
-          }}
-        >
-          <Icon svg={<Icons.Trace />} />
-        </IconButton>
+        <TooltipTrigger>
+          <IconButton
+            size="S"
+            aria-label="View evaluation trace"
+            onPress={() => {
+              openTraceDialog(
+                traceId || "",
+                projectId || "",
+                `Evaluator Trace: ${annotation.name}`
+              );
+            }}
+          >
+            <Icon svg={<Icons.Trace />} />
+          </IconButton>
+          <Tooltip>View evaluation trace</Tooltip>
+        </TooltipTrigger>
       ) : (
         <div />
       )}
