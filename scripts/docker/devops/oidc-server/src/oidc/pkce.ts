@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 
 /**
  * PKCE (Proof Key for Code Exchange) Utilities
@@ -133,7 +133,6 @@ export class PKCEUtils {
       crypto.getRandomValues(array);
     } else {
       // Node.js fallback
-      const { randomBytes } = require("crypto");
       const buffer = randomBytes(32);
       for (let i = 0; i < 32; i++) {
         array[i] = buffer[i];
