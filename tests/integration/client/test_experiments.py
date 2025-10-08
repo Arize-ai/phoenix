@@ -1726,7 +1726,7 @@ class TestEvaluateExperiment:
 
         # Define GraphQL query for verifying experiment splits (used multiple times below)
         verify_splits_query = """
-            query($experimentId: GlobalID!) {
+            query($experimentId: ID!) {
                 node(id: $experimentId) {
                     ... on Experiment {
                         id
