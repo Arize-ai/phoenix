@@ -11,6 +11,7 @@ import {
   Popover,
   Text,
 } from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 
 import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
 import { EditDatasetDialog } from "./EditDatasetDialog";
@@ -45,7 +46,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   return (
-    <>
+    <StopPropagation>
       <MenuTrigger>
         <Button
           size="S"
@@ -111,6 +112,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         isOpen={isEditOpen}
         onOpenChange={setIsEditOpen}
       />
-    </>
+    </StopPropagation>
   );
 }

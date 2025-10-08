@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -163,7 +164,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   }
 
   return (
-    <>
+    <StopPropagation>
       <MenuTrigger>
         <Button
           aria-label="Experiment action menu"
@@ -272,6 +273,6 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           </Dialog>
         </Modal>
       </ModalOverlay>
-    </>
+    </StopPropagation>
   );
 }

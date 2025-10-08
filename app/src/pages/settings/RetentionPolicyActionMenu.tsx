@@ -23,6 +23,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 
 import { EditRetentionPolicy } from "./EditRetentionPolicy";
 
@@ -77,7 +78,7 @@ export const RetentionPolicyActionMenu = ({
   `);
 
   return (
-    <>
+    <StopPropagation>
       <MenuTrigger>
         <Button
           size="S"
@@ -231,6 +232,6 @@ export const RetentionPolicyActionMenu = ({
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
-    </>
+    </StopPropagation>
   );
 };
