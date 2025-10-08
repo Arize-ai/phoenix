@@ -950,3 +950,165 @@ Who wrote Hamlet?,Shakespeare,literature
         assert test_dataset_from_list["name"] == individual_dataset.name
         assert test_dataset_from_list["description"] == individual_dataset.description
         assert test_dataset_from_list["metadata"] == individual_dataset.metadata
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_dataset_with_splits(
+        self,
+        is_async: bool,
+        role_or_user: UserRoleInput,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test dataset splits functionality including creating splits and filtering by splits."""
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = user.create_api_key(_app)
+        api_key_str = str(api_key)
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        unique_name = f"test_splits_{uuid.uuid4().hex[:8]}"
+
+        # Create dataset with examples
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"text": "Example 1"},
+                    {"text": "Example 2"},
+                    {"text": "Example 3"},
+                    {"text": "Example 4"},
+                ],
+                outputs=[
+                    {"label": "A"},
+                    {"label": "B"},
+                    {"label": "A"},
+                    {"label": "B"},
+                ],
+                metadata=[{}, {}, {}, {}],
+            )
+        )
+
+        assert len(dataset) == 4
+        example_ids = [example["id"] for example in dataset.examples]
+
+        # Create splits using GraphQL
+        # Split 1: Examples 0 and 1
+        split1_mutation = """
+            mutation($input: CreateDatasetSplitWithExamplesInput!) {
+                createDatasetSplitWithExamples(input: $input) {
+                    datasetSplit {
+                        id
+                        name
+                    }
+                }
+            }
+        """
+        split1_result, _ = _gql(
+            _app,
+            api_key,
+            query=split1_mutation,
+            variables={
+                "input": {
+                    "name": f"{unique_name}_train",
+                    "color": "#FF0000",
+                    "exampleIds": [example_ids[0], example_ids[1]],
+                }
+            },
+        )
+        split1_id = split1_result["data"]["createDatasetSplitWithExamples"]["datasetSplit"]["id"]
+        split1_name = split1_result["data"]["createDatasetSplitWithExamples"]["datasetSplit"][
+            "name"
+        ]
+
+        # Split 2: Examples 2 and 3
+        split2_result, _ = _gql(
+            _app,
+            api_key,
+            query=split1_mutation,
+            variables={
+                "input": {
+                    "name": f"{unique_name}_test",
+                    "color": "#00FF00",
+                    "exampleIds": [example_ids[2], example_ids[3]],
+                }
+            },
+        )
+        split2_id = split2_result["data"]["createDatasetSplitWithExamples"]["datasetSplit"]["id"]
+        split2_name = split2_result["data"]["createDatasetSplitWithExamples"]["datasetSplit"][
+            "name"
+        ]
+
+        # Get dataset without split filter - should return ALL examples regardless of split membership
+        full_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).datasets.get_dataset(
+                dataset=dataset.id
+            )
+        )
+        assert len(full_dataset) == 4, (
+            f"Expected all 4 examples when no split filter is applied, got {len(full_dataset)}"
+        )
+        # When no split filter is applied, split_ids should be empty (not filtering by any splits)
+        assert full_dataset.split_ids == [], (
+            f"Expected empty split_ids when no filter applied, got {full_dataset.split_ids}"
+        )
+
+        # Verify all 4 example IDs are present in the unfiltered dataset
+        unfiltered_example_ids = {example["id"] for example in full_dataset.examples}
+        assert unfiltered_example_ids == set(example_ids), (
+            "Unfiltered dataset should contain all original example IDs"
+        )
+
+        # Get dataset filtered by split 1 - should return 2 examples
+        split1_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=[split1_name],
+            )
+        )
+        assert len(split1_dataset) == 2, (
+            f"Expected 2 examples with split1, got {len(split1_dataset)}"
+        )
+        assert split1_id in split1_dataset.split_ids, "Split1 ID should be in split_ids"
+
+        # Get dataset filtered by split 2 - should return 2 examples
+        split2_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=[split2_name],
+            )
+        )
+        assert len(split2_dataset) == 2, (
+            f"Expected 2 examples with split2, got {len(split2_dataset)}"
+        )
+        assert split2_id in split2_dataset.split_ids, "Split2 ID should be in split_ids"
+
+        # Get dataset filtered by both splits - should return all 4 examples
+        both_splits_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=[split1_name, split2_name],
+            )
+        )
+        assert len(both_splits_dataset) == 4, (
+            f"Expected 4 examples with both splits, got {len(both_splits_dataset)}"
+        )
+        assert split1_id in both_splits_dataset.split_ids, "Split1 ID should be in split_ids"
+        assert split2_id in both_splits_dataset.split_ids, "Split2 ID should be in split_ids"
+
+        # Verify individual examples have split_ids populated
+        for example in split1_dataset.examples:
+            assert "split_ids" in example, "Example should have split_ids field"
+            assert split1_id in example["split_ids"], (
+                f"Example {example['id']} should have split1_id in its split_ids"
+            )
+
+        # Test that examples in split2 have the correct split_id
+        for example in split2_dataset.examples:
+            assert "split_ids" in example, "Example should have split_ids field"
+            assert split2_id in example["split_ids"], (
+                f"Example {example['id']} should have split2_id in its split_ids"
+            )

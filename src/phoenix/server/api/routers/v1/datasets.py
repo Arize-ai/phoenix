@@ -37,6 +37,7 @@ from phoenix.db.insertion.dataset import (
     ExampleContent,
     add_dataset_examples,
 )
+from phoenix.db.types.db_models import UNDEFINED
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
@@ -701,7 +702,7 @@ class DatasetExample(V1RoutesBaseModel):
 class ListDatasetExamplesData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
-    split_ids: list[str]
+    split_ids: list[str] = UNDEFINED
     examples: list[DatasetExample]
 
 

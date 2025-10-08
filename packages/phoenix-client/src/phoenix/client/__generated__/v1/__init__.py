@@ -157,8 +157,8 @@ class InsertedTraceAnnotation(TypedDict):
 class ListDatasetExamplesData(TypedDict):
     dataset_id: str
     version_id: str
-    split_ids: Sequence[str]
     examples: Sequence[DatasetExample]
+    split_ids: NotRequired[Sequence[str]]
 
 
 class ListDatasetExamplesResponseBody(TypedDict):
