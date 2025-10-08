@@ -21,7 +21,7 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { isUserRole, normalizeUserRole } from "@phoenix/constants";
+import { isUserRole, normalizeUserRole, UserRole } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 import { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
@@ -146,7 +146,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                     onClose={() => setDialog(null)}
                     onRoleChanged={refetchTableData}
                     currentRole={row.original.role}
-                    newRole={key}
+                    newRole={key as UserRole}
                     email={row.original.email}
                     userId={row.original.id}
                   />

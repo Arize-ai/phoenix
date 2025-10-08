@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import inspect
 import itertools
 import json
@@ -153,8 +154,20 @@ class Evaluator(ABC):
     """
     Core abstraction for evaluators.
 
-    Instances are callable: `scores = evaluator(eval_input)` (sync or async via `async_evaluate`).
-    Supports single-record (`evaluate`) mode with optional per-call field_mapping.
+    Supports single-record synchronous (`evaluate`) and asynchronous (`async_evaluate`) modes with
+    optional per-call field_mapping.
+
+    Note: Subclasses must implement either the `_evaluate` or `_async_evaluate` method.
+    Implementing both methods is recommended.
+
+    Args:
+        name: The name of this evaluator, used for identification and Score naming.
+        source: The source of this evaluator (human, llm, or heuristic).
+        input_schema: Optional Pydantic BaseModel for input typing and validation. If None,
+            subclasses infer fields from prompts or function signatures and may construct a
+            model dynamically.
+        direction: The direction for score optimization ("maximize" or "minimize"). Defaults
+            to "maximize".
     """
 
     def __init__(
@@ -164,18 +177,6 @@ class Evaluator(ABC):
         direction: DirectionType = "maximize",
         input_schema: Optional[type[BaseModel]] = None,
     ):
-        """
-        Initialize the evaluator with a required name, source, and optional input schema.
-
-        Args:
-            name: The name of this evaluator, used for identification and Score naming.
-            source: The source of this evaluator (human, llm, or heuristic).
-            input_schema: Optional Pydantic BaseModel for input typing and validation. If None,
-                subclasses infer fields from prompts or function signatures and may construct a
-                model dynamically.
-            direction: The direction for score optimization ("maximize" or "minimize"). Defaults
-                to "maximize".
-        """
         self._name = name
         self._source = source
         self._direction = direction
@@ -270,6 +271,10 @@ class Evaluator(ABC):
         """Binds an evaluator with a fixed input mapping."""
         self._input_mapping = input_mapping
 
+    def unbind(self) -> None:
+        """Unbinds an evaluator from an input mapping."""
+        self._input_mapping = None
+
     def _get_required_fields(self, input_mapping: Optional[InputMappingType]) -> Set[str]:
         """
         Determine required field names for mapping/validation.
@@ -316,6 +321,20 @@ class LLMEvaluator(Evaluator):
     """
     Base LLM evaluator that infers required input fields from its prompt template and
     constructs a default Pydantic input schema when none is supplied.
+
+    Note: Subclasses must implement either the `_evaluate` or `_async_evaluate` method.
+    Implementing both methods is recommended.
+
+    Args:
+        name: Identifier for this evaluator and the name used in produced Scores.
+        llm: The LLM instance to use for evaluation.
+        prompt_template: The prompt template (string or Template) with placeholders for
+            required fields; used to infer required variables.
+        schema: Optional tool/JSON schema for structured output when supported by the LLM.
+        input_schema: Optional Pydantic model describing/validating inputs. If not provided,
+            a model is dynamically created from the prompt variables (all str, required).
+        direction: The score optimization direction ("maximize" or "minimize"). Defaults to
+            "maximize".
     """
 
     def __init__(
@@ -327,20 +346,6 @@ class LLMEvaluator(Evaluator):
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
     ):
-        """
-        Initialize the LLM evaluator.
-
-        Args:
-            name: Identifier for this evaluator and the name used in produced Scores.
-            llm: The LLM instance to use for evaluation.
-            prompt_template: The prompt template (string or Template) with placeholders for
-                required fields; used to infer required variables.
-            schema: Optional tool/JSON schema for structured output when supported by the LLM.
-            input_schema: Optional Pydantic model describing/validating inputs. If not provided,
-                a model is dynamically created from the prompt variables (all str, required).
-            direction: The score optimization direction ("maximize" or "minimize"). Defaults to
-                "maximize".
-        """
         # Infer required fields from prompt_template
         if isinstance(prompt_template, str):
             prompt_template = Template(template=prompt_template)
@@ -387,12 +392,39 @@ class LLMEvaluator(Evaluator):
 # --- LLM ClassificationEvaluator ---
 class ClassificationEvaluator(LLMEvaluator):
     """
-    LLM-based evaluator for classification tasks.
+    LLM-based evaluator for classification-style judgements.
 
     Supports label-only or label+score mappings, and returns explanations by default.
+    Note: Requires the LLM to have tool calling or structured output capabilities.
+
+    Args:
+        name: Identifier for this evaluator and the name used in produced Scores.
+        llm: The LLM instance to use for evaluation. Must support tool calling or
+            structured output for reliable classification.
+        prompt_template: The prompt template (string or Template) with placeholders for
+            required input fields. Template variables are inferred automatically.
+        choices: Classification choices in one of three formats:
+            a. List[str]: Simple list of label names (e.g., ["positive", "negative"]).
+                Scores will be None.
+            b. Dict[str, Union[float, int]]: Labels mapped to numeric scores
+                (e.g., {"positive": 1.0, "negative": 0.0}).
+            c. Dict[str, Tuple[Union[float, int], str]]: Labels mapped to tuples of
+                (score, description) (e.g., {"positive": (1.0, "Positive sentiment"),
+                "negative": (0.0, "Negative sentiment")}). Not recommended as LLMs do not
+                reliably follow this schema.
+        include_explanation: Whether to request explanations for classification decisions.
+            Defaults to True in accordance with best practices.
+        input_schema: Optional Pydantic model for input validation. If not provided,
+            a model is automatically created from prompt template variables.
+        direction: Score optimization direction ("maximize" or "minimize"). Defaults to
+            "maximize".
+
+    Returns:
+        List[Score]: A list containing a single Score object with the classification
+            result, including label, optional score, and optional explanation.
 
     Examples:
-        Simple binary classification::
+        Classification with labels only::
 
             from phoenix.evals import ClassificationEvaluator
             from phoenix.evals.llm import LLM
@@ -407,6 +439,7 @@ class ClassificationEvaluator(LLMEvaluator):
             result = evaluator.evaluate({"text": "I love this product!"})
             print(result[0].label)  # "positive"
             print(result[0].explanation)  # LLM's reasoning
+            print(result[0].score)  # None
 
         Classification with scores::
 
@@ -428,7 +461,7 @@ class ClassificationEvaluator(LLMEvaluator):
             print(result[0].label)  # "excellent"
             print(result[0].score)  # 5
 
-        Classification with scores and descriptions::
+        Classification with scores and descriptions (use with caution)::
 
             # Map labels to (score, description) tuples
             evaluator = ClassificationEvaluator(
@@ -449,6 +482,7 @@ class ClassificationEvaluator(LLMEvaluator):
             })
             print(result[0].label)  # "highly_relevant"
             print(result[0].score)  # 1.0
+
     """
 
     def __init__(
@@ -463,23 +497,6 @@ class ClassificationEvaluator(LLMEvaluator):
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
     ):
-        """
-        Initialize the LLM evaluator.
-
-        Args:
-            name: Identifier for this evaluator and the name used in produced Scores.
-            llm: The LLM instance to use for evaluation.
-            prompt_template: The prompt template (string or Template) with placeholders for inputs.
-            choices: One of:
-                - List[str]: set of label names; scores will be None.
-                - Dict[str, Union[float, int]]: map label -> score.
-                - Dict[str, Tuple[Union[float, int], str]]: map label -> (score, description).
-            include_explanation: If True, request an explanation in addition to the label.
-            input_schema: Optional Pydantic model describing/validating inputs. If not provided,
-                a model is derived from prompt variables.
-            direction: The score optimization direction ("maximize" or "minimize"). Defaults to
-                "maximize".
-        """
         super().__init__(
             name=name,
             llm=llm,
@@ -609,7 +626,7 @@ def create_evaluator(
 
     The decorated function should accept keyword args matching its required fields and return a
     value that can be converted to a Score. The returned object is an Evaluator with full support
-    for evaluate/async_evaluate and direct callability.
+    for evaluate/async_evaluate and maintains direct callability.
 
     Args:
         name: Identifier for the evaluator and the name used in produced Scores.
@@ -617,9 +634,6 @@ def create_evaluator(
             "heuristic".
         direction: The score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
-
-    Returns:
-        An `Evaluator` instance.
 
     Examples:
         Basic usage with numeric return::
@@ -639,6 +653,10 @@ def create_evaluator(
                 "relevant_documents": [2, 4, 6]
             })
             print(result[0].score)  # 0.5
+
+            # Direct callability maintained:
+            result = precision(retrieved_documents=[1, 2, 3, 4], relevant_documents=[2, 4, 6])
+            print(result)  # 0.5
 
         Different return types::
 
@@ -893,6 +911,8 @@ def create_classifier(
     """
     Factory to create a `ClassificationEvaluator`.
 
+    Note: The evaluator requires the LLM to have tool calling or structured output capabilities.
+
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
         llm: The LLM instance to use for evaluation.
@@ -922,6 +942,7 @@ def create_classifier(
 
             result = sentiment_evaluator.evaluate({"text": "Great product!"})
             print(result[0].label)  # "positive"
+            print(result[0].score)  # None
 
         Creating a classifier with numeric scores::
 
@@ -1053,8 +1074,9 @@ def bind_evaluator(
             }
             result = bound_evaluator.evaluate(data)
     """
-    evaluator.bind(input_mapping=input_mapping)
-    return evaluator
+    evaluator_copy = copy.deepcopy(evaluator)
+    evaluator_copy.bind(input_mapping=input_mapping)
+    return evaluator_copy
 
 
 # --- Helper functions for dataframe evaluation ---

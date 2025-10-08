@@ -1,8 +1,7 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { useNavigate } from "react-router";
 
-import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { Flex, Icon, Icons, LinkButton, Text, View } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
@@ -17,7 +16,6 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
       .map((instance) => instance.experimentId)
       .filter((id) => id != null);
   }, [instances]);
-  const navigate = useNavigate();
 
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
@@ -55,7 +53,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
             ) : null}
           </Flex>
           {experimentIds.length > 0 && (
-            <Button
+            <LinkButton
               size="S"
               isDisabled={isRunning}
               leadingVisual={
@@ -69,13 +67,10 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
                   }
                 />
               }
-              onPress={() => {
-                const queryParams = `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`;
-                navigate(`/datasets/${datasetId}/compare${queryParams}`);
-              }}
+              to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
             >
               View Experiment{instances.length > 1 ? "s" : ""}
-            </Button>
+            </LinkButton>
           )}
         </Flex>
       </View>

@@ -13,7 +13,10 @@ from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
+    create_bedrock_client,
+    create_litellm_client,
     create_openai_client,
+    create_vertex_client,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,14 +29,32 @@ def get_litellm_rate_limit_errors() -> list[Type[Exception]]:
 
 
 @register_provider(
+    provider="openai",
+    client_factory=create_openai_client,
+    get_rate_limit_errors=get_litellm_rate_limit_errors,
+    dependencies=["litellm"],
+)
+@register_provider(
     provider="anthropic",
     client_factory=create_anthropic_client,
     get_rate_limit_errors=get_litellm_rate_limit_errors,
     dependencies=["litellm"],
 )
 @register_provider(
-    provider="openai",
-    client_factory=create_openai_client,
+    provider="vertex",
+    client_factory=create_vertex_client,
+    get_rate_limit_errors=get_litellm_rate_limit_errors,
+    dependencies=["litellm"],
+)
+@register_provider(
+    provider="bedrock",
+    client_factory=create_bedrock_client,
+    get_rate_limit_errors=get_litellm_rate_limit_errors,
+    dependencies=["litellm", "boto3"],
+)
+@register_provider(
+    provider="litellm",
+    client_factory=create_litellm_client,
     get_rate_limit_errors=get_litellm_rate_limit_errors,
     dependencies=["litellm"],
 )

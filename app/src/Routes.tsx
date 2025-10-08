@@ -7,6 +7,7 @@ import {
 import { RouterProvider } from "react-router/dom";
 
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
+import { RootLayout } from "@phoenix/pages/RootLayout";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -30,7 +31,10 @@ import { PromptLayout } from "./pages/prompt/PromptLayout";
 import { promptPlaygroundLoader } from "./pages/prompt/promptPlaygroundLoader";
 import { PromptPlaygroundPage } from "./pages/prompt/PromptPlaygroundPage";
 import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
-import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
+import {
+  promptVersionLoader,
+  PromptVersionLoaderData,
+} from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
@@ -55,7 +59,6 @@ import {
   ExamplePage,
   examplesLoader,
   ExamplesPage,
-  experimentCompareLoader,
   ExperimentComparePage,
   ExperimentsPage,
   ForgotPasswordPage,
@@ -83,6 +86,7 @@ import {
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
   SessionPage,
+  SettingsDatasetsPage,
   settingsGeneralPageLoader,
   SettingsPage,
   SettingsPromptsPage,
@@ -94,7 +98,7 @@ import {
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route path="/" errorElement={<ErrorElement />}>
+    <Route path="/" errorElement={<ErrorElement />} element={<RootLayout />}>
       {/*
         Using /v1/* below redirects all /v1/* routes that don't have a GET method to the root path.
         In particular, this redirects /v1/traces to the root path (/). This route is for the
@@ -217,7 +221,6 @@ const router = createBrowserRouter(
               <Route
                 path="compare"
                 element={<ExperimentComparePage />}
-                loader={experimentCompareLoader}
                 handle={{ crumb: () => "compare" }}
               />
             </Route>
@@ -284,6 +287,27 @@ const router = createBrowserRouter(
                   loader={promptConfigLoader}
                 />
               </Route>
+              {/*
+               * Adds a duplicative versions/:versionId route group that bails out of
+               * the PromptLayout so that the version playground is not nested
+               */}
+              <Route
+                path="versions/:versionId"
+                loader={promptVersionLoader}
+                handle={{
+                  crumb: (data: PromptVersionLoaderData) =>
+                    data?.promptVersion.id,
+                }}
+              >
+                <Route
+                  path="playground"
+                  element={<PromptPlaygroundPage />}
+                  loader={promptPlaygroundLoader}
+                  handle={{
+                    crumb: () => "playground",
+                  }}
+                />
+              </Route>
               <Route
                 path="playground"
                 element={<PromptPlaygroundPage />}
@@ -337,6 +361,13 @@ const router = createBrowserRouter(
               element={<SettingsModelsPage />}
               handle={{
                 crumb: () => "Models",
+              }}
+            />
+            <Route
+              path="datasets"
+              element={<SettingsDatasetsPage />}
+              handle={{
+                crumb: () => "Datasets",
               }}
             />
             <Route

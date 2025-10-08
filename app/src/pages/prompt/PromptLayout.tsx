@@ -4,24 +4,17 @@ import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Counter,
-  DialogTrigger,
   Flex,
   Heading,
-  Icon,
-  Icons,
   LazyTabPanel,
   Link,
-  Modal,
-  ModalOverlay,
   Tab,
   TabList,
   Tabs,
   Text,
   View,
 } from "@phoenix/components";
-import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 
 import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import { usePromptIdLoader } from "./usePromptIdLoader";
@@ -111,35 +104,6 @@ export function PromptLayout() {
                 </Link>
               </Text>
             )}
-          </Flex>
-
-          <Flex direction="row" gap="size-100">
-            <DialogTrigger>
-              <Button
-                size="S"
-                leadingVisual={<Icon svg={<Icons.DuplicateIcon />} />}
-              >
-                Clone
-              </Button>
-              <ModalOverlay>
-                <Modal size="M">
-                  <ClonePromptDialog
-                    promptId={data.id}
-                    promptName={data.name}
-                    promptDescription={data.description ?? undefined}
-                  />
-                </Modal>
-              </ModalOverlay>
-            </DialogTrigger>
-            <Button
-              size="S"
-              leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
-              onPress={() => {
-                navigate(`/prompts/${loaderData.prompt.id}/playground`);
-              }}
-            >
-              Edit in Playground
-            </Button>
           </Flex>
         </Flex>
       </View>

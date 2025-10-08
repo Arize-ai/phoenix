@@ -22,7 +22,7 @@ type ModelProviderSelectProps = {
   onChange: (provider: ModelProvider) => void;
   query: ModelProviderSelectFragment$key;
   provider?: ModelProvider;
-} & Omit<SelectProps, "children" | "onSelectionChange" | "selectedKey">;
+} & Omit<SelectProps, "children" | "onChange" | "value">;
 
 export function ModelProviderSelect({
   onChange,
@@ -53,11 +53,12 @@ export function ModelProviderSelect({
       {...props}
       key="model-provider-select"
       data-testid="model-provider-picker"
-      selectedKey={props.provider ?? undefined}
+      selectionMode="single"
+      value={props.provider ?? undefined}
       isInvalid={selectedProviderNotInstalled}
       aria-label="Model Provider"
       placeholder="Select a provider"
-      onSelectionChange={(key) => {
+      onChange={(key) => {
         const provider = key as string;
         if (isModelProvider(provider)) {
           onChange(provider);

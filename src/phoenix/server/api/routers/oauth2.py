@@ -1,5 +1,6 @@
+import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from random import randrange
 from typing import Any, Optional, TypedDict
@@ -18,17 +19,19 @@ from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore
 from starlette.datastructures import URL, Secret, URLPath
 from starlette.responses import RedirectResponse
 from starlette.routing import Router
-from starlette.status import HTTP_302_FOUND
 from typing_extensions import Annotated, NotRequired, TypeGuard
 
 from phoenix.auth import (
     DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES,
+    PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+    delete_oauth2_code_verifier_cookie,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
     sanitize_email,
     set_access_token_cookie,
+    set_oauth2_code_verifier_cookie,
     set_oauth2_nonce_cookie,
     set_oauth2_state_cookie,
     set_refresh_token_cookie,
@@ -38,6 +41,7 @@ from phoenix.config import (
     get_env_disable_rate_limit,
 )
 from phoenix.db import models
+from phoenix.server.api.auth_messages import AuthErrorCode
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
@@ -49,6 +53,8 @@ from phoenix.server.types import TokenStore
 from phoenix.server.utils import get_root_path, prepend_root_path
 
 _LOWERCASE_ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
+
+logger = logging.getLogger(__name__)
 
 login_rate_limiter = fastapi_ip_rate_limiter(
     ServerRateLimiter(
@@ -88,11 +94,12 @@ async def login(
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
     return_url: Optional[str] = Query(default=None, alias="returnUrl"),
 ) -> RedirectResponse:
+    # Security Note: Query parameters should be treated as untrusted user input. Never display
+    # these values directly to users as they could be manipulated for XSS, phishing, or social
+    # engineering attacks.
+    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
+        return _redirect_to_login(request=request, error="unknown_idp")
     secret = request.app.state.get_secret()
-    if not isinstance(
-        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
-    ):
-        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     if (referer := request.headers.get("referer")) is not None:
         # if the referer header is present, use it as the origin URL
         parsed_url = urlparse(referer)
@@ -113,7 +120,7 @@ async def login(
     assert isinstance(authorization_url := authorization_url_data.get("url"), str)
     assert isinstance(state := authorization_url_data.get("state"), str)
     assert isinstance(nonce := authorization_url_data.get("nonce"), str)
-    response = RedirectResponse(url=authorization_url, status_code=HTTP_302_FOUND)
+    response = RedirectResponse(url=authorization_url, status_code=302)
     response = set_oauth2_state_cookie(
         response=response,
         state=state,
@@ -124,6 +131,12 @@ async def login(
         nonce=nonce,
         max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
     )
+    if code_verifier := authorization_url_data.get("code_verifier"):
+        response = set_oauth2_code_verifier_cookie(
+            response=response,
+            code_verifier=code_verifier,
+            max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        )
     return response
 
 
@@ -131,50 +144,96 @@ async def login(
 async def create_tokens(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
-    state: str = Query(),
-    authorization_code: str = Query(alias="code"),
+    state: str = Query(),  # RFC 6749 §4.1.1: CSRF protection via state parameter
+    authorization_code: Optional[str] = Query(default=None, alias="code"),  # RFC 6749 §4.1.2
+    error: Optional[str] = Query(default=None),  # RFC 6749 §4.1.2.1: Error response
+    error_description: Optional[str] = Query(default=None),
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
-    stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
+    stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),  # OIDC Core §3.1.2.1
+    code_verifier: Optional[str] = Cookie(
+        default=None, alias=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME
+    ),  # RFC 7636 §4.1
 ) -> RedirectResponse:
+    # Security Note: Query parameters should be treated as untrusted user input. Never display
+    # these values directly to users as they could be manipulated for XSS, phishing, or social
+    # engineering attacks.
+    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
+        return _redirect_to_login(request=request, error="unknown_idp")
+    if error or error_description:
+        logger.error(
+            "OAuth2 authentication failed for IDP %s: error=%s, description=%s",
+            idp_name,
+            error,
+            error_description,
+        )
+        return _redirect_to_login(request=request, error="auth_failed")
+    if authorization_code is None:
+        logger.error("OAuth2 callback missing authorization code for IDP %s", idp_name)
+        return _redirect_to_login(request=request, error="auth_failed")
     secret = request.app.state.get_secret()
+    # RFC 6749 §10.12: CSRF protection - validate state parameter
     if state != stored_state:
-        return _redirect_to_login(request=request, error=_INVALID_OAUTH2_STATE_MESSAGE)
+        return _redirect_to_login(request=request, error="invalid_state")
     try:
         payload = _parse_state_payload(secret=secret, state=state)
     except JoseError:
-        return _redirect_to_login(request=request, error=_INVALID_OAUTH2_STATE_MESSAGE)
+        return _redirect_to_login(request=request, error="invalid_state")
     if (return_url := payload.get("return_url")) is not None and not _is_relative_url(
         unquote(return_url)
     ):
-        return _redirect_to_login(request=request, error="Attempting login with unsafe return URL.")
+        return _redirect_to_login(request=request, error="unsafe_return_url")
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
-    if not isinstance(
-        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
-    ):
-        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     try:
-        token_data = await oauth2_client.fetch_access_token(
+        # RFC 6749 §4.1.3: Token request - exchange authorization code for tokens
+        fetch_kwargs: dict[str, Any] = dict(
             state=state,
             code=authorization_code,
-            redirect_uri=_get_create_tokens_endpoint(
+            redirect_uri=_get_create_tokens_endpoint(  # RFC 6749 §3.1.2
                 request=request, origin_url=payload["origin_url"], idp_name=idp_name
             ),
         )
-    except OAuthError as error:
-        return _redirect_to_login(request=request, error=str(error))
+        # PKCE validation: code_verifier is required when PKCE is enabled (RFC 7636 §4.5)
+        if oauth2_client.use_pkce:
+            if not code_verifier:
+                logger.error(
+                    "PKCE enabled but code_verifier cookie missing for IDP %s. "
+                    "This may indicate a cookie issue, CORS misconfiguration, or "
+                    "browser compatibility problem.",
+                    idp_name,
+                )
+                return _redirect_to_login(request=request, error="auth_failed")
+            fetch_kwargs["code_verifier"] = code_verifier
+        token_data = await oauth2_client.fetch_access_token(**fetch_kwargs)
+    except OAuthError as e:
+        logger.error("OAuth2 error for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="oauth_error")
     _validate_token_data(token_data)
     if "id_token" not in token_data:
-        return _redirect_to_login(
-            request=request,
-            error=f"OAuth2 IDP {idp_name} does not appear to support OpenID Connect.",
+        logger.error("OAuth2 IDP %s does not appear to support OpenID Connect", idp_name)
+        return _redirect_to_login(request=request, error="no_oidc_support")
+
+    id_token_claims = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
+
+    if oauth2_client.has_sufficient_claims(id_token_claims):
+        user_claims = id_token_claims
+    else:
+        user_claims = await _fetch_and_merge_userinfo_claims(
+            oauth2_client, token_data, id_token_claims
         )
-    user_info = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
+
     try:
-        user_info = _parse_user_info(user_info)
-    except MissingEmailScope as error:
-        return _redirect_to_login(request=request, error=str(error))
+        user_info = _parse_user_info(user_claims)
+    except (MissingEmailScope, InvalidUserInfo) as e:
+        logger.error("Error parsing user info for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="missing_email_scope")
+
+    try:
+        oauth2_client.validate_access(user_info.claims)
+    except PermissionError as e:
+        logger.error("Access validation failed for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="auth_failed")
 
     try:
         async with request.app.state.db() as session:
@@ -184,8 +243,12 @@ async def create_tokens(
                 user_info=user_info,
                 allow_sign_up=oauth2_client.allow_sign_up,
             )
-    except (EmailAlreadyInUse, SignInNotAllowed) as error:
-        return _redirect_to_login(request=request, error=str(error))
+    except EmailAlreadyInUse as e:
+        logger.error("Email already in use for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="email_in_use")
+    except SignInNotAllowed as e:
+        logger.error("Sign in not allowed for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="sign_in_not_allowed")
     access_token, refresh_token = await create_access_and_refresh_tokens(
         user=user,
         token_store=token_store,
@@ -195,7 +258,7 @@ async def create_tokens(
     redirect_path = prepend_root_path(request.scope, return_url or "/")
     response = RedirectResponse(
         url=redirect_path,
-        status_code=HTTP_302_FOUND,
+        status_code=302,
     )
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
@@ -205,6 +268,7 @@ async def create_tokens(
     )
     response = delete_oauth2_state_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
+    response = delete_oauth2_code_verifier_cookie(response)
     return response
 
 
@@ -214,6 +278,7 @@ class UserInfo:
     email: str
     username: Optional[str] = None
     profile_picture_url: Optional[str] = None
+    claims: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not (idp_user_id := (self.idp_user_id or "").strip()):
@@ -228,9 +293,64 @@ class UserInfo:
             object.__setattr__(self, "profile_picture_url", profile_picture_url)
 
 
+async def _fetch_and_merge_userinfo_claims(
+    oauth2_client: OAuth2Client,
+    token_data: dict[str, Any],
+    id_token_claims: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Fetch claims from UserInfo endpoint and merge with ID token claims.
+
+    Why this is necessary (OIDC Core §5.4, §5.5):
+    When claims are requested via scopes (e.g., "profile", "email"), OIDC Core §5.4
+    specifies which claims are "REQUESTED" but does not mandate WHERE they must be
+    returned. Similarly, §5.5 allows requesting specific claims via the "claims"
+    parameter, but providers have discretion on whether to return them in the ID token
+    or UserInfo response. In practice, providers often return certain claims (especially
+    large ones like groups) only via UserInfo to keep ID tokens compact.
+
+    The UserInfo endpoint (OIDC Core §5.3) provides additional claims beyond what's
+    in the ID token, such as group memberships or custom attributes. This function:
+
+    1. Calls the UserInfo endpoint using the access token (OIDC Core §5.3.1, RFC 6750)
+    2. Merges userinfo claims with ID token claims
+    3. ID token claims override userinfo claims when both contain the same claim
+
+    Why ID token takes precedence (OIDC Core §5.3.2):
+    - ID tokens are signed JWTs that have been cryptographically verified
+    - UserInfo responses may be unsigned
+    - Signed claims are the authoritative source when present in both
+
+    Fallback behavior:
+    If the UserInfo request fails, returns only ID token claims. The returned claims
+    may be incomplete (missing email or groups), but subsequent validation will catch this:
+    - Missing email: _parse_user_info() raises MissingEmailScope
+    - Missing groups: validate_access() raises PermissionError if access is denied
+
+    Args:
+        oauth2_client: The OAuth2 client to use for fetching userinfo
+        token_data: Token response containing the access token (RFC 6749 §5.1)
+        id_token_claims: Claims from the verified ID token (OIDC Core §3.1.3.3)
+
+    Returns:
+        Merged claims dictionary with ID token claims overriding userinfo claims
+    """
+    try:
+        # OIDC Core §5.3.1: UserInfo request authenticated with access token
+        userinfo_claims = await oauth2_client.userinfo(token=token_data)
+        # ID token claims take precedence (signed and verified)
+        return {**userinfo_claims, **id_token_claims}
+    except Exception:
+        # Fallback: ID token has essential claims for authentication
+        return id_token_claims
+
+
 def _validate_token_data(token_data: dict[str, Any]) -> None:
     """
     Performs basic validations on the token data returned by the IDP.
+
+    RFC 6749 §5.1: Successful response must include access_token and token_type.
+    RFC 6750 §1.1: Bearer token type for HTTP authentication.
     """
     assert isinstance(token_data.get("access_token"), str)
     assert isinstance(token_type := token_data.get("token_type"), str)
@@ -240,25 +360,107 @@ def _validate_token_data(token_data: dict[str, Any]) -> None:
 def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     """
     Parses user info from the IDP's ID token.
+
+    Validates required OIDC claims and extracts user information according to the
+    OpenID Connect Core 1.0 specification.
+
+    Args:
+        user_info: Claims from the ID token (validated JWT payload)
+
+    Returns:
+        UserInfo object with validated user data
+
+    Raises:
+        InvalidUserInfo: If required claims are missing or malformed
+        MissingEmailScope: If email claim is missing or invalid
+
+    ID Token Required Claims (OIDC Core §2, §3.1.3.3):
+        - iss (issuer): Identifier for the OpenID Provider
+        - sub (subject): Unique identifier for the End-User at the Issuer
+        - aud (audience): Client ID this ID token is intended for
+        - exp (expiration): Expiration time
+        - iat (issued at): Time the JWT was issued
+        - nonce (if sent in auth request): Value sent in the Authentication Request
+
+    Application-Required Claims:
+        - email: Required by this application for user identification
+
+    Optional Standard Claims (OIDC Core §5.1):
+        - name: Full name
+        - picture: Profile picture URL
+        - Other profile, email, address, and phone claims
+
+    Note: While iss, sub, aud, exp, iat are REQUIRED in all ID tokens per spec,
+    other claims like email, name, groups are optional and may appear in the ID token,
+    UserInfo response, or both depending on what was requested and provider implementation.
     """
-    assert isinstance(subject := user_info.get("sub"), (str, int))
-    idp_user_id = str(subject)
-    email = user_info.get("email")
-    if not isinstance(email, str):
-        raise MissingEmailScope(
-            "Please ensure your OIDC provider is configured to use the 'email' scope."
+    # Validate 'sub' claim (OIDC required, MUST be a string per spec)
+    subject = user_info.get("sub")
+    if subject is None:
+        raise InvalidUserInfo(
+            "Missing required 'sub' claim in ID token. "
+            "Please check your OIDC provider configuration."
         )
 
-    assert isinstance(username := user_info.get("name"), str) or username is None
-    assert (
-        isinstance(profile_picture_url := user_info.get("picture"), str)
-        or profile_picture_url is None
-    )
+    # OIDC spec: sub MUST be a string, but some IDPs send integers
+    # Convert to string for compatibility
+    if isinstance(subject, (str, int)):
+        idp_user_id = str(subject).strip()
+    else:
+        raise InvalidUserInfo(
+            f"Invalid 'sub' claim type: {type(subject).__name__}. Expected string or integer."
+        )
+
+    if not idp_user_id:
+        raise InvalidUserInfo("The 'sub' claim cannot be empty.")
+
+    # Validate 'email' claim (application requirement)
+    email = user_info.get("email")
+    if not isinstance(email, str) or not email.strip():
+        raise MissingEmailScope(
+            "Missing or invalid 'email' claim. "
+            "Please ensure your OIDC provider is configured to include the 'email' scope."
+        )
+    email = email.strip()
+
+    # Optional: 'name' claim (Full name)
+    username = user_info.get("name")
+    if username is not None:
+        if not isinstance(username, str):
+            # Some IDPs might send unexpected types; ignore gracefully
+            username = None
+        else:
+            username = username.strip() or None
+
+    # Optional: 'picture' claim (Profile picture URL)
+    profile_picture_url = user_info.get("picture")
+    if profile_picture_url is not None:
+        if not isinstance(profile_picture_url, str):
+            # Some IDPs might send unexpected types; ignore gracefully
+            profile_picture_url = None
+        else:
+            profile_picture_url = profile_picture_url.strip() or None
+
+    # Keep only non-empty claim values for downstream processing
+    def _has_value(v: Any) -> bool:
+        """Check if a claim value is considered non-empty."""
+        if v is None:
+            return False
+        if isinstance(v, str):
+            return bool(v.strip())
+        if isinstance(v, (list, dict, set, tuple)):
+            return len(v) > 0
+        # Include all other types (numbers, booleans, etc.)
+        return True
+
+    filtered_claims = {k: v for k, v in user_info.items() if _has_value(v)}
+
     return UserInfo(
         idp_user_id=idp_user_id,
         email=email,
         username=username,
         profile_picture_url=profile_picture_url,
+        claims=filtered_claims,
     )
 
 
@@ -560,9 +762,18 @@ class MissingEmailScope(Exception):
     pass
 
 
-def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
+class InvalidUserInfo(Exception):
     """
-    Creates a RedirectResponse to the login page to display an error message.
+    Raised when the OIDC user info is malformed or missing required claims.
+    """
+
+    pass
+
+
+def _redirect_to_login(*, request: Request, error: AuthErrorCode) -> RedirectResponse:
+    """
+    Creates a RedirectResponse to the login page to display an error code.
+    The error code will be validated and mapped to a user-friendly message on the frontend.
     """
     # TODO: this needs some cleanup
     login_path = prepend_root_path(
@@ -572,6 +783,7 @@ def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
     response = RedirectResponse(url=url)
     response = delete_oauth2_state_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
+    response = delete_oauth2_code_verifier_cookie(response)
     return response
 
 
@@ -661,7 +873,4 @@ def _is_oauth2_state_payload(maybe_state_payload: Any) -> TypeGuard[_OAuth2State
 
 
 _JWT_ALGORITHM = "HS256"
-_INVALID_OAUTH2_STATE_MESSAGE = (
-    "Received invalid state parameter during OAuth2 authorization code flow for IDP {idp_name}."
-)
 _RELATIVE_URL_PATTERN = re.compile(r"^/($|\w)")

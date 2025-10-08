@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89b851cfcc5de8da0d2fecd3525e0ad6>>
+ * @generated SignedSource<<fc5fe968020002631f297d81423d62c2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,14 @@ export type ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation
 };
 export type ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation$data = {
   readonly removeDatasetExamplesFromDatasetSplits: {
-    readonly __typename: "RemoveDatasetExamplesFromDatasetSplitsMutationPayload";
+    readonly examples: ReadonlyArray<{
+      readonly datasetSplits: ReadonlyArray<{
+        readonly color: string;
+        readonly id: string;
+        readonly name: string;
+      }>;
+      readonly id: string;
+    }>;
   };
 };
 export type ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation = {
@@ -34,7 +41,14 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": null,
     "args": [
@@ -52,8 +66,39 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "kind": "ScalarField",
-        "name": "__typename",
+        "concreteType": "DatasetExample",
+        "kind": "LinkedField",
+        "name": "examples",
+        "plural": true,
+        "selections": [
+          (v1/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "DatasetSplit",
+            "kind": "LinkedField",
+            "name": "datasetSplits",
+            "plural": true,
+            "selections": [
+              (v1/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "color",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
         "storageKey": null
       }
     ],
@@ -66,7 +111,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -75,19 +120,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "930aebc5f7aa89f05a44c5649504d3ee",
+    "cacheID": "d0e1a90c1fd3a68738c02aac6f1cdb51",
     "id": null,
     "metadata": {},
     "name": "ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation",
     "operationKind": "mutation",
-    "text": "mutation ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation(\n  $input: RemoveDatasetExamplesFromDatasetSplitsInput!\n) {\n  removeDatasetExamplesFromDatasetSplits(input: $input) {\n    __typename\n  }\n}\n"
+    "text": "mutation ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation(\n  $input: RemoveDatasetExamplesFromDatasetSplitsInput!\n) {\n  removeDatasetExamplesFromDatasetSplits(input: $input) {\n    examples {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1d1b29fe57ee50492d414a6675e27516";
+(node as any).hash = "3adeb4422875b23cadabba5b3fa2c5eb";
 
 export default node;

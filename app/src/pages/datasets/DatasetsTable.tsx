@@ -9,6 +9,7 @@ import {
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
+  CellContext,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -17,12 +18,14 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons, Link } from "@phoenix/components";
+import { Icon, Icons, Link, Token } from "@phoenix/components";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
@@ -58,6 +61,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
+  const isDatasetLabelEnabled = useFeatureFlag("datasetLabel");
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
       DatasetsTableDatasetsQuery,
@@ -86,6 +90,11 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 createdAt
                 exampleCount
                 experimentCount
+                labels {
+                  id
+                  name
+                  color
+                }
               }
             }
           }
@@ -130,6 +139,40 @@ export function DatasetsTable(props: DatasetsTableProps) {
           return <Link to={to}>{row.original.name}</Link>;
         },
       },
+      ...(isDatasetLabelEnabled
+        ? [
+            {
+              header: "labels",
+              accessorKey: "labels",
+              enableSorting: false,
+              cell: ({
+                row,
+              }: CellContext<(typeof tableData)[number], unknown>) => {
+                return (
+                  <ul
+                    css={css`
+                      display: flex;
+                      flex-direction: row;
+                      gap: var(--ac-global-dimension-size-100);
+                      min-width: 0;
+                      flex-wrap: wrap;
+                    `}
+                  >
+                    {row.original.labels.map((label) => (
+                      <li key={label.id}>
+                        <Token color={label.color}>
+                          <Truncate maxWidth={200} title={label.name}>
+                            {label.name}
+                          </Truncate>
+                        </Token>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              },
+            },
+          ]
+        : []),
       {
         header: "description",
         accessorKey: "description",

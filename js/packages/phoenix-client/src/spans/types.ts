@@ -1,4 +1,5 @@
 import { paths } from "../__generated__/api/v1";
+import { Annotation } from "../types/annotations";
 
 type SpanAnnotationData =
   paths["/v1/span_annotations"]["post"]["requestBody"]["content"]["application/json"]["data"][0];
@@ -9,35 +10,11 @@ type SpanDocumentAnnotationData =
 /**
  * Parameters for a single span annotation
  */
-export interface SpanAnnotation {
+export interface SpanAnnotation extends Annotation {
   /**
    * The OpenTelemetry Span ID (hex format without 0x prefix)
    */
   spanId: string;
-  /**
-   * The name of the annotation
-   */
-  name: string;
-  /**
-   * The label assigned by the annotation
-   */
-  label?: string;
-  /**
-   * The score assigned by the annotation
-   */
-  score?: number;
-  /**
-   * Explanation of the annotation result
-   */
-  explanation?: string;
-  /**
-   * The identifier of the annotation. If provided, the annotation will be updated if it already exists.
-   */
-  identifier?: string;
-  /**
-   * Metadata for the annotation
-   */
-  metadata?: Record<string, unknown>;
   /**
    * The kind of annotator used for the annotation
    * Can be "HUMAN", "LLM", or "CODE"
@@ -49,35 +26,11 @@ export interface SpanAnnotation {
 /**
  * Parameters for a single document annotation
  */
-export interface DocumentAnnotation {
-  /**
-   * The OpenTelemetry Span ID (hex format without 0x prefix)
-   */
-  spanId: string;
+export interface DocumentAnnotation extends SpanAnnotation {
   /**
    * The 0-based index of the document within the span
    */
   documentPosition: number;
-  /**
-   * The name of the annotation
-   */
-  name: string;
-  /**
-   * The label assigned by the annotation
-   */
-  label?: string;
-  /**
-   * The score assigned by the annotation
-   */
-  score?: number;
-  /**
-   * Explanation of the annotation result
-   */
-  explanation?: string;
-  /**
-   * Metadata for the annotation
-   */
-  metadata?: Record<string, unknown>;
   /**
    * The kind of annotator used for the annotation
    * Can be "HUMAN", "LLM", or "CODE"

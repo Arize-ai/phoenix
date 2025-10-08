@@ -2,7 +2,7 @@ import { ComponentProps } from "react";
 import { QueuedToast } from "react-aria-components";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Icon, Icons, Toast } from "@phoenix/components";
+import { Toast } from "@phoenix/components";
 import { NotificationParams } from "@phoenix/contexts";
 
 const meta: Meta = {
@@ -52,7 +52,6 @@ SuccessToast.args = {
     ...defaultToast,
     content: {
       ...defaultToast.content,
-      icon: <Icon svg={<Icons.CheckmarkCircleFilled />} />,
       title: "Success Toast",
       message: "This is a success toast message.",
       variant: "success",
@@ -70,7 +69,6 @@ ErrorToast.args = {
     ...defaultToast,
     content: {
       ...defaultToast.content,
-      icon: <Icon svg={<Icons.AlertCircleFilled />} />,
       title: "Error Toast",
       message: "This is an error toast message.",
       variant: "error",

@@ -30,7 +30,7 @@ Evals in the Phoenix UI
 
 Phoenix is built to help you [evaluate your application](evaluation/llm-evals/) and understand their true performance. To accomplish this, Phoenix includes:
 
-* A standalone library to [run LLM-based evaluations](evaluation/how-to-evals/running-pre-tested-evals/) on your own datasets. This can be used either with the Phoenix library, or independently over your own data.
+* A standalone library to [run LLM-based evaluations](evaluation/running-pre-tested-evals/) on your own datasets. This can be used either with the Phoenix library, or independently over your own data.
 * [Direct integration of LLM-based and code-based evaluators](tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md) into the Phoenix dashboard. Phoenix is built to be agnostic, and so these evals can be generated using Phoenix's library, or an external library like [Ragas](https://docs.ragas.io/), [Deepeval](https://github.com/confident-ai/deepeval), or [Cleanlab](https://cleanlab.ai/).
 * [Human annotation capabilities](tracing/llm-traces/how-to-annotate-traces.md) to attach human ground truth labels to your data in Phoenix.
 {% endtab %}
