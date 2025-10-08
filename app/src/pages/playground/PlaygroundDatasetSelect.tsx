@@ -2,7 +2,11 @@ import { useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
-import { DatasetSelect } from "@phoenix/components/dataset";
+import {
+  DatasetSelect,
+  DatasetSelectWithSplits,
+} from "@phoenix/components/dataset";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 /**
  * This is to keep the height of the picker and the button the same
@@ -39,40 +43,61 @@ export function PlaygroundDatasetSelect() {
   const [searchParams, setSearchParams] = useSearchParams();
   const datasetId = searchParams.get("datasetId");
   const splitIds = searchParams.getAll("splitId");
+  const isDatasetSplitsEnabled = useFeatureFlag("datasetSplitsUI");
 
   return (
     <div css={playgroundDatasetSelectCSS}>
-      <DatasetSelect
-        size="S"
-        placeholder="Test over a dataset"
-        value={
-          datasetId
-            ? {
-                datasetId,
-                splitIds,
+      {isDatasetSplitsEnabled ? (
+        <DatasetSelectWithSplits
+          size="S"
+          placeholder="Test over a dataset"
+          value={
+            datasetId
+              ? {
+                  datasetId,
+                  splitIds,
+                }
+              : null
+          }
+          onSelectionChange={({ datasetId, splitIds }) => {
+            setSearchParams((prev) => {
+              if (datasetId) {
+                prev.set("datasetId", datasetId);
+                // Remove all existing splitId params
+                prev.delete("splitId");
+                // Add each split ID as a separate param
+                if (splitIds.length > 0) {
+                  splitIds.forEach((splitId) => {
+                    prev.append("splitId", splitId);
+                  });
+                }
+              } else {
+                prev.delete("datasetId");
+                prev.delete("splitId");
               }
-            : null
-        }
-        onSelectionChange={({ datasetId, splitIds }) => {
-          setSearchParams((prev) => {
-            if (datasetId) {
-              prev.set("datasetId", datasetId);
-              // Remove all existing splitId params
-              prev.delete("splitId");
-              // Add each split ID as a separate param
-              if (splitIds.length > 0) {
-                splitIds.forEach((splitId) => {
-                  prev.append("splitId", splitId);
-                });
+              return prev;
+            });
+          }}
+        />
+      ) : (
+        <DatasetSelect
+          size="S"
+          placeholder="Test over a dataset"
+          selectedKey={datasetId ?? undefined}
+          onSelectionChange={(key) => {
+            setSearchParams((prev) => {
+              if (key) {
+                prev.set("datasetId", key);
+                prev.delete("splitId");
+              } else {
+                prev.delete("datasetId");
+                prev.delete("splitId");
               }
-            } else {
-              prev.delete("datasetId");
-              prev.delete("splitId");
-            }
-            return prev;
-          });
-        }}
-      />
+              return prev;
+            });
+          }}
+        />
+      )}
       <Button
         size="S"
         leadingVisual={<Icon svg={<Icons.CloseOutline />} />}

@@ -1,66 +1,34 @@
-import { useMemo } from "react";
-import {
-  Autocomplete,
-  Input,
-  SubmenuTrigger,
-  useFilter,
-} from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
   Button,
   Flex,
-  LazyTabPanel,
-  Menu,
-  MenuItem,
-  MenuTrigger,
+  Label,
+  ListBox,
   Popover,
-  SearchField,
+  Select,
   SelectChevronUpDownIcon,
-  Tab,
-  TabList,
-  Tabs,
+  SelectItem,
+  SelectValue,
   Text,
-  View,
 } from "@phoenix/components";
 
 import { DatasetSelectQuery } from "./__generated__/DatasetSelectQuery.graphql";
 
 type DatasetSelectProps = {
-  onSelectionChange?: (changes: {
-    datasetId: string | null;
-    splitIds: string[];
-  }) => void;
-  value?: {
-    datasetId: string | null;
-    splitIds: string[];
-  } | null;
+  onSelectionChange?: (key: string) => void;
   onBlur?: () => void;
   validationState?: "valid" | "invalid";
   errorMessage?: string;
+  selectedKey?: string;
   placeholder?: string;
   size?: "S" | "M";
   label?: string;
   isRequired?: boolean;
 };
 
-type SplitItem = {
-  id: string;
-  name: string;
-};
-
-type DatasetItem = {
-  id: string;
-  name: string;
-  exampleCount: number;
-  splits: SplitItem[];
-  isSelected: boolean;
-  selectedSplitIds: string[];
-};
-
 export function DatasetSelect(props: DatasetSelectProps) {
-  const { datasetId, splitIds = [] } = props.value || {};
   const data = useLazyLoadQuery<DatasetSelectQuery>(
     graphql`
       query DatasetSelectQuery {
@@ -71,10 +39,6 @@ export function DatasetSelect(props: DatasetSelectProps) {
               id
               name
               exampleCount
-              splits {
-                id
-                name
-              }
             }
           }
         }
@@ -83,196 +47,54 @@ export function DatasetSelect(props: DatasetSelectProps) {
     {},
     { fetchPolicy: "store-and-network" }
   );
-
-  const { contains } = useFilter({ sensitivity: "base" });
-
-  const datasetItems: DatasetItem[] = useMemo(
-    () =>
-      data.datasets.edges.map(({ dataset }) => ({
-        id: dataset.id,
-        name: dataset.name,
-        exampleCount: dataset.exampleCount,
-        splits: dataset.splits.map((split) => ({
-          id: split.id,
-          name: split.name,
-        })),
-        isSelected: dataset.id === datasetId,
-        selectedSplitIds: dataset.id === datasetId ? splitIds : [],
-      })),
-    [data, datasetId, splitIds]
-  );
-
-  const selectedDataset = useMemo(() => {
-    if (datasetId) {
-      return datasetItems.find((dataset) => dataset.id === datasetId);
-    }
-    return undefined;
-  }, [datasetItems, datasetId]);
-
-  const selectedSplits = useMemo(() => {
-    if (selectedDataset && splitIds.length > 0) {
-      return selectedDataset.splits.filter((split) =>
-        splitIds.includes(split.id)
-      );
-    }
-    return [];
-  }, [selectedDataset, splitIds]);
-
-  const selectedDatasetKeys = datasetId ? [datasetId] : undefined;
-
   return (
-    <MenuTrigger>
-      <Button
-        data-testid="dataset-picker"
-        className="dataset-picker-button"
-        trailingVisual={<SelectChevronUpDownIcon />}
-        size={props.size ?? "S"}
-      >
-        {selectedDataset ? (
-          <Flex alignItems="center">
-            <Text>{selectedDataset.name}</Text>
-            {selectedSplits.length > 0 ? (
-              <Text color="text-300">
-                &nbsp;/{" "}
-                {selectedSplits.length === 1
-                  ? selectedSplits[0].name
-                  : `${selectedSplits.length} splits`}
-              </Text>
-            ) : (
-              <Text color="text-300">&nbsp;/ All Examples</Text>
-            )}
-          </Flex>
-        ) : (
-          <Text color="text-300">
-            {props.placeholder ?? "Select a dataset"}
-          </Text>
-        )}
+    <Select
+      data-testid="dataset-picker"
+      size={props.size}
+      className="dataset-picker"
+      aria-label={`select a dataset`}
+      onSelectionChange={(key) => {
+        if (key) {
+          props.onSelectionChange?.(key.toString());
+        }
+      }}
+      placeholder={props.placeholder ?? "Select a dataset"}
+      onBlur={props.onBlur}
+      isRequired={props.isRequired}
+      selectedKey={props.selectedKey}
+    >
+      {props.label && <Label>{props.label}</Label>}
+      <Button className="dataset-picker-button">
+        <SelectValue />
+        <SelectChevronUpDownIcon />
       </Button>
-      <Popover
-        css={css`
-          overflow: auto;
-        `}
-      >
-        <Autocomplete filter={contains}>
-          <View paddingX="size-100" marginTop="size-100">
-            <SearchField aria-label="Search" autoFocus>
-              <Input placeholder="Search datasets" />
-            </SearchField>
-          </View>
-          <Menu
-            selectionMode="single"
-            selectedKeys={selectedDatasetKeys}
-            items={datasetItems}
-            renderEmptyState={() => "No datasets found"}
-          >
-            {({
-              id,
-              name,
-              exampleCount,
-              splits,
-              isSelected,
-              selectedSplitIds,
-            }) => (
-              <SubmenuTrigger>
-                <MenuItem textValue={name}>
-                  <Flex
-                    direction="row"
-                    alignItems="center"
-                    gap="size-200"
-                    justifyContent="space-between"
-                    width="100%"
-                  >
-                    <Text>{name}</Text>
-                    <Text color="text-700" size="XS">
-                      {exampleCount} examples
-                    </Text>
-                  </Flex>
-                </MenuItem>
-                <Popover
-                  css={css`
-                    overflow: auto;
-                  `}
-                >
-                  <View width="100%">
-                    <Tabs
-                      defaultSelectedKey={
-                        selectedSplitIds.length > 0 ? "splits" : "all-examples"
-                      }
-                    >
-                      <TabList>
-                        <Tab id="all-examples">All Examples</Tab>
-                        <Tab id="splits">Splits</Tab>
-                      </TabList>
-                      <LazyTabPanel id="all-examples">
-                        <Menu
-                          items={[
-                            { id: "all-examples", label: "All Examples" },
-                          ]}
-                          selectionMode="single"
-                          onSelectionChange={() => {
-                            props.onSelectionChange?.({
-                              datasetId: id,
-                              splitIds: [],
-                            });
-                          }}
-                        >
-                          {() => (
-                            <MenuItem textValue="All Examples">
-                              <Text>Use all {exampleCount} examples</Text>
-                            </MenuItem>
-                          )}
-                        </Menu>
-                      </LazyTabPanel>
-                      <LazyTabPanel id="splits">
-                        <Autocomplete filter={contains}>
-                          <View paddingX="size-100" marginTop="size-100">
-                            <SearchField aria-label="Search" autoFocus>
-                              <Input placeholder="Search splits" />
-                            </SearchField>
-                          </View>
-                          <Menu
-                            items={splits}
-                            renderEmptyState={() => (
-                              <View padding="size-200">
-                                <Text color="text-700">No splits found</Text>
-                              </View>
-                            )}
-                            selectionMode="multiple"
-                            selectedKeys={isSelected ? selectedSplitIds : []}
-                            onSelectionChange={(keys) => {
-                              if (keys === "all") {
-                                // Select all splits
-                                props.onSelectionChange?.({
-                                  datasetId: id,
-                                  splitIds: splits.map((s) => s.id),
-                                });
-                              } else {
-                                const selectedIds = Array.from(
-                                  keys as Set<string>
-                                );
-                                props.onSelectionChange?.({
-                                  datasetId: id,
-                                  splitIds: selectedIds,
-                                });
-                              }
-                            }}
-                          >
-                            {({ id: splitId, name }) => (
-                              <MenuItem id={splitId} textValue={name}>
-                                {name}
-                              </MenuItem>
-                            )}
-                          </Menu>
-                        </Autocomplete>
-                      </LazyTabPanel>
-                    </Tabs>
-                  </View>
-                </Popover>
-              </SubmenuTrigger>
-            )}
-          </Menu>
-        </Autocomplete>
+      {props.errorMessage && (
+        <Text slot="errorMessage">{props.errorMessage}</Text>
+      )}
+      <Popover>
+        <ListBox
+          css={css`
+            min-height: auto;
+          `}
+        >
+          {data.datasets.edges.map(({ dataset }) => (
+            <SelectItem key={dataset.id} id={dataset.id}>
+              <Flex
+                direction="row"
+                alignItems="center"
+                gap="size-200"
+                justifyContent="space-between"
+                width="100%"
+              >
+                <Text>{dataset.name}</Text>
+                <Text color="text-700" size="XS">
+                  {dataset.exampleCount} examples
+                </Text>
+              </Flex>
+            </SelectItem>
+          ))}
+        </ListBox>
       </Popover>
-    </MenuTrigger>
+    </Select>
   );
 }

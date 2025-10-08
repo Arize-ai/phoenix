@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c7c512d83b8ce8b9763e53ffa1063977>>
+ * @generated SignedSource<<565c823442aadd7be75718ba47927fc3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,21 +9,25 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DatasetSelectQuery$variables = Record<PropertyKey, never>;
-export type DatasetSelectQuery$data = {
+export type DatasetSelectWithSplitsQuery$variables = Record<PropertyKey, never>;
+export type DatasetSelectWithSplitsQuery$data = {
   readonly datasets: {
     readonly edges: ReadonlyArray<{
       readonly dataset: {
         readonly exampleCount: number;
         readonly id: string;
         readonly name: string;
+        readonly splits: ReadonlyArray<{
+          readonly id: string;
+          readonly name: string;
+        }>;
       };
     }>;
   };
 };
-export type DatasetSelectQuery = {
-  response: DatasetSelectQuery$data;
-  variables: DatasetSelectQuery$variables;
+export type DatasetSelectWithSplitsQuery = {
+  response: DatasetSelectWithSplitsQuery$data;
+  variables: DatasetSelectWithSplitsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -35,6 +39,13 @@ var v0 = {
   "storageKey": null
 },
 v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v2 = {
   "alias": "dataset",
   "args": null,
   "concreteType": "Dataset",
@@ -43,38 +54,45 @@ v1 = {
   "plural": false,
   "selections": [
     (v0/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "name",
-      "storageKey": null
-    },
+    (v1/*: any*/),
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
       "name": "exampleCount",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "DatasetSplit",
+      "kind": "LinkedField",
+      "name": "splits",
+      "plural": true,
+      "selections": [
+        (v0/*: any*/),
+        (v1/*: any*/)
+      ],
+      "storageKey": null
     }
   ],
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "cursor",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "cursor",
   "storageKey": null
 },
 v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v5 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -99,7 +117,7 @@ v4 = {
   ],
   "storageKey": null
 },
-v5 = [
+v6 = [
   {
     "kind": "Literal",
     "name": "first",
@@ -111,14 +129,14 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "DatasetSelectQuery",
+    "name": "DatasetSelectWithSplitsQuery",
     "selections": [
       {
         "alias": "datasets",
         "args": null,
         "concreteType": "DatasetConnection",
         "kind": "LinkedField",
-        "name": "__DatasetPicker__datasets_connection",
+        "name": "__DatasetPickerWithSplits__datasets_connection",
         "plural": false,
         "selections": [
           {
@@ -129,8 +147,8 @@ return {
             "name": "edges",
             "plural": true,
             "selections": [
-              (v1/*: any*/),
               (v2/*: any*/),
+              (v3/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -139,14 +157,14 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/)
+                  (v4/*: any*/)
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
           },
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
@@ -158,11 +176,11 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "DatasetSelectQuery",
+    "name": "DatasetSelectWithSplitsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v5/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": "DatasetConnection",
         "kind": "LinkedField",
         "name": "datasets",
@@ -176,8 +194,8 @@ return {
             "name": "edges",
             "plural": true,
             "selections": [
-              (v1/*: any*/),
               (v2/*: any*/),
+              (v3/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -186,7 +204,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/),
+                  (v4/*: any*/),
                   (v0/*: any*/)
                 ],
                 "storageKey": null
@@ -194,23 +212,23 @@ return {
             ],
             "storageKey": null
           },
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": "datasets(first:100)"
       },
       {
         "alias": null,
-        "args": (v5/*: any*/),
+        "args": (v6/*: any*/),
         "filters": null,
         "handle": "connection",
-        "key": "DatasetPicker__datasets",
+        "key": "DatasetPickerWithSplits__datasets",
         "kind": "LinkedHandle",
         "name": "datasets"
       }
     ]
   },
   "params": {
-    "cacheID": "e6bd6ad78e045a4cc2a4dad99aeb6fe3",
+    "cacheID": "a0f333d34e851372a6d9b3dd45dc30c4",
     "id": null,
     "metadata": {
       "connection": [
@@ -224,13 +242,13 @@ return {
         }
       ]
     },
-    "name": "DatasetSelectQuery",
+    "name": "DatasetSelectWithSplitsQuery",
     "operationKind": "query",
-    "text": "query DatasetSelectQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n        exampleCount\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetSelectWithSplitsQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n        exampleCount\n        splits {\n          id\n          name\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8125ffe6752f16b2629b9773330a0a70";
+(node as any).hash = "989a00eedf5acb7542275a771433c072";
 
 export default node;
