@@ -698,8 +698,8 @@ export function ExperimentItem({
                       aria-label="View run trace"
                       onPress={() => {
                         openTraceDialog(
-                          traceId || "",
-                          projectId || "",
+                          traceId,
+                          projectId,
                           "Experiment Run Trace"
                         );
                       }}
@@ -901,7 +901,7 @@ function ExperimentRunAnnotationButton({
           aria-label={`${annotation.name} score`}
         />
       ) : (
-        <div />
+        <div /> // placeholder for grid layout
       )}
     </AriaButton>
   );
@@ -942,8 +942,8 @@ function ExperimentRunAnnotation({
             aria-label="View evaluation trace"
             onPress={() => {
               openTraceDialog(
-                traceId || "",
-                projectId || "",
+                traceId,
+                projectId,
                 `Evaluator Trace: ${annotation.name}`
               );
             }}
@@ -953,7 +953,7 @@ function ExperimentRunAnnotation({
           <Tooltip>View evaluation trace</Tooltip>
         </TooltipTrigger>
       ) : (
-        <div />
+        <div /> // placeholder for grid layout
       )}
     </>
   );

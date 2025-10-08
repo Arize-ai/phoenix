@@ -133,7 +133,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
   const preloadedData = usePreloadedQuery(
@@ -691,8 +691,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         isOpen={!!dialog}
         onOpenChange={() => {
           // Clear the URL search params for the span selection
-          searchParams.delete("selectedSpanNodeId");
-          setSearchParams(searchParams, { replace: true });
+          setSearchParams(
+            (prev) => {
+              const newParams = new URLSearchParams(prev);
+              newParams.delete("selectedSpanNodeId");
+              return newParams;
+            },
+            { replace: true }
+          );
           setDialog(null);
         }}
       >

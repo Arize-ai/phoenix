@@ -1,10 +1,9 @@
 import { Suspense } from "react";
-import { useNavigate } from "react-router";
 
 import {
-  Button,
   Dialog,
   DialogCloseButton,
+  LinkButton,
   Loading,
 } from "@phoenix/components";
 import {
@@ -24,21 +23,18 @@ export function TraceDetailsDialog({
   projectId: string;
   title: string;
 }) {
-  const navigate = useNavigate();
   return (
     <Dialog>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogTitleExtra>
-            <Button
+            <LinkButton
               size="S"
-              onPress={() =>
-                navigate(`/projects/${projectId}/traces/${traceId}`)
-              }
+              to={`/projects/${projectId}/traces/${traceId}`}
             >
               View Trace in Project
-            </Button>
+            </LinkButton>
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>

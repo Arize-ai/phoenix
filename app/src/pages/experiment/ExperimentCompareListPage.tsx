@@ -1057,8 +1057,14 @@ export function ExperimentCompareListPage({
         onOpenChange={(isOpen) => {
           if (!isOpen) {
             // Clear the URL search params for the span selection
-            searchParams.delete("selectedSpanNodeId");
-            setSearchParams(searchParams, { replace: true });
+            setSearchParams(
+              (prev) => {
+                const newParams = new URLSearchParams(prev);
+                newParams.delete("selectedSpanNodeId");
+                return newParams;
+              },
+              { replace: true }
+            );
             setSelectedTraceDetails(null);
           }
         }}
