@@ -1,5 +1,13 @@
 # @arizeai/phoenix-evals
 
+## 0.2.2
+
+### Patch Changes
+
+- c7cc7d9: feat: Add createOrGetDataset helper function to phoenix-client
+
+  Additionally clean up build artifacts and type-checking amongst example scripts.
+
 ## 0.2.1
 
 ### Patch Changes
