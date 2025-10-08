@@ -5024,8 +5024,7 @@
           "input",
           "output",
           "metadata",
-          "updated_at",
-          "split_ids"
+          "updated_at"
         ],
         "title": "DatasetExample"
       },
