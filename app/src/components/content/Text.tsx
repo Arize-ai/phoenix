@@ -92,9 +92,9 @@ function Text(props: TextProps, ref: Ref<HTMLElement>) {
     weight = "normal",
     fontStyle = "normal",
     fontFamily = "default",
-    ...otherProps
+    ...rest
   } = props;
-  const { styleProps } = useStyleProps(otherProps);
+  const { styleProps, otherProps } = useStyleProps(rest);
 
   return (
     <AriaText
