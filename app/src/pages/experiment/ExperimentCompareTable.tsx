@@ -685,6 +685,15 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     setSelectedExampleIndex(exampleIndex);
                   }
                 }}
+                openTraceDialog={(traceId, projectId, title) => {
+                  setDialog(
+                    <TraceDetailsDialog
+                      traceId={traceId}
+                      projectId={projectId}
+                      title={title}
+                    />
+                  );
+                }}
               />
             )}
         </Modal>

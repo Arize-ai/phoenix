@@ -27,8 +27,11 @@ import {
   PopoverArrow,
   ProgressBar,
   Text,
+  Tooltip,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
@@ -55,6 +58,7 @@ export type ExperimentCompareDetailsProps = {
   baseExperimentId: string;
   compareExperimentIds: string[];
   defaultSelectedRepetitionNumber?: number;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 };
 
 type Experiment = NonNullable<
@@ -80,6 +84,7 @@ export function ExperimentCompareDetails({
   baseExperimentId,
   compareExperimentIds,
   defaultSelectedRepetitionNumber,
+  openTraceDialog,
 }: ExperimentCompareDetailsProps) {
   const experimentIds = useMemo(
     () => [baseExperimentId, ...compareExperimentIds],
@@ -108,6 +113,10 @@ export function ExperimentCompareDetails({
                   experimentId
                   output
                   error
+                  trace {
+                    traceId
+                    projectId
+                  }
                   costSummary {
                     total {
                       cost
@@ -121,6 +130,10 @@ export function ExperimentCompareDetails({
                         name
                         label
                         score
+                        trace {
+                          traceId
+                          projectId
+                        }
                       }
                     }
                   }
@@ -246,6 +259,7 @@ export function ExperimentCompareDetails({
             experimentRunsByExperimentId={experimentRunsByExperimentId}
             defaultSelectedRepetitionNumber={defaultSelectedRepetitionNumber}
             annotationSummaries={annotationSummaries}
+            openTraceDialog={openTraceDialog}
           />
         </div>
       </Panel>
@@ -266,6 +280,7 @@ export function ExperimentRunOutputs({
   experimentRunsByExperimentId,
   defaultSelectedRepetitionNumber,
   annotationSummaries,
+  openTraceDialog,
 }: {
   baseExperimentId: string;
   compareExperimentIds: string[];
@@ -273,6 +288,7 @@ export function ExperimentRunOutputs({
   experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
   defaultSelectedRepetitionNumber?: number;
   annotationSummaries?: AnnotationSummaries;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) {
   const experimentIds = [baseExperimentId, ...compareExperimentIds];
 
@@ -412,6 +428,7 @@ export function ExperimentRunOutputs({
                     selectedExperimentRuns={selectedExperimentRuns}
                     includeRepetitions={includeRepetitions}
                     annotationSummaries={annotationSummaries}
+                    openTraceDialog={openTraceDialog}
                   />
                 );
               });
@@ -432,6 +449,7 @@ const ExperimentListItemIfSelected = ({
   selectedExperimentRuns,
   includeRepetitions,
   annotationSummaries,
+  openTraceDialog,
 }: {
   experimentId: string;
   repetitionNumber: number;
@@ -441,6 +459,7 @@ const ExperimentListItemIfSelected = ({
   selectedExperimentRuns: ExperimentRunSelectionState[];
   includeRepetitions: boolean;
   annotationSummaries?: AnnotationSummaries;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) => {
   const isSelected = useMemo(
     () =>
@@ -476,6 +495,7 @@ const ExperimentListItemIfSelected = ({
         includeRepetitions={includeRepetitions}
         annotationSummaries={annotationSummaries}
         repetitionNumber={repetitionNumber}
+        openTraceDialog={openTraceDialog}
       />
     </li>
   );
@@ -609,6 +629,7 @@ export function ExperimentItem({
   includeRepetitions,
   annotationSummaries,
   repetitionNumber,
+  openTraceDialog,
 }: {
   experiment: Experiment;
   experimentRun?: ExperimentRun;
@@ -616,6 +637,7 @@ export function ExperimentItem({
   includeRepetitions: boolean;
   annotationSummaries?: AnnotationSummaries;
   repetitionNumber: number;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const color =
@@ -629,6 +651,10 @@ export function ExperimentItem({
       experimentRun ? JSON.stringify(experimentRun.output, null, 2) : undefined,
     [experimentRun]
   );
+
+  const traceId = experimentRun?.trace?.traceId;
+  const projectId = experimentRun?.trace?.projectId;
+  const hasTrace = traceId != null && projectId != null;
   return (
     <div css={experimentItemCSS}>
       <Flex direction="column">
@@ -658,16 +684,36 @@ export function ExperimentItem({
                 </Heading>
               </>
             )}
-            {experimentRunOutputStr && !experimentRun?.error && (
-              <div
-                css={css`
-                  margin-left: auto;
-                  padding-left: var(--ac-global-dimension-size-100);
-                `}
-              >
-                <CopyToClipboardButton text={experimentRunOutputStr} />
-              </div>
-            )}
+            <div
+              css={css`
+                margin-left: auto;
+                padding-left: var(--ac-global-dimension-size-100);
+              `}
+            >
+              <Flex direction="row" gap="size-100">
+                {hasTrace && (
+                  <TooltipTrigger>
+                    <IconButton
+                      size="S"
+                      aria-label="View run trace"
+                      onPress={() => {
+                        openTraceDialog(
+                          traceId || "",
+                          projectId || "",
+                          "Experiment Run Trace"
+                        );
+                      }}
+                    >
+                      <Icon svg={<Icons.Trace />} />
+                    </IconButton>
+                    <Tooltip>View run trace</Tooltip>
+                  </TooltipTrigger>
+                )}
+                {experimentRunOutputStr && !experimentRun?.error && (
+                  <CopyToClipboardButton text={experimentRunOutputStr} />
+                )}
+              </Flex>
+            </div>
           </Flex>
         </View>
         {!hasExperimentResult ? (
@@ -691,6 +737,7 @@ export function ExperimentItem({
               <ExperimentRunAnnotations
                 experimentRun={experimentRun}
                 annotationSummaries={annotationSummaries}
+                openTraceDialog={openTraceDialog}
               />
             </View>
             <View flex={1}>
@@ -731,9 +778,11 @@ function FullSizeJSONBlock({ value }: { value: string }) {
 export function ExperimentRunAnnotations({
   experimentRun,
   annotationSummaries,
+  openTraceDialog,
 }: {
   experimentRun: ExperimentRun;
   annotationSummaries?: AnnotationSummaries;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) {
   return (
     <ul
@@ -741,8 +790,8 @@ export function ExperimentRunAnnotations({
         display: grid;
         grid-template-columns:
           minmax(100px, max-content) minmax(32px, max-content)
-          minmax(150px, 1fr);
-        column-gap: var(--ac-global-dimension-size-200);
+          minmax(150px, 1fr) min-content;
+        column-gap: var(--ac-global-dimension-size-100);
       `}
     >
       {annotationSummaries?.map((annotationSummary) => {
@@ -762,6 +811,7 @@ export function ExperimentRunAnnotations({
             <ExperimentRunAnnotation
               annotation={annotation}
               annotationSummary={annotationSummary}
+              openTraceDialog={openTraceDialog}
             />
           </li>
         ) : (
@@ -804,7 +854,7 @@ function ExperimentRunAnnotationButton({
         width: 100%;
         display: grid;
         grid-template-columns: subgrid;
-        grid-column: 1 / -1;
+        grid-column: 1 / -2;
         &:hover {
           background-color: var(--ac-global-color-grey-200);
         }
@@ -823,10 +873,10 @@ function ExperimentRunAnnotationButton({
             flex: none;
           `}
         >
-          <ColorSwatch color={annotationColor} shape="circle" />
+          <AnnotationColorSwatch annotationName={annotation.name} />
         </span>
 
-        <Text weight="heavy" color="inherit" minWidth={0}>
+        <Text color="inherit" minWidth={0}>
           <Truncate maxWidth="100%">{annotation.name}</Truncate>
         </Text>
       </Flex>
@@ -860,25 +910,49 @@ function ExperimentRunAnnotationButton({
 function ExperimentRunAnnotation({
   annotation,
   annotationSummary,
+  openTraceDialog,
 }: {
   annotation: Annotation;
   annotationSummary: AnnotationSummaries[number];
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) {
+  const traceId = annotation.trace?.traceId;
+  const projectId = annotation.trace?.projectId;
+  const hasTrace = traceId != null && projectId != null;
   return (
-    <DialogTrigger>
-      <ExperimentRunAnnotationButton
-        annotation={annotation}
-        annotationSummary={annotationSummary}
-      />
-      <Popover placement="top">
-        <PopoverArrow />
-        <Dialog style={{ width: 400 }}>
-          <View padding="size-200">
-            <AnnotationDetailsContent annotation={annotation} />
-          </View>
-        </Dialog>
-      </Popover>
-    </DialogTrigger>
+    <>
+      <DialogTrigger>
+        <ExperimentRunAnnotationButton
+          annotation={annotation}
+          annotationSummary={annotationSummary}
+        />
+        <Popover placement="top">
+          <PopoverArrow />
+          <Dialog style={{ width: 400 }}>
+            <View padding="size-200">
+              <AnnotationDetailsContent annotation={annotation} />
+            </View>
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+      {hasTrace ? (
+        <IconButton
+          size="S"
+          aria-label="View evaluation trace"
+          onPress={() => {
+            openTraceDialog(
+              traceId || "",
+              projectId || "",
+              `Evaluator Trace: ${annotation.name}`
+            );
+          }}
+        >
+          <Icon svg={<Icons.Trace />} />
+        </IconButton>
+      ) : (
+        <div />
+      )}
+    </>
   );
 }
 
