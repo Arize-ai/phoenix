@@ -55,6 +55,8 @@ type DatasetItem = {
   name: string;
   exampleCount: number;
   splits: SplitItem[];
+  isSelected: boolean;
+  selectedSplitIds: string[];
 };
 
 export function DatasetSelect(props: DatasetSelectProps) {
@@ -94,8 +96,10 @@ export function DatasetSelect(props: DatasetSelectProps) {
           id: split.id,
           name: split.name,
         })),
+        isSelected: dataset.id === datasetId,
+        selectedSplitIds: dataset.id === datasetId ? splitIds : [],
       })),
-    [data.datasets.edges]
+    [data, datasetId, splitIds]
   );
 
   const selectedDataset = useMemo(() => {
@@ -115,7 +119,6 @@ export function DatasetSelect(props: DatasetSelectProps) {
   }, [selectedDataset, splitIds]);
 
   const selectedDatasetKeys = datasetId ? [datasetId] : undefined;
-  const selectedSplitKeys = splitIds.length > 0 ? splitIds : undefined;
 
   return (
     <MenuTrigger>
@@ -162,110 +165,111 @@ export function DatasetSelect(props: DatasetSelectProps) {
             items={datasetItems}
             renderEmptyState={() => "No datasets found"}
           >
-            {function renderMenuItem({ id, name, exampleCount, splits }) {
-              return (
-                <SubmenuTrigger>
-                  <MenuItem textValue={name}>
-                    <Flex
-                      direction="row"
-                      alignItems="center"
-                      gap="size-200"
-                      justifyContent="space-between"
-                      width="100%"
-                    >
-                      <Text>{name}</Text>
-                      <Text color="text-700" size="XS">
-                        {exampleCount} examples
-                      </Text>
-                    </Flex>
-                  </MenuItem>
-                  <Popover
-                    css={css`
-                      overflow: auto;
-                    `}
+            {({
+              id,
+              name,
+              exampleCount,
+              splits,
+              isSelected,
+              selectedSplitIds,
+            }) => (
+              <SubmenuTrigger>
+                <MenuItem textValue={name}>
+                  <Flex
+                    direction="row"
+                    alignItems="center"
+                    gap="size-200"
+                    justifyContent="space-between"
+                    width="100%"
                   >
-                    <View width="100%">
-                      <Tabs
-                        defaultSelectedKey={
-                          selectedSplits.length > 0 ? "splits" : "all-examples"
-                        }
-                      >
-                        <TabList>
-                          <Tab id="all-examples">All Examples</Tab>
-                          <Tab id="splits">Splits</Tab>
-                        </TabList>
-                        <LazyTabPanel id="all-examples">
+                    <Text>{name}</Text>
+                    <Text color="text-700" size="XS">
+                      {exampleCount} examples
+                    </Text>
+                  </Flex>
+                </MenuItem>
+                <Popover
+                  css={css`
+                    overflow: auto;
+                  `}
+                >
+                  <View width="100%">
+                    <Tabs
+                      defaultSelectedKey={
+                        selectedSplitIds.length > 0 ? "splits" : "all-examples"
+                      }
+                    >
+                      <TabList>
+                        <Tab id="all-examples">All Examples</Tab>
+                        <Tab id="splits">Splits</Tab>
+                      </TabList>
+                      <LazyTabPanel id="all-examples">
+                        <Menu
+                          items={[
+                            { id: "all-examples", label: "All Examples" },
+                          ]}
+                          selectionMode="single"
+                          onSelectionChange={() => {
+                            props.onSelectionChange?.({
+                              datasetId: id,
+                              splitIds: [],
+                            });
+                          }}
+                        >
+                          {() => (
+                            <MenuItem textValue="All Examples">
+                              <Text>Use all {exampleCount} examples</Text>
+                            </MenuItem>
+                          )}
+                        </Menu>
+                      </LazyTabPanel>
+                      <LazyTabPanel id="splits">
+                        <Autocomplete filter={contains}>
+                          <View paddingX="size-100" marginTop="size-100">
+                            <SearchField aria-label="Search" autoFocus>
+                              <Input placeholder="Search splits" />
+                            </SearchField>
+                          </View>
                           <Menu
-                            items={[
-                              { id: "all-examples", label: "All Examples" },
-                            ]}
-                            selectionMode="single"
-                            onSelectionChange={() => {
-                              props.onSelectionChange?.({
-                                datasetId: id,
-                                splitIds: [],
-                              });
+                            items={splits}
+                            renderEmptyState={() => (
+                              <View padding="size-200">
+                                <Text color="text-700">No splits found</Text>
+                              </View>
+                            )}
+                            selectionMode="multiple"
+                            selectedKeys={isSelected ? selectedSplitIds : []}
+                            onSelectionChange={(keys) => {
+                              if (keys === "all") {
+                                // Select all splits
+                                props.onSelectionChange?.({
+                                  datasetId: id,
+                                  splitIds: splits.map((s) => s.id),
+                                });
+                              } else {
+                                const selectedIds = Array.from(
+                                  keys as Set<string>
+                                );
+                                props.onSelectionChange?.({
+                                  datasetId: id,
+                                  splitIds: selectedIds,
+                                });
+                              }
                             }}
                           >
-                            {() => (
-                              <MenuItem textValue="All Examples">
-                                <Text>Use all {exampleCount} examples</Text>
+                            {({ id: splitId, name }) => (
+                              <MenuItem id={splitId} textValue={name}>
+                                {name}
                               </MenuItem>
                             )}
                           </Menu>
-                        </LazyTabPanel>
-                        <LazyTabPanel id="splits">
-                          <Autocomplete filter={contains}>
-                            <View paddingX="size-100" marginTop="size-100">
-                              <SearchField aria-label="Search" autoFocus>
-                                <Input placeholder="Search splits" />
-                              </SearchField>
-                            </View>
-                            <Menu
-                              items={splits}
-                              renderEmptyState={() => (
-                                <View padding="size-200">
-                                  <Text color="text-700">No splits found</Text>
-                                </View>
-                              )}
-                              selectionMode="multiple"
-                              selectedKeys={
-                                selectedDataset?.id === id
-                                  ? selectedSplitKeys
-                                  : undefined
-                              }
-                              onSelectionChange={(keys) => {
-                                if (keys === "all") {
-                                  // Select all splits
-                                  props.onSelectionChange?.({
-                                    datasetId: id,
-                                    splitIds: splits.map((s) => s.id),
-                                  });
-                                } else {
-                                  const selectedIds = Array.from(
-                                    keys as Set<string>
-                                  );
-                                  props.onSelectionChange?.({
-                                    datasetId: id,
-                                    splitIds: selectedIds,
-                                  });
-                                }
-                              }}
-                            >
-                              {({ id: splitId, name }) => (
-                                <MenuItem id={splitId} textValue={name}>
-                                  {name}
-                                </MenuItem>
-                              )}
-                            </Menu>
-                          </Autocomplete>
-                        </LazyTabPanel>
-                      </Tabs>
-                    </View>
-                  </Popover>
-                </SubmenuTrigger>
-              );
-            }}
+                        </Autocomplete>
+                      </LazyTabPanel>
+                    </Tabs>
+                  </View>
+                </Popover>
+              </SubmenuTrigger>
+            )}
           </Menu>
         </Autocomplete>
       </Popover>

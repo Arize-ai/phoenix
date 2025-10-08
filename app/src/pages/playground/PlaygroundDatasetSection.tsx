@@ -42,13 +42,13 @@ export function PlaygroundDatasetSection({
     `,
     {
       datasetId,
-      splitIds,
+      splitIds: splitIds ?? null,
     }
   );
 
   // Filter to only the selected splits
   const selectedSplits = useMemo(() => {
-    if (!splitIds || splitIds.length === 0 || !data.dataset.splits) {
+    if (!splitIds || !data.dataset.splits) {
       return [];
     }
     return data.dataset.splits
@@ -58,7 +58,7 @@ export function PlaygroundDatasetSection({
         name: split.name,
         color: split.color ?? "#808080",
       }));
-  }, [data.dataset.splits, splitIds]);
+  }, [data, splitIds]);
   return (
     <Flex direction={"column"} height={"100%"}>
       <View
@@ -73,14 +73,14 @@ export function PlaygroundDatasetSection({
         <Flex justifyContent="space-between" alignItems="center" height="100%">
           <Flex gap="size-100" alignItems="center">
             <Text>{data.dataset.name ?? "Dataset"} results</Text>
+            {selectedSplits.length > 0 && (
+              <DatasetSplits labels={selectedSplits} />
+            )}
             {data.dataset.exampleCount != null ? (
               <Text fontStyle="italic" color={"text-700"}>
                 {data.dataset.exampleCount} examples
               </Text>
             ) : null}
-            {selectedSplits.length > 0 && (
-              <DatasetSplits labels={selectedSplits} />
-            )}
           </Flex>
           {experimentIds.length > 0 && (
             <LinkButton

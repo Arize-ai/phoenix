@@ -848,7 +848,7 @@ export function PlaygroundDatasetExamplesTable({
         }
       }
     `,
-    { datasetId, splitIds }
+    { datasetId, splitIds: splitIds ?? null }
   );
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
