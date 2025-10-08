@@ -49,7 +49,7 @@
     "prebuild": "pnpm run clean && pnpm run generate",
     "generate": "openapi-typescript --empty-objects-unknown=true --default-non-nullable=false ../../../schemas/openapi.json -o ./src/__generated__/api/v1.ts",
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
-    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json && rimraf dist/test dist/examples",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "type:check": "tsc --noEmit",
     "test": "vitest --typecheck"
   },

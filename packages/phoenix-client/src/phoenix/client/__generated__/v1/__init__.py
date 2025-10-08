@@ -184,7 +184,7 @@ class ListExperimentsResponseBody(TypedDict):
 class LocalUserData(TypedDict):
     email: str
     username: str
-    role: Literal["SYSTEM", "ADMIN", "MEMBER"]
+    role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
     auth_method: Literal["LOCAL"]
     password: NotRequired[str]
 
@@ -199,7 +199,7 @@ class LocalUser(LocalUserData):
 class OAuth2UserData(TypedDict):
     email: str
     username: str
-    role: Literal["SYSTEM", "ADMIN", "MEMBER"]
+    role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
     auth_method: Literal["OAUTH2"]
     oauth2_client_id: NotRequired[str]
     oauth2_user_id: NotRequired[str]
