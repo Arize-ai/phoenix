@@ -20,7 +20,7 @@
 
 * [REST API Overview](rest-api/overview.md)
 * [API Reference](rest-api/api-reference/README.md)
-  * [Annotation Config](rest-api/api-reference/readme.md)
+  * [Annotation Config](rest-api/api-reference/annotationconfig.md)
   * [Annotations](rest-api/api-reference/annotations.md)
   * [Datasets](rest-api/api-reference/datasets.md)
   * [Experiments](rest-api/api-reference/experiments.md)
