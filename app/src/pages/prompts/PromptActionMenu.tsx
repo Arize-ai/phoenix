@@ -12,6 +12,7 @@ import {
   Modal,
   Popover,
 } from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 
 import { DeletePromptDialog } from "./DeletePromptDialog";
 
@@ -33,7 +34,7 @@ export function PromptActionMenu({
   }, []);
 
   return (
-    <>
+    <StopPropagation>
       <MenuTrigger>
         <Button
           size="S"
@@ -78,6 +79,6 @@ export function PromptActionMenu({
           />
         </Modal>
       </DialogTrigger>
-    </>
+    </StopPropagation>
   );
 }

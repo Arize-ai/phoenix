@@ -13,6 +13,7 @@ import {
   ModalOverlay,
   Popover,
 } from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 
 import { AuthMethod } from "./__generated__/UsersTable_users.graphql";
 import { DeleteUserDialog } from "./DeleteUserDialog";
@@ -75,7 +76,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
   }, [authMethod]);
 
   return (
-    <>
+    <StopPropagation>
       <MenuTrigger>
         <Button
           size="S"
@@ -129,6 +130,6 @@ export function UserActionMenu(props: UserActionMenuProps) {
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
-    </>
+    </StopPropagation>
   );
 }
