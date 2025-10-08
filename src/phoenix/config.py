@@ -966,6 +966,14 @@ def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
 
 
+_ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS = (
+    "client_secret_basic",
+    "client_secret_post",
+    "none",
+)
+"""Allowed OAuth2 token endpoint authentication methods (OIDC Core §9)."""
+
+
 @dataclass(frozen=True)
 class OAuth2ClientConfig:
     """Configuration for an OAuth2/OIDC identity provider."""
@@ -1041,11 +1049,10 @@ class OAuth2ClientConfig:
         token_endpoint_auth_method = None
         if auth_method := _get_optional("TOKEN_ENDPOINT_AUTH_METHOD"):
             auth_method = auth_method.lower()
-            allowed_methods = {"client_secret_basic", "client_secret_post", "none"}
-            if auth_method not in allowed_methods:
+            if auth_method not in _ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS:
                 raise ValueError(
                     f"Invalid TOKEN_ENDPOINT_AUTH_METHOD for {idp_name}. "
-                    f"Allowed: {', '.join(sorted(allowed_methods))}"
+                    f"Allowed: {', '.join(sorted(_ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS))}"
                 )
             token_endpoint_auth_method = auth_method
 
