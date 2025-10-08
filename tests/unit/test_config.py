@@ -842,9 +842,10 @@ class TestOAuth2ClientConfigFromEnv:
         assert config.auto_login is False
 
     def test_pkce_without_client_secret(self, monkeypatch: MonkeyPatch) -> None:
-        """Test PKCE public client (no client secret required)."""
+        """Test PKCE public client (no client secret required with auth method 'none')."""
         monkeypatch.setenv("PHOENIX_OAUTH2_MOBILE_CLIENT_ID", "mobile_client")
         monkeypatch.setenv("PHOENIX_OAUTH2_MOBILE_USE_PKCE", "true")
+        monkeypatch.setenv("PHOENIX_OAUTH2_MOBILE_TOKEN_ENDPOINT_AUTH_METHOD", "none")
         monkeypatch.setenv(
             "PHOENIX_OAUTH2_MOBILE_OIDC_CONFIG_URL",
             "https://auth.example.com/.well-known/openid-configuration",
@@ -854,6 +855,7 @@ class TestOAuth2ClientConfigFromEnv:
 
         assert config.client_secret is None
         assert config.use_pkce is True
+        assert config.token_endpoint_auth_method == "none"
 
     def test_pkce_with_client_secret(self, monkeypatch: MonkeyPatch) -> None:
         """Test PKCE hybrid client (client secret optional but allowed)."""
@@ -1019,6 +1021,58 @@ class TestOAuth2ClientConfigFromEnv:
         with pytest.raises(ValueError, match="GROUPS_ATTRIBUTE_PATH must be configured"):
             OAuth2ClientConfig.from_env("test")
 
+    def test_groups_attribute_path_requires_allowed_groups(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that GROUPS_ATTRIBUTE_PATH requires ALLOWED_GROUPS (fail-closed security)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        # No ALLOWED_GROUPS set - should fail
+
+        with pytest.raises(
+            ValueError, match="GROUPS_ATTRIBUTE_PATH is set.*but ALLOWED_GROUPS is not"
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_groups_attribute_path_with_empty_allowed_groups_fails(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """Test that GROUPS_ATTRIBUTE_PATH with empty ALLOWED_GROUPS fails (fail-closed)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "")  # Empty string
+
+        with pytest.raises(
+            ValueError, match="GROUPS_ATTRIBUTE_PATH is set.*but ALLOWED_GROUPS is not"
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_groups_attribute_path_with_whitespace_allowed_groups_fails(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """Test that GROUPS_ATTRIBUTE_PATH with whitespace-only ALLOWED_GROUPS fails."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "  ,  ,  ")  # Only whitespace
+
+        with pytest.raises(
+            ValueError, match="GROUPS_ATTRIBUTE_PATH is set.*but ALLOWED_GROUPS is not"
+        ):
+            OAuth2ClientConfig.from_env("test")
+
     @pytest.mark.parametrize(
         "allowed_groups_value",
         [
@@ -1131,7 +1185,7 @@ class TestOAuth2ClientConfigFromEnv:
         )
         # CLIENT_SECRET not set - should fail
 
-        with pytest.raises(ValueError, match="CLIENT_SECRET is required.*client_secret_basic"):
+        with pytest.raises(ValueError, match="Client secret must be set"):
             OAuth2ClientConfig.from_env("test")
 
     def test_pkce_with_client_secret_post_requires_secret(self, monkeypatch: MonkeyPatch) -> None:
@@ -1145,7 +1199,7 @@ class TestOAuth2ClientConfigFromEnv:
         )
         # CLIENT_SECRET not set - should fail
 
-        with pytest.raises(ValueError, match="CLIENT_SECRET is required.*client_secret_post"):
+        with pytest.raises(ValueError, match="Client secret must be set"):
             OAuth2ClientConfig.from_env("test")
 
     def test_pkce_with_none_auth_method_allows_missing_secret(

@@ -109,6 +109,178 @@ class TestOAuth2ClientJMESPathValidation:
         clients.add_client(config)  # Should not raise
 
 
+class TestHasSufficientClaims:
+    """Test has_sufficient_claims method for determining if UserInfo call is needed."""
+
+    def test_sufficient_when_email_present_no_group_control(self) -> None:
+        """Test that claims are sufficient when email is present and no group control."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path=None,
+            allowed_groups=[],
+        )
+
+        claims = {"sub": "user123", "email": "user@example.com"}
+
+        assert client.has_sufficient_claims(claims) is True
+
+    def test_sufficient_when_email_and_groups_present(self) -> None:
+        """Test that claims are sufficient when both email and required groups present."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="groups",
+            allowed_groups=["admin", "users"],
+        )
+
+        claims = {"sub": "user123", "email": "user@example.com", "groups": ["users"]}
+
+        assert client.has_sufficient_claims(claims) is True
+
+    def test_insufficient_when_email_missing(self) -> None:
+        """Test that claims are insufficient when email is missing."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path=None,
+            allowed_groups=[],
+        )
+
+        claims = {"sub": "user123"}  # No email
+
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_insufficient_when_email_is_none(self) -> None:
+        """Test that claims are insufficient when email is None."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path=None,
+            allowed_groups=[],
+        )
+
+        claims = {"sub": "user123", "email": None}
+
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_insufficient_when_email_is_empty_string(self) -> None:
+        """Test that claims are insufficient when email is empty string."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path=None,
+            allowed_groups=[],
+        )
+
+        claims = {"sub": "user123", "email": ""}
+
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_insufficient_when_email_is_whitespace(self) -> None:
+        """Test that claims are insufficient when email is whitespace only."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path=None,
+            allowed_groups=[],
+        )
+
+        claims = {"sub": "user123", "email": "   "}
+
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_insufficient_when_email_is_not_string(self) -> None:
+        """Test that claims are insufficient when email is not a string."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path=None,
+            allowed_groups=[],
+        )
+
+        claims = {"sub": "user123", "email": 12345}
+
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_insufficient_when_groups_missing_and_required(self) -> None:
+        """Test that claims are insufficient when groups are missing but required."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="groups",
+            allowed_groups=["admin", "users"],
+        )
+
+        claims = {"sub": "user123", "email": "user@example.com"}  # No groups
+
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_insufficient_when_groups_empty_and_required(self) -> None:
+        """Test that claims are insufficient when groups array is empty but required."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="groups",
+            allowed_groups=["admin", "users"],
+        )
+
+        claims = {"sub": "user123", "email": "user@example.com", "groups": []}
+
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_insufficient_when_email_missing_even_with_groups(self) -> None:
+        """Test that email is required even when groups are present."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="groups",
+            allowed_groups=["admin"],
+        )
+
+        claims = {"sub": "user123", "groups": ["admin"]}  # Groups present but no email
+
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_sufficient_with_nested_groups(self) -> None:
+        """Test that claims are sufficient with nested group paths."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="resource_access.phoenix.roles",
+            allowed_groups=["admin"],
+        )
+
+        claims = {
+            "sub": "user123",
+            "email": "user@example.com",
+            "resource_access": {"phoenix": {"roles": ["admin", "developer"]}},
+        }
+
+        assert client.has_sufficient_claims(claims) is True
+
+    def test_insufficient_with_nested_groups_missing(self) -> None:
+        """Test that claims are insufficient when nested groups are missing."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="resource_access.phoenix.roles",
+            allowed_groups=["admin"],
+        )
+
+        claims = {
+            "sub": "user123",
+            "email": "user@example.com",
+            "resource_access": {},  # Missing phoenix key
+        }
+
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_sufficient_with_quoted_jmespath(self) -> None:
+        """Test that claims are sufficient with quoted JMESPath (special characters)."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path='"cognito:groups"',
+            allowed_groups=["Administrators"],
+        )
+
+        claims = {
+            "sub": "user123",
+            "email": "user@example.com",
+            "cognito:groups": ["Administrators", "PowerUsers"],
+        }
+
+        assert client.has_sufficient_claims(claims) is True
+
+
 class TestOAuth2ClientAccessValidation:
     """Test group-based access control validation."""
 
@@ -211,17 +383,17 @@ class TestOAuth2ClientAccessValidation:
             client.validate_access(user_claims)
 
     def test_no_validation_when_disabled_no_allowed_groups(self) -> None:
-        """Test that validation is skipped when no allowed groups are configured."""
+        """Test that validation is skipped when group-based access control is disabled."""
         client = OAuth2Client(
             **_OAUTH2_CLIENT_DEFAULTS,
-            groups_attribute_path="groups",
+            groups_attribute_path=None,  # Disabled - no path configured
             allowed_groups=[],
         )
 
         user_claims = {
             "sub": "user123",
             "email": "user@example.com",
-            "groups": ["guest"],  # User not in allowed groups
+            "groups": ["guest"],  # Groups present but validation is disabled
         }
 
         # Should not raise - validation is disabled
@@ -237,6 +409,30 @@ class TestOAuth2ClientAccessValidation:
                 **_OAUTH2_CLIENT_DEFAULTS,
                 groups_attribute_path=None,
                 allowed_groups=["admin"],
+            )
+
+    def test_groups_attribute_path_without_allowed_groups_raises_error(self) -> None:
+        """Test that groups_attribute_path without allowed_groups raises ValueError (fail-closed)."""
+        with pytest.raises(
+            ValueError,
+            match="allowed_groups must be specified when groups_attribute_path is configured",
+        ):
+            OAuth2Client(
+                **_OAUTH2_CLIENT_DEFAULTS,
+                groups_attribute_path="groups",
+                allowed_groups=[],
+            )
+
+    def test_groups_attribute_path_with_empty_allowed_groups_raises_error(self) -> None:
+        """Test that groups_attribute_path with list of empty strings raises ValueError."""
+        with pytest.raises(
+            ValueError,
+            match="allowed_groups must be specified when groups_attribute_path is configured",
+        ):
+            OAuth2Client(
+                **_OAUTH2_CLIENT_DEFAULTS,
+                groups_attribute_path="groups",
+                allowed_groups=["", "  ", ""],  # All empty/whitespace - will be filtered out
             )
 
     def test_empty_string_groups_attribute_path_normalized(self) -> None:
