@@ -35,7 +35,7 @@ jobs:
           version: 10.2.0
       - name: Install Dependencies
         working-directory: ./js
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile -r
       - name: Build
         working-directory: ./js
         run: |
