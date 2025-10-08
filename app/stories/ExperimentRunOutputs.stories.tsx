@@ -47,6 +47,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
       latencyMs: 1500,
       experimentId: "exp-1",
       error: null,
+      trace: {
+        traceId: "trace-exp1-run1",
+        projectId: "project-456",
+      },
       output: {
         query:
           "SELECT title, MAX(vote_average) AS highest_rating FROM movies WHERE credits LIKE '%Brad Pitt%' GROUP BY title ORDER BY highest_rating DESC LIMIT 1;",
@@ -66,6 +70,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
               name: "qa_correctness",
               label: "correct",
               score: 0.95,
+              trace: {
+                traceId: "eval-trace-exp1-1",
+                projectId: "project-456",
+              },
             },
           },
           {
@@ -74,6 +82,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
               name: "has_results",
               label: null,
               score: 1.0,
+              trace: {
+                traceId: "eval-trace-exp1-2",
+                projectId: "project-456",
+              },
             },
           },
         ],
@@ -87,6 +99,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
       latencyMs: 1200,
       experimentId: "exp-2",
       error: null,
+      trace: {
+        traceId: "trace-exp2-run1",
+        projectId: "project-789",
+      },
       output: {
         query:
           "SELECT title, revenue FROM movies WHERE production_companies LIKE '%Marvel%' ORDER BY revenue DESC LIMIT 1;",
@@ -106,6 +122,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
               name: "qa_correctness",
               label: null,
               score: 0.87,
+              trace: {
+                traceId: "eval-trace-exp2-1",
+                projectId: "project-789",
+              },
             },
           },
           {
@@ -114,6 +134,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
               name: "has_results",
               label: null,
               score: 1.0,
+              trace: {
+                traceId: "eval-trace-exp2-2",
+                projectId: "project-789",
+              },
             },
           },
         ],
@@ -127,6 +151,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
       latencyMs: 800,
       experimentId: "exp-3",
       error: null,
+      trace: {
+        traceId: "trace-exp3-run1",
+        projectId: "project-123",
+      },
       output: {
         query:
           "SELECT * FROM movies WHERE genre = 'Action' ORDER BY rating DESC LIMIT 10;",
@@ -146,6 +174,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
               name: "qa_correctness",
               label: null,
               score: 0.65,
+              trace: {
+                traceId: "eval-trace-exp3-1",
+                projectId: "project-123",
+              },
             },
           },
           {
@@ -154,6 +186,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
               name: "has_results",
               label: null,
               score: 0.0,
+              trace: {
+                traceId: "eval-trace-exp3-2",
+                projectId: "project-123",
+              },
             },
           },
         ],
@@ -165,6 +201,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
       latencyMs: 950,
       experimentId: "exp-3",
       error: null,
+      trace: {
+        traceId: "trace-exp3-run2",
+        projectId: "project-123",
+      },
       output: {
         query:
           "SELECT title FROM movies WHERE genre LIKE '%Action%' ORDER BY vote_average DESC LIMIT 10;",
@@ -184,6 +224,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
               name: "qa_correctness",
               label: null,
               score: 0.78,
+              trace: {
+                traceId: "eval-trace-exp3-3",
+                projectId: "project-123",
+              },
             },
           },
           {
@@ -192,6 +236,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
               name: "has_results",
               label: null,
               score: 1.0,
+              trace: {
+                traceId: "eval-trace-exp3-4",
+                projectId: "project-123",
+              },
             },
           },
         ],
@@ -203,6 +251,10 @@ const mockExperimentRuns: Record<string, ExperimentRun[]> = {
       latencyMs: 1100,
       experimentId: "exp-3",
       error: "Rate limit exceeded. Please try again later.",
+      trace: {
+        traceId: "trace-exp3-run3-error",
+        projectId: "project-123",
+      },
       output: null,
       costSummary: {
         total: {
@@ -283,7 +335,7 @@ type Story = StoryFn<typeof ExperimentRunOutputs>;
 
 const Template: Story = (args) => (
   <View borderColor="light" borderWidth="thin">
-    <ExperimentRunOutputs {...args} />
+    <ExperimentRunOutputs {...args} openTraceDialog={() => {}} />
   </View>
 );
 

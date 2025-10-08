@@ -23,6 +23,7 @@ export function ExperimentCompareDetailsDialog({
   exampleIds,
   onExampleChange,
   repetitionNumber,
+  openTraceDialog,
 }: {
   selectedExampleId: string;
   selectedExampleIndex: number;
@@ -33,6 +34,7 @@ export function ExperimentCompareDetailsDialog({
   exampleIds: string[];
   onExampleChange: (exampleIndex: number) => void;
   repetitionNumber?: number;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) {
   return (
     <Dialog aria-label="Example Details">
@@ -64,6 +66,7 @@ export function ExperimentCompareDetailsDialog({
             baseExperimentId={baseExperimentId}
             compareExperimentIds={compareExperimentIds}
             defaultSelectedRepetitionNumber={repetitionNumber}
+            openTraceDialog={openTraceDialog}
           />
         </Suspense>
       </DialogContent>
