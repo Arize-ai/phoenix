@@ -38,7 +38,8 @@ def _is_valid_dataset_example(obj: Any) -> bool:
     if not isinstance(obj, dict):
         return False
 
-    required_fields = set(DatasetExample.__annotations__.keys())
+    # Exclude optional fields (split_ids is NotRequired for backwards compatibility)
+    required_fields = set(DatasetExample.__annotations__.keys()) - {"split_ids"}
 
     if not required_fields.issubset(obj.keys()):  # pyright: ignore[reportUnknownArgumentType]
         return False
@@ -201,7 +202,7 @@ class Dataset:
             json_data = dataset.to_dict()
             restored = Dataset.from_dict(json_data)
         """
-        result = {
+        result: dict[str, Any] = {
             "id": self.id,
             "name": self.name,
             "description": self.description,
