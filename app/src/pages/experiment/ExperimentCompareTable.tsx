@@ -2,7 +2,6 @@ import React, {
   ReactNode,
   RefObject,
   startTransition,
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -15,7 +14,7 @@ import {
   usePaginationFragment,
   usePreloadedQuery,
 } from "react-relay";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -28,9 +27,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Dialog,
-  DialogCloseButton,
   DialogTrigger,
   Empty,
   Flex,
@@ -38,7 +35,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  Loading,
   Modal,
   ModalOverlay,
   Popover,
@@ -54,12 +50,6 @@ import {
 } from "@phoenix/components";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/dialog";
 import {
   ExperimentAverageRunTokenCosts,
   useExperimentColors,
@@ -77,10 +67,9 @@ import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/Experi
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
+import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
-
-import { TraceDetails } from "../trace";
 
 import type {
   ExperimentCompareTable_comparisons$data,
@@ -906,41 +895,6 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
     >
       {children}
     </div>
-  );
-}
-
-function TraceDetailsDialog({
-  traceId,
-  projectId,
-  title,
-}: {
-  traceId: string;
-  projectId: string;
-  title: string;
-}) {
-  const navigate = useNavigate();
-  return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogTitleExtra>
-            <Button
-              size="S"
-              onPress={() =>
-                navigate(`/projects/${projectId}/traces/${traceId}`)
-              }
-            >
-              View Trace in Project
-            </Button>
-            <DialogCloseButton />
-          </DialogTitleExtra>
-        </DialogHeader>
-        <Suspense fallback={<Loading />}>
-          <TraceDetails traceId={traceId} projectId={projectId} />
-        </Suspense>
-      </DialogContent>
-    </Dialog>
   );
 }
 
