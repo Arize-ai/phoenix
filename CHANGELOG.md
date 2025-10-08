@@ -1,5 +1,20 @@
 # Changelog
 
+## [12.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.3.0...arize-phoenix-v12.4.0) (2025-10-08)
+
+
+### Features
+
+* add PKCE for OAuth 2.0 OIDC ([#9545](https://github.com/Arize-ai/phoenix/issues/9545)) ([2df7d17](https://github.com/Arize-ai/phoenix/commit/2df7d17cf031d9f1502b81e398e73a6fd32040f0))
+
+
+### Bug Fixes
+
+* allow new project for v1/spans ingestion ([#9817](https://github.com/Arize-ai/phoenix/issues/9817)) ([da2912e](https://github.com/Arize-ai/phoenix/commit/da2912edcc2a8fa5a85a48ef3d5bb388d804be62))
+* Ensure status columns are readable, and resizable ([#9820](https://github.com/Arize-ai/phoenix/issues/9820)) ([63ad6e2](https://github.com/Arize-ai/phoenix/commit/63ad6e2e32f9f587394a5f450d208835e00f1348))
+* **experiments:** fix copy button cutoff in slideover run cards ([#9810](https://github.com/Arize-ai/phoenix/issues/9810)) ([d5b734c](https://github.com/Arize-ai/phoenix/commit/d5b734cf920d817cd500711a2b4f1c070a25091b))
+* unflatten span attributes for v1/spans ingestion ([#9815](https://github.com/Arize-ai/phoenix/issues/9815)) ([0f6adaf](https://github.com/Arize-ai/phoenix/commit/0f6adafa65e7938eaf5ddf9691327945f654b031))
+
 ## [12.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.2.0...arize-phoenix-v12.3.0) (2025-10-06)
 
 
