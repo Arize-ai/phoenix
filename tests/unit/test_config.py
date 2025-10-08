@@ -952,6 +952,22 @@ class TestOAuth2ClientConfigFromEnv:
         config = OAuth2ClientConfig.from_env("local")
         assert config.oidc_config_url == localhost_url
 
+    def test_zero_address_not_treated_as_localhost(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that 0.0.0.0 is NOT treated as localhost and HTTP is rejected.
+
+        0.0.0.0 is a meta-address for binding to all interfaces (server-side),
+        not a valid client-facing hostname. It should not bypass HTTPS requirements.
+        """
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "http://0.0.0.0:8080/.well-known/openid-configuration",
+        )
+
+        with pytest.raises(ValueError, match="must use HTTPS"):
+            OAuth2ClientConfig.from_env("test")
+
     def test_invalid_token_auth_method(self, monkeypatch: MonkeyPatch) -> None:
         """Test that invalid TOKEN_ENDPOINT_AUTH_METHOD is rejected."""
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")

@@ -1033,7 +1033,7 @@ class OAuth2ClientConfig:
                 f"Invalid OIDC configuration URL for {idp_name} OAuth2 IDP: {oidc_config_url}"
             )
 
-        is_localhost = parsed_url.hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0")
+        is_localhost = parsed_url.hostname in ("localhost", "127.0.0.1", "::1")
         if parsed_url.scheme != "https" and not is_localhost:
             raise ValueError(
                 f"OIDC configuration URL for {idp_name} OAuth2 IDP "
