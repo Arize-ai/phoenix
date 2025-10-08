@@ -57,14 +57,8 @@ export function SettingsPage() {
     <main css={settingsPageCSS}>
       <div css={settingsPageInnerCSS}>
         <Tabs selectedKey={tab} onSelectionChange={onChangeTab}>
-          <TabList>
-            <Tab id="general">General</Tab>
-            <Tab id="providers">AI Providers</Tab>
-            <Tab id="models">Models</Tab>
-            {isDatasetLabelEnabled && <Tab id="datasets">Datasets</Tab>}
-            <Tab id="annotations">Annotations</Tab>
-            <Tab id="prompts">Prompts</Tab>
-            <Tab id="data">Data Retention</Tab>
+          <TabList items={itemsWithFeatureFlags}>
+            {(item) => <Tab id={item.id}>{item.label}</Tab>}
           </TabList>
           <Collection items={itemsWithFeatureFlags}>
             {(item) => (
