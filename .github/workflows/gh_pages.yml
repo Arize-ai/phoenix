@@ -45,7 +45,7 @@ jobs:
         run: pnpm config set store-dir $PNPM_CACHE_FOLDER
       - name: Install Dependencies
         working-directory: ./js
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile -r
       - name: Build Packages
         working-directory: ./js
         run: |
