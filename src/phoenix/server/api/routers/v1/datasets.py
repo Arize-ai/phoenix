@@ -685,7 +685,7 @@ class DatasetExample(V1RoutesBaseModel):
     output: dict[str, Any]
     metadata: dict[str, Any]
     updated_at: datetime
-    split_ids: list[str]
+    split_ids: list[str] = UNDEFINED
 
 
 class ListDatasetExamplesData(V1RoutesBaseModel):

@@ -68,7 +68,7 @@ class DatasetExample(TypedDict):
     output: Mapping[str, Any]
     metadata: Mapping[str, Any]
     updated_at: str
-    split_ids: Sequence[str]
+    split_ids: NotRequired[Sequence[str]]
 
 
 class DatasetVersion(TypedDict):

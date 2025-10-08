@@ -201,7 +201,7 @@ class Dataset:
             json_data = dataset.to_dict()
             restored = Dataset.from_dict(json_data)
         """
-        return {
+        result = {
             "id": self.id,
             "name": self.name,
             "description": self.description,
@@ -213,6 +213,12 @@ class Dataset:
             "version_id": self.version_id,
             "examples": deepcopy(self.examples),
         }
+
+        # Include split_ids if present (optional field for backwards compatibility)
+        if self.split_ids:
+            result["split_ids"] = self.split_ids
+
+        return result
 
     @classmethod
     def from_dict(cls, json_data: dict[str, Any]) -> "Dataset":
@@ -260,10 +266,14 @@ class Dataset:
         if json_data.get("example_count") is not None:
             dataset_info["example_count"] = json_data["example_count"]
 
-        examples_data = {
+        examples_data: dict[str, Any] = {
             "version_id": json_data["version_id"],
             "examples": deepcopy(json_data["examples"]),
         }
+
+        # Handle optional split_ids for backwards compatibility
+        if "split_ids" in json_data:
+            examples_data["split_ids"] = json_data["split_ids"]
 
         return cls(dataset_info, examples_data)  # type: ignore[arg-type]
 
