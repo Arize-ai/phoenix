@@ -88,6 +88,7 @@ class Dataset(Node):
         self,
         info: Info[Context, None],
         dataset_version_id: Optional[GlobalID] = UNSET,
+        split_ids: Optional[list[GlobalID]] = UNSET,
     ) -> int:
         dataset_id = self.id_attr
         version_id = (
@@ -98,6 +99,20 @@ class Dataset(Node):
             if dataset_version_id
             else None
         )
+
+        # Parse split IDs if provided
+        split_rowids: Optional[list[int]] = None
+        if split_ids:
+            split_rowids = []
+            for split_id in split_ids:
+                try:
+                    split_rowid = from_global_id_with_expected_type(
+                        global_id=split_id, expected_type_name=models.DatasetSplit.__name__
+                    )
+                    split_rowids.append(split_rowid)
+                except Exception:
+                    raise BadRequest(f"Invalid split ID: {split_id}")
+
         revision_ids = (
             select(func.max(models.DatasetExampleRevision.id))
             .join(models.DatasetExample)
@@ -114,11 +129,36 @@ class Dataset(Node):
             revision_ids = revision_ids.where(
                 models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
             )
-        stmt = (
-            select(count(models.DatasetExampleRevision.id))
-            .where(models.DatasetExampleRevision.id.in_(revision_ids))
-            .where(models.DatasetExampleRevision.revision_kind != "DELETE")
-        )
+
+        # Build the count query
+        if split_rowids:
+            # When filtering by splits, count distinct examples that belong to those splits
+            stmt = (
+                select(count(models.DatasetExample.id.distinct()))
+                .join(
+                    models.DatasetExampleRevision,
+                    onclause=(
+                        models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id
+                    ),
+                )
+                .join(
+                    models.DatasetSplitDatasetExample,
+                    onclause=(
+                        models.DatasetExample.id
+                        == models.DatasetSplitDatasetExample.dataset_example_id
+                    ),
+                )
+                .where(models.DatasetExampleRevision.id.in_(revision_ids))
+                .where(models.DatasetExampleRevision.revision_kind != "DELETE")
+                .where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids))
+            )
+        else:
+            stmt = (
+                select(count(models.DatasetExampleRevision.id))
+                .where(models.DatasetExampleRevision.id.in_(revision_ids))
+                .where(models.DatasetExampleRevision.revision_kind != "DELETE")
+            )
+
         async with info.context.db() as session:
             return (await session.scalar(stmt)) or 0
 
@@ -127,6 +167,7 @@ class Dataset(Node):
         self,
         info: Info[Context, None],
         dataset_version_id: Optional[GlobalID] = UNSET,
+        split_ids: Optional[list[GlobalID]] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
@@ -146,6 +187,20 @@ class Dataset(Node):
             if dataset_version_id
             else None
         )
+
+        # Parse split IDs if provided
+        split_rowids: Optional[list[int]] = None
+        if split_ids:
+            split_rowids = []
+            for split_id in split_ids:
+                try:
+                    split_rowid = from_global_id_with_expected_type(
+                        global_id=split_id, expected_type_name=models.DatasetSplit.__name__
+                    )
+                    split_rowids.append(split_rowid)
+                except Exception:
+                    raise BadRequest(f"Invalid split ID: {split_id}")
+
         revision_ids = (
             select(func.max(models.DatasetExampleRevision.id))
             .join(models.DatasetExample)
@@ -177,6 +232,15 @@ class Dataset(Node):
             )
             .order_by(models.DatasetExampleRevision.dataset_example_id.desc())
         )
+
+        # Filter by split IDs if provided
+        if split_rowids:
+            query = query.join(
+                models.DatasetSplitDatasetExample,
+                onclause=(
+                    models.DatasetExample.id == models.DatasetSplitDatasetExample.dataset_example_id
+                ),
+            ).where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids))
         async with info.context.db() as session:
             dataset_examples = [
                 DatasetExample(

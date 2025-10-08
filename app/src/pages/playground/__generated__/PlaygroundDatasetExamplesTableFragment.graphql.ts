@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<196d68f57e8c1f78b20e3bf08b44529c>>
+ * @generated SignedSource<<f4c710a3f05527cc756db6b082ddfe11>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -59,6 +59,11 @@ return {
       "defaultValue": 20,
       "kind": "LocalArgument",
       "name": "first"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "splitIds"
     }
   ],
   "kind": "Fragment",
@@ -99,6 +104,11 @@ return {
           "kind": "Variable",
           "name": "datasetVersionId",
           "variableName": "datasetVersionId"
+        },
+        {
+          "kind": "Variable",
+          "name": "splitIds",
+          "variableName": "splitIds"
         }
       ],
       "concreteType": "DatasetExampleConnection",
@@ -214,6 +224,6 @@ return {
 };
 })();
 
-(node as any).hash = "0d0e6fa0e812e73491de28f6e9743f74";
+(node as any).hash = "e6bde949dffba260d3af123877882200";
 
 export default node;

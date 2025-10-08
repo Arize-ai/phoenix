@@ -538,8 +538,10 @@ export const MemoizedTableBody = memo(
 
 export function PlaygroundDatasetExamplesTable({
   datasetId,
+  splitIds,
 }: {
   datasetId: string;
+  splitIds?: string[];
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
@@ -836,13 +838,17 @@ export function PlaygroundDatasetExamplesTable({
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
-      query PlaygroundDatasetExamplesTableQuery($datasetId: ID!) {
+      query PlaygroundDatasetExamplesTableQuery(
+        $datasetId: ID!
+        $splitIds: [ID!]
+      ) {
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
+            @arguments(splitIds: $splitIds)
         }
       }
     `,
-    { datasetId }
+    { datasetId, splitIds }
   );
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -855,11 +861,13 @@ export function PlaygroundDatasetExamplesTable({
       @refetchable(queryName: "PlaygroundDatasetExamplesTableRefetchQuery")
       @argumentDefinitions(
         datasetVersionId: { type: "ID" }
+        splitIds: { type: "[ID!]" }
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 20 }
       ) {
         examples(
           datasetVersionId: $datasetVersionId
+          splitIds: $splitIds
           first: $first
           after: $after
         ) @connection(key: "PlaygroundDatasetExamplesTable_examples") {

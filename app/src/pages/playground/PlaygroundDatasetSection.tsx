@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, Icon, Icons, LinkButton, Text, View } from "@phoenix/components";
+import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
@@ -29,7 +30,12 @@ export function PlaygroundDatasetSection({
         dataset: node(id: $datasetId) {
           ... on Dataset {
             name
-            exampleCount
+            exampleCount(splitIds: $splitIds)
+            splits {
+              id
+              name
+              color
+            }
           }
         }
       }
@@ -39,6 +45,20 @@ export function PlaygroundDatasetSection({
       splitIds,
     }
   );
+
+  // Filter to only the selected splits
+  const selectedSplits = useMemo(() => {
+    if (!splitIds || splitIds.length === 0 || !data.dataset.splits) {
+      return [];
+    }
+    return data.dataset.splits
+      .filter((split) => splitIds.includes(split.id))
+      .map((split) => ({
+        id: split.id,
+        name: split.name,
+        color: split.color ?? "#808080",
+      }));
+  }, [data.dataset.splits, splitIds]);
   return (
     <Flex direction={"column"} height={"100%"}>
       <View
@@ -51,13 +71,16 @@ export function PlaygroundDatasetSection({
         height={50}
       >
         <Flex justifyContent="space-between" alignItems="center" height="100%">
-          <Flex gap="size-100">
+          <Flex gap="size-100" alignItems="center">
             <Text>{data.dataset.name ?? "Dataset"} results</Text>
             {data.dataset.exampleCount != null ? (
               <Text fontStyle="italic" color={"text-700"}>
                 {data.dataset.exampleCount} examples
               </Text>
             ) : null}
+            {selectedSplits.length > 0 && (
+              <DatasetSplits labels={selectedSplits} />
+            )}
           </Flex>
           {experimentIds.length > 0 && (
             <LinkButton
@@ -82,7 +105,10 @@ export function PlaygroundDatasetSection({
         </Flex>
       </View>
       <PlaygroundDatasetExamplesTableProvider>
-        <PlaygroundDatasetExamplesTable datasetId={datasetId} splitIds={splitIds} />
+        <PlaygroundDatasetExamplesTable
+          datasetId={datasetId}
+          splitIds={splitIds}
+        />
       </PlaygroundDatasetExamplesTableProvider>
     </Flex>
   );

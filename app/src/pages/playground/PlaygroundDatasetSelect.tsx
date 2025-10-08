@@ -38,7 +38,7 @@ const playgroundDatasetSelectCSS = css`
 export function PlaygroundDatasetSelect() {
   const [searchParams, setSearchParams] = useSearchParams();
   const datasetId = searchParams.get("datasetId");
-  const splitId = searchParams.get("splitId");
+  const splitIds = searchParams.getAll("splitId");
 
   return (
     <div css={playgroundDatasetSelectCSS}>
@@ -49,18 +49,21 @@ export function PlaygroundDatasetSelect() {
           datasetId
             ? {
                 datasetId,
-                splitId,
+                splitIds,
               }
             : null
         }
-        onSelectionChange={({ datasetId, splitId }) => {
+        onSelectionChange={({ datasetId, splitIds }) => {
           setSearchParams((prev) => {
             if (datasetId) {
               prev.set("datasetId", datasetId);
-              if (splitId) {
-                prev.set("splitId", splitId);
-              } else {
-                prev.delete("splitId");
+              // Remove all existing splitId params
+              prev.delete("splitId");
+              // Add each split ID as a separate param
+              if (splitIds.length > 0) {
+                splitIds.forEach((splitId) => {
+                  prev.append("splitId", splitId);
+                });
               }
             } else {
               prev.delete("datasetId");
