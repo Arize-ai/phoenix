@@ -38,8 +38,12 @@ export function ExamplesTable({
 }: {
   dataset: examplesLoaderQuery$data["dataset"];
 }) {
-  const { filter, selectedExampleIds, setSelectedExampleIds } =
-    useExamplesFilterContext();
+  const {
+    filter,
+    selectedExampleIds,
+    setSelectedExampleIds,
+    selectedSplitIds,
+  } = useExamplesFilterContext();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -80,6 +84,7 @@ export function ExamplesTable({
         @refetchable(queryName: "ExamplesTableQuery")
         @argumentDefinitions(
           datasetVersionId: { type: "ID" }
+          splitIds: { type: "[ID!]" }
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
           filter: { type: "String", defaultValue: null }
@@ -89,6 +94,7 @@ export function ExamplesTable({
             first: $first
             after: $after
             filter: $filter
+            splitIds: $splitIds
           ) @connection(key: "ExamplesTable_examples") {
             edges {
               example: node {
@@ -115,11 +121,15 @@ export function ExamplesTable({
   useEffect(() => {
     startTransition(() => {
       refetch(
-        { datasetVersionId: latestVersion?.id || null, filter },
+        {
+          datasetVersionId: latestVersion?.id || null,
+          filter,
+          splitIds: selectedSplitIds,
+        },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [latestVersion, filter, refetch]);
+  }, [latestVersion, filter, refetch, selectedSplitIds]);
 
   const tableData = useMemo(
     () =>

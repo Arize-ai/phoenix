@@ -1,15 +1,21 @@
-import {
-  Button,
-  DebouncedSearch,
-  Flex,
-  Icon,
-  Icons,
-  View,
-} from "@phoenix/components";
+import { useParams } from "react-router";
+import invariant from "tiny-invariant";
+
+import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
+import { ExamplesSplitMenu } from "@phoenix/pages/examples/ExamplesSplitMenu";
 
 export const ExamplesFilterBar = () => {
-  const { setFilter, filter } = useExamplesFilterContext();
+  const {
+    setFilter,
+    filter,
+    selectedSplitIds,
+    setSelectedSplitIds,
+    selectedExampleIds,
+    setSelectedExampleIds,
+  } = useExamplesFilterContext();
+  const { datasetId } = useParams();
+  invariant(datasetId, "datasetId is required");
   return (
     <View padding="size-100">
       <Flex
@@ -26,12 +32,13 @@ export const ExamplesFilterBar = () => {
           aria-label="Search examples"
         />
         <Flex gap="size-100" alignItems="center">
-          <Button
-            trailingVisual={<Icon svg={<Icons.ChevronDown />} />}
-            onPress={() => alert("Not implemented")}
-          >
-            Splits
-          </Button>
+          <ExamplesSplitMenu
+            datasetId={datasetId}
+            onSelectionChange={setSelectedSplitIds}
+            onExampleSelectionChange={setSelectedExampleIds}
+            selectedSplitIds={selectedSplitIds}
+            selectedExampleIds={selectedExampleIds}
+          />
         </Flex>
       </Flex>
     </View>
