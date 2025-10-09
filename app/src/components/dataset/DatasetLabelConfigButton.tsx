@@ -391,7 +391,11 @@ function DatasetLabelList({
 
       {/* Footer section */}
       <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
-        <Flex direction="row" justifyContent="space-between" alignItems="center">
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
           <LinkButton variant="quiet" size="S" to="/settings/datasets">
             Manage Labels
           </LinkButton>
