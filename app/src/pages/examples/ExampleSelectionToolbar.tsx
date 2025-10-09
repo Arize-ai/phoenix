@@ -64,8 +64,6 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       }
     }
   `);
-  // TODO: Update mutation to fetch updated examples
-
   const isPlural = selectedExamples.length !== 1;
   const onDeleteExamples = useCallback(() => {
     deleteExamples({
