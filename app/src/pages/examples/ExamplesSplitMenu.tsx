@@ -97,6 +97,7 @@ const SplitMenu = ({
       }
     `,
     { datasetId },
+    // refetch every time the menu is opened
     { fetchPolicy: "network-only" }
   );
   const splits = useMemo(() => {
