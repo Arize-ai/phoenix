@@ -184,7 +184,8 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                   >
                     <Text>{name}</Text>
                     <Text color="text-700" size="XS">
-                      {exampleCount} examples
+                      {exampleCount}{" "}
+                      {exampleCount === 1 ? "example" : "examples"}
                     </Text>
                   </Flex>
                 </MenuItem>
@@ -218,7 +219,12 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         >
                           {() => (
                             <MenuItem textValue="All Examples">
-                              <Text>Use all {exampleCount} examples</Text>
+                              <Text>
+                                Use{" "}
+                                {exampleCount === 1
+                                  ? `${exampleCount} example`
+                                  : `all ${exampleCount} examples`}
+                              </Text>
                             </MenuItem>
                           )}
                         </Menu>

@@ -31,7 +31,7 @@ const playgroundDatasetSelectCSS = css`
       --button-border-color: var(--ac-global-input-field-border-color);
     }
   }
-  & > button {
+  & .dataset-clear-button {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     border-left: none;
@@ -99,6 +99,7 @@ export function PlaygroundDatasetSelect() {
         />
       )}
       <Button
+        className="dataset-clear-button"
         size="S"
         leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
         onPress={() => {
