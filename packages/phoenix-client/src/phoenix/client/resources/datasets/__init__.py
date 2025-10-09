@@ -1158,7 +1158,7 @@ class AsyncDatasets:
         *,
         dataset: DatasetIdentifier,
         version_id: Optional[str] = None,
-        splits: Optional[list[str]] = None,
+        splits: Optional[Sequence[str]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -1200,7 +1200,9 @@ class AsyncDatasets:
         dataset_response.raise_for_status()
         dataset_info = dataset_response.json()["data"]
 
-        params: dict[str, Union[str, list[str]]] = {"version_id": version_id} if version_id else {}
+        params: dict[str, Union[str, Sequence[str]]] = (
+            {"version_id": version_id} if version_id else {}
+        )
         if splits and len(splits) > 0:
             params["splits"] = splits
         examples_response = await self._client.get(
