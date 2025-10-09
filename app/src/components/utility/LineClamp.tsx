@@ -5,6 +5,7 @@ const lineClampCSS = (lines: number) => css`
   -webkit-box-orient: vertical;
   -webkit-line-clamp: ${lines};
   overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 export function LineClamp({
