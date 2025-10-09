@@ -376,7 +376,7 @@ function DatasetLabelList({
         minWidth={300}
       >
         <Flex direction="column" gap="size-50">
-          <Flex direction="row" justifyContent="space-between">
+          <Flex direction="row" justifyContent="space-between" alignItems="center">
             <Heading level={4} weight="heavy">
               Assign labels to this dataset
             </Heading>
