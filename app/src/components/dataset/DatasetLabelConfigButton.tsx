@@ -1,6 +1,7 @@
 import { Suspense, useState } from "react";
 import { ModalOverlay } from "react-aria-components";
 import {
+  ConnectionHandler,
   graphql,
   useFragment,
   useLazyLoadQuery,
@@ -45,6 +46,14 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
   const { datasetId } = props;
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  // Get the connection ID so new labels appear immediately
+  const connections = [
+    ConnectionHandler.getConnectionID(
+      "client:root",
+      "DatasetLabelConfigButtonAllLabels_datasetLabels"
+    ),
+  ];
 
   return (
     <>
@@ -98,6 +107,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
         >
           <Modal size="S">
             <NewDatasetLabelDialog
+              connections={connections}
               onCompleted={() => {
                 setShowNewLabelDialog(false);
                 setIsOpen(false);
@@ -143,6 +153,14 @@ export function DatasetLabelSelectionContent(props: {
 }) {
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
 
+  // Get the connection ID for this specific query so new labels appear immediately
+  const connections = [
+    ConnectionHandler.getConnectionID(
+      "client:root",
+      "DatasetLabelConfigButtonAllLabels_datasetLabels"
+    ),
+  ];
+
   return (
     <>
       <DatasetLabelSelectionDialogContent
@@ -160,9 +178,10 @@ export function DatasetLabelSelectionContent(props: {
         >
           <Modal size="S">
             <NewDatasetLabelDialog
+              connections={connections}
               onCompleted={() => {
+                // Only close the create modal, keep the popover open
                 setShowNewLabelDialog(false);
-                props.onClose();
               }}
             />
           </Modal>
