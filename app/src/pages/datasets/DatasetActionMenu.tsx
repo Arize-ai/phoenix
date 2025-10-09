@@ -98,7 +98,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
               alignItems={"center"}
             >
               <Icon svg={<Icons.PriceTagsOutline />} />
-              <Text>Labels</Text>
+              <Text>Label</Text>
             </Flex>
           </Item>
           <Item key={DatasetAction.DELETE}>
