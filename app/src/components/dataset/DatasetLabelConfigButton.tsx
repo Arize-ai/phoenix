@@ -96,26 +96,20 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
           </Dialog>
         </Popover>
       </DialogTrigger>
-      {showNewLabelDialog ? (
-        <ModalOverlay
-          isOpen
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
+      <ModalOverlay
+        isOpen={showNewLabelDialog}
+        onOpenChange={setShowNewLabelDialog}
+      >
+        <Modal size="S">
+          <NewDatasetLabelDialog
+            connections={connections}
+            onCompleted={() => {
               setShowNewLabelDialog(false);
-            }
-          }}
-        >
-          <Modal size="S">
-            <NewDatasetLabelDialog
-              connections={connections}
-              onCompleted={() => {
-                setShowNewLabelDialog(false);
-                setIsOpen(false);
-              }}
-            />
-          </Modal>
-        </ModalOverlay>
-      ) : null}
+              setIsOpen(false);
+            }}
+          />
+        </Modal>
+      </ModalOverlay>
     </>
   );
 }
@@ -167,26 +161,20 @@ export function DatasetLabelSelectionContent(props: {
         {...props}
         onNewLabelPress={() => setShowNewLabelDialog(true)}
       />
-      {showNewLabelDialog && (
-        <ModalOverlay
-          isOpen
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
+      <ModalOverlay
+        isOpen={showNewLabelDialog}
+        onOpenChange={setShowNewLabelDialog}
+      >
+        <Modal size="S">
+          <NewDatasetLabelDialog
+            connections={connections}
+            onCompleted={() => {
+              // Only close the create modal, keep the popover open
               setShowNewLabelDialog(false);
-            }
-          }}
-        >
-          <Modal size="S">
-            <NewDatasetLabelDialog
-              connections={connections}
-              onCompleted={() => {
-                // Only close the create modal, keep the popover open
-                setShowNewLabelDialog(false);
-              }}
-            />
-          </Modal>
-        </ModalOverlay>
-      )}
+            }}
+          />
+        </Modal>
+      </ModalOverlay>
     </>
   );
 }
