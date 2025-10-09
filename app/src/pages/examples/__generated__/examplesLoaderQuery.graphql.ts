@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6602f9bdfa38851df32441c6c0c90b7b>>
+ * @generated SignedSource<<35a587c697fa2ab03a6271be02edfd14>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -248,7 +248,8 @@ return {
                 "alias": null,
                 "args": (v4/*: any*/),
                 "filters": [
-                  "datasetVersionId"
+                  "datasetVersionId",
+                  "filter"
                 ],
                 "handle": "connection",
                 "key": "ExamplesTable_examples",

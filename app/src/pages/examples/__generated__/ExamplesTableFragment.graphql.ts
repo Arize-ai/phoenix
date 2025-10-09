@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0743d7675cbdbc7e4e90411c32883ae8>>
+ * @generated SignedSource<<3dd64323f9a94925d1c4206c2f667ec3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -62,6 +62,11 @@ return {
       "name": "datasetVersionId"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
+    },
+    {
       "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
@@ -105,6 +110,11 @@ return {
           "kind": "Variable",
           "name": "datasetVersionId",
           "variableName": "datasetVersionId"
+        },
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
         }
       ],
       "concreteType": "DatasetExampleConnection",
@@ -253,6 +263,6 @@ return {
 };
 })();
 
-(node as any).hash = "c328c873fd71552b25c7da8636c723f6";
+(node as any).hash = "56c278d58f214df559cf34be459f276e";
 
 export default node;

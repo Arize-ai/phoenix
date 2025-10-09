@@ -4,7 +4,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -12,6 +11,7 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  Updater,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
@@ -24,6 +24,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
+import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
 
 import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
@@ -37,10 +38,41 @@ export function ExamplesTable({
 }: {
   dataset: examplesLoaderQuery$data["dataset"];
 }) {
+  const { filter, selectedExampleIds, setSelectedExampleIds } =
+    useExamplesFilterContext();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [rowSelection, setRowSelection] = useState({});
+  const rowSelection = useMemo(() => {
+    return selectedExampleIds.reduce(
+      (acc, id) => {
+        acc[id] = true;
+        return acc;
+      },
+      {} as Record<string, boolean>
+    );
+  }, [selectedExampleIds]);
+  const setRowSelection = useCallback(
+    (rowSelection: Updater<Record<string, boolean>>) => {
+      setSelectedExampleIds((prevSelection) => {
+        if (typeof rowSelection === "function") {
+          return Object.keys(
+            rowSelection(
+              prevSelection.reduce(
+                (acc, id) => {
+                  acc[id] = true;
+                  return acc;
+                },
+                {} as Record<string, boolean>
+              )
+            )
+          );
+        }
+        return Object.keys(rowSelection);
+      });
+    },
+    [setSelectedExampleIds]
+  );
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
       graphql`
@@ -50,11 +82,13 @@ export function ExamplesTable({
           datasetVersionId: { type: "ID" }
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
+          filter: { type: "String", defaultValue: null }
         ) {
           examples(
             datasetVersionId: $datasetVersionId
             first: $first
             after: $after
+            filter: $filter
           ) @connection(key: "ExamplesTable_examples") {
             edges {
               example: node {
@@ -77,15 +111,15 @@ export function ExamplesTable({
       dataset
     );
 
-  // Refetch the data when the dataset version changes
+  // Refetch the data when the dataset version changes or the filter changes
   useEffect(() => {
     startTransition(() => {
       refetch(
-        { datasetVersionId: latestVersion?.id || null },
+        { datasetVersionId: latestVersion?.id || null, filter },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [latestVersion, refetch]);
+  }, [latestVersion, filter, refetch]);
 
   const tableData = useMemo(
     () =>
@@ -165,6 +199,8 @@ export function ExamplesTable({
     },
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
+    // ensure row IDs are the example IDs and not the index
+    getRowId: (row) => row.id,
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
