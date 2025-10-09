@@ -27,7 +27,6 @@ type DatasetLabelFilterButtonProps = {
 
 export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
   const { selectedLabelIds, onSelectionChange } = props;
-  const [isOpen, setIsOpen] = useState(false);
 
   const buttonText =
     selectedLabelIds.length > 0
@@ -35,11 +34,11 @@ export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
       : "Labels";
 
   return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+    <DialogTrigger>
       <Button
         variant="default"
         size="M"
-        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        trailingVisual={<Icon svg={<Icons.ChevronDown />} />}
       >
         {buttonText}
       </Button>
@@ -48,7 +47,6 @@ export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
           <DatasetLabelFilterContent
             selectedLabelIds={selectedLabelIds}
             onSelectionChange={onSelectionChange}
-            onClose={() => setIsOpen(false)}
           />
         </Suspense>
       </Popover>
@@ -59,11 +57,9 @@ export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
 function DatasetLabelFilterContent({
   selectedLabelIds,
   onSelectionChange,
-  onClose,
 }: {
   selectedLabelIds: string[];
   onSelectionChange: (labelIds: string[]) => void;
-  onClose: () => void;
 }) {
   const labelData = useLazyLoadQuery<DatasetLabelFilterButtonQuery>(
     graphql`
@@ -84,9 +80,6 @@ function DatasetLabelFilterContent({
   );
 
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Selection>(
-    () => new Set(selectedLabelIds)
-  );
 
   const labels = labelData.datasetLabels.edges
     .map((edge) => edge.node)
@@ -98,19 +91,12 @@ function DatasetLabelFilterContent({
     if (selection === "all") {
       return;
     }
-    setSelected(selection);
-  };
-
-  const handleApply = () => {
-    const newLabelIds = [...selected] as string[];
+    const newLabelIds = [...selection] as string[];
     onSelectionChange(newLabelIds);
-    onClose();
   };
 
   const handleClear = () => {
-    setSelected(new Set());
     onSelectionChange([]);
-    onClose();
   };
 
   return (
@@ -126,7 +112,7 @@ function DatasetLabelFilterContent({
           aria-label="labels"
           items={labels}
           selectionMode="multiple"
-          selectedKeys={selected}
+          selectedKeys={selectedLabelIds}
           onSelectionChange={handleSelectionChange}
           css={css`
             height: 300px;
@@ -136,16 +122,9 @@ function DatasetLabelFilterContent({
         >
           {(item) => <DatasetLabelFilterItem key={item.id} item={item} />}
         </ListBox>
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
+        <Flex direction="row" justifyContent="end" alignItems="center">
           <Button variant="quiet" size="S" onPress={handleClear}>
             Clear All
-          </Button>
-          <Button variant="primary" size="S" onPress={handleApply}>
-            Apply Filter
           </Button>
         </Flex>
       </Flex>
