@@ -169,60 +169,64 @@ export function ExamplesTable({
     [data]
   );
   type TableRow = (typeof tableData)[number];
-  const columns: ColumnDef<TableRow>[] = [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            isSelected: table.getIsAllRowsSelected(),
-            isIndeterminate: table.getIsSomeRowsSelected(),
-            onChange: table.toggleAllRowsSelected,
-          }}
-        />
-      ),
-      cell: ({ row }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            isSelected: row.getIsSelected(),
-            isDisabled: !row.getCanSelect(),
-            isIndeterminate: row.getIsSomeSelected(),
-            onChange: row.toggleSelected,
-          }}
-        />
-      ),
-    },
-    {
-      header: "example id",
-      accessorKey: "id",
-      cell: ({ getValue, row }) => {
-        const exampleId = row.original.id;
-        return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
+  const columns = useMemo(() => {
+    const cols: ColumnDef<TableRow>[] = [
+      {
+        id: "select",
+        header: ({ table }) => (
+          <IndeterminateCheckboxCell
+            {...{
+              isSelected: table.getIsAllRowsSelected(),
+              isIndeterminate: table.getIsSomeRowsSelected(),
+              onChange: table.toggleAllRowsSelected,
+            }}
+          />
+        ),
+        cell: ({ row }) => (
+          <IndeterminateCheckboxCell
+            {...{
+              isSelected: row.getIsSelected(),
+              isDisabled: !row.getCanSelect(),
+              isIndeterminate: row.getIsSomeSelected(),
+              onChange: row.toggleSelected,
+            }}
+          />
+        ),
       },
-    },
-    {
-      header: "input",
-      accessorKey: "input",
-      cell: CompactJSONCell,
-    },
-    {
-      header: "output",
-      accessorKey: "output",
-      cell: CompactJSONCell,
-    },
-    {
-      header: "metadata",
-      accessorKey: "metadata",
-      cell: CompactJSONCell,
-    },
-  ];
-  if (isSplitsEnabled) {
-    columns.splice(2, 0, {
-      header: "splits",
-      accessorKey: "splits",
-      cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
-    });
-  }
+      {
+        header: "example id",
+        accessorKey: "id",
+        cell: ({ getValue, row }) => {
+          const exampleId = row.original.id;
+          return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
+        },
+      },
+      {
+        header: "input",
+        accessorKey: "input",
+        cell: CompactJSONCell,
+      },
+      {
+        header: "output",
+        accessorKey: "output",
+        cell: CompactJSONCell,
+      },
+      {
+        header: "metadata",
+        accessorKey: "metadata",
+        cell: CompactJSONCell,
+      },
+    ];
+    if (isSplitsEnabled) {
+      cols.splice(2, 0, {
+        header: "splits",
+        accessorKey: "splits",
+        cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
+      });
+    }
+    return cols;
+  }, [isSplitsEnabled]);
+
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
