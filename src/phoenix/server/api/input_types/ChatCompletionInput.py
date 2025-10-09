@@ -40,6 +40,7 @@ class ChatCompletionOverDatasetInput:
     repetitions: int
     dataset_id: GlobalID
     dataset_version_id: Optional[GlobalID] = None
+    split_ids: Optional[list[GlobalID]] = None
     experiment_name: Optional[str] = None
     experiment_description: Optional[str] = None
     experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)

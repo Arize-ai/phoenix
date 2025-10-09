@@ -1279,11 +1279,13 @@ export const getChatCompletionOverDatasetInput = ({
   instanceId,
   credentials,
   datasetId,
+  splitIds,
 }: {
   playgroundStore: PlaygroundStore;
   instanceId: number;
   credentials: CredentialsState;
   datasetId: string;
+  splitIds?: string[];
 }): ChatCompletionOverDatasetInput => {
   const baseChatCompletionVariables = getBaseChatCompletionInput({
     playgroundStore,
@@ -1296,6 +1298,7 @@ export const getChatCompletionOverDatasetInput = ({
     templateFormat: playgroundStore.getState().templateFormat,
     repetitions: playgroundStore.getState().repetitions,
     datasetId,
+    splitIds: splitIds ?? null,
   };
 };
 

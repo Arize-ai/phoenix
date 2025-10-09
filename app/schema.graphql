@@ -269,6 +269,7 @@ input ChatCompletionOverDatasetInput {
   repetitions: Int!
   datasetId: ID!
   datasetVersionId: ID = null
+  splitIds: [ID!] = null
   experimentName: String = null
   experimentDescription: String = null
   experimentMetadata: JSON = {}
