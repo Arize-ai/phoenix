@@ -825,6 +825,7 @@ export function PlaygroundDatasetExamplesTable({
   }, [
     credentials,
     datasetId,
+    splitIds,
     environment,
     generateChatCompletion,
     hasSomeRunIds,
