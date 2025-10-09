@@ -14,6 +14,7 @@ export const ExamplesFilterBar = () => {
     setSelectedSplitIds,
     selectedExampleIds,
     setSelectedExampleIds,
+    examplesCache,
   } = useExamplesFilterContext();
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
@@ -36,11 +37,11 @@ export const ExamplesFilterBar = () => {
         {isSplitsEnabled && (
           <Flex gap="size-100" alignItems="center">
             <ExamplesSplitMenu
-              datasetId={datasetId}
               onSelectionChange={setSelectedSplitIds}
               onExampleSelectionChange={setSelectedExampleIds}
               selectedSplitIds={selectedSplitIds}
               selectedExampleIds={selectedExampleIds}
+              examplesCache={examplesCache}
             />
           </Flex>
         )}

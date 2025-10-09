@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8e046188ecfef69f9a8d7298ae984c84>>
+ * @generated SignedSource<<cb704ee27330035ff5df62885f0be196>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,15 +9,15 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ExamplesSplitMenuQuery$variables = {
-  datasetId: string;
-};
+export type ExamplesSplitMenuQuery$variables = Record<PropertyKey, never>;
 export type ExamplesSplitMenuQuery$data = {
-  readonly node: {
-    readonly splits?: ReadonlyArray<{
-      readonly color: string;
-      readonly id: string;
-      readonly name: string;
+  readonly datasetSplits: {
+    readonly edges: ReadonlyArray<{
+      readonly split: {
+        readonly color: string;
+        readonly id: string;
+        readonly name: string;
+      };
     }>;
   };
 };
@@ -29,120 +29,88 @@ export type ExamplesSplitMenuQuery = {
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "datasetId"
-  }
-],
-v1 = [
-  {
-    "kind": "Variable",
-    "name": "id",
-    "variableName": "datasetId"
-  }
-],
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v3 = {
-  "kind": "InlineFragment",
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DatasetSplit",
-      "kind": "LinkedField",
-      "name": "splits",
-      "plural": true,
-      "selections": [
-        (v2/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "name",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "color",
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    }
-  ],
-  "type": "Dataset",
-  "abstractKey": null
-};
-return {
-  "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "ExamplesSplitMenuQuery",
+    "alias": null,
+    "args": null,
+    "concreteType": "DatasetSplitConnection",
+    "kind": "LinkedField",
+    "name": "datasetSplits",
+    "plural": false,
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
-        "concreteType": null,
+        "args": null,
+        "concreteType": "DatasetSplitEdge",
         "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
+        "name": "edges",
+        "plural": true,
         "selections": [
-          (v3/*: any*/)
+          {
+            "alias": "split",
+            "args": null,
+            "concreteType": "DatasetSplit",
+            "kind": "LinkedField",
+            "name": "node",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "id",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "color",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
         ],
         "storageKey": null
       }
     ],
+    "storageKey": null
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": [],
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "ExamplesSplitMenuQuery",
+    "selections": (v0/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [],
     "kind": "Operation",
     "name": "ExamplesSplitMenuQuery",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v1/*: any*/),
-        "concreteType": null,
-        "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
-          },
-          (v3/*: any*/),
-          (v2/*: any*/)
-        ],
-        "storageKey": null
-      }
-    ]
+    "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "34e2f15bdbf49713d20ef471a4f10d35",
+    "cacheID": "528039e9625c395b9721acbe60ff7a24",
     "id": null,
     "metadata": {},
     "name": "ExamplesSplitMenuQuery",
     "operationKind": "query",
-    "text": "query ExamplesSplitMenuQuery(\n  $datasetId: ID!\n) {\n  node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      splits {\n        id\n        name\n        color\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExamplesSplitMenuQuery {\n  datasetSplits {\n    edges {\n      split: node {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "750e2657bf8ef6e73c6f42db1050171c";
+(node as any).hash = "8154a68a8e77401911b3171986fc1a56";
 
 export default node;

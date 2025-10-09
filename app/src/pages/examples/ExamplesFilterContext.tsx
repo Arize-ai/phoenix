@@ -7,6 +7,14 @@ import {
   useState,
 } from "react";
 
+export type ExamplesCache = Record<
+  string,
+  {
+    id: string;
+    datasetSplits: { id: string; name: string }[];
+  }
+>;
+
 export type ExamplesFilterContext = {
   filter: string;
   setFilter: Dispatch<SetStateAction<string>>;
@@ -14,6 +22,8 @@ export type ExamplesFilterContext = {
   setSelectedSplitIds: Dispatch<SetStateAction<string[]>>;
   selectedExampleIds: string[];
   setSelectedExampleIds: Dispatch<SetStateAction<string[]>>;
+  examplesCache: ExamplesCache;
+  setExamplesCache: Dispatch<SetStateAction<ExamplesCache>>;
 };
 
 export const examplesFilterContext =
@@ -23,6 +33,7 @@ export const ExamplesFilterProvider = ({ children }: PropsWithChildren) => {
   const [filter, setFilter] = useState("");
   const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
   const [selectedExampleIds, setSelectedExampleIds] = useState<string[]>([]);
+  const [examplesCache, setExamplesCache] = useState<ExamplesCache>({});
   return (
     <examplesFilterContext.Provider
       value={{
@@ -32,6 +43,8 @@ export const ExamplesFilterProvider = ({ children }: PropsWithChildren) => {
         setFilter,
         selectedExampleIds,
         setSelectedExampleIds,
+        examplesCache,
+        setExamplesCache,
       }}
     >
       {children}

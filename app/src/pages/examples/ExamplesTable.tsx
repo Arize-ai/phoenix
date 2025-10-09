@@ -24,7 +24,11 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
-import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
+import {
+  ExamplesCache,
+  useExamplesFilterContext,
+} from "@phoenix/pages/examples/ExamplesFilterContext";
+import { Mutable } from "@phoenix/typeUtils";
 
 import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
@@ -43,40 +47,11 @@ export function ExamplesTable({
     selectedExampleIds,
     setSelectedExampleIds,
     selectedSplitIds,
+    setExamplesCache,
   } = useExamplesFilterContext();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const rowSelection = useMemo(() => {
-    return selectedExampleIds.reduce(
-      (acc, id) => {
-        acc[id] = true;
-        return acc;
-      },
-      {} as Record<string, boolean>
-    );
-  }, [selectedExampleIds]);
-  const setRowSelection = useCallback(
-    (rowSelection: Updater<Record<string, boolean>>) => {
-      setSelectedExampleIds((prevSelection) => {
-        if (typeof rowSelection === "function") {
-          return Object.keys(
-            rowSelection(
-              prevSelection.reduce(
-                (acc, id) => {
-                  acc[id] = true;
-                  return acc;
-                },
-                {} as Record<string, boolean>
-              )
-            )
-          );
-        }
-        return Object.keys(rowSelection);
-      });
-    },
-    [setSelectedExampleIds]
-  );
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
       graphql`
@@ -130,6 +105,53 @@ export function ExamplesTable({
       );
     });
   }, [latestVersion, filter, refetch, selectedSplitIds]);
+  // sync selected examples into cache for later access
+  useEffect(() => {
+    setExamplesCache(
+      data.examples.edges
+        .map((example) => ({
+          id: example.example.id,
+          datasetSplits: example.example.datasetSplits as Mutable<
+            typeof example.example.datasetSplits
+          >,
+        }))
+        .filter((example) => selectedExampleIds.includes(example.id))
+        .reduce((acc, example) => {
+          acc[example.id] = example;
+          return acc;
+        }, {} as ExamplesCache)
+    );
+  }, [data, selectedExampleIds, setExamplesCache]);
+  const rowSelection = useMemo(() => {
+    return selectedExampleIds.reduce(
+      (acc, id) => {
+        acc[id] = true;
+        return acc;
+      },
+      {} as Record<string, boolean>
+    );
+  }, [selectedExampleIds]);
+  const setRowSelection = useCallback(
+    (rowSelection: Updater<Record<string, boolean>>) => {
+      setSelectedExampleIds((prevSelection) => {
+        if (typeof rowSelection === "function") {
+          return Object.keys(
+            rowSelection(
+              prevSelection.reduce(
+                (acc, id) => {
+                  acc[id] = true;
+                  return acc;
+                },
+                {} as Record<string, boolean>
+              )
+            )
+          );
+        }
+        return Object.keys(rowSelection);
+      });
+    },
+    [setSelectedExampleIds]
+  );
 
   const tableData = useMemo(
     () =>
