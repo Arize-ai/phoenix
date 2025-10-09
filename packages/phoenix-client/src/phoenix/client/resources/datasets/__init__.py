@@ -38,8 +38,8 @@ def _is_valid_dataset_example(obj: Any) -> bool:
     if not isinstance(obj, dict):
         return False
 
-    # Exclude optional fields (split_ids is NotRequired for backwards compatibility)
-    required_fields = set(DatasetExample.__annotations__.keys()) - {"split_ids"}
+    # Exclude optional fields (splits is NotRequired for backwards compatibility)
+    required_fields = set(DatasetExample.__annotations__.keys()) - {"splits"}
 
     if not required_fields.issubset(obj.keys()):  # pyright: ignore[reportUnknownArgumentType]
         return False
