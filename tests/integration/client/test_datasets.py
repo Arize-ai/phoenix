@@ -1019,7 +1019,6 @@ Who wrote Hamlet?,Shakespeare,literature
                 }
             },
         )
-        split1_id = split1_result["data"]["createDatasetSplitWithExamples"]["datasetSplit"]["id"]
         split1_name = split1_result["data"]["createDatasetSplitWithExamples"]["datasetSplit"][
             "name"
         ]
@@ -1037,7 +1036,6 @@ Who wrote Hamlet?,Shakespeare,literature
                 }
             },
         )
-        split2_id = split2_result["data"]["createDatasetSplitWithExamples"]["datasetSplit"]["id"]
         split2_name = split2_result["data"]["createDatasetSplitWithExamples"]["datasetSplit"][
             "name"
         ]
@@ -1051,9 +1049,9 @@ Who wrote Hamlet?,Shakespeare,literature
         assert len(full_dataset) == 4, (
             f"Expected all 4 examples when no split filter is applied, got {len(full_dataset)}"
         )
-        # When no split filter is applied, split_ids should be empty (not filtering by any splits)
-        assert full_dataset.split_ids == [], (
-            f"Expected empty split_ids when no filter applied, got {full_dataset.split_ids}"
+        # When no split filter is applied, splits should be empty (not filtering by any splits)
+        assert full_dataset.splits == [], (
+            f"Expected empty splits when no filter applied, got {full_dataset.splits}"
         )
 
         # Verify all 4 example IDs are present in the unfiltered dataset
@@ -1072,7 +1070,7 @@ Who wrote Hamlet?,Shakespeare,literature
         assert len(split1_dataset) == 2, (
             f"Expected 2 examples with split1, got {len(split1_dataset)}"
         )
-        assert split1_id in split1_dataset.split_ids, "Split1 ID should be in split_ids"
+        assert split1_name in split1_dataset.splits, "Split1 ID should be in split_ids"
 
         # Get dataset filtered by split 2 - should return 2 examples
         split2_dataset = await _await_or_return(
@@ -1084,7 +1082,7 @@ Who wrote Hamlet?,Shakespeare,literature
         assert len(split2_dataset) == 2, (
             f"Expected 2 examples with split2, got {len(split2_dataset)}"
         )
-        assert split2_id in split2_dataset.split_ids, "Split2 ID should be in split_ids"
+        assert split2_name in split2_dataset.splits, "Split2 ID should be in splits"
 
         # Get dataset filtered by both splits - should return all 4 examples
         both_splits_dataset = await _await_or_return(
@@ -1096,19 +1094,19 @@ Who wrote Hamlet?,Shakespeare,literature
         assert len(both_splits_dataset) == 4, (
             f"Expected 4 examples with both splits, got {len(both_splits_dataset)}"
         )
-        assert split1_id in both_splits_dataset.split_ids, "Split1 ID should be in split_ids"
-        assert split2_id in both_splits_dataset.split_ids, "Split2 ID should be in split_ids"
+        assert split1_name in both_splits_dataset.splits, "Split1 name should be in splits"
+        assert split2_name in both_splits_dataset.splits, "Split2 name should be in splits"
 
         # Verify individual examples have split_ids populated
         for example in split1_dataset.examples:
-            assert "split_ids" in example, "Example should have split_ids field"
-            assert split1_id in example["split_ids"], (
-                f"Example {example['id']} should have split1_id in its split_ids"
+            assert "splits" in example, "Example should have splits field"
+            assert split1_name in example["splits"], (
+                f"Example {example['id']} should have split1_id in its splits"
             )
 
         # Test that examples in split2 have the correct split_id
         for example in split2_dataset.examples:
-            assert "split_ids" in example, "Example should have split_ids field"
-            assert split2_id in example["split_ids"], (
-                f"Example {example['id']} should have split2_id in its split_ids"
+            assert "splits" in example, "Example should have splits field"
+            assert split2_name in example["splits"], (
+                f"Example {example['id']} should have split2_name in its splits"
             )

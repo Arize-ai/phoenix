@@ -839,7 +839,7 @@ class TestExperimentsIntegration:
         dataset._examples_data = v1.ListDatasetExamplesData(
             dataset_id=original_dataset_id,
             version_id=original_version_id,
-            split_ids=[],
+            filtered_splits=[],
             examples=[],
         )
 
@@ -1714,8 +1714,8 @@ class TestEvaluateExperiment:
         assert len(full_dataset_no_filter) == 4, (
             f"Expected all 4 examples with no filter, got {len(full_dataset_no_filter)}"
         )
-        assert full_dataset_no_filter.split_ids == [], (
-            f"Expected empty split_ids with no filter, got {full_dataset_no_filter.split_ids}"
+        assert full_dataset_no_filter.splits == [], (
+            f"Expected empty splits with no filter, got {full_dataset_no_filter.splits}"
         )
 
         # Verify all original example IDs are present
@@ -1797,8 +1797,8 @@ class TestEvaluateExperiment:
         assert len(train_dataset) == 2, (
             f"Expected 2 examples in train split, got {len(train_dataset)}"
         )
-        assert train_split_id in train_dataset.split_ids, (
-            "Train split ID should be in dataset.split_ids"
+        assert train_split_name in train_dataset.splits, (
+            "Train split name should be in dataset.splits"
         )
 
         # Run experiment on the filtered train dataset
@@ -1870,8 +1870,8 @@ class TestEvaluateExperiment:
         assert len(both_splits_dataset) == 4, (
             f"Expected 4 examples with both splits, got {len(both_splits_dataset)}"
         )
-        assert train_split_id in both_splits_dataset.split_ids
-        assert test_split_id in both_splits_dataset.split_ids
+        assert train_split_name in both_splits_dataset.splits
+        assert test_split_name in both_splits_dataset.splits
 
         # Run experiment on dataset with both splits
         multi_split_result = await _await_or_return(
