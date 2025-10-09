@@ -17,7 +17,8 @@ import pandas as pd
 import pyarrow as pa
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
-from sqlalchemy import String, and_, case, delete, func, select
+from pydantic import ValidationError
+from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
@@ -38,8 +39,10 @@ from phoenix.db.insertion.dataset import (
     add_dataset_examples,
 )
 from phoenix.db.types.db_models import UNDEFINED
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
+from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
@@ -696,13 +699,13 @@ class DatasetExample(V1RoutesBaseModel):
     output: dict[str, Any]
     metadata: dict[str, Any]
     updated_at: datetime
-    split_ids: list[str] = UNDEFINED
+    splits: list[str] = UNDEFINED
 
 
 class ListDatasetExamplesData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
-    split_ids: list[str] = UNDEFINED
+    filtered_splits: list[str] = UNDEFINED
     examples: list[DatasetExample]
 
 
@@ -727,7 +730,7 @@ async def get_dataset_examples(
     ),
     splits: Optional[list[str]] = Query(
         default=None,
-        description="The names of the dataset splits to filter by",
+        description="List of dataset split identifiers (GlobalIDs or names) to filter by",
     ),
 ) -> ListDatasetExamplesResponseBody:
     try:
@@ -806,23 +809,26 @@ async def get_dataset_examples(
 
         subquery = partial_subquery.subquery()
 
-        # Create aggregation function for split IDs (cross-database compatible)
+        # Create aggregation function for split names (cross-database compatible)
         dialect_name = session.bind.dialect.name
         if dialect_name == "postgresql":
-            split_ids_agg = func.string_agg(
-                func.cast(models.DatasetSplitDatasetExample.dataset_split_id, String), ","
-            )
+            split_names_col = func.array_agg(models.DatasetSplit.name).label("split_names")
         elif dialect_name == "sqlite":
-            split_ids_agg = func.group_concat(models.DatasetSplitDatasetExample.dataset_split_id)
+            split_names_col = func.json_group_array(models.DatasetSplit.name).label("split_names")
         else:
             raise NotImplementedError(f"Unsupported database dialect: {dialect_name}")
 
-        # Create subquery to aggregate split IDs per example
+        # Create subquery to aggregate split names per example
         splits_subquery = (
             select(
                 models.DatasetSplitDatasetExample.dataset_example_id,
-                split_ids_agg.label("split_ids_str"),
-            ).group_by(models.DatasetSplitDatasetExample.dataset_example_id)
+                split_names_col,
+            )
+            .join(
+                models.DatasetSplit,
+                models.DatasetSplitDatasetExample.dataset_split_id == models.DatasetSplit.id,
+            )
+            .group_by(models.DatasetSplitDatasetExample.dataset_example_id)
         ).subquery()
 
         # Query for the most recent example revisions that are not deleted
@@ -830,7 +836,7 @@ async def get_dataset_examples(
             select(
                 models.DatasetExample,
                 models.DatasetExampleRevision,
-                splits_subquery.c.split_ids_str,
+                splits_subquery.c.split_names,
             )
             .join(
                 models.DatasetExampleRevision,
@@ -850,33 +856,12 @@ async def get_dataset_examples(
         )
 
         # If splits are provided, filter by dataset splits
-        resolved_split_ids = []
+        resolved_split_names: list[str] = []
         if splits:
-            # Resolve split names to IDs
-            split_id_query = select(models.DatasetSplit.id).where(
-                models.DatasetSplit.name.in_(splits)
+            # Resolve split identifiers (IDs or names) to IDs and names
+            resolved_split_ids, resolved_split_names = await _resolve_split_identifiers(
+                session, splits
             )
-            resolved_split_ids = list(await session.scalars(split_id_query))
-
-            if not resolved_split_ids:
-                raise HTTPException(
-                    detail=f"No dataset splits found with names: {', '.join(splits)}",
-                    status_code=HTTP_404_NOT_FOUND,
-                )
-
-            if len(resolved_split_ids) != len(splits):
-                # Some splits were not found
-                found_names = await session.scalars(
-                    select(models.DatasetSplit.name).where(
-                        models.DatasetSplit.id.in_(resolved_split_ids)
-                    )
-                )
-                found_names_set = set(found_names)
-                missing = [s for s in splits if s not in found_names_set]
-                raise HTTPException(
-                    detail=f"Dataset splits not found: {', '.join(missing)}",
-                    status_code=HTTP_404_NOT_FOUND,
-                )
 
             # Add filter for splits (join with the association table)
             query = query.join(
@@ -891,21 +876,19 @@ async def get_dataset_examples(
                 output=revision.output,
                 metadata=revision.metadata_,
                 updated_at=revision.created_at,
-                split_ids=[
-                    str(GlobalID("DatasetSplit", str(split_id)))
-                    for split_id in (split_ids_str.split(",") if split_ids_str else [])
-                ],
+                splits=(
+                    split_names
+                    if isinstance(split_names, list)
+                    else (json.loads(split_names) if split_names else [])
+                ),
             )
-            async for example, revision, split_ids_str in await session.stream(query)
+            async for example, revision, split_names in await session.stream(query)
         ]
     return ListDatasetExamplesResponseBody(
         data=ListDatasetExamplesData(
             dataset_id=str(GlobalID("Dataset", str(resolved_dataset_id))),
             version_id=str(GlobalID("DatasetVersion", str(resolved_version_id))),
-            split_ids=[
-                str(GlobalID("DatasetSplit", str(resolved_split_id)))
-                for resolved_split_id in resolved_split_ids
-            ],
+            filtered_splits=resolved_split_names,
             examples=examples,
         )
     )
@@ -1162,3 +1145,118 @@ async def _get_db_examples(
 
 def _is_all_dict(seq: Sequence[Any]) -> bool:
     return all(map(lambda obj: isinstance(obj, dict), seq))
+
+
+# Split identifier helper types and functions
+class _SplitId(int): ...
+
+
+_SplitIdentifier: TypeAlias = Union[_SplitId, Identifier]
+
+
+def _parse_split_identifier(split_identifier: str) -> _SplitIdentifier:
+    """
+    Parse a split identifier as either a GlobalID or a name.
+
+    Args:
+        split_identifier: The identifier string (GlobalID or name)
+
+    Returns:
+        Either a _SplitId or an Identifier
+
+    Raises:
+        HTTPException: If the identifier format is invalid
+    """
+    if not split_identifier:
+        raise HTTPException(422, "Invalid split identifier")
+    try:
+        split_id = from_global_id_with_expected_type(
+            GlobalID.from_id(split_identifier),
+            DatasetSplitNodeType.__name__,
+        )
+    except ValueError:
+        try:
+            return Identifier.model_validate(split_identifier)
+        except ValidationError:
+            raise HTTPException(422, "Invalid split name")
+    return _SplitId(split_id)
+
+
+async def _resolve_split_identifiers(
+    session: AsyncSession,
+    split_identifiers: list[str],
+) -> tuple[list[int], list[str]]:
+    """
+    Resolve a list of split identifiers (IDs or names) to split IDs and names.
+
+    Args:
+        session: The database session
+        split_identifiers: List of split identifiers (GlobalIDs or names)
+
+    Returns:
+        Tuple of (list of split IDs, list of split names)
+
+    Raises:
+        HTTPException: If any split identifier is invalid or not found
+    """
+    split_ids: list[int] = []
+    split_names: list[str] = []
+
+    # Parse all identifiers first
+    parsed_identifiers: list[_SplitIdentifier] = []
+    for identifier_str in split_identifiers:
+        parsed_identifiers.append(_parse_split_identifier(identifier_str))
+
+    # Separate IDs and names
+    requested_ids: list[int] = []
+    requested_names: list[str] = []
+    for identifier in parsed_identifiers:
+        if isinstance(identifier, _SplitId):
+            requested_ids.append(int(identifier))
+        elif isinstance(identifier, Identifier):
+            requested_names.append(identifier.root)
+        else:
+            assert_never(identifier)
+
+    # Query for splits by ID
+    if requested_ids:
+        id_results = await session.stream(
+            select(models.DatasetSplit.id, models.DatasetSplit.name).where(
+                models.DatasetSplit.id.in_(requested_ids)
+            )
+        )
+        async for split_id, split_name in id_results:
+            split_ids.append(split_id)
+            split_names.append(split_name)
+
+        # Check if all requested IDs were found
+        found_ids = set(split_ids[-len(requested_ids) :] if requested_ids else [])
+        missing_ids = [sid for sid in requested_ids if sid not in found_ids]
+        if missing_ids:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Dataset splits not found for IDs: {', '.join(map(str, missing_ids))}",
+            )
+
+    # Query for splits by name
+    if requested_names:
+        name_results = await session.stream(
+            select(models.DatasetSplit.id, models.DatasetSplit.name).where(
+                models.DatasetSplit.name.in_(requested_names)
+            )
+        )
+        name_to_id: dict[str, int] = {}
+        async for split_id, split_name in name_results:
+            split_ids.append(split_id)
+            split_names.append(split_name)
+            name_to_id[split_name] = split_id
+
+        # Check if all requested names were found
+        missing_names = [name for name in requested_names if name not in name_to_id]
+        if missing_names:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Dataset splits not found: {', '.join(missing_names)}",
+            )
+
+    return split_ids, split_names

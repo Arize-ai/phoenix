@@ -525,7 +525,7 @@ class Experiments:
 
         payload = {
             "version_id": dataset.version_id,
-            "split_ids": dataset.split_ids,
+            "splits": dataset.splits,
             "name": experiment_name,
             "description": experiment_description,
             "metadata": experiment_metadata,
@@ -1563,7 +1563,7 @@ class AsyncExperiments:
 
         payload = {
             "version_id": dataset.version_id,
-            "split_ids": dataset.split_ids,
+            "splits": dataset.splits,
             "name": experiment_name,
             "description": experiment_description,
             "metadata": experiment_metadata,

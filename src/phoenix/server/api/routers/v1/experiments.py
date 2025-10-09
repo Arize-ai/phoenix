@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
-from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -26,6 +25,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import ExperimentInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 
+from .datasets import _resolve_split_identifiers
 from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses, add_text_csv_content_to_responses
 
@@ -81,8 +81,9 @@ class CreateExperimentRequestBody(V1RoutesBaseModel):
             "(if omitted, the latest version will be used)"
         ),
     )
-    split_ids: Optional[list[str]] = Field(
-        default=None, description="List of dataset split names to filter by"
+    splits: Optional[list[str]] = Field(
+        default=None,
+        description="List of dataset split identifiers (GlobalIDs or names) to filter by",
     )
     repetitions: int = Field(
         default=1, description="Number of times the experiment should be repeated for each example"
@@ -197,22 +198,16 @@ async def create_experiment(
             user_id=user_id,
         )
 
-        resolved_split_ids = []
-        if request_body.split_ids is not None:
-            for split_id_str in request_body.split_ids:
-                split_gid = GlobalID.from_id(split_id_str)
-                if split_gid.type_name != "DatasetSplit":
-                    raise HTTPException(
-                        detail=f"ID {split_gid} is not a DatasetSplit",
-                        status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                    )
-                resolved_split_ids.append(int(split_gid.node_id))
-            # generate experiment dataset splits relation
+        if request_body.splits is not None:
+            # Resolve split identifiers (IDs or names) to IDs and names
+            resolved_split_ids, _ = await _resolve_split_identifiers(session, request_body.splits)
+
+            # Generate experiment dataset splits relation
             # prior to the crosswalk table insert
             # in insert_experiment_with_examples_snapshot
             experiment.experiment_dataset_splits = [
-                models.ExperimentDatasetSplit(dataset_split_id=dataset_split_id)
-                for dataset_split_id in resolved_split_ids
+                models.ExperimentDatasetSplit(dataset_split_id=split_id)
+                for split_id in resolved_split_ids
             ]
 
         # crosswalk table assumes the relation is already present
