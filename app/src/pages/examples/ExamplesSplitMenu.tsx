@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -36,6 +36,14 @@ type ExamplesSplitMenuProps = {
   examplesCache: ExamplesCache;
 };
 
+const getInitialMode = (selectedExampleIds: string[]) => {
+  if (selectedExampleIds.length > 0) {
+    return "apply";
+  } else {
+    return "filter";
+  }
+};
+
 export const ExamplesSplitMenu = ({
   onSelectionChange,
   onExampleSelectionChange,
@@ -43,16 +51,12 @@ export const ExamplesSplitMenu = ({
   selectedExampleIds,
   examplesCache,
 }: ExamplesSplitMenuProps) => {
-  const getInitialMode = useCallback(() => {
-    if (selectedExampleIds.length > 0) {
-      return "apply";
-    } else {
-      return "filter";
-    }
-  }, [selectedExampleIds]);
-  const [mode, setMode] = useState<"filter" | "apply" | "create">(
-    getInitialMode
+  const [mode, setMode] = useState<"filter" | "apply" | "create">(() =>
+    getInitialMode(selectedExampleIds)
   );
+  useEffect(() => {
+    setMode(getInitialMode(selectedExampleIds));
+  }, [selectedExampleIds]);
   const dynamicOnSelectionChange = useCallback(
     (splitIds: string[]) => {
       if (selectedExampleIds.length > 0) {
@@ -67,16 +71,16 @@ export const ExamplesSplitMenu = ({
   const selectedPartialExamples = useMemo(() => {
     return selectedExampleIds.map((id) => examplesCache[id]).filter(Boolean);
   }, [selectedExampleIds, examplesCache]);
+
   return (
     <MenuTrigger
       onOpenChange={(open) => {
         if (!open) {
-          onExampleSelectionChange([]);
-          setMode(getInitialMode());
+          setMode(getInitialMode(selectedExampleIds));
         }
       }}
     >
-      <Button trailingVisual={<Icon svg={<Icons.ChevronDown />} />}>
+      <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
         Splits
       </Button>
       <Popover>
@@ -214,13 +218,13 @@ const SplitMenu = ({
   return (
     <Autocomplete filter={contains}>
       <View
-        padding="size-100"
-        paddingTop="size-50"
+        padding="size-200"
+        paddingTop="size-100"
         borderBottomWidth="thin"
         borderColor="dark"
         minWidth={300}
       >
-        <Flex direction="column" gap="size-50">
+        <Flex direction="column" gap="size-100">
           <Flex
             direction="row"
             justifyContent="space-between"
