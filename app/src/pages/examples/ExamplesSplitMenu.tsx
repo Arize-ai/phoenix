@@ -1,5 +1,6 @@
-import { Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { css } from "@emotion/react";
 
 import {
   Autocomplete,
@@ -21,6 +22,8 @@ import {
   useFilter,
   View,
 } from "@phoenix/components";
+import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
+import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
 import { ExamplesSplitMenuQuery } from "@phoenix/pages/examples/__generated__/ExamplesSplitMenuQuery.graphql";
 import { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { Mutable } from "@phoenix/typeUtils";
@@ -40,6 +43,16 @@ export const ExamplesSplitMenu = ({
   selectedExampleIds,
   examplesCache,
 }: ExamplesSplitMenuProps) => {
+  const getInitialMode = useCallback(() => {
+    if (selectedExampleIds.length > 0) {
+      return "apply";
+    } else {
+      return "filter";
+    }
+  }, [selectedExampleIds]);
+  const [mode, setMode] = useState<"filter" | "apply" | "create">(
+    getInitialMode
+  );
   const dynamicOnSelectionChange = useCallback(
     (splitIds: string[]) => {
       if (selectedExampleIds.length > 0) {
@@ -59,6 +72,7 @@ export const ExamplesSplitMenu = ({
       onOpenChange={(open) => {
         if (!open) {
           onExampleSelectionChange([]);
+          setMode(getInitialMode());
         }
       }}
     >
@@ -66,14 +80,31 @@ export const ExamplesSplitMenu = ({
         Splits
       </Button>
       <Popover>
-        <Suspense fallback={<Loading />}>
-          <SplitMenu
-            selectedSplitIds={selectedSplitIds}
-            onSelectionChange={dynamicOnSelectionChange}
-            selectedExampleIds={selectedExampleIds}
-            onExampleSelectionChange={onExampleSelectionChange}
-            selectedPartialExamples={selectedPartialExamples}
-          />
+        <Suspense
+          fallback={
+            <Loading
+              css={css`
+                min-width: 300px;
+              `}
+            />
+          }
+        >
+          {(mode === "filter" || mode === "apply") && (
+            <SplitMenu
+              selectedSplitIds={selectedSplitIds}
+              onSelectionChange={dynamicOnSelectionChange}
+              selectedExampleIds={selectedExampleIds}
+              onExampleSelectionChange={onExampleSelectionChange}
+              selectedPartialExamples={selectedPartialExamples}
+              setMode={setMode}
+            />
+          )}
+          {mode === "create" && (
+            <SplitMenuCreateContent
+              setMode={setMode}
+              selectedExampleIds={selectedExampleIds}
+            />
+          )}
         </Suspense>
       </Popover>
     </MenuTrigger>
@@ -84,8 +115,8 @@ const SplitMenu = ({
   selectedSplitIds,
   selectedExampleIds,
   onSelectionChange,
-  onExampleSelectionChange,
   selectedPartialExamples,
+  setMode,
 }: {
   selectedSplitIds: string[];
   selectedExampleIds: string[];
@@ -95,6 +126,7 @@ const SplitMenu = ({
     id: string;
     datasetSplits: { id: string; name: string }[];
   }[];
+  setMode: (mode: "filter" | "apply" | "create") => void;
 }) => {
   const { contains } = useFilter({ sensitivity: "base" });
   const data = useLazyLoadQuery<ExamplesSplitMenuQuery>(
@@ -202,8 +234,7 @@ const SplitMenu = ({
             <IconButton
               size="S"
               onPress={() => {
-                onSelectionChange([]);
-                onExampleSelectionChange([]);
+                setMode("create");
               }}
             >
               <Icon svg={<Icons.PlusOutline />} />
@@ -357,5 +388,54 @@ const SplitMenuApplyContent = ({
         </MenuItem>
       )}
     </Menu>
+  );
+};
+
+const SplitMenuCreateContent = ({
+  setMode,
+  selectedExampleIds,
+}: {
+  setMode: (mode: "filter" | "apply" | "create") => void;
+  selectedExampleIds: string[];
+}) => {
+  const onCompleted = useCallback(() => {
+    if (selectedExampleIds.length > 0) {
+      setMode("apply");
+    } else {
+      setMode("filter");
+    }
+  }, [setMode, selectedExampleIds]);
+  const { onSubmit, isCreatingDatasetSplit } = useDatasetSplitMutations({
+    exampleIds: selectedExampleIds,
+    onCompleted,
+  });
+  return (
+    <Flex direction="column">
+      <View
+        padding="size-100"
+        paddingTop="size-100"
+        borderBottomWidth="thin"
+        borderColor="dark"
+        minWidth={300}
+      >
+        <Flex gap="size-100" alignItems="center">
+          <IconButton onPress={() => setMode("filter")} size="S">
+            <Icon svg={<Icons.ChevronLeft />} />
+          </IconButton>
+          <Heading level={4} weight="heavy">
+            Create Split
+            {selectedExampleIds.length > 0
+              ? " for " + selectedExampleIds.length + " examples"
+              : ""}
+          </Heading>
+        </Flex>
+      </View>
+      <View maxWidth={300}>
+        <NewDatasetSplitForm
+          onSubmit={onSubmit}
+          isSubmitting={isCreatingDatasetSplit}
+        />
+      </View>
+    </Flex>
   );
 };
