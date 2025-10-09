@@ -1278,10 +1278,10 @@
                   "type": "null"
                 }
               ],
-              "description": "The names of the dataset splits to filter by",
+              "description": "List of dataset split identifiers (GlobalIDs or names) to filter by",
               "title": "Splits"
             },
-            "description": "The names of the dataset splits to filter by"
+            "description": "List of dataset split identifiers (GlobalIDs or names) to filter by"
           }
         ],
         "responses": {
@@ -4643,7 +4643,7 @@
             "title": "Version Id",
             "description": "ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)"
           },
-          "split_ids": {
+          "splits": {
             "anyOf": [
               {
                 "items": {
@@ -4655,8 +4655,8 @@
                 "type": "null"
               }
             ],
-            "title": "Split Ids",
-            "description": "List of dataset split names to filter by"
+            "title": "Splits",
+            "description": "List of dataset split identifiers (GlobalIDs or names) to filter by"
           },
           "repetitions": {
             "type": "integer",
@@ -5010,12 +5010,12 @@
             "format": "date-time",
             "title": "Updated At"
           },
-          "split_ids": {
+          "splits": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Split Ids"
+            "title": "Splits"
           }
         },
         "type": "object",
@@ -5762,12 +5762,12 @@
             "type": "string",
             "title": "Version Id"
           },
-          "split_ids": {
+          "filtered_splits": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Split Ids"
+            "title": "Filtered Splits"
           },
           "examples": {
             "items": {
