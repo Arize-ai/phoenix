@@ -213,9 +213,9 @@ class Dataset:
             "examples": deepcopy(self.examples),
         }
 
-        # Include split_ids if present (optional field for backwards compatibility)
+        # Include filtered_splits if present (optional field for backwards compatibility)
         if self.splits:
-            result["splits"] = self.splits
+            result["filtered_splits"] = self.splits
 
         return result
 
