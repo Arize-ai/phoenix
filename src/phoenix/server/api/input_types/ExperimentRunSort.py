@@ -3,7 +3,7 @@ from enum import Enum, auto
 from typing import Any, Optional
 
 import strawberry
-from sqlalchemy import ColumnElement, Select, func, literal, select, tuple_
+from sqlalchemy import ColumnElement, Select, and_, func, literal, or_, select, tuple_
 from sqlalchemy.sql.selectable import NamedFromClause
 from strawberry import Maybe
 from typing_extensions import assert_never
@@ -80,13 +80,13 @@ def add_order_by_and_page_start_to_query(
     )
     query = query.order_by(*order_by_columns)
     if after_experiment_run_rowid is not None:
-        after_expression = _get_after_expression(
+        query = _add_after_expression(
+            query=query,
             sort=sort,
             experiment_run_rowid=after_experiment_run_rowid,
             after_sort_column_value=after_sort_column_value,
             mean_annotation_scores=mean_annotation_scores,
         )
-        query = query.where(after_expression)
     query = _add_joins_and_selects_to_query(
         query=query,
         sort=sort,
@@ -133,16 +133,17 @@ def _get_order_by_columns(
     raise NotImplementedError
 
 
-def _get_after_expression(
+def _add_after_expression(
+    query: Select[Any],
     sort: Optional[ExperimentRunSort],
     experiment_run_rowid: int,
     after_sort_column_value: Optional[CursorSortColumnValue],
     mean_annotation_scores: Optional[NamedFromClause],
-) -> Any:
+) -> Select[Any]:
     if not sort:
         # Ideally, this would return the runs sorted by (example_id, repetition_number),
         # but this would require making the cursor more complex or adding an additional query.
-        return models.ExperimentRun.id > literal(experiment_run_rowid)
+        return query.where(models.ExperimentRun.id > literal(experiment_run_rowid))
     sort_direction = sort.dir
     compare_fn = operator.gt if sort_direction is SortDir.asc else operator.lt
     if sort.col.metric:
@@ -150,12 +151,14 @@ def _get_after_expression(
         assert metric is not None
         if metric is ExperimentRunMetric.latencyMs:
             assert after_sort_column_value is not None
-            return compare_fn(
-                tuple_(models.ExperimentRun.latency_ms, models.ExperimentRun.id),
-                tuple_(
-                    literal(after_sort_column_value),
-                    literal(experiment_run_rowid),
-                ),
+            return query.where(
+                compare_fn(
+                    tuple_(models.ExperimentRun.latency_ms, models.ExperimentRun.id),
+                    tuple_(
+                        literal(after_sort_column_value),
+                        literal(experiment_run_rowid),
+                    ),
+                )
             )
         else:
             assert_never(metric)
@@ -164,14 +167,24 @@ def _get_after_expression(
         assert annotation_name is not None
         assert mean_annotation_scores is not None
         if after_sort_column_value is None:
-            return compare_fn(models.ExperimentRun.id, literal(experiment_run_rowid))
+            return query.where(
+                and_(
+                    compare_fn(models.ExperimentRun.id, literal(experiment_run_rowid)),
+                    mean_annotation_scores.c.score.is_(None),
+                )
+            )
         else:
-            return compare_fn(
-                tuple_(mean_annotation_scores.c.score, models.ExperimentRun.id),
-                tuple_(
-                    literal(after_sort_column_value),
-                    literal(experiment_run_rowid),
-                ),
+            return query.where(
+                or_(
+                    compare_fn(
+                        tuple_(mean_annotation_scores.c.score, models.ExperimentRun.id),
+                        tuple_(
+                            literal(after_sort_column_value),
+                            literal(experiment_run_rowid),
+                        ),
+                    ),
+                    mean_annotation_scores.c.score.is_(None),
+                )
             )
     raise NotImplementedError
 

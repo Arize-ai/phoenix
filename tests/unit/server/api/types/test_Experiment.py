@@ -213,12 +213,12 @@ async def test_experiment_resolver_returns_sequence_number(
                 ),
                 "first": 2,
             },
-            [1],
-            False,
+            [1, 6],
+            True,
             str(
                 Cursor(
-                    rowid=1,
-                    sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=0.0),
+                    rowid=6,
+                    sort_column=CursorSortColumn(type=CursorSortColumnDataType.NULL, value=None),
                 )
             ),
             id="correctness-desc-with-after-cursor",
@@ -263,7 +263,7 @@ async def test_experiment_resolver_returns_sequence_number(
                 },
                 "after": str(
                     Cursor(
-                        rowid=3,
+                        rowid=6,
                         sort_column=CursorSortColumn(
                             type=CursorSortColumnDataType.NULL, value=None
                         ),
@@ -271,12 +271,12 @@ async def test_experiment_resolver_returns_sequence_number(
                 ),
                 "first": 2,
             },
-            [2, 1],
-            False,
+            [5, 4],
+            True,
             str(
                 Cursor(
-                    rowid=1,
-                    sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=0.0),
+                    rowid=4,
+                    sort_column=CursorSortColumn(type=CursorSortColumnDataType.NULL, value=None),
                 )
             ),
             id="correctness-desc-with-after-cursor-with-null-sort-column",

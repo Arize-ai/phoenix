@@ -1,4 +1,5 @@
 import random
+import time
 import uuid
 from typing import Any
 
@@ -11,7 +12,7 @@ from phoenix.experiments.types import ExampleInput
 phoenix_client = Client()
 
 examples = []
-for i in range(150):
+for i in range(300):
     examples.append(
         {
             "question": f"Question {i + 1}: What is the meaning of life?",
@@ -37,6 +38,7 @@ dataset = phoenix_client.datasets.create_dataset(
 
 def dummy_task(input: ExampleInput) -> str:
     question = input["question"]
+    time.sleep(random.uniform(0, 0.1))  # random latency
     return f"Dummy response to: {question}"
 
 
@@ -47,7 +49,8 @@ def random_score(input: dict[str, Any], output: str, expected: dict[str, Any]) -
 
 @create_evaluator(kind="code")
 def random_score_with_bias(input: dict[str, Any], output: str, expected: dict[str, Any]) -> float:
-    """Evaluator that returns a random score with some bias based on input."""
+    if random.random() < 0.5:
+        raise RuntimeError("Stochastic evaluator error occurred.")
     question_num = int(input["question"].split()[1].rstrip(":"))
     base_score = 0.5 + (question_num % 10) * 0.05  # Bias towards 0.5-1.0
     return min(1.0, base_score + random.uniform(-0.2, 0.2))
