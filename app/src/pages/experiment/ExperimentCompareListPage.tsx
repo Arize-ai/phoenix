@@ -446,6 +446,7 @@ export function ExperimentCompareListPage({
   );
 
   const columns = useMemo(() => {
+    // getting the column types right here is challenging, so we type hint each column individually and allow typescript to infer the list type
     const exampleColumn: AccessorKeyColumnDef<TableRow, TableRow["example"]> = {
       header: "example",
       accessorKey: "example",
@@ -668,6 +669,7 @@ export function ExperimentCompareListPage({
       TableRow,
       TableRow["latencyMs"]
     > = columnHelper.accessor("latencyMs", {
+      // the columnHelper pattern is used here because it gives us access to the sorting state within the cell, which is needed to place the sort icon in a reasonable place in the header
       header: ({ column }) => (
         <Flex direction="column" gap="size-100">
           <div
@@ -841,6 +843,8 @@ export function ExperimentCompareListPage({
     >[] =
       annotationSummaries?.map((annotationSummary) =>
         columnHelper.accessor(
+          // the columnHelper pattern is used here because it gives us access to the sorting state within the cell, which is needed to place the sort icon in a reasonable place in the header
+
           (row: TableRow) => {
             const baseExperimentRunAnnotation =
               row.baseExperimentRunAnnotationsByName[
