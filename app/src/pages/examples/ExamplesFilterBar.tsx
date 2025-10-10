@@ -22,7 +22,6 @@ export const ExamplesFilterBar = () => {
   return (
     <View
       padding="size-100"
-      flex="1 1 auto"
       // prevent the example table from eating the bottom of the filter bar
       // TODO: refactor the dataset page layout css to not have to do this
       minHeight={54}
@@ -43,15 +42,13 @@ export const ExamplesFilterBar = () => {
           aria-label="Search examples"
         />
         {isSplitsEnabled && (
-          <Flex gap="size-100" alignItems="center">
-            <ExamplesSplitMenu
-              onSelectionChange={setSelectedSplitIds}
-              onExampleSelectionChange={setSelectedExampleIds}
-              selectedSplitIds={selectedSplitIds}
-              selectedExampleIds={selectedExampleIds}
-              examplesCache={examplesCache}
-            />
-          </Flex>
+          <ExamplesSplitMenu
+            onSelectionChange={setSelectedSplitIds}
+            onExampleSelectionChange={setSelectedExampleIds}
+            selectedSplitIds={selectedSplitIds}
+            selectedExampleIds={selectedExampleIds}
+            examplesCache={examplesCache}
+          />
         )}
       </Flex>
     </View>
