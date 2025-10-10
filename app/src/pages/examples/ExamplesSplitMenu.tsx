@@ -44,6 +44,13 @@ const getInitialMode = (selectedExampleIds: string[]) => {
   }
 };
 
+/**
+ * The ExamplesSplitMenu is a menu that allows the user to filter or apply splits to examples.
+ * It can be in one of two modes: filter, apply, or create.
+ * In filter mode, the user can select splits from a list.
+ * In apply mode, the user can select splits to add or remove from the selected examples.
+ * In create mode, the user can create a new split.
+ */
 export const ExamplesSplitMenu = ({
   onSelectionChange,
   onExampleSelectionChange,
@@ -117,6 +124,12 @@ export const ExamplesSplitMenu = ({
   );
 };
 
+/**
+ * The SplitMenu is a menu that allows the user to filter or apply splits to examples.
+ * It can be in one of three modes: filter, or apply.
+ * In filter mode, the user can select splits from a list.
+ * In apply mode, the user can select splits to add or remove from the selected examples.
+ */
 const SplitMenu = ({
   selectedSplitIds,
   selectedExampleIds,
@@ -360,34 +373,36 @@ const SplitMenuApplyContent = ({
     <Menu
       items={splits}
       renderEmptyState={() => "No splits found"}
+      // hack to keep the menu open when splits are changed
       selectedKeys={[]}
       selectionMode="multiple"
       // ensure that menu items are re-rendered when splitStates changes
       dependencies={[splitStates]}
+      // update selection state externally, the menu does not actually know what is selected
+      onSelectionChange={(keys) => {
+        const selectedId = Array.from(keys as Set<string>)[0];
+        if (splitStates[selectedId] === "checked") {
+          // remove split from all selected examples
+          onSelectionChange({
+            selectedExampleIds: selectedPartialExamples.map((e) => e.id),
+            removeSplitIds: [selectedId],
+          });
+        } else {
+          // state is indeterminate or unchecked, add split to all selected examples
+          onSelectionChange({
+            selectedExampleIds: selectedPartialExamples.map((e) => e.id),
+            addSplitIds: [selectedId],
+          });
+        }
+      }}
     >
       {({ id, name, color }) => (
         <MenuItem id={id} textValue={name}>
           <Flex alignItems="center" gap="size-200">
             <Checkbox
+              excludeFromTabOrder
               isSelected={splitStates[id] === "checked"}
               isIndeterminate={splitStates[id] === "indeterminate"}
-              onChange={(checked) => {
-                if (checked) {
-                  onSelectionChange({
-                    selectedExampleIds: selectedPartialExamples.map(
-                      (e) => e.id
-                    ),
-                    addSplitIds: [id],
-                  });
-                } else {
-                  onSelectionChange({
-                    selectedExampleIds: selectedPartialExamples.map(
-                      (e) => e.id
-                    ),
-                    removeSplitIds: [id],
-                  });
-                }
-              }}
             />
             <Token color={color}>{name}</Token>
           </Flex>
