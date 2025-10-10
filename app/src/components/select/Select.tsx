@@ -11,12 +11,17 @@ import { SizeProvider } from "@phoenix/contexts";
 
 import { fieldBaseCSS } from "../field/styles";
 
-export interface SelectProps
-  extends AriaSelectProps,
+export interface SelectProps<
+  T extends object = object,
+  M extends "single" | "multiple" = "single",
+> extends AriaSelectProps<T, M>,
     SizingProps,
     StylableProps {}
 
-function Select(props: SelectProps, ref: Ref<HTMLDivElement>) {
+function Select<T extends object, M extends "single" | "multiple">(
+  props: SelectProps<T, M>,
+  ref: Ref<HTMLDivElement>
+) {
   const { size = "M", ...otherProps } = props;
   return (
     <SizeProvider size={size}>
