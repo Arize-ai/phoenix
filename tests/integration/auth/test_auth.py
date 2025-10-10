@@ -2639,17 +2639,20 @@ class TestTraceAnnotations:
         )
 
 
-class TestApiAccessViaCookies:
-    """Tests REST API v1 access control using cookie-based authentication.
+class TestApiAccessViaCookiesOrApiKeys:
+    """Tests REST API v1 access control using both cookie and API key authentication.
 
-    These tests verify access restrictions across all user roles (Admin, Member, Viewer)
-    at the v1 router level. Cookies (access tokens) are used for authentication since
-    viewers cannot create API keys.
+    These comprehensive tests verify access restrictions across all user roles (Admin, Member,
+    Viewer) at the v1 router level using BOTH authentication methods:
+    - Cookie-based authentication (access tokens from login)
+    - API key authentication (Bearer tokens)
 
     Test Coverage:
     - 30+ GET endpoints across all major v1 routers (projects, datasets, experiments,
       prompts, annotation configs, evaluations, spans, annotations)
     - All user roles: Admin, Member, Viewer, and Default Admin
+    - Both authentication methods: cookies and API keys
+    - Token lifecycle: verifies logout invalidates cookies but not API keys
     - Error handling: validates proper HTTP status codes (200, 404, 422) for both
       valid and invalid resource identifiers
     - Invalid ID format handling: ensures GlobalID parsing errors return 422 instead of 500
@@ -2658,6 +2661,10 @@ class TestApiAccessViaCookies:
     - GET requests: Most common resources are readable by all roles
     - Admin-only GET requests: /users endpoint requires admin role
     - Write operations (POST/PUT/DELETE): Blocked for viewers (403)
+    
+    Token Lifecycle (Logout Behavior):
+    - After logout, cookies are invalidated and return 401 for all requests
+    - After logout, API keys persist and maintain their authorization level
     """
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
@@ -2710,24 +2717,39 @@ class TestApiAccessViaCookies:
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        """Test that all roles (Admin, Member, Viewer) can read common v1 API resources.
+        """Test that all roles can read common v1 API resources using cookies or API keys.
 
         This test verifies comprehensive read access across 30+ GET endpoints covering:
         - Projects, Datasets, Experiments, Prompts, Annotation Configs
         - Evaluations, Spans, and Annotations
-        
+
         Tests both valid endpoints (200 responses) and error cases:
         - 404: Non-existent resources or missing required parameters
         - 422: Invalid ID format (ensures GlobalID errors are handled properly)
-        
+
+        Authentication and token lifecycle verification:
+        1. Access endpoint with cookies → expects configured status code
+        2. User logs out
+        3. Access endpoint with cookies → expects 401 (cookies invalidated)
+        4. Access endpoint with API key → expects configured status code (API keys persist)
+
+        This verifies that logout only invalidates session cookies, not API keys.
+
         Uses dynamic invalid IDs (token_hex) to ensure test isolation and verify
         server-side error handling returns appropriate status codes instead of 500.
         """
         assert expected_status_code not in (401, 403)
         user = _get_user(_app, role_or_user)
-        tokens = user.log_in(_app).tokens
-        client = _httpx_client(_app, tokens)
-        response = client.get(endpoint.format(token_hex(4)))
+        logged_in_user = user.log_in(_app)
+        api_key = logged_in_user.create_api_key(_app)
+        tokens = logged_in_user.tokens
+        endpoint = endpoint.format(token_hex(4))
+        response = _httpx_client(_app, tokens).get(endpoint)
+        assert response.status_code == expected_status_code
+        logged_in_user.log_out(_app)
+        response = _httpx_client(_app, tokens).get(endpoint)
+        assert response.status_code == 401
+        response = _httpx_client(_app, api_key).get(endpoint)
         assert response.status_code == expected_status_code
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
@@ -2744,21 +2766,34 @@ class TestApiAccessViaCookies:
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        """Test that only admins can access admin-restricted GET endpoints.
+        """Test that only admins can access admin-restricted GET endpoints with any auth method.
 
         The /v1/users endpoint requires admin role via the require_admin dependency.
-        Members and Viewers should receive 403 Forbidden when accessing this endpoint.
+        Members and Viewers should receive 403 Forbidden when accessing this endpoint,
+        regardless of whether they use cookies or API keys.
+
+        Authentication and token lifecycle verification:
+        1. Access endpoint with cookies → expects 200 (admins) or 403 (non-admins)
+        2. User logs out
+        3. Access endpoint with cookies → expects 401 (cookies invalidated)
+        4. Access endpoint with API key → expects 200 (admins) or 403 (non-admins, API keys persist)
+
+        This verifies that:
+        - Authorization is enforced consistently for both auth methods
+        - Logout invalidates cookies but not API keys
         """
         user = _get_user(_app, role_or_user)
-        tokens = user.log_in(_app).tokens
-        client = _httpx_client(_app, tokens)
-        response = client.get(endpoint)
-        # Check if user is admin (either ADMIN role or DEFAULT_ADMIN)
+        logged_in_user = user.log_in(_app)
+        api_key = logged_in_user.create_api_key(_app)
+        tokens = logged_in_user.tokens
         is_admin = user.role is UserRoleInput.ADMIN or role_or_user is _DEFAULT_ADMIN
-        if is_admin:
-            assert response.status_code != 403
-        else:
-            assert response.status_code == 403
+        response = _httpx_client(_app, tokens).get(endpoint)
+        assert response.status_code == 200 if is_admin else 403
+        logged_in_user.log_out(_app)
+        response = _httpx_client(_app, tokens).get(endpoint)
+        assert response.status_code == 401
+        response = _httpx_client(_app, api_key).get(endpoint)
+        assert response.status_code == 200 if is_admin else 403
 
     @pytest.mark.parametrize(
         "method,endpoint",
@@ -2800,15 +2835,37 @@ class TestApiAccessViaCookies:
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        """Test that viewers are blocked from all write operations.
+        """Test that viewers are blocked from all write operations with any auth method.
 
         Viewers have read-only access and must receive 403 Forbidden for any
-        POST, PUT, or DELETE requests across all v1 API endpoints. This test
-        covers write operations for projects, datasets, experiments, prompts,
-        annotations, evaluations, spans, traces, and users.
+        POST, PUT, or DELETE requests across all v1 API endpoints, regardless
+        of whether they authenticate with cookies or API keys.
+
+        This test covers write operations for:
+        - Projects, Datasets, Experiments, Prompts
+        - Annotations (span, trace, session, document)
+        - Evaluations, Spans, Traces, Users
+
+        Authentication and token lifecycle verification:
+        1. Write request with cookies → expects 403 (viewers are read-only)
+        2. User logs out
+        3. Write request with cookies → expects 401 (cookies invalidated)
+        4. Write request with API key → expects 403 (viewers remain read-only, API keys persist)
+
+        This verifies that:
+        - Viewer write restrictions are enforced consistently for both auth methods
+        - Logout invalidates cookies but not API keys
+        - API keys maintain the same authorization level (viewer = read-only) after logout
         """
         user = _get_user(_app, _VIEWER)
-        tokens = user.log_in(_app).tokens
-        client = _httpx_client(_app, tokens)
-        response = client.request(method, endpoint.format(token_hex(4)))
+        logged_in_user = user.log_in(_app)
+        api_key = logged_in_user.create_api_key(_app)
+        tokens = logged_in_user.tokens
+        endpoint = endpoint.format(token_hex(4))
+        response = _httpx_client(_app, tokens).request(method, endpoint)
+        assert response.status_code == 403
+        logged_in_user.log_out(_app)
+        response = _httpx_client(_app, tokens).request(method, endpoint)
+        assert response.status_code == 401
+        response = _httpx_client(_app, api_key).request(method, endpoint)
         assert response.status_code == 403
