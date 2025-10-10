@@ -209,7 +209,13 @@ class GetDatasetResponseBody(ResponseBody[DatasetWithExampleCount]):
 async def get_dataset(
     request: Request, id: str = Path(description="The ID of the dataset")
 ) -> GetDatasetResponseBody:
-    dataset_id = GlobalID.from_id(id)
+    try:
+        dataset_id = GlobalID.from_id(id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {id}",
+            status_code=422,
+        ) from e
 
     if (type_name := dataset_id.type_name) != DATASET_NODE_NAME:
         raise HTTPException(detail=f"ID {dataset_id} refers to a f{type_name}", status_code=404)
@@ -709,8 +715,24 @@ async def get_dataset_examples(
         ),
     ),
 ) -> ListDatasetExamplesResponseBody:
-    dataset_gid = GlobalID.from_id(id)
-    version_gid = GlobalID.from_id(version_id) if version_id else None
+    try:
+        dataset_gid = GlobalID.from_id(id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {id}",
+            status_code=422,
+        ) from e
+
+    if version_id:
+        try:
+            version_gid = GlobalID.from_id(version_id)
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}",
+                status_code=422,
+            ) from e
+    else:
+        version_gid = None
 
     if (dataset_type := dataset_gid.type_name) != "Dataset":
         raise HTTPException(detail=f"ID {dataset_gid} refers to a {dataset_type}", status_code=404)
@@ -992,12 +1014,25 @@ def _get_content_jsonl_openai_evals(examples: list[models.DatasetExampleRevision
 async def _get_db_examples(
     *, session: Any, id: str, version_id: Optional[str]
 ) -> tuple[str, list[models.DatasetExampleRevision]]:
-    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    try:
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {id}",
+            status_code=422,
+        ) from e
+
     dataset_version_id: Optional[int] = None
     if version_id:
-        dataset_version_id = from_global_id_with_expected_type(
-            GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
-        )
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
+            )
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}",
+                status_code=422,
+            ) from e
     latest_version = (
         select(
             models.DatasetExampleRevision.dataset_example_id,

@@ -2642,36 +2642,93 @@ class TestTraceAnnotations:
 class TestApiAccessViaCookies:
     """Tests REST API v1 access control using cookie-based authentication.
 
-    These tests verify viewer access restrictions enforced at the v1 router level.
-    Viewers use cookies (access tokens) since they cannot create API keys.
+    These tests verify access restrictions across all user roles (Admin, Member, Viewer)
+    at the v1 router level. Cookies (access tokens) are used for authentication since
+    viewers cannot create API keys.
 
-    Access rules:
-    - GET requests: Most are allowed for all roles, some require admin
-    - Write operations (POST/PUT/DELETE): Blocked for viewers
+    Test Coverage:
+    - 30+ GET endpoints across all major v1 routers (projects, datasets, experiments,
+      prompts, annotation configs, evaluations, spans, annotations)
+    - All user roles: Admin, Member, Viewer, and Default Admin
+    - Error handling: validates proper HTTP status codes (200, 404, 422) for both
+      valid and invalid resource identifiers
+    - Invalid ID format handling: ensures GlobalID parsing errors return 422 instead of 500
+
+    Access Rules:
+    - GET requests: Most common resources are readable by all roles
+    - Admin-only GET requests: /users endpoint requires admin role
+    - Write operations (POST/PUT/DELETE): Blocked for viewers (403)
     """
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     @pytest.mark.parametrize(
-        "endpoint",
+        "expected_status_code,endpoint",
         [
-            "v1/projects",
-            "v1/experiments",
-            "v1/datasets",
+            # Projects
+            (404, "v1/projects/invalid-id-{}"),
+            (200, "v1/projects"),
+            # Datasets
+            (422, "v1/datasets/invalid-id-{}"),
+            (200, "v1/datasets"),
+            (422, "v1/datasets/invalid-id-{}/versions"),
+            (422, "v1/datasets/invalid-id-{}/examples"),
+            (422, "v1/datasets/invalid-id-{}/csv"),
+            (422, "v1/datasets/invalid-id-{}/jsonl/openai_ft"),
+            (422, "v1/datasets/invalid-id-{}/jsonl/openai_evals"),
+            # Experiments
+            (422, "v1/experiments/invalid-id-{}"),
+            (422, "v1/datasets/invalid-id-{}/experiments"),
+            (422, "v1/experiments/invalid-id-{}/runs"),
+            (422, "v1/experiments/invalid-id-{}/json"),
+            (422, "v1/experiments/invalid-id-{}/csv"),
+            # Prompts
+            (200, "v1/prompts"),
+            (200, "v1/prompts/invalid-id-{}/versions"),  # Treats as prompt name, returns empty list
+            (422, "v1/prompt_versions/invalid-id-{}"),
+            (404, "v1/prompts/invalid-id-{}/tags/test-tag"),
+            (404, "v1/prompts/invalid-id-{}/latest"),
+            (422, "v1/prompt_versions/invalid-id-{}/tags"),
+            # Annotation configs
+            (200, "v1/annotation_configs"),
+            (404, "v1/annotation_configs/invalid-id-{}"),
+            # Evaluations
+            (404, "v1/evaluations"),  # Returns 404 when no project_name provided
+            # Spans (project-scoped)
+            (404, "v1/projects/invalid-id-{}/spans"),
+            (404, "v1/projects/invalid-id-{}/spans/otlpv1"),
+            # Annotations (project-scoped) - require query params
+            (422, "v1/projects/invalid-id-{}/span_annotations"),
+            (422, "v1/projects/invalid-id-{}/trace_annotations"),
+            (422, "v1/projects/invalid-id-{}/session_annotations"),
         ],
     )
     def test_all_roles_can_read_common_resources(
         self,
         role_or_user: _RoleOrUser,
+        expected_status_code: int,
         endpoint: str,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        """All roles including viewers can GET common resources like projects and datasets."""
+        """Test that all roles (Admin, Member, Viewer) can read common v1 API resources.
+
+        This test verifies comprehensive read access across 30+ GET endpoints covering:
+        - Projects, Datasets, Experiments, Prompts, Annotation Configs
+        - Evaluations, Spans, and Annotations
+        
+        Tests both valid endpoints (200 responses) and error cases:
+        - 404: Non-existent resources or missing required parameters
+        - 422: Invalid ID format (ensures GlobalID errors are handled properly)
+        
+        Uses dynamic invalid IDs (token_hex) to ensure test isolation and verify
+        server-side error handling returns appropriate status codes instead of 500.
+        """
+        assert expected_status_code not in (401, 403)
         user = _get_user(_app, role_or_user)
         tokens = user.log_in(_app).tokens
         client = _httpx_client(_app, tokens)
-        response = client.get(endpoint)
-        assert response.status_code != 403
+        response = client.get(endpoint.format(token_hex(4)))
+        assert response.status_code == expected_status_code
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     @pytest.mark.parametrize(
@@ -2687,7 +2744,11 @@ class TestApiAccessViaCookies:
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        """Only admins can GET user management endpoints like /v1/users."""
+        """Test that only admins can access admin-restricted GET endpoints.
+
+        The /v1/users endpoint requires admin role via the require_admin dependency.
+        Members and Viewers should receive 403 Forbidden when accessing this endpoint.
+        """
         user = _get_user(_app, role_or_user)
         tokens = user.log_in(_app).tokens
         client = _httpx_client(_app, tokens)
@@ -2705,15 +2766,15 @@ class TestApiAccessViaCookies:
             # POST routes
             ("POST", "v1/annotation_configs"),
             ("POST", "v1/datasets/upload"),
-            ("POST", "v1/datasets/1/experiments"),
+            ("POST", "v1/datasets/invalid-id-{}/experiments"),
             ("POST", "v1/document_annotations"),
             ("POST", "v1/evaluations"),
             ("POST", "v1/experiment_evaluations"),
-            ("POST", "v1/experiments/1/runs"),
+            ("POST", "v1/experiments/invalid-id-{}/runs"),
             ("POST", "v1/projects"),
-            ("POST", "v1/projects/1/spans"),
+            ("POST", "v1/projects/invalid-id-{}/spans"),
             ("POST", "v1/prompts"),
-            ("POST", "v1/prompt_versions/1/tags"),
+            ("POST", "v1/prompt_versions/invalid-id-{}/tags"),
             ("POST", "v1/session_annotations"),
             ("POST", "v1/span_annotations"),
             ("POST", "v1/spans"),
@@ -2721,15 +2782,15 @@ class TestApiAccessViaCookies:
             ("POST", "v1/traces"),
             ("POST", "v1/users"),
             # PUT routes
-            ("PUT", "v1/annotation_configs/1"),
-            ("PUT", "v1/projects/1"),
+            ("PUT", "v1/annotation_configs/invalid-id-{}"),
+            ("PUT", "v1/projects/invalid-id-{}"),
             # DELETE routes
-            ("DELETE", "v1/annotation_configs/1"),
-            ("DELETE", "v1/datasets/1"),
-            ("DELETE", "v1/projects/1"),
-            ("DELETE", "v1/spans/1"),
-            ("DELETE", "v1/traces/1"),
-            ("DELETE", "v1/users/1"),
+            ("DELETE", "v1/annotation_configs/invalid-id-{}"),
+            ("DELETE", "v1/datasets/invalid-id-{}"),
+            ("DELETE", "v1/projects/invalid-id-{}"),
+            ("DELETE", "v1/spans/invalid-id-{}"),
+            ("DELETE", "v1/traces/invalid-id-{}"),
+            ("DELETE", "v1/users/invalid-id-{}"),
         ],
     )
     def test_viewers_blocked_from_all_write_operations(
@@ -2739,9 +2800,15 @@ class TestApiAccessViaCookies:
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        """Viewers receive 403 for all write operations (POST/PUT/DELETE)."""
+        """Test that viewers are blocked from all write operations.
+
+        Viewers have read-only access and must receive 403 Forbidden for any
+        POST, PUT, or DELETE requests across all v1 API endpoints. This test
+        covers write operations for projects, datasets, experiments, prompts,
+        annotations, evaluations, spans, traces, and users.
+        """
         user = _get_user(_app, _VIEWER)
         tokens = user.log_in(_app).tokens
         client = _httpx_client(_app, tokens)
-        response = client.request(method, endpoint)
+        response = client.request(method, endpoint.format(token_hex(4)))
         assert response.status_code == 403

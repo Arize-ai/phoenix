@@ -159,7 +159,13 @@ async def list_experiment_runs(
         gt=0,
     ),
 ) -> ListExperimentRunsResponseBody:
-    experiment_gid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_gid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_gid, "Experiment")
     except ValueError:

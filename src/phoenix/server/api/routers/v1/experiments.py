@@ -104,7 +104,13 @@ async def create_experiment(
     request_body: CreateExperimentRequestBody,
     dataset_id: str = Path(..., title="Dataset ID"),
 ) -> CreateExperimentResponseBody:
-    dataset_globalid = GlobalID.from_id(dataset_id)
+    try:
+        dataset_globalid = GlobalID.from_id(dataset_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {dataset_id}",
+            status_code=422,
+        ) from e
     try:
         dataset_rowid = from_global_id_with_expected_type(dataset_globalid, "Dataset")
     except ValueError:
@@ -117,6 +123,12 @@ async def create_experiment(
     if dataset_version_globalid_str is not None:
         try:
             dataset_version_globalid = GlobalID.from_id(dataset_version_globalid_str)
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {dataset_version_globalid_str}",
+                status_code=422,
+            ) from e
+        try:
             dataset_version_id = from_global_id_with_expected_type(
                 dataset_version_globalid, "DatasetVersion"
             )
@@ -232,7 +244,13 @@ class GetExperimentResponseBody(ResponseBody[Experiment]):
     response_description="Experiment retrieved successfully",
 )
 async def get_experiment(request: Request, experiment_id: str) -> GetExperimentResponseBody:
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
@@ -282,7 +300,13 @@ async def list_experiments(
     request: Request,
     dataset_id: str = Path(..., title="Dataset ID"),
 ) -> ListExperimentsResponseBody:
-    dataset_gid = GlobalID.from_id(dataset_id)
+    try:
+        dataset_gid = GlobalID.from_id(dataset_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {dataset_id}",
+            status_code=422,
+        ) from e
     try:
         dataset_rowid = from_global_id_with_expected_type(dataset_gid, "Dataset")
     except ValueError:
@@ -397,7 +421,13 @@ async def get_experiment_json(
     request: Request,
     experiment_id: str = Path(..., title="Experiment ID"),
 ) -> Response:
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
@@ -464,7 +494,13 @@ async def get_experiment_csv(
     request: Request,
     experiment_id: str = Path(..., title="Experiment ID"),
 ) -> Response:
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
