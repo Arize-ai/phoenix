@@ -11,6 +11,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.ExperimentRunSort import (
     ExperimentRunSort,
     add_order_by_and_page_start_to_query,
@@ -69,8 +70,10 @@ class Experiment(Node):
         after: Optional[CursorString] = UNSET,
         sort: Optional[ExperimentRunSort] = UNSET,
     ) -> Connection[ExperimentRun]:
+        if first is not None and first <= 0:
+            raise BadRequest("first must be a positive integer if set")
         experiment_rowid = self.id_attr
-        page_size = first if first is not None else _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE
+        page_size = first or _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE
         experiment_runs_query = (
             select(models.ExperimentRun)
             .where(models.ExperimentRun.experiment_id == experiment_rowid)
@@ -107,28 +110,29 @@ class Experiment(Node):
             run = result[0]
             gql_run = to_gql_experiment_run(run)
             sort_column: Optional[CursorSortColumn] = None
-            if sort and sort.col.metric:
-                sort_column = CursorSortColumn(
-                    type=CursorSortColumnDataType.FLOAT,
-                    value=run.latency_ms,
-                )
-            elif sort and sort.col.annotation_name:
-                annotation_score = result[1]
-                data_type = (
-                    CursorSortColumnDataType.FLOAT
-                    if annotation_score is not None
-                    else CursorSortColumnDataType.NULL
-                )
-                sort_column = CursorSortColumn(
-                    type=data_type,
-                    value=annotation_score,
-                )
+            if sort:
+                if sort.col.metric:
+                    sort_column = CursorSortColumn(
+                        type=CursorSortColumnDataType.FLOAT,
+                        value=run.latency_ms,
+                    )
+                elif sort.col.annotation_name:
+                    annotation_score = result[1]
+                    data_type = (
+                        CursorSortColumnDataType.FLOAT
+                        if annotation_score is not None
+                        else CursorSortColumnDataType.NULL
+                    )
+                    sort_column = CursorSortColumn(
+                        type=data_type,
+                        value=annotation_score,
+                    )
             cursor = Cursor(rowid=run.id, sort_column=sort_column)
             cursors_and_nodes.append((cursor, gql_run))
 
         return connection_from_cursors_and_nodes(
             cursors_and_nodes=cursors_and_nodes,
-            has_previous_page=False,
+            has_previous_page=False,  # set to false since we are only doing forward pagination (https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo.Fields) # noqa: E501
             has_next_page=has_next_page,
         )
 
