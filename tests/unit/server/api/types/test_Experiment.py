@@ -292,8 +292,6 @@ async def test_runs_resolver_returns_runs_for_experiment_in_expected_order(
     dataset_with_experiment_runs: Any,
     db: DbSessionFactory,
 ) -> None:
-    # async with db() as session:
-    #     result = await session.execute(select(_get_mean_annotation_scores_subquery("correctness")))
     query = """
       query ($experimentId: ID!, $first: Int, $after: String, $sort: ExperimentRunSort) {
         experiment: node(id: $experimentId) {
