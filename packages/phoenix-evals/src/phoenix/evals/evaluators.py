@@ -37,7 +37,7 @@ from .legacy.evaluators import (
 from .llm import LLM
 from .llm.types import ObjectGenerationMethod
 from .templating import Template
-from .utils import remap_eval_input
+from .utils import default_tqdm_progress_bar_formatter, remap_eval_input
 
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
@@ -1185,6 +1185,7 @@ def evaluate_dataframe(
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     tqdm_bar_format: Optional[str] = None,
+    hide_tqdm_bar: Optional[bool] = False,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -1198,8 +1199,10 @@ def evaluate_dataframe(
             to each evaluator.
         evaluators: List of evaluators to apply to each row. Input mapping should be
             already bound via `bind_evaluator` or column names should match evaluator input fields.
-        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
-            disabled.
+        tqdm_bar_format: Optional format string for the progress bar. If None and hide_tqdm_bar is
+            False, the default progress bar formatter is used.
+        hide_tqdm_bar: Optional flag to control whether to hide the progress bar. If None, the
+            progress bar is shown. Defaults to False.
         exit_on_error: Optional flag to control whether execution should stop on the first error.
             If None, uses SyncExecutor's default (True).
         max_retries: Optional number of times to retry on exceptions. If None, uses SyncExecutor's
@@ -1301,8 +1304,15 @@ def evaluate_dataframe(
 
     # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
-    if tqdm_bar_format is not None:
-        executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
+    if hide_tqdm_bar:
+        executor_kwargs["tqdm_bar_format"] = None
+    else:
+        if tqdm_bar_format is None:
+            executor_kwargs["tqdm_bar_format"] = default_tqdm_progress_bar_formatter(
+                "Evaluating Dataframe"
+            )
+        else:
+            executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
     if exit_on_error is not None:
         executor_kwargs["exit_on_error"] = exit_on_error
     if max_retries is not None:
@@ -1324,6 +1334,7 @@ async def async_evaluate_dataframe(
     evaluators: List[Evaluator],
     concurrency: Optional[int] = None,
     tqdm_bar_format: Optional[str] = None,
+    hide_tqdm_bar: Optional[bool] = False,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -1339,8 +1350,10 @@ async def async_evaluate_dataframe(
             already bound via `bind_evaluator` or column names should match evaluator input fields.
         concurrency: Optional number of concurrent consumers. If None, uses AsyncExecutor's default
             (3).
-        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
-            disabled.
+        tqdm_bar_format: Optional format string for the progress bar. If None, use the default
+            formatter.
+        hide_tqdm_bar: Optional flag to control whether to hide the progress bar. If None, the
+            progress bar is shown. Defaults to False.
         exit_on_error: Optional flag to control whether execution should stop on the first
             error. If None, uses AsyncExecutor's default (True).
         max_retries: Optional number of times to retry on exceptions. If None, uses
@@ -1465,8 +1478,15 @@ async def async_evaluate_dataframe(
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
-    if tqdm_bar_format is not None:
-        executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
+    if hide_tqdm_bar:
+        executor_kwargs["tqdm_bar_format"] = None
+    else:
+        if tqdm_bar_format is None:
+            executor_kwargs["tqdm_bar_format"] = default_tqdm_progress_bar_formatter(
+                "Evaluating Dataframe"
+            )
+        else:
+            executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
     if exit_on_error is not None:
         executor_kwargs["exit_on_error"] = exit_on_error
     if max_retries is not None:
