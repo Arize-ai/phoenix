@@ -14,7 +14,6 @@ from .evaluators import (
     create_classifier,
     create_evaluator,
     evaluate_dataframe,
-    list_evaluators,
 )
 from .legacy import (
     CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE,
@@ -171,7 +170,6 @@ __all__ = [
     "ToolSchema",
     "SourceType",
     "create_classifier",
-    "list_evaluators",
     "create_evaluator",
     "async_evaluate_dataframe",
     "evaluate_dataframe",

@@ -619,17 +619,6 @@ class ClassificationEvaluator(LLMEvaluator):
         ]
 
 
-# --- Registry & simple evaluator decorator ---
-_registry: Dict[str, Callable[..., List[Score]]] = {}
-
-
-def list_evaluators() -> List[str]:
-    """
-    Return a list of names of all registered evaluators.
-    """
-    return list(_registry.keys())
-
-
 def create_evaluator(
     *, name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
 ) -> Callable[[Callable[..., Any]], Evaluator]:
@@ -859,7 +848,6 @@ def create_evaluator(
 
             _AsyncFunctionEvaluator.__doc__ = original_docstring
             evaluator_instance = _AsyncFunctionEvaluator()
-            _registry[name] = evaluator_instance.evaluate
             return evaluator_instance
         else:
 
@@ -904,7 +892,6 @@ def create_evaluator(
 
             _FunctionEvaluator.__doc__ = original_docstring
             evaluator_instance = _FunctionEvaluator()  # pyright: ignore
-            _registry[name] = evaluator_instance.evaluate
             return evaluator_instance
 
     return deco
@@ -1506,7 +1493,6 @@ __all__ = [
     "Evaluator",
     "LLMEvaluator",
     "ClassificationEvaluator",
-    "list_evaluators",
     "create_evaluator",
     "create_classifier",
     "bind_evaluator",
