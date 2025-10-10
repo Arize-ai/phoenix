@@ -68,7 +68,7 @@ export const useDatasetSplitMutations = ({
 
   const onSubmit = useCallback(
     (params: DatasetSplitParams) => {
-      const trimmed = params.name.trim();
+      const trimmedSplitName = params.name.trim();
       const connections = [
         ConnectionHandler.getConnectionID(
           "client:root",
@@ -77,14 +77,14 @@ export const useDatasetSplitMutations = ({
       ];
 
       // TODO: Validate params
-      if (!trimmed) return;
+      if (!trimmedSplitName) return;
 
       if (exampleIds) {
         commitCreateDatasetSplitWithExamples({
           variables: {
             connections,
             input: {
-              name: trimmed,
+              name: trimmedSplitName,
               description: params.description || null,
               color: params.color,
               metadata: null,
@@ -108,7 +108,7 @@ export const useDatasetSplitMutations = ({
           variables: {
             connections,
             input: {
-              name: trimmed,
+              name: trimmedSplitName,
               description: params.description || null,
               color: params.color,
               metadata: null,
@@ -117,7 +117,7 @@ export const useDatasetSplitMutations = ({
           onCompleted: () => {
             notifySuccess({
               title: "Split created",
-              message: `Created split "${trimmed}"`,
+              message: `Created split "${trimmedSplitName}"`,
             });
             onCompleted?.();
           },
