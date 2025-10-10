@@ -158,7 +158,7 @@ remote_agent = agent_engines.create(
 
 **Agent Module (`adk_agent.py`):**
 ```python
-root_age = Agent(
+root_agent = Agent(
    name="test_agent",
    model="gemini-2.0-flash-exp",
    description="Agent to answer questions.",
