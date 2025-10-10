@@ -707,118 +707,103 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
         session.add(experiment)
         await session.flush()
 
-        experiment_run_without_trace = models.ExperimentRun(
-            experiment_id=experiment.id,
-            dataset_example_id=example.id,
-            output={"task_output": "run-1-output-value"},
-            repetition_number=1,
-            start_time=start_time,
-            end_time=start_time + timedelta(seconds=1),
-        )
-        session.add(experiment_run_without_trace)
-
-        experiment_run_with_trace = models.ExperimentRun(
-            experiment_id=experiment.id,
-            dataset_example_id=example.id,
-            output={"task_output": {"run-2-output-key": "run-2-output-value"}},
-            trace_id="trace-id",
-            repetition_number=2,
-            start_time=start_time,
-            end_time=start_time + timedelta(seconds=2),
-        )
-        session.add(experiment_run_with_trace)
-
-        experiment_run_with_missing_trace = models.ExperimentRun(
-            experiment_id=experiment.id,
-            dataset_example_id=example.id,
-            output={"task_output": 12345},
-            trace_id="non-existent-trace-id",
-            repetition_number=3,
-            start_time=start_time,
-            end_time=start_time + timedelta(seconds=3),
-        )
-        session.add(experiment_run_with_missing_trace)
+        experiment_runs = [
+            models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                output={"task_output": "run-1-output-value"},
+                repetition_number=1,
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=1),
+            ),
+            models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                output={"task_output": {"run-2-output-key": "run-2-output-value"}},
+                trace_id="trace-id",
+                repetition_number=2,
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=2),
+            ),
+            models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                output={"task_output": 12345},
+                trace_id="non-existent-trace-id",
+                repetition_number=3,
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=3),
+            ),
+            models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                output={"task_output": "run-4-output-value"},
+                repetition_number=4,
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=4),
+            ),
+            models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                output={"task_output": "run-5-output-value"},
+                repetition_number=5,
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=5),
+            ),
+            models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                output={"task_output": "run-6-output-value"},
+                repetition_number=6,
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=6),
+            ),
+        ]
+        session.add_all(experiment_runs)
         await session.flush()
 
-        experiment_run_without_trace_2 = models.ExperimentRun(
-            experiment_id=experiment.id,
-            dataset_example_id=example.id,
-            output={"task_output": "run-4-output-value"},
-            repetition_number=4,
-            start_time=start_time,
-            end_time=start_time + timedelta(seconds=4),
-        )
-        session.add(experiment_run_without_trace_2)
-        await session.flush()
-
-        experiment_run_without_trace_3 = models.ExperimentRun(
-            experiment_id=experiment.id,
-            dataset_example_id=example.id,
-            output={"task_output": "run-5-output-value"},
-            repetition_number=5,
-            start_time=start_time,
-            end_time=start_time + timedelta(seconds=5),
-        )
-        session.add(experiment_run_without_trace_3)
-        await session.flush()
-
-        experiment_run_without_trace_4 = models.ExperimentRun(
-            experiment_id=experiment.id,
-            dataset_example_id=example.id,
-            output={"task_output": "run-6-output-value"},
-            repetition_number=6,
-            start_time=start_time,
-            end_time=start_time + timedelta(seconds=6),
-        )
-        session.add(experiment_run_without_trace_4)
-        await session.flush()
-
-        # Add annotations for the first three experiment runs
-        # The first two runs are annotated with a score, the third run has no score.
-        annotation_1 = models.ExperimentRunAnnotation(
-            experiment_run_id=experiment_run_without_trace.id,
-            name="correctness",
-            annotator_kind="CODE",
-            label=None,
-            score=0.0,
-            explanation=None,
-            trace_id=None,
-            error=None,
-            metadata_={},
-            start_time=start_time,
-            end_time=start_time + timedelta(seconds=1),
-        )
-        session.add(annotation_1)
-
-        annotation_2 = models.ExperimentRunAnnotation(
-            experiment_run_id=experiment_run_with_trace.id,
-            name="correctness",
-            annotator_kind="CODE",
-            label=None,
-            score=1.0,
-            explanation=None,
-            trace_id=None,
-            error=None,
-            metadata_={},
-            start_time=start_time,
-            end_time=start_time + timedelta(seconds=2),
-        )
-        session.add(annotation_2)
-
-        annotation_3 = models.ExperimentRunAnnotation(
-            experiment_run_id=experiment_run_with_missing_trace.id,
-            name="correctness",
-            annotator_kind="CODE",
-            label="correct",
-            score=None,
-            explanation=None,
-            trace_id=None,
-            error=None,
-            metadata_={},
-            start_time=start_time,
-            end_time=start_time + timedelta(seconds=3),
-        )
-        session.add(annotation_3)
+        experiment_run_annotations = [
+            models.ExperimentRunAnnotation(
+                experiment_run_id=experiment_runs[0].id,
+                name="correctness",
+                annotator_kind="CODE",
+                label=None,
+                score=0.0,
+                explanation=None,
+                trace_id=None,
+                error=None,
+                metadata_={},
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=1),
+            ),
+            models.ExperimentRunAnnotation(
+                experiment_run_id=experiment_runs[1].id,
+                name="correctness",
+                annotator_kind="CODE",
+                label=None,
+                score=1.0,
+                explanation=None,
+                trace_id=None,
+                error=None,
+                metadata_={},
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=2),
+            ),
+            models.ExperimentRunAnnotation(
+                experiment_run_id=experiment_runs[2].id,
+                name="correctness",
+                annotator_kind="CODE",
+                label="correct",
+                score=None,
+                explanation=None,
+                trace_id=None,
+                error=None,
+                metadata_={},
+                start_time=start_time,
+                end_time=start_time + timedelta(seconds=3),
+            ),
+        ]
+        session.add_all(experiment_run_annotations)
         await session.flush()
 
 
