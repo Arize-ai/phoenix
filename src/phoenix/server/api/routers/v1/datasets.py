@@ -406,7 +406,12 @@ async def upload_dataset(
         description="If true, fulfill request synchronously and return JSON containing dataset_id.",
     ),
 ) -> Optional[UploadDatasetResponseBody]:
-    request_content_type = request.headers["content-type"]
+    request_content_type = request.headers.get("content-type")
+    if not request_content_type:
+        raise HTTPException(
+            detail="Missing content-type header",
+            status_code=400,
+        )
     examples: Union[Examples, Awaitable[Examples]]
     if request_content_type.startswith("application/json"):
         try:
