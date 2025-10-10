@@ -1083,8 +1083,11 @@ def bind_evaluator(
             }
             result = bound_evaluator.evaluate(data)
     """
-    evaluator_copy = copy.deepcopy(evaluator)
-    evaluator_copy.bind(input_mapping=input_mapping)
+    # Create a shallow copy of the evaluator to avoid deepcopying LLM (contains locks)
+    evaluator_copy = copy.copy(evaluator)
+    # Deep copy the input mapping so the bound copy is fully independent
+    mapping_copy = copy.deepcopy(input_mapping) if input_mapping is not None else None
+    evaluator_copy.bind(input_mapping=mapping_copy)
     return evaluator_copy
 
 
@@ -1132,7 +1135,7 @@ def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
         "exceptions": [repr(exc) for exc in eval_execution_details.exceptions],
         "execution_seconds": eval_execution_details.execution_seconds,
     }
-    return json.dumps(result)
+    return result
 
 
 def _process_results_and_add_to_dataframe(
@@ -1170,7 +1173,7 @@ def _process_results_and_add_to_dataframe(
             if not score.name:
                 raise ValueError(f"Score has no name: {score}")
             score_col = f"{score.name}_score"
-            score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
+            score_dicts[score_col][eval_input_index] = score.to_dict()
 
     # Add scores to dataframe
     for score_col, score_dict in score_dicts.items():
