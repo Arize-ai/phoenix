@@ -1,5 +1,37 @@
 # Changelog
 
+## [12.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.3.0...arize-phoenix-v12.4.0) (2025-10-08)
+
+
+### Features
+
+* add PKCE for OAuth 2.0 OIDC ([#9545](https://github.com/Arize-ai/phoenix/issues/9545)) ([2df7d17](https://github.com/Arize-ai/phoenix/commit/2df7d17cf031d9f1502b81e398e73a6fd32040f0))
+
+
+### Bug Fixes
+
+* allow new project for v1/spans ingestion ([#9817](https://github.com/Arize-ai/phoenix/issues/9817)) ([da2912e](https://github.com/Arize-ai/phoenix/commit/da2912edcc2a8fa5a85a48ef3d5bb388d804be62))
+* Ensure status columns are readable, and resizable ([#9820](https://github.com/Arize-ai/phoenix/issues/9820)) ([63ad6e2](https://github.com/Arize-ai/phoenix/commit/63ad6e2e32f9f587394a5f450d208835e00f1348))
+* **experiments:** fix copy button cutoff in slideover run cards ([#9810](https://github.com/Arize-ai/phoenix/issues/9810)) ([d5b734c](https://github.com/Arize-ai/phoenix/commit/d5b734cf920d817cd500711a2b4f1c070a25091b))
+* unflatten span attributes for v1/spans ingestion ([#9815](https://github.com/Arize-ai/phoenix/issues/9815)) ([0f6adaf](https://github.com/Arize-ai/phoenix/commit/0f6adafa65e7938eaf5ddf9691327945f654b031))
+
+## [12.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.2.0...arize-phoenix-v12.3.0) (2025-10-06)
+
+
+### Features
+
+* dataset label tab in setting page ([#9768](https://github.com/Arize-ai/phoenix/issues/9768)) ([78a68d7](https://github.com/Arize-ai/phoenix/commit/78a68d7284d347faf5eb614610fa2b50804ba280))
+* datasets table label column ([#9788](https://github.com/Arize-ai/phoenix/issues/9788)) ([af9f163](https://github.com/Arize-ai/phoenix/commit/af9f163e8c0c6b61aed7b57fad3b9201be77ea55))
+* **experiments:** experiment compare slideover UI updates ([#9784](https://github.com/Arize-ai/phoenix/issues/9784)) ([8280b37](https://github.com/Arize-ai/phoenix/commit/8280b3796b4f055eb750a3c099e2c543b105e73e))
+* **experiments:** paginate experiment comparison slideover on list page ([#9621](https://github.com/Arize-ai/phoenix/issues/9621)) ([981e4bd](https://github.com/Arize-ai/phoenix/commit/981e4bd63401d25010ea1821c5492c37311dcf08))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#9798](https://github.com/Arize-ai/phoenix/issues/9798)) ([09a81fa](https://github.com/Arize-ai/phoenix/commit/09a81faa088d0f868a929a274cdb1f148cccdd4e))
+* don't display untrusted query parameters ([#9792](https://github.com/Arize-ai/phoenix/issues/9792)) ([c875856](https://github.com/Arize-ai/phoenix/commit/c875856c032c0231b68dbd9fb93bdb211a7dbc61))
+* improve error handling for OIDC ([#9763](https://github.com/Arize-ai/phoenix/issues/9763)) ([440fe5e](https://github.com/Arize-ai/phoenix/commit/440fe5ebc94d86eee7df2d4dd915138182bb2b3a))
+
 ## [12.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.1.0...arize-phoenix-v12.2.0) (2025-10-03)
 
 

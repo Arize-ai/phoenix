@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 
 import { Alert, Flex, LinkButton, View } from "@phoenix/components";
 
+import { getAuthErrorMessage } from "./authErrors";
 import { AuthLayout } from "./AuthLayout";
 import { OAuth2Login } from "./OAuth2Login";
 import { PhoenixLogo } from "./PhoenixLogo";
@@ -21,7 +22,9 @@ export function LoggedOutPage() {
   const [searchParams] = useSearchParams();
   const returnUrl = searchParams.get("returnUrl");
   const showBacktoLogin = !window.Config.basicAuthDisabled;
-  const error = searchParams.get("error");
+  const errorCode = searchParams.get("error");
+  // Validate and get safe error message (prevents XSS/phishing via query params)
+  const errorMessage = getAuthErrorMessage(errorCode);
   return (
     <AuthLayout>
       <Flex direction="column" gap="size-200" alignItems="center">
@@ -30,8 +33,8 @@ export function LoggedOutPage() {
         </View>
       </Flex>
       <View paddingBottom="size-100">
-        <Alert variant={error ? "danger" : "success"}>
-          {error || "You have been logged out"}
+        <Alert variant={errorMessage ? "danger" : "success"}>
+          {errorMessage || "You have been logged out"}
         </Alert>
       </View>
       {showBacktoLogin && (

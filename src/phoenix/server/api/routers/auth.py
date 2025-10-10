@@ -7,15 +7,6 @@ from urllib.parse import urlencode, urlparse, urlunparse
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
-from starlette.status import (
-    HTTP_204_NO_CONTENT,
-    HTTP_302_FOUND,
-    HTTP_401_UNAUTHORIZED,
-    HTTP_403_FORBIDDEN,
-    HTTP_404_NOT_FOUND,
-    HTTP_422_UNPROCESSABLE_ENTITY,
-    HTTP_503_SERVICE_UNAVAILABLE,
-)
 
 from phoenix.auth import (
     DEFAULT_SECRET_LENGTH,
@@ -76,7 +67,7 @@ router = APIRouter(prefix="/auth", include_in_schema=False, dependencies=auth_de
 @router.post("/login")
 async def login(request: Request) -> Response:
     if get_env_disable_basic_auth():
-        raise HTTPException(status_code=HTTP_403_FORBIDDEN)
+        raise HTTPException(status_code=403)
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
@@ -85,7 +76,7 @@ async def login(request: Request) -> Response:
     password = data.get("password")
 
     if not email or not password:
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Email and password required")
+        raise HTTPException(status_code=401, detail="Email and password required")
 
     # Sanitize email by trimming and lowercasing
     email = sanitize_email(email)
@@ -101,14 +92,14 @@ async def login(request: Request) -> Response:
             or (password_hash := user.password_hash) is None
             or (salt := user.password_salt) is None
         ):
-            raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=LOGIN_FAILED_MESSAGE)
+            raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
 
     loop = asyncio.get_running_loop()
     password_is_valid = partial(
         is_valid_password, password=password, salt=salt, password_hash=password_hash
     )
     if not await loop.run_in_executor(None, password_is_valid):
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=LOGIN_FAILED_MESSAGE)
+        raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
 
     access_token, refresh_token = await create_access_and_refresh_tokens(
         token_store=token_store,
@@ -116,7 +107,7 @@ async def login(request: Request) -> Response:
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    response = Response(status_code=HTTP_204_NO_CONTENT)
+    response = Response(status_code=204)
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
     )
@@ -146,7 +137,7 @@ async def logout(
         await token_store.log_out(user_id)
     redirect_path = "/logout" if get_env_disable_basic_auth() else "/login"
     redirect_url = prepend_root_path(request.scope, redirect_path)
-    response = Response(status_code=HTTP_302_FOUND, headers={"Location": redirect_url})
+    response = Response(status_code=302, headers={"Location": redirect_url})
     response = delete_access_token_cookie(response)
     response = delete_refresh_token_cookie(response)
     response = delete_oauth2_state_cookie(response)
@@ -159,7 +150,7 @@ async def refresh_tokens(request: Request) -> Response:
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     if (refresh_token := request.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)) is None:
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
+        raise HTTPException(status_code=401, detail="Missing refresh token")
     token_store: TokenStore = request.app.state.get_token_store()
     refresh_token_claims = await token_store.read(Token(refresh_token))
     if (
@@ -169,9 +160,9 @@ async def refresh_tokens(request: Request) -> Response:
         or (user_id := int(refresh_token_claims.subject)) is None
         or (expiration_time := refresh_token_claims.expiration_time) is None
     ):
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
     if expiration_time.timestamp() < datetime.now().timestamp():
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired refresh token")
+        raise HTTPException(status_code=401, detail="Expired refresh token")
     await token_store.revoke(refresh_token_id)
 
     if (
@@ -189,14 +180,14 @@ async def refresh_tokens(request: Request) -> Response:
                 select(models.User).filter_by(id=user_id).options(joinedload(models.User.role))
             )
         ) is None:
-            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="User not found")
+            raise HTTPException(status_code=404, detail="User not found")
     access_token, refresh_token = await create_access_and_refresh_tokens(
         token_store=token_store,
         user=user,
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    response = Response(status_code=HTTP_204_NO_CONTENT)
+    response = Response(status_code=204)
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
     )
@@ -209,7 +200,7 @@ async def refresh_tokens(request: Request) -> Response:
 @router.post("/password-reset-email")
 async def initiate_password_reset(request: Request) -> Response:
     if get_env_disable_basic_auth():
-        raise HTTPException(status_code=HTTP_403_FORBIDDEN)
+        raise HTTPException(status_code=403)
     data = await request.json()
     if not (email := data.get("email")):
         raise MISSING_EMAIL
@@ -231,7 +222,7 @@ async def initiate_password_reset(request: Request) -> Response:
         )
     if user is None or user.auth_method != "LOCAL":
         # Withold privileged information
-        return Response(status_code=HTTP_204_NO_CONTENT)
+        return Response(status_code=204)
     token_store: TokenStore = request.app.state.get_token_store()
     if user.password_reset_token:
         await token_store.revoke(PasswordResetTokenId(user.password_reset_token.id))
@@ -247,13 +238,13 @@ async def initiate_password_reset(request: Request) -> Response:
     components = (url.scheme, url.netloc, path, "", query_string, "")
     reset_url = urlunparse(components)
     await sender.send_password_reset_email(email, reset_url)
-    return Response(status_code=HTTP_204_NO_CONTENT)
+    return Response(status_code=204)
 
 
 @router.post("/password-reset")
 async def reset_password(request: Request) -> Response:
     if get_env_disable_basic_auth():
-        raise HTTPException(status_code=HTTP_403_FORBIDDEN)
+        raise HTTPException(status_code=403)
     data = await request.json()
     if not (password := data.get("password")):
         raise MISSING_PASSWORD
@@ -270,7 +261,7 @@ async def reset_password(request: Request) -> Response:
         user = await session.scalar(select(models.User).filter_by(id=int(user_id)))
     if user is None or user.auth_method != "LOCAL":
         # Withold privileged information
-        return Response(status_code=HTTP_204_NO_CONTENT)
+        return Response(status_code=204)
     validate_password_format(password)
     user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
     loop = asyncio.get_running_loop()
@@ -281,7 +272,7 @@ async def reset_password(request: Request) -> Response:
     async with request.app.state.db() as session:
         session.add(user)
         await session.flush()
-    response = Response(status_code=HTTP_204_NO_CONTENT)
+    response = Response(status_code=204)
     assert (token_id := claims.token_id)
     await token_store.revoke(token_id)
     await token_store.log_out(UserId(user.id))
@@ -291,18 +282,18 @@ async def reset_password(request: Request) -> Response:
 LOGIN_FAILED_MESSAGE = "Invalid email and/or password"
 
 MISSING_EMAIL = HTTPException(
-    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+    status_code=422,
     detail="Email required",
 )
 MISSING_PASSWORD = HTTPException(
-    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+    status_code=422,
     detail="Password required",
 )
 SMTP_UNAVAILABLE = HTTPException(
-    status_code=HTTP_503_SERVICE_UNAVAILABLE,
+    status_code=503,
     detail="SMTP server not configured",
 )
 INVALID_TOKEN = HTTPException(
-    status_code=HTTP_401_UNAUTHORIZED,
+    status_code=401,
     detail="Invalid token",
 )

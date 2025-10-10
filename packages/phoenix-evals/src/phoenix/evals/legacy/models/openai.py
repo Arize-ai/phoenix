@@ -560,7 +560,7 @@ def _get_token_param_str(is_azure: bool, model: str) -> str:
     However, Azure OpenAI models currently do not support
     max_completion_tokens unless it's an o1 or o3 model.
     """
-    azure_reasoning_models = ("o1", "o3", "o4")
+    azure_reasoning_models = ("o1", "o3", "o4", "gpt-5")
     if is_azure and not model.startswith(azure_reasoning_models):
         return "max_tokens"
     return "max_completion_tokens"

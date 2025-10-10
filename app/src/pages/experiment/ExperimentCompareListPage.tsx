@@ -46,6 +46,7 @@ import { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__gene
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
+import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
 import { isObject } from "@phoenix/typeUtils";
 import {
   costFormatter,
@@ -95,7 +96,7 @@ export function ExperimentCompareListPage({
 }: {
   queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>;
 }) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const experimentIds = useMemo(
     () => searchParams.getAll("experimentId"),
     [searchParams]
@@ -104,6 +105,11 @@ export function ExperimentCompareListPage({
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
   >(null);
+  const [selectedTraceDetails, setSelectedTraceDetails] = useState<{
+    traceId: string;
+    projectId: string;
+    dialogTitle: string;
+  } | null>(null);
 
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
@@ -181,6 +187,10 @@ export function ExperimentCompareListPage({
                   output
                   startTime
                   endTime
+                  trace {
+                    traceId
+                    projectId
+                  }
                   costSummary {
                     total {
                       tokens
@@ -194,6 +204,10 @@ export function ExperimentCompareListPage({
                         score
                         label
                         id
+                        trace {
+                          traceId
+                          projectId
+                        }
                       }
                     }
                   }
@@ -1027,8 +1041,42 @@ export function ExperimentCompareListPage({
                     setSelectedExampleIndex(exampleIndex);
                   }
                 }}
+                openTraceDialog={(traceId, projectId, title) => {
+                  setSelectedTraceDetails({
+                    traceId,
+                    projectId,
+                    dialogTitle: title,
+                  });
+                }}
               />
             )}
+        </Modal>
+      </ModalOverlay>
+      <ModalOverlay
+        isOpen={selectedTraceDetails !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            // Clear the URL search params for the span selection
+            setSearchParams(
+              (prev) => {
+                const newParams = new URLSearchParams(prev);
+                newParams.delete("selectedSpanNodeId");
+                return newParams;
+              },
+              { replace: true }
+            );
+            setSelectedTraceDetails(null);
+          }
+        }}
+      >
+        <Modal variant="slideover" size="fullscreen">
+          {selectedTraceDetails !== null && (
+            <TraceDetailsDialog
+              traceId={selectedTraceDetails.traceId}
+              projectId={selectedTraceDetails.projectId}
+              title={selectedTraceDetails.dialogTitle}
+            />
+          )}
         </Modal>
       </ModalOverlay>
     </View>

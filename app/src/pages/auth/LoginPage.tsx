@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 
 import { Alert, Flex, View } from "@phoenix/components";
 
+import { getAuthErrorMessage, getAuthSuccessMessage } from "./authErrors";
 import { AuthLayout } from "./AuthLayout";
 import { LoginForm } from "./LoginForm";
 import { OAuth2Login } from "./OAuth2Login";
@@ -30,7 +31,11 @@ export function LoginPage() {
   const hasOAuth2Idps = oAuth2Idps.length > 0;
   const [searchParams, setSearchParams] = useSearchParams();
   const returnUrl = searchParams.get("returnUrl");
-  const message = searchParams.get("message");
+  const successCode = searchParams.get("message");
+  const errorCode = searchParams.get("error");
+  // Validate and get safe messages (prevents XSS/phishing via query params)
+  const successMessage = getAuthSuccessMessage(successCode);
+  const errorMessage = getAuthErrorMessage(errorCode);
   // The name of the idp to trigger
   const triggerIdp = searchParams.get("trigger");
 
@@ -56,14 +61,14 @@ export function LoginPage() {
           <PhoenixLogo />
         </View>
       </Flex>
-      {message && (
+      {successMessage && (
         <View paddingBottom="size-100">
-          <Alert variant="success">{message}</Alert>
+          <Alert variant="success">{successMessage}</Alert>
         </View>
       )}
       {showLoginForm && (
         <LoginForm
-          initialError={searchParams.get("error")}
+          initialError={errorMessage}
           onSubmit={() => {
             setSearchParams((prevSearchParams) => {
               // Clear message and error

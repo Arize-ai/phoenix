@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e5f508624b531d7a94697606fa5aa033>>
+ * @generated SignedSource<<5005339a6b35fdf925e175bb8a142bc0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,11 +16,11 @@ export type CreateDatasetSplitWithExamplesInput = {
   metadata?: any | null;
   name: string;
 };
-export type NewDatasetSplitDialogCreateSplitWithExamplesMutation$variables = {
+export type useDatasetSplitMutationsCreateSplitWithExamplesMutation$variables = {
   connections: ReadonlyArray<string>;
   input: CreateDatasetSplitWithExamplesInput;
 };
-export type NewDatasetSplitDialogCreateSplitWithExamplesMutation$data = {
+export type useDatasetSplitMutationsCreateSplitWithExamplesMutation$data = {
   readonly createDatasetSplitWithExamples: {
     readonly datasetSplit: {
       readonly id: string;
@@ -36,9 +36,9 @@ export type NewDatasetSplitDialogCreateSplitWithExamplesMutation$data = {
     }>;
   };
 };
-export type NewDatasetSplitDialogCreateSplitWithExamplesMutation = {
-  response: NewDatasetSplitDialogCreateSplitWithExamplesMutation$data;
-  variables: NewDatasetSplitDialogCreateSplitWithExamplesMutation$variables;
+export type useDatasetSplitMutationsCreateSplitWithExamplesMutation = {
+  response: useDatasetSplitMutationsCreateSplitWithExamplesMutation$data;
+  variables: useDatasetSplitMutationsCreateSplitWithExamplesMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -126,7 +126,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "NewDatasetSplitDialogCreateSplitWithExamplesMutation",
+    "name": "useDatasetSplitMutationsCreateSplitWithExamplesMutation",
     "selections": [
       {
         "alias": null,
@@ -152,7 +152,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "NewDatasetSplitDialogCreateSplitWithExamplesMutation",
+    "name": "useDatasetSplitMutationsCreateSplitWithExamplesMutation",
     "selections": [
       {
         "alias": null,
@@ -191,16 +191,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e746e6264dc039ea0a907e8381a3e8d7",
+    "cacheID": "c8665c4dd2f7851812b54ed8dbcd0a38",
     "id": null,
     "metadata": {},
-    "name": "NewDatasetSplitDialogCreateSplitWithExamplesMutation",
+    "name": "useDatasetSplitMutationsCreateSplitWithExamplesMutation",
     "operationKind": "mutation",
-    "text": "mutation NewDatasetSplitDialogCreateSplitWithExamplesMutation(\n  $input: CreateDatasetSplitWithExamplesInput!\n) {\n  createDatasetSplitWithExamples(input: $input) {\n    datasetSplit {\n      id\n      name\n    }\n    examples {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "mutation useDatasetSplitMutationsCreateSplitWithExamplesMutation(\n  $input: CreateDatasetSplitWithExamplesInput!\n) {\n  createDatasetSplitWithExamples(input: $input) {\n    datasetSplit {\n      id\n      name\n    }\n    examples {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "eb1ee991af123fd14dfe9b42b78728f3";
+(node as any).hash = "236b3fe8835732cd2ace26b5b29df384";
 
 export default node;

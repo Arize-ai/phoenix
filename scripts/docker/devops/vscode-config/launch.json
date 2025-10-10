@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Phoenix Source",
+      "type": "python",
+      "request": "attach",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5678
+      },
+      "justMyCode": false,
+      "pathMappings": [
+        {
+          "localRoot": "/phoenix/env/phoenix",
+          "remoteRoot": "/phoenix/env/phoenix"
+        }
+      ]
+    }
+  ]
+}

@@ -15,12 +15,6 @@ from starlette.background import BackgroundTask
 from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
-from starlette.status import (
-    HTTP_204_NO_CONTENT,
-    HTTP_404_NOT_FOUND,
-    HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-    HTTP_422_UNPROCESSABLE_ENTITY,
-)
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
@@ -50,16 +44,16 @@ router = APIRouter(tags=["traces"], include_in_schema=True)
     dependencies=[Depends(is_not_locked)],
     operation_id="addEvaluations",
     summary="Add span, trace, or document evaluations",
-    status_code=HTTP_204_NO_CONTENT,
+    status_code=204,
     responses=add_errors_to_responses(
         [
             {
-                "status_code": HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                "status_code": 415,
                 "description": (
                     "Unsupported content type, only gzipped protobuf and pandas-arrow are supported"
                 ),
             },
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            422,
         ]
     ),
     openapi_extra={
@@ -80,27 +74,21 @@ async def post_evaluations(
     if content_type == "application/x-pandas-arrow":
         return await _process_pyarrow(request)
     if content_type != "application/x-protobuf":
-        raise HTTPException(
-            detail="Unsupported content type", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE
-        )
+        raise HTTPException(detail="Unsupported content type", status_code=415)
     body = await request.body()
     if content_encoding == "gzip":
         body = gzip.decompress(body)
     elif content_encoding:
-        raise HTTPException(
-            detail="Unsupported content encoding", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE
-        )
+        raise HTTPException(detail="Unsupported content encoding", status_code=415)
     evaluation = pb.Evaluation()
     try:
         evaluation.ParseFromString(body)
     except DecodeError:
-        raise HTTPException(
-            detail="Request body is invalid", status_code=HTTP_422_UNPROCESSABLE_ENTITY
-        )
+        raise HTTPException(detail="Request body is invalid", status_code=422)
     if not evaluation.name.strip():
         raise HTTPException(
             detail="Evaluation name must not be blank/empty",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
         )
     await request.state.enqueue_evaluation(evaluation)
     return Response()
@@ -110,7 +98,7 @@ async def post_evaluations(
     "/evaluations",
     operation_id="getEvaluations",
     summary="Get span, trace, or document evaluations from a project",
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+    responses=add_errors_to_responses([404]),
 )
 async def get_evaluations(
     request: Request,
@@ -149,7 +137,7 @@ async def get_evaluations(
         and span_evals_dataframe.empty
         and document_evals_dataframe.empty
     ):
-        return Response(status_code=HTTP_404_NOT_FOUND)
+        return Response(status_code=404)
 
     evals = chain(
         map(
@@ -179,7 +167,7 @@ async def _process_pyarrow(request: Request) -> Response:
     except pa.ArrowInvalid:
         raise HTTPException(
             detail="Request body is not valid pyarrow",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
         )
     try:
         evaluations = Evaluations.from_pyarrow_reader(reader)
@@ -187,11 +175,11 @@ async def _process_pyarrow(request: Request) -> Response:
         if isinstance(e, PhoenixEvaluationNameIsMissing):
             raise HTTPException(
                 detail="Evaluation name must not be blank/empty",
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
             )
         raise HTTPException(
             detail="Invalid data in request body",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
         )
     return Response(background=BackgroundTask(_add_evaluations, request.state, evaluations))
 

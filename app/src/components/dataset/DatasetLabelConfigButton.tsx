@@ -1,6 +1,7 @@
 import { Suspense, useState } from "react";
 import { ModalOverlay } from "react-aria-components";
 import {
+  ConnectionHandler,
   graphql,
   useFragment,
   useLazyLoadQuery,
@@ -13,13 +14,9 @@ import {
   ColorSwatch,
   DebouncedSearch,
   Dialog,
-  DialogCloseButton,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
   DialogTrigger,
   Flex,
+  Heading,
   Icon,
   Icons,
   LinkButton,
@@ -27,6 +24,8 @@ import {
   ListBoxItem,
   Loading,
   Modal,
+  Popover,
+  PopoverArrow,
   type Selection,
   View,
 } from "@phoenix/components";
@@ -41,24 +40,26 @@ import { DatasetLabelConfigButtonUnsetLabelsMutation } from "./__generated__/Dat
 
 type DatasetLabelConfigButtonProps = {
   datasetId: string;
-  isOpen?: boolean;
-  onOpenChange?: (isOpen: boolean) => void;
 };
 
 export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
-  const { datasetId, isOpen: controlledIsOpen, onOpenChange } = props;
+  const { datasetId } = props;
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
-  const [uncontrolledIsOpen, setUncontrolledIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
-  // Use controlled state if provided, otherwise use uncontrolled state
-  const isOpen = controlledIsOpen ?? uncontrolledIsOpen;
-  const setIsOpen = onOpenChange ?? setUncontrolledIsOpen;
+  // Get the connection ID so new labels appear immediately
+  const connections = [
+    ConnectionHandler.getConnectionID(
+      "client:root",
+      "DatasetLabelConfigButtonAllLabels_datasetLabels"
+    ),
+  ];
 
   return (
     <>
       <DialogTrigger
         isOpen={isOpen && !showNewLabelDialog}
-        onOpenChange={(newIsOpen) => setIsOpen(newIsOpen)}
+        onOpenChange={setIsOpen}
       >
         <Button
           variant="quiet"
@@ -68,48 +69,47 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
         >
           Labels
         </Button>
-        <ModalOverlay>
-          <Modal size="S">
-            <Dialog>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Configure Dataset Labels</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <DialogContent>
-                  <Suspense fallback={<Loading />}>
-                    <DatasetLabelSelectionDialogContent
-                      datasetId={datasetId}
-                      onNewLabelPress={() => {
-                        setShowNewLabelDialog(true);
-                      }}
-                      onClose={() => setIsOpen(false)}
-                    />
-                  </Suspense>
-                </DialogContent>
-              </DialogContent>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
-      {showNewLabelDialog ? (
-        <ModalOverlay
-          isOpen
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
-              setShowNewLabelDialog(false);
-            }
-          }}
+        <Popover
+          placement="bottom start"
+          shouldCloseOnInteractOutside={() => true}
+          css={css`
+            min-width: 400px;
+            max-width: 500px;
+          `}
         >
-          <Modal size="S">
-            <NewDatasetLabelDialog
-              onCompleted={() => setShowNewLabelDialog(false)}
-            />
-          </Modal>
-        </ModalOverlay>
-      ) : null}
+          <PopoverArrow />
+          <Dialog>
+            <View padding="size-200">
+              <Flex direction="column" gap="size-200">
+                <Heading level={3}>Configure Dataset Labels</Heading>
+                <Suspense fallback={<Loading />}>
+                  <DatasetLabelSelectionDialogContent
+                    datasetId={datasetId}
+                    onNewLabelPress={() => {
+                      setShowNewLabelDialog(true);
+                    }}
+                    onClose={() => setIsOpen(false)}
+                  />
+                </Suspense>
+              </Flex>
+            </View>
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+      <ModalOverlay
+        isOpen={showNewLabelDialog}
+        onOpenChange={setShowNewLabelDialog}
+      >
+        <Modal size="S">
+          <NewDatasetLabelDialog
+            connections={connections}
+            onCompleted={() => {
+              setShowNewLabelDialog(false);
+              setIsOpen(false);
+            }}
+          />
+        </Modal>
+      </ModalOverlay>
     </>
   );
 }
@@ -135,6 +135,48 @@ function DatasetLabelSelectionDialogContent(props: {
   );
 
   return <DatasetLabelList query={query} dataset={query.dataset} {...props} />;
+}
+
+/**
+ * Exported label selection content with integrated "Create New Label" functionality
+ * Styled to match PromptLabelConfigButton
+ */
+export function DatasetLabelSelectionContent(props: {
+  datasetId: string;
+  onClose: () => void;
+}) {
+  const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
+
+  // Get the connection ID for this specific query so new labels appear immediately
+  const connections = [
+    ConnectionHandler.getConnectionID(
+      "client:root",
+      "DatasetLabelConfigButtonAllLabels_datasetLabels"
+    ),
+  ];
+
+  return (
+    <>
+      <DatasetLabelSelectionDialogContent
+        {...props}
+        onNewLabelPress={() => setShowNewLabelDialog(true)}
+      />
+      <ModalOverlay
+        isOpen={showNewLabelDialog}
+        onOpenChange={setShowNewLabelDialog}
+      >
+        <Modal size="S">
+          <NewDatasetLabelDialog
+            connections={connections}
+            onCompleted={() => {
+              // Only close the create modal, keep the popover open
+              setShowNewLabelDialog(false);
+            }}
+          />
+        </Modal>
+      </ModalOverlay>
+    </>
+  );
 }
 
 function DatasetLabelList({
@@ -313,41 +355,61 @@ function DatasetLabelList({
   };
 
   return (
-    <View padding="size-200">
-      <Flex direction="column" gap="size-100">
-        <DebouncedSearch
-          autoFocus
-          aria-label="Search labels"
-          placeholder="Search labels..."
-          onChange={setSearch}
-        />
-        <ListBox
-          aria-label="labels"
-          items={labels}
-          selectionMode="multiple"
-          selectedKeys={selected}
-          onSelectionChange={onSelectionChange}
-          css={css`
-            height: 300px;
-            width: 100%;
-          `}
-          renderEmptyState={() => "No labels found"}
-        >
-          {(item) => <DatasetLabelListBoxItem key={item.id} item={item} />}
-        </ListBox>
+    <>
+      {/* Header section matching PromptLabelConfigButton */}
+      <View
+        padding="size-100"
+        borderBottomWidth="thin"
+        borderColor="dark"
+        minWidth={300}
+      >
+        <Flex direction="column" gap="size-50">
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={4} weight="heavy">
+              Assign labels to this dataset
+            </Heading>
+            <Button variant="quiet" size="S" onPress={onNewLabelPress}>
+              <Icon svg={<Icons.PlusOutline />} />
+            </Button>
+          </Flex>
+          <DebouncedSearch
+            autoFocus
+            aria-label="Search labels"
+            placeholder="Search labels..."
+            onChange={setSearch}
+          />
+        </Flex>
+      </View>
+
+      {/* Labels list */}
+      <ListBox
+        aria-label="labels"
+        items={labels}
+        selectionMode="multiple"
+        selectedKeys={selected}
+        onSelectionChange={onSelectionChange}
+        css={css`
+          height: 300px;
+        `}
+        renderEmptyState={() => "No labels found"}
+      >
+        {(item) => <DatasetLabelListBoxItem key={item.id} item={item} />}
+      </ListBox>
+
+      {/* Footer section */}
+      <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
         <Flex
           direction="row"
           justifyContent="space-between"
           alignItems="center"
         >
-          <Flex direction="row" gap="size-100">
-            <Button variant="quiet" size="S" onPress={onNewLabelPress}>
-              Create New Label
-            </Button>
-            <LinkButton variant="quiet" size="S" to="/settings/datasets">
-              Manage Labels
-            </LinkButton>
-          </Flex>
+          <LinkButton variant="quiet" size="S" to="/settings/datasets">
+            Manage Labels
+          </LinkButton>
           <Button
             variant="primary"
             size="S"
@@ -357,8 +419,8 @@ function DatasetLabelList({
             Save Changes
           </Button>
         </Flex>
-      </Flex>
-    </View>
+      </View>
+    </>
   );
 }
 

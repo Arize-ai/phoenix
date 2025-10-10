@@ -7,7 +7,6 @@ import {
   Form,
   Input,
   Label,
-  Text,
   TextArea,
   TextField,
   Token,
@@ -88,12 +87,8 @@ export function NewDatasetSplitForm({
               value={value.toString()}
             >
               <Label>Split Name</Label>
-              <Input placeholder="e.x. test" />
-              {error?.message ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">The name of the split</Text>
-              )}
+              <Input placeholder="e.g. test" />
+              {error?.message && <FieldError>{error.message}</FieldError>}
             </TextField>
           )}
         />
@@ -111,12 +106,8 @@ export function NewDatasetSplitForm({
               value={value.toString()}
             >
               <Label>Description</Label>
-              <TextArea placeholder="A short description" />
-              {error?.message ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">The description of the split</Text>
-              )}
+              <TextArea placeholder="e.g. a test split" />
+              {error?.message && <FieldError>{error.message}</FieldError>}
             </TextField>
           )}
         />

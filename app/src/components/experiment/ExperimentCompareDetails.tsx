@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import { Button as AriaButton } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   ImperativePanelHandle,
@@ -6,6 +7,7 @@ import {
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
+import { range } from "lodash";
 import { css } from "@emotion/react";
 
 import {
@@ -23,8 +25,13 @@ import {
   Icons,
   Popover,
   PopoverArrow,
+  ProgressBar,
+  Text,
+  Tooltip,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
@@ -34,12 +41,14 @@ import {
 } from "@phoenix/components/resize";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import { useWordColor } from "@phoenix/hooks";
+import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
+import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import {
   ExperimentCompareDetailsQuery,
   ExperimentCompareDetailsQuery$data,
 } from "./__generated__/ExperimentCompareDetailsQuery.graphql";
-import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
 import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
 
 export type ExperimentCompareDetailsProps = {
@@ -49,6 +58,7 @@ export type ExperimentCompareDetailsProps = {
   baseExperimentId: string;
   compareExperimentIds: string[];
   defaultSelectedRepetitionNumber?: number;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 };
 
 type Experiment = NonNullable<
@@ -59,6 +69,12 @@ type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
 >["edges"][number]["run"];
 
+type Annotation = ExperimentRun["annotations"]["edges"][number]["annotation"];
+
+type AnnotationSummaries = NonNullable<
+  ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
+>;
+
 const SIDEBAR_PANEL_DEFAULT_SIZE = 15;
 
 export function ExperimentCompareDetails({
@@ -68,12 +84,13 @@ export function ExperimentCompareDetails({
   baseExperimentId,
   compareExperimentIds,
   defaultSelectedRepetitionNumber,
+  openTraceDialog,
 }: ExperimentCompareDetailsProps) {
   const experimentIds = useMemo(
     () => [baseExperimentId, ...compareExperimentIds],
     [baseExperimentId, compareExperimentIds]
   );
-  const exampleData = useLazyLoadQuery<ExperimentCompareDetailsQuery>(
+  const data = useLazyLoadQuery<ExperimentCompareDetailsQuery>(
     graphql`
       query ExperimentCompareDetailsQuery(
         $datasetId: ID!
@@ -96,6 +113,10 @@ export function ExperimentCompareDetails({
                   experimentId
                   output
                   error
+                  trace {
+                    traceId
+                    projectId
+                  }
                   costSummary {
                     total {
                       cost
@@ -109,6 +130,10 @@ export function ExperimentCompareDetails({
                         name
                         label
                         score
+                        trace {
+                          traceId
+                          projectId
+                        }
                       }
                     }
                   }
@@ -128,6 +153,11 @@ export function ExperimentCompareDetails({
                 }
               }
             }
+            experimentAnnotationSummaries {
+              annotationName
+              minScore
+              maxScore
+            }
           }
         }
       }
@@ -140,10 +170,11 @@ export function ExperimentCompareDetails({
     }
   );
 
-  const input = exampleData.example.revision?.input;
-  const referenceOutput = exampleData.example.revision?.referenceOutput;
-  const experimentRuns = exampleData.example.experimentRuns?.edges;
-  const experiments = exampleData.dataset.experiments?.edges;
+  const input = data.example.revision?.input;
+  const referenceOutput = data.example.revision?.referenceOutput;
+  const experimentRuns = data.example.experimentRuns?.edges;
+  const experiments = data.dataset.experiments?.edges;
+  const annotationSummaries = data.dataset.experimentAnnotationSummaries;
 
   const experimentsById = useMemo(() => {
     const experimentsById: Record<string, Experiment> = {};
@@ -227,6 +258,8 @@ export function ExperimentCompareDetails({
             experimentsById={experimentsById}
             experimentRunsByExperimentId={experimentRunsByExperimentId}
             defaultSelectedRepetitionNumber={defaultSelectedRepetitionNumber}
+            annotationSummaries={annotationSummaries}
+            openTraceDialog={openTraceDialog}
           />
         </div>
       </Panel>
@@ -236,22 +269,26 @@ export function ExperimentCompareDetails({
 
 type ExperimentRunSelectionState = {
   experimentId: string;
-  runId?: string;
+  repetitionNumber: number;
   selected: boolean;
 };
 
-function ExperimentRunOutputs({
+export function ExperimentRunOutputs({
   baseExperimentId,
   compareExperimentIds,
   experimentsById,
   experimentRunsByExperimentId,
   defaultSelectedRepetitionNumber,
+  annotationSummaries,
+  openTraceDialog,
 }: {
   baseExperimentId: string;
   compareExperimentIds: string[];
   experimentsById: Record<string, Experiment>;
   experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
   defaultSelectedRepetitionNumber?: number;
+  annotationSummaries?: AnnotationSummaries;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) {
   const experimentIds = [baseExperimentId, ...compareExperimentIds];
 
@@ -261,7 +298,7 @@ function ExperimentRunOutputs({
     initializeSelectionState(
       experimentIds,
       baseExperimentId,
-      experimentRunsByExperimentId,
+      experimentsById,
       defaultSelectedRepetitionNumber
     )
   );
@@ -280,10 +317,13 @@ function ExperimentRunOutputs({
   );
 
   const updateRepetitionSelection = useCallback(
-    (runId: string, checked: boolean) => {
+    (experimentId: string, repetitionNumber: number, checked: boolean) => {
       setSelectedExperimentRuns((prev) =>
         prev.map((run) =>
-          run.runId === runId ? { ...run, selected: checked } : run
+          run.experimentId === experimentId &&
+          run.repetitionNumber === repetitionNumber
+            ? { ...run, selected: checked }
+            : run
         )
       );
     },
@@ -313,7 +353,6 @@ function ExperimentRunOutputs({
           <ExperimentRunOutputsSidebar
             experimentIds={experimentIds}
             experimentsById={experimentsById}
-            experimentRunsByExperimentId={experimentRunsByExperimentId}
             selectedExperimentRuns={selectedExperimentRuns}
             updateExperimentSelection={updateExperimentSelection}
             updateRepetitionSelection={updateRepetitionSelection}
@@ -325,106 +364,146 @@ function ExperimentRunOutputs({
         <PanelResizeHandle css={compactResizeHandleCSS} />
       ) : null}
       <Panel id="experiment-compare-details-outputs-main-panel" order={2}>
-        <View
-          paddingX="size-200"
-          paddingY="size-100"
-          borderBottomColor="dark"
-          borderBottomWidth="thin"
-        >
-          <Flex direction="row" gap="size-200" alignItems="center">
-            <IconButton
-              size="S"
-              aria-label="Toggle side bar"
-              onPress={() => {
-                setIsSideBarOpen(!isSideBarOpen);
-                const sidebarPanel = sidebarPanelRef.current;
-                // expand the panel if it is not the minimum size already
-                if (sidebarPanel) {
-                  const size = sidebarPanel.getSize();
-                  if (size < SIDEBAR_PANEL_DEFAULT_SIZE) {
-                    sidebarPanel.resize(SIDEBAR_PANEL_DEFAULT_SIZE);
+        <Flex direction="column" height="100%">
+          <View
+            paddingX="size-200"
+            paddingY="size-100"
+            borderBottomColor="dark"
+            borderBottomWidth="thin"
+            flex="none"
+          >
+            <Flex direction="row" gap="size-200" alignItems="center">
+              <IconButton
+                size="S"
+                aria-label="Toggle side bar"
+                onPress={() => {
+                  setIsSideBarOpen(!isSideBarOpen);
+                  const sidebarPanel = sidebarPanelRef.current;
+                  // expand the panel if it is not the minimum size already
+                  if (sidebarPanel) {
+                    const size = sidebarPanel.getSize();
+                    if (size < SIDEBAR_PANEL_DEFAULT_SIZE) {
+                      sidebarPanel.resize(SIDEBAR_PANEL_DEFAULT_SIZE);
+                    }
                   }
-                }
-              }}
-            >
-              <Icon
-                svg={isSideBarOpen ? <Icons.SlideOut /> : <Icons.SlideIn />}
-              />
-            </IconButton>
-            <Heading>Experiment Runs</Heading>
-          </Flex>
-        </View>
-        {noRunsSelected && <Empty message="No runs selected" />}
-        <ul
-          css={css`
-            display: flex;
-            flex-direction: row;
-            justify-content: flex-start;
-            flex-wrap: none;
-            gap: var(--ac-global-dimension-static-size-200);
-            overflow-x: auto;
-            padding: var(--ac-global-dimension-static-size-200);
-          `}
-        >
-          {experimentIds.map((experimentId, experimentIndex) => {
-            const experiment = experimentsById[experimentId];
-            const experimentRuns = experimentRunsByExperimentId[experimentId];
-            const experimentRunsToDisplay = getSelectedExperimentRuns(
-              experimentId,
-              selectedExperimentRuns,
-              experimentRunsByExperimentId
-            );
-            const renderNoRunCard = shouldRenderNoRunCard(
-              experimentId,
-              experimentRuns,
-              selectedExperimentRuns
-            );
-
-            if (renderNoRunCard) {
-              return (
-                <li
-                  key={experimentId}
-                  css={css`
-                    // Make them all the same size
-                    flex: none;
-                  `}
-                >
-                  <ExperimentItem
-                    experiment={experiment}
-                    experimentIndex={experimentIndex}
-                    includeRepetitions={includeRepetitions}
-                  />
-                </li>
-              );
-            }
-
-            return experimentRunsToDisplay.map((run) => (
-              <li
-                key={run.id}
-                css={css`
-                  // Make them all the same size
-                  flex: none;
-                `}
+                }}
               >
-                <ExperimentItem
-                  experiment={experiment}
-                  experimentRun={run}
-                  experimentIndex={experimentIndex}
-                  includeRepetitions={includeRepetitions}
+                <Icon
+                  svg={isSideBarOpen ? <Icons.SlideOut /> : <Icons.SlideIn />}
                 />
-              </li>
-            ));
-          })}
-        </ul>
+              </IconButton>
+              <Heading>Experiment Runs</Heading>
+            </Flex>
+          </View>
+          {noRunsSelected && <Empty message="No runs selected" />}
+          <ul
+            css={css`
+              flex: 1;
+              display: flex;
+              flex-direction: row;
+              justify-content: flex-start;
+              align-items: flex-start;
+              flex-wrap: none;
+              gap: var(--ac-global-dimension-static-size-200);
+              overflow: auto;
+              padding: var(--ac-global-dimension-static-size-200);
+            `}
+          >
+            {experimentIds.map((experimentId, experimentIndex) => {
+              const experiment = experimentsById[experimentId];
+              const experimentRuns = experimentRunsByExperimentId[experimentId];
+              if (!experiment || !experimentRuns) {
+                return null;
+              }
+              return range(experiment.repetitions).map((repetitionIndex) => {
+                const repetitionNumber = repetitionIndex + 1;
+                return (
+                  <ExperimentListItemIfSelected
+                    key={`${experimentId}-${repetitionNumber}`}
+                    experimentId={experimentId}
+                    repetitionNumber={repetitionNumber}
+                    experiment={experiment}
+                    experimentRuns={experimentRuns}
+                    experimentIndex={experimentIndex}
+                    selectedExperimentRuns={selectedExperimentRuns}
+                    includeRepetitions={includeRepetitions}
+                    annotationSummaries={annotationSummaries}
+                    openTraceDialog={openTraceDialog}
+                  />
+                );
+              });
+            })}
+          </ul>
+        </Flex>
       </Panel>
     </PanelGroup>
   );
 }
 
+const ExperimentListItemIfSelected = ({
+  experimentId,
+  repetitionNumber,
+  experiment,
+  experimentRuns,
+  experimentIndex,
+  selectedExperimentRuns,
+  includeRepetitions,
+  annotationSummaries,
+  openTraceDialog,
+}: {
+  experimentId: string;
+  repetitionNumber: number;
+  experiment: Experiment;
+  experimentRuns: ExperimentRun[];
+  experimentIndex: number;
+  selectedExperimentRuns: ExperimentRunSelectionState[];
+  includeRepetitions: boolean;
+  annotationSummaries?: AnnotationSummaries;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
+}) => {
+  const isSelected = useMemo(
+    () =>
+      selectedExperimentRuns.some(
+        (runSelection) =>
+          runSelection.experimentId === experimentId &&
+          runSelection.repetitionNumber === repetitionNumber &&
+          runSelection.selected
+      ),
+    [selectedExperimentRuns, experimentId, repetitionNumber]
+  );
+
+  const experimentRun = useMemo(
+    () =>
+      experimentRuns.find((run) => run.repetitionNumber === repetitionNumber),
+    [experimentRuns, repetitionNumber]
+  );
+
+  if (!isSelected) {
+    return null;
+  }
+
+  return (
+    <li
+      css={css`
+        flex: none;
+      `}
+    >
+      <ExperimentItem
+        experiment={experiment}
+        experimentRun={experimentRun}
+        experimentIndex={experimentIndex}
+        includeRepetitions={includeRepetitions}
+        annotationSummaries={annotationSummaries}
+        repetitionNumber={repetitionNumber}
+        openTraceDialog={openTraceDialog}
+      />
+    </li>
+  );
+};
+
 function ExperimentRunOutputsSidebar({
   experimentIds,
   experimentsById,
-  experimentRunsByExperimentId,
   selectedExperimentRuns,
   updateExperimentSelection,
   updateRepetitionSelection,
@@ -432,10 +511,13 @@ function ExperimentRunOutputsSidebar({
 }: {
   experimentIds: string[];
   experimentsById: Record<string, Experiment>;
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
   selectedExperimentRuns: ExperimentRunSelectionState[];
   updateExperimentSelection: (experimentId: string, checked: boolean) => void;
-  updateRepetitionSelection: (runId: string, checked: boolean) => void;
+  updateRepetitionSelection: (
+    experimentId: string,
+    repetitionNumber: number,
+    checked: boolean
+  ) => void;
   includeRepetitions: boolean;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
@@ -447,12 +529,14 @@ function ExperimentRunOutputsSidebar({
         font-size: var(--ac-global-dimension-static-font-size-100);
         color: var(--ac-global-color-grey-700);
         padding: var(--ac-global-dimension-static-size-200);
+        overflow: auto;
+        height: 100%;
+        box-sizing: border-box;
       `}
     >
       <Flex direction="column" gap="size-200">
         {experimentIds.map((experimentId, experimentIndex) => {
           const experiment = experimentsById[experimentId];
-          const experimentRuns = experimentRunsByExperimentId[experimentId];
           const allExperimentRunsSelected = areAllExperimentRunsSelected(
             experimentId,
             selectedExperimentRuns
@@ -491,21 +575,31 @@ function ExperimentRunOutputsSidebar({
               {includeRepetitions && (
                 <View paddingStart="size-500">
                   <Flex direction="column" gap="size-200">
-                    {experimentRuns.map((run) => (
-                      <Checkbox
-                        key={run.id}
-                        isSelected={
-                          selectedExperimentRuns.find(
-                            (runSelection) => runSelection.runId === run.id
-                          )?.selected
-                        }
-                        onChange={(isSelected) =>
-                          updateRepetitionSelection(run.id, isSelected)
-                        }
-                      >
-                        repetition {run.repetitionNumber}
-                      </Checkbox>
-                    ))}
+                    {range(experiment.repetitions).map((repetitionIndex) => {
+                      const repetitionNumber = repetitionIndex + 1;
+                      return (
+                        <Checkbox
+                          key={repetitionNumber}
+                          isSelected={
+                            selectedExperimentRuns.find(
+                              (runSelection) =>
+                                runSelection.experimentId === experimentId &&
+                                runSelection.repetitionNumber ===
+                                  repetitionNumber
+                            )?.selected
+                          }
+                          onChange={(isSelected) =>
+                            updateRepetitionSelection(
+                              experimentId,
+                              repetitionNumber,
+                              isSelected
+                            )
+                          }
+                        >
+                          repetition {repetitionNumber}
+                        </Checkbox>
+                      );
+                    })}
                   </Flex>
                 </View>
               )}
@@ -519,24 +613,31 @@ function ExperimentRunOutputsSidebar({
 
 const experimentItemCSS = css`
   border: 1px solid var(--ac-global-border-color-dark);
-  border-radius: var(--ac-global-rounding-small);
+  border-radius: var(--ac-global-rounding-medium);
   box-shadow: 0px 8px 8px rgba(0 0 0 / 0.05);
   width: var(--ac-global-dimension-static-size-6000);
+  overflow: hidden;
 `;
 
 /**
  * Shows a single experiment's output and annotations
  */
-function ExperimentItem({
+export function ExperimentItem({
   experiment,
   experimentRun,
   experimentIndex,
   includeRepetitions,
+  annotationSummaries,
+  repetitionNumber,
+  openTraceDialog,
 }: {
   experiment: Experiment;
   experimentRun?: ExperimentRun;
   experimentIndex: number;
   includeRepetitions: boolean;
+  annotationSummaries?: AnnotationSummaries;
+  repetitionNumber: number;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const color =
@@ -545,86 +646,110 @@ function ExperimentItem({
       : getExperimentColor(experimentIndex - 1);
 
   const hasExperimentResult = experimentRun !== undefined;
+  const experimentRunOutputStr = useMemo(
+    () =>
+      experimentRun ? JSON.stringify(experimentRun.output, null, 2) : undefined,
+    [experimentRun]
+  );
+
+  const traceId = experimentRun?.trace?.traceId;
+  const projectId = experimentRun?.trace?.projectId;
+  const hasTrace = traceId != null && projectId != null;
   return (
     <div css={experimentItemCSS}>
-      <View paddingX="size-200" paddingTop="size-200">
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <span
-            css={css`
-              flex: none;
-            `}
-          >
-            <ColorSwatch color={color} shape="circle" />
-          </span>
-          <Heading
-            weight="heavy"
-            level={3}
-            css={css`
-              min-width: 0;
-            `}
-          >
-            <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
-          </Heading>
-          {includeRepetitions && experimentRun && (
-            <>
-              <Icon svg={<Icons.ChevronRight />} />
-              <Heading weight="heavy" level={3}>
-                repetition&nbsp;{experimentRun.repetitionNumber}
-              </Heading>
-            </>
-          )}
-        </Flex>
-      </View>
-      {!hasExperimentResult ? (
-        <Empty message="No Runs" />
-      ) : (
-        <>
-          <div
-            css={css`
-              border-bottom: 1px solid var(--ac-global-border-color-default);
-              display: flex;
-              flex-direction: column;
-              gap: var(--ac-global-dimension-size-100);
-            `}
-          >
-            <View paddingX="size-200" paddingTop="size-100">
-              <ExperimentRunMetadata {...experimentRun} />
-            </View>
-            <ul
+      <Flex direction="column">
+        <View paddingX="size-200" paddingTop="size-200" flex="none">
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <span
               css={css`
-                padding: 0 var(--ac-global-dimension-size-100)
-                  var(--ac-global-dimension-size-100)
-                  var(--ac-global-dimension-size-100);
+                flex: none;
               `}
             >
-              {experimentRun.annotations?.edges.map((edge) => (
-                <li key={edge.annotation.id}>
-                  <DialogTrigger>
-                    <ExperimentAnnotationButton annotation={edge.annotation} />
-                    <Popover placement="top">
-                      <PopoverArrow />
-                      <Dialog style={{ width: 400 }}>
-                        <View padding="size-200">
-                          <AnnotationDetailsContent
-                            annotation={edge.annotation}
-                          />
-                        </View>
-                      </Dialog>
-                    </Popover>
-                  </DialogTrigger>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <View>
-            {experimentRun.error ? (
-              <View padding="size-200">{experimentRun.error}</View>
-            ) : (
-              <JSONBlockWithCopy value={experimentRun.output} />
+              <ColorSwatch color={color} shape="circle" />
+            </span>
+            <Heading
+              weight="heavy"
+              level={3}
+              css={css`
+                min-width: 0;
+              `}
+            >
+              <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
+            </Heading>
+            {includeRepetitions && (
+              <>
+                <Icon svg={<Icons.ChevronRight />} />
+                <Heading weight="heavy" level={3}>
+                  repetition&nbsp;{repetitionNumber}
+                </Heading>
+              </>
             )}
-          </View>
-        </>
-      )}
+            <div
+              css={css`
+                margin-left: auto;
+                padding-left: var(--ac-global-dimension-size-100);
+              `}
+            >
+              <Flex direction="row" gap="size-100">
+                {hasTrace && (
+                  <TooltipTrigger>
+                    <IconButton
+                      size="S"
+                      aria-label="View run trace"
+                      onPress={() => {
+                        openTraceDialog(
+                          traceId,
+                          projectId,
+                          "Experiment Run Trace"
+                        );
+                      }}
+                    >
+                      <Icon svg={<Icons.Trace />} />
+                    </IconButton>
+                    <Tooltip>View run trace</Tooltip>
+                  </TooltipTrigger>
+                )}
+                {experimentRunOutputStr && !experimentRun?.error && (
+                  <CopyToClipboardButton text={experimentRunOutputStr} />
+                )}
+              </Flex>
+            </div>
+          </Flex>
+        </View>
+        {!hasExperimentResult ? (
+          <Empty message="Did not run" />
+        ) : (
+          <>
+            <View
+              paddingX="size-200"
+              paddingTop="size-100"
+              paddingBottom="size-100"
+              flex="none"
+            >
+              <ExperimentRunMetadata {...experimentRun} />
+            </View>
+            <View
+              paddingX="size-100"
+              paddingBottom="size-100"
+              borderBottomColor="grey-300"
+              borderBottomWidth="thin"
+            >
+              <ExperimentRunAnnotations
+                experimentRun={experimentRun}
+                annotationSummaries={annotationSummaries}
+                openTraceDialog={openTraceDialog}
+              />
+            </View>
+            <View flex={1}>
+              {experimentRun.error ? (
+                <View padding="size-200">{experimentRun.error}</View>
+              ) : (
+                <JSONBlock value={experimentRunOutputStr} />
+              )}
+            </View>
+          </>
+        )}
+      </Flex>
     </div>
   );
 }
@@ -650,59 +775,213 @@ function FullSizeJSONBlock({ value }: { value: string }) {
   );
 }
 
-function JSONBlockWithCopy({ value }: { value: unknown }) {
-  const strValue = JSON.stringify(value, null, 2);
+export function ExperimentRunAnnotations({
+  experimentRun,
+  annotationSummaries,
+  openTraceDialog,
+}: {
+  experimentRun: ExperimentRun;
+  annotationSummaries?: AnnotationSummaries;
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
+}) {
   return (
-    <div
+    <ul
       css={css`
-        position: relative;
-        & button {
-          position: absolute;
-          top: var(--ac-global-dimension-size-100);
-          right: var(--ac-global-dimension-size-100);
-          z-index: 10000;
-          display: none;
-        }
-        &:hover button {
-          display: block;
+        display: grid;
+        grid-template-columns:
+          minmax(100px, max-content) minmax(32px, max-content)
+          minmax(150px, 1fr) min-content;
+        column-gap: var(--ac-global-dimension-size-100);
+      `}
+    >
+      {annotationSummaries?.map((annotationSummary) => {
+        const annotation = experimentRun.annotations?.edges.find(
+          (edge) => edge.annotation.name === annotationSummary.annotationName
+        )?.annotation;
+        return annotation ? (
+          <li
+            key={annotationSummary.annotationName}
+            css={css`
+              height: var(--ac-global-dimension-size-350);
+              display: grid;
+              grid-template-columns: subgrid;
+              grid-column: 1 / -1;
+            `}
+          >
+            <ExperimentRunAnnotation
+              annotation={annotation}
+              annotationSummary={annotationSummary}
+              openTraceDialog={openTraceDialog}
+            />
+          </li>
+        ) : (
+          // placeholder to ensure alignment when some experiments are missing annotations
+          <li
+            key={annotationSummary.annotationName}
+            aria-hidden="true"
+            css={css`
+              height: var(--ac-global-dimension-size-350);
+              grid-column: 1 / -1;
+            `}
+          />
+        );
+      })}
+    </ul>
+  );
+}
+
+function ExperimentRunAnnotationButton({
+  annotation,
+  annotationSummary,
+}: {
+  annotation: Annotation;
+  annotationSummary: AnnotationSummaries[number];
+}) {
+  const annotationColor = useWordColor(annotation.name);
+  const labelValue =
+    annotation.score != null
+      ? formatFloat(annotation.score)
+      : annotation.label || "--";
+
+  return (
+    <AriaButton // using AriaButton to ensure the popover works
+      className="button--reset"
+      css={css`
+        cursor: pointer;
+        padding: var(--ac-global-dimension-size-50)
+          var(--ac-global-dimension-size-100);
+        border-radius: var(--ac-global-rounding-small);
+        width: 100%;
+        display: grid;
+        grid-template-columns: subgrid;
+        grid-column: 1 / -2;
+        &:hover {
+          background-color: var(--ac-global-color-grey-200);
         }
       `}
     >
-      <CopyToClipboardButton text={strValue} />
-      <JSONBlock value={strValue} />
-    </div>
+      <Flex
+        direction="row"
+        gap="size-100"
+        alignItems="center"
+        justifySelf="start"
+        minWidth={0}
+        maxWidth="100%"
+      >
+        <span
+          css={css`
+            flex: none;
+          `}
+        >
+          <AnnotationColorSwatch annotationName={annotation.name} />
+        </span>
+
+        <Text color="inherit" minWidth={0}>
+          <Truncate maxWidth="100%">{annotation.name}</Truncate>
+        </Text>
+      </Flex>
+
+      <Text fontFamily="mono" justifySelf="start" maxWidth="100%">
+        <Truncate maxWidth="100%">{labelValue}</Truncate>
+      </Text>
+
+      {annotation.score != null ? (
+        <ProgressBar
+          css={css`
+            align-self: center;
+            --mod-barloader-fill-color: ${annotationColor};
+          `}
+          value={calculateAnnotationScorePercentile(
+            annotation.score,
+            annotationSummary.minScore,
+            annotationSummary.maxScore
+          )}
+          height="var(--ac-global-dimension-size-50)"
+          width="100%"
+          aria-label={`${annotation.name} score`}
+        />
+      ) : (
+        <div /> // placeholder for grid layout
+      )}
+    </AriaButton>
+  );
+}
+
+function ExperimentRunAnnotation({
+  annotation,
+  annotationSummary,
+  openTraceDialog,
+}: {
+  annotation: Annotation;
+  annotationSummary: AnnotationSummaries[number];
+  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
+}) {
+  const traceId = annotation.trace?.traceId;
+  const projectId = annotation.trace?.projectId;
+  const hasTrace = traceId != null && projectId != null;
+  return (
+    <>
+      <DialogTrigger>
+        <ExperimentRunAnnotationButton
+          annotation={annotation}
+          annotationSummary={annotationSummary}
+        />
+        <Popover placement="top">
+          <PopoverArrow />
+          <Dialog style={{ width: 400 }}>
+            <View padding="size-200">
+              <AnnotationDetailsContent annotation={annotation} />
+            </View>
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+      {hasTrace ? (
+        <TooltipTrigger>
+          <IconButton
+            size="S"
+            aria-label="View evaluation trace"
+            onPress={() => {
+              openTraceDialog(
+                traceId,
+                projectId,
+                `Evaluator Trace: ${annotation.name}`
+              );
+            }}
+          >
+            <Icon svg={<Icons.Trace />} />
+          </IconButton>
+          <Tooltip>View evaluation trace</Tooltip>
+        </TooltipTrigger>
+      ) : (
+        <div /> // placeholder for grid layout
+      )}
+    </>
   );
 }
 
 function initializeSelectionState(
   experimentIds: string[],
   baseExperimentId: string,
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>,
+  experimentsById: Record<string, Experiment>,
   defaultSelectedRepetitionNumber?: number
 ): ExperimentRunSelectionState[] {
   return experimentIds.flatMap((experimentId) => {
-    const runs = experimentRunsByExperimentId[experimentId];
-    if (!runs.length) {
-      return [
-        {
-          experimentId,
-          selected: true,
-        } as ExperimentRunSelectionState,
-      ];
-    }
-    return runs.map((run) => {
+    const experiment = experimentsById[experimentId];
+    return range(experiment.repetitions).map((repetitionIndex) => {
+      const repetitionNumber = repetitionIndex + 1;
       return {
         experimentId,
-        runId: run.id,
+        repetitionNumber,
         selected:
           experimentId === baseExperimentId &&
           defaultSelectedRepetitionNumber !== undefined
-            ? run.repetitionNumber === defaultSelectedRepetitionNumber
+            ? repetitionNumber === defaultSelectedRepetitionNumber
             : true,
       };
     });
   });
 }
+
 function areAllExperimentRunsSelected(
   experimentId: string,
   selectedExperimentRuns: ExperimentRunSelectionState[]
@@ -719,33 +998,4 @@ function areSomeExperimentRunsSelected(
   return selectedExperimentRuns
     .filter((run) => run.experimentId === experimentId)
     .some((run) => run.selected);
-}
-
-function getSelectedExperimentRuns(
-  experimentId: string,
-  selectedExperimentRuns: ExperimentRunSelectionState[],
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>
-): ExperimentRun[] {
-  const experimentRuns = experimentRunsByExperimentId[experimentId];
-  return selectedExperimentRuns
-    .filter((run) => run.experimentId === experimentId && run.selected)
-    .flatMap(
-      (run) =>
-        experimentRuns.find(
-          (experimentRun) => experimentRun.id === run.runId
-        ) ?? []
-    );
-}
-
-function shouldRenderNoRunCard(
-  experimentId: string,
-  experimentRuns: ExperimentRun[],
-  selectedExperimentRuns: ExperimentRunSelectionState[]
-): boolean {
-  const experimentDidRun = experimentRuns.length > 0;
-  const isExperimentSelected =
-    selectedExperimentRuns.find((run) => run.experimentId === experimentId)
-      ?.selected ?? false;
-
-  return !experimentDidRun && isExperimentSelected;
 }

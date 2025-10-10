@@ -511,8 +511,9 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: "status",
         accessorKey: "statusCode",
-        maxSize: 30,
         enableSorting: false,
+        minSize: 50,
+        maxSize: 75,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) {
             return null;
@@ -766,7 +767,6 @@ export function TracesTable(props: TracesTableProps) {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    getRowId: (row) => row.id,
   });
   const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().flatRows;

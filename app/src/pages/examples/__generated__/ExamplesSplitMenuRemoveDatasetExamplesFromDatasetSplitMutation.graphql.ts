@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fc5fe968020002631f297d81423d62c2>>
+ * @generated SignedSource<<4dcf2db3d7fea5a9191c8aa767d414d4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,10 +13,10 @@ export type RemoveDatasetExamplesFromDatasetSplitsInput = {
   datasetSplitIds: ReadonlyArray<string>;
   exampleIds: ReadonlyArray<string>;
 };
-export type ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation$variables = {
+export type ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation$variables = {
   input: RemoveDatasetExamplesFromDatasetSplitsInput;
 };
-export type ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation$data = {
+export type ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation$data = {
   readonly removeDatasetExamplesFromDatasetSplits: {
     readonly examples: ReadonlyArray<{
       readonly datasetSplits: ReadonlyArray<{
@@ -28,9 +28,9 @@ export type ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation
     }>;
   };
 };
-export type ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation = {
-  response: ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation$data;
-  variables: ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation$variables;
+export type ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation = {
+  response: ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation$data;
+  variables: ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -110,7 +110,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation",
+    "name": "ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation",
     "selections": (v2/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -119,20 +119,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation",
+    "name": "ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation",
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "d0e1a90c1fd3a68738c02aac6f1cdb51",
+    "cacheID": "e3b2e6bd616848c2f27e740723215994",
     "id": null,
     "metadata": {},
-    "name": "ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation",
+    "name": "ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation",
     "operationKind": "mutation",
-    "text": "mutation ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation(\n  $input: RemoveDatasetExamplesFromDatasetSplitsInput!\n) {\n  removeDatasetExamplesFromDatasetSplits(input: $input) {\n    examples {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "mutation ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation(\n  $input: RemoveDatasetExamplesFromDatasetSplitsInput!\n) {\n  removeDatasetExamplesFromDatasetSplits(input: $input) {\n    examples {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3adeb4422875b23cadabba5b3fa2c5eb";
+(node as any).hash = "25d8da010b909c6ad9fcecef89e0c0ea";
 
 export default node;

@@ -231,7 +231,7 @@ class PromptMutationMixin:
             stmt = delete(models.Prompt).where(models.Prompt.id == prompt_id)
             result = await session.execute(stmt)
 
-            if result.rowcount == 0:
+            if result.rowcount == 0:  # type: ignore[attr-defined]
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
 
             await session.commit()

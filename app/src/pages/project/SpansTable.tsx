@@ -410,15 +410,12 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "status",
       accessorKey: "statusCode",
-      maxSize: 30,
       enableSorting: false,
+      minSize: 50,
+      maxSize: 75,
       cell: ({ getValue }) => {
         const statusCode = getValue() as SpanStatusCode;
-        return (
-          <Flex direction="row" gap="size-50" alignItems="center">
-            <SpanStatusCodeIcon statusCode={statusCode} />
-          </Flex>
-        );
+        return <SpanStatusCodeIcon statusCode={statusCode} />;
       },
     },
     {
@@ -713,7 +710,7 @@ export function SpansTable(props: SpansTableProps) {
                             },
                           }}
                         >
-                          <Truncate maxWidth="100%">
+                          <Truncate maxWidth={header.getSize()}>
                             {flexRender(
                               header.column.columnDef.header,
                               header.getContext()
