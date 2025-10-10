@@ -52,7 +52,7 @@ async def test_experiment_resolver_returns_sequence_number(
             [1, 2, 3],
             True,
             str(Cursor(rowid=3)),
-            id="no-sort",
+            id="default-order",
         ),
         pytest.param(
             {
@@ -73,7 +73,28 @@ async def test_experiment_resolver_returns_sequence_number(
                     sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=3000.0),
                 )
             ),
-            id="latency-ms-asc-sort",
+            id="latency-ms-asc",
+        ),
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "sort": {
+                    "col": {
+                        "metric": "latencyMs",
+                    },
+                    "dir": "desc",
+                },
+                "first": 3,
+            },
+            [6, 5, 4],
+            True,
+            str(
+                Cursor(
+                    rowid=4,
+                    sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=4000.0),
+                )
+            ),
+            id="latency-ms-desc",
         ),
         pytest.param(
             {
@@ -102,7 +123,7 @@ async def test_experiment_resolver_returns_sequence_number(
                     sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=4000.0),
                 )
             ),
-            id="latency-ms-asc-sort-after",
+            id="latency-ms-asc-with-after-cursor",
         ),
         pytest.param(
             {
@@ -131,28 +152,7 @@ async def test_experiment_resolver_returns_sequence_number(
                     sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=3000.0),
                 )
             ),
-            id="latency-ms-desc-sort-after",
-        ),
-        pytest.param(
-            {
-                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                "sort": {
-                    "col": {
-                        "metric": "latencyMs",
-                    },
-                    "dir": "desc",
-                },
-                "first": 3,
-            },
-            [6, 5, 4],
-            True,
-            str(
-                Cursor(
-                    rowid=4,
-                    sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=4000.0),
-                )
-            ),
-            id="latency-ms-desc-sort",
+            id="latency-ms-desc-with-after-cursor",
         ),
         pytest.param(
             {
@@ -172,7 +172,7 @@ async def test_experiment_resolver_returns_sequence_number(
                     sort_column=CursorSortColumn(type=CursorSortColumnDataType.NULL, value=None),
                 )
             ),
-            id="correctness-asc-sort",
+            id="correctness-asc",
         ),
         pytest.param(
             {
@@ -192,7 +192,7 @@ async def test_experiment_resolver_returns_sequence_number(
                     sort_column=CursorSortColumn(type=CursorSortColumnDataType.NULL, value=None),
                 )
             ),
-            id="correctness-desc-sort",
+            id="correctness-desc",
         ),
         pytest.param(
             {
@@ -221,7 +221,7 @@ async def test_experiment_resolver_returns_sequence_number(
                     sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=0.0),
                 )
             ),
-            id="correctness-desc-sort-after",
+            id="correctness-desc-with-after-cursor",
         ),
         pytest.param(
             {
@@ -250,7 +250,7 @@ async def test_experiment_resolver_returns_sequence_number(
                     sort_column=CursorSortColumn(type=CursorSortColumnDataType.NULL, value=None),
                 )
             ),
-            id="correctness-asc-sort-null-after",
+            id="correctness-asc-with-after-cursor-with-null-sort-column",
         ),
         pytest.param(
             {
@@ -279,7 +279,7 @@ async def test_experiment_resolver_returns_sequence_number(
                     sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=0.0),
                 )
             ),
-            id="correctness-desc-sort-null-after",
+            id="correctness-desc-with-after-cursor-with-null-sort-column",
         ),
     ],
 )
