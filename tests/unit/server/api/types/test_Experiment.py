@@ -636,9 +636,17 @@ async def test_error_rate_returns_expected_values(
 @pytest.fixture
 async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
     """
-    A dataset with an associated experiment with three runs: one that has no
-    associated trace, one that has an associated trace, and one that has a
-    non-existent trace. The runs monotonically increase in latency.
+    A dataset with an associated experiment with six runs.
+
+    | Run ID | Trace Status    | Latency (ms) | Has Annotation | Annotation Score |
+    |--------|-----------------|--------------|----------------|------------------|
+    | 1      | Without         | 100          | true           | 0.0              |
+    | 2      | With            | 200          | true           | 1.0              |
+    | 3      | ID but no trace | 300          | true           | None             |
+    | 4      | Without         | 400          | false          | None             |
+    | 5      | Without         | 500          | false          | None             |
+    | 6      | Without         | 600          | false          | None             |
+
     """
     start_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
     async with db() as session:
