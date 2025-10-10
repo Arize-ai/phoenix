@@ -671,7 +671,7 @@ function ExperimentRunOutputsSidebar({
                 >
                   <div
                     css={css`
-                      min-width: 50%; // TODO: come back to this
+                      flex: 1;
                     `}
                   >
                     <Checkbox
@@ -703,13 +703,16 @@ function ExperimentRunOutputsSidebar({
                   {!includeRepetitions && selectedAnnotation && (
                     <Text
                       fontFamily="mono"
+                      maxWidth="50%"
                       css={css`
-                        white-space: nowrap;
+                        overflow: hidden;
                       `}
                     >
-                      {annotationValue?.score != null
-                        ? floatFormatter(annotationValue.score)
-                        : annotationValue?.label || "--"}
+                      <Truncate maxWidth="100%">
+                        {annotationValue?.score != null
+                          ? floatFormatter(annotationValue.score)
+                          : annotationValue?.label || "--"}
+                      </Truncate>
                     </Text>
                   )}
                 </Flex>
@@ -786,13 +789,15 @@ function ExperimentRepetitionsSidebarItems({
                   )
                 }
               >
-                repetition {repetition.repetitionNumber}
+                repetition&nbsp;{repetition.repetitionNumber}
               </Checkbox>
               {selectedAnnotation && (
-                <Text fontFamily="mono">
-                  {selectedAnnotationValue?.score != null
-                    ? floatFormatter(selectedAnnotationValue.score)
-                    : selectedAnnotationValue?.label || "--"}
+                <Text fontFamily="mono" minWidth={0}>
+                  <Truncate maxWidth="100%">
+                    {selectedAnnotationValue?.score != null
+                      ? floatFormatter(selectedAnnotationValue.score)
+                      : selectedAnnotationValue?.label || "--"}
+                  </Truncate>
                 </Text>
               )}
             </Flex>
