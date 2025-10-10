@@ -113,36 +113,60 @@ For Agent Engine deployment, include the instrumentation packages in your requir
 
 **Main Application:**
 ```python
+# Initialize Vertex AI
+
+# Builds instrumentor inside agent engine setup
+def build_instrumentor(project_id):
+    import os
+    from arize.otel import register
+    from openinference.instrumentation.google_adk import GoogleADKInstrumentor
+
+    # Configure instrumentation within the remote agent
+    tracer_provider = register(
+        api_key=os.environ['ARIZE_API_KEY'],
+        space_id=os.environ['ARIZE_SPACE_ID'],
+        project_name=project_id,
+    )
+    GoogleADKInstrumentor().instrument(tracer_provider=tracer_provider)
+
+
+# Configure the agent app
+app = vertexai.agent_engines.AdkApp(
+    agent=root_agent,
+    enable_tracing=True,
+    instrumentor_builder=build_instrumentor,
+)
+
 remote_agent = agent_engines.create(
-    agent_engine=ModuleAgent(module_name="adk_agent", agent_name="app"),
+    agent_engine=app,
     requirements=[
         "google-cloud-aiplatform[agent_engines,adk]",
         "arize-otel",
         "openinference-instrumentation-google-adk",
     ],
     extra_packages=["adk_agent.py"],
-    env_vars={
-        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp.arize.com/v1",
-        "OTEL_EXPORTER_OTLP_TIMEOUT": "60000",  # Optional, can prevent "context deadline exceeded" errors
-    },
+    "env_vars": {
+        "OTEL_LOG_LEVEL": "DEBUG",
+        "NO_PROXY": "otlp.arize.com",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp.arize.com",
+        "OTEL_EXPORTER_OTLP_TIMEOUT": "60000",  # 60 seconds,
+        "ARIZE_API_KEY": "YOUR_ARIZE_API_KEY",
+        "ARIZE_SPACE_ID": "YOUR_ARIZE_SPACE_ID",
+    }
 )
 ```
 
 **Agent Module (`adk_agent.py`):**
 ```python
-from phoenix.otel import register
-from openinference.instrumentation.google_adk import GoogleADKInstrumentor
-
-# Configure instrumentation within the remote agent
-tracer_provider = register(
-    project_name="adk-agent",
+root_age = Agent(
+   name="test_agent",
+   model="gemini-2.0-flash-exp",
+   description="Agent to answer questions.",
 )
-GoogleADKInstrumentor().instrument(tracer_provider=tracer_provider)
-
-# Your agent code here...
 ```
 
 ### Resources:
 
 * [OpenInference Package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-adk)
 * [Google ADK documentation](https://google.github.io/adk-docs/)
+* [VertexAI ADK](https://github.com/googleapis/python-aiplatform/blob/main/vertexai/agent_engines/templates/adk.py)
