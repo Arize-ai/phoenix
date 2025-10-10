@@ -85,7 +85,7 @@ class PhoenixUser(BaseUser):
 
     @cached_property
     def is_viewer(self) -> bool:
-        return not self._is_admin and self._is_viewer
+        return self._is_viewer
 
     @cached_property
     def identity(self) -> UserId:
