@@ -392,7 +392,7 @@ class Query:
                 )
 
             # Apply label filter
-            if filter.labelIds and filter.labelIds is not UNSET:
+            if filter.labelIds:
                 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
                 label_rowids = []
