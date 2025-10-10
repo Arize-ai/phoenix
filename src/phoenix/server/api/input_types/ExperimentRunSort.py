@@ -9,7 +9,7 @@ from strawberry import Maybe
 from typing_extensions import assert_never
 
 from phoenix.db import models
-from phoenix.server.api.types.pagination import CursorSortColumnDataType, CursorSortColumnValue
+from phoenix.server.api.types.pagination import CursorSortColumnValue
 from phoenix.server.api.types.SortDir import SortDir
 
 
@@ -22,15 +22,6 @@ class ExperimentRunMetric(Enum):
 class ExperimentRunColumn:
     metric: Maybe[ExperimentRunMetric]
     annotation_name: Maybe[str]
-
-    @property
-    def data_type(self) -> CursorSortColumnDataType:
-        if self.metric is not None:
-            if self.metric.value is ExperimentRunMetric.latencyMs:
-                return CursorSortColumnDataType.FLOAT
-        elif self.annotation_name is not None:
-            return CursorSortColumnDataType.FLOAT
-        raise ValueError("ExperimentRunColumn must specify either metric or annotation_name")
 
 
 @strawberry.input(description="The sort key and direction for experiment run connections")
@@ -77,10 +68,10 @@ def _get_order_by_columns(
     mean_annotation_scores: Optional[NamedFromClause],
 ) -> tuple[ColumnElement[Any], ...]:
     if not sort:
-        return (
-            models.ExperimentRun.dataset_example_id.asc(),
-            models.ExperimentRun.repetition_number.asc(),
-        )
+        # Ideally, this would sort the runs by (example_id, repetition_number),
+        # but this would require making the cursor more complex or adding an additional query
+        # to handle the after cursor.
+        return (models.ExperimentRun.id.asc(),)
     sort_direction = sort.dir
     if sort.col.metric:
         metric = sort.col.metric.value
@@ -116,25 +107,9 @@ def _get_after_expression(
     mean_annotation_scores: Optional[NamedFromClause],
 ) -> Any:
     if not sort:
-        example_id = (
-            select(models.ExperimentRun.dataset_example_id)
-            .where(models.ExperimentRun.id == experiment_run_rowid)
-            .scalar_subquery()
-        )
-        repetition_number = (
-            select(models.ExperimentRun.repetition_number)
-            .where(models.ExperimentRun.id == experiment_run_rowid)
-            .scalar_subquery()
-        )
-        return tuple_(
-            models.ExperimentRun.dataset_example_id,
-            models.ExperimentRun.repetition_number,
-        ) > (
-            tuple_(
-                example_id,
-                repetition_number,
-            )
-        )
+        # Ideally, this would return the runs sorted by (example_id, repetition_number),
+        # but this would require making the cursor more complex or adding an additional query.
+        return models.ExperimentRun.id > literal(experiment_run_rowid)
     sort_direction = sort.dir
     compare_fn = operator.gt if sort_direction is SortDir.asc else operator.lt
     if sort.col.metric:
