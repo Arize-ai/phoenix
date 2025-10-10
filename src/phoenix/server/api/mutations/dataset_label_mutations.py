@@ -10,7 +10,7 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
@@ -78,7 +78,7 @@ class UnsetDatasetLabelsMutationPayload:
 
 @strawberry.type
 class DatasetLabelMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_label(
         self,
         info: Info[Context, None],
@@ -100,7 +100,7 @@ class DatasetLabelMutationMixin:
             dataset_label=to_gql_dataset_label(dataset_label_orm)
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def update_dataset_label(
         self, info: Info[Context, None], input: UpdateDatasetLabelInput
     ) -> UpdateDatasetLabelMutationPayload:
@@ -133,7 +133,7 @@ class DatasetLabelMutationMixin:
             dataset_label=to_gql_dataset_label(dataset_label_orm)
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def delete_dataset_labels(
         self, info: Info[Context, None], input: DeleteDatasetLabelsInput
     ) -> DeleteDatasetLabelsMutationPayload:
@@ -166,7 +166,7 @@ class DatasetLabelMutationMixin:
             ]
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def set_dataset_labels(
         self, info: Info[Context, None], input: SetDatasetLabelsInput
     ) -> SetDatasetLabelsMutationPayload:
@@ -248,7 +248,7 @@ class DatasetLabelMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def unset_dataset_labels(
         self, info: Info[Context, None], input: UnsetDatasetLabelsInput
     ) -> UnsetDatasetLabelsMutationPayload:

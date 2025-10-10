@@ -42,8 +42,10 @@ def require_admin(request: Request) -> None:
     Behavior:
         - Allows access if the authenticated user is an admin or a system user.
         - Raises HTTP 403 Forbidden if the user is not authorized.
-        - Expects authentication to be enabled and request.user to be set by the authentication.
+        - Allows access if authentication is not enabled.
     """
+    if not request.app.state.authentication_enabled:
+        return
     user = getattr(request, "user", None)
     # System users have all privileges
     if not (isinstance(user, PhoenixUser) and user.is_admin):

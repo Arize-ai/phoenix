@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from itertools import chain
 from secrets import token_hex
 from typing import Any, Iterator, Mapping, Optional
 
@@ -15,11 +16,15 @@ import phoenix as px
 from phoenix.trace.dsl import SpanQuery
 
 from .._helpers import (
+    _ADMIN_ONLY_ENDPOINTS,
+    _COMMON_RESOURCE_ENDPOINTS,
+    _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AppInfo,
     _get,
     _get_gql_spans,
     _grpc_span_exporter,
     _http_span_exporter,
+    _httpx_client,
     _random_schema,
     _server,
     _start_span,
@@ -53,6 +58,14 @@ def _env(
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
     }
+
+
+@pytest.fixture
+def _no_auth_app(
+    _env: Mapping[str, str],
+) -> Iterator[_AppInfo]:
+    with _server(_AppInfo(_env)) as app:
+        yield app
 
 
 class TestLaunchApp:
@@ -117,3 +130,17 @@ class TestLaunchApp:
                         {"j": {"0": [0]}},
                         {"j": 1},
                     ] * (i + 1)
+
+    def test_api_access(self, _no_auth_app: _AppInfo) -> None:
+        """Test that all endpoints in our test constants return expected status codes."""
+        client = _httpx_client(_no_auth_app)
+        for expected_status_code, method, endpoint in chain(
+            _COMMON_RESOURCE_ENDPOINTS,
+            _ADMIN_ONLY_ENDPOINTS,
+            _VIEWER_BLOCKED_WRITE_OPERATIONS,
+        ):
+            response = client.request(method, endpoint.format(token_hex(4)))
+            assert response.status_code == expected_status_code, (
+                f"Expected {expected_status_code} but "
+                f"got {response.status_code} for {method} {endpoint}"
+            )

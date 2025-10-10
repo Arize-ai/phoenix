@@ -138,6 +138,19 @@ async function setupRoutes() {
     reply.type("text/html").send(html);
   });
 
+  fastify.get("/pkce/select-user", async (request, reply) => {
+    reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const indexPath = path.join(__dirname, "../dist-frontend/index.html");
+    const html = await fs.readFile(indexPath, "utf-8");
+
+    reply.type("text/html").send(html);
+  });
+
   fastify.get("/health", async () => ({
     status: "ok",
     service: "phoenix-oidc-dev",
@@ -345,6 +358,54 @@ async function setupRoutes() {
     const selectionComplete = {
       timestamp: new Date().toISOString(),
       event: "user_selection_completed",
+      user_id: userId,
+      redirect_url: result.redirectUrl,
+      status: "redirecting_to_callback",
+    };
+    console.log(JSON.stringify(selectionComplete));
+
+    return reply.redirect(result.redirectUrl, 302);
+  });
+
+  fastify.get("/api/pkce/select-user", async (request, reply) => {
+    const query = request.query as any;
+    const { userId, ...authParams } = query;
+
+    const userSelectionStart = {
+      timestamp: new Date().toISOString(),
+      event: "pkce_user_selection_request_started",
+      user_id: userId,
+      auth_params: authParams,
+    };
+    console.log(JSON.stringify(userSelectionStart));
+
+    if (!userId) {
+      const missingUserId = {
+        timestamp: new Date().toISOString(),
+        event: "pkce_user_selection_validation_failed",
+        error: "missing_user_id",
+        required_param: "userId",
+      };
+      console.log(JSON.stringify(missingUserId));
+      return reply.code(400).send({ error: "User ID is required" });
+    }
+
+    const result = await oidcServer.handlePKCEUserSelection(userId, authParams);
+
+    if (result.error) {
+      const selectionError = {
+        timestamp: new Date().toISOString(),
+        event: "pkce_user_selection_failed",
+        error: result.error,
+        user_id: userId,
+      };
+      console.log(JSON.stringify(selectionError));
+      return reply.code(400).send({ error: result.error });
+    }
+
+    const selectionComplete = {
+      timestamp: new Date().toISOString(),
+      event: "pkce_user_selection_completed",
       user_id: userId,
       redirect_url: result.redirectUrl,
       status: "redirecting_to_callback",

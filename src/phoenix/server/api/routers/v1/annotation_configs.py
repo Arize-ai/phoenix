@@ -349,7 +349,13 @@ async def delete_annotation_config(
     request: Request,
     config_id: str = Path(..., description="ID of the annotation configuration"),
 ) -> DeleteAnnotationConfigResponseBody:
-    config_gid = GlobalID.from_id(config_id)
+    try:
+        config_gid = GlobalID.from_id(config_id)
+    except Exception:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid annotation configuration ID format: {config_id}",
+        )
     if config_gid.type_name not in (
         CategoricalAnnotationConfigType.__name__,
         ContinuousAnnotationConfigType.__name__,

@@ -10,7 +10,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.playground_users import get_user
@@ -96,7 +96,7 @@ class RemoveDatasetExamplesFromDatasetSplitsMutationPayload:
 
 @strawberry.type
 class DatasetSplitMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_split(
         self, info: Info[Context, None], input: CreateDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
@@ -119,7 +119,7 @@ class DatasetSplitMutationMixin:
             dataset_split=to_gql_dataset_split(dataset_split_orm), query=Query()
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def patch_dataset_split(
         self, info: Info[Context, None], input: PatchDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
@@ -152,7 +152,7 @@ class DatasetSplitMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_dataset_splits(
         self, info: Info[Context, None], input: DeleteDatasetSplitInput
     ) -> DeleteDatasetSplitsMutationPayload:
@@ -191,7 +191,7 @@ class DatasetSplitMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def add_dataset_examples_to_dataset_splits(
         self, info: Info[Context, None], input: AddDatasetExamplesToDatasetSplitsInput
     ) -> AddDatasetExamplesToDatasetSplitsMutationPayload:
@@ -284,7 +284,7 @@ class DatasetSplitMutationMixin:
             examples=[to_gql_dataset_example(example) for example in examples],
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def remove_dataset_examples_from_dataset_splits(
         self, info: Info[Context, None], input: RemoveDatasetExamplesFromDatasetSplitsInput
     ) -> RemoveDatasetExamplesFromDatasetSplitsMutationPayload:
@@ -345,7 +345,7 @@ class DatasetSplitMutationMixin:
             examples=[to_gql_dataset_example(example) for example in examples],
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_split_with_examples(
         self, info: Info[Context, None], input: CreateDatasetSplitWithExamplesInput
     ) -> DatasetSplitMutationPayloadWithExamples:

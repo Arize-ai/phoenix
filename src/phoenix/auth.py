@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
 from hashlib import pbkdf2_hmac
 from typing import Any, Literal, Optional, Protocol
@@ -331,7 +331,13 @@ class ClaimSet:
 
     @property
     def status(self) -> ClaimSetStatus:
-        if self.expiration_time and self.expiration_time.timestamp() < datetime.now().timestamp():
+        # Per JWT RFC 7519 Section 4.1.4, the expiration time identifies the time
+        # "on or after which" the JWT must not be accepted. Use <= for inclusive check.
+        # https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4
+        if (
+            self.expiration_time
+            and self.expiration_time.timestamp() <= datetime.now(timezone.utc).timestamp()
+        ):
             return ClaimSetStatus.EXPIRED
         if self.token_id is not None and self.subject is not None:
             return ClaimSetStatus.VALID

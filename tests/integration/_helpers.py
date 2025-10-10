@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from email.message import Message
 from functools import cached_property
 from io import BytesIO
+from itertools import chain
 from random import random
 from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
@@ -89,6 +90,7 @@ _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 
 _ADMIN = UserRoleInput.ADMIN
 _MEMBER = UserRoleInput.MEMBER
+_VIEWER = UserRoleInput.VIEWER
 
 _ProjectName: TypeAlias = str
 _SpanName: TypeAlias = str
@@ -345,13 +347,21 @@ class _LoggedInTokens(_CanLogOut[None]):
 class _LoggedInUser(_User, _CanLogOut[_User]):
     tokens: _LoggedInTokens
 
+    @property
+    def user(self) -> _User:
+        return _User(self.gid, self.role, self.profile)
+
     @override
     def log_out(self, app: _AppInfo) -> _User:
         self.tokens.access_token.log_out(app)
-        return _User(self.gid, self.role, self.profile)
+        return self.user
 
     def refresh(self, app: _AppInfo) -> _LoggedInUser:
         return replace(self, tokens=self.tokens.refresh(app))
+
+    def visit(self, app: _AppInfo, expected_status_code: int = 200) -> None:
+        response = _httpx_client(app, self).get("/graphql")
+        assert response.status_code == expected_status_code
 
 
 _RoleOrUser = Union[UserRoleInput, _User]
@@ -1145,7 +1155,12 @@ def _json(
     assert (resp_dict := cast(dict[str, Any], resp.json()))
     if errers := resp_dict.get("errors"):
         msg = errers[0]["message"]
-        if "not auth" in msg or IsAdmin.message in msg:
+        # Raise Unauthorized for permission-related errors
+        if (
+            "not auth" in msg
+            or IsAdmin.message in msg
+            or "Viewers cannot perform this action" in msg
+        ):
             raise Unauthorized(msg)
         raise RuntimeError(msg)
     return resp_dict
@@ -1904,3 +1919,166 @@ async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None
 
 def _randomize_casing(email: str) -> str:
     return "".join(c.lower() if random() < 0.5 else c.upper() for c in email)
+
+
+# GET endpoints that all roles can read with expected status codes
+_COMMON_RESOURCE_ENDPOINTS = (
+    # Projects
+    (404, "GET", "v1/projects/fake-id-{}"),
+    (200, "GET", "v1/projects"),
+    # Datasets
+    (422, "GET", "v1/datasets/fake-id-{}"),
+    (200, "GET", "v1/datasets"),
+    (422, "GET", "v1/datasets/fake-id-{}/versions"),
+    (422, "GET", "v1/datasets/fake-id-{}/examples"),
+    (422, "GET", "v1/datasets/fake-id-{}/csv"),
+    (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_ft"),
+    (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
+    # Experiments
+    (422, "GET", "v1/experiments/fake-id-{}"),
+    (422, "GET", "v1/datasets/fake-id-{}/experiments"),
+    (422, "GET", "v1/experiments/fake-id-{}/runs"),
+    (422, "GET", "v1/experiments/fake-id-{}/json"),
+    (422, "GET", "v1/experiments/fake-id-{}/csv"),
+    # Prompts
+    (200, "GET", "v1/prompts"),
+    (200, "GET", "v1/prompts/fake-id-{}/versions"),
+    (422, "GET", "v1/prompt_versions/fake-id-{}"),
+    (404, "GET", "v1/prompts/fake-id-{}/tags/test-tag"),
+    (404, "GET", "v1/prompts/fake-id-{}/latest"),
+    (422, "GET", "v1/prompt_versions/fake-id-{}/tags"),
+    # Annotation configs
+    (200, "GET", "v1/annotation_configs"),
+    (404, "GET", "v1/annotation_configs/fake-id-{}"),
+    # Evaluations
+    (404, "GET", "v1/evaluations"),
+    # Spans (project-scoped)
+    (404, "GET", "v1/projects/fake-id-{}/spans"),
+    (404, "GET", "v1/projects/fake-id-{}/spans/otlpv1"),
+    # Annotations (project-scoped)
+    (422, "GET", "v1/projects/fake-id-{}/span_annotations"),
+    (422, "GET", "v1/projects/fake-id-{}/trace_annotations"),
+    (422, "GET", "v1/projects/fake-id-{}/session_annotations"),
+    # Spans
+    (422, "GET", "v1/spans"),
+)
+
+# Admin-only endpoints (user management, project CRUD)
+# Non-admins always receive 403, admins get expected_admin_status
+_ADMIN_ONLY_ENDPOINTS = (
+    (200, "GET", "v1/users"),
+    (422, "POST", "v1/users"),
+    (422, "DELETE", "v1/users/fake-id-{}"),
+    (422, "PUT", "v1/projects/fake-id-{}"),
+    (404, "DELETE", "v1/projects/fake-id-{}"),
+)
+
+# Write operations blocked for viewers (POST/PUT/DELETE)
+# Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
+_VIEWER_BLOCKED_WRITE_OPERATIONS = (
+    # POST routes
+    (422, "POST", "v1/annotation_configs"),
+    (400, "POST", "v1/datasets/upload"),
+    (422, "POST", "v1/datasets/fake-id-{}/experiments"),
+    (422, "POST", "v1/document_annotations"),
+    (415, "POST", "v1/evaluations"),
+    (422, "POST", "v1/experiment_evaluations"),
+    (422, "POST", "v1/experiments/fake-id-{}/runs"),
+    (422, "POST", "v1/projects"),
+    (422, "POST", "v1/projects/fake-id-{}/spans"),
+    (422, "POST", "v1/prompts"),
+    (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
+    (422, "POST", "v1/session_annotations"),
+    (422, "POST", "v1/span_annotations"),
+    (422, "POST", "v1/spans"),
+    (422, "POST", "v1/trace_annotations"),
+    (415, "POST", "v1/traces"),
+    # PUT routes
+    (422, "PUT", "v1/annotation_configs/fake-id-{}"),
+    # DELETE routes
+    (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}"),
+    (404, "DELETE", "v1/spans/fake-id-{}"),
+    (404, "DELETE", "v1/traces/fake-id-{}"),
+)
+
+
+def _ensure_endpoint_coverage_is_exhaustive() -> None:
+    """Verify that test constants cover all actual v1 API routes.
+
+    This runs at module import time as a prerequisite check. If endpoint
+    coverage is incomplete, all tests that import this module will fail fast.
+    """
+    import re
+
+    from fastapi.routing import APIRoute
+
+    from phoenix.server.api.routers.v1 import create_v1_router
+
+    # Get all actual routes from the v1 router
+    router = create_v1_router(authentication_enabled=False)
+    actual_routes = {
+        (method, route.path)
+        for route in router.routes
+        if isinstance(route, APIRoute)
+        for method in route.methods
+    }
+
+    # Get all routes from test constants
+    test_routes = {
+        (method, endpoint)
+        for _, method, endpoint in chain(
+            _COMMON_RESOURCE_ENDPOINTS,
+            _ADMIN_ONLY_ENDPOINTS,
+            _VIEWER_BLOCKED_WRITE_OPERATIONS,
+        )
+    }
+
+    # Normalize paths: server uses {param_name}, tests use fake-id-{}
+    def normalize_path(path: str) -> str:
+        if not path.startswith("/"):
+            path = "/" + path
+        path = re.sub(r"fake-id-\{\}", "{id}", path)
+        path = re.sub(r"\{[^}]*\}", "{id}", path)
+        path = re.sub(r"/tags/test-tag$", "/tags/{id}", path)
+        return path
+
+    # Map normalized paths back to original paths for error reporting
+    normalized_to_actual = {(m, normalize_path(p)): (m, p) for m, p in actual_routes}
+    normalized_to_test = {(m, normalize_path(p)): (m, p) for m, p in test_routes}
+
+    normalized_actual = set(normalized_to_actual.keys())
+    normalized_test = set(normalized_to_test.keys())
+
+    # Check for discrepancies
+    missing_in_tests = normalized_actual - normalized_test
+    extra_in_tests = normalized_test - normalized_actual
+
+    if missing_in_tests or extra_in_tests:
+        error_parts = []
+        if missing_in_tests:
+            # Show actual server paths (not normalized)
+            actual_paths = [normalized_to_actual[route] for route in sorted(missing_in_tests)]
+            routes_str = "\n".join(f"  {m} {p}" for m, p in actual_paths)
+            error_parts.append(
+                f"Routes in server but NOT in test constants:\n{routes_str}\n\n"
+                f"Add these to _helpers.py:\n"
+                f"  - GET routes → _COMMON_RESOURCE_ENDPOINTS\n"
+                f"  - Admin-only routes (users, project CRUD) → _ADMIN_ONLY_ENDPOINTS\n"
+                f"  - Write operations (POST/PUT/DELETE) → _VIEWER_BLOCKED_WRITE_OPERATIONS\n\n"
+                f"Format: (expected_status_code, method, endpoint_path)\n"
+                f'Example: (404, "GET", "v1/projects/fake-id-{{}}") or (422, "POST", "v1/datasets/upload")'
+            )
+        if extra_in_tests:
+            # Show actual test paths (not normalized)
+            test_paths = [normalized_to_test[route] for route in sorted(extra_in_tests)]
+            routes_str = "\n".join(f"  {m} {p}" for m, p in test_paths)
+            error_parts.append(
+                f"Routes in test constants but NOT in server (removed?):\n{routes_str}\n\n"
+                f"Remove these from _COMMON_RESOURCE_ENDPOINTS, _ADMIN_ONLY_ENDPOINTS,\n"
+                f"or _VIEWER_BLOCKED_WRITE_OPERATIONS in _helpers.py"
+            )
+        raise AssertionError("Endpoint coverage is incomplete!\n\n" + "\n\n".join(error_parts))
+
+
+_ensure_endpoint_coverage_is_exhaustive()

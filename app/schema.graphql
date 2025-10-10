@@ -3228,6 +3228,7 @@ type UserRole implements Node {
 enum UserRoleInput {
   ADMIN
   MEMBER
+  VIEWER
 }
 
 type ValidationResult {
