@@ -41,12 +41,19 @@ import { DatasetLabelConfigButtonUnsetLabelsMutation } from "./__generated__/Dat
 
 type DatasetLabelConfigButtonProps = {
   datasetId: string;
+  isOpen?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
 };
 
 export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
-  const { datasetId } = props;
+  const { datasetId, isOpen: controlledIsOpen, onOpenChange } = props;
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [uncontrolledIsOpen, setUncontrolledIsOpen] = useState(false);
+
+  // Use controlled state if provided, otherwise use uncontrolled state
+  const isOpen = controlledIsOpen ?? uncontrolledIsOpen;
+  const setIsOpen = onOpenChange ?? setUncontrolledIsOpen;
+
   return (
     <>
       <DialogTrigger

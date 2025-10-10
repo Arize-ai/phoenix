@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<117e3825a691a02d5e38e3e9df5107b5>>
+ * @generated SignedSource<<1006df6b85366c04cad5e65b4bf71c66>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,63 +30,92 @@ const node: ConcreteRequest = (function(){
 var v0 = [
   {
     "alias": null,
-    "args": [
+    "args": null,
+    "concreteType": "DatasetLabelEdge",
+    "kind": "LinkedField",
+    "name": "edges",
+    "plural": true,
+    "selections": [
       {
-        "kind": "Literal",
-        "name": "first",
-        "value": 100
+        "alias": null,
+        "args": null,
+        "concreteType": "DatasetLabel",
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "color",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "__typename",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "cursor",
+        "storageKey": null
       }
     ],
-    "concreteType": "DatasetLabelConnection",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PageInfo",
     "kind": "LinkedField",
-    "name": "datasetLabels",
+    "name": "pageInfo",
     "plural": false,
     "selections": [
       {
         "alias": null,
         "args": null,
-        "concreteType": "DatasetLabelEdge",
-        "kind": "LinkedField",
-        "name": "edges",
-        "plural": true,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "DatasetLabel",
-            "kind": "LinkedField",
-            "name": "node",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "id",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "name",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "color",
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
+        "kind": "ScalarField",
+        "name": "endCursor",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "hasNextPage",
         "storageKey": null
       }
     ],
-    "storageKey": "datasetLabels(first:100)"
+    "storageKey": null
+  }
+],
+v1 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 100
   }
 ];
 return {
@@ -95,7 +124,18 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "DatasetLabelFilterButtonQuery",
-    "selections": (v0/*: any*/),
+    "selections": [
+      {
+        "alias": "datasetLabels",
+        "args": null,
+        "concreteType": "DatasetLabelConnection",
+        "kind": "LinkedField",
+        "name": "__DatasetLabelFilterButton_datasetLabels_connection",
+        "plural": false,
+        "selections": (v0/*: any*/),
+        "storageKey": null
+      }
+    ],
     "type": "Query",
     "abstractKey": null
   },
@@ -104,19 +144,50 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "DatasetLabelFilterButtonQuery",
-    "selections": (v0/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "concreteType": "DatasetLabelConnection",
+        "kind": "LinkedField",
+        "name": "datasetLabels",
+        "plural": false,
+        "selections": (v0/*: any*/),
+        "storageKey": "datasetLabels(first:100)"
+      },
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "filters": null,
+        "handle": "connection",
+        "key": "DatasetLabelFilterButton_datasetLabels",
+        "kind": "LinkedHandle",
+        "name": "datasetLabels"
+      }
+    ]
   },
   "params": {
-    "cacheID": "69af78a99af4ee24a2e6a4af1658c6e6",
+    "cacheID": "d5b1149b8f992f9a1912e2f0ca116e04",
     "id": null,
-    "metadata": {},
+    "metadata": {
+      "connection": [
+        {
+          "count": null,
+          "cursor": null,
+          "direction": "forward",
+          "path": [
+            "datasetLabels"
+          ]
+        }
+      ]
+    },
     "name": "DatasetLabelFilterButtonQuery",
     "operationKind": "query",
-    "text": "query DatasetLabelFilterButtonQuery {\n  datasetLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "query DatasetLabelFilterButtonQuery {\n  datasetLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        color\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2962530bee1afc7c2ed0fc335ca45b17";
+(node as any).hash = "903bc82a627cc1c790b5e1a086026e31";
 
 export default node;

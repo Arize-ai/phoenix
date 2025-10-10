@@ -64,7 +64,8 @@ function DatasetLabelFilterContent({
   const labelData = useLazyLoadQuery<DatasetLabelFilterButtonQuery>(
     graphql`
       query DatasetLabelFilterButtonQuery {
-        datasetLabels(first: 100) {
+        datasetLabels(first: 100)
+          @connection(key: "DatasetLabelFilterButton_datasetLabels") {
           edges {
             node {
               id
