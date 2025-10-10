@@ -503,7 +503,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             {
               annotation: {
                 id: "edge-ann-2",
-                name: "detailed_feedback",
+                name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
                   "This response demonstrates exceptional quality with comprehensive coverage of all requested topics, thorough analysis of edge cases, and clear explanations that would be easily understood by both technical and non-technical stakeholders. The formatting is professional and the examples provided are highly relevant.",
                 score: null,
@@ -556,7 +556,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             {
               annotation: {
                 id: "edge-ann-4",
-                name: "detailed_feedback",
+                name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
                   "The response quality is good but could benefit from more specific examples and clearer structure in the presentation of complex concepts.",
                 score: null,
@@ -609,7 +609,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             {
               annotation: {
                 id: "edge-ann-6",
-                name: "detailed_feedback",
+                name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label: null,
                 score: 0.85,
                 trace: {
@@ -664,7 +664,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             {
               annotation: {
                 id: "edge-ann-8",
-                name: "detailed_feedback",
+                name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
                   "While the response attempts to address the core requirements, it falls short in several critical areas including lack of specific examples, insufficient depth of analysis, unclear explanations that may confuse readers, and formatting issues that detract from the overall presentation quality and professional appearance.",
                 score: null,
@@ -717,7 +717,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             {
               annotation: {
                 id: "edge-ann-10",
-                name: "detailed_feedback",
+                name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
                   "The response demonstrates moderate quality with some good insights but requires refinement in organization, clarity of technical explanations, and inclusion of more comprehensive examples to fully meet the specified requirements and expectations for this type of analysis.",
                 score: null,
@@ -772,7 +772,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             {
               annotation: {
                 id: "edge-ann-12",
-                name: "detailed_feedback",
+                name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label: null,
                 score: 0.95,
                 trace: {
@@ -851,7 +851,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
             {
               annotation: {
                 id: "single-edge-ann-2",
-                name: "detailed_feedback",
+                name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
                   "The analysis provides a solid foundation but would benefit from deeper exploration of edge cases, more comprehensive examples, and clearer articulation of the methodology used to arrive at the conclusions presented in this evaluation.",
                 score: null,
@@ -906,7 +906,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
             {
               annotation: {
                 id: "single-edge-ann-4",
-                name: "detailed_feedback",
+                name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
                   "This response demonstrates competent handling of the basic requirements but lacks the sophistication and thoroughness expected for this level of analysis, particularly in areas of technical depth, contextual understanding, and practical application examples that would make the content more valuable to end users.",
                 score: null,
@@ -961,7 +961,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
             {
               annotation: {
                 id: "single-edge-ann-6",
-                name: "detailed_feedback",
+                name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label: null,
                 score: 0.96,
                 trace: {
@@ -984,7 +984,8 @@ const mockEdgeCaseAnnotationSummaries: AnnotationSummaries = [
     maxScore: 1.0,
   },
   {
-    annotationName: "detailed_feedback",
+    annotationName:
+      "detailed_feedback_and_an_annotation_with_a_really_long_name",
     minScore: 0.0,
     maxScore: 1.0,
   },
