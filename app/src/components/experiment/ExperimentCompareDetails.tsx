@@ -441,6 +441,7 @@ export function ExperimentRunOutputs({
       {isSideBarOpen ? (
         <Panel
           defaultSize={SIDEBAR_PANEL_DEFAULT_SIZE}
+          minSize={SIDEBAR_PANEL_DEFAULT_SIZE}
           ref={sidebarPanelRef}
           collapsible
           id="experiment-compare-details-outputs-sidebar-panel"
@@ -657,7 +658,12 @@ function ExperimentRunOutputsSidebar({
       `}
     >
       <Flex direction="column" gap="size-200">
-        <Flex direction="row" gap="size-50" alignItems="center">
+        <Flex
+          direction="row"
+          gap="size-50"
+          alignItems="center"
+          justifyContent="space-between"
+        >
           <Checkbox
             isSelected={allRepetitionsSelected}
             isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
@@ -666,17 +672,7 @@ function ExperimentRunOutputsSidebar({
             Repetition
           </Checkbox>
           {annotations.length > 0 && (
-            <>
-              <IconButton
-                size="S"
-                aria-label="Change sort direction"
-                onPress={toggleSortDirection}
-                css={css`
-                  flex: none;
-                `}
-              >
-                <Icon svg={<Icons.ArrowUpDown />} />
-              </IconButton>
+            <Flex>
               <Select
                 value={selectedAnnotation}
                 onChange={(value) => setSelectedAnnotation(value as string)}
@@ -695,7 +691,17 @@ function ExperimentRunOutputsSidebar({
                   </ListBox>
                 </Popover>
               </Select>
-            </>
+              <IconButton
+                size="S"
+                aria-label="Change sort direction"
+                onPress={toggleSortDirection}
+                css={css`
+                  flex: none;
+                `}
+              >
+                <Icon svg={<Icons.ArrowUpDown />} />
+              </IconButton>
+            </Flex>
           )}
         </Flex>
         {sortedExperimentRepetitions.map(
@@ -739,6 +745,7 @@ function ExperimentRunOutputsSidebar({
                       <span
                         css={css`
                           flex: none;
+                          padding: 0 var(--ac-global-dimension-size-50);
                         `}
                       >
                         <ColorSwatch
@@ -812,7 +819,7 @@ function ExperimentRepetitionsSidebarItems({
   selectedAnnotation: string | null;
 }) {
   return (
-    <View paddingStart="size-500">
+    <View paddingStart="size-300">
       <Flex direction="column" gap="size-200">
         {experimentRepetitions.map((repetition) => {
           const selectedAnnotationValue = selectedAnnotation
