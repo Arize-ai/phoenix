@@ -369,6 +369,12 @@ export function ExperimentRunOutputs({
     []
   );
 
+  const toggleAllRepetitionsSelection = useCallback((checked: boolean) => {
+    setSelectedExperimentRepetitions((prev) =>
+      prev.map((run) => ({ ...run, selected: checked }))
+    );
+  }, []);
+
   const noRunsSelected = selectedExperimentRepetitions.every(
     (run) => !run.selected
   );
@@ -447,6 +453,7 @@ export function ExperimentRunOutputs({
             selectedExperimentRepetitions={selectedExperimentRepetitions}
             updateExperimentSelection={updateExperimentSelection}
             updateRepetitionSelection={updateRepetitionSelection}
+            toggleAllRepetitionsSelection={toggleAllRepetitionsSelection}
             includeRepetitions={includeRepetitions}
             annotations={annotations}
             selectedAnnotation={selectedAnnotation}
@@ -598,6 +605,7 @@ function ExperimentRunOutputsSidebar({
   selectedExperimentRepetitions,
   updateExperimentSelection,
   updateRepetitionSelection,
+  toggleAllRepetitionsSelection,
   includeRepetitions,
   annotations,
   selectedAnnotation,
@@ -614,6 +622,7 @@ function ExperimentRunOutputsSidebar({
     repetitionNumber: number,
     checked: boolean
   ) => void;
+  toggleAllRepetitionsSelection: (checked: boolean) => void;
   includeRepetitions: boolean;
   annotations: string[];
   selectedAnnotation: string | null;
@@ -625,6 +634,15 @@ function ExperimentRunOutputsSidebar({
   toggleSortDirection: () => void;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
+
+  const allRepetitionsSelected = useMemo(
+    () => selectedExperimentRepetitions.every((run) => run.selected),
+    [selectedExperimentRepetitions]
+  );
+  const someRepetitionsSelected = useMemo(
+    () => selectedExperimentRepetitions.some((run) => run.selected),
+    [selectedExperimentRepetitions]
+  );
 
   return (
     <div
@@ -639,38 +657,47 @@ function ExperimentRunOutputsSidebar({
       `}
     >
       <Flex direction="column" gap="size-200">
-        {annotations.length > 0 && (
-          <Flex direction="row" gap="size-200" alignItems="center">
-            <IconButton
-              size="S"
-              aria-label="Change sort direction"
-              onPress={toggleSortDirection}
-              css={css`
-                flex: none;
-              `}
-            >
-              <Icon svg={<Icons.ArrowUpDown />} />
-            </IconButton>
-            <Select
-              value={selectedAnnotation}
-              onChange={(value) => setSelectedAnnotation(value as string)}
-            >
-              <Button variant="quiet" size="S">
-                <SelectValue />
-                <SelectChevronUpDownIcon />
-              </Button>
-              <Popover>
-                <ListBox>
-                  {annotations.map((annotation) => (
-                    <SelectItem key={annotation} id={annotation}>
-                      {annotation}
-                    </SelectItem>
-                  ))}
-                </ListBox>
-              </Popover>
-            </Select>
-          </Flex>
-        )}
+        <Flex direction="row" gap="size-50" alignItems="center">
+          <Checkbox
+            isSelected={allRepetitionsSelected}
+            isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
+            onChange={(checked) => toggleAllRepetitionsSelection(checked)}
+          >
+            Repetition
+          </Checkbox>
+          {annotations.length > 0 && (
+            <>
+              <IconButton
+                size="S"
+                aria-label="Change sort direction"
+                onPress={toggleSortDirection}
+                css={css`
+                  flex: none;
+                `}
+              >
+                <Icon svg={<Icons.ArrowUpDown />} />
+              </IconButton>
+              <Select
+                value={selectedAnnotation}
+                onChange={(value) => setSelectedAnnotation(value as string)}
+              >
+                <Button variant="quiet" size="S">
+                  <SelectValue />
+                  <SelectChevronUpDownIcon />
+                </Button>
+                <Popover>
+                  <ListBox>
+                    {annotations.map((annotation) => (
+                      <SelectItem key={annotation} id={annotation}>
+                        {annotation}
+                      </SelectItem>
+                    ))}
+                  </ListBox>
+                </Popover>
+              </Select>
+            </>
+          )}
+        </Flex>
         {sortedExperimentRepetitions.map(
           ({ experimentId, experimentRepetitions }) => {
             const experiment = experimentsById[experimentId];
