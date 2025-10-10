@@ -54,7 +54,7 @@ def add_order_by_and_page_start_to_query(
             mean_annotation_scores=mean_annotation_scores,
         )
         query = query.where(after_expression)
-    query = _add_joins_to_query(
+    query = _add_joins_and_selects_to_query(
         query=query,
         sort=sort,
         mean_annotation_scores=mean_annotation_scores,
@@ -161,7 +161,7 @@ def _get_mean_annotation_scores_subquery(annotation_name: str) -> NamedFromClaus
     )
 
 
-def _add_joins_to_query(
+def _add_joins_and_selects_to_query(
     query: Select[tuple[models.ExperimentRun]],
     sort: Optional[ExperimentRunSort],
     mean_annotation_scores: Optional[NamedFromClause],
@@ -179,9 +179,13 @@ def _add_joins_to_query(
         annotation_name = sort.col.annotation_name.value
         assert annotation_name is not None
         assert mean_annotation_scores is not None
-        return query.join(
+        query = query.join(
             mean_annotation_scores,
             mean_annotation_scores.c.experiment_run_id == models.ExperimentRun.id,
             isouter=True,
         )
+        query = query.add_columns(
+            mean_annotation_scores.c.score.label("score")
+        )  # the score must be in the select so that the value can be included in the cursor
+        return query
     raise NotImplementedError

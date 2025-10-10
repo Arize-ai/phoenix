@@ -22,6 +22,7 @@ from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experim
 from phoenix.server.api.types.pagination import (
     Cursor,
     CursorSortColumn,
+    CursorSortColumnDataType,
     CursorString,
     connection_from_cursors_and_nodes,
 )
@@ -105,15 +106,24 @@ class Experiment(Node):
         for result in results:
             run = result[0]
             gql_run = to_gql_experiment_run(run)
-
-            cursor = Cursor(rowid=run.id)
-            if sort and len(result) > 1:
-                sort_value = result[1]
-                cursor.sort_column = CursorSortColumn(
-                    type=sort.col.data_type,
-                    value=sort_value,
+            sort_column: Optional[CursorSortColumn] = None
+            if sort and sort.col.metric:
+                sort_column = CursorSortColumn(
+                    type=CursorSortColumnDataType.FLOAT,
+                    value=run.latency_ms,
                 )
-
+            elif sort and sort.col.annotation_name:
+                annotation_score = result[1]
+                data_type = (
+                    CursorSortColumnDataType.FLOAT
+                    if annotation_score is not None
+                    else CursorSortColumnDataType.NULL
+                )
+                sort_column = CursorSortColumn(
+                    type=data_type,
+                    value=annotation_score,
+                )
+            cursor = Cursor(rowid=run.id, sort_column=sort_column)
             cursors_and_nodes.append((cursor, gql_run))
 
         return connection_from_cursors_and_nodes(
