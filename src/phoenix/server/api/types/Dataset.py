@@ -236,12 +236,17 @@ class Dataset(Node):
 
         # Filter by split IDs if provided
         if split_rowids:
-            query = query.join(
-                models.DatasetSplitDatasetExample,
-                onclause=(
-                    models.DatasetExample.id == models.DatasetSplitDatasetExample.dataset_example_id
-                ),
-            ).where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids))
+            query = (
+                query.join(
+                    models.DatasetSplitDatasetExample,
+                    onclause=(
+                        models.DatasetExample.id
+                        == models.DatasetSplitDatasetExample.dataset_example_id
+                    ),
+                )
+                .where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids))
+                .distinct()
+            )
         # Apply filter if provided - search through JSON fields (input, output, metadata)
         if filter is not UNSET and filter:
             # Create a filter that searches for the filter string in JSON fields
