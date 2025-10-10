@@ -15,4 +15,4 @@ class DatasetFilterColumn(Enum):
 class DatasetFilter:
     col: DatasetFilterColumn
     value: str
-    labelIds: Optional[list[GlobalID]] = UNSET
+    filter_labels: Optional[list[str]] = UNSET
