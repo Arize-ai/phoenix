@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<235a0714d66b251a9d626a9a5ef9bec1>>
+ * @generated SignedSource<<c78515c18bc94aad58d4a0eb26b0970f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,11 +15,11 @@ export type CreateDatasetSplitInput = {
   metadata?: any | null;
   name: string;
 };
-export type NewDatasetSplitDialogCreateSplitMutation$variables = {
+export type useDatasetSplitMutationsCreateSplitMutation$variables = {
   connections: ReadonlyArray<string>;
   input: CreateDatasetSplitInput;
 };
-export type NewDatasetSplitDialogCreateSplitMutation$data = {
+export type useDatasetSplitMutationsCreateSplitMutation$data = {
   readonly createDatasetSplit: {
     readonly datasetSplit: {
       readonly id: string;
@@ -27,9 +27,9 @@ export type NewDatasetSplitDialogCreateSplitMutation$data = {
     };
   };
 };
-export type NewDatasetSplitDialogCreateSplitMutation = {
-  response: NewDatasetSplitDialogCreateSplitMutation$data;
-  variables: NewDatasetSplitDialogCreateSplitMutation$variables;
+export type useDatasetSplitMutationsCreateSplitMutation = {
+  response: useDatasetSplitMutationsCreateSplitMutation$data;
+  variables: useDatasetSplitMutationsCreateSplitMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -83,7 +83,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "NewDatasetSplitDialogCreateSplitMutation",
+    "name": "useDatasetSplitMutationsCreateSplitMutation",
     "selections": [
       {
         "alias": null,
@@ -108,7 +108,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "NewDatasetSplitDialogCreateSplitMutation",
+    "name": "useDatasetSplitMutationsCreateSplitMutation",
     "selections": [
       {
         "alias": null,
@@ -146,16 +146,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e2f2d371c2b1017d3aecc2d6a77a14ce",
+    "cacheID": "614b8f50f0634f0646415cdf91f55159",
     "id": null,
     "metadata": {},
-    "name": "NewDatasetSplitDialogCreateSplitMutation",
+    "name": "useDatasetSplitMutationsCreateSplitMutation",
     "operationKind": "mutation",
-    "text": "mutation NewDatasetSplitDialogCreateSplitMutation(\n  $input: CreateDatasetSplitInput!\n) {\n  createDatasetSplit(input: $input) {\n    datasetSplit {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation useDatasetSplitMutationsCreateSplitMutation(\n  $input: CreateDatasetSplitInput!\n) {\n  createDatasetSplit(input: $input) {\n    datasetSplit {\n      id\n      name\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a30073b8a498e1a9472dc42cb57be358";
+(node as any).hash = "41e5c0b6cd08b3a04564ba121785a0e3";
 
 export default node;

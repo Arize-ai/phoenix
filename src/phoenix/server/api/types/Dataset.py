@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import ClassVar, Optional, cast
 
 import strawberry
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import Text, and_, func, or_, select
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -172,6 +172,7 @@ class Dataset(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        filter: Optional[str] = UNSET,
     ) -> Connection[DatasetExample]:
         args = ConnectionArgs(
             first=first,
@@ -235,12 +236,28 @@ class Dataset(Node):
 
         # Filter by split IDs if provided
         if split_rowids:
-            query = query.join(
-                models.DatasetSplitDatasetExample,
-                onclause=(
-                    models.DatasetExample.id == models.DatasetSplitDatasetExample.dataset_example_id
-                ),
-            ).where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids))
+            query = (
+                query.join(
+                    models.DatasetSplitDatasetExample,
+                    onclause=(
+                        models.DatasetExample.id
+                        == models.DatasetSplitDatasetExample.dataset_example_id
+                    ),
+                )
+                .where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids))
+                .distinct()
+            )
+        # Apply filter if provided - search through JSON fields (input, output, metadata)
+        if filter is not UNSET and filter:
+            # Create a filter that searches for the filter string in JSON fields
+            # Using PostgreSQL's JSON operators for case-insensitive text search
+            filter_condition = or_(
+                func.cast(models.DatasetExampleRevision.input, Text).ilike(f"%{filter}%"),
+                func.cast(models.DatasetExampleRevision.output, Text).ilike(f"%{filter}%"),
+                func.cast(models.DatasetExampleRevision.metadata_, Text).ilike(f"%{filter}%"),
+            )
+            query = query.where(filter_condition)
+
         async with info.context.db() as session:
             dataset_examples = [
                 DatasetExample(

@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
@@ -13,14 +13,12 @@ import {
   Icons,
   LazyTabPanel,
   Loading,
-  ModalOverlay,
   Tab,
   TabList,
   Tabs,
   Text,
   View,
 } from "@phoenix/components";
-import { NewDatasetSplitDialog } from "@phoenix/components/dataset/NewDatasetSplitDialog";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   DatasetProvider,
@@ -117,13 +115,11 @@ function DatasetPageContent({
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
   const isEvaluatorsEnabled = useFeatureFlag("evaluators");
-  const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const datasetId = dataset.id;
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
   );
   const notifySuccess = useNotifySuccess();
-  const [isCreateSplitOpen, setIsCreateSplitOpen] = useState(false);
 
   const navigate = useNavigate();
   const onTabChange = useCallback(
@@ -214,15 +210,6 @@ function DatasetPageContent({
                 refreshLatestVersion();
               }}
             />
-            {isSplitsEnabled ? (
-              <Button
-                leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-                size="S"
-                onPress={() => setIsCreateSplitOpen(true)}
-              >
-                Create Split
-              </Button>
-            ) : null}
             <Button
               size="S"
               variant="primary"
@@ -236,18 +223,6 @@ function DatasetPageContent({
           </Flex>
         </Flex>
       </View>
-      {isSplitsEnabled ? (
-        <ModalOverlay
-          isOpen={isCreateSplitOpen}
-          onOpenChange={(open) => {
-            if (!open) setIsCreateSplitOpen(false);
-          }}
-        >
-          <NewDatasetSplitDialog
-            onCompleted={() => setIsCreateSplitOpen(false)}
-          />
-        </ModalOverlay>
-      ) : null}
       <Tabs
         defaultSelectedKey={
           initialIndex === 0
