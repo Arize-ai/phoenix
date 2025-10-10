@@ -9,7 +9,12 @@ from strawberry import Maybe
 from typing_extensions import assert_never
 
 from phoenix.db import models
-from phoenix.server.api.types.pagination import CursorSortColumnValue
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+    CursorSortColumnValue,
+)
 from phoenix.server.api.types.SortDir import SortDir
 
 
@@ -28,6 +33,34 @@ class ExperimentRunColumn:
 class ExperimentRunSort:
     col: ExperimentRunColumn
     dir: SortDir
+
+
+def get_experiment_run_cursor(
+    run: models.ExperimentRun, annotation_score: Optional[float], sort: Optional[ExperimentRunSort]
+) -> Cursor:
+    sort_column: Optional[CursorSortColumn] = None
+    if sort:
+        if sort.col.metric:
+            metric = sort.col.metric.value
+            assert metric is not None
+            if metric is ExperimentRunMetric.latencyMs:
+                sort_column = CursorSortColumn(
+                    type=CursorSortColumnDataType.FLOAT,
+                    value=run.latency_ms,
+                )
+            else:
+                assert_never(metric)
+        elif sort.col.annotation_name:
+            data_type = (
+                CursorSortColumnDataType.FLOAT
+                if annotation_score is not None
+                else CursorSortColumnDataType.NULL
+            )
+            sort_column = CursorSortColumn(
+                type=data_type,
+                value=annotation_score,
+            )
+    return Cursor(rowid=run.id, sort_column=sort_column)
 
 
 def add_order_by_and_page_start_to_query(

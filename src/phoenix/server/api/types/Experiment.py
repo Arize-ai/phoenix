@@ -15,6 +15,7 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.ExperimentRunSort import (
     ExperimentRunSort,
     add_order_by_and_page_start_to_query,
+    get_experiment_run_cursor,
 )
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
@@ -22,8 +23,6 @@ from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnot
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.pagination import (
     Cursor,
-    CursorSortColumn,
-    CursorSortColumnDataType,
     CursorString,
     connection_from_cursors_and_nodes,
 )
@@ -108,26 +107,11 @@ class Experiment(Node):
         cursors_and_nodes = []
         for result in results:
             run = result[0]
+            annotation_score = result[1] if len(result) > 1 else None
             gql_run = to_gql_experiment_run(run)
-            sort_column: Optional[CursorSortColumn] = None
-            if sort:
-                if sort.col.metric:
-                    sort_column = CursorSortColumn(
-                        type=CursorSortColumnDataType.FLOAT,
-                        value=run.latency_ms,
-                    )
-                elif sort.col.annotation_name:
-                    annotation_score = result[1]
-                    data_type = (
-                        CursorSortColumnDataType.FLOAT
-                        if annotation_score is not None
-                        else CursorSortColumnDataType.NULL
-                    )
-                    sort_column = CursorSortColumn(
-                        type=data_type,
-                        value=annotation_score,
-                    )
-            cursor = Cursor(rowid=run.id, sort_column=sort_column)
+            cursor = get_experiment_run_cursor(
+                run=run, annotation_score=annotation_score, sort=sort
+            )
             cursors_and_nodes.append((cursor, gql_run))
 
         return connection_from_cursors_and_nodes(
