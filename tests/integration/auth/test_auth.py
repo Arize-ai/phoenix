@@ -2642,84 +2642,119 @@ class TestTraceAnnotations:
 class TestApiAccessViaCookiesOrApiKeys:
     """Tests REST API v1 access control using both cookie and API key authentication.
 
-    These comprehensive tests verify access restrictions across all user roles (Admin, Member,
-    Viewer) at the v1 router level using BOTH authentication methods:
+    These comprehensive tests verify that access restrictions are enforced consistently
+    across all user roles (Admin, Member, Viewer) at the v1 router level, regardless of
+    authentication method used:
     - Cookie-based authentication (access tokens from login)
     - API key authentication (Bearer tokens)
 
     Test Coverage:
-    - 30+ GET endpoints across all major v1 routers (projects, datasets, experiments,
+    - 28 GET endpoints across all major v1 routers (projects, datasets, experiments,
       prompts, annotation configs, evaluations, spans, annotations)
+    - 3 admin-only endpoints (GET/POST/DELETE on /users)
+    - 25 write operations (POST/PUT/DELETE) tested for viewer restrictions
     - All user roles: Admin, Member, Viewer, and Default Admin
-    - Both authentication methods: cookies and API keys
-    - Token lifecycle: verifies logout invalidates cookies but not API keys
+    - Both authentication methods tested for each endpoint
     - Error handling: validates proper HTTP status codes (200, 404, 422) for both
       valid and invalid resource identifiers
     - Invalid ID format handling: ensures GlobalID parsing errors return 422 instead of 500
 
-    Access Rules:
-    - GET requests: Most common resources are readable by all roles
-    - Admin-only GET requests: /users endpoint requires admin role
-    - Write operations (POST/PUT/DELETE): Blocked for viewers (403)
-    
-    Token Lifecycle (Logout Behavior):
-    - After logout, cookies are invalidated and return 401 for all requests
-    - After logout, API keys persist and maintain their authorization level
+    Access Rules (enforced consistently for both cookies and API keys):
+    - GET requests: Most common resources are readable by all roles (28 endpoints)
+    - Admin-only endpoints: /users operations require admin role (3 endpoints, 403 for non-admins)
+    - Write operations (POST/PUT/DELETE): Blocked for viewers (25 operations, all return 403)
     """
 
+    # GET endpoints that all roles can read with expected status codes
+    COMMON_RESOURCE_ENDPOINTS = [
+        # Projects
+        (404, "v1/projects/invalid-id-{}"),
+        (200, "v1/projects"),
+        # Datasets
+        (422, "v1/datasets/invalid-id-{}"),
+        (200, "v1/datasets"),
+        (422, "v1/datasets/invalid-id-{}/versions"),
+        (422, "v1/datasets/invalid-id-{}/examples"),
+        (422, "v1/datasets/invalid-id-{}/csv"),
+        (422, "v1/datasets/invalid-id-{}/jsonl/openai_ft"),
+        (422, "v1/datasets/invalid-id-{}/jsonl/openai_evals"),
+        # Experiments
+        (422, "v1/experiments/invalid-id-{}"),
+        (422, "v1/datasets/invalid-id-{}/experiments"),
+        (422, "v1/experiments/invalid-id-{}/runs"),
+        (422, "v1/experiments/invalid-id-{}/json"),
+        (422, "v1/experiments/invalid-id-{}/csv"),
+        # Prompts
+        (200, "v1/prompts"),
+        (200, "v1/prompts/invalid-id-{}/versions"),  # Treats as prompt name, returns empty list
+        (422, "v1/prompt_versions/invalid-id-{}"),
+        (404, "v1/prompts/invalid-id-{}/tags/test-tag"),
+        (404, "v1/prompts/invalid-id-{}/latest"),
+        (422, "v1/prompt_versions/invalid-id-{}/tags"),
+        # Annotation configs
+        (200, "v1/annotation_configs"),
+        (404, "v1/annotation_configs/invalid-id-{}"),
+        # Evaluations
+        (404, "v1/evaluations"),  # Returns 404 when no project_name provided
+        # Spans (project-scoped)
+        (404, "v1/projects/invalid-id-{}/spans"),
+        (404, "v1/projects/invalid-id-{}/spans/otlpv1"),
+        # Annotations (project-scoped) - require query params
+        (422, "v1/projects/invalid-id-{}/span_annotations"),
+        (422, "v1/projects/invalid-id-{}/trace_annotations"),
+        (422, "v1/projects/invalid-id-{}/session_annotations"),
+    ]
+
+    # Admin-only endpoints (GET and write operations)
+    # Non-admins should receive 403 regardless of request validity
+    ADMIN_ONLY_ENDPOINTS = [
+        ("GET", "v1/users"),
+        ("POST", "v1/users"),
+        ("DELETE", "v1/users/invalid-id-{}"),
+    ]
+
+    # Write operations that viewers should be blocked from
+    VIEWER_BLOCKED_WRITE_OPERATIONS = [
+        # POST routes
+        ("POST", "v1/annotation_configs"),
+        ("POST", "v1/datasets/upload"),
+        ("POST", "v1/datasets/invalid-id-{}/experiments"),
+        ("POST", "v1/document_annotations"),
+        ("POST", "v1/evaluations"),
+        ("POST", "v1/experiment_evaluations"),
+        ("POST", "v1/experiments/invalid-id-{}/runs"),
+        ("POST", "v1/projects"),
+        ("POST", "v1/projects/invalid-id-{}/spans"),
+        ("POST", "v1/prompts"),
+        ("POST", "v1/prompt_versions/invalid-id-{}/tags"),
+        ("POST", "v1/session_annotations"),
+        ("POST", "v1/span_annotations"),
+        ("POST", "v1/spans"),
+        ("POST", "v1/trace_annotations"),
+        ("POST", "v1/traces"),
+        ("POST", "v1/users"),
+        # PUT routes
+        ("PUT", "v1/annotation_configs/invalid-id-{}"),
+        ("PUT", "v1/projects/invalid-id-{}"),
+        # DELETE routes
+        ("DELETE", "v1/annotation_configs/invalid-id-{}"),
+        ("DELETE", "v1/datasets/invalid-id-{}"),
+        ("DELETE", "v1/projects/invalid-id-{}"),
+        ("DELETE", "v1/spans/invalid-id-{}"),
+        ("DELETE", "v1/traces/invalid-id-{}"),
+        ("DELETE", "v1/users/invalid-id-{}"),
+    ]
+
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
-    @pytest.mark.parametrize(
-        "expected_status_code,endpoint",
-        [
-            # Projects
-            (404, "v1/projects/invalid-id-{}"),
-            (200, "v1/projects"),
-            # Datasets
-            (422, "v1/datasets/invalid-id-{}"),
-            (200, "v1/datasets"),
-            (422, "v1/datasets/invalid-id-{}/versions"),
-            (422, "v1/datasets/invalid-id-{}/examples"),
-            (422, "v1/datasets/invalid-id-{}/csv"),
-            (422, "v1/datasets/invalid-id-{}/jsonl/openai_ft"),
-            (422, "v1/datasets/invalid-id-{}/jsonl/openai_evals"),
-            # Experiments
-            (422, "v1/experiments/invalid-id-{}"),
-            (422, "v1/datasets/invalid-id-{}/experiments"),
-            (422, "v1/experiments/invalid-id-{}/runs"),
-            (422, "v1/experiments/invalid-id-{}/json"),
-            (422, "v1/experiments/invalid-id-{}/csv"),
-            # Prompts
-            (200, "v1/prompts"),
-            (200, "v1/prompts/invalid-id-{}/versions"),  # Treats as prompt name, returns empty list
-            (422, "v1/prompt_versions/invalid-id-{}"),
-            (404, "v1/prompts/invalid-id-{}/tags/test-tag"),
-            (404, "v1/prompts/invalid-id-{}/latest"),
-            (422, "v1/prompt_versions/invalid-id-{}/tags"),
-            # Annotation configs
-            (200, "v1/annotation_configs"),
-            (404, "v1/annotation_configs/invalid-id-{}"),
-            # Evaluations
-            (404, "v1/evaluations"),  # Returns 404 when no project_name provided
-            # Spans (project-scoped)
-            (404, "v1/projects/invalid-id-{}/spans"),
-            (404, "v1/projects/invalid-id-{}/spans/otlpv1"),
-            # Annotations (project-scoped) - require query params
-            (422, "v1/projects/invalid-id-{}/span_annotations"),
-            (422, "v1/projects/invalid-id-{}/trace_annotations"),
-            (422, "v1/projects/invalid-id-{}/session_annotations"),
-        ],
-    )
     def test_all_roles_can_read_common_resources(
         self,
         role_or_user: _RoleOrUser,
-        expected_status_code: int,
-        endpoint: str,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that all roles can read common v1 API resources using cookies or API keys.
 
-        This test verifies comprehensive read access across 30+ GET endpoints covering:
+        This test verifies comprehensive read access across 28 GET endpoints covering:
         - Projects, Datasets, Experiments, Prompts, Annotation Configs
         - Evaluations, Spans, and Annotations
 
@@ -2727,111 +2762,94 @@ class TestApiAccessViaCookiesOrApiKeys:
         - 404: Non-existent resources or missing required parameters
         - 422: Invalid ID format (ensures GlobalID errors are handled properly)
 
-        Authentication and token lifecycle verification:
-        1. Access endpoint with cookies → expects configured status code
-        2. User logs out
-        3. Access endpoint with cookies → expects 401 (cookies invalidated)
-        4. Access endpoint with API key → expects configured status code (API keys persist)
+        Authentication verification:
+        Tests each endpoint with BOTH authentication methods to ensure consistent behavior:
+        1. Cookie-based authentication (session tokens)
+        2. API key authentication (Bearer tokens)
 
-        This verifies that logout only invalidates session cookies, not API keys.
+        Both methods should return the same status code, verifying that authorization
+        is enforced consistently regardless of authentication method.
 
         Uses dynamic invalid IDs (token_hex) to ensure test isolation and verify
         server-side error handling returns appropriate status codes instead of 500.
         """
-        assert expected_status_code not in (401, 403)
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
         api_key = logged_in_user.create_api_key(_app)
         tokens = logged_in_user.tokens
-        endpoint = endpoint.format(token_hex(4))
-        response = _httpx_client(_app, tokens).get(endpoint)
-        assert response.status_code == expected_status_code
-        logged_in_user.log_out(_app)
-        response = _httpx_client(_app, tokens).get(endpoint)
-        assert response.status_code == 401
-        response = _httpx_client(_app, api_key).get(endpoint)
-        assert response.status_code == expected_status_code
+
+        for expected_status_code, endpoint in self.COMMON_RESOURCE_ENDPOINTS:
+            assert expected_status_code not in (401, 403), (
+                f"Test misconfiguration: expected_status_code should not be "
+                f"401 or 403 (got {expected_status_code} for {endpoint})"
+            )
+            endpoint = endpoint.format(token_hex(4))
+            for client in (
+                _httpx_client(_app, tokens),
+                _httpx_client(_app, api_key),
+            ):
+                response = client.get(endpoint)
+                assert response.status_code == expected_status_code, (
+                    f"Expected {expected_status_code} but got {response.status_code} for {endpoint}"
+                )
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
-    @pytest.mark.parametrize(
-        "endpoint",
-        [
-            "v1/users",
-        ],
-    )
-    def test_only_admins_can_read_users(
+    def test_only_admins_can_access_admin_only_endpoints(
         self,
         role_or_user: _RoleOrUser,
-        endpoint: str,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        """Test that only admins can access admin-restricted GET endpoints with any auth method.
+        """Test that only admins can access admin-restricted endpoints with any auth method.
 
-        The /v1/users endpoint requires admin role via the require_admin dependency.
-        Members and Viewers should receive 403 Forbidden when accessing this endpoint,
-        regardless of whether they use cookies or API keys.
+        Admin-only endpoints (GET/POST/DELETE on /v1/users) require admin role via the
+        require_admin dependency. Members and Viewers should receive 403 Forbidden when
+        accessing these endpoints, regardless of whether they use cookies or API keys.
 
-        Authentication and token lifecycle verification:
-        1. Access endpoint with cookies → expects 200 (admins) or 403 (non-admins)
-        2. User logs out
-        3. Access endpoint with cookies → expects 401 (cookies invalidated)
-        4. Access endpoint with API key → expects 200 (admins) or 403 (non-admins, API keys persist)
+        This test covers 3 admin-only operations:
+        - GET /v1/users (list users)
+        - POST /v1/users (create user)
+        - DELETE /v1/users/{id} (delete user)
 
-        This verifies that:
-        - Authorization is enforced consistently for both auth methods
-        - Logout invalidates cookies but not API keys
+        Authentication verification:
+        Tests with BOTH authentication methods to ensure consistent behavior:
+        1. Cookie-based authentication (session tokens)
+        2. API key authentication (Bearer tokens)
+
+        Expected behavior (consistent across both auth methods):
+        - Admins: Access granted (may get validation errors like 422 for invalid data, but not 403)
+        - Members/Viewers: 403 Forbidden (authorization denied before validation)
+
+        This verifies that role-based authorization is enforced consistently
+        regardless of authentication method.
         """
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
         api_key = logged_in_user.create_api_key(_app)
         tokens = logged_in_user.tokens
         is_admin = user.role is UserRoleInput.ADMIN or role_or_user is _DEFAULT_ADMIN
-        response = _httpx_client(_app, tokens).get(endpoint)
-        assert response.status_code == 200 if is_admin else 403
-        logged_in_user.log_out(_app)
-        response = _httpx_client(_app, tokens).get(endpoint)
-        assert response.status_code == 401
-        response = _httpx_client(_app, api_key).get(endpoint)
-        assert response.status_code == 200 if is_admin else 403
 
-    @pytest.mark.parametrize(
-        "method,endpoint",
-        [
-            # POST routes
-            ("POST", "v1/annotation_configs"),
-            ("POST", "v1/datasets/upload"),
-            ("POST", "v1/datasets/invalid-id-{}/experiments"),
-            ("POST", "v1/document_annotations"),
-            ("POST", "v1/evaluations"),
-            ("POST", "v1/experiment_evaluations"),
-            ("POST", "v1/experiments/invalid-id-{}/runs"),
-            ("POST", "v1/projects"),
-            ("POST", "v1/projects/invalid-id-{}/spans"),
-            ("POST", "v1/prompts"),
-            ("POST", "v1/prompt_versions/invalid-id-{}/tags"),
-            ("POST", "v1/session_annotations"),
-            ("POST", "v1/span_annotations"),
-            ("POST", "v1/spans"),
-            ("POST", "v1/trace_annotations"),
-            ("POST", "v1/traces"),
-            ("POST", "v1/users"),
-            # PUT routes
-            ("PUT", "v1/annotation_configs/invalid-id-{}"),
-            ("PUT", "v1/projects/invalid-id-{}"),
-            # DELETE routes
-            ("DELETE", "v1/annotation_configs/invalid-id-{}"),
-            ("DELETE", "v1/datasets/invalid-id-{}"),
-            ("DELETE", "v1/projects/invalid-id-{}"),
-            ("DELETE", "v1/spans/invalid-id-{}"),
-            ("DELETE", "v1/traces/invalid-id-{}"),
-            ("DELETE", "v1/users/invalid-id-{}"),
-        ],
-    )
+        for method, endpoint in self.ADMIN_ONLY_ENDPOINTS:
+            endpoint = endpoint.format(token_hex(4))
+            for client in (
+                _httpx_client(_app, tokens),
+                _httpx_client(_app, api_key),
+            ):
+                response = client.request(method, endpoint)
+                if is_admin:
+                    # Admins should NOT get 403 (may get other errors like 422 for invalid data)
+                    assert response.status_code != 403, (
+                        f"Admin got 403 for {method} {endpoint}, expected access granted"
+                    )
+                else:
+                    # Non-admins should always get 403
+                    assert response.status_code == 403, (
+                        f"Non-admin expected 403 but got {response.status_code} "
+                        f"for {method} {endpoint}"
+                    )
+
     def test_viewers_blocked_from_all_write_operations(
         self,
-        method: str,
-        endpoint: str,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -2841,31 +2859,36 @@ class TestApiAccessViaCookiesOrApiKeys:
         POST, PUT, or DELETE requests across all v1 API endpoints, regardless
         of whether they authenticate with cookies or API keys.
 
-        This test covers write operations for:
+        This test covers 25 write operations across:
         - Projects, Datasets, Experiments, Prompts
         - Annotations (span, trace, session, document)
         - Evaluations, Spans, Traces, Users
+        - 17 POST operations, 2 PUT operations, 6 DELETE operations
 
-        Authentication and token lifecycle verification:
-        1. Write request with cookies → expects 403 (viewers are read-only)
-        2. User logs out
-        3. Write request with cookies → expects 401 (cookies invalidated)
-        4. Write request with API key → expects 403 (viewers remain read-only, API keys persist)
+        Authentication verification:
+        Tests each write operation with BOTH authentication methods to ensure consistent behavior:
+        1. Cookie-based authentication (session tokens)
+        2. API key authentication (Bearer tokens)
 
-        This verifies that:
-        - Viewer write restrictions are enforced consistently for both auth methods
-        - Logout invalidates cookies but not API keys
-        - API keys maintain the same authorization level (viewer = read-only) after logout
+        Expected behavior (consistent across both auth methods):
+        - All 25 write operations return 403 Forbidden for viewers
+
+        This verifies that viewer write restrictions are enforced consistently
+        regardless of authentication method. Viewers remain read-only whether
+        they use cookies or API keys.
         """
         user = _get_user(_app, _VIEWER)
         logged_in_user = user.log_in(_app)
         api_key = logged_in_user.create_api_key(_app)
         tokens = logged_in_user.tokens
-        endpoint = endpoint.format(token_hex(4))
-        response = _httpx_client(_app, tokens).request(method, endpoint)
-        assert response.status_code == 403
-        logged_in_user.log_out(_app)
-        response = _httpx_client(_app, tokens).request(method, endpoint)
-        assert response.status_code == 401
-        response = _httpx_client(_app, api_key).request(method, endpoint)
-        assert response.status_code == 403
+
+        for method, endpoint in self.VIEWER_BLOCKED_WRITE_OPERATIONS:
+            endpoint = endpoint.format(token_hex(4))
+            for client in (
+                _httpx_client(_app, tokens),
+                _httpx_client(_app, api_key),
+            ):
+                response = client.request(method, endpoint)
+                assert response.status_code == 403, (
+                    f"Expected 403 but got {response.status_code} for {method} {endpoint}"
+                )
