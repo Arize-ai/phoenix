@@ -27,7 +27,7 @@ from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import insert_experiment_with_examples_snapshot
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.playground_clients import (
@@ -94,7 +94,7 @@ ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
 
 @strawberry.type
 class Subscription:
-    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -193,7 +193,7 @@ class Subscription:
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
         yield ChatCompletionSubscriptionResult(span=Span(span_rowid=db_span.id, db_span=db_span))
 
-    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def chat_completion_over_dataset(
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
