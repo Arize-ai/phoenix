@@ -426,7 +426,7 @@ export function ExperimentCompareListPage({
   }, [data, annotationSummaries, compareExperimentIds, experimentIds]);
 
   type TableRow = (typeof tableData)[number];
-  const columnHelper = createColumnHelper<TableRow>();
+  const columnHelper = useMemo(() => createColumnHelper<TableRow>(), []);
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
