@@ -604,8 +604,9 @@ type Dataset implements Node {
   """
   Number of examples in a specific version if version is specified, or in the latest version if version is not specified.
   """
-  exampleCount(datasetVersionId: ID): Int!
-  examples(datasetVersionId: ID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
+  exampleCount(datasetVersionId: ID, splitIds: [ID!]): Int!
+  examples(datasetVersionId: ID, splitIds: [ID!], first: Int = 50, last: Int, after: String, before: String, filter: String): DatasetExampleConnection!
+  splits: [DatasetSplit!]!
 
   """
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
@@ -2038,6 +2039,16 @@ type ProjectSession implements Node {
   sessionAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
 }
 
+enum ProjectSessionAnnoAttr {
+  score
+  label
+}
+
+input ProjectSessionAnnoResultKey {
+  name: String!
+  attr: ProjectSessionAnnoAttr!
+}
+
 type ProjectSessionAnnotation implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2086,7 +2097,8 @@ type ProjectSessionEdge {
 
 """The sort key and direction for ProjectSession connections."""
 input ProjectSessionSort {
-  col: ProjectSessionColumn!
+  col: ProjectSessionColumn
+  annoResultKey: ProjectSessionAnnoResultKey
   dir: SortDir!
 }
 

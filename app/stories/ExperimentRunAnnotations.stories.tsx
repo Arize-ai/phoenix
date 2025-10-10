@@ -19,6 +19,10 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
   experimentId: "exp-1",
   output: { result: "Generated SQL query", success: true },
   error: null,
+  trace: {
+    traceId: "trace-123",
+    projectId: "project-456",
+  },
   costSummary: {
     total: {
       cost: 0.0205,
@@ -33,6 +37,10 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
           name: "qa_correctness",
           label: "correct",
           score: 0.95,
+          trace: {
+            traceId: "eval-trace-111",
+            projectId: "project-456",
+          },
         },
       },
       {
@@ -41,6 +49,10 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
           name: "has_results",
           label: null,
           score: 1.0,
+          trace: {
+            traceId: "eval-trace-222",
+            projectId: "project-456",
+          },
         },
       },
       {
@@ -49,6 +61,10 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
           name: "sql_syntax_valid",
           label: "valid",
           score: 1.0,
+          trace: {
+            traceId: "eval-trace-333",
+            projectId: "project-456",
+          },
         },
       },
     ],
@@ -62,6 +78,10 @@ const mockExperimentRunNoAnnotations: ExperimentRun = {
   experimentId: "exp-2",
   output: { result: "No annotations available" },
   error: null,
+  trace: {
+    traceId: "trace-456",
+    projectId: "project-789",
+  },
   costSummary: {
     total: {
       cost: 0.0089,
@@ -135,7 +155,7 @@ const Template: Story = (args) => (
     borderRadius="medium"
     overflow="hidden"
   >
-    <ExperimentRunAnnotations {...args} />
+    <ExperimentRunAnnotations {...args} openTraceDialog={() => {}} />
   </View>
 );
 
@@ -172,6 +192,10 @@ ScoreOnly.args = {
             name: "accuracy",
             label: null,
             score: 0.87,
+            trace: {
+              traceId: "eval-trace-score-1",
+              projectId: "project-456",
+            },
           },
         },
         {
@@ -180,6 +204,10 @@ ScoreOnly.args = {
             name: "precision",
             label: null,
             score: 0.92,
+            trace: {
+              traceId: "eval-trace-score-2",
+              projectId: "project-456",
+            },
           },
         },
       ],
@@ -214,6 +242,10 @@ LabelsOnly.args = {
             name: "sentiment",
             label: "positive",
             score: null,
+            trace: {
+              traceId: "eval-trace-label-1",
+              projectId: "project-789",
+            },
           },
         },
         {
@@ -222,6 +254,10 @@ LabelsOnly.args = {
             name: "category",
             label: "technical",
             score: null,
+            trace: {
+              traceId: "eval-trace-label-2",
+              projectId: "project-789",
+            },
           },
         },
       ],
@@ -256,6 +292,10 @@ MixedWithMissing.args = {
             name: "qa_correctness",
             label: null,
             score: 0.75,
+            trace: {
+              traceId: "eval-trace-mixed-1",
+              projectId: "project-456",
+            },
           },
         },
         // Missing "has_results" annotation
@@ -265,6 +305,10 @@ MixedWithMissing.args = {
             name: "readability",
             label: "good",
             score: null,
+            trace: {
+              traceId: "eval-trace-mixed-2",
+              projectId: "project-456",
+            },
           },
         },
       ],
@@ -304,6 +348,10 @@ LongAnnotationNames.args = {
             name: "very_long_annotation_name_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
             label: "correct",
             score: 0.85,
+            trace: {
+              traceId: "eval-trace-long-1",
+              projectId: "project-456",
+            },
           },
         },
         {
@@ -312,6 +360,10 @@ LongAnnotationNames.args = {
             name: "another_extremely_long_annotation_name_for_testing_truncation_behavior",
             label: null,
             score: 0.92,
+            trace: {
+              traceId: "eval-trace-long-2",
+              projectId: "project-456",
+            },
           },
         },
         {
@@ -320,6 +372,10 @@ LongAnnotationNames.args = {
             name: "short_name",
             label: "good",
             score: 0.78,
+            trace: {
+              traceId: "eval-trace-long-3",
+              projectId: "project-456",
+            },
           },
         },
       ],
@@ -362,6 +418,10 @@ LongAnnotationValues.args = {
             label:
               "This is an extremely long annotation value that contains detailed feedback about the quality of the generated response and should be truncated properly in the UI to maintain good layout and readability",
             score: null,
+            trace: {
+              traceId: "eval-trace-value-1",
+              projectId: "project-456",
+            },
           },
         },
         {
@@ -371,6 +431,10 @@ LongAnnotationValues.args = {
             label:
               "A very long error message that describes exactly what went wrong during the execution of this particular experiment run including stack traces and detailed debugging information",
             score: null,
+            trace: {
+              traceId: "eval-trace-value-2",
+              projectId: "project-456",
+            },
           },
         },
         {
@@ -379,6 +443,10 @@ LongAnnotationValues.args = {
             name: "accuracy",
             label: null,
             score: 0.95,
+            trace: {
+              traceId: "eval-trace-value-3",
+              projectId: "project-456",
+            },
           },
         },
       ],
@@ -402,4 +470,47 @@ LongAnnotationValues.args = {
       maxScore: 1.0,
     },
   ],
+};
+
+/**
+ * Annotation stack with no trace links - shows annotations without trace buttons
+ */
+export const NoTraces = Template.bind({});
+NoTraces.args = {
+  experimentRun: {
+    ...mockExperimentRunWithAnnotations,
+    trace: null,
+    annotations: {
+      edges: [
+        {
+          annotation: {
+            id: "ann-1",
+            name: "qa_correctness",
+            label: "correct",
+            score: 0.95,
+            trace: null,
+          },
+        },
+        {
+          annotation: {
+            id: "ann-2",
+            name: "has_results",
+            label: null,
+            score: 1.0,
+            trace: null,
+          },
+        },
+        {
+          annotation: {
+            id: "ann-3",
+            name: "sql_syntax_valid",
+            label: "valid",
+            score: 1.0,
+            trace: null,
+          },
+        },
+      ],
+    },
+  },
+  annotationSummaries: mockAnnotationSummaries,
 };

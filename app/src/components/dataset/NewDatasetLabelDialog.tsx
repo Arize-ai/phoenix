@@ -16,10 +16,14 @@ import type { NewDatasetLabelDialogMutation } from "./__generated__/NewDatasetLa
 
 type NewDatasetLabelDialogProps = {
   onCompleted: () => void;
+  /**
+   * Optional connection IDs to update. If not provided, defaults to DatasetLabelsTable connection.
+   */
+  connections?: string[];
 };
 export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
   const [error, setError] = useState("");
-  const { onCompleted } = props;
+  const { onCompleted, connections: providedConnections } = props;
   const [addLabel, isSubmitting] = useMutation<NewDatasetLabelDialogMutation>(
     graphql`
       mutation NewDatasetLabelDialogMutation(
@@ -61,7 +65,7 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
       return color; // fallback to original color
     };
 
-    const connections = [
+    const connections = providedConnections || [
       ConnectionHandler.getConnectionID(
         "client:root",
         "DatasetLabelsTable__datasetLabels"

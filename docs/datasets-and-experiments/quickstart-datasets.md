@@ -383,8 +383,8 @@ Run an experiment and evaluate the results.
 from phoenix.client.experiments import run_experiment
 
 experiment = run_experiment(
-    dataset,
-    task,
+    dataset=dataset,
+    task=task,
     experiment_name="initial-experiment",
     evaluators=[jaccard_similarity, accuracy],
 )
@@ -416,7 +416,7 @@ Run more evaluators after the fact.
 ```python
 from phoenix.client.experiments import evaluate_experiment
 
-experiment = evaluate_experiment(experiment, evaluators=[contains_keyword, conciseness])
+experiment = evaluate_experiment(experiment=experiment, evaluators=[contains_keyword, conciseness])
 ```
 {% endtab %}
 

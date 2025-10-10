@@ -10,6 +10,7 @@ from starlette.datastructures import URL
 from phoenix.config import (
     ENV_PHOENIX_ADMINS,
     ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
+    OAuth2ClientConfig,
     ensure_working_dir_if_needed,
     get_env_admins,
     get_env_auth_settings,
@@ -816,3 +817,421 @@ def test_allow_external_resources_env_parsing(monkeypatch: pytest.MonkeyPatch) -
     # Test invalid value - should be false (not "true")
     monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "invalid")
     assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() != "true"
+
+
+class TestOAuth2ClientConfigFromEnv:
+    """Tests for OAuth2ClientConfig.from_env edge cases and validation."""
+
+    def test_basic_configuration(self, monkeypatch: MonkeyPatch) -> None:
+        """Test basic OAuth2 configuration with defaults."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", "test_client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", "test_secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL",
+            "https://accounts.google.com/.well-known/openid-configuration",
+        )
+
+        config = OAuth2ClientConfig.from_env("google")
+
+        assert config.idp_name == "google"
+        assert config.client_id == "test_client_id"
+        assert config.client_secret == "test_secret"
+        assert config.scopes == "openid email profile"
+        assert config.use_pkce is False
+        assert config.allow_sign_up is True  # Default is True
+        assert config.auto_login is False
+
+    def test_pkce_without_client_secret(self, monkeypatch: MonkeyPatch) -> None:
+        """Test PKCE public client (no client secret required with auth method 'none')."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_MOBILE_CLIENT_ID", "mobile_client")
+        monkeypatch.setenv("PHOENIX_OAUTH2_MOBILE_USE_PKCE", "true")
+        monkeypatch.setenv("PHOENIX_OAUTH2_MOBILE_TOKEN_ENDPOINT_AUTH_METHOD", "none")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_MOBILE_OIDC_CONFIG_URL",
+            "https://auth.example.com/.well-known/openid-configuration",
+        )
+
+        config = OAuth2ClientConfig.from_env("mobile")
+
+        assert config.client_secret is None
+        assert config.use_pkce is True
+        assert config.token_endpoint_auth_method == "none"
+
+    def test_pkce_with_client_secret(self, monkeypatch: MonkeyPatch) -> None:
+        """Test PKCE hybrid client (client secret optional but allowed)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_HYBRID_CLIENT_ID", "hybrid_client")
+        monkeypatch.setenv("PHOENIX_OAUTH2_HYBRID_CLIENT_SECRET", "hybrid_secret")
+        monkeypatch.setenv("PHOENIX_OAUTH2_HYBRID_USE_PKCE", "true")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_HYBRID_OIDC_CONFIG_URL",
+            "https://auth.example.com/.well-known/openid-configuration",
+        )
+
+        config = OAuth2ClientConfig.from_env("hybrid")
+
+        assert config.client_secret == "hybrid_secret"
+        assert config.use_pkce is True
+
+    @pytest.mark.parametrize(
+        "field,env_suffix,value,error_match",
+        [
+            ("CLIENT_ID", "CLIENT_ID", "", "Client ID must be set"),
+            ("CLIENT_ID", "CLIENT_ID", "   ", "Client ID must be set"),
+            ("CLIENT_SECRET", "CLIENT_SECRET", "   ", "Client secret must be set"),
+            (
+                "OIDC_CONFIG_URL",
+                "OIDC_CONFIG_URL",
+                "   ",
+                "OpenID Connect configuration URL must be set",
+            ),
+        ],
+    )
+    def test_required_field_validation(
+        self, monkeypatch: MonkeyPatch, field: str, env_suffix: str, value: str, error_match: str
+    ) -> None:
+        """Test that required fields reject empty/whitespace values."""
+        # Set all required fields first
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        # Override the field being tested
+        monkeypatch.setenv(f"PHOENIX_OAUTH2_TEST_{env_suffix}", value)
+
+        with pytest.raises(ValueError, match=error_match):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_missing_client_secret_without_pkce(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that CLIENT_SECRET is required for traditional (non-PKCE) flow."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+
+        with pytest.raises(ValueError, match="Client secret must be set"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_invalid_url_format(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that malformed URLs are rejected."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL", "not-a-valid-url")
+
+        with pytest.raises(ValueError, match="Invalid OIDC configuration URL"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_non_https_url_rejected(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that non-HTTPS URLs are rejected (except localhost)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "http://example.com/.well-known/openid-configuration",
+        )
+
+        with pytest.raises(ValueError, match="must use HTTPS"):
+            OAuth2ClientConfig.from_env("test")
+
+    @pytest.mark.parametrize(
+        "localhost_url",
+        [
+            "http://localhost:8080/.well-known/openid-configuration",
+            "http://127.0.0.1:8080/.well-known/openid-configuration",
+            "http://[::1]:8080/.well-known/openid-configuration",
+        ],
+    )
+    def test_localhost_http_allowed(self, monkeypatch: MonkeyPatch, localhost_url: str) -> None:
+        """Test that HTTP is allowed for localhost (all variants)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_LOCAL_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_LOCAL_CLIENT_SECRET", "secret")
+        monkeypatch.setenv("PHOENIX_OAUTH2_LOCAL_OIDC_CONFIG_URL", localhost_url)
+
+        config = OAuth2ClientConfig.from_env("local")
+        assert config.oidc_config_url == localhost_url
+
+    def test_zero_address_not_treated_as_localhost(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that 0.0.0.0 is NOT treated as localhost and HTTP is rejected.
+
+        0.0.0.0 is a meta-address for binding to all interfaces (server-side),
+        not a valid client-facing hostname. It should not bypass HTTPS requirements.
+        """
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "http://0.0.0.0:8080/.well-known/openid-configuration",
+        )
+
+        with pytest.raises(ValueError, match="must use HTTPS"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_invalid_token_auth_method(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that invalid TOKEN_ENDPOINT_AUTH_METHOD is rejected."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_TOKEN_ENDPOINT_AUTH_METHOD", "invalid_method")
+
+        with pytest.raises(ValueError, match="Invalid TOKEN_ENDPOINT_AUTH_METHOD"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_token_auth_method_case_insensitive(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that TOKEN_ENDPOINT_AUTH_METHOD is normalized to lowercase."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_TOKEN_ENDPOINT_AUTH_METHOD", "CLIENT_SECRET_POST")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.token_endpoint_auth_method == "client_secret_post"
+
+    def test_pkce_with_none_auth_method(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that PKCE with auth_method='none' is allowed."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_USE_PKCE", "true")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_TOKEN_ENDPOINT_AUTH_METHOD", "none")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.use_pkce is True
+        assert config.token_endpoint_auth_method == "none"
+
+    def test_scopes_deduplication(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that duplicate scopes are removed while preserving order."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_SCOPES", "openid groups offline_access openid")
+
+        config = OAuth2ClientConfig.from_env("test")
+        scopes = config.scopes.split()
+        assert scopes.count("openid") == 1
+        assert "groups" in scopes
+        assert "offline_access" in scopes
+
+    def test_allowed_groups_requires_path(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that ALLOWED_GROUPS requires GROUPS_ATTRIBUTE_PATH."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "admin,developers")
+
+        with pytest.raises(ValueError, match="GROUPS_ATTRIBUTE_PATH must be configured"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_groups_attribute_path_requires_allowed_groups(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that GROUPS_ATTRIBUTE_PATH requires ALLOWED_GROUPS (fail-closed security)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        # No ALLOWED_GROUPS set - should fail
+
+        with pytest.raises(
+            ValueError, match="GROUPS_ATTRIBUTE_PATH is set.*but ALLOWED_GROUPS is not"
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_groups_attribute_path_with_empty_allowed_groups_fails(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """Test that GROUPS_ATTRIBUTE_PATH with empty ALLOWED_GROUPS fails (fail-closed)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "")  # Empty string
+
+        with pytest.raises(
+            ValueError, match="GROUPS_ATTRIBUTE_PATH is set.*but ALLOWED_GROUPS is not"
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_groups_attribute_path_with_whitespace_allowed_groups_fails(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """Test that GROUPS_ATTRIBUTE_PATH with whitespace-only ALLOWED_GROUPS fails."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "  ,  ,  ")  # Only whitespace
+
+        with pytest.raises(
+            ValueError, match="GROUPS_ATTRIBUTE_PATH is set.*but ALLOWED_GROUPS is not"
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    @pytest.mark.parametrize(
+        "allowed_groups_value",
+        [
+            "admin,users,admin,developers,users",  # Comma-separated with duplicates
+            "admin, users, admin, developers,users",  # Comma-separated with spaces
+            "admin , users , admin , developers , users",  # Spaces around commas
+        ],
+    )
+    def test_groups_deduplication(
+        self, monkeypatch: MonkeyPatch, allowed_groups_value: str
+    ) -> None:
+        """Test that duplicate allowed groups are removed while preserving order."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", allowed_groups_value)
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.allowed_groups == ["admin", "users", "developers"]
+
+    def test_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that leading/trailing whitespace is trimmed and extra spaces handled."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "  client_id  ")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "  secret  ")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "  https://example.com/.well-known/openid-configuration  ",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_DISPLAY_NAME", "  My Provider  ")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_SCOPES", "  groups   offline_access  ")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "  groups  ")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "  admin , developers  ")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.client_id == "client_id"
+        assert config.client_secret == "secret"
+        assert config.oidc_config_url == "https://example.com/.well-known/openid-configuration"
+        assert config.idp_display_name == "My Provider"
+        assert config.groups_attribute_path == "groups"
+        assert config.allowed_groups == ["admin", "developers"]
+
+    def test_display_name_defaults(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that display name defaults to capitalized IDP name."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_MYIDP_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_MYIDP_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_MYIDP_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+
+        config = OAuth2ClientConfig.from_env("myidp")
+        assert config.idp_display_name == "Myidp"
+
+    def test_idp_name_case_handling(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that IDP name is case insensitive (env vars are uppercased)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL",
+            "https://accounts.google.com/.well-known/openid-configuration",
+        )
+
+        config = OAuth2ClientConfig.from_env("google")
+        assert config.idp_name == "google"
+        assert config.client_id == "client_id"
+
+    def test_allowed_groups_comma_separated(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that ALLOWED_GROUPS can be parsed as comma-separated."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "admin,developers,viewers")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.allowed_groups == ["admin", "developers", "viewers"]
+
+    def test_allowed_groups_space_delimited_not_supported(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that space-delimited groups are no longer supported (treated as single group)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_GROUPS_ATTRIBUTE_PATH", "groups")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ALLOWED_GROUPS", "admin developers viewers")
+
+        config = OAuth2ClientConfig.from_env("test")
+        # Space-delimited is NOT supported, so this is treated as one single group name
+        assert config.allowed_groups == ["admin developers viewers"]
+
+    def test_pkce_with_client_secret_auth_method_requires_secret(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """Test that PKCE with client_secret auth methods requires CLIENT_SECRET."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_USE_PKCE", "true")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_TOKEN_ENDPOINT_AUTH_METHOD", "client_secret_basic")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        # CLIENT_SECRET not set - should fail
+
+        with pytest.raises(ValueError, match="Client secret must be set"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_pkce_with_client_secret_post_requires_secret(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that PKCE with client_secret_post auth method requires CLIENT_SECRET."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_USE_PKCE", "true")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_TOKEN_ENDPOINT_AUTH_METHOD", "client_secret_post")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        # CLIENT_SECRET not set - should fail
+
+        with pytest.raises(ValueError, match="Client secret must be set"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_pkce_with_none_auth_method_allows_missing_secret(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """Test that PKCE with 'none' auth method works without CLIENT_SECRET (public client)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_USE_PKCE", "true")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_TOKEN_ENDPOINT_AUTH_METHOD", "none")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        # CLIENT_SECRET not set - should succeed with 'none' method
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.client_secret is None
+        assert config.token_endpoint_auth_method == "none"
+        assert config.use_pkce is True

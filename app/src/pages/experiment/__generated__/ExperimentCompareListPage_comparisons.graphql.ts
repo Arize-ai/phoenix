@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f6ef973fa935a0f6758771a50fb8f862>>
+ * @generated SignedSource<<af75abbb94773a4095cf64f890f47a06>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,10 @@ export type ExperimentCompareListPage_comparisons$data = {
                 readonly label: string | null;
                 readonly name: string;
                 readonly score: number | null;
+                readonly trace: {
+                  readonly projectId: string;
+                  readonly traceId: string;
+                } | null;
               };
             }>;
           };
@@ -69,6 +73,10 @@ export type ExperimentCompareListPage_comparisons$data = {
           readonly output: any | null;
           readonly repetitionNumber: number;
           readonly startTime: string;
+          readonly trace: {
+            readonly projectId: string;
+            readonly traceId: string;
+          } | null;
         };
       }>;
     };
@@ -118,6 +126,31 @@ v4 = {
 v5 = {
   "alias": null,
   "args": null,
+  "concreteType": "Trace",
+  "kind": "LinkedField",
+  "name": "trace",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "traceId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "projectId",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
   "concreteType": "SpanCostSummary",
   "kind": "LinkedField",
   "name": "costSummary",
@@ -151,59 +184,25 @@ v5 = {
   ],
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
-  "concreteType": "ExperimentRunAnnotationConnection",
-  "kind": "LinkedField",
-  "name": "annotations",
-  "plural": false,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "ExperimentRunAnnotationEdge",
-      "kind": "LinkedField",
-      "name": "edges",
-      "plural": true,
-      "selections": [
-        {
-          "alias": "annotation",
-          "args": null,
-          "concreteType": "ExperimentRunAnnotation",
-          "kind": "LinkedField",
-          "name": "node",
-          "plural": false,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "name",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "score",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "label",
-              "storageKey": null
-            },
-            (v1/*: any*/)
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    }
-  ],
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "score",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
   "storageKey": null
 };
 return {
@@ -312,6 +311,44 @@ return {
                         {
                           "alias": null,
                           "args": null,
+                          "concreteType": "ExperimentRunAnnotationConnection",
+                          "kind": "LinkedField",
+                          "name": "annotations",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "ExperimentRunAnnotationEdge",
+                              "kind": "LinkedField",
+                              "name": "edges",
+                              "plural": true,
+                              "selections": [
+                                {
+                                  "alias": "annotation",
+                                  "args": null,
+                                  "concreteType": "ExperimentRunAnnotation",
+                                  "kind": "LinkedField",
+                                  "name": "node",
+                                  "plural": false,
+                                  "selections": [
+                                    (v7/*: any*/),
+                                    (v8/*: any*/),
+                                    (v9/*: any*/),
+                                    (v1/*: any*/),
+                                    (v5/*: any*/)
+                                  ],
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
                           "concreteType": "DatasetExample",
                           "kind": "LinkedField",
                           "name": "example",
@@ -376,8 +413,44 @@ return {
                                     (v2/*: any*/),
                                     (v3/*: any*/),
                                     (v4/*: any*/),
-                                    (v5/*: any*/),
-                                    (v6/*: any*/)
+                                    (v6/*: any*/),
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "concreteType": "ExperimentRunAnnotationConnection",
+                                      "kind": "LinkedField",
+                                      "name": "annotations",
+                                      "plural": false,
+                                      "selections": [
+                                        {
+                                          "alias": null,
+                                          "args": null,
+                                          "concreteType": "ExperimentRunAnnotationEdge",
+                                          "kind": "LinkedField",
+                                          "name": "edges",
+                                          "plural": true,
+                                          "selections": [
+                                            {
+                                              "alias": "annotation",
+                                              "args": null,
+                                              "concreteType": "ExperimentRunAnnotation",
+                                              "kind": "LinkedField",
+                                              "name": "node",
+                                              "plural": false,
+                                              "selections": [
+                                                (v7/*: any*/),
+                                                (v8/*: any*/),
+                                                (v9/*: any*/),
+                                                (v1/*: any*/)
+                                              ],
+                                              "storageKey": null
+                                            }
+                                          ],
+                                          "storageKey": null
+                                        }
+                                      ],
+                                      "storageKey": null
+                                    }
                                   ],
                                   "storageKey": null
                                 }
@@ -459,6 +532,6 @@ return {
 };
 })();
 
-(node as any).hash = "c2010c992e145834d41d622abbb57522";
+(node as any).hash = "fcb6acc053ac4d6639d866cd2dcb5031";
 
 export default node;

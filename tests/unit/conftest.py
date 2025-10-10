@@ -137,7 +137,7 @@ def dialect(request: SubRequest) -> str:
 @pytest.fixture
 def sqlalchemy_dialect(dialect: str) -> Any:
     if dialect == "sqlite":
-        return sqlite.dialect()  # type: ignore[no-untyped-call]
+        return sqlite.dialect()
     elif dialect == "postgresql":
         return postgresql.dialect()  # type: ignore[no-untyped-call]
     else:

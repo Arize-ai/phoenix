@@ -129,6 +129,18 @@ def set_oauth2_nonce_cookie(
     )
 
 
+def set_oauth2_code_verifier_cookie(
+    *, response: ResponseType, code_verifier: str, max_age: timedelta
+) -> ResponseType:
+    return _set_cookie(
+        response=response,
+        cookie_name=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
+        cookie_max_age=max_age,
+        samesite="lax",
+        value=code_verifier,
+    )
+
+
 def _set_cookie(
     *,
     response: ResponseType,
@@ -166,6 +178,11 @@ def delete_oauth2_state_cookie(response: ResponseType) -> ResponseType:
 
 def delete_oauth2_nonce_cookie(response: ResponseType) -> ResponseType:
     response.delete_cookie(key=PHOENIX_OAUTH2_NONCE_COOKIE_NAME)
+    return response
+
+
+def delete_oauth2_code_verifier_cookie(response: ResponseType) -> ResponseType:
+    response.delete_cookie(key=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME)
     return response
 
 
@@ -270,6 +287,8 @@ PHOENIX_OAUTH2_STATE_COOKIE_NAME = "phoenix-oauth2-state"
 """The name of the cookie that stores the state used for the OAuth2 authorization code flow."""
 PHOENIX_OAUTH2_NONCE_COOKIE_NAME = "phoenix-oauth2-nonce"
 """The name of the cookie that stores the nonce used for the OAuth2 authorization code flow."""
+PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME = "phoenix-oauth2-code-verifier"
+"""The name of the cookie that stores the PKCE code verifier for OAuth2."""
 DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES = 15
 """
 The default amount of time in minutes that can elapse between the initial

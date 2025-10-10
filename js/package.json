@@ -36,7 +36,7 @@
     "pkg-pr-new": "^0.0.39",
     "prettier": "^3.5.2",
     "rimraf": "^5.0.10",
-    "tsc-alias": "^1.8.11",
+    "tsc-alias": "1.8.11",
     "typedoc": "^0.27.9",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.40.0",

@@ -40,6 +40,10 @@ const mockSuccessfulRun: ExperimentRun = {
   latencyMs: 1500,
   experimentId: "exp-1",
   error: null,
+  trace: {
+    traceId: "trace-123",
+    projectId: "project-456",
+  },
   output: {
     query:
       "SELECT title, MAX(vote_average) AS highest_rating FROM movies WHERE credits LIKE '%Brad Pitt%' GROUP BY title ORDER BY highest_rating DESC LIMIT 1;",
@@ -59,6 +63,10 @@ const mockSuccessfulRun: ExperimentRun = {
           name: "qa_correctness",
           label: "correct",
           score: 0.95,
+          trace: {
+            traceId: "eval-trace-111",
+            projectId: "project-456",
+          },
         },
       },
       {
@@ -67,6 +75,10 @@ const mockSuccessfulRun: ExperimentRun = {
           name: "has_results",
           label: null,
           score: 1.0,
+          trace: {
+            traceId: "eval-trace-222",
+            projectId: "project-456",
+          },
         },
       },
       {
@@ -75,6 +87,10 @@ const mockSuccessfulRun: ExperimentRun = {
           name: "sql_syntax_valid",
           label: "valid",
           score: 1.0,
+          trace: {
+            traceId: "eval-trace-333",
+            projectId: "project-456",
+          },
         },
       },
     ],
@@ -88,6 +104,10 @@ const mockErrorRun: ExperimentRun = {
   experimentId: "exp-2",
   output: null,
   error: "Connection timeout: Unable to connect to database after 30 seconds",
+  trace: {
+    traceId: "trace-error-789",
+    projectId: "project-456",
+  },
   costSummary: {
     total: {
       cost: null,
@@ -105,6 +125,10 @@ const mockRepetitionRun: ExperimentRun = {
   latencyMs: 1200,
   experimentId: "exp-2",
   error: null,
+  trace: {
+    traceId: "trace-rep-101",
+    projectId: "project-789",
+  },
   output: {
     query:
       "SELECT * FROM movies WHERE genre = 'Action' ORDER BY rating DESC LIMIT 10;",
@@ -124,6 +148,10 @@ const mockRepetitionRun: ExperimentRun = {
           name: "qa_correctness",
           label: null,
           score: 0.75,
+          trace: {
+            traceId: "eval-trace-444",
+            projectId: "project-789",
+          },
         },
       },
     ],
@@ -207,7 +235,7 @@ const Template: Story = (args) => (
     borderRadius="medium"
     overflow="hidden"
   >
-    <ExperimentItem {...args} />
+    <ExperimentItem {...args} openTraceDialog={() => {}} />
   </View>
 );
 
@@ -286,4 +314,27 @@ NoAnnotations.args = {
   experimentIndex: 0,
   includeRepetitions: false,
   annotationSummaries: [],
+};
+
+/**
+ * Experiment run with no trace data
+ */
+export const NoTrace = Template.bind({});
+NoTrace.args = {
+  experiment: mockExperiment,
+  experimentRun: {
+    ...mockSuccessfulRun,
+    trace: null,
+    annotations: {
+      edges: mockSuccessfulRun.annotations.edges.map((edge) => ({
+        annotation: {
+          ...edge.annotation,
+          trace: null,
+        },
+      })),
+    },
+  },
+  experimentIndex: 0,
+  includeRepetitions: false,
+  annotationSummaries: mockAnnotationSummaries,
 };

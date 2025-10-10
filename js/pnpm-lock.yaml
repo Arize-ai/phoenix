@@ -33,8 +33,8 @@ importers:
         specifier: ^5.0.10
         version: 5.0.10
       tsc-alias:
-        specifier: ^1.8.11
-        version: 1.8.16
+        specifier: 1.8.11
+        version: 1.8.11
       typedoc:
         specifier: ^0.27.9
         version: 0.27.9(typescript@5.9.2)
@@ -2748,6 +2748,10 @@ packages:
     engines: {node: '>=18.12'}
     peerDependencies:
       typescript: '>=4.8.4'
+
+  tsc-alias@1.8.11:
+    resolution: {integrity: sha512-2DuEQ58A9Rj2NE2c1+/qaGKlshni9MCK95MJzRGhQG0CYLw0bE/ACgbhhTSf/p1svLelwqafOd8stQate2bYbg==}
+    hasBin: true
 
   tsc-alias@1.8.16:
     resolution: {integrity: sha512-QjCyu55NFyRSBAl6+MTFwplpFcnm2Pq01rR/uxfqJoLMm6X3O14KEGtaSDZpJYaE1bJBGDjD0eSuiIWPe2T58g==}
@@ -5562,6 +5566,15 @@ snapshots:
   ts-api-utils@2.1.0(typescript@5.9.2):
     dependencies:
       typescript: 5.9.2
+
+  tsc-alias@1.8.11:
+    dependencies:
+      chokidar: 3.6.0
+      commander: 9.5.0
+      globby: 11.1.0
+      mylas: 2.1.13
+      normalize-path: 3.0.0
+      plimit-lit: 1.6.1
 
   tsc-alias@1.8.16:
     dependencies:

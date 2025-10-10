@@ -1,0 +1,16 @@
+services:
+  db:
+    deploy:
+      replicas: 0  # Disable PostgreSQL (not needed for SQLite)
+    
+  phoenix:
+    environment:
+      - "PHOENIX_SQL_DATABASE_URL=sqlite:///:memory:"
+    labels:
+      - "phoenix.database.type=sqlite"
+      - "phoenix.database.mode=in-memory"
+    depends_on:
+      oidc-dev:
+        condition: service_started
+      smtp-dev:
+        condition: service_started
