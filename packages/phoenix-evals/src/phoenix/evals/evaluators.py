@@ -431,8 +431,7 @@ class ClassificationEvaluator(LLMEvaluator):
     Examples:
         Classification with labels only::
 
-            from phoenix.evals import ClassificationEvaluator
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import ClassificationEvaluator, LLM
 
             evaluator = ClassificationEvaluator(
                 name="sentiment",
@@ -937,8 +936,7 @@ def create_classifier(
     Examples:
         Creating a simple sentiment classifier::
 
-            from phoenix.evals import create_classifier
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import create_classifier, LLM
 
             llm = LLM(provider="openai", model="gpt-4")
 
