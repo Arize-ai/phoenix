@@ -20,7 +20,15 @@ export const ExamplesFilterBar = () => {
   invariant(datasetId, "datasetId is required");
   const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   return (
-    <View padding="size-100">
+    <View
+      padding="size-100"
+      flex="1 1 auto"
+      // prevent the example table from eating the bottom of the filter bar
+      // TODO: refactor the dataset page layout css to not have to do this
+      minHeight={54}
+      borderBottomWidth="thin"
+      borderBottomColor="dark"
+    >
       <Flex
         width="100%"
         justifyContent="space-between"

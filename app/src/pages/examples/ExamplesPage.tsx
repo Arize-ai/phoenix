@@ -21,7 +21,7 @@ export function ExamplesPage() {
   return (
     <ExamplesFilterProvider>
       <ExamplesFilterBar />
-      <ExamplesTable dataset={data.dataset} />{" "}
+      <ExamplesTable dataset={data.dataset} />
       <Suspense>
         <Outlet />
       </Suspense>
