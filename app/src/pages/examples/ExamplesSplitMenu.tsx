@@ -82,6 +82,7 @@ export const ExamplesSplitMenu = ({
     >
       <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
         Splits
+        {selectedSplitIds.length > 0 ? ` (${selectedSplitIds.length})` : ""}
       </Button>
       <Popover>
         <Suspense
@@ -89,6 +90,7 @@ export const ExamplesSplitMenu = ({
             <Loading
               css={css`
                 min-width: 300px;
+                min-height: 300px;
               `}
             />
           }
@@ -148,8 +150,8 @@ const SplitMenu = ({
       }
     `,
     {},
-    // refetch every time the menu is opened
-    { fetchPolicy: "network-only" }
+    // fetch when menu is opened, but show cache data first to prevent flickering
+    { fetchPolicy: "store-and-network" }
   );
   const [addExamplesToSplits] = useMutation(graphql`
     mutation ExamplesSplitMenuAddDatasetExamplesToDatasetSplitsMutation(
