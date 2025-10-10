@@ -69,6 +69,7 @@ def _bind_mapping_function(
 
 
 def remap_eval_input(
+    *,
     eval_input: Mapping[str, Any],
     required_fields: Set[str],
     input_mapping: Optional[InputMappingType] = None,
@@ -288,6 +289,7 @@ def _format_score_data(
 
 
 def to_annotation_dataframe(
+    *,
     dataframe: pd.DataFrame,
     score_names: Optional[List[str]] = None,
 ) -> pd.DataFrame:

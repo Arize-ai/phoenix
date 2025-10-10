@@ -172,6 +172,7 @@ class Evaluator(ABC):
 
     def __init__(
         self,
+        *,
         name: str,
         source: SourceType,
         direction: DirectionType = "maximize",
@@ -218,7 +219,7 @@ class Evaluator(ABC):
         return cast(List[Score], result)
 
     def evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, *, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         """
         Validate and remap `eval_input` using the evaluator's input fields (from
@@ -231,9 +232,9 @@ class Evaluator(ABC):
         input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
-            eval_input,
-            required_fields,
-            input_mapping,
+            eval_input=eval_input,
+            required_fields=required_fields,
+            input_mapping=input_mapping,
         )
         if self.input_schema is not None:
             try:
@@ -244,7 +245,7 @@ class Evaluator(ABC):
         return self._evaluate(remapped_eval_input)
 
     async def async_evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, *, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         """
         Async variant of `evaluate`. Validates and remaps input as described in `evaluate`.
@@ -255,9 +256,9 @@ class Evaluator(ABC):
         input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
-            eval_input,
-            required_fields,
-            input_mapping,
+            eval_input=eval_input,
+            required_fields=required_fields,
+            input_mapping=input_mapping,
         )
         if self.input_schema is not None:
             try:
@@ -340,6 +341,7 @@ class LLMEvaluator(Evaluator):
 
     def __init__(
         self,
+        *,
         name: str,
         llm: LLM,
         prompt_template: Union[str, Template],
@@ -383,14 +385,14 @@ class LLMEvaluator(Evaluator):
         raise NotImplementedError("Subclasses must implement _async_evaluate")
 
     def evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, *, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
-        return super().evaluate(eval_input, input_mapping)
+        return super().evaluate(eval_input=eval_input, input_mapping=input_mapping)
 
     async def async_evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, *, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
-        return await super().async_evaluate(eval_input, input_mapping)
+        return await super().async_evaluate(eval_input=eval_input, input_mapping=input_mapping)
 
 
 # --- LLM ClassificationEvaluator ---
@@ -492,6 +494,7 @@ class ClassificationEvaluator(LLMEvaluator):
 
     def __init__(
         self,
+        *,
         name: str,
         llm: LLM,
         prompt_template: Union[str, Template],
@@ -628,7 +631,7 @@ def list_evaluators() -> List[str]:
 
 
 def create_evaluator(
-    name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
+    *, name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
 ) -> Callable[[Callable[..., Any]], Evaluator]:
     """
     Decorator that turns a simple function into an Evaluator instance.
@@ -909,6 +912,7 @@ def create_evaluator(
 
 # --- Factory functions ---
 def create_classifier(
+    *,
     name: str,
     prompt_template: str,
     llm: LLM,
@@ -998,6 +1002,7 @@ def create_classifier(
 
 # --- Bound Evaluator ---
 def bind_evaluator(
+    *,
     evaluator: Evaluator,
     input_mapping: InputMappingType,
 ) -> Evaluator:
@@ -1180,6 +1185,7 @@ def _process_results_and_add_to_dataframe(
 
 
 def evaluate_dataframe(
+    *,
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     tqdm_bar_format: Optional[str] = None,
@@ -1294,7 +1300,7 @@ def evaluate_dataframe(
         eval_input_index, evaluator_index = task_input
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
-        scores = evaluator.evaluate(eval_input)
+        scores = evaluator.evaluate(eval_input=eval_input)
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
@@ -1318,6 +1324,7 @@ def evaluate_dataframe(
 
 
 async def async_evaluate_dataframe(
+    *,
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     concurrency: Optional[int] = None,
@@ -1459,7 +1466,7 @@ async def async_evaluate_dataframe(
         eval_input_index, evaluator_index = task_input
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
-        scores = await evaluator.async_evaluate(eval_input)
+        scores = await evaluator.async_evaluate(eval_input=eval_input)
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults
