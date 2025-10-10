@@ -1388,8 +1388,7 @@ async def async_evaluate_dataframe(
 
         With LLM evaluators::
 
-            from phoenix.evals import create_classifier
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import create_classifier, LLM
 
             llm = LLM(provider="openai", model="gpt-4")
 
