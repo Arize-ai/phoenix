@@ -7,7 +7,7 @@ import {
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
-import { range, sortBy } from "lodash";
+import { orderBy, range } from "lodash";
 import { css } from "@emotion/react";
 
 import {
@@ -337,6 +337,10 @@ export function ExperimentRunOutputs({
   const [selectedAnnotation, setSelectedAnnotation] = useState<string | null>(
     null
   );
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const toggleSortDirection = useCallback(() => {
+    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+  }, []);
 
   const updateExperimentSelection = useCallback(
     (experimentId: string, checked: boolean) => {
@@ -389,7 +393,11 @@ export function ExperimentRunOutputs({
         experimentRepetitionsByExperimentId
       ).flat();
       const allRepetitionsSorted = selectedAnnotation
-        ? sortRepetitionsByAnnotation(allRepetitions, selectedAnnotation)
+        ? sortRepetitionsByAnnotation(
+            allRepetitions,
+            selectedAnnotation,
+            sortDirection
+          )
         : allRepetitions;
       return allRepetitionsSorted.map((repetition) => {
         return {
@@ -406,7 +414,8 @@ export function ExperimentRunOutputs({
         experimentRepetitions: selectedAnnotation
           ? sortRepetitionsByAnnotation(
               experimentRepetitions,
-              selectedAnnotation
+              selectedAnnotation,
+              sortDirection
             )
           : experimentRepetitions,
       };
@@ -416,6 +425,7 @@ export function ExperimentRunOutputs({
     experimentRepetitionsByExperimentId,
     selectedAnnotation,
     includeRepetitions,
+    sortDirection,
   ]);
 
   const [isSideBarOpen, setIsSideBarOpen] = useState(true);
@@ -442,6 +452,7 @@ export function ExperimentRunOutputs({
             selectedAnnotation={selectedAnnotation}
             setSelectedAnnotation={setSelectedAnnotation}
             sortedExperimentRepetitions={sortedExperimentRepetitions}
+            toggleSortDirection={toggleSortDirection}
           />
         </Panel>
       ) : null}
@@ -592,6 +603,7 @@ function ExperimentRunOutputsSidebar({
   selectedAnnotation,
   setSelectedAnnotation,
   sortedExperimentRepetitions,
+  toggleSortDirection,
 }: {
   experimentIds: string[];
   experimentsById: Record<string, Experiment>;
@@ -610,6 +622,7 @@ function ExperimentRunOutputsSidebar({
     experimentId: string;
     experimentRepetitions: ExperimentRepetition[];
   }[];
+  toggleSortDirection: () => void;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
@@ -627,24 +640,36 @@ function ExperimentRunOutputsSidebar({
     >
       <Flex direction="column" gap="size-200">
         {annotations.length > 0 && (
-          <Select
-            value={selectedAnnotation}
-            onChange={(value) => setSelectedAnnotation(value as string)}
-          >
-            <Button variant="quiet" size="S">
-              <SelectValue />
-              <SelectChevronUpDownIcon />
-            </Button>
-            <Popover>
-              <ListBox>
-                {annotations.map((annotation) => (
-                  <SelectItem key={annotation} id={annotation}>
-                    {annotation}
-                  </SelectItem>
-                ))}
-              </ListBox>
-            </Popover>
-          </Select>
+          <Flex direction="row" gap="size-200" alignItems="center">
+            <IconButton
+              size="S"
+              aria-label="Change sort direction"
+              onPress={toggleSortDirection}
+              css={css`
+                flex: none;
+              `}
+            >
+              <Icon svg={<Icons.ArrowUpDown />} />
+            </IconButton>
+            <Select
+              value={selectedAnnotation}
+              onChange={(value) => setSelectedAnnotation(value as string)}
+            >
+              <Button variant="quiet" size="S">
+                <SelectValue />
+                <SelectChevronUpDownIcon />
+              </Button>
+              <Popover>
+                <ListBox>
+                  {annotations.map((annotation) => (
+                    <SelectItem key={annotation} id={annotation}>
+                      {annotation}
+                    </SelectItem>
+                  ))}
+                </ListBox>
+              </Popover>
+            </Select>
+          </Flex>
         )}
         {sortedExperimentRepetitions.map(
           ({ experimentId, experimentRepetitions }) => {
@@ -1227,10 +1252,15 @@ function getAnnotationValue(
 
 function sortRepetitionsByAnnotation(
   experimentRepetitions: ExperimentRepetition[],
-  annotation: string
+  annotation: string,
+  sortDirection: "asc" | "desc"
 ): ExperimentRepetition[] {
-  return sortBy(experimentRepetitions, (rep) => {
-    const annotationValue = getAnnotationValue(rep, annotation);
-    return [annotationValue?.score, annotationValue?.label];
-  });
+  return orderBy(
+    experimentRepetitions,
+    (rep) => {
+      const annotationValue = getAnnotationValue(rep, annotation);
+      return [annotationValue?.score, annotationValue?.label];
+    },
+    sortDirection
+  );
 }
