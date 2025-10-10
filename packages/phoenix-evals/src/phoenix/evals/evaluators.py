@@ -1128,8 +1128,8 @@ def _prepare_dataframe_evaluation(
     return result_df, eval_inputs, task_inputs
 
 
-def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
-    """Process execution details into JSON string."""
+def _process_execution_details(eval_execution_details: ExecutionDetails) -> Dict[str, Any]:
+    """Process execution details into a JSON-serializable dict."""
     result: Dict[str, Any] = {
         "status": eval_execution_details.status.value,
         "exceptions": [repr(exc) for exc in eval_execution_details.exceptions],
@@ -1154,14 +1154,15 @@ def _process_results_and_add_to_dataframe(
         for evaluator in evaluators
     }
 
-    # Pre-allocate score dictionaries
-    score_dicts: DefaultDict[str, Dict[int, Optional[str]]] = defaultdict(dict)
+    # Pre-allocate score dictionaries - store dicts for each row index
+    score_dicts: DefaultDict[str, Dict[int, Dict[str, Any]]] = defaultdict(dict)
     for i, (eval_input_index, evaluator_index) in enumerate(task_inputs):
         # Process and add execution details to dataframe
         details = execution_details[i]
         evaluator_name = evaluators[evaluator_index].name
         col_idx = execution_details_cols[evaluator_name]
-        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)
+        #  use iat to avoid Series alignment on dict
+        result_df.iat[eval_input_index, col_idx] = _process_execution_details(details)
 
         # Process scores
         if results is None:

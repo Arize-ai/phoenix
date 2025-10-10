@@ -247,7 +247,9 @@ def _format_score_data(
     # Parse JSON score data
     cols = ["score", "label", "explanation", "source"]
     parsed_score_col = eval_df[score_column].apply(
-        lambda x: json.loads(x) if isinstance(x, str) and x else None
+        lambda x: json.loads(x)
+        if isinstance(x, str) and x
+        else (x if isinstance(x, dict) else None)
     )
     eval_df[cols] = parsed_score_col.apply(lambda d: pd.Series([(d or {}).get(k) for k in cols]))
 
