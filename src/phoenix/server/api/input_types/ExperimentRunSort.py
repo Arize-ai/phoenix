@@ -31,12 +31,12 @@ class ExperimentRunSort:
 
 
 def add_order_by_and_page_start_to_query(
-    query: Select[tuple[models.ExperimentRun]],
+    query: Select[Any],
     sort: Optional[ExperimentRunSort],
     experiment_rowid: int,
     after_experiment_run_rowid: Optional[int],
     after_sort_column_value: Optional[CursorSortColumnValue] = None,
-) -> Select[tuple[models.ExperimentRun]]:
+) -> Select[Any]:
     mean_annotation_scores: Optional[NamedFromClause] = None
     if sort and sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value

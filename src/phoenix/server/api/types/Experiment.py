@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import ClassVar, Optional
 
 import strawberry
-from sqlalchemy import Select, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 from strawberry import UNSET, Private
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -71,7 +71,7 @@ class Experiment(Node):
     ) -> Connection[ExperimentRun]:
         experiment_rowid = self.id_attr
         page_size = first if first is not None else _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE
-        experiment_runs_query: Select[tuple[models.ExperimentRun]] = (
+        experiment_runs_query = (
             select(models.ExperimentRun)
             .where(models.ExperimentRun.experiment_id == experiment_rowid)
             .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
