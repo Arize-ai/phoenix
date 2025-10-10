@@ -1,15 +1,29 @@
+import { CSSProperties, PropsWithChildren, ReactNode } from "react";
 import {
   Menu as AriaMenu,
   MenuItem as AriaMenuItem,
   type MenuItemProps as AriaMenuItemProps,
   type MenuProps as AriaMenuProps,
   MenuTrigger as AriaMenuTrigger,
+  PopoverProps,
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames, Icon, Icons, Text } from "@phoenix/components";
+import {
+  classNames,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Text,
+  Popover,
+} from "@phoenix/components";
 
 const menuCss = css`
+  --menu-min-width: 250px;
+  min-width: var(--menu-min-width);
+  flex: 1 1 auto;
+  overflow-y: auto;
   padding: var(--ac-global-dimension-static-size-50);
   &:focus-visible {
     border-radius: var(--ac-global-rounding-small);
@@ -29,11 +43,16 @@ export const MenuTrigger = AriaMenuTrigger;
 export const Menu = <T extends object>({
   className,
   ...props
-}: AriaMenuProps<T>) => {
+}: AriaMenuProps<T> & { width?: CSSProperties["width"] }) => {
   return (
     <AriaMenu
       className={classNames("react-aria-Menu", className)}
       css={menuCss}
+      style={{
+        width: props.width,
+        minWidth: props.width,
+        maxWidth: props.width,
+      }}
       {...props}
     />
   );
@@ -108,6 +127,105 @@ export const MenuItem = <T extends object>({
         );
       }}
     </AriaMenuItem>
+  );
+};
+
+export const MenuContainer = ({
+  children,
+  maxHeight = 600,
+  placement = "bottom end",
+  ...popoverProps
+}: PropsWithChildren & { maxHeight?: number } & Omit<
+    PopoverProps,
+    "maxHeight"
+  >) => {
+  return (
+    <Popover
+      shouldFlip={false}
+      placement={placement}
+      containerPadding={-4}
+      {...popoverProps}
+    >
+      <div
+        style={{
+          maxHeight,
+        }}
+        css={css`
+          min-height: 300px;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        `}
+      >
+        {children}
+      </div>
+    </Popover>
+  );
+};
+
+export const MenuHeader = ({ children }: PropsWithChildren) => {
+  return (
+    <div
+      css={css`
+        padding: var(--ac-global-dimension-static-size-100);
+        border-bottom: 1px solid var(--ac-global-menu-border-color);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        gap: var(--ac-global-dimension-static-size-100);
+      `}
+    >
+      {children}
+    </div>
+  );
+};
+
+export const MenuHeaderTitle = ({
+  children,
+  leadingContent,
+  trailingContent,
+}: PropsWithChildren & {
+  leadingContent?: ReactNode;
+  trailingContent?: ReactNode;
+}) => {
+  return (
+    <Flex
+      direction="row"
+      gap="size-50"
+      alignItems="center"
+      wrap="nowrap"
+      minHeight={30}
+    >
+      {leadingContent}
+      <Heading
+        level={4}
+        weight="heavy"
+        css={css`
+          flex: 1 1 auto;
+          width: 100%;
+        `}
+      >
+        {children}
+      </Heading>
+      {trailingContent}
+    </Flex>
+  );
+};
+
+export const MenuFooter = ({ children }: PropsWithChildren) => {
+  return (
+    <div
+      css={css`
+        padding: var(--ac-global-dimension-static-size-100);
+        border-top: 1px solid var(--ac-global-menu-border-color);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        gap: var(--ac-global-dimension-static-size-50);
+      `}
+    >
+      {children}
+    </div>
   );
 };
 
