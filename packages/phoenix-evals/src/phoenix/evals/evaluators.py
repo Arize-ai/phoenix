@@ -1238,7 +1238,7 @@ def evaluate_dataframe(
             })
 
             evaluators = [word_count, has_question]
-            results_df = evaluate_dataframe(df, evaluators)
+            results_df = evaluate_dataframe(df, evaluators, hide_tqdm_bar=True)
 
             # Results include original columns plus score columns
             print(results_df.columns)
@@ -1393,6 +1393,7 @@ async def async_evaluate_dataframe(
                     df,
                     [text_analysis],
                     concurrency=5  # Process up to 5 rows concurrently
+                    hide_tqdm_bar=True,
                 )
                 return results_df
 
