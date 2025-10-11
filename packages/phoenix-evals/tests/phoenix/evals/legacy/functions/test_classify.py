@@ -1569,6 +1569,34 @@ def test_run_evals_with_empty_evaluators_returns_empty_list() -> None:
     assert eval_dfs == []
 
 
+def test_run_evals_raises_error_when_dataframe_columns_dont_match_template_variables(
+    toxicity_evaluator: LLMEvaluator,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    # This test DataFrame intentionally omits the 'input' column,
+    # which is required by both RelevanceEvaluator
+    df = pd.DataFrame(
+        [
+            {
+                "reference": "The Eiffel Tower is located in Paris, France. It was constructed in 1889 as the entrance arch to the 1889 World's Fair.",
+                "query": "Where is the Eiffel Tower located?",
+                "response": "The Eiffel Tower is located in Paris, France.",
+            }
+        ]
+    )
+
+    # Now run the actual test
+    with pytest.raises(ValueError) as exc_info:
+        run_evals(
+            dataframe=df,
+            evaluators=[relevance_evaluator, toxicity_evaluator],
+            provide_explanation=True,
+            use_function_calling_if_available=False,
+        )
+
+    assert "requires missing columns: input" in str(exc_info.value)
+
+
 def test_classification_status_is_superset_of_execution_status() -> None:
     assert {item.value for item in ClassificationStatus}.issuperset(
         {item.value for item in ExecutionStatus}
