@@ -17,7 +17,7 @@ import pandas as pd
 import pyarrow as pa
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
-from sqlalchemy import and_, case, delete, func, select
+from sqlalchemy import and_, case, delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
@@ -1080,3 +1080,126 @@ async def _get_db_examples(
 
 def _is_all_dict(seq: Sequence[Any]) -> bool:
     return all(map(lambda obj: isinstance(obj, dict), seq))
+
+
+class DeleteDatasetExamplesRequest(V1RoutesBaseModel):
+    example_ids: list[str]
+    version_description: Optional[str] = None
+    version_metadata: Optional[dict[str, Any]] = None
+
+
+@router.delete(
+    "/datasets/examples/delete",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="deleteDatasetExamples",
+    summary="Delete examples from a dataset",
+    status_code=HTTP_204_NO_CONTENT,
+    responses=add_errors_to_responses(
+        [
+            {"status_code": HTTP_404_NOT_FOUND, "description": "Examples not found"},
+            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid request"},
+        ]
+    ),
+)
+async def delete_dataset_examples(
+    request: Request,
+    body: DeleteDatasetExamplesRequest,
+) -> None:
+    from datetime import datetime
+
+    timestamp = datetime.now()
+
+    # Convert global IDs to database IDs
+    try:
+        example_db_ids = [
+            from_global_id_with_expected_type(GlobalID.from_id(example_id), "DatasetExample")
+            for example_id in body.example_ids
+        ]
+    except ValueError as e:
+        raise HTTPException(
+            detail=f"Invalid example ID format: {e}",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    # Guard against empty input
+    if not example_db_ids:
+        raise HTTPException(
+            detail="Must provide examples to delete",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    async with request.app.state.db() as session:
+        # Check if the examples are from a single dataset
+        datasets = (
+            await session.scalars(
+                select(models.Dataset)
+                .join(models.DatasetExample, models.Dataset.id == models.DatasetExample.dataset_id)
+                .where(models.DatasetExample.id.in_(example_db_ids))
+                .distinct()
+                .limit(2)  # limit to 2 to check if there are more than 1 dataset
+            )
+        ).all()
+
+        if len(datasets) > 1:
+            raise HTTPException(
+                detail="Examples must be from the same dataset",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        elif not datasets:
+            raise HTTPException(
+                detail="Examples not found",
+                status_code=HTTP_404_NOT_FOUND,
+            )
+
+        dataset = datasets[0]
+
+        # Create a new dataset version
+        dataset_version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .values(
+                dataset_id=dataset.id,
+                description=body.version_description,
+                metadata_=body.version_metadata,
+                created_at=timestamp,
+            )
+            .returning(models.DatasetVersion.id)
+        )
+
+        # Check if any examples are already deleted
+        existing_delete_revisions = (
+            await session.scalars(
+                select(models.DatasetExampleRevision).where(
+                    models.DatasetExampleRevision.dataset_example_id.in_(example_db_ids),
+                    models.DatasetExampleRevision.revision_kind == "DELETE",
+                )
+            )
+        ).all()
+
+        if existing_delete_revisions:
+            raise HTTPException(
+                detail="Provided examples contain already deleted examples. Delete aborted.",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        # Mark examples as deleted by creating DELETE revisions (batch insert for performance)
+        DatasetExampleRevision = models.DatasetExampleRevision
+        await session.execute(
+            insert(DatasetExampleRevision),
+            [
+                {
+                    DatasetExampleRevision.dataset_example_id.key: dataset_example_id,
+                    DatasetExampleRevision.dataset_version_id.key: dataset_version_id,
+                    DatasetExampleRevision.input.key: {},
+                    DatasetExampleRevision.output.key: {},
+                    DatasetExampleRevision.metadata_.key: {},
+                    DatasetExampleRevision.revision_kind.key: "DELETE",
+                    DatasetExampleRevision.created_at.key: timestamp,
+                }
+                for dataset_example_id in example_db_ids
+            ],
+        )
+
+        await session.commit()
+
+    # Trigger dataset update event
+    request.state.event_queue.put(DatasetInsertEvent((dataset.id,)))
