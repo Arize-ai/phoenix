@@ -87,6 +87,7 @@ from .legacy import (
     llm_generate,
     run_evals,
 )
+from .llm import LLM
 
 __version__ = version("arize-phoenix-evals")
 
@@ -178,6 +179,7 @@ __all__ = [
     "metrics",
     "templating",
     "llm",
+    "LLM",
     "bind_evaluator",
     "tracing",
     "utils",
