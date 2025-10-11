@@ -43,7 +43,7 @@ const iconButtonCSS = (color: TextColorValue) => css`
   --icon-button-font-size-m: var(--ac-global-font-size-xl);
   --icon-button-font-size-l: var(--ac-global-font-size-2xl);
 
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   border: var(--ac-global-border-size-thin) solid transparent;
@@ -57,6 +57,8 @@ const iconButtonCSS = (color: TextColorValue) => css`
 
   &[data-size="S"] {
     width: var(--ac-global-button-height-s);
+    min-width: var(--ac-global-button-height-s);
+    min-height: var(--ac-global-button-height-s);
     height: var(--ac-global-button-height-s);
     .ac-icon-wrap {
       font-size: var(--icon-button-font-size-s);
@@ -65,6 +67,8 @@ const iconButtonCSS = (color: TextColorValue) => css`
 
   &[data-size="M"] {
     width: var(--ac-global-button-height-m);
+    min-width: var(--ac-global-button-height-m);
+    min-height: var(--ac-global-button-height-m);
     height: var(--ac-global-button-height-m);
     .ac-icon-wrap {
       font-size: var(--icon-button-font-size-m);
