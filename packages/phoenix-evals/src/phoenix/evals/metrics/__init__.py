@@ -2,6 +2,7 @@ from .document_relevance import DocumentRelevanceEvaluator
 from .exact_match import exact_match
 from .hallucination import HallucinationEvaluator
 from .matches_regex import MatchesRegex
+from .pairwise import PairwiseEvaluator
 from .precision_recall import PrecisionRecallFScore
 
 __all__ = [
@@ -9,5 +10,6 @@ __all__ = [
     "DocumentRelevanceEvaluator",
     "HallucinationEvaluator",
     "MatchesRegex",
+    "PairwiseEvaluator",
     "PrecisionRecallFScore",
 ]
