@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 from pydantic import BaseModel, Field
 
@@ -102,7 +102,7 @@ class PairwiseEvaluator(LLMEvaluator):
         print(scores)
     """
 
-    NAME = "document_relevance"
+    NAME = "pairwise_evaluator"
     PROMPT = Template(template=_DEFAULT_RESPONSE_COMPARISON_TEMPLATE)
 
     class PairwiseEvaluatorInputSchema(BaseModel):
@@ -128,8 +128,8 @@ class PairwiseEvaluator(LLMEvaluator):
         """
         Resolve consensus between original and flipped evaluation results.
         """
-        eval_score = self._label_score_map.get(eval_result.get("label"), 0.5)
-        flipped_score = self._label_score_map.get(flipped_eval_result.get("label"), 0.5)
+        eval_score = self._label_score_map.get(cast(str, eval_result.get("label")), 0.5)
+        flipped_score = self._label_score_map.get(cast(str, flipped_eval_result.get("label")), 0.5)
 
         votes_first_response = eval_score + (1 - flipped_score)
         votes_second_response = (1 - eval_score) + flipped_score
@@ -139,7 +139,7 @@ class PairwiseEvaluator(LLMEvaluator):
 
         base_metadata = {
             "model": self.llm.model,
-            "consensus": True,
+            "consensus": self.consensus,
             "evaluation_result": {
                 "label": eval_result.get("label"),
                 "explanation": eval_result.get("explanation"),
@@ -228,11 +228,11 @@ class PairwiseEvaluator(LLMEvaluator):
         if not self.consensus:
             return [
                 Score(
-                    score=self._label_score_map.get(label),
+                    score=self._label_score_map.get(cast(str, label)),
                     name=self.NAME,
                     label=label,
                     explanation=explanation,
-                    metadata={"model": self.llm.model, "consensus": False},
+                    metadata={"model": self.llm.model, "consensus": self.consensus},
                     source=self.source,
                 )
             ]
@@ -268,7 +268,7 @@ class PairwiseEvaluator(LLMEvaluator):
                     explanation="Incomplete consensus evaluation",
                     metadata={
                         "model": self.llm.model,
-                        "consensus": False,
+                        "consensus": self.consensus,
                         "evaluation_result": {
                             "label": label,
                             "explanation": explanation,
