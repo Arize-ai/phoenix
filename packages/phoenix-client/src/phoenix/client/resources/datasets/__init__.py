@@ -763,6 +763,7 @@ class Datasets:
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
+        dataset_version_description: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -781,6 +782,7 @@ class Datasets:
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
+            dataset_version_description: Optional description for the new dataset version.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -841,7 +843,7 @@ class Datasets:
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
-                dataset_description=None,
+                dataset_description=dataset_version_description,
                 action="append",
                 timeout=timeout,
             )
@@ -851,7 +853,7 @@ class Datasets:
                 inputs=inputs,
                 outputs=outputs,
                 metadata=metadata,
-                dataset_description=None,
+                dataset_description=dataset_version_description,
                 action="append",
                 timeout=timeout,
             )
