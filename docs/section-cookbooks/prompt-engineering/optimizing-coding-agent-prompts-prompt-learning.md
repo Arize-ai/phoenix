@@ -227,9 +227,9 @@ Each loop after loop 1 edits and optimizes the previous iteration's ruleset.&#x2
 
 ## Results
 
-Visit the Datasets and Experiments tab in AX and view your experiment results. Here's an example of one run, where we just ran 2 loops and saw a huge boost in training accuracy.&#x20;
+Visit the Datasets and Experiments tab in Phoenix and view your experiment results. Here's an example of one run, where we just ran 2 loops and saw a huge boost in training accuracy.&#x20;
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-10-13 at 12.49.03 PM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2025-10-13 at 11.28.40 AM.png" alt=""><figcaption></figcaption></figure>
 
 You can view all generated rulesets, along with training/test accuracy, in the `act_rulesets` folder.&#x20;
 
