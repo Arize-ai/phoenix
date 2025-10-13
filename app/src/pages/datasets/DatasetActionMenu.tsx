@@ -17,6 +17,7 @@ import {
 } from "@phoenix/components";
 import { DatasetLabelSelectionContent } from "@phoenix/components/dataset/DatasetLabelConfigButton";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
 import { EditDatasetDialog } from "./EditDatasetDialog";
@@ -38,6 +39,7 @@ enum DatasetAction {
 }
 
 export function DatasetActionMenu(props: DatasetActionMenuProps) {
+  const datasetSplitsEnabled = useFeatureFlag("datasetLabel");
   const {
     datasetId,
     datasetName,
@@ -84,32 +86,34 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                 <Text>Edit</Text>
               </Flex>
             </MenuItem>
-            <SubmenuTrigger>
-              <MenuItem id={DatasetAction.LABELS}>
-                <Flex
-                  direction={"row"}
-                  gap="size-75"
-                  justifyContent={"start"}
-                  alignItems={"center"}
-                >
-                  <Icon svg={<Icons.PriceTagsOutline />} />
-                  <Text>Label</Text>
-                </Flex>
-              </MenuItem>
-              <Popover placement="left">
-                <PopoverArrow />
-                <Dialog>
-                  {({ close }) => (
-                    <Suspense fallback={<Loading />}>
-                      <DatasetLabelSelectionContent
-                        datasetId={datasetId}
-                        onClose={() => close()}
-                      />
-                    </Suspense>
-                  )}
-                </Dialog>
-              </Popover>
-            </SubmenuTrigger>
+            {datasetSplitsEnabled && (
+              <SubmenuTrigger>
+                <MenuItem id={DatasetAction.LABELS}>
+                  <Flex
+                    direction={"row"}
+                    gap="size-75"
+                    justifyContent={"start"}
+                    alignItems={"center"}
+                  >
+                    <Icon svg={<Icons.PriceTagsOutline />} />
+                    <Text>Label</Text>
+                  </Flex>
+                </MenuItem>
+                <Popover placement="left">
+                  <PopoverArrow />
+                  <Dialog>
+                    {({ close }) => (
+                      <Suspense fallback={<Loading />}>
+                        <DatasetLabelSelectionContent
+                          datasetId={datasetId}
+                          onClose={() => close()}
+                        />
+                      </Suspense>
+                    )}
+                  </Dialog>
+                </Popover>
+              </SubmenuTrigger>
+            )}
             <MenuItem id={DatasetAction.DELETE}>
               <Flex
                 direction={"row"}
