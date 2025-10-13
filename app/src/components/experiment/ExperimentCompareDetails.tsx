@@ -337,6 +337,9 @@ export function ExperimentRunOutputs({
   const [selectedAnnotation, setSelectedAnnotation] = useState<string | null>(
     null
   );
+  const [sortBy, setSortBy] = useState<"repetitionNumber" | "annotation">(
+    "repetitionNumber"
+  );
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const toggleSortDirection = useCallback(() => {
     setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -398,13 +401,14 @@ export function ExperimentRunOutputs({
       const allRepetitions = Object.values(
         experimentRepetitionsByExperimentId
       ).flat();
-      const allRepetitionsSorted = selectedAnnotation
-        ? sortRepetitionsByAnnotation(
-            allRepetitions,
-            selectedAnnotation,
-            sortDirection
-          )
-        : allRepetitions;
+      const allRepetitionsSorted =
+        selectedAnnotation && sortBy === "annotation"
+          ? sortRepetitionsByAnnotation(
+              allRepetitions,
+              selectedAnnotation,
+              sortDirection
+            )
+          : sortRepetitionsByRepetitionNumber(allRepetitions, sortDirection);
       return allRepetitionsSorted.map((repetition) => {
         return {
           experimentId: repetition.experimentId,
@@ -415,15 +419,20 @@ export function ExperimentRunOutputs({
     return experimentIds.map((experimentId) => {
       const experimentRepetitions =
         experimentRepetitionsByExperimentId[experimentId];
-      return {
-        experimentId,
-        experimentRepetitions: selectedAnnotation
+      const experimentRepetitionsSorted =
+        selectedAnnotation && sortBy === "annotation"
           ? sortRepetitionsByAnnotation(
               experimentRepetitions,
               selectedAnnotation,
               sortDirection
             )
-          : experimentRepetitions,
+          : sortRepetitionsByRepetitionNumber(
+              experimentRepetitions,
+              sortDirection
+            );
+      return {
+        experimentId,
+        experimentRepetitions: experimentRepetitionsSorted,
       };
     });
   }, [
@@ -432,6 +441,7 @@ export function ExperimentRunOutputs({
     selectedAnnotation,
     includeRepetitions,
     sortDirection,
+    sortBy,
   ]);
 
   const [isSideBarOpen, setIsSideBarOpen] = useState(true);
@@ -461,6 +471,8 @@ export function ExperimentRunOutputs({
             setSelectedAnnotation={setSelectedAnnotation}
             sortedExperimentRepetitions={sortedExperimentRepetitions}
             toggleSortDirection={toggleSortDirection}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
           />
         </Panel>
       ) : null}
@@ -613,6 +625,8 @@ function ExperimentRunOutputsSidebar({
   setSelectedAnnotation,
   sortedExperimentRepetitions,
   toggleSortDirection,
+  sortBy,
+  setSortBy,
 }: {
   experimentIds: string[];
   experimentsById: Record<string, Experiment>;
@@ -633,6 +647,8 @@ function ExperimentRunOutputsSidebar({
     experimentRepetitions: ExperimentRepetition[];
   }[];
   toggleSortDirection: () => void;
+  sortBy: "repetitionNumber" | "annotation";
+  setSortBy: (sortBy: "repetitionNumber" | "annotation") => void;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
@@ -664,18 +680,46 @@ function ExperimentRunOutputsSidebar({
           alignItems="center"
           justifyContent="space-between"
         >
-          <Checkbox
-            isSelected={allRepetitionsSelected}
-            isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
-            onChange={(checked) => toggleAllRepetitionsSelection(checked)}
-          >
-            Repetition
-          </Checkbox>
+          <Flex direction="row" gap="size-50" alignItems="center">
+            <Checkbox
+              isSelected={allRepetitionsSelected}
+              isIndeterminate={
+                someRepetitionsSelected && !allRepetitionsSelected
+              }
+              onChange={(checked) => toggleAllRepetitionsSelection(checked)}
+            >
+              Repetition
+            </Checkbox>
+            <IconButton
+              size="S"
+              aria-label={
+                sortBy === "repetitionNumber"
+                  ? "Change sort direction"
+                  : "Sort by repetition number"
+              }
+              onPress={
+                sortBy === "repetitionNumber"
+                  ? toggleSortDirection
+                  : () => {
+                      setSortBy("repetitionNumber");
+                      setSelectedAnnotation(null);
+                    }
+              }
+              css={css`
+                flex: none;
+              `}
+            >
+              <Icon svg={<Icons.ArrowUpDown />} />
+            </IconButton>
+          </Flex>
           {annotations.length > 0 && (
             <Flex>
               <Select
                 value={selectedAnnotation}
-                onChange={(value) => setSelectedAnnotation(value as string)}
+                onChange={(value) => {
+                  setSelectedAnnotation(value as string);
+                  setSortBy("annotation");
+                }}
               >
                 <Button variant="quiet" size="S">
                   <SelectValue />
@@ -697,6 +741,7 @@ function ExperimentRunOutputsSidebar({
                 onPress={toggleSortDirection}
                 css={css`
                   flex: none;
+                  visibility: ${sortBy === "annotation" ? "visible" : "hidden"};
                 `}
               >
                 <Icon svg={<Icons.ArrowUpDown />} />
@@ -1297,4 +1342,11 @@ function sortRepetitionsByAnnotation(
     },
     sortDirection
   );
+}
+
+function sortRepetitionsByRepetitionNumber(
+  experimentRepetitions: ExperimentRepetition[],
+  sortDirection: "asc" | "desc"
+): ExperimentRepetition[] {
+  return orderBy(experimentRepetitions, "repetitionNumber", sortDirection);
 }
