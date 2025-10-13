@@ -14,7 +14,6 @@ import {
   Menu,
   MenuItem,
   MenuTrigger,
-  ModalOverlay,
   Popover,
   Tab,
   TabList,
