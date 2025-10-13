@@ -680,7 +680,18 @@ function ExperimentRunOutputsSidebar({
           alignItems="center"
           justifyContent="space-between"
         >
-          <Flex direction="row" gap="size-50" alignItems="center">
+          <Flex
+            direction="row"
+            gap="size-50"
+            alignItems="center"
+            css={css`
+              &:hover {
+                .experiment-run-outputs-sidebar-sort-button {
+                  opacity: 1;
+                }
+              }
+            `}
+          >
             <Checkbox
               isSelected={allRepetitionsSelected}
               isIndeterminate={
@@ -702,24 +713,47 @@ function ExperimentRunOutputsSidebar({
                   ? toggleSortDirection
                   : () => {
                       setSortBy("repetitionNumber");
-                      setSelectedAnnotation(null);
                     }
               }
+              className="experiment-run-outputs-sidebar-sort-button"
               css={css`
                 flex: none;
+                opacity: ${sortBy === "repetitionNumber" ? 1 : 0};
+                &:hover,
+                &:focus {
+                  opacity: 1;
+                }
               `}
             >
               <Icon svg={<Icons.ArrowUpDown />} />
             </IconButton>
           </Flex>
           {annotations.length > 0 && (
-            <Flex>
+            <Flex
+              direction="row"
+              alignItems="center"
+              css={css`
+                overflow: hidden;
+                padding: var(--ac-global-dimension-size-25);
+                &:hover {
+                  .experiment-run-outputs-sidebar-sort-button {
+                    opacity: 1;
+                  }
+                }
+              `}
+            >
               <Select
                 value={selectedAnnotation}
                 onChange={(value) => {
                   setSelectedAnnotation(value as string);
                   setSortBy("annotation");
                 }}
+                css={css`
+                  overflow: hidden;
+                  padding: var(
+                    --ac-global-dimension-size-25
+                  ); // keep focus ring visible
+                `}
               >
                 <Button variant="quiet" size="S">
                   <SelectValue />
@@ -738,10 +772,21 @@ function ExperimentRunOutputsSidebar({
               <IconButton
                 size="S"
                 aria-label="Change sort direction"
-                onPress={toggleSortDirection}
+                onPress={
+                  sortBy === "annotation"
+                    ? toggleSortDirection
+                    : () => {
+                        setSortBy("annotation");
+                      }
+                }
+                className="experiment-run-outputs-sidebar-sort-button"
                 css={css`
                   flex: none;
-                  visibility: ${sortBy === "annotation" ? "visible" : "hidden"};
+                  opacity: ${sortBy === "annotation" ? 1 : 0};
+                  &:hover,
+                  &:focus {
+                    opacity: 1;
+                  }
                 `}
               >
                 <Icon svg={<Icons.ArrowUpDown />} />
