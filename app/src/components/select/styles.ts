@@ -5,7 +5,7 @@ export const selectCSS = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-width: 200px;
+    min-width: 100px;
     width: 100%;
 
     &[data-pressed],
@@ -27,6 +27,9 @@ export const selectCSS = css`
   }
 
   .react-aria-SelectValue {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     &[data-placeholder] {
       font-style: italic;
       color: var(--ac-text-color-placeholder);
