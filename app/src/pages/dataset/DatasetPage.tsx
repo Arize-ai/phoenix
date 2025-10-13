@@ -3,8 +3,6 @@ import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { ActionMenu, Item } from "@arizeai/components";
-
 import {
   Button,
   Counter,
@@ -13,6 +11,10 @@ import {
   Icons,
   LazyTabPanel,
   Loading,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover,
   Tab,
   TabList,
   Tabs,
@@ -162,41 +164,51 @@ function DatasetPageContent({
             </Flex>
           </Flex>
           <Flex direction="row" gap="size-100" alignItems="center">
-            <ActionMenu
-              align="end"
-              buttonSize="compact"
-              icon={<Icon svg={<Icons.DownloadOutline />} />}
-              onAction={(action) => {
-                switch (action) {
-                  case "csv":
-                    window.open(
-                      prependBasename(`/v1/datasets/${dataset.id}/csv`),
-                      "_blank"
-                    );
-                    break;
-                  case "openai-ft":
-                    window.open(
-                      prependBasename(
-                        `/v1/datasets/${dataset.id}/jsonl/openai_ft`
-                      ),
-                      "_blank"
-                    );
-                    break;
-                  case "openai-evals":
-                    window.open(
-                      prependBasename(
-                        `/v1/datasets/${dataset.id}/jsonl/openai_evals`
-                      ),
-                      "_blank"
-                    );
-                    break;
-                }
-              }}
-            >
-              <Item key="csv">Download CSV</Item>
-              <Item key="openai-ft">Download OpenAI Fine-Tuning JSONL</Item>
-              <Item key="openai-evals">Download OpenAI Evals JSONL</Item>
-            </ActionMenu>
+            <MenuTrigger>
+              <Button
+                size="S"
+                leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+              />
+              <Popover>
+                <Menu
+                  aria-label="Dataset action menu"
+                  onAction={(action) => {
+                    switch (action) {
+                      case "csv":
+                        window.open(
+                          prependBasename(`/v1/datasets/${dataset.id}/csv`),
+                          "_blank"
+                        );
+                        break;
+                      case "openai-ft":
+                        window.open(
+                          prependBasename(
+                            `/v1/datasets/${dataset.id}/jsonl/openai_ft`
+                          ),
+                          "_blank"
+                        );
+                        break;
+                      case "openai-evals":
+                        window.open(
+                          prependBasename(
+                            `/v1/datasets/${dataset.id}/jsonl/openai_evals`
+                          ),
+                          "_blank"
+                        );
+                        break;
+                    }
+                  }}
+                >
+                  <MenuItem id="csv">Download CSV</MenuItem>
+                  <MenuItem id="openai-ft">
+                    Download OpenAI Fine-Tuning JSONL
+                  </MenuItem>
+                  <MenuItem id="openai-evals">
+                    Download OpenAI Evals JSONL
+                  </MenuItem>
+                </Menu>
+              </Popover>
+            </MenuTrigger>
             <DatasetCodeButton />
             <RunExperimentButton />
             <AddDatasetExampleButton

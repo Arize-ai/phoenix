@@ -22,7 +22,7 @@ type ModelProviderSelectProps = {
   onChange: (provider: ModelProvider) => void;
   query: ModelProviderSelectFragment$key;
   provider?: ModelProvider;
-} & Omit<SelectProps, "children" | "onChange" | "value">;
+} & Omit<SelectProps, "children" | "onChange" | "value" | "validate">;
 
 export function ModelProviderSelect({
   onChange,

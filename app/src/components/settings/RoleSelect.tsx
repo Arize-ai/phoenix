@@ -44,7 +44,10 @@ type RoleSelectProps = {
    * Whether the field is invalid
    */
   isInvalid?: boolean;
-} & Omit<SelectProps, "children" | "onSelectionChange" | "selectedKey">;
+} & Omit<
+  SelectProps,
+  "children" | "onSelectionChange" | "selectedKey" | "validate"
+>;
 
 export function RoleSelect({
   onChange,

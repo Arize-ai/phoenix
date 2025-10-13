@@ -764,7 +764,6 @@ function ProjectsTable({
           cell: ({ row }) => {
             return (
               <ProjectActionMenu
-                variant="default"
                 projectId={row.original.id}
                 projectName={row.original.name}
                 onProjectClear={() => onClear(row.original.name)}

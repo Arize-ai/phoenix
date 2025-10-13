@@ -16,7 +16,7 @@ import CodeMirror, {
 } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp, TabbedCard } from "@arizeai/components";
+import { TabbedCard } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
@@ -33,6 +33,7 @@ import {
   Button,
   Card,
   CardProps,
+  ContextualHelp,
   CopyToClipboardButton,
   Counter,
   DialogTrigger,
@@ -2000,26 +2001,19 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
 }
 
 const attributesContextualHelp = (
-  <Flex alignItems="center" justifyContent="center">
-    <View marginStart="size-100">
-      <ContextualHelp>
-        <Heading weight="heavy" level={4}>
-          Span Attributes
-        </Heading>
-        <Content>
-          <Text>
-            Attributes are key-value pairs that represent metadata associated
-            with a span. For detailed descriptions of specific attributes,
-            consult the semantic conventions section of the OpenInference
-            tracing specification.
-          </Text>
-        </Content>
-        <footer>
-          <ExternalLink href="https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md">
-            Semantic Conventions
-          </ExternalLink>
-        </footer>
-      </ContextualHelp>
-    </View>
-  </Flex>
+  <ContextualHelp>
+    <Heading weight="heavy" level={4}>
+      Span Attributes
+    </Heading>
+    <Text>
+      Attributes are key-value pairs that represent metadata associated with a
+      span. For detailed descriptions of specific attributes, consult the
+      semantic conventions section of the OpenInference tracing specification.
+    </Text>
+    <footer>
+      <ExternalLink href="https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md">
+        Semantic Conventions
+      </ExternalLink>
+    </footer>
+  </ContextualHelp>
 );
