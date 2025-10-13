@@ -27,7 +27,8 @@
 
 ## Prompt Engineering
 
-* [Prompt Learning - Optimizing Prompts for Classification](prompt-engineering/prompt-learning-optimizing-prompts-for-classification.md)
+* [Optimizing Coding Agent Prompts - Prompt Learning](prompt-engineering/optimizing-coding-agent-prompts-prompt-learning.md)
+* [Optimizing Prompts for LLM Classification - Prompt Learning](prompt-engineering/prompt-learning-optimizing-prompts-for-classification.md)
 * [Few Shot Prompting](prompt-engineering/few-shot-prompting.md)
 * [ReAct Prompting](prompt-engineering/react-prompting.md)
 * [Chain-of-Thought Prompting](prompt-engineering/chain-of-thought-prompting.md)
