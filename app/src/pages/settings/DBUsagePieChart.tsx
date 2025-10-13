@@ -56,7 +56,7 @@ export function DBUsagePieChart({
   );
 
   const totalUsedBytes = data.dbTableStats.reduce(
-    (acc, table) => acc + table.numBytes,
+    (acc, table) => acc + table?.numBytes ?? 0,
     0
   );
   const remainingBytes =
