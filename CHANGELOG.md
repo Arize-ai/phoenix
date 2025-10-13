@@ -1,5 +1,17 @@
 # Changelog
 
+## [12.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.5.0...arize-phoenix-v12.6.0) (2025-10-13)
+
+
+### Features
+
+* Upgrade to React 19.2 ([#9783](https://github.com/Arize-ai/phoenix/issues/9783)) ([a1fcb1a](https://github.com/Arize-ai/phoenix/commit/a1fcb1a5100d940b031a8883741b2604bf848563))
+
+
+### Bug Fixes
+
+* experiment compare list page sort ([#9680](https://github.com/Arize-ai/phoenix/issues/9680)) ([429b2aa](https://github.com/Arize-ai/phoenix/commit/429b2aa4a9430a354d7c4f7492033f70a0087aa1))
+
 ## [12.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.4.0...arize-phoenix-v12.5.0) (2025-10-10)
 
 
