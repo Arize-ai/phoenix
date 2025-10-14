@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -7,7 +7,7 @@ import {
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
-import { orderBy, range } from "lodash";
+import { range } from "lodash";
 import { css } from "@emotion/react";
 
 import {
@@ -47,14 +47,22 @@ import {
 } from "@phoenix/components/resize";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import {
+  type AnnotationSummaries,
+  areAllExperimentRunsSelected,
+  areSomeExperimentRunsSelected,
+  type Experiment,
+  ExperimentCompareDetailsProvider,
+  type ExperimentRepetition,
+  type ExperimentRun,
+  getAnnotationValue,
+  useExperimentCompareDetailsContext,
+} from "@phoenix/contexts/ExperimentCompareContext";
 import { useWordColor } from "@phoenix/hooks";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import { floatFormatter, formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import {
-  ExperimentCompareDetailsQuery,
-  ExperimentCompareDetailsQuery$data,
-} from "./__generated__/ExperimentCompareDetailsQuery.graphql";
+import { ExperimentCompareDetailsQuery } from "./__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
 
 export type ExperimentCompareDetailsProps = {
@@ -67,26 +75,7 @@ export type ExperimentCompareDetailsProps = {
   openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 };
 
-type Experiment = NonNullable<
-  ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
->["edges"][number]["experiment"];
-
-type ExperimentRun = NonNullable<
-  ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
->["edges"][number]["run"];
-
-// ExperimentRepetition represents a repetition that may or may not have run
-type ExperimentRepetition = {
-  experimentId: string;
-  repetitionNumber: number;
-  experimentRun?: ExperimentRun;
-};
-
 type Annotation = ExperimentRun["annotations"]["edges"][number]["annotation"];
-
-type AnnotationSummaries = NonNullable<
-  ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
->;
 
 const SIDEBAR_PANEL_DEFAULT_SIZE = 25;
 
@@ -279,170 +268,41 @@ export function ExperimentCompareDetails({
             box-sizing: border-box;
           `}
         >
-          <ExperimentRunOutputs
-            key={datasetExampleId + "-" + defaultSelectedRepetitionNumber}
+          <ExperimentCompareDetailsProvider
             baseExperimentId={baseExperimentId}
             compareExperimentIds={compareExperimentIds}
             experimentsById={experimentsById}
             experimentRepetitionsByExperimentId={
               experimentRepetitionsByExperimentId
             }
-            defaultSelectedRepetitionNumber={defaultSelectedRepetitionNumber}
-            annotationSummaries={annotationSummaries}
+            annotationSummaries={annotationSummaries ?? []}
+            includeRepetitions={Object.values(experimentsById).some(
+              (experiment) => experiment.repetitions > 1
+            )}
             openTraceDialog={openTraceDialog}
-          />
+            defaultSelectedRepetitionNumber={defaultSelectedRepetitionNumber}
+          >
+            <ExperimentRunOutputs />
+          </ExperimentCompareDetailsProvider>
         </div>
       </Panel>
     </PanelGroup>
   );
 }
 
-type ExperimentRepetitionSelectionState = {
-  experimentId: string;
-  repetitionNumber: number;
-  selected: boolean;
-};
+export function ExperimentRunOutputs() {
+  const {
+    sortedExperimentRepetitions,
+    noRunsSelected,
+    experimentsById,
+    baseExperimentId,
+    compareExperimentIds,
+  } = useExperimentCompareDetailsContext();
 
-export function ExperimentRunOutputs({
-  baseExperimentId,
-  compareExperimentIds,
-  experimentsById,
-  experimentRepetitionsByExperimentId,
-  defaultSelectedRepetitionNumber,
-  annotationSummaries,
-  openTraceDialog,
-}: {
-  baseExperimentId: string;
-  compareExperimentIds: string[];
-  experimentsById: Record<string, Experiment>;
-  experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>;
-  defaultSelectedRepetitionNumber?: number;
-  annotationSummaries?: AnnotationSummaries;
-  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
-}) {
   const experimentIds = useMemo(
     () => [baseExperimentId, ...compareExperimentIds],
     [baseExperimentId, compareExperimentIds]
   );
-
-  const [selectedExperimentRepetitions, setSelectedExperimentRepetitions] =
-    useState<ExperimentRepetitionSelectionState[]>(() =>
-      initializeSelectionState(
-        experimentIds,
-        baseExperimentId,
-        experimentsById,
-        defaultSelectedRepetitionNumber
-      )
-    );
-  const [selectedAnnotation, setSelectedAnnotation] = useState<string | null>(
-    null
-  );
-  const [sortBy, setSortBy] = useState<"repetitionNumber" | "annotation">(
-    "repetitionNumber"
-  );
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const toggleSortDirection = useCallback(() => {
-    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-  }, []);
-
-  const updateExperimentSelection = useCallback(
-    (experimentId: string, checked: boolean) => {
-      setSelectedExperimentRepetitions((prev) =>
-        prev.map((run) =>
-          run.experimentId === experimentId
-            ? { ...run, selected: checked }
-            : run
-        )
-      );
-    },
-    []
-  );
-
-  const updateRepetitionSelection = useCallback(
-    (experimentId: string, repetitionNumber: number, checked: boolean) => {
-      setSelectedExperimentRepetitions((prev) =>
-        prev.map((run) =>
-          run.experimentId === experimentId &&
-          run.repetitionNumber === repetitionNumber
-            ? { ...run, selected: checked }
-            : run
-        )
-      );
-    },
-    []
-  );
-
-  const toggleAllRepetitionsSelection = useCallback((checked: boolean) => {
-    setSelectedExperimentRepetitions((prev) =>
-      prev.map((run) => ({ ...run, selected: checked }))
-    );
-  }, []);
-
-  const noRunsSelected = selectedExperimentRepetitions.every(
-    (run) => !run.selected
-  );
-
-  const includeRepetitions = useMemo(() => {
-    return Object.values(experimentsById).some(
-      (experiment) => experiment.repetitions > 1
-    );
-  }, [experimentsById]);
-
-  const annotations = useMemo(() => {
-    return (
-      annotationSummaries?.map((annotation) => annotation.annotationName) ?? []
-    );
-  }, [annotationSummaries]);
-
-  const sortedExperimentRepetitions = useMemo(() => {
-    // when all experiments have a single repetition, we sort across experiments
-    // otherwise, we sort within each experiment
-    if (!includeRepetitions) {
-      const allRepetitions = Object.values(
-        experimentRepetitionsByExperimentId
-      ).flat();
-      const allRepetitionsSorted =
-        selectedAnnotation && sortBy === "annotation"
-          ? sortRepetitionsByAnnotation(
-              allRepetitions,
-              selectedAnnotation,
-              sortDirection
-            )
-          : sortRepetitionsByRepetitionNumber(allRepetitions, sortDirection);
-      return allRepetitionsSorted.map((repetition) => {
-        return {
-          experimentId: repetition.experimentId,
-          experimentRepetitions: [repetition],
-        };
-      });
-    }
-    return experimentIds.map((experimentId) => {
-      const experimentRepetitions =
-        experimentRepetitionsByExperimentId[experimentId];
-      const experimentRepetitionsSorted =
-        selectedAnnotation && sortBy === "annotation"
-          ? sortRepetitionsByAnnotation(
-              experimentRepetitions,
-              selectedAnnotation,
-              sortDirection
-            )
-          : sortRepetitionsByRepetitionNumber(
-              experimentRepetitions,
-              sortDirection
-            );
-      return {
-        experimentId,
-        experimentRepetitions: experimentRepetitionsSorted,
-      };
-    });
-  }, [
-    experimentIds,
-    experimentRepetitionsByExperimentId,
-    selectedAnnotation,
-    includeRepetitions,
-    sortDirection,
-    sortBy,
-  ]);
 
   const [isSideBarOpen, setIsSideBarOpen] = useState(true);
   const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
@@ -458,22 +318,7 @@ export function ExperimentRunOutputs({
           order={1}
           onCollapse={() => setIsSideBarOpen(false)}
         >
-          <ExperimentRunOutputsSidebar
-            experimentIds={experimentIds}
-            experimentsById={experimentsById}
-            selectedExperimentRepetitions={selectedExperimentRepetitions}
-            updateExperimentSelection={updateExperimentSelection}
-            updateRepetitionSelection={updateRepetitionSelection}
-            toggleAllRepetitionsSelection={toggleAllRepetitionsSelection}
-            includeRepetitions={includeRepetitions}
-            annotations={annotations}
-            selectedAnnotation={selectedAnnotation}
-            setSelectedAnnotation={setSelectedAnnotation}
-            sortedExperimentRepetitions={sortedExperimentRepetitions}
-            toggleSortDirection={toggleSortDirection}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-          />
+          <ExperimentRunOutputsSidebar />
         </Panel>
       ) : null}
       {isSideBarOpen ? (
@@ -539,12 +384,6 @@ export function ExperimentRunOutputs({
                       experiment={experiment}
                       experimentRepetition={repetition}
                       experimentIndex={experimentIndex}
-                      selectedExperimentRepetitions={
-                        selectedExperimentRepetitions
-                      }
-                      includeRepetitions={includeRepetitions}
-                      annotationSummaries={annotationSummaries}
-                      openTraceDialog={openTraceDialog}
                     />
                   );
                 });
@@ -561,19 +400,13 @@ const ExperimentListItemIfSelected = ({
   experiment,
   experimentRepetition,
   experimentIndex,
-  selectedExperimentRepetitions,
-  includeRepetitions,
-  annotationSummaries,
-  openTraceDialog,
 }: {
   experiment: Experiment;
   experimentRepetition: ExperimentRepetition;
   experimentIndex: number;
-  selectedExperimentRepetitions: ExperimentRepetitionSelectionState[];
-  includeRepetitions: boolean;
-  annotationSummaries?: AnnotationSummaries;
-  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) => {
+  const { selectedExperimentRepetitions } =
+    useExperimentCompareDetailsContext();
   const isSelected = useMemo(
     () =>
       selectedExperimentRepetitions.some(
@@ -604,52 +437,35 @@ const ExperimentListItemIfSelected = ({
         experiment={experiment}
         experimentRepetition={experimentRepetition}
         experimentIndex={experimentIndex}
-        includeRepetitions={includeRepetitions}
-        annotationSummaries={annotationSummaries}
-        openTraceDialog={openTraceDialog}
       />
     </li>
   );
 };
 
-function ExperimentRunOutputsSidebar({
-  experimentIds,
-  experimentsById,
-  selectedExperimentRepetitions,
-  updateExperimentSelection,
-  updateRepetitionSelection,
-  toggleAllRepetitionsSelection,
-  includeRepetitions,
-  annotations,
-  selectedAnnotation,
-  setSelectedAnnotation,
-  sortedExperimentRepetitions,
-  toggleSortDirection,
-  sortBy,
-  setSortBy,
-}: {
-  experimentIds: string[];
-  experimentsById: Record<string, Experiment>;
-  selectedExperimentRepetitions: ExperimentRepetitionSelectionState[];
-  updateExperimentSelection: (experimentId: string, checked: boolean) => void;
-  updateRepetitionSelection: (
-    experimentId: string,
-    repetitionNumber: number,
-    checked: boolean
-  ) => void;
-  toggleAllRepetitionsSelection: (checked: boolean) => void;
-  includeRepetitions: boolean;
-  annotations: string[];
-  selectedAnnotation: string | null;
-  setSelectedAnnotation: (annotation: string | null) => void;
-  sortedExperimentRepetitions: {
-    experimentId: string;
-    experimentRepetitions: ExperimentRepetition[];
-  }[];
-  toggleSortDirection: () => void;
-  sortBy: "repetitionNumber" | "annotation";
-  setSortBy: (sortBy: "repetitionNumber" | "annotation") => void;
-}) {
+function ExperimentRunOutputsSidebar() {
+  const {
+    experimentsById,
+    annotationSummaries,
+    includeRepetitions,
+    baseExperimentId,
+    compareExperimentIds,
+    sortedExperimentRepetitions,
+    selectedExperimentRepetitions,
+    updateExperimentSelection,
+    updateRepetitionSelection,
+    toggleAllRepetitionsSelection,
+    selectedAnnotation,
+    setSelectedAnnotation,
+    toggleSortDirection,
+    sortBy,
+    setSortBy,
+  } = useExperimentCompareDetailsContext();
+
+  const experimentIds = useMemo(
+    () => [baseExperimentId, ...compareExperimentIds],
+    [baseExperimentId, compareExperimentIds]
+  );
+
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
   const allRepetitionsSelected = useMemo(
@@ -728,7 +544,7 @@ function ExperimentRunOutputsSidebar({
               <Icon svg={<Icons.ArrowUpDown />} />
             </IconButton>
           </Flex>
-          {annotations.length > 0 && (
+          {annotationSummaries.length > 0 && (
             <Flex
               direction="row"
               alignItems="center"
@@ -761,9 +577,12 @@ function ExperimentRunOutputsSidebar({
                 </Button>
                 <Popover>
                   <ListBox>
-                    {annotations.map((annotation) => (
-                      <SelectItem key={annotation} id={annotation}>
-                        {annotation}
+                    {annotationSummaries.map((annotation) => (
+                      <SelectItem
+                        key={annotation.annotationName}
+                        id={annotation.annotationName}
+                      >
+                        {annotation.annotationName}
                       </SelectItem>
                     ))}
                   </ListBox>
@@ -870,9 +689,6 @@ function ExperimentRunOutputsSidebar({
                   <ExperimentRepetitionsSidebarItems
                     experiment={experiment}
                     experimentRepetitions={experimentRepetitions}
-                    selectedExperimentRepetitions={
-                      selectedExperimentRepetitions
-                    }
                     updateRepetitionSelection={(repetitionNumber, isSelected) =>
                       updateRepetitionSelection(
                         experimentId,
@@ -880,7 +696,6 @@ function ExperimentRunOutputsSidebar({
                         isSelected
                       )
                     }
-                    selectedAnnotation={selectedAnnotation}
                   />
                 )}
               </Fragment>
@@ -895,19 +710,17 @@ function ExperimentRunOutputsSidebar({
 function ExperimentRepetitionsSidebarItems({
   experiment,
   experimentRepetitions,
-  selectedExperimentRepetitions,
   updateRepetitionSelection,
-  selectedAnnotation,
 }: {
   experiment: Experiment;
   experimentRepetitions: ExperimentRepetition[];
-  selectedExperimentRepetitions: ExperimentRepetitionSelectionState[];
   updateRepetitionSelection: (
     repetitionNumber: number,
     isSelected: boolean
   ) => void;
-  selectedAnnotation: string | null;
 }) {
+  const { selectedExperimentRepetitions, selectedAnnotation } =
+    useExperimentCompareDetailsContext();
   return (
     <View paddingStart="size-300">
       <Flex direction="column" gap="size-200">
@@ -987,17 +800,13 @@ export function ExperimentItem({
   experiment,
   experimentRepetition,
   experimentIndex,
-  includeRepetitions,
-  annotationSummaries,
-  openTraceDialog,
 }: {
   experiment: Experiment;
   experimentRepetition: ExperimentRepetition;
   experimentIndex: number;
-  includeRepetitions: boolean;
-  annotationSummaries?: AnnotationSummaries;
-  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) {
+  const { includeRepetitions, openTraceDialog } =
+    useExperimentCompareDetailsContext();
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const color =
     experimentIndex === 0
@@ -1097,8 +906,6 @@ export function ExperimentItem({
             >
               <ExperimentRunAnnotations
                 experimentRun={experimentRepetition.experimentRun}
-                annotationSummaries={annotationSummaries}
-                openTraceDialog={openTraceDialog}
               />
             </View>
             <View flex={1}>
@@ -1140,13 +947,10 @@ function FullSizeJSONBlock({ value }: { value: string }) {
 
 export function ExperimentRunAnnotations({
   experimentRun,
-  annotationSummaries,
-  openTraceDialog,
 }: {
   experimentRun: ExperimentRun;
-  annotationSummaries?: AnnotationSummaries;
-  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) {
+  const { annotationSummaries } = useExperimentCompareDetailsContext();
   return (
     <ul
       css={css`
@@ -1174,7 +978,6 @@ export function ExperimentRunAnnotations({
             <ExperimentRunAnnotation
               annotation={annotation}
               annotationSummary={annotationSummary}
-              openTraceDialog={openTraceDialog}
             />
           </li>
         ) : (
@@ -1273,12 +1076,11 @@ function ExperimentRunAnnotationButton({
 function ExperimentRunAnnotation({
   annotation,
   annotationSummary,
-  openTraceDialog,
 }: {
   annotation: Annotation;
   annotationSummary: AnnotationSummaries[number];
-  openTraceDialog: (traceId: string, projectId: string, title: string) => void;
 }) {
+  const { openTraceDialog } = useExperimentCompareDetailsContext();
   const traceId = annotation.trace?.traceId;
   const projectId = annotation.trace?.projectId;
   const hasTrace = traceId != null && projectId != null;
@@ -1320,78 +1122,4 @@ function ExperimentRunAnnotation({
       )}
     </>
   );
-}
-
-function initializeSelectionState(
-  experimentIds: string[],
-  baseExperimentId: string,
-  experimentsById: Record<string, Experiment>,
-  defaultSelectedRepetitionNumber?: number
-): ExperimentRepetitionSelectionState[] {
-  return experimentIds.flatMap((experimentId) => {
-    const experiment = experimentsById[experimentId];
-    return range(experiment.repetitions).map((repetitionIndex) => {
-      const repetitionNumber = repetitionIndex + 1;
-      return {
-        experimentId,
-        repetitionNumber,
-        selected:
-          experimentId === baseExperimentId &&
-          defaultSelectedRepetitionNumber !== undefined
-            ? repetitionNumber === defaultSelectedRepetitionNumber
-            : true,
-      };
-    });
-  });
-}
-
-function areAllExperimentRunsSelected(
-  experimentId: string,
-  selectedExperimentRepetitions: ExperimentRepetitionSelectionState[]
-): boolean {
-  return selectedExperimentRepetitions
-    .filter((run) => run.experimentId === experimentId)
-    .every((run) => run.selected);
-}
-
-function areSomeExperimentRunsSelected(
-  experimentId: string,
-  selectedExperimentRepetitions: ExperimentRepetitionSelectionState[]
-): boolean {
-  return selectedExperimentRepetitions
-    .filter((run) => run.experimentId === experimentId)
-    .some((run) => run.selected);
-}
-
-function getAnnotationValue(
-  experimentRepetition: ExperimentRepetition,
-  annotationName: string
-): Annotation | null {
-  return (
-    experimentRepetition.experimentRun?.annotations.edges.find(
-      (edge) => edge.annotation.name === annotationName
-    )?.annotation ?? null
-  );
-}
-
-function sortRepetitionsByAnnotation(
-  experimentRepetitions: ExperimentRepetition[],
-  annotation: string,
-  sortDirection: "asc" | "desc"
-): ExperimentRepetition[] {
-  return orderBy(
-    experimentRepetitions,
-    (rep) => {
-      const annotationValue = getAnnotationValue(rep, annotation);
-      return [annotationValue?.score, annotationValue?.label];
-    },
-    sortDirection
-  );
-}
-
-function sortRepetitionsByRepetitionNumber(
-  experimentRepetitions: ExperimentRepetition[],
-  sortDirection: "asc" | "desc"
-): ExperimentRepetition[] {
-  return orderBy(experimentRepetitions, "repetitionNumber", sortDirection);
 }

@@ -3,6 +3,7 @@ import { Meta, StoryFn } from "@storybook/react";
 import { View } from "@phoenix/components";
 import { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExperimentItem } from "@phoenix/components/experiment/ExperimentCompareDetails";
+import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
 
 type Experiment = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
@@ -230,32 +231,55 @@ This component is the main building block for comparing experiment results side-
       control: { type: "number", min: 0, max: 10 },
       description: "Index for color coding (0 = base experiment color)",
     },
-    includeRepetitions: {
-      control: { type: "boolean" },
-      description: "Whether to show repetition numbers in the header",
-    },
-    annotationSummaries: {
-      control: false,
-      description:
-        "Summary statistics for annotations to calculate percentiles",
-    },
   },
 };
 
 export default meta;
 type Story = StoryFn<typeof ExperimentItem>;
 
-const Template: Story = (args) => (
-  <View
-    height="600px"
-    borderColor="light"
-    borderWidth="thin"
-    borderRadius="medium"
-    overflow="hidden"
-  >
-    <ExperimentItem {...args} openTraceDialog={() => {}} />
-  </View>
-);
+const Template: Story = (args) => {
+  const mockExperimentsById = {
+    [args.experiment.id]: args.experiment,
+  };
+
+  const mockExperimentRepetitionsByExperimentId = {
+    [args.experiment.id]: [args.experimentRepetition],
+  };
+
+  const includeRepetitions = args.experiment.repetitions > 1;
+
+  const hasAnnotations =
+    args.experimentRepetition.experimentRun?.annotations.edges.length ?? 0 > 0;
+  const annotationSummaries = hasAnnotations ? mockAnnotationSummaries : [];
+
+  return (
+    <View
+      height="600px"
+      borderColor="light"
+      borderWidth="thin"
+      borderRadius="medium"
+      overflow="hidden"
+    >
+      <ExperimentCompareDetailsProvider
+        baseExperimentId={args.experiment.id}
+        compareExperimentIds={[]}
+        experimentsById={mockExperimentsById}
+        experimentRepetitionsByExperimentId={
+          mockExperimentRepetitionsByExperimentId
+        }
+        annotationSummaries={annotationSummaries}
+        includeRepetitions={includeRepetitions}
+        openTraceDialog={() => {}}
+      >
+        <ExperimentItem
+          experiment={args.experiment}
+          experimentRepetition={args.experimentRepetition}
+          experimentIndex={args.experimentIndex}
+        />
+      </ExperimentCompareDetailsProvider>
+    </View>
+  );
+};
 
 /**
  * Successful experiment run with annotations and output
@@ -265,8 +289,6 @@ WithSuccessfulRun.args = {
   experiment: mockExperiment,
   experimentRepetition: mockExperimentRepetition,
   experimentIndex: 0,
-  includeRepetitions: false,
-  annotationSummaries: mockAnnotationSummaries,
 };
 
 /**
@@ -280,8 +302,6 @@ NoRun.args = {
     repetitionNumber: 1,
   },
   experimentIndex: 0,
-  includeRepetitions: false,
-  annotationSummaries: mockAnnotationSummaries,
 };
 
 /**
@@ -292,8 +312,6 @@ WithError.args = {
   experiment: mockExperiment,
   experimentRepetition: mockErrorExperimentRepetition,
   experimentIndex: 1,
-  includeRepetitions: false,
-  annotationSummaries: mockAnnotationSummaries,
 };
 
 /**
@@ -304,8 +322,6 @@ WithRepetitions.args = {
   experiment: mockExperimentWithRepetitions,
   experimentRepetition: mockRepetitionExperimentRepetition,
   experimentIndex: 2,
-  includeRepetitions: true,
-  annotationSummaries: mockAnnotationSummaries,
 };
 
 /**
@@ -316,8 +332,6 @@ LongName.args = {
   experiment: mockLongNameExperiment,
   experimentRepetition: mockExperimentRepetition,
   experimentIndex: 3,
-  includeRepetitions: false,
-  annotationSummaries: mockAnnotationSummaries,
 };
 
 /**
@@ -337,8 +351,6 @@ NoAnnotations.args = {
     },
   },
   experimentIndex: 0,
-  includeRepetitions: false,
-  annotationSummaries: [],
 };
 
 /**
@@ -366,6 +378,4 @@ NoTrace.args = {
     },
   },
   experimentIndex: 0,
-  includeRepetitions: false,
-  annotationSummaries: mockAnnotationSummaries,
 };
