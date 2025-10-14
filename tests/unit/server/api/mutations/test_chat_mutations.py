@@ -195,12 +195,12 @@ class TestChatCompletionMutationMixin:
                 from phoenix.server.api.types.node import from_global_id
 
                 _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
-                result = await session.execute(
+                db_result = await session.execute(
                     select(models.ExperimentDatasetSplit).where(
                         models.ExperimentDatasetSplit.experiment_id == exp_id
                     )
                 )
-                split_links = result.scalars().all()
+                split_links = db_result.scalars().all()
                 assert len(split_links) == 1
                 assert split_links[0].dataset_split_id == 1  # train split
 
@@ -272,12 +272,12 @@ class TestChatCompletionMutationMixin:
                 from phoenix.server.api.types.node import from_global_id
 
                 _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
-                result = await session.execute(
+                db_result = await session.execute(
                     select(models.ExperimentDatasetSplit)
                     .where(models.ExperimentDatasetSplit.experiment_id == exp_id)
                     .order_by(models.ExperimentDatasetSplit.dataset_split_id)
                 )
-                split_links = result.scalars().all()
+                split_links = db_result.scalars().all()
                 assert len(split_links) == 2
                 assert split_links[0].dataset_split_id == 1  # train split
                 assert split_links[1].dataset_split_id == 2  # test split
@@ -348,12 +348,12 @@ class TestChatCompletionMutationMixin:
                 from phoenix.server.api.types.node import from_global_id
 
                 _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
-                result = await session.execute(
+                db_result = await session.execute(
                     select(models.ExperimentDatasetSplit).where(
                         models.ExperimentDatasetSplit.experiment_id == exp_id
                     )
                 )
-                split_links = result.scalars().all()
+                split_links = db_result.scalars().all()
                 assert len(split_links) == 0  # No splits associated
 
 
