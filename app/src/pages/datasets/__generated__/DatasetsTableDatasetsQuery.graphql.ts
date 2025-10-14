@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6454082946234ff3711d8276c524e522>>
+ * @generated SignedSource<<743e684f67682df7948978d4b91266aa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,9 +14,9 @@ export type DatasetColumn = "createdAt" | "name";
 export type DatasetFilterColumn = "name";
 export type SortDir = "asc" | "desc";
 export type DatasetFilter = {
-  col: DatasetFilterColumn;
+  col?: DatasetFilterColumn | null;
   filterLabels?: ReadonlyArray<string> | null;
-  value: string;
+  value?: string | null;
 };
 export type DatasetSort = {
   col: DatasetColumn;

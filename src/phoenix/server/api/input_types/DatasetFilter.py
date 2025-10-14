@@ -12,6 +12,6 @@ class DatasetFilterColumn(Enum):
 
 @strawberry.input(description="A filter for datasets")
 class DatasetFilter:
-    col: DatasetFilterColumn
-    value: str
+    col: Optional[DatasetFilterColumn] = None
+    value: Optional[str] = None
     filter_labels: Optional[list[str]] = UNSET
