@@ -14,6 +14,7 @@
 ## Tracing
 
 * [Agentic RAG Tracing](tracing/agentic-rag-tracing.md)
+* [LLM Ops Overview](tracing/llm-ops-overview.md)
 * [Generating Synthetic Datasets for LLM Evaluators & Agents](tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents.md)
 * [Structured Data Extraction](tracing/structured-data-extraction.md)
 * [Product Recommendation Agent: Google Agent Engine & LangGraph](tracing/product-recommendation-agent-google-agent-engine-and-langgraph.md)
@@ -59,5 +60,3 @@
 
 * [Embeddings Analysis](retrieval-and-inferences/embeddings-analysis.md)
 * [More Cookbooks](retrieval-and-inferences/cookbooks.md)
-
-## Prompt Learning
