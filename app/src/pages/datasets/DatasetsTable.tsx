@@ -134,12 +134,12 @@ export function DatasetsTable(props: DatasetsTableProps) {
     },
     [hasNext, isLoadingNext, loadNext, filter, labelFilter]
   );
-  const table = useReactTable({
-    columns: [
+  const columns = useMemo(
+    () => [
       {
         header: "name",
         accessorKey: "name",
-        cell: ({ row }) => {
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           const hasExperiments = row.original.experimentCount > 0;
           const to = hasExperiments
             ? `${row.original.id}/experiments`
@@ -196,7 +196,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         accessorKey: "exampleCount",
         enableSorting: false,
         meta: {
-          textAlign: "right",
+          textAlign: "right" as const,
         },
       },
       {
@@ -204,7 +204,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         accessorKey: "experimentCount",
         enableSorting: false,
         meta: {
-          textAlign: "right",
+          textAlign: "right" as const,
         },
       },
       {
@@ -218,7 +218,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         id: "actions",
         enableSorting: false,
         size: 10,
-        cell: ({ row }) => {
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           return (
             <DatasetActionMenu
               datasetId={row.original.id}
@@ -288,6 +288,17 @@ export function DatasetsTable(props: DatasetsTableProps) {
         },
       },
     ],
+    [
+      filter,
+      labelFilter,
+      refetch,
+      notifySuccess,
+      notifyError,
+      isDatasetLabelEnabled,
+    ]
+  );
+  const table = useReactTable({
+    columns,
     data: tableData,
     state: {
       sorting,
