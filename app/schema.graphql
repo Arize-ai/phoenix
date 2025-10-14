@@ -700,8 +700,9 @@ type DatasetExperimentAnnotationSummary {
 
 """A filter for datasets"""
 input DatasetFilter {
-  col: DatasetFilterColumn!
-  value: String!
+  col: DatasetFilterColumn = null
+  value: String = null
+  filterLabels: [String!]
 }
 
 enum DatasetFilterColumn {

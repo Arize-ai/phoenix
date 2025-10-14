@@ -70,6 +70,14 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
         "client:root",
         "DatasetLabelsTable__datasetLabels"
       ),
+      ConnectionHandler.getConnectionID(
+        "client:root",
+        "DatasetLabelFilterButton_datasetLabels"
+      ),
+      ConnectionHandler.getConnectionID(
+        "client:root",
+        "DatasetLabelConfigButtonAllLabels_datasetLabels"
+      ),
     ];
     addLabel({
       variables: {

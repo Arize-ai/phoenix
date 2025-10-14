@@ -41,6 +41,7 @@ const PAGE_SIZE = 100;
 type DatasetsTableProps = {
   query: DatasetsTable_datasets$key;
   filter: string;
+  labelFilter?: string[];
 };
 
 function toGqlSort(sort: SortingState[number]): DatasetSort {
@@ -55,7 +56,7 @@ function toGqlSort(sort: SortingState[number]): DatasetSort {
 }
 
 export function DatasetsTable(props: DatasetsTableProps) {
-  const { filter } = props;
+  const { filter, labelFilter } = props;
   const [sorting, setSorting] = useState<SortingState>([]);
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -119,20 +120,29 @@ export function DatasetsTable(props: DatasetsTableProps) {
         ) {
           loadNext(PAGE_SIZE, {
             UNSTABLE_extraVariables: {
-              filter: filter ? { col: "name", value: filter } : null,
+              filter:
+                filter || labelFilter?.length
+                  ? {
+                      col: "name",
+                      value: filter || "",
+                      ...(labelFilter?.length
+                        ? { filterLabels: labelFilter }
+                        : {}),
+                    }
+                  : null,
             },
           });
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext, filter]
+    [hasNext, isLoadingNext, loadNext, filter, labelFilter]
   );
   const columns = useMemo(() => {
     const cols: ColumnDef<(typeof tableData)[number]>[] = [
       {
         header: "name",
         accessorKey: "name",
-        cell: ({ row }) => {
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           const hasExperiments = row.original.experimentCount > 0;
           const to = hasExperiments
             ? `${row.original.id}/experiments`
@@ -189,7 +199,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         accessorKey: "exampleCount",
         enableSorting: false,
         meta: {
-          textAlign: "right",
+          textAlign: "right" as const,
         },
       },
       {
@@ -197,7 +207,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         accessorKey: "experimentCount",
         enableSorting: false,
         meta: {
-          textAlign: "right",
+          textAlign: "right" as const,
         },
       },
       {
@@ -211,7 +221,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         id: "actions",
         enableSorting: false,
         size: 10,
-        cell: ({ row }) => {
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           return (
             <DatasetActionMenu
               datasetId={row.original.id}
@@ -225,7 +235,16 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 });
                 refetch(
                   {
-                    filter: filter ? { col: "name", value: filter } : null,
+                    filter:
+                      filter || labelFilter?.length
+                        ? {
+                            col: "name",
+                            value: filter || "",
+                            ...(labelFilter?.length
+                              ? { filterLabels: labelFilter }
+                              : {}),
+                          }
+                        : null,
                   },
                   { fetchPolicy: "store-and-network" }
                 );
@@ -245,7 +264,16 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 });
                 refetch(
                   {
-                    filter: filter ? { col: "name", value: filter } : null,
+                    filter:
+                      filter || labelFilter?.length
+                        ? {
+                            col: "name",
+                            value: filter || "",
+                            ...(labelFilter?.length
+                              ? { filterLabels: labelFilter }
+                              : {}),
+                          }
+                        : null,
                   },
                   { fetchPolicy: "store-and-network" }
                 );
@@ -264,7 +292,14 @@ export function DatasetsTable(props: DatasetsTableProps) {
       },
     ];
     return cols;
-  }, [isDatasetLabelEnabled, filter, notifyError, notifySuccess, refetch]);
+  }, [
+    isDatasetLabelEnabled,
+    filter,
+    labelFilter,
+    notifyError,
+    notifySuccess,
+    refetch,
+  ]);
   const table = useReactTable({
     columns,
     data: tableData,
@@ -287,12 +322,19 @@ export function DatasetsTable(props: DatasetsTableProps) {
           sort: sort ? toGqlSort(sort) : { col: "createdAt", dir: "desc" },
           after: null,
           first: PAGE_SIZE,
-          filter: filter ? { col: "name", value: filter } : null,
+          filter:
+            filter || labelFilter?.length
+              ? {
+                  col: "name",
+                  value: filter || "",
+                  ...(labelFilter?.length ? { filterLabels: labelFilter } : {}),
+                }
+              : null,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch, filter]);
+  }, [sorting, refetch, filter, labelFilter]);
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   return (

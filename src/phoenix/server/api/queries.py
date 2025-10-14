@@ -385,7 +385,35 @@ class Query:
             sort_col = getattr(models.Dataset, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
         if filter:
-            stmt = stmt.where(getattr(models.Dataset, filter.col.value).ilike(f"%{filter.value}%"))
+            # Apply name filter
+            if filter.col and filter.value:
+                stmt = stmt.where(
+                    getattr(models.Dataset, filter.col.value).ilike(f"%{filter.value}%")
+                )
+
+            # Apply label filter
+            if filter.filter_labels and filter.filter_labels is not UNSET:
+                label_rowids = []
+                for label_id in filter.filter_labels:
+                    try:
+                        label_rowid = from_global_id_with_expected_type(
+                            global_id=GlobalID.from_id(label_id),
+                            expected_type_name="DatasetLabel",
+                        )
+                        label_rowids.append(label_rowid)
+                    except ValueError:
+                        continue  # Skip invalid label IDs
+
+                if label_rowids:
+                    # Join with the junction table to filter by labels
+                    stmt = (
+                        stmt.join(
+                            models.DatasetsDatasetLabel,
+                            models.Dataset.id == models.DatasetsDatasetLabel.dataset_id,
+                        )
+                        .where(models.DatasetsDatasetLabel.dataset_label_id.in_(label_rowids))
+                        .distinct()
+                    )
         async with info.context.db() as session:
             datasets = await session.scalars(stmt)
         return connection_from_list(
