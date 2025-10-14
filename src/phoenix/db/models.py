@@ -1607,7 +1607,7 @@ class PasswordResetToken(HasId):
     )
     user: Mapped["User"] = relationship("User", back_populates="password_reset_token")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -1619,7 +1619,7 @@ class RefreshToken(HasId):
     )
     user: Mapped["User"] = relationship("User", back_populates="refresh_tokens")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -1631,7 +1631,7 @@ class AccessToken(HasId):
     )
     user: Mapped["User"] = relationship("User", back_populates="access_tokens")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
     refresh_token_id: Mapped[int] = mapped_column(
         ForeignKey("refresh_tokens.id", ondelete="CASCADE"),
         index=True,

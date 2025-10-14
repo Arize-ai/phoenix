@@ -10,7 +10,7 @@ services:
       - PHOENIX_OAUTH2_DEV_TOKEN_ENDPOINT_AUTH_METHOD=none
       - PHOENIX_OAUTH2_DEV_SCOPES=groups
       - PHOENIX_OAUTH2_DEV_GROUPS_ATTRIBUTE_PATH=groups
-      - PHOENIX_OAUTH2_DEV_ALLOWED_GROUPS=phoenix-admins
+      - PHOENIX_OAUTH2_DEV_ALLOWED_GROUPS=phoenix-admins,phoenix-members,phoenix-viewers
 
   grafana:
     profiles: ["pkce-public"]

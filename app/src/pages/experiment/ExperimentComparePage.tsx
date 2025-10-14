@@ -1,4 +1,10 @@
-import { startTransition, useCallback, useEffect, useMemo } from "react";
+import {
+  startTransition,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+} from "react";
 import {
   graphql,
   PreloadedQuery,
@@ -207,18 +213,18 @@ export function ExperimentComparePage() {
             }}
           />
           <View flex="1" paddingBottom={5}>
-            {selectedCompareExperimentsQueryReference && (
-              <SelectedCompareExperiments
-                queryRef={selectedCompareExperimentsQueryReference}
-              />
-            )}
+            <Suspense>
+              {selectedCompareExperimentsQueryReference && (
+                <SelectedCompareExperiments
+                  queryRef={selectedCompareExperimentsQueryReference}
+                />
+              )}
+            </Suspense>
           </View>
-          {
-            <ExperimentCompareViewModeToggle
-              viewMode={viewMode}
-              onViewModeChange={onViewModeChange}
-            />
-          }
+          <ExperimentCompareViewModeToggle
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+          />
         </Flex>
       </View>
       {baseExperimentId == null ? (
@@ -251,19 +257,25 @@ function ExperimentComparePageContent({
   const viewMode = searchParams.get("view") ?? "grid";
   if (viewMode === "grid") {
     return compareGridQueryReference ? (
-      <ExperimentCompareGridPage queryRef={compareGridQueryReference} />
+      <Suspense fallback={<Loading />}>
+        <ExperimentCompareGridPage queryRef={compareGridQueryReference} />
+      </Suspense>
     ) : (
       <Loading />
     );
   } else if (viewMode === "metrics") {
     return compareMetricsQueryReference ? (
-      <ExperimentCompareMetricsPage queryRef={compareMetricsQueryReference} />
+      <Suspense fallback={<Loading />}>
+        <ExperimentCompareMetricsPage queryRef={compareMetricsQueryReference} />
+      </Suspense>
     ) : (
       <Loading />
     );
   } else if (viewMode === "list") {
     return compareListQueryReference ? (
-      <ExperimentCompareListPage queryRef={compareListQueryReference} />
+      <Suspense fallback={<Loading />}>
+        <ExperimentCompareListPage queryRef={compareListQueryReference} />
+      </Suspense>
     ) : (
       <Loading />
     );

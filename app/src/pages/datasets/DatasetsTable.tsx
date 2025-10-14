@@ -10,6 +10,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
   CellContext,
+  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -134,8 +135,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
     },
     [hasNext, isLoadingNext, loadNext, filter, labelFilter]
   );
-  const columns = useMemo(
-    () => [
+  const columns = useMemo(() => {
+    const cols: ColumnDef<(typeof tableData)[number]>[] = [
       {
         header: "name",
         accessorKey: "name",
@@ -287,16 +288,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
           );
         },
       },
-    ],
-    [
-      filter,
-      labelFilter,
-      refetch,
-      notifySuccess,
-      notifyError,
-      isDatasetLabelEnabled,
-    ]
-  );
+    ];
+    return cols;
+  }, [isDatasetLabelEnabled, filter, labelFilter, notifyError, notifySuccess, refetch]);
   const table = useReactTable({
     columns,
     data: tableData,

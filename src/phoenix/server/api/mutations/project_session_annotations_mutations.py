@@ -8,7 +8,7 @@ from strawberry import Info
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
 from phoenix.server.api.helpers.annotations import get_user_identifier
@@ -38,7 +38,7 @@ class ProjectSessionAnnotationMutationPayload:
 
 @strawberry.type
 class ProjectSessionAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_project_session_annotations(
         self, info: Info[Context, None], input: CreateProjectSessionAnnotationInput
     ) -> ProjectSessionAnnotationMutationPayload:
@@ -85,7 +85,7 @@ class ProjectSessionAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def update_project_session_annotations(
         self, info: Info[Context, None], input: UpdateAnnotationInput
     ) -> ProjectSessionAnnotationMutationPayload:
@@ -126,7 +126,7 @@ class ProjectSessionAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_project_session_annotation(
         self, info: Info[Context, None], id: GlobalID
     ) -> ProjectSessionAnnotationMutationPayload:

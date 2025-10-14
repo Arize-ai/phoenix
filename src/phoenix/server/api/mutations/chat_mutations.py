@@ -30,7 +30,7 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
@@ -131,7 +131,7 @@ class ChatCompletionOverDatasetMutationPayload:
 
 @strawberry.type
 class ChatCompletionMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     @classmethod
     async def chat_completion_over_dataset(
         cls,
@@ -302,7 +302,7 @@ class ChatCompletionMutationMixin:
             payload.examples.append(example_payload)
         return payload
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     @classmethod
     async def chat_completion(
         cls, info: Info[Context, None], input: ChatCompletionInput

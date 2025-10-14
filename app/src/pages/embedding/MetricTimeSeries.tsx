@@ -16,9 +16,13 @@ import {
 import { CategoricalChartFunc } from "recharts/types/chart/types";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp } from "@arizeai/components";
-
-import { Heading, Icon, Icons, Text } from "@phoenix/components";
+import {
+  ContextualHelp,
+  Heading,
+  Icon,
+  Icons,
+  Text,
+} from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipDivider,
@@ -360,7 +364,7 @@ export function MetricTimeSeries({
         {metricDescription != null ? (
           <ContextualHelp>
             <Heading level={4}>{metricShortName}</Heading>
-            <Content>{metricDescription}</Content>
+            <Text>{metricDescription}</Text>
           </ContextualHelp>
         ) : null}
       </Heading>

@@ -6,7 +6,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsNotReadOnly
+from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.queries import Query
@@ -16,7 +16,7 @@ from phoenix.server.dml_event import SpanDeleteEvent
 
 @strawberry.type
 class TraceMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_traces(
         self,
         info: Info[Context, None],
@@ -73,7 +73,7 @@ class TraceMutationMixin:
             info.context.event_queue.put(SpanDeleteEvent(project_ids))
         return Query()
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def transfer_traces_to_project(
         self,
         info: Info[Context, None],

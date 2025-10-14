@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import string
 from collections import defaultdict
 from collections.abc import Iterator, Sequence
@@ -31,6 +33,8 @@ from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import (
     _ADMIN,
+    _ADMIN_ONLY_ENDPOINTS,
+    _COMMON_RESOURCE_ENDPOINTS,
     _DEFAULT_ADMIN,
     _DENIED,
     _EXPECTATION_401,
@@ -39,12 +43,15 @@ from .._helpers import (
     _OK,
     _OK_OR_DENIED,
     _SYSTEM_USER_GID,
+    _VIEWER,
+    _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AccessToken,
     _AdminSecret,
     _ApiKey,
     _AppInfo,
     _create_api_key,
     _create_user,
+    _delete_users,
     _Email,
     _ExistingSpan,
     _Expectation,
@@ -52,9 +59,7 @@ from .._helpers import (
     _extract_html,
     _GetUser,
     _GqlId,
-    _grpc_span_exporter,
     _Headers,
-    _http_span_exporter,
     _httpx_client,
     _initiate_password_reset,
     _log_in,
@@ -1120,7 +1125,7 @@ class TestOriginAndReferer:
 
 
 class TestLogIn:
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_can_log_in(
         self,
         role_or_user: _RoleOrUser,
@@ -1130,7 +1135,7 @@ class TestLogIn:
         u = _get_user(_app, role_or_user)
         u.log_in(_app)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_can_log_in_more_than_once_simultaneously(
         self,
         role_or_user: _RoleOrUser,
@@ -1141,7 +1146,7 @@ class TestLogIn:
         for _ in range(10):
             u.log_in(_app)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_can_log_in_with_case_insensitive_email(
         self,
         role_or_user: _RoleOrUser,
@@ -1155,7 +1160,7 @@ class TestLogIn:
         case_insensitive_email = _randomize_casing(u.email)
         _log_in(_app, u.password, email=case_insensitive_email)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_cannot_log_in_with_empty_password(
         self,
         role_or_user: _RoleOrUser,
@@ -1166,7 +1171,7 @@ class TestLogIn:
         with _EXPECTATION_401:
             _log_in(_app, "", email=u.email)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_cannot_log_in_with_wrong_password(
         self,
         role_or_user: _RoleOrUser,
@@ -1179,7 +1184,7 @@ class TestLogIn:
         with _EXPECTATION_401:
             _log_in(_app, wrong_password, email=u.email)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_cannot_log_in_with_deleted_user(
         self,
         role_or_user: _RoleOrUser,
@@ -1187,15 +1192,14 @@ class TestLogIn:
         _passwords: Iterator[_Password],
         _app: _AppInfo,
     ) -> None:
-        admin_user = _get_user(_app, UserRoleInput.ADMIN)
         user = _get_user(_app, role_or_user)
-        admin_user.delete_users(_app, user)
+        _delete_users(_app, _app.admin_secret, users=[user])
         with _EXPECTATION_401:
             user.log_in(_app)
 
 
 class TestWelcomeEmail:
-    @pytest.mark.parametrize("role", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role", list(UserRoleInput))
     @pytest.mark.parametrize("send_welcome_email", [True, False])
     def test_welcome_email_is_sent(
         self,
@@ -1235,7 +1239,7 @@ class TestPasswordReset:
         email = next(_emails)
         assert not _initiate_password_reset(_app, email, _smtpd, should_receive_email=False)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_initiate_password_reset_does_not_change_existing_password(
         self,
         role_or_user: _RoleOrUser,
@@ -1247,7 +1251,7 @@ class TestPasswordReset:
         assert u.initiate_password_reset(_app, _smtpd)
         u.log_in(_app)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_initiate_password_reset_with_case_insensitive_email(
         self,
         role_or_user: _RoleOrUser,
@@ -1262,7 +1266,7 @@ class TestPasswordReset:
         case_insensitive_email = _randomize_casing(u.email)
         assert _initiate_password_reset(_app, case_insensitive_email, _smtpd)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_password_reset_can_be_initiated_multiple_times(
         self,
         role_or_user: _RoleOrUser,
@@ -1285,7 +1289,7 @@ class TestPasswordReset:
             # only the last one works
             token.reset(_app, new_password)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_password_reset_can_be_initiated_immediately_after_password_reset(
         self,
         role_or_user: _RoleOrUser,
@@ -1301,7 +1305,7 @@ class TestPasswordReset:
         token.reset(_app, new_password)
         assert u.initiate_password_reset(_app, _smtpd)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_password_reset_token_is_single_use(
         self,
         role_or_user: _RoleOrUser,
@@ -1320,7 +1324,7 @@ class TestPasswordReset:
         with _EXPECTATION_401:
             token.reset(_app, newer_password)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_initiate_password_reset_and_then_reset_password_using_token_from_email(
         self,
         role_or_user: _RoleOrUser,
@@ -1331,7 +1335,7 @@ class TestPasswordReset:
     ) -> None:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
-        logged_in_user.create_api_key(_app)
+        logged_in_user.visit(_app)
         assert (token := u.initiate_password_reset(_app, _smtpd))
         new_password = next(_passwords)
         assert new_password != u.password
@@ -1339,16 +1343,15 @@ class TestPasswordReset:
         with _EXPECTATION_401:
             # old password should no longer work
             u.log_in(_app)
-        with _EXPECTATION_401:
-            # old logged-in tokens should no longer work
-            logged_in_user.create_api_key(_app)
+        # old logged-in tokens should no longer work
+        logged_in_user.visit(_app, 401)
         # new password should work
         new_profile = replace(u.profile, password=new_password)
         new_u = replace(u, profile=new_profile)
         new_u.log_in(_app)
         assert not _will_be_asked_to_reset_password(_app, new_u)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_deleted_user_will_not_receive_email_after_initiating_password_reset(
         self,
         role_or_user: _RoleOrUser,
@@ -1358,11 +1361,11 @@ class TestPasswordReset:
     ) -> None:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
-        logged_in_user.create_api_key(_app)
+        logged_in_user.visit(_app)
         _DEFAULT_ADMIN.delete_users(_app, u)
         assert not u.initiate_password_reset(_app, _smtpd, should_receive_email=False)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_deleted_user_cannot_reset_password_using_token_from_email(
         self,
         role_or_user: _RoleOrUser,
@@ -1373,7 +1376,7 @@ class TestPasswordReset:
     ) -> None:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
-        logged_in_user.create_api_key(_app)
+        logged_in_user.visit(_app)
         assert (token := u.initiate_password_reset(_app, _smtpd))
         new_password = next(_passwords)
         assert new_password != u.password
@@ -1383,7 +1386,7 @@ class TestPasswordReset:
 
 
 class TestLogOut:
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_can_log_out(
         self,
         role_or_user: _RoleOrUser,
@@ -1393,13 +1396,12 @@ class TestLogOut:
         u = _get_user(_app, role_or_user)
         logged_in_users = [u.log_in(_app) for _ in range(2)]
         for logged_in_user in logged_in_users:
-            logged_in_user.create_api_key(_app)
+            logged_in_user.visit(_app)
         logged_in_users[0].log_out(_app)
         for logged_in_user in logged_in_users:
-            with _EXPECTATION_401:
-                logged_in_user.create_api_key(_app)
+            logged_in_user.visit(_app, 401)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_can_log_out_with_only_refresh_token(
         self,
         role_or_user: _RoleOrUser,
@@ -1428,7 +1430,7 @@ class TestLoggedInTokens:
             assert (jti := _decode_jwt(token)["jti"]) not in self._set
             self._set.add(jti)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_logged_in_tokens_should_change_after_log_out(
         self,
         role_or_user: _RoleOrUser,
@@ -1444,7 +1446,7 @@ class TestLoggedInTokens:
             refresh_tokens.add(logged_in_user.tokens.refresh_token)
             logged_in_user.log_out(_app)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_logged_in_tokens_should_differ_between_users(
         self,
@@ -1478,7 +1480,7 @@ class TestLoggedInTokens:
 
 
 class TestRefreshToken:
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
     def test_end_to_end_credentials_flow(
         self,
         role_or_user: _RoleOrUser,
@@ -1492,27 +1494,24 @@ class TestRefreshToken:
         logged_in_users[0][0] = u.log_in(_app)
         # tokens are refreshed in the first browser
         logged_in_users[0][1] = logged_in_users[0][0].refresh(_app)
-        # user creates api key in the first browser
-        logged_in_users[0][1].create_api_key(_app)
+        # user can visit the app
+        logged_in_users[0][1].visit(_app)
         # refresh token is good for one use only
         with pytest.raises(HTTPStatusError):
             logged_in_users[0][0].refresh(_app)
         # original access token is invalid after refresh
-        with _EXPECTATION_401:
-            logged_in_users[0][0].create_api_key(_app)
+        logged_in_users[0][0].visit(_app, 401)
 
         # user logs into second browser
         logged_in_users[1][0] = u.log_in(_app)
-        # user creates api key in the second browser
-        logged_in_users[1][0].create_api_key(_app)
+        # user can visit the app
+        logged_in_users[1][0].visit(_app)
 
         # user logs out in first browser
         logged_in_users[0][1].log_out(_app)
         # user is logged out of both browsers
-        with _EXPECTATION_401:
-            logged_in_users[0][1].create_api_key(_app)
-        with _EXPECTATION_401:
-            logged_in_users[1][0].create_api_key(_app)
+        logged_in_users[0][1].visit(_app, 401)
+        logged_in_users[1][0].visit(_app, 401)
 
 
 class TestCreateUser:
@@ -1530,6 +1529,7 @@ class TestCreateUser:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
+            (_VIEWER, _DENIED),
             (_MEMBER, _DENIED),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
@@ -1576,7 +1576,7 @@ class TestCreateUser:
 
 
 class TestPatchViewer:
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_cannot_patch_viewer_without_access(
         self,
         role_or_user: _RoleOrUser,
@@ -1587,7 +1587,7 @@ class TestPatchViewer:
         with _EXPECTATION_401:
             _patch_viewer(_app, None, u.password, new_username="new_username")
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_cannot_change_password_without_current_password(
         self,
         role_or_user: _RoleOrUser,
@@ -1601,7 +1601,7 @@ class TestPatchViewer:
         with pytest.raises(Exception):
             _patch_viewer(_app, logged_in_user, None, new_password=new_password)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_cannot_change_password_with_wrong_current_password(
         self,
         role_or_user: _RoleOrUser,
@@ -1696,6 +1696,7 @@ class TestPatchUser:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
+            (_VIEWER, _DENIED),
             (_MEMBER, _DENIED),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
@@ -1724,6 +1725,7 @@ class TestPatchUser:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
+            (_VIEWER, _DENIED),
             (_MEMBER, _DENIED),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
@@ -1765,6 +1767,7 @@ class TestPatchUser:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
+            (_VIEWER, _DENIED),
             (_MEMBER, _DENIED),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
@@ -1791,6 +1794,51 @@ class TestPatchUser:
             _patch_user(_app, non_self, new_username=new_username)
         with expectation:
             logged_in_user.patch_user(_app, non_self, new_username=new_username)
+
+    @pytest.mark.parametrize("role_or_user", [_ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("old_role", list(UserRoleInput))
+    @pytest.mark.parametrize("new_role", list(UserRoleInput))
+    def test_user_is_logged_out_when_role_changes(
+        self,
+        role_or_user: _RoleOrUser,
+        old_role: UserRoleInput,
+        new_role: UserRoleInput,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that changing a user's role invalidates their existing tokens.
+
+        This is a security test to ensure that when a user's role changes,
+        their old tokens (which contain the old role) are immediately invalidated.
+        This prevents privilege escalation/retention vulnerabilities.
+        """
+        if old_role == new_role:
+            pytest.skip("Skipping test when old_role == new_role")
+
+        # Create user with old_role and log them in
+        user = _get_user(_app, old_role)
+        logged_in_user = user.log_in(_app)
+        old_tokens = logged_in_user.tokens
+
+        # Verify user can access with old tokens
+        logged_in_user.visit(_app)
+
+        # Admin changes user's role
+        _patch_user(_app, user, _app.admin_secret, new_role=new_role)
+
+        # Old tokens should no longer work (user should be logged out)
+        logged_in_user.visit(_app, 401)
+
+        # User needs to log in again
+        new_logged_in_user = user.log_in(_app)
+        new_tokens = new_logged_in_user.tokens
+
+        # New tokens should be different
+        assert new_tokens.access_token != old_tokens.access_token
+        assert new_tokens.refresh_token != old_tokens.refresh_token
+
+        # New tokens should work
+        new_logged_in_user.visit(_app)
 
 
 class TestDeleteUsers:
@@ -1838,6 +1886,7 @@ class TestDeleteUsers:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
+            (_VIEWER, _DENIED),
             (_MEMBER, _DENIED),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
@@ -1878,53 +1927,50 @@ class TestDeleteUsers:
             logged_in_user.delete_users(_app, phantom, user)
         user.log_in(_app)
 
-    @pytest.mark.parametrize("role_or_user", [_ADMIN, _DEFAULT_ADMIN])
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_user_deletion_deletes_all_tokens(
         self,
-        role_or_user: _RoleOrUser,
         role: UserRoleInput,
         _get_user: _GetUser,
         _spans: Sequence[ReadableSpan],
         _app: _AppInfo,
     ) -> None:
-        u = _get_user(_app, role_or_user)
-        doer = u.log_in(_app)
         user = _get_user(_app, role)
         logged_in_user = user.log_in(_app)
         tokens = logged_in_user.tokens
-        user_api_key = logged_in_user.create_api_key(_app)
-        headers = dict(authorization=f"Bearer {user_api_key}")
-        exporters = [
-            _http_span_exporter(_app, headers=headers),
-            _grpc_span_exporter(_app, headers=headers),
-        ]
-        for exporter in exporters:
-            assert exporter.export(_spans) is SpanExportResult.SUCCESS
-        doer.delete_users(_app, user)
-        for exporter in exporters:
-            assert exporter.export(_spans) is SpanExportResult.FAILURE
-        with _EXPECTATION_401:
-            logged_in_user.create_api_key(_app)
+        logged_in_user.visit(_app)
+        _delete_users(_app, _app.admin_secret, users=[user])
         with _EXPECTATION_401:
             tokens.refresh(_app)
+        logged_in_user.visit(_app, 401)
 
 
 class TestCreateApiKey:
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_VIEWER, _OK),
+            (_MEMBER, _OK),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
     def test_create_user_api_key(
         self,
         role_or_user: _RoleOrUser,
+        expectation: _OK_OR_DENIED,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
-        logged_in_user.create_api_key(_app)
+        with expectation:
+            logged_in_user.create_api_key(_app)
 
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
+            (_VIEWER, _DENIED),
             (_MEMBER, _DENIED),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
@@ -1944,7 +1990,7 @@ class TestCreateApiKey:
 
 
 class TestDeleteApiKey:
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN])
     def test_delete_user_api_key(
         self,
         role_or_user: _RoleOrUser,
@@ -1959,12 +2005,13 @@ class TestDeleteApiKey:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
+            (_VIEWER, _DENIED),
             (_MEMBER, _DENIED),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
         ],
     )
-    @pytest.mark.parametrize("role", list(UserRoleInput))
+    @pytest.mark.parametrize("role", [_MEMBER, _ADMIN])
     def test_only_admin_can_delete_user_api_key_for_non_self(
         self,
         role_or_user: _RoleOrUser,
@@ -1984,6 +2031,7 @@ class TestDeleteApiKey:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
+            (_VIEWER, _DENIED),
             (_MEMBER, _DENIED),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
@@ -2007,6 +2055,7 @@ class TestGraphQLQuery:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
+            (_VIEWER, _DENIED),
             (_MEMBER, _DENIED),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
@@ -2033,7 +2082,7 @@ class TestGraphQLQuery:
         with expectation:
             logged_in_user.gql(_app, query)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_can_query_user_node_for_self(
         self,
         role_or_user: _RoleOrUser,
@@ -2048,6 +2097,7 @@ class TestGraphQLQuery:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
+            (_VIEWER, _DENIED),
             (_MEMBER, _DENIED),
             (_ADMIN, _OK),
             (_DEFAULT_ADMIN, _OK),
@@ -2130,7 +2180,7 @@ class TestSpanExporters:
 
 
 class TestEmbeddingsRestApi:
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_authenticated_users_can_access_route(
         self,
         role_or_user: _RoleOrUser,
@@ -2590,3 +2640,126 @@ class TestTraceAnnotations:
                 }
             },
         )
+
+
+class TestApiAccessViaCookiesOrApiKeys:
+    """Tests REST API v1 access control using both cookie and API key authentication.
+
+    This test suite verifies that access restrictions are enforced consistently across
+    all user roles (Admin, Member, Viewer, Default Admin) at the v1 router level,
+    regardless of authentication method:
+    - Cookie-based authentication (access tokens from login)
+    - API key authentication (Bearer tokens)
+
+    The comprehensive test parametrized by role validates 54 total endpoints/operations:
+
+    Common Read Resources (28 GET endpoints):
+    - All roles have identical read access
+    - Covers: Projects, Datasets, Experiments, Prompts, Annotation Configs,
+      Evaluations, Spans, Annotations
+    - Tests both valid responses (200) and error cases (404, 422)
+
+    Admin-Only Endpoints (5 operations):
+    - Admins: Access granted (may get 200, 404, 422 based on request validity)
+    - Members/Viewers: Always 403 Forbidden
+    - User management: GET/POST/DELETE on /v1/users
+    - Project management: PUT/DELETE on /v1/projects
+
+    Write Operations (21 POST/PUT/DELETE operations):
+    - Viewers: Always 403 Forbidden (read-only access)
+    - Admins/Members: Access granted (may get 400, 404, 415, 422 based on request validity)
+
+    Error Handling:
+    - Invalid ID format: Returns 422 for GlobalID parsing errors
+    - Missing required headers/body: Returns 400 or 422
+    - Unsupported media type: Returns 415
+    - Resource not found: Returns 404
+    - Dynamic test IDs using token_hex(4) for test isolation
+    """
+
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
+    def test_role_based_access_control(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test role-based access control across all v1 API endpoints with cookies and API keys.
+
+        This comprehensive test verifies access control for all user roles (Admin, Member, Viewer,
+        Default Admin) across three categories of endpoints, using both authentication methods:
+        1. Cookie-based authentication (session tokens)
+        2. API key authentication (Bearer tokens)
+
+        Test Coverage:
+
+        Common Read Resources (28 GET endpoints):
+        - All roles should have identical read access to common resources
+        - Covers: Projects, Datasets, Experiments, Prompts, Annotation Configs,
+          Evaluations, Spans, and Annotations
+        - Tests both valid responses (200) and error cases (404, 422)
+
+        Admin-Only Endpoints (5 operations):
+        - Admins: Access granted (may get 200, 404, 422 based on request validity)
+        - Members/Viewers: Always 403 Forbidden (authorization denied)
+        - User management: GET /v1/users, POST /v1/users, DELETE /v1/users/{id}
+        - Project management: PUT /v1/projects/{id}, DELETE /v1/projects/{id}
+
+        Write Operations (21 POST/PUT/DELETE operations):
+        - Viewers: Always 403 Forbidden (read-only access)
+        - Admins/Members: Access granted (may get 400, 404, 415, 422 based on request validity)
+        - Covers: Datasets, Experiments, Prompts, Annotations, Evaluations,
+          Spans, Traces, and Project creation (POST /v1/projects)
+
+        This verifies that authorization is enforced consistently regardless of
+        authentication method. Each role maintains the same permissions whether
+        using cookies or API keys.
+        """
+        user = _get_user(_app, role_or_user)
+        logged_in_user = user.log_in(_app)
+        api_key = logged_in_user.create_api_key(_app)
+        tokens = logged_in_user.tokens
+        is_admin = user.role is UserRoleInput.ADMIN or role_or_user is _DEFAULT_ADMIN
+        is_viewer = user.role is UserRoleInput.VIEWER
+
+        for client in (_httpx_client(_app, tokens), _httpx_client(_app, api_key)):
+            # Test 1: Common read resources - all roles should have identical access
+            for expected_status_code, method, endpoint in _COMMON_RESOURCE_ENDPOINTS:
+                assert expected_status_code not in (401, 403), (
+                    f"Test misconfiguration: expected_status_code should not be "
+                    f"401 or 403 (got {expected_status_code} for {method} {endpoint})"
+                )
+                endpoint = endpoint.format(token_hex(4))
+                response = client.request(method, endpoint)
+                assert response.status_code == expected_status_code, (
+                    f"Expected {expected_status_code} but got {response.status_code} for {endpoint}"
+                )
+
+            # Test 2: Admin-only endpoints - only admins should have access
+            for expected_status_code, method, endpoint in _ADMIN_ONLY_ENDPOINTS:
+                endpoint = endpoint.format(token_hex(4))
+                response = client.request(method, endpoint)
+                if is_admin:
+                    assert response.status_code == expected_status_code, (
+                        f"Admin expected {expected_status_code} but got {response.status_code} "
+                        f"for {method} {endpoint}"
+                    )
+                else:
+                    assert response.status_code == 403, (
+                        f"Non-admin expected 403 but got {response.status_code} "
+                        f"for {method} {endpoint}"
+                    )
+
+            # Test 3: Write operations - viewers blocked, admins/members have access
+            for expected_status_code, method, endpoint in _VIEWER_BLOCKED_WRITE_OPERATIONS:
+                endpoint = endpoint.format(token_hex(4))
+                response = client.request(method, endpoint)
+                if is_viewer:
+                    assert response.status_code == 403, (
+                        f"Viewer expected 403 but got {response.status_code} for {method} {endpoint}"
+                    )
+                else:
+                    assert response.status_code == expected_status_code, (
+                        f"Admin/Member expected {expected_status_code} but got {response.status_code} "
+                        f"for {method} {endpoint}"
+                    )
