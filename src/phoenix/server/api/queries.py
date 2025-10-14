@@ -392,12 +392,12 @@ class Query:
                 )
 
             # Apply label filter
-            if filter.labelIds:
+            if filter.filter_labels and filter.filter_labels is not UNSET:
                 label_rowids = []
-                for label_id in filter.labelIds:
+                for label_id in filter.filter_labels:
                     try:
                         label_rowid = from_global_id_with_expected_type(
-                            global_id=label_id,
+                            global_id=GlobalID.from_id(label_id),
                             expected_type_name="DatasetLabel",
                         )
                         label_rowids.append(label_rowid)
