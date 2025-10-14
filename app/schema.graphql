@@ -702,7 +702,7 @@ type DatasetExperimentAnnotationSummary {
 input DatasetFilter {
   col: DatasetFilterColumn!
   value: String!
-  labelIds: [ID!]
+  filterLabels: [String!]
 }
 
 enum DatasetFilterColumn {
