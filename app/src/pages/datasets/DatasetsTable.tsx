@@ -125,7 +125,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   ? {
                       col: "name",
                       value: filter || "",
-                      ...(labelFilter?.length ? { labelIds: labelFilter } : {}),
+                      ...(labelFilter?.length
+                        ? { filterLabels: labelFilter }
+                        : {}),
                     }
                   : null,
             },
@@ -239,7 +241,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                             col: "name",
                             value: filter || "",
                             ...(labelFilter?.length
-                              ? { labelIds: labelFilter }
+                              ? { filterLabels: labelFilter }
                               : {}),
                           }
                         : null,
@@ -268,7 +270,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                             col: "name",
                             value: filter || "",
                             ...(labelFilter?.length
-                              ? { labelIds: labelFilter }
+                              ? { filterLabels: labelFilter }
                               : {}),
                           }
                         : null,
@@ -325,7 +327,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
               ? {
                   col: "name",
                   value: filter || "",
-                  ...(labelFilter?.length ? { labelIds: labelFilter } : {}),
+                  ...(labelFilter?.length ? { filterLabels: labelFilter } : {}),
                 }
               : null,
         },
