@@ -3,6 +3,7 @@ import { Meta, StoryFn } from "@storybook/react";
 import { View } from "@phoenix/components";
 import { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExperimentRunOutputs } from "@phoenix/components/experiment/ExperimentCompareDetails";
+import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
 
 type Experiment = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
@@ -15,6 +16,14 @@ type ExperimentRun = NonNullable<
 type AnnotationSummaries = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
 >;
+
+type StoryArgs = {
+  baseExperimentId: string;
+  compareExperimentIds: string[];
+  experimentsById: Record<string, Experiment>;
+  experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>;
+  annotationSummaries: AnnotationSummaries;
+};
 
 const mockExperiments: Record<string, Experiment> = {
   "exp-1": {
@@ -315,7 +324,7 @@ const mockAnnotationSummaries: AnnotationSummaries = [
   },
 ];
 
-const meta: Meta<typeof ExperimentRunOutputs> = {
+const meta: Meta<StoryArgs> = {
   title: "Experiment/ExperimentRunOutputs",
   component: ExperimentRunOutputs,
   parameters: {
@@ -337,39 +346,34 @@ This is the main comparison view for analyzing experiment results across multipl
       },
     },
   },
-  argTypes: {
-    baseExperimentId: {
-      control: { type: "select" },
-      options: Object.keys(mockExperiments),
-      description: "The base experiment ID (shown with base color)",
-    },
-    compareExperimentIds: {
-      control: false,
-      description: "Array of experiment IDs to compare against the base",
-    },
-    experimentsById: {
-      control: false,
-      description: "Map of experiment IDs to experiment objects",
-    },
-    experimentRepetitionsByExperimentId: {
-      control: false,
-      description: "Map of experiment IDs to their repetitions",
-    },
-    annotationSummaries: {
-      control: false,
-      description: "Summary statistics for annotations",
-    },
-  },
 };
 
 export default meta;
-type Story = StoryFn<typeof ExperimentRunOutputs>;
+type Story = StoryFn<StoryArgs>;
 
-const Template: Story = (args) => (
-  <View borderColor="light" borderWidth="thin">
-    <ExperimentRunOutputs {...args} openTraceDialog={() => {}} />
-  </View>
-);
+const Template: Story = (args) => {
+  const includeRepetitions = Object.values(args.experimentsById).some(
+    (experiment) => experiment.repetitions > 1
+  );
+
+  return (
+    <View borderColor="light" borderWidth="thin">
+      <ExperimentCompareDetailsProvider
+        baseExperimentId={args.baseExperimentId}
+        compareExperimentIds={args.compareExperimentIds}
+        experimentsById={args.experimentsById}
+        experimentRepetitionsByExperimentId={
+          args.experimentRepetitionsByExperimentId
+        }
+        annotationSummaries={args.annotationSummaries}
+        includeRepetitions={includeRepetitions}
+        openTraceDialog={() => {}}
+      >
+        <ExperimentRunOutputs />
+      </ExperimentCompareDetailsProvider>
+    </View>
+  );
+};
 
 /**
  * Default comparison with multiple experiments including successful runs
@@ -389,19 +393,7 @@ Default.args = {
 export const WithNoRunExperiment = Template.bind({});
 WithNoRunExperiment.args = {
   baseExperimentId: "exp-1",
-  compareExperimentIds: ["exp-2", "exp-4"],
-  experimentsById: mockExperiments,
-  experimentRepetitionsByExperimentId: mockExperimentRepetitions,
-  annotationSummaries: mockAnnotationSummaries,
-};
-
-/**
- * Comparison with experiments that have multiple repetitions
- */
-export const WithRepetitions = Template.bind({});
-WithRepetitions.args = {
-  baseExperimentId: "exp-1",
-  compareExperimentIds: ["exp-3"],
+  compareExperimentIds: ["exp-2", "exp-3", "exp-4"],
   experimentsById: mockExperiments,
   experimentRepetitionsByExperimentId: mockExperimentRepetitions,
   annotationSummaries: mockAnnotationSummaries,
@@ -414,8 +406,10 @@ export const SingleExperiment = Template.bind({});
 SingleExperiment.args = {
   baseExperimentId: "exp-1",
   compareExperimentIds: [],
-  experimentsById: mockExperiments,
-  experimentRepetitionsByExperimentId: mockExperimentRepetitions,
+  experimentsById: { "exp-1": mockExperiments["exp-1"] },
+  experimentRepetitionsByExperimentId: {
+    "exp-1": mockExperimentRepetitions["exp-1"],
+  },
   annotationSummaries: mockAnnotationSummaries,
 };
 
@@ -431,19 +425,6 @@ WithErrors.args = {
   annotationSummaries: mockAnnotationSummaries,
 };
 
-/**
- * Large comparison with many experiments
- */
-export const ManyExperiments = Template.bind({});
-ManyExperiments.args = {
-  baseExperimentId: "exp-1",
-  compareExperimentIds: ["exp-2", "exp-3", "exp-4"],
-  experimentsById: mockExperiments,
-  experimentRepetitionsByExperimentId: mockExperimentRepetitions,
-  annotationSummaries: mockAnnotationSummaries,
-};
-
-// Mock data for annotation edge cases
 const mockEdgeCaseExperiments: Record<string, Experiment> = {
   "edge-exp-1": {
     id: "edge-exp-1",
