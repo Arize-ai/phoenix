@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.6.0...arize-phoenix-v12.6.1) (2025-10-14)
+
+
+### Bug Fixes
+
+* Ensure correct id is used when clicking sessions table row ([#9895](https://github.com/Arize-ai/phoenix/issues/9895)) ([5d5bc40](https://github.com/Arize-ai/phoenix/commit/5d5bc407498cb65a2821fc533ab81b999cfcf210))
+
 ## [12.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.5.0...arize-phoenix-v12.6.0) (2025-10-13)
 
 
