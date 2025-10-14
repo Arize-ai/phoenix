@@ -816,3 +816,87 @@ async def playground_city_and_country_dataset(
         await session.flush()
         session.add_all(revisions)
         await session.flush()
+
+
+@pytest.fixture
+async def playground_dataset_with_splits(db: DbSessionFactory) -> None:
+    """
+    A dataset with examples assigned to different splits for testing split-based filtering.
+
+    Setup:
+    - Dataset with 5 examples
+    - 2 splits: "train" (examples 1, 2, 3) and "test" (examples 4, 5)
+    - Example 3 is intentionally in only train split
+    """
+    dataset = models.Dataset(
+        id=1,
+        name="dataset-with-splits",
+        metadata_={},
+    )
+    version = models.DatasetVersion(
+        id=1,
+        dataset_id=dataset.id,
+        metadata_={},
+    )
+
+    # Create 5 examples
+    examples = [
+        models.DatasetExample(
+            id=i,
+            dataset_id=dataset.id,
+            created_at=datetime(year=2020, month=1, day=i, hour=0, minute=0, tzinfo=timezone.utc),
+        )
+        for i in range(1, 6)
+    ]
+
+    # Create revisions for each example
+    cities = ["Paris", "Tokyo", "Berlin", "London", "Madrid"]
+    revisions = [
+        models.DatasetExampleRevision(
+            dataset_example_id=example.id,
+            dataset_version_id=version.id,
+            input={"city": city},
+            output={},
+            metadata_={},
+            revision_kind="CREATE",
+        )
+        for example, city in zip(examples, cities)
+    ]
+
+    # Create two splits
+    train_split = models.DatasetSplit(
+        id=1,
+        name="train",
+        description="Training split",
+        color="#0000FF",
+        metadata_={},
+    )
+    test_split = models.DatasetSplit(
+        id=2,
+        name="test",
+        description="Test split",
+        color="#FF0000",
+        metadata_={},
+    )
+
+    # Assign examples to splits
+    # Train split: examples 1, 2, 3
+    # Test split: examples 4, 5
+    split_assignments = [
+        models.DatasetSplitDatasetExample(dataset_split_id=1, dataset_example_id=1),
+        models.DatasetSplitDatasetExample(dataset_split_id=1, dataset_example_id=2),
+        models.DatasetSplitDatasetExample(dataset_split_id=1, dataset_example_id=3),
+        models.DatasetSplitDatasetExample(dataset_split_id=2, dataset_example_id=4),
+        models.DatasetSplitDatasetExample(dataset_split_id=2, dataset_example_id=5),
+    ]
+
+    async with db() as session:
+        session.add(dataset)
+        session.add(version)
+        session.add_all(examples)
+        await session.flush()
+        session.add_all(revisions)
+        session.add_all([train_split, test_split])
+        await session.flush()
+        session.add_all(split_assignments)
+        await session.flush()
