@@ -3,7 +3,6 @@ from typing import Optional
 
 import strawberry
 from strawberry import UNSET
-from strawberry.relay import GlobalID
 
 
 @strawberry.enum

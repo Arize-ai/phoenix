@@ -393,8 +393,6 @@ class Query:
 
             # Apply label filter
             if filter.labelIds:
-                from phoenix.server.api.types.node import from_global_id_with_expected_type
-
                 label_rowids = []
                 for label_id in filter.labelIds:
                     try:
