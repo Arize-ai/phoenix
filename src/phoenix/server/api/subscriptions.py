@@ -17,7 +17,7 @@ from typing import (
 import strawberry
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, func, insert, select
+from sqlalchemy import and_, insert, select
 from sqlalchemy.orm import load_only
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -26,7 +26,10 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import insert_experiment_with_examples_snapshot
+from phoenix.db.helpers import (
+    get_dataset_example_revisions,
+    insert_experiment_with_examples_snapshot,
+)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
@@ -257,27 +260,22 @@ class Subscription:
                     )
                 ) is None:
                     raise NotFound(f"Could not find dataset version with ID {version_id}")
-            revision_ids = (
-                select(func.max(models.DatasetExampleRevision.id))
-                .join(models.DatasetExample)
-                .where(
-                    and_(
-                        models.DatasetExample.dataset_id == dataset_id,
-                        models.DatasetExampleRevision.dataset_version_id <= resolved_version_id,
-                    )
-                )
-                .group_by(models.DatasetExampleRevision.dataset_example_id)
-            )
+
+            # Parse split IDs if provided
+            resolved_split_ids: Optional[list[int]] = None
+            if input.split_ids is not None and len(input.split_ids) > 0:
+                resolved_split_ids = [
+                    from_global_id_with_expected_type(split_id, models.DatasetSplit.__name__)
+                    for split_id in input.split_ids
+                ]
+
             if not (
                 revisions := [
                     rev
                     async for rev in await session.stream_scalars(
-                        select(models.DatasetExampleRevision)
-                        .where(
-                            and_(
-                                models.DatasetExampleRevision.id.in_(revision_ids),
-                                models.DatasetExampleRevision.revision_kind != "DELETE",
-                            )
+                        get_dataset_example_revisions(
+                            resolved_version_id,
+                            split_ids=resolved_split_ids,
                         )
                         .order_by(models.DatasetExampleRevision.dataset_example_id.asc())
                         .options(
@@ -316,6 +314,11 @@ class Subscription:
                 project_name=project_name,
                 user_id=user_id,
             )
+            if resolved_split_ids:
+                experiment.experiment_dataset_splits = [
+                    models.ExperimentDatasetSplit(dataset_split_id=split_id)
+                    for split_id in resolved_split_ids
+                ]
             await insert_experiment_with_examples_snapshot(session, experiment)
         yield ChatCompletionSubscriptionExperiment(
             experiment=to_gql_experiment(experiment)

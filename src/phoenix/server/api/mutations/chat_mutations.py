@@ -186,12 +186,21 @@ class ChatCompletionMutationMixin:
                     raise NotFound("No versions found for the given dataset")
             else:
                 resolved_version_id = dataset_version_id
+            # Parse split IDs if provided
+            resolved_split_ids: Optional[list[int]] = None
+            if input.split_ids is not None and len(input.split_ids) > 0:
+                resolved_split_ids = [
+                    from_global_id_with_expected_type(split_id, models.DatasetSplit.__name__)
+                    for split_id in input.split_ids
+                ]
+
             revisions = [
                 revision
                 async for revision in await session.stream_scalars(
-                    get_dataset_example_revisions(resolved_version_id).order_by(
-                        models.DatasetExampleRevision.id
-                    )
+                    get_dataset_example_revisions(
+                        resolved_version_id,
+                        split_ids=resolved_split_ids,
+                    ).order_by(models.DatasetExampleRevision.id)
                 )
             ]
             if not revisions:
@@ -208,6 +217,11 @@ class ChatCompletionMutationMixin:
                 project_name=project_name,
                 user_id=user_id,
             )
+            if resolved_split_ids:
+                experiment.experiment_dataset_splits = [
+                    models.ExperimentDatasetSplit(dataset_split_id=split_id)
+                    for split_id in resolved_split_ids
+                ]
             await insert_experiment_with_examples_snapshot(session, experiment)
 
         results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
