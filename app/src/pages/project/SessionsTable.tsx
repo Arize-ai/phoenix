@@ -79,7 +79,7 @@ const TableBody = <T extends { id: string }>({
         return (
           <tr
             key={row.id}
-            onClick={() => navigate(`${encodeURIComponent(row.id)}`)}
+            onClick={() => navigate(`${encodeURIComponent(row.original.id)}`)}
           >
             {row.getVisibleCells().map((cell) => {
               return (
