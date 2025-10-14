@@ -290,7 +290,14 @@ export function DatasetsTable(props: DatasetsTableProps) {
       },
     ];
     return cols;
-  }, [isDatasetLabelEnabled, filter, labelFilter, notifyError, notifySuccess, refetch]);
+  }, [
+    isDatasetLabelEnabled,
+    filter,
+    labelFilter,
+    notifyError,
+    notifySuccess,
+    refetch,
+  ]);
   const table = useReactTable({
     columns,
     data: tableData,
