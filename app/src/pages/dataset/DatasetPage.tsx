@@ -170,6 +170,7 @@ function DatasetPageContent({
                       gap: var(--ac-global-dimension-size-100);
                       min-width: 0;
                       flex-wrap: wrap;
+                      padding-top: var(--ac-global-dimension-size-50);
                     `}
                   >
                     {dataset.labels.map((label) => (
