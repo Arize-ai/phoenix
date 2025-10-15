@@ -24,14 +24,14 @@ import {
   Icon,
   IconButton,
   Icons,
-  ListBox,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  MenuTriggerPlaceholder,
   Popover,
   PopoverArrow,
   ProgressBar,
-  Select,
   SelectChevronUpDownIcon,
-  SelectItem,
-  SelectValue,
   Text,
   Tooltip,
   TooltipTrigger,
@@ -558,12 +558,7 @@ function ExperimentRunOutputsSidebar() {
               }
             `}
           >
-            <Select
-              value={selectedAnnotation}
-              onChange={(value) => {
-                setSelectedAnnotation(value as string);
-                setSortBy("annotation");
-              }}
+            <MenuTrigger
               css={css`
                 overflow: hidden;
                 padding: var(
@@ -572,22 +567,39 @@ function ExperimentRunOutputsSidebar() {
               `}
             >
               <Button variant="quiet" size="S">
-                <SelectValue />
+                {selectedAnnotation ? (
+                  <Text>{selectedAnnotation}</Text>
+                ) : (
+                  <MenuTriggerPlaceholder>No annotation</MenuTriggerPlaceholder>
+                )}
                 <SelectChevronUpDownIcon />
               </Button>
               <Popover>
-                <ListBox>
-                  {annotationSummaries.map((annotation) => (
-                    <SelectItem
+                <Menu
+                  items={annotationSummaries}
+                  selectionMode="single"
+                  selectedKeys={selectedAnnotation ? [selectedAnnotation] : []}
+                  onSelectionChange={(keys) => {
+                    if (keys === "all") {
+                      return;
+                    }
+                    setSelectedAnnotation(keys.values().next().value as string);
+                  }}
+                  css={css`
+                    font-size: var(--ac-global-font-size-s);
+                  `}
+                >
+                  {(annotation) => (
+                    <MenuItem
                       key={annotation.annotationName}
                       id={annotation.annotationName}
                     >
                       {annotation.annotationName}
-                    </SelectItem>
-                  ))}
-                </ListBox>
+                    </MenuItem>
+                  )}
+                </Menu>
               </Popover>
-            </Select>
+            </MenuTrigger>
             {selectedAnnotation ? (
               <IconButton
                 size="S"

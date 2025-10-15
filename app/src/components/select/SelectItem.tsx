@@ -1,6 +1,5 @@
 import { forwardRef, ReactNode } from "react";
 import { ListBoxItem, ListBoxItemProps } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons } from "@phoenix/components";
 
@@ -22,14 +21,7 @@ const SelectItem = forwardRef<HTMLDivElement, SelectItemProps>((props, ref) => {
             justifyContent="space-between"
             alignItems="center"
           >
-            <span
-              css={css`
-                overflow: hidden;
-                text-overflow: ellipsis;
-              `}
-            >
-              {children}
-            </span>
+            <span>{children}</span>
             {isSelected && <Icon svg={<Icons.Checkmark />} />}
           </Flex>
         );
