@@ -22,6 +22,11 @@ export async function datasetLoader(args: LoaderFunctionArgs) {
             description
             exampleCount
             experimentCount
+            labels {
+              id
+              name
+              color
+            }
             latestVersions: versions(
               first: 1
               sort: { col: createdAt, dir: desc }
