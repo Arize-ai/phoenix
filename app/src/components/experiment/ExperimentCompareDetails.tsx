@@ -311,12 +311,15 @@ export function ExperimentRunOutputs() {
       {isSideBarOpen ? (
         <Panel
           defaultSize={SIDEBAR_PANEL_DEFAULT_SIZE}
-          minSize={SIDEBAR_PANEL_DEFAULT_SIZE}
+          // minSize={SIDEBAR_PANEL_DEFAULT_SIZE}
           ref={sidebarPanelRef}
           collapsible
           id="experiment-compare-details-outputs-sidebar-panel"
           order={1}
           onCollapse={() => setIsSideBarOpen(false)}
+          style={{
+            minWidth: 300,
+          }}
         >
           <ExperimentRunOutputsSidebar />
         </Panel>
@@ -489,17 +492,23 @@ function ExperimentRunOutputsSidebar() {
         box-sizing: border-box;
       `}
     >
-      <Flex direction="column" gap="size-200">
-        <Flex
-          direction="row"
-          gap="size-50"
-          alignItems="center"
-          justifyContent="space-between"
-        >
+      <Flex
+        direction="row"
+        gap="size-200"
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        <Flex direction="row" gap="size-50" alignItems="center">
+          <Checkbox
+            isSelected={allRepetitionsSelected}
+            isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
+            onChange={(checked) => toggleAllRepetitionsSelection(checked)}
+          />
           <Flex
             direction="row"
             gap="size-50"
             alignItems="center"
+            marginStart="size-50"
             css={css`
               &:hover {
                 .experiment-run-outputs-sidebar-sort-button {
@@ -508,15 +517,7 @@ function ExperimentRunOutputsSidebar() {
               }
             `}
           >
-            <Checkbox
-              isSelected={allRepetitionsSelected}
-              isIndeterminate={
-                someRepetitionsSelected && !allRepetitionsSelected
-              }
-              onChange={(checked) => toggleAllRepetitionsSelection(checked)}
-            >
-              Repetition
-            </Checkbox>
+            <Text>Repetition</Text>
             <IconButton
               size="S"
               aria-label={
@@ -535,59 +536,60 @@ function ExperimentRunOutputsSidebar() {
               css={css`
                 flex: none;
                 opacity: ${sortBy === "repetitionNumber" ? 1 : 0};
-                &:hover,
-                &:focus {
-                  opacity: 1;
-                }
+                color: ${sortBy === "repetitionNumber"
+                  ? "var(--ac-global-color-grey-700)"
+                  : "var(--ac-global-color-grey-500)"};
               `}
             >
               <Icon svg={<Icons.ArrowUpDown />} />
             </IconButton>
           </Flex>
-          {annotationSummaries.length > 0 && (
-            <Flex
-              direction="row"
-              alignItems="center"
+        </Flex>
+        {annotationSummaries.length > 0 && (
+          <Flex
+            direction="row"
+            alignItems="center"
+            css={css`
+              overflow: hidden;
+              padding: var(--ac-global-dimension-size-25);
+              &:hover {
+                .experiment-run-outputs-sidebar-sort-button {
+                  opacity: ${selectedAnnotation ? 1 : 0};
+                }
+              }
+            `}
+          >
+            <Select
+              value={selectedAnnotation}
+              onChange={(value) => {
+                setSelectedAnnotation(value as string);
+                setSortBy("annotation");
+              }}
               css={css`
                 overflow: hidden;
-                padding: var(--ac-global-dimension-size-25);
-                &:hover {
-                  .experiment-run-outputs-sidebar-sort-button {
-                    opacity: 1;
-                  }
-                }
+                padding: var(
+                  --ac-global-dimension-size-25
+                ); // keep focus ring visible
               `}
             >
-              <Select
-                value={selectedAnnotation}
-                onChange={(value) => {
-                  setSelectedAnnotation(value as string);
-                  setSortBy("annotation");
-                }}
-                css={css`
-                  overflow: hidden;
-                  padding: var(
-                    --ac-global-dimension-size-25
-                  ); // keep focus ring visible
-                `}
-              >
-                <Button variant="quiet" size="S">
-                  <SelectValue />
-                  <SelectChevronUpDownIcon />
-                </Button>
-                <Popover>
-                  <ListBox>
-                    {annotationSummaries.map((annotation) => (
-                      <SelectItem
-                        key={annotation.annotationName}
-                        id={annotation.annotationName}
-                      >
-                        {annotation.annotationName}
-                      </SelectItem>
-                    ))}
-                  </ListBox>
-                </Popover>
-              </Select>
+              <Button variant="quiet" size="S">
+                <SelectValue />
+                <SelectChevronUpDownIcon />
+              </Button>
+              <Popover>
+                <ListBox>
+                  {annotationSummaries.map((annotation) => (
+                    <SelectItem
+                      key={annotation.annotationName}
+                      id={annotation.annotationName}
+                    >
+                      {annotation.annotationName}
+                    </SelectItem>
+                  ))}
+                </ListBox>
+              </Popover>
+            </Select>
+            {selectedAnnotation ? (
               <IconButton
                 size="S"
                 aria-label="Change sort direction"
@@ -602,79 +604,84 @@ function ExperimentRunOutputsSidebar() {
                 css={css`
                   flex: none;
                   opacity: ${sortBy === "annotation" ? 1 : 0};
-                  &:hover,
-                  &:focus {
-                    opacity: 1;
-                  }
                 `}
               >
                 <Icon svg={<Icons.ArrowUpDown />} />
               </IconButton>
-            </Flex>
-          )}
-        </Flex>
-        {sortedExperimentRepetitions.map(
-          ({ experimentId, experimentRepetitions }) => {
-            const experiment = experimentsById[experimentId];
-            const experimentIndex = experimentIds.indexOf(experimentId);
-            const allExperimentRunsSelected = areAllExperimentRunsSelected(
-              experimentId,
-              selectedExperimentRepetitions
-            );
-            const someExperimentRunsSelected = areSomeExperimentRunsSelected(
-              experimentId,
-              selectedExperimentRepetitions
-            );
-            const annotationValue = selectedAnnotation
-              ? getAnnotationValue(experimentRepetitions[0], selectedAnnotation)
-              : null;
-            return (
-              <Fragment key={experimentId}>
+            ) : (
+              <div // placeholder to prevent layout shift when annotation is selected
+                css={css`
+                  width: 30px;
+                  height: 30px;
+                  flex: none;
+                `}
+              />
+            )}
+          </Flex>
+        )}
+      </Flex>
+      {sortedExperimentRepetitions.map(
+        ({ experimentId, experimentRepetitions }) => {
+          const experiment = experimentsById[experimentId];
+          const experimentIndex = experimentIds.indexOf(experimentId);
+          const allExperimentRunsSelected = areAllExperimentRunsSelected(
+            experimentId,
+            selectedExperimentRepetitions
+          );
+          const someExperimentRunsSelected = areSomeExperimentRunsSelected(
+            experimentId,
+            selectedExperimentRepetitions
+          );
+          const annotationValue = selectedAnnotation
+            ? getAnnotationValue(experimentRepetitions[0], selectedAnnotation)
+            : null;
+          return (
+            <Fragment key={experimentId}>
+              <Checkbox
+                isSelected={allExperimentRunsSelected}
+                isIndeterminate={
+                  someExperimentRunsSelected && !allExperimentRunsSelected
+                }
+                onChange={(isSelected) =>
+                  updateExperimentSelection(experimentId, isSelected)
+                }
+              >
                 <Flex
                   direction="row"
                   gap="size-200"
                   alignItems="center"
                   justifyContent="space-between"
+                  width="100%"
+                  minHeight={30}
+                  marginY="size-25"
+                  css={css`
+                    overflow: hidden;
+                  `}
                 >
-                  <div
-                    css={css`
-                      flex: 1;
-                      min-width: 0;
-                    `}
-                  >
-                    <Checkbox
-                      isSelected={allExperimentRunsSelected}
-                      isIndeterminate={
-                        someExperimentRunsSelected && !allExperimentRunsSelected
-                      }
-                      onChange={(isSelected) =>
-                        updateExperimentSelection(experimentId, isSelected)
-                      }
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <span
+                      css={css`
+                        flex: none;
+                        padding-left: var(--ac-global-dimension-size-50);
+                      `}
                     >
-                      <span
-                        css={css`
-                          flex: none;
-                          padding: 0 var(--ac-global-dimension-size-50);
-                        `}
-                      >
-                        <ColorSwatch
-                          color={
-                            experimentIndex === 0
-                              ? baseExperimentColor
-                              : getExperimentColor(experimentIndex - 1)
-                          }
-                          shape="circle"
-                        />
-                      </span>
-                      <LineClamp lines={2}>{experiment.name}</LineClamp>
-                    </Checkbox>
-                  </div>
+                      <ColorSwatch
+                        color={
+                          experimentIndex === 0
+                            ? baseExperimentColor
+                            : getExperimentColor(experimentIndex - 1)
+                        }
+                        shape="circle"
+                      />
+                    </span>
+                    <LineClamp lines={2}>{experiment.name}</LineClamp>
+                  </Flex>
                   {!includeRepetitions && selectedAnnotation && (
                     <Text
                       fontFamily="mono"
-                      maxWidth="50%"
                       css={css`
                         overflow: hidden;
+                        max-width: 50%;
                       `}
                     >
                       <Truncate maxWidth="100%">
@@ -685,24 +692,25 @@ function ExperimentRunOutputsSidebar() {
                     </Text>
                   )}
                 </Flex>
-                {includeRepetitions && (
-                  <ExperimentRepetitionsSidebarItems
-                    experiment={experiment}
-                    experimentRepetitions={experimentRepetitions}
-                    updateRepetitionSelection={(repetitionNumber, isSelected) =>
-                      updateRepetitionSelection(
-                        experimentId,
-                        repetitionNumber,
-                        isSelected
-                      )
-                    }
-                  />
-                )}
-              </Fragment>
-            );
-          }
-        )}
-      </Flex>
+              </Checkbox>
+
+              {includeRepetitions && (
+                <ExperimentRepetitionsSidebarItems
+                  experiment={experiment}
+                  experimentRepetitions={experimentRepetitions}
+                  updateRepetitionSelection={(repetitionNumber, isSelected) =>
+                    updateRepetitionSelection(
+                      experimentId,
+                      repetitionNumber,
+                      isSelected
+                    )
+                  }
+                />
+              )}
+            </Fragment>
+          );
+        }
+      )}
     </div>
   );
 }
@@ -723,61 +731,64 @@ function ExperimentRepetitionsSidebarItems({
     useExperimentCompareDetailsContext();
   return (
     <View paddingStart="size-300">
-      <Flex direction="column" gap="size-200">
+      <Flex direction="column">
         {experimentRepetitions.map((repetition) => {
           const selectedAnnotationValue = selectedAnnotation
             ? getAnnotationValue(repetition, selectedAnnotation)
             : null;
           const repetitionDidNotRun = !repetition.experimentRun;
           return (
-            <Flex
-              direction="row"
-              gap="size-200"
-              alignItems="center"
-              justifyContent="space-between"
+            <Checkbox
               key={repetition.repetitionNumber}
-              css={css`
-                color: ${repetitionDidNotRun
-                  ? "var(--ac-global-color-grey-500)"
-                  : "inherit"};
-              `}
+              isSelected={
+                selectedExperimentRepetitions.find(
+                  (runSelection) =>
+                    runSelection.experimentId === experiment.id &&
+                    runSelection.repetitionNumber ===
+                      repetition.repetitionNumber
+                )?.selected
+              }
+              onChange={(isSelected) =>
+                updateRepetitionSelection(
+                  repetition.repetitionNumber,
+                  isSelected
+                )
+              }
             >
-              <Checkbox
-                isSelected={
-                  selectedExperimentRepetitions.find(
-                    (runSelection) =>
-                      runSelection.experimentId === experiment.id &&
-                      runSelection.repetitionNumber ===
-                        repetition.repetitionNumber
-                  )?.selected
-                }
-                onChange={(isSelected) =>
-                  updateRepetitionSelection(
-                    repetition.repetitionNumber,
-                    isSelected
-                  )
-                }
+              <Flex
+                direction="row"
+                gap="size-200"
+                alignItems="center"
+                justifyContent="space-between"
+                width="100%"
+                minHeight={30}
+                css={css`
+                  overflow: hidden;
+                  color: ${repetitionDidNotRun
+                    ? "var(--ac-global-color-grey-500)"
+                    : "inherit"};
+                `}
               >
-                repetition&nbsp;{repetition.repetitionNumber}
-              </Checkbox>
-              {selectedAnnotation && (
-                <Text
-                  fontFamily="mono"
-                  minWidth={0}
-                  color={repetitionDidNotRun ? "grey-500" : "inherit"}
-                >
-                  {repetitionDidNotRun ? (
-                    "Not run"
-                  ) : (
-                    <Truncate maxWidth="100%">
-                      {selectedAnnotationValue?.score != null
-                        ? floatFormatter(selectedAnnotationValue.score)
-                        : selectedAnnotationValue?.label || "--"}
-                    </Truncate>
-                  )}
-                </Text>
-              )}
-            </Flex>
+                <Text>repetition&nbsp;{repetition.repetitionNumber}</Text>
+                {selectedAnnotation && (
+                  <Text
+                    fontFamily="mono"
+                    minWidth={0}
+                    color={repetitionDidNotRun ? "grey-500" : "inherit"}
+                  >
+                    {repetitionDidNotRun ? (
+                      "Not run"
+                    ) : (
+                      <Truncate maxWidth="100%">
+                        {selectedAnnotationValue?.score != null
+                          ? floatFormatter(selectedAnnotationValue.score)
+                          : selectedAnnotationValue?.label || "--"}
+                      </Truncate>
+                    )}
+                  </Text>
+                )}
+              </Flex>
+            </Checkbox>
           );
         })}
       </Flex>
