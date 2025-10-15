@@ -733,6 +733,7 @@ export function PlaygroundDatasetExamplesTable({
             instanceId: instance.id,
             playgroundStore,
             datasetId,
+            splitIds,
           }),
         };
         const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
@@ -789,6 +790,7 @@ export function PlaygroundDatasetExamplesTable({
             instanceId: instance.id,
             playgroundStore,
             datasetId,
+            splitIds,
           }),
         };
         const disposable = generateChatCompletion({
@@ -823,6 +825,7 @@ export function PlaygroundDatasetExamplesTable({
   }, [
     credentials,
     datasetId,
+    splitIds,
     environment,
     generateChatCompletion,
     hasSomeRunIds,

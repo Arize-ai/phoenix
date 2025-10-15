@@ -1,0 +1,82 @@
+interactions:
+- request:
+    body: '{"messages":[{"content":"What country is Madrid in? Answer in one word,
+      no punctuation.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n    \"error\": {\n        \"message\": \"Incorrect API key provided:
+        sk-01234*6789. You can find your API key at https://platform.openai.com/account/api-keys.\",\n
+        \       \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\":
+        \"invalid_api_key\"\n    }\n}\n"
+    headers: {}
+    status:
+      code: 401
+      message: Unauthorized
+- request:
+    body: '{"messages":[{"content":"What country is London in? Answer in one word,
+      no punctuation.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n    \"error\": {\n        \"message\": \"Incorrect API key provided:
+        sk-01234*6789. You can find your API key at https://platform.openai.com/account/api-keys.\",\n
+        \       \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\":
+        \"invalid_api_key\"\n    }\n}\n"
+    headers: {}
+    status:
+      code: 401
+      message: Unauthorized
+- request:
+    body: '{"messages":[{"content":"What country is Paris in? Answer in one word,
+      no punctuation.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n    \"error\": {\n        \"message\": \"Incorrect API key provided:
+        sk-01234*6789. You can find your API key at https://platform.openai.com/account/api-keys.\",\n
+        \       \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\":
+        \"invalid_api_key\"\n    }\n}\n"
+    headers: {}
+    status:
+      code: 401
+      message: Unauthorized
+- request:
+    body: '{"messages":[{"content":"What country is Berlin in? Answer in one word,
+      no punctuation.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n    \"error\": {\n        \"message\": \"Incorrect API key provided:
+        sk-01234*6789. You can find your API key at https://platform.openai.com/account/api-keys.\",\n
+        \       \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\":
+        \"invalid_api_key\"\n    }\n}\n"
+    headers: {}
+    status:
+      code: 401
+      message: Unauthorized
+- request:
+    body: '{"messages":[{"content":"What country is Tokyo in? Answer in one word,
+      no punctuation.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n    \"error\": {\n        \"message\": \"Incorrect API key provided:
+        sk-01234*6789. You can find your API key at https://platform.openai.com/account/api-keys.\",\n
+        \       \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\":
+        \"invalid_api_key\"\n    }\n}\n"
+    headers: {}
+    status:
+      code: 401
+      message: Unauthorized
+version: 1
