@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c7c512d83b8ce8b9763e53ffa1063977>>
+ * @generated SignedSource<<742edb27afdd72f66674aa13bd453e37>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,11 @@ export type DatasetSelectQuery$data = {
       readonly dataset: {
         readonly exampleCount: number;
         readonly id: string;
+        readonly labels: ReadonlyArray<{
+          readonly color: string;
+          readonly id: string;
+          readonly name: string;
+        }>;
         readonly name: string;
       };
     }>;
@@ -35,6 +40,13 @@ var v0 = {
   "storageKey": null
 },
 v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v2 = {
   "alias": "dataset",
   "args": null,
   "concreteType": "Dataset",
@@ -43,38 +55,52 @@ v1 = {
   "plural": false,
   "selections": [
     (v0/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "name",
-      "storageKey": null
-    },
+    (v1/*: any*/),
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
       "name": "exampleCount",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "DatasetLabel",
+      "kind": "LinkedField",
+      "name": "labels",
+      "plural": true,
+      "selections": [
+        (v0/*: any*/),
+        (v1/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "color",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "cursor",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "cursor",
   "storageKey": null
 },
 v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v5 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -99,7 +125,7 @@ v4 = {
   ],
   "storageKey": null
 },
-v5 = [
+v6 = [
   {
     "kind": "Literal",
     "name": "first",
@@ -129,8 +155,8 @@ return {
             "name": "edges",
             "plural": true,
             "selections": [
-              (v1/*: any*/),
               (v2/*: any*/),
+              (v3/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -139,14 +165,14 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/)
+                  (v4/*: any*/)
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
           },
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
@@ -162,7 +188,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v5/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": "DatasetConnection",
         "kind": "LinkedField",
         "name": "datasets",
@@ -176,8 +202,8 @@ return {
             "name": "edges",
             "plural": true,
             "selections": [
-              (v1/*: any*/),
               (v2/*: any*/),
+              (v3/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -186,7 +212,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/),
+                  (v4/*: any*/),
                   (v0/*: any*/)
                 ],
                 "storageKey": null
@@ -194,13 +220,13 @@ return {
             ],
             "storageKey": null
           },
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": "datasets(first:100)"
       },
       {
         "alias": null,
-        "args": (v5/*: any*/),
+        "args": (v6/*: any*/),
         "filters": null,
         "handle": "connection",
         "key": "DatasetPicker__datasets",
@@ -210,7 +236,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e6bd6ad78e045a4cc2a4dad99aeb6fe3",
+    "cacheID": "e93c9a6139e4afa7840eb6f1318f2f7f",
     "id": null,
     "metadata": {
       "connection": [
@@ -226,11 +252,11 @@ return {
     },
     "name": "DatasetSelectQuery",
     "operationKind": "query",
-    "text": "query DatasetSelectQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n        exampleCount\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetSelectQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n        exampleCount\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8125ffe6752f16b2629b9773330a0a70";
+(node as any).hash = "0bc5073a96b85b3783e4c23379337775";
 
 export default node;

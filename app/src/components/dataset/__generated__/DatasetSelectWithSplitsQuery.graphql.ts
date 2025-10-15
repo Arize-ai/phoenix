@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<565c823442aadd7be75718ba47927fc3>>
+ * @generated SignedSource<<d34e2ffd14a5041ca433c81314f755ba>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,11 @@ export type DatasetSelectWithSplitsQuery$data = {
       readonly dataset: {
         readonly exampleCount: number;
         readonly id: string;
+        readonly labels: ReadonlyArray<{
+          readonly color: string;
+          readonly id: string;
+          readonly name: string;
+        }>;
         readonly name: string;
         readonly splits: ReadonlyArray<{
           readonly id: string;
@@ -72,6 +77,26 @@ v2 = {
       "selections": [
         (v0/*: any*/),
         (v1/*: any*/)
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "DatasetLabel",
+      "kind": "LinkedField",
+      "name": "labels",
+      "plural": true,
+      "selections": [
+        (v0/*: any*/),
+        (v1/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "color",
+          "storageKey": null
+        }
       ],
       "storageKey": null
     }
@@ -228,7 +253,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a0f333d34e851372a6d9b3dd45dc30c4",
+    "cacheID": "a1b63e1121cafd04473227264161a3fd",
     "id": null,
     "metadata": {
       "connection": [
@@ -244,11 +269,11 @@ return {
     },
     "name": "DatasetSelectWithSplitsQuery",
     "operationKind": "query",
-    "text": "query DatasetSelectWithSplitsQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n        exampleCount\n        splits {\n          id\n          name\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetSelectWithSplitsQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n        exampleCount\n        splits {\n          id\n          name\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "989a00eedf5acb7542275a771433c072";
+(node as any).hash = "7c2425f980a39012f8ca7f865ed9a4b9";
 
 export default node;
