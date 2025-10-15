@@ -229,6 +229,105 @@ df = pd.DataFrame({
 client.spans.log_span_annotations_dataframe(dataframe=df)
 ```
 
+### Evaluation Helpers
+
+The Phoenix Client provides helper functions to extract span data in formats optimized for RAG evaluation workflows. These helpers streamline the process of preparing data for evaluation with `phoenix.evals`.
+
+#### RAG Retrieval Evaluation
+
+Extract retrieved documents from retriever spans for relevance evaluation:
+
+```python
+from phoenix.client import Client
+from phoenix.client.helpers.evaluation import get_retrieved_documents
+
+client = Client()
+
+# Extract retrieved documents for evaluation
+retrieved_docs_df = get_retrieved_documents(
+    client,
+    project_name="my-rag-app"
+)
+
+# Each row is a retrieved document with its metadata
+print(retrieved_docs_df.head())
+# Index: context.span_id, document_position
+# Columns: context.trace_id, input, reference, document_score
+
+# Use with phoenix.evals for relevance evaluation
+from phoenix.evals import RelevanceEvaluator, run_evals
+from phoenix.evals import OpenAIModel
+
+eval_model = OpenAIModel(model="gpt-4o")
+relevance_evaluator = RelevanceEvaluator(eval_model)
+
+relevance_results = run_evals(
+    evaluators=[relevance_evaluator],
+    dataframe=retrieved_docs_df,
+    provide_explanation=True,
+    concurrency=5,
+)[0]
+```
+
+#### RAG Q&A Evaluation
+
+Extract Q&A pairs with reference context for hallucination and QA evaluation:
+
+```python
+from phoenix.client.helpers.evaluation import get_qa_with_reference
+from phoenix.evals import HallucinationEvaluator, QAEvaluator
+
+# Extract Q&A with reference documents
+qa_df = get_qa_with_reference(
+    client,
+    project_name="my-rag-app"
+)
+
+# Each row combines a Q&A pair with concatenated retrieval documents
+# Index: context.span_id
+# Columns: input, output, reference
+if qa_df is not None:
+    print(qa_df.head())
+
+    # Run Q&A correctness and hallucination evaluations
+    qa_evaluator = QAEvaluator(eval_model)
+    hallucination_evaluator = HallucinationEvaluator(eval_model)
+
+    qa_correctness, hallucination_results = run_evals(
+        evaluators=[qa_evaluator, hallucination_evaluator],
+        dataframe=qa_df,
+        provide_explanation=True,
+        concurrency=5,
+    )
+
+    # View results
+    print(f"QA Correctness: {qa_correctness['score'].mean():.2f}")
+    print(f"Hallucination Rate: {hallucination_results['score'].mean():.2f}")
+```
+
+#### Time-Filtered Evaluation
+
+Filter spans by time range for evaluation:
+
+```python
+from datetime import datetime, timedelta
+
+# Get documents from last 24 hours
+recent_docs = get_retrieved_documents(
+    client,
+    project_name="my-rag-app",
+    start_time=datetime.now() - timedelta(hours=24),
+    end_time=datetime.now()
+)
+
+# Get Q&A from last week
+weekly_qa = get_qa_with_reference(
+    client,
+    project_name="my-rag-app",
+    start_time=datetime.now() - timedelta(days=7)
+)
+```
+
 ### Datasets
 
 Manage evaluation datasets and examples for experiments and testing:
