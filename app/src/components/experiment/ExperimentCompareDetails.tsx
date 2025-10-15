@@ -311,7 +311,6 @@ export function ExperimentRunOutputs() {
       {isSideBarOpen ? (
         <Panel
           defaultSize={SIDEBAR_PANEL_DEFAULT_SIZE}
-          // minSize={SIDEBAR_PANEL_DEFAULT_SIZE}
           ref={sidebarPanelRef}
           collapsible
           id="experiment-compare-details-outputs-sidebar-panel"
