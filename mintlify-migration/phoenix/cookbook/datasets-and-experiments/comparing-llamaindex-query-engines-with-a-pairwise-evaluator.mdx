@@ -1,0 +1,90 @@
+---
+title: "Comparing LlamaIndex Query Engines with a Pairwise Evaluator"
+description: "This tutorial sets up an experiment to determine which LlamaIndex query engine is preferred by an evaluation LLM. Using the `PairwiseEvaluator` module, we compare responses from different engines and identify which one produces more helpful or relevant outputs."
+---
+
+
+<Info>
+See Llama-Index [notebook](https://github.com/run-llama/llama_index/blob/a7c79201bbc5e195a0447ae557980791010b4747/docs/docs/examples/evaluation/pairwise_eval.ipynb) for more info&#x20;
+</Info>
+
+## Notebook Walkthrough
+
+We will go through key code snippets on this page. To follow the full tutorial, check out the Colab notebook above.
+
+## Upload Dataset to Phoenix
+
+Here, we will grab 7 examples from a Hugging Face dataset.&#x20;
+
+```python
+sample_size = 7
+category = "creative_writing"
+url = "hf://datasets/databricks/databricks-dolly-15k/databricks-dolly-15k.jsonl"
+df = pd.read_json(url, lines=True)
+df = df.loc[df.category == category, ["instruction", "response"]]
+df = df.sample(sample_size, random_state=42)
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
+    name=f"{category}_{time_ns()}",
+    dataframe=df,
+)
+```
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/pairwise-eval-cookbook-1.png" />
+</Frame>
+
+## Define Task Function
+
+Task function can be either sync or async.
+
+```python
+async def task(input):
+    return (await OpenAI(model="gpt-3.5-turbo").acomplete(input["instruction"])).text
+```
+
+## Dry-Run Experiment
+
+Conduct a dry-run experiment on 3 randomly selected examples.
+
+```python
+experiment = run_experiment(dataset, task, dry_run=3)
+```
+
+## Define Evaluators For Each Experiment Run
+
+Evaluators can be sync or async. Function arguments `output` and `expected` refer to the attributes of the same name in the `ExperimentRun` data structure shown above.
+
+The `PairwiseEvaluator` in **LlamaIndex** is used to **compare two outputs side-by-side** and determine which one is preferred.
+
+This setup allows you to:
+
+* Run automated A/B tests on different LlamaIndex query engine configurations
+* Capture LLM-based preference data to guide iteration
+* Aggregate pairwise win rates and qualitative feedback
+
+```python
+llm = OpenAI(temperature=0, model="gpt-4o")
+
+
+async def pairwise(output, input, expected) -> Tuple[Score, Explanation]:
+    ans = await PairwiseComparisonEvaluator(llm=llm).aevaluate(
+        query=input["instruction"],
+        response=output,
+        second_response=expected["response"],
+    )
+    return ans.score, ans.feedback
+
+
+evaluators = [pairwise]
+```
+
+```python
+experiment = evaluate_experiment(experiment, evaluators)
+```
+
+## View Results in Phoenix
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/pairwise-eval-cookbook-2.png" />
+</Frame>

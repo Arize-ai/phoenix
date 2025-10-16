@@ -1,0 +1,168 @@
+---
+title: "Phoenix MCP Server"
+description: Phoenix MCP Server is an implementation of the Model Context Protocol for the Arize Phoenix platform. It provides a unified interface to Phoenix's capabilites.
+---
+
+Phoenix MCP Server supports:
+
+* **Prompts Management**: Create, list, update, and iterate on prompts
+
+* **Datasets**: Explore datasets, and synthesize new examples
+
+* **Experiments**: Pull experiment results and visualize them with the help of an LLM
+
+## Connecting the Phoenix MCP Server
+<Tabs>
+  <Tab title="Connect via Cursor">
+    #### Via Cursor Deeplink:
+    [Add to Cursor](https://cursor.com/install-mcp?name=phoenix\&config=eyJjb21tYW5kIjoibnB4IC15IEBhcml6ZWFpL3Bob2VuaXgtbWNwQGxhdGVzdCAtLWJhc2VVcmwgaHR0cHM6Ly9hcHAucGhvZW5peC5hcml6ZS5jb20gLS1hcGlLZXkgIn0%3D)
+
+    #### Manually:
+
+    From the Cursor Settings page, navigate to the MCP section, and click "Add new global MCP server"
+
+    <Frame caption="">
+      <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/74b71f79-image.jpeg" />
+    </Frame>
+
+    Add the following code to your MCP config file:
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@arizeai/phoenix-mcp@latest",
+            "--baseUrl",
+            "https://my-phoenix.com",
+            "--apiKey",
+            "your-api-key"
+          ]
+        }
+      }
+    ```
+
+    Replacing:
+
+    * [https://my-phoenix.com](https://my-phoenix.com) with your Phoenix collector endpoint
+
+    * `your-api-key` with your Phoenix API key
+
+    After saving your config file, you should see the Phoenix server enabled:
+
+    <Frame caption="">
+      <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/1b54b88b-image.jpeg" />
+    </Frame>
+
+    You can access Phoenix prompts, experiments, and datasets through Cursor!
+  </Tab>
+  <Tab title="Connect via Claude Desktop">
+    From the Claude Desktop settings window, navigate to the Developer Section, and click "Edit Config"
+
+    <Frame caption="">
+      <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/50506436-image.jpeg" />
+    </Frame>
+
+    Open your config file and add the following code:
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@arizeai/phoenix-mcp@latest",
+            "--baseUrl",
+            "https://my-phoenix.com",
+            "--apiKey",
+            "your-api-key"
+          ]
+        }
+      }
+    ```
+
+    Replacing:
+
+    * [https://my-phoenix.com](https://my-phoenix.com) with your Phoenix collector endpoint
+
+    * `your-api-key` with your Phoenix API key
+
+    Save your file and relaunch Claude Desktop. You should now see your new tools ready for use in Claude!
+
+    <Frame caption="">
+      <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/3fb7e0c6-image.jpeg" />
+    </Frame>
+  </Tab>
+  <Tab title="Manually Connect">
+    Add the following code to your MCP config file:
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@arizeai/phoenix-mcp@latest",
+            "--baseUrl",
+            "https://my-phoenix.com",
+            "--apiKey",
+            "your-api-key"
+          ]
+        }
+      }
+    ```
+
+    Replacing:
+
+    * [https://my-phoenix.com](https://my-phoenix.com) with your Phoenix collector endpoint
+
+    * `your-api-key` with your Phoenix API key
+  </Tab>
+
+  <Tab title="Connect via Claude Code CLI">
+
+    ```bash
+    claude mcp add phoenix npx -y @arizeai/phoenix-mcp@latest \
+    --baseUrl https://my-phoenix.com \
+    --apiKey your-api-key
+    ```
+
+    Replacing:
+
+    * [https://my-phoenix.com](https://my-phoenix.com) with your Phoenix collector endpoint ([https://app.phoenix.arize.com](https://app.phoenix.arize.com) default for Phoenix Cloud)&#x20;
+    * `your-api-key` with your Phoenix API key
+
+    After installation, restart your Claude Code CLI session to start using the Phoenix MCP tools.
+  </Tab>
+
+</Tabs>
+
+## Using the Phoenix MCP Server
+
+The MCP server can be used to interact with Prompts, Experiments, and Datasets. It can be used to retrieve information about each item, and can create and update Prompts.
+
+Some good questions to try:
+
+1. `What prompts do I have in Phoenix?`
+
+2. `Create a new prompt in Phoenix that classifies user intent`
+
+3. `Update my classification prompt in Phoenix with these new options`
+
+4. `Summarize the Phoenix experiments run on my agent inputs dataset`
+
+5. `Visualize the results of my jailbreak dataset experiments in Phoenix`
+
+## Hoping to see additional functionality?
+
+`@arizeai/phoenix-mcp` is [open-source](https://github.com/Arize-ai/phoenix)! Issues and PRs welcome.
+
+<Card horizontal icon="github" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp" title="Not found
+" />
+
+
+
