@@ -2,7 +2,6 @@
 description: >-
   This tutorial demonstrates building an agentic RAG system using LlamaIndex's
   ReAct agent framework combined with vector and SQL query tools.
-hidden: true
 ---
 
 # Agentic RAG Tracing
