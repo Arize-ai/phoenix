@@ -1,5 +1,19 @@
 # Changelog
 
+## [12.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.6.1...arize-phoenix-v12.7.0) (2025-10-17)
+
+
+### Features
+
+* dataset page label ([#9903](https://github.com/Arize-ai/phoenix/issues/9903)) ([4b6098e](https://github.com/Arize-ai/phoenix/commit/4b6098e80e86c0c545fb94f07497f94879e81115))
+* datasets table label filter ([#9794](https://github.com/Arize-ai/phoenix/issues/9794)) ([aca5fe0](https://github.com/Arize-ai/phoenix/commit/aca5fe0f13e8210d3e209b89bc6f702b6ea269b4))
+* ExperimentRuns over Dataset Splits ([#9863](https://github.com/Arize-ai/phoenix/issues/9863)) ([4b556b8](https://github.com/Arize-ai/phoenix/commit/4b556b8e0f90f132b1e3f576bfdeecb27ec674e3))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#9886](https://github.com/Arize-ai/phoenix/issues/9886)) ([42061a1](https://github.com/Arize-ai/phoenix/commit/42061a1d3e04a4fffe3087f9fb29fab40fd9cb01))
+
 ## [12.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.6.0...arize-phoenix-v12.6.1) (2025-10-14)
 
 
