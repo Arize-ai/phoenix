@@ -19,8 +19,10 @@ import {
   TabList,
   Tabs,
   Text,
+  Token,
   View,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   DatasetProvider,
@@ -155,11 +157,33 @@ function DatasetPageContent({
             <Flex direction="row" gap="size-200" alignItems="center">
               {/* TODO(datasets): Add an icon here to make the UI cohesive */}
               {/* <Icon svg={<Icons.DatabaseOutline />} /> */}
-              <Flex direction="column">
+              <Flex direction="column" gap="size-50">
                 <Text elementType="h1" size="L" weight="heavy">
                   {dataset.name}
                 </Text>
                 <Text color="text-700">{dataset.description || "--"}</Text>
+                {dataset.labels && dataset.labels.length > 0 && (
+                  <ul
+                    css={css`
+                      display: flex;
+                      flex-direction: row;
+                      gap: var(--ac-global-dimension-size-100);
+                      min-width: 0;
+                      flex-wrap: wrap;
+                      padding-top: var(--ac-global-dimension-size-50);
+                    `}
+                  >
+                    {dataset.labels.map((label) => (
+                      <li key={label.id}>
+                        <Token color={label.color}>
+                          <Truncate maxWidth={200} title={label.name}>
+                            {label.name}
+                          </Truncate>
+                        </Token>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </Flex>
             </Flex>
           </Flex>
