@@ -170,8 +170,8 @@ async def test_run_experiment_with_llm_eval(
             experiment_description="test description",
             # repetitions=3,  # TODO: Enable repetitions #3584
             evaluators=[
-                ConcisenessEvaluator(model=NegativeFakeLLMModel()),
-                HelpfulnessEvaluator(model=PostitiveFakeLLMModel()),
+                ConcisenessEvaluator(model=NegativeFakeLLMModel()),  # type: ignore
+                HelpfulnessEvaluator(model=PostitiveFakeLLMModel()),  # type: ignore
             ],
         )
         await asyncio.sleep(5)
@@ -216,12 +216,12 @@ async def test_run_evaluation(
 
 
 def test_evaluator_decorator() -> None:
-    @create_evaluator()
-    def can_i_count_this_high(x: int) -> bool:
-        return x < 3
+    @create_evaluator(kind="CODE")
+    def can_i_count_this_high(input: dict[str, int]) -> bool:
+        return input["x"] < 3
 
-    assert can_i_count_this_high(3) is False
-    assert can_i_count_this_high(2) is True
+    assert can_i_count_this_high.evaluate(input={"x": 3}).label == "False"
+    assert can_i_count_this_high.evaluate(input={"x": 2}).label == "True"
     assert hasattr(can_i_count_this_high, "evaluate")
     assert can_i_count_this_high.name == "can_i_count_this_high"
     assert can_i_count_this_high.kind == AnnotatorKind.CODE.value
@@ -229,11 +229,13 @@ def test_evaluator_decorator() -> None:
 
 async def test_async_evaluator_decorator() -> None:
     @create_evaluator(name="override", kind="LLM")
-    async def can_i_count_this_high(x: int) -> bool:
-        return x < 3
+    async def can_i_count_this_high(input: dict[str, int]) -> bool:
+        return input["x"] < 3
 
-    assert await can_i_count_this_high(3) is False
-    assert await can_i_count_this_high(2) is True
+    result1 = await can_i_count_this_high.async_evaluate(input={"x": 3})
+    result2 = await can_i_count_this_high.async_evaluate(input={"x": 2})
+    assert result1.label == "False"
+    assert result2.label == "True"
     assert hasattr(can_i_count_this_high, "async_evaluate")
     assert can_i_count_this_high.name == "override"
     assert can_i_count_this_high.kind == AnnotatorKind.LLM.value
