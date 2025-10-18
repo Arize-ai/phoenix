@@ -115,7 +115,7 @@ class LLM:
 
         Example::
 
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import LLM
             llm = LLM(
                 provider="azure",
                 model="gpt-5o",
@@ -269,7 +269,7 @@ class LLM:
 
         Examples::
 
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import LLM
             llm = LLM(provider="openai", model="gpt-4o", client="openai")
             llm.generate_classification(
                 prompt="Hello, world!",
