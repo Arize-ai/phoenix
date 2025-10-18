@@ -331,8 +331,6 @@
                 "group": " ",
                 "pages": [
                   "phoenix/cookbook",
-                  "phoenix/cookbook/agent-cookbooks",
-                  "phoenix/cookbook/agent-demos",
                   {
                     "group": "Agent Workflow Patterns",
                     "pages": [
@@ -348,6 +346,16 @@
                 ]
               },
               {
+                "group": "AI Engineering Workflows",
+                "icon": "gear",
+                "pages": [
+                  "phoenix/cookbook/ai-engineering-workflows/llm-ops-overview",
+                  "/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
+                  "/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
+                  "/phoenix/cookbook/prompt-engineering/prompt-optimization"
+                ]
+              },
+              {
                 "group": "Tracing",
                 "icon": "swap",
                 "pages": [
@@ -359,7 +367,7 @@
                 ]
               },
               {
-                "group": "Human-in-the-loop Workflows (Annotations)",
+                "group": "Human-in-the-Loop Workflows (Annotations)",
                 "icon": "user-plus",
                 "pages": [
                   "phoenix/cookbook/human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development",
@@ -371,6 +379,7 @@
                 "group": "Prompt Engineering",
                 "icon": "code",
                 "pages": [
+                  "phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
                   "phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification",
                   "phoenix/cookbook/prompt-engineering/few-shot-prompting",
                   "phoenix/cookbook/prompt-engineering/react-prompting",
@@ -1161,10 +1170,6 @@
         "href": "https://arize-phoenix.readthedocs.io/en/latest/"
       },
       {
-        "label": "Community",
-        "href": "https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email"
-      },
-      {
         "label": "GitHub",
         "href": "https://github.com/Arize-ai/phoenix"
       }
@@ -1178,7 +1183,7 @@
   "footer": {
     "socials": {
       "x": "https://x.com/ArizePhoenix",
-      "github": "https://bsky.app/profile/arize-phoenix.bsky.social"
+      "github": "https://github.com/Arize-ai/phoenix"
     }
   }
 }

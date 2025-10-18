@@ -3,7 +3,9 @@ title: "Arize Phoenix"
 description: AI Observability and Evaluation
 ---
 
-Phoenix is an open-source observability tool designed for experimentation, evaluation, and troubleshooting of AI and LLM applications. It allows AI engineers and data scientists to quickly visualize their data, evaluate performance, track down issues, and export data to improve. Phoenix is built by [Arize AI](https://www.arize.com), the company behind the industry-leading AI observability platform, and a set of core contributors.
+Phoenix is an open-source observability tool designed for experimentation, evaluation, and troubleshooting of AI and LLM applications. It allows AI engineers and data scientists to quickly visualize their data, evaluate performance, track down issues, and export data to improve. 
+
+Phoenix is built by [Arize AI](https://www.arize.com), the company behind the industry-leading AI observability platform, and a set of core contributors.
 
 Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. See [Integrations](/phoenix/integrations) for details.
 
@@ -19,7 +21,7 @@ Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai
 
     [Tracing](/phoenix/tracing/llm-traces) is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.
 
-    Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks (LlamaIndex, LangChain, DSPy), SDKs (OpenAI, Bedrock, Mistral, Vertex), and Languages. (Python, [Javascript](/phoenix/tracing/how-to-tracing/setup-tracing/javascript), etc.)
+    Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports [first-class instrumentation](/phoenix/integrations) for a variety of frameworks (LlamaIndex, LangChain, DSPy), SDKs (OpenAI, Bedrock, Mistral, Vertex), and Languages. (Python, TypeScript, Java, etc.)
     test
   </Tab>
 
@@ -51,7 +53,7 @@ Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai
 
       * [Prompt Playground](/phoenix/prompt-engineering/overview-prompts/prompt-playground) - Play with prompts, models, invocation parameters and track your progress via tracing and experiments
 
-      * [Span Replay](/phoenix#span-replay) - Replay the invocation of an LLM. Whether it's an LLM step in an LLM workflow or a router query, you can step into the LLM invocation and see if any modifications to the invocation would have yielded a better outcome.
+      * [Span Replay](/phoenix/prompt-engineering/overview-prompts/span-replay) - Replay the invocation of an LLM. Whether it's an LLM step in an LLM workflow or a router query, you can step into the LLM invocation and see if any modifications to the invocation would have yielded a better outcome.
 
       * [Prompts in Code](/phoenix/prompt-engineering/overview-prompts/prompts-in-code) - Phoenix offers client SDKs to keep your prompts in sync across different applications and environments.
 
