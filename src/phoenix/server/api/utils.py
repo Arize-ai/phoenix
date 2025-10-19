@@ -32,3 +32,20 @@ async def delete_traces(
     )
     async with db() as session:
         return list(await session.scalars(stmt))
+
+
+def get_aws_model_inference_prefix(region: str) -> str:
+    """
+    Extract model inference profile prefix from the AWS region.
+    For details see: https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
+    """
+    try:
+        prefix, *_ = region.split("-")
+        prefix = prefix.lower()
+        # special case for APAC, for example:
+        # region: ap-northeast-1, model: apac.twelvelabs.pegasus-1-2-v1:0
+        prefix = "apac" if prefix == "ap" else prefix
+    except ValueError:
+        prefix = ""
+
+    return prefix

@@ -53,6 +53,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ToolCallChunk,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.utils import get_aws_model_inference_prefix
 
 if TYPE_CHECKING:
     import httpx
@@ -684,7 +685,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         import boto3  # type: ignore[import-untyped]
 
         super().__init__(model=model, credentials=credentials)
-        self.region = model.region or "us-east-1"
+        self.region = model.region or "us-east-1"  # match the default region in the UI
         self.api = "converse"
         self.custom_headers = model.custom_headers or {}
         self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
@@ -696,10 +697,10 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
             "AWS_SESSION_TOKEN"
         )
-        self.model_name = model.name
+        self.model_name = f"{get_aws_model_inference_prefix(self.region)}.{model.name}"
         self.client = boto3.client(
             service_name="bedrock-runtime",
-            region_name="us-east-1",  # match the default region in the UI
+            region_name=self.region,
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
             aws_session_token=self.aws_session_token,
@@ -805,7 +806,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
 
         # Build the request parameters for Converse API
         converse_params: dict[str, Any] = {
-            "modelId": f"us.{self.model_name}",
+            "modelId": self.model_name,
             "messages": converse_messages,
             "inferenceConfig": {
                 "maxTokens": invocation_parameters["max_tokens"],
@@ -953,7 +954,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         }
 
         response = self.client.invoke_model_with_response_stream(
-            modelId=f"us.{self.model_name}",  # or another Claude model
+            modelId=self.model_name,  # or another Claude model
             contentType="application/json",
             accept="application/json",
             body=json.dumps(bedrock_params),
