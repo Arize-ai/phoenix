@@ -149,5 +149,5 @@ The Phoenix client natively supports passing your prompts to OpenAI, Anthropic, 
 
 * Check out the [how-to-prompts](../how-to-prompts/ "mention") section for details on how to test prompt changes
 * Take a look a the TypeScript examples in the Phoenix client ([https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client/examples](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client/examples))
-* Try out some Deno notebooks to experiment with prompts ([https://github.com/Arize-ai/phoenix/tree/main/js/examples/notebooks](https://github.com/Arize-ai/phoenix/tree/main/js/examples/notebooks))
+* Try out some Demo notebooks to experiment with prompts ([https://github.com/Arize-ai/phoenix/tree/main/js/examples/notebooks](https://github.com/Arize-ai/phoenix/tree/main/js/examples/notebooks))
 

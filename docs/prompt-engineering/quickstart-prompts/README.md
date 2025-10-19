@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Quickstart: Prompts
 
 Prompts in Phoenix can be created, iterated on, versioned, tagged, and used either via the UI or our Python/TS SDKs. The UI option also includes our [Prompt Playground](../overview-prompts/prompt-playground.md), which allows you to compare prompt variations side-by-side in the Phoenix UI.

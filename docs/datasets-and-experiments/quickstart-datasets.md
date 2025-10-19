@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Quickstart: Datasets & Experiments
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/datasets_and_experiments_quickstart.ipynb)

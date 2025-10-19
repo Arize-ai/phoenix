@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Quickstart: Evals
 
 This quickstart guide will walk you through the basics of evaluating data from your AI application.
