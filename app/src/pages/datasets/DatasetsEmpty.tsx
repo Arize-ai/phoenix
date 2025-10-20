@@ -38,7 +38,7 @@ export function DatasetsEmpty() {
                 Documentation
               </ExternalLinkButton>
               <ExternalLinkButton
-                href="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/datasets_and_experiments_quickstart.ipynb"
+                href="https://arize.com/docs/phoenix/get-started/get-started-datasets-and-experiments"
                 target="_blank"
                 leadingVisual={<Icon svg={<Icons.Rocket />} />}
               >
