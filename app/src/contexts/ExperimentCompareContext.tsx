@@ -285,7 +285,11 @@ function sortRepetitionsByAnnotation(
     experimentRepetitions,
     (rep) => {
       const annotationValue = getAnnotationValue(rep, annotation);
-      return [annotationValue?.score, annotationValue?.label];
+      return [
+        annotationValue?.score,
+        annotationValue?.label,
+        rep.repetitionNumber,
+      ];
     },
     sortDirection
   );
