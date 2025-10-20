@@ -12,7 +12,7 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser, _gql
+from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser
 
 
 class TestDatasetIntegration:
@@ -752,10 +752,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Minimal dataset creation for efficiency - 2 with 1 example, 1 with 0 examples
         test_prefix = f"test_order_{token_hex(6)}"
 
-        query = (
-            "mutation($input:DeleteDatasetExamplesInput!){"
-            "deleteDatasetExamples(input:$input){dataset{id}}}"
-        )
+        # Using the client's delete_examples method instead of direct GraphQL
 
         # Create datasets with predictable names for easier identification
         created_datasets: list[Dataset] = []
@@ -777,11 +774,10 @@ Who wrote Hamlet?,Shakespeare,literature
             created_dataset_ids.add(dataset.id)
 
             # Delete second example to end up with 1 example
-            _gql(
-                _app,
-                _app.admin_secret,
-                query=query,
-                variables={"input": {"exampleIds": [dataset.examples[1]["id"]]}},
+            await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).datasets.delete_examples(
+                    example_ids=[dataset.examples[1]["id"]]
+                )
             )
 
         # Part 2: Create 1 dataset with 0 examples
@@ -800,11 +796,10 @@ Who wrote Hamlet?,Shakespeare,literature
 
         # Delete all examples from zero dataset
         all_example_ids = [example["id"] for example in zero_dataset.examples]
-        _gql(
-            _app,
-            _app.admin_secret,
-            query=query,
-            variables={"input": {"exampleIds": all_example_ids}},
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.delete_examples(
+                example_ids=all_example_ids
+            )
         )
 
         # ===== HELPER FUNCTION FOR VALIDATION =====
