@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb0c2dd6d1b0c803d95fec85aee0b7bd>>
+ * @generated SignedSource<<7327b22417301215c7f927a1a4d53141>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,18 +17,6 @@ export type DatasetLabelConfigButtonSetLabelsMutation$variables = {
 export type DatasetLabelConfigButtonSetLabelsMutation$data = {
   readonly setDatasetLabels: {
     readonly query: {
-      readonly datasets: {
-        readonly edges: ReadonlyArray<{
-          readonly node: {
-            readonly id: string;
-            readonly labels: ReadonlyArray<{
-              readonly color: string;
-              readonly id: string;
-              readonly name: string;
-            }>;
-          };
-        }>;
-      };
       readonly node: {
         readonly id?: string;
         readonly labels?: ReadonlyArray<{
@@ -118,80 +106,7 @@ v6 = {
     }
   ],
   "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v8 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "DatasetEdge",
-    "kind": "LinkedField",
-    "name": "edges",
-    "plural": true,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Dataset",
-        "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
-        "selections": [
-          (v5/*: any*/),
-          (v6/*: any*/),
-          (v7/*: any*/)
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "cursor",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "PageInfo",
-    "kind": "LinkedField",
-    "name": "pageInfo",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "endCursor",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "hasNextPage",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
-],
-v9 = [
-  {
-    "kind": "Literal",
-    "name": "first",
-    "value": 100
-  }
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -238,16 +153,6 @@ return {
                   }
                 ],
                 "storageKey": null
-              },
-              {
-                "alias": "datasets",
-                "args": null,
-                "concreteType": "DatasetConnection",
-                "kind": "LinkedField",
-                "name": "__DatasetsTable_datasets_connection",
-                "plural": false,
-                "selections": (v8/*: any*/),
-                "storageKey": null
               }
             ],
             "storageKey": null
@@ -293,7 +198,13 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v7/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
+                    "storageKey": null
+                  },
                   (v5/*: any*/),
                   {
                     "kind": "InlineFragment",
@@ -305,25 +216,6 @@ return {
                   }
                 ],
                 "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": (v9/*: any*/),
-                "concreteType": "DatasetConnection",
-                "kind": "LinkedField",
-                "name": "datasets",
-                "plural": false,
-                "selections": (v8/*: any*/),
-                "storageKey": "datasets(first:100)"
-              },
-              {
-                "alias": null,
-                "args": (v9/*: any*/),
-                "filters": null,
-                "handle": "connection",
-                "key": "DatasetsTable_datasets",
-                "kind": "LinkedHandle",
-                "name": "datasets"
               }
             ],
             "storageKey": null
@@ -334,29 +226,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "989b53a96df07ea43085b3547477c1bb",
+    "cacheID": "72e0b23faa08008b3300adc2a7015a5a",
     "id": null,
-    "metadata": {
-      "connection": [
-        {
-          "count": null,
-          "cursor": null,
-          "direction": "forward",
-          "path": [
-            "setDatasetLabels",
-            "query",
-            "datasets"
-          ]
-        }
-      ]
-    },
+    "metadata": {},
     "name": "DatasetLabelConfigButtonSetLabelsMutation",
     "operationKind": "mutation",
-    "text": "mutation DatasetLabelConfigButtonSetLabelsMutation(\n  $datasetIds: [ID!]!\n  $datasetLabelIds: [ID!]!\n  $currentDatasetId: ID!\n) {\n  setDatasetLabels(input: {datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds}) {\n    query {\n      node(id: $currentDatasetId) {\n        __typename\n        ... on Dataset {\n          id\n          labels {\n            id\n            name\n            color\n          }\n        }\n        id\n      }\n      datasets(first: 100) {\n        edges {\n          node {\n            id\n            labels {\n              id\n              name\n              color\n            }\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation DatasetLabelConfigButtonSetLabelsMutation(\n  $datasetIds: [ID!]!\n  $datasetLabelIds: [ID!]!\n  $currentDatasetId: ID!\n) {\n  setDatasetLabels(input: {datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds}) {\n    query {\n      node(id: $currentDatasetId) {\n        __typename\n        ... on Dataset {\n          id\n          labels {\n            id\n            name\n            color\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c23f45dfe64369285e09fe9ce8a0f1b7";
+(node as any).hash = "376fd6919665035d938f03b2d8f69084";
 
 export default node;

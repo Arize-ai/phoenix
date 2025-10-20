@@ -69,7 +69,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
           leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
           aria-label="Configure dataset labels"
         >
-          Labels
+          Label
         </Button>
         <Popover
           placement="bottom start"
@@ -251,18 +251,6 @@ function DatasetLabelList({
                 }
               }
             }
-            datasets(first: 100) @connection(key: "DatasetsTable_datasets") {
-              edges {
-                node {
-                  id
-                  labels {
-                    id
-                    name
-                    color
-                  }
-                }
-              }
-            }
           }
         }
       }
@@ -286,18 +274,6 @@ function DatasetLabelList({
                   id
                   name
                   color
-                }
-              }
-            }
-            datasets(first: 100) @connection(key: "DatasetsTable_datasets") {
-              edges {
-                node {
-                  id
-                  labels {
-                    id
-                    name
-                    color
-                  }
                 }
               }
             }

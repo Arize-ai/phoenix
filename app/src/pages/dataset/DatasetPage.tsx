@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useMemo } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { graphql, usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
@@ -40,53 +40,44 @@ import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeButton } from "./DatasetCodeButton";
 import { RunExperimentButton } from "./RunExperimentButton";
 
-export function DatasetPage() {
-  const loaderData = useLoaderData<typeof datasetLoader>();
-  invariant(loaderData, "loaderData is required");
-  const datasetId = loaderData.dataset.id;
-
-  return (
-    <Suspense fallback={<Loading />}>
-      <DatasetPageWithQuery datasetId={datasetId} />
-    </Suspense>
-  );
-}
-
-function DatasetPageWithQuery({ datasetId }: { datasetId: string }) {
-  const data = useLazyLoadQuery<DatasetPageQuery>(
-    graphql`
-      query DatasetPageQuery($id: ID!) {
-        dataset: node(id: $id) {
+export const DatasetPageQueryNode = graphql`
+  query DatasetPageQuery($id: ID!) {
+    dataset: node(id: $id) {
+      id
+      ... on Dataset {
+        id
+        name
+        description
+        exampleCount
+        experimentCount
+        labels {
           id
-          ... on Dataset {
-            id
-            name
-            description
-            exampleCount
-            experimentCount
-            labels {
+          name
+          color
+        }
+        latestVersions: versions(
+          first: 1
+          sort: { col: createdAt, dir: desc }
+        ) {
+          edges {
+            version: node {
               id
-              name
-              color
-            }
-            latestVersions: versions(
-              first: 1
-              sort: { col: createdAt, dir: desc }
-            ) {
-              edges {
-                version: node {
-                  id
-                  description
-                  createdAt
-                }
-              }
+              description
+              createdAt
             }
           }
         }
       }
-    `,
-    { id: datasetId },
-    { fetchPolicy: "store-and-network" }
+    }
+  }
+`;
+
+export function DatasetPage() {
+  const loaderData = useLoaderData<typeof datasetLoader>();
+  invariant(loaderData, "loaderData is required");
+  const data = usePreloadedQuery<DatasetPageQuery>(
+    DatasetPageQueryNode,
+    loaderData.queryRef
   );
 
   const latestVersion = useMemo(() => {
@@ -103,7 +94,9 @@ function DatasetPageWithQuery({ datasetId }: { datasetId: string }) {
       datasetName={data.dataset.name as string}
       latestVersion={latestVersion}
     >
-      <DatasetPageContent dataset={data["dataset"]} />
+      <Suspense fallback={<Loading />}>
+        <DatasetPageContent dataset={data["dataset"]} />
+      </Suspense>
     </DatasetProvider>
   );
 }
