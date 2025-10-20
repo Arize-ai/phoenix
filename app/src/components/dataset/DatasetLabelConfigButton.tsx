@@ -11,6 +11,7 @@ import { css } from "@emotion/react";
 
 import {
   Button,
+  type ButtonProps,
   ColorSwatch,
   DebouncedSearch,
   Dialog,
@@ -40,10 +41,11 @@ import { DatasetLabelConfigButtonUnsetLabelsMutation } from "./__generated__/Dat
 
 type DatasetLabelConfigButtonProps = {
   datasetId: string;
+  variant?: ButtonProps["variant"];
 };
 
 export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
-  const { datasetId } = props;
+  const { datasetId, variant = "default" } = props;
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -62,7 +64,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
         onOpenChange={setIsOpen}
       >
         <Button
-          variant="quiet"
+          variant={variant}
           size="S"
           leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
           aria-label="Configure dataset labels"
@@ -233,11 +235,22 @@ function DatasetLabelList({
       mutation DatasetLabelConfigButtonSetLabelsMutation(
         $datasetIds: [ID!]!
         $datasetLabelIds: [ID!]!
+        $currentDatasetId: ID!
       ) {
         setDatasetLabels(
           input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
         ) {
           query {
+            node(id: $currentDatasetId) {
+              ... on Dataset {
+                id
+                labels {
+                  id
+                  name
+                  color
+                }
+              }
+            }
             datasets(first: 100) @connection(key: "DatasetsTable_datasets") {
               edges {
                 node {
@@ -260,11 +273,22 @@ function DatasetLabelList({
       mutation DatasetLabelConfigButtonUnsetLabelsMutation(
         $datasetIds: [ID!]!
         $datasetLabelIds: [ID!]!
+        $currentDatasetId: ID!
       ) {
         unsetDatasetLabels(
           input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
         ) {
           query {
+            node(id: $currentDatasetId) {
+              ... on Dataset {
+                id
+                labels {
+                  id
+                  name
+                  color
+                }
+              }
+            }
             datasets(first: 100) @connection(key: "DatasetsTable_datasets") {
               edges {
                 node {
@@ -324,6 +348,7 @@ function DatasetLabelList({
           variables: {
             datasetIds: [datasetData.id],
             datasetLabelIds: labelIdsToAdd,
+            currentDatasetId: datasetData.id,
           },
         })
       );
@@ -334,6 +359,7 @@ function DatasetLabelList({
           variables: {
             datasetIds: [datasetData.id],
             datasetLabelIds: labelIdsToRemove,
+            currentDatasetId: datasetData.id,
           },
         })
       );

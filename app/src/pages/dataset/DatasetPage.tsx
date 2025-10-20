@@ -1,4 +1,5 @@
 import { Suspense, useCallback, useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
@@ -22,6 +23,7 @@ import {
   Token,
   View,
 } from "@phoenix/components";
+import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
@@ -33,6 +35,7 @@ import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
+import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeButton } from "./DatasetCodeButton";
 import { RunExperimentButton } from "./RunExperimentButton";
@@ -40,23 +43,67 @@ import { RunExperimentButton } from "./RunExperimentButton";
 export function DatasetPage() {
   const loaderData = useLoaderData<typeof datasetLoader>();
   invariant(loaderData, "loaderData is required");
+  const datasetId = loaderData.dataset.id;
+
+  return (
+    <Suspense fallback={<Loading />}>
+      <DatasetPageWithQuery datasetId={datasetId} />
+    </Suspense>
+  );
+}
+
+function DatasetPageWithQuery({ datasetId }: { datasetId: string }) {
+  const data = useLazyLoadQuery<DatasetPageQuery>(
+    graphql`
+      query DatasetPageQuery($id: ID!) {
+        dataset: node(id: $id) {
+          id
+          ... on Dataset {
+            id
+            name
+            description
+            exampleCount
+            experimentCount
+            labels {
+              id
+              name
+              color
+            }
+            latestVersions: versions(
+              first: 1
+              sort: { col: createdAt, dir: desc }
+            ) {
+              edges {
+                version: node {
+                  id
+                  description
+                  createdAt
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    { id: datasetId },
+    { fetchPolicy: "store-and-network" }
+  );
+
   const latestVersion = useMemo(() => {
-    const versions = loaderData.dataset.latestVersions;
+    const versions = data.dataset.latestVersions;
     if (versions?.edges && versions.edges.length) {
       return versions.edges[0].version;
     }
     return null;
-  }, [loaderData]);
+  }, [data]);
 
   return (
     <DatasetProvider
-      datasetId={loaderData.dataset.id}
-      datasetName={loaderData.dataset.name as string}
+      datasetId={data.dataset.id}
+      datasetName={data.dataset.name as string}
       latestVersion={latestVersion}
     >
-      <Suspense fallback={<Loading />}>
-        <DatasetPageContent dataset={loaderData["dataset"]} />
-      </Suspense>
+      <DatasetPageContent dataset={data["dataset"]} />
     </DatasetProvider>
   );
 }
@@ -119,6 +166,7 @@ function DatasetPageContent({
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
   const isEvaluatorsEnabled = useFeatureFlag("evaluators");
+  const isDatasetLabelEnabled = useFeatureFlag("datasetLabel");
   const datasetId = dataset.id;
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
@@ -246,6 +294,9 @@ function DatasetPageContent({
                 refreshLatestVersion();
               }}
             />
+            {isDatasetLabelEnabled && (
+              <DatasetLabelConfigButton datasetId={dataset.id} />
+            )}
             <Button
               size="S"
               variant="primary"
