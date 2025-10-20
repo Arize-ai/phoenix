@@ -23,9 +23,11 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
     Cursor,
     CursorString,
     connection_from_cursors_and_nodes,
+    connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
