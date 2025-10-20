@@ -500,7 +500,9 @@ function ExperimentRunOutputsSidebar() {
           isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
           onChange={(checked) => toggleAllRepetitionsSelection(checked)}
         >
-          <Text>Select all</Text>
+          <Text>
+            <Truncate maxWidth="100%">Select all</Truncate>
+          </Text>
         </Checkbox>
         {annotationSummaries.length > 0 && (
           <Flex
@@ -511,20 +513,24 @@ function ExperimentRunOutputsSidebar() {
               padding: var(--ac-global-dimension-size-25);
             `}
           >
-            <MenuTrigger
-              css={css`
-                overflow: hidden;
-                padding: var(
-                  --ac-global-dimension-size-25
-                ); // keep focus ring visible
-              `}
-            >
-              <Button variant="quiet" size="S">
-                {selectedAnnotation ? (
-                  <Text>{selectedAnnotation}</Text>
-                ) : (
-                  <MenuTriggerPlaceholder>No annotation</MenuTriggerPlaceholder>
-                )}
+            <MenuTrigger>
+              <Button
+                variant="quiet"
+                size="S"
+                css={css`
+                  min-width: 100px;
+                  flex: 0 1 auto;
+                `}
+              >
+                <Truncate maxWidth="100%">
+                  {selectedAnnotation ? (
+                    <Text>{selectedAnnotation}</Text>
+                  ) : (
+                    <MenuTriggerPlaceholder>
+                      No annotation
+                    </MenuTriggerPlaceholder>
+                  )}
+                </Truncate>
                 <SelectChevronUpDownIcon />
               </Button>
               <Popover>
