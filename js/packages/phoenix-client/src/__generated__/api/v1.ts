@@ -1106,8 +1106,6 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
-            /** Splits */
-            splits?: string[];
         };
         /** DatasetVersion */
         DatasetVersion: {
@@ -3447,7 +3445,7 @@ export interface operations {
                 /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
                 version_id?: string | null;
                 /** @description List of dataset split identifiers (GlobalIDs or names) to filter by */
-                splits?: string[] | null;
+                split?: string[] | null;
             };
             header?: never;
             path: {

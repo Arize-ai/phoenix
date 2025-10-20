@@ -1050,8 +1050,8 @@ Who wrote Hamlet?,Shakespeare,literature
             f"Expected all 4 examples when no split filter is applied, got {len(full_dataset)}"
         )
         # When no split filter is applied, split_names should be empty (not filtering by any splits)
-        assert full_dataset.split_names == [], (
-            f"Expected empty split_names when no filter applied, got {full_dataset.split_names}"
+        assert full_dataset._filtered_splits == [], (
+            f"Expected empty split_names when no filter applied, got {full_dataset._filtered_splits}"
         )
 
         # Verify all 4 example IDs are present in the unfiltered dataset
@@ -1070,7 +1070,9 @@ Who wrote Hamlet?,Shakespeare,literature
         assert len(split1_dataset) == 2, (
             f"Expected 2 examples with split1, got {len(split1_dataset)}"
         )
-        assert split1_name in split1_dataset.split_names, "Split1 name should be in split_names"
+        assert split1_name in split1_dataset._filtered_splits, (
+            "Split1 name should be in _filtered_splits"
+        )
 
         # Get dataset filtered by split 2 - should return 2 examples
         split2_dataset = await _await_or_return(
@@ -1082,7 +1084,9 @@ Who wrote Hamlet?,Shakespeare,literature
         assert len(split2_dataset) == 2, (
             f"Expected 2 examples with split2, got {len(split2_dataset)}"
         )
-        assert split2_name in split2_dataset.split_names, "Split2 name should be in split_names"
+        assert split2_name in split2_dataset._filtered_splits, (
+            "Split2 name should be in _filtered_splits"
+        )
 
         # Get dataset filtered by both splits - should return all 4 examples
         both_splits_dataset = await _await_or_return(
@@ -1094,11 +1098,11 @@ Who wrote Hamlet?,Shakespeare,literature
         assert len(both_splits_dataset) == 4, (
             f"Expected 4 examples with both splits, got {len(both_splits_dataset)}"
         )
-        assert split1_name in both_splits_dataset.split_names, (
-            "Split1 name should be in split_names"
+        assert split1_name in both_splits_dataset._filtered_splits, (
+            "Split1 name should be in _filtered_splits"
         )
-        assert split2_name in both_splits_dataset.split_names, (
-            "Split2 name should be in split_names"
+        assert split2_name in both_splits_dataset._filtered_splits, (
+            "Split2 name should be in _filtered_splits"
         )
 
         # Verify individual examples have split_ids populated

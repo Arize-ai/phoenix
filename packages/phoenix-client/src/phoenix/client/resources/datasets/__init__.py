@@ -91,7 +91,7 @@ class Dataset:
         return self._examples_data["version_id"]
 
     @property
-    def split_names(self) -> list[str]:
+    def _filtered_splits(self) -> list[str]:
         """The dataset split names."""
         return list(self._examples_data.get("filtered_splits", []))
 
