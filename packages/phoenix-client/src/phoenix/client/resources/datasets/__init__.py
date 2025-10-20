@@ -214,8 +214,8 @@ class Dataset:
         }
 
         # Include filtered_splits if present (optional field for backwards compatibility)
-        if self.split_names:
-            result["filtered_splits"] = self.split_names
+        if self._filtered_splits:
+            result["filtered_splits"] = self._filtered_splits
 
         return result
 
