@@ -1185,7 +1185,7 @@ def evaluate_dataframe(
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     tqdm_bar_format: Optional[str] = None,
-    hide_tqdm_bar: Optional[bool] = False,
+    hide_tqdm_bar: bool = False,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> pd.DataFrame:
