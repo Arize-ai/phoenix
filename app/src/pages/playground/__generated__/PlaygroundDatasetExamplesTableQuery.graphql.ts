@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f48291d27b63f9c4dea57dacb69aad9d>>
+ * @generated SignedSource<<066eaaa567d8abff73ca1b8fa0044d02>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,10 +12,19 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PlaygroundDatasetExamplesTableQuery$variables = {
   datasetId: string;
+  experimentIds?: ReadonlyArray<string> | null;
   splitIds?: ReadonlyArray<string> | null;
 };
 export type PlaygroundDatasetExamplesTableQuery$data = {
   readonly dataset: {
+    readonly experiments?: {
+      readonly edges: ReadonlyArray<{
+        readonly experiment: {
+          readonly datasetVersionId: string;
+          readonly id: string;
+        };
+      }>;
+    };
     readonly " $fragmentSpreads": FragmentRefs<"PlaygroundDatasetExamplesTableFragment">;
   };
 };
@@ -25,62 +34,116 @@ export type PlaygroundDatasetExamplesTableQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "datasetId"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "splitIds"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "datasetId"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "experimentIds"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "splitIds"
+},
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "datasetId"
   }
 ],
-v2 = {
+v4 = {
   "kind": "Variable",
   "name": "splitIds",
   "variableName": "splitIds"
 },
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v5 = [
+v6 = {
+  "alias": null,
+  "args": [
+    {
+      "kind": "Variable",
+      "name": "filterIds",
+      "variableName": "experimentIds"
+    }
+  ],
+  "concreteType": "ExperimentConnection",
+  "kind": "LinkedField",
+  "name": "experiments",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "ExperimentEdge",
+      "kind": "LinkedField",
+      "name": "edges",
+      "plural": true,
+      "selections": [
+        {
+          "alias": "experiment",
+          "args": null,
+          "concreteType": "Experiment",
+          "kind": "LinkedField",
+          "name": "node",
+          "plural": false,
+          "selections": [
+            (v5/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "datasetVersionId",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v8 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 20
   },
-  (v2/*: any*/)
+  (v4/*: any*/)
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundDatasetExamplesTableQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -88,10 +151,18 @@ return {
         "selections": [
           {
             "args": [
-              (v2/*: any*/)
+              (v4/*: any*/)
             ],
             "kind": "FragmentSpread",
             "name": "PlaygroundDatasetExamplesTableFragment"
+          },
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              (v6/*: any*/)
+            ],
+            "type": "Dataset",
+            "abstractKey": null
           }
         ],
         "storageKey": null
@@ -102,26 +173,30 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v2/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Operation",
     "name": "PlaygroundDatasetExamplesTableQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
-          (v4/*: any*/),
+          (v7/*: any*/),
+          (v5/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v8/*: any*/),
                 "concreteType": "DatasetExampleConnection",
                 "kind": "LinkedField",
                 "name": "examples",
@@ -143,7 +218,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v4/*: any*/),
+                          (v5/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -187,8 +262,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/)
+                          (v7/*: any*/),
+                          (v5/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -225,7 +300,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v8/*: any*/),
                 "filters": [
                   "datasetVersionId",
                   "splitIds"
@@ -234,7 +309,8 @@ return {
                 "key": "PlaygroundDatasetExamplesTable_examples",
                 "kind": "LinkedHandle",
                 "name": "examples"
-              }
+              },
+              (v6/*: any*/)
             ],
             "type": "Dataset",
             "abstractKey": null
@@ -245,16 +321,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e5b6be0970d28525da77ff470c53c268",
+    "cacheID": "d42834303870a54bb91edbba73ba5d82",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1Csera\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1Csera on Dataset {\n  examples(splitIds: $splitIds, first: 20) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n  $experimentIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1Csera\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            datasetVersionId\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1Csera on Dataset {\n  examples(splitIds: $splitIds, first: 20) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3ac90eeb126502b296136739ff5abe04";
+(node as any).hash = "7051d0bddc572a073260d8fa08ccc1bd";
 
 export default node;

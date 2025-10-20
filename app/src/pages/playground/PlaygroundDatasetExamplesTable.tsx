@@ -72,7 +72,9 @@ import {
   getErrorMessagesFromRelaySubscriptionError,
 } from "@phoenix/utils/errorUtils";
 
+import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
+import { TraceDetailsDialog } from "../experiment/TraceDetailsDialog";
 
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import PlaygroundDatasetExamplesTableMutation, {
@@ -91,7 +93,6 @@ import {
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
-import { PlaygroundExperimentRunDetailsDialog } from "./PlaygroundExperimentRunDetailsDialog";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import {
   PartialOutputToolCall,
@@ -104,6 +105,12 @@ import {
 } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
+
+type TableRow = {
+  id: string;
+  input: unknown;
+  output: unknown;
+};
 
 type ChatCompletionOverDatasetMutationPayload = Extract<
   PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"],
@@ -283,11 +290,17 @@ function ExampleOutputContent({
   repetitionNumber,
   setRepetitionNumber,
   totalRepetitions,
+  exampleId,
+  tableData,
+  setSelectedExampleIndex,
 }: {
   exampleData: ExampleRunData;
   repetitionNumber: number;
   setRepetitionNumber: (n: SetStateAction<number>) => void;
   totalRepetitions: number;
+  exampleId: string;
+  tableData: TableRow[];
+  setSelectedExampleIndex: (index: number) => void;
 }) {
   const { span, content, toolCalls, errorMessage, experimentRunId } =
     exampleData;
@@ -304,28 +317,28 @@ function ExampleOutputContent({
             setRepetitionNumber={setRepetitionNumber}
           />
         )}
-        <DialogTrigger>
-          <TooltipTrigger isDisabled={!hasExperimentRun}>
-            <IconButton
-              size="S"
-              aria-label="View experiment run details"
-              isDisabled={!hasExperimentRun}
-            >
-              <Icon svg={<Icons.ExpandOutline />} />
-            </IconButton>
-            <Tooltip>
-              <TooltipArrow />
-              view experiment run
-            </Tooltip>
-          </TooltipTrigger>
-          <ModalOverlay>
-            <Modal variant="slideover" size="L">
-              <PlaygroundExperimentRunDetailsDialog
-                runId={experimentRunId ?? ""}
-              />
-            </Modal>
-          </ModalOverlay>
-        </DialogTrigger>
+        <TooltipTrigger isDisabled={!hasExperimentRun}>
+          <IconButton
+            size="S"
+            aria-label="View experiment run details"
+            isDisabled={!hasExperimentRun}
+            onPress={() => {
+              // Find the row index for this example
+              const rowIndex = tableData.findIndex(
+                (row) => row.id === exampleId
+              );
+              if (rowIndex !== -1) {
+                setSelectedExampleIndex(rowIndex);
+              }
+            }}
+          >
+            <Icon svg={<Icons.ExpandOutline />} />
+          </IconButton>
+          <Tooltip>
+            <TooltipArrow />
+            view experiment run
+          </Tooltip>
+        </TooltipTrigger>
         <DialogTrigger
           onOpenChange={(open) => {
             if (!open) {
@@ -366,7 +379,6 @@ function ExampleOutputContent({
       </>
     );
   }, [
-    experimentRunId,
     hasExperimentRun,
     hasSpan,
     repetitionNumber,
@@ -374,6 +386,9 @@ function ExampleOutputContent({
     setSearchParams,
     span,
     totalRepetitions,
+    exampleId,
+    tableData,
+    setSelectedExampleIndex,
   ]);
 
   return (
@@ -431,12 +446,16 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   exampleId,
   instanceVariables,
   datasetExampleInput,
+  tableData,
+  setSelectedExampleIndex,
 }: {
   instanceId: number;
   exampleId: string;
   isRunning: boolean;
   instanceVariables: string[];
   datasetExampleInput: unknown;
+  tableData: TableRow[];
+  setSelectedExampleIndex: (index: number) => void;
 }) {
   const [repetitionNumber, setRepetitionNumber] = useState(1);
   const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
@@ -460,6 +479,9 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       repetitionNumber={repetitionNumber}
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}
+      exampleId={exampleId}
+      tableData={tableData}
+      setSelectedExampleIndex={setSelectedExampleIndex}
     />
   );
 });
@@ -545,6 +567,10 @@ export function PlaygroundDatasetExamplesTable({
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
+  const [selectedExampleIndex, setSelectedExampleIndex] = useState<
+    number | null
+  >(null);
+  const [dialog, setDialog] = useState<ReactNode>(null);
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
   );
@@ -839,19 +865,37 @@ export function PlaygroundDatasetExamplesTable({
     setRepetitions,
   ]);
 
+  // Extract experiment IDs from playground instances
+  const experimentIds = useMemo(() => {
+    return instances
+      .map((instance) => instance.experimentId)
+      .filter((id) => id != null) as string[];
+  }, [instances]);
+
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
       query PlaygroundDatasetExamplesTableQuery(
         $datasetId: ID!
         $splitIds: [ID!]
+        $experimentIds: [ID!]
       ) {
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
             @arguments(splitIds: $splitIds)
+          ... on Dataset {
+            experiments(filterIds: $experimentIds) {
+              edges {
+                experiment: node {
+                  id
+                  datasetVersionId
+                }
+              }
+            }
+          }
         }
       }
     `,
-    { datasetId, splitIds: splitIds ?? null }
+    { datasetId, splitIds: splitIds ?? null, experimentIds }
   );
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -903,7 +947,19 @@ export function PlaygroundDatasetExamplesTable({
       }),
     [data]
   );
-  type TableRow = (typeof tableData)[number];
+
+  const exampleIds = useMemo(() => {
+    return tableData.map((row) => row.id);
+  }, [tableData]);
+
+  // Extract dataset version ID from the first experiment
+  const datasetVersionId = useMemo(() => {
+    const experiments = dataset?.experiments?.edges;
+    if (experiments && experiments.length > 0) {
+      return experiments[0].experiment.datasetVersionId;
+    }
+    return "";
+  }, [dataset]);
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => {
@@ -932,13 +988,22 @@ export function PlaygroundDatasetExamplesTable({
               isRunning={hasSomeRunIds}
               instanceVariables={instanceVariables}
               datasetExampleInput={row.original.input}
+              tableData={tableData}
+              setSelectedExampleIndex={setSelectedExampleIndex}
             />
           );
         },
         size: 500,
       };
     });
-  }, [hasSomeRunIds, instances, templateFormat, allInstanceMessages]);
+  }, [
+    hasSomeRunIds,
+    instances,
+    templateFormat,
+    allInstanceMessages,
+    tableData,
+    setSelectedExampleIndex,
+  ]);
 
   const columns: ColumnDef<TableRow>[] = [
     {
@@ -1123,6 +1188,61 @@ export function PlaygroundDatasetExamplesTable({
           <TableBody table={table} virtualizer={virtualizer} />
         )}
       </table>
+      <ModalOverlay
+        isOpen={selectedExampleIndex !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedExampleIndex(null);
+          }
+        }}
+      >
+        <Modal variant="slideover" size="fullscreen">
+          {selectedExampleIndex !== null &&
+            exampleIds[selectedExampleIndex] &&
+            experimentIds.length > 0 && (
+              <ExperimentCompareDetailsDialog
+                datasetId={datasetId}
+                datasetVersionId={datasetVersionId}
+                selectedExampleIndex={selectedExampleIndex}
+                selectedExampleId={exampleIds[selectedExampleIndex]}
+                baseExperimentId={experimentIds[0]}
+                compareExperimentIds={experimentIds.slice(1)}
+                exampleIds={exampleIds}
+                onExampleChange={(exampleIndex) => {
+                  if (
+                    exampleIndex === exampleIds.length - 1 &&
+                    !isLoadingNext &&
+                    hasNext
+                  ) {
+                    loadNext(PAGE_SIZE);
+                  }
+                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
+                    setSelectedExampleIndex(exampleIndex);
+                  }
+                }}
+                openTraceDialog={(traceId, projectId, title) => {
+                  setDialog(
+                    <TraceDetailsDialog
+                      traceId={traceId}
+                      projectId={projectId}
+                      title={title}
+                    />
+                  );
+                }}
+              />
+            )}
+        </Modal>
+      </ModalOverlay>
+      <ModalOverlay
+        isOpen={!!dialog}
+        onOpenChange={() => {
+          setDialog(null);
+        }}
+      >
+        <Modal variant="slideover" size="fullscreen">
+          {dialog}
+        </Modal>
+      </ModalOverlay>
     </div>
   );
 }
