@@ -699,7 +699,6 @@ class DatasetExample(V1RoutesBaseModel):
     output: dict[str, Any]
     metadata: dict[str, Any]
     updated_at: datetime
-    splits: list[str] = UNDEFINED
 
 
 class ListDatasetExamplesData(V1RoutesBaseModel):
@@ -728,7 +727,7 @@ async def get_dataset_examples(
             "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
-    splits: Optional[list[str]] = Query(
+    split: Optional[list[str]] = Query(
         default=None,
         description="List of dataset split identifiers (GlobalIDs or names) to filter by",
     ),
@@ -809,34 +808,11 @@ async def get_dataset_examples(
 
         subquery = partial_subquery.subquery()
 
-        # Create aggregation function for split names (cross-database compatible)
-        dialect_name = session.bind.dialect.name
-        if dialect_name == "postgresql":
-            split_names_col = func.array_agg(models.DatasetSplit.name).label("split_names")
-        elif dialect_name == "sqlite":
-            split_names_col = func.json_group_array(models.DatasetSplit.name).label("split_names")
-        else:
-            raise NotImplementedError(f"Unsupported database dialect: {dialect_name}")
-
-        # Create subquery to aggregate split names per example
-        splits_subquery = (
-            select(
-                models.DatasetSplitDatasetExample.dataset_example_id,
-                split_names_col,
-            )
-            .join(
-                models.DatasetSplit,
-                models.DatasetSplitDatasetExample.dataset_split_id == models.DatasetSplit.id,
-            )
-            .group_by(models.DatasetSplitDatasetExample.dataset_example_id)
-        ).subquery()
-
         # Query for the most recent example revisions that are not deleted
         query = (
             select(
                 models.DatasetExample,
                 models.DatasetExampleRevision,
-                splits_subquery.c.split_names,
             )
             .join(
                 models.DatasetExampleRevision,
@@ -846,10 +822,6 @@ async def get_dataset_examples(
                 subquery,
                 (subquery.c.max_id == models.DatasetExampleRevision.id),
             )
-            .outerjoin(
-                splits_subquery,
-                models.DatasetExample.id == splits_subquery.c.dataset_example_id,
-            )
             .filter(models.DatasetExample.dataset_id == resolved_dataset_id)
             .filter(models.DatasetExampleRevision.revision_kind != "DELETE")
             .order_by(models.DatasetExample.id.asc())
@@ -857,10 +829,10 @@ async def get_dataset_examples(
 
         # If splits are provided, filter by dataset splits
         resolved_split_names: list[str] = []
-        if splits:
+        if split:
             # Resolve split identifiers (IDs or names) to IDs and names
             resolved_split_ids, resolved_split_names = await _resolve_split_identifiers(
-                session, splits
+                session, split
             )
 
             # Add filter for splits (join with the association table)
@@ -876,13 +848,8 @@ async def get_dataset_examples(
                 output=revision.output,
                 metadata=revision.metadata_,
                 updated_at=revision.created_at,
-                splits=(
-                    split_names
-                    if isinstance(split_names, list)
-                    else (json.loads(split_names) if split_names else [])
-                ),
             )
-            async for example, revision, split_names in await session.stream(query)
+            async for example, revision in await session.stream(query)
         ]
     return ListDatasetExamplesResponseBody(
         data=ListDatasetExamplesData(

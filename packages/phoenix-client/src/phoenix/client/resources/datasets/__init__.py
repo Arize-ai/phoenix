@@ -498,9 +498,9 @@ class Datasets:
             {"version_id": version_id} if version_id else {}
         )
         if splits and len(splits) > 0:
-            params["splits"] = splits
+            params["split"] = splits
         examples_response = self._client.get(
-            url=f"v1/datasets/{quote(dataset_id)}/examples",
+            url=f"v1/datasets/{quote(dataset_id)}/examples",  # ?version_id=...&split=...&split=...
             params=params,
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -1204,7 +1204,7 @@ class AsyncDatasets:
             {"version_id": version_id} if version_id else {}
         )
         if splits and len(splits) > 0:
-            params["splits"] = splits
+            params["split"] = splits
         examples_response = await self._client.get(
             url=f"v1/datasets/{quote(dataset_id)}/examples",
             params=params,
