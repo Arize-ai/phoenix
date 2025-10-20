@@ -986,7 +986,7 @@ export function ExperimentRunAnnotations({
         const annotation = experimentRun.annotations?.edges.find(
           (edge) => edge.annotation.name === annotationSummary.annotationName
         )?.annotation;
-        return annotation ? (
+        return (
           <li
             key={annotationSummary.annotationName}
             css={css`
@@ -997,20 +997,10 @@ export function ExperimentRunAnnotations({
             `}
           >
             <ExperimentRunAnnotation
-              annotation={annotation}
+              annotation={annotation ?? null}
               annotationSummary={annotationSummary}
             />
           </li>
-        ) : (
-          // placeholder to ensure alignment when some experiments are missing annotations
-          <li
-            key={annotationSummary.annotationName}
-            aria-hidden="true"
-            css={css`
-              height: var(--ac-global-dimension-size-350);
-              grid-column: 1 / -1;
-            `}
-          />
         );
       })}
     </ul>
@@ -1021,31 +1011,43 @@ function ExperimentRunAnnotationButton({
   annotation,
   annotationSummary,
 }: {
-  annotation: Annotation;
+  annotation: Annotation | null;
   annotationSummary: AnnotationSummaries[number];
 }) {
-  const annotationColor = useWordColor(annotation.name);
+  const annotationColor = useWordColor(annotationSummary.annotationName);
   const labelValue =
-    annotation.score != null
-      ? formatFloat(annotation.score)
-      : annotation.label || "--";
+    annotation?.score != null
+      ? formatFloat(annotation?.score)
+      : annotation?.label || "--";
+
+  const WrapperElement = annotation
+    ? AriaButton // using AriaButton to ensure the popover works
+    : "div";
+
+  const ghostAnnotationCss = css`
+    opacity: 0.25;
+    pointer-events: none;
+  `;
 
   return (
-    <AriaButton // using AriaButton to ensure the popover works
+    <WrapperElement
       className="button--reset"
-      css={css`
-        cursor: pointer;
-        padding: var(--ac-global-dimension-size-50)
-          var(--ac-global-dimension-size-100);
-        border-radius: var(--ac-global-rounding-small);
-        width: 100%;
-        display: grid;
-        grid-template-columns: subgrid;
-        grid-column: 1 / -2;
-        &:hover {
-          background-color: var(--ac-global-color-grey-200);
-        }
-      `}
+      css={[
+        css`
+          cursor: pointer;
+          padding: var(--ac-global-dimension-size-50)
+            var(--ac-global-dimension-size-100);
+          border-radius: var(--ac-global-rounding-small);
+          width: 100%;
+          display: grid;
+          grid-template-columns: subgrid;
+          grid-column: 1 / -2;
+          &:hover {
+            background-color: var(--ac-global-color-grey-200);
+          }
+        `,
+        !annotation && ghostAnnotationCss,
+      ]}
     >
       <Flex
         direction="row"
@@ -1060,11 +1062,15 @@ function ExperimentRunAnnotationButton({
             flex: none;
           `}
         >
-          <AnnotationColorSwatch annotationName={annotation.name} />
+          <AnnotationColorSwatch
+            annotationName={annotationSummary.annotationName}
+          />
         </span>
 
         <Text color="inherit" minWidth={0}>
-          <Truncate maxWidth="100%">{annotation.name}</Truncate>
+          <Truncate maxWidth="100%">
+            {annotationSummary.annotationName}
+          </Truncate>
         </Text>
       </Flex>
 
@@ -1072,25 +1078,21 @@ function ExperimentRunAnnotationButton({
         <Truncate maxWidth="100%">{labelValue}</Truncate>
       </Text>
 
-      {annotation.score != null ? (
-        <ProgressBar
-          css={css`
-            align-self: center;
-            --mod-barloader-fill-color: ${annotationColor};
-          `}
-          value={calculateAnnotationScorePercentile(
-            annotation.score,
-            annotationSummary.minScore,
-            annotationSummary.maxScore
-          )}
-          height="var(--ac-global-dimension-size-50)"
-          width="100%"
-          aria-label={`${annotation.name} score`}
-        />
-      ) : (
-        <div /> // placeholder for grid layout
-      )}
-    </AriaButton>
+      <ProgressBar
+        css={css`
+          align-self: center;
+          --mod-barloader-fill-color: ${annotationColor};
+        `}
+        value={calculateAnnotationScorePercentile(
+          annotation?.score ?? 0,
+          annotationSummary.minScore,
+          annotationSummary.maxScore
+        )}
+        height="var(--ac-global-dimension-size-50)"
+        width="100%"
+        aria-label={`${annotationSummary.annotationName} score`}
+      />
+    </WrapperElement>
   );
 }
 
@@ -1098,49 +1100,56 @@ function ExperimentRunAnnotation({
   annotation,
   annotationSummary,
 }: {
-  annotation: Annotation;
+  annotation: Annotation | null;
   annotationSummary: AnnotationSummaries[number];
 }) {
   const { openTraceDialog } = useExperimentCompareDetailsContext();
-  const traceId = annotation.trace?.traceId;
-  const projectId = annotation.trace?.projectId;
+  const traceId = annotation?.trace?.traceId;
+  const projectId = annotation?.trace?.projectId;
   const hasTrace = traceId != null && projectId != null;
   return (
     <>
-      <DialogTrigger>
+      {annotation ? (
+        <DialogTrigger>
+          <ExperimentRunAnnotationButton
+            annotation={annotation}
+            annotationSummary={annotationSummary}
+          />
+          <Popover placement="top">
+            <PopoverArrow />
+            <Dialog style={{ width: 400 }}>
+              <View padding="size-200">
+                <AnnotationDetailsContent annotation={annotation} />
+              </View>
+            </Dialog>
+          </Popover>
+        </DialogTrigger>
+      ) : (
         <ExperimentRunAnnotationButton
           annotation={annotation}
           annotationSummary={annotationSummary}
         />
-        <Popover placement="top">
-          <PopoverArrow />
-          <Dialog style={{ width: 400 }}>
-            <View padding="size-200">
-              <AnnotationDetailsContent annotation={annotation} />
-            </View>
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
-      {hasTrace ? (
-        <TooltipTrigger>
-          <IconButton
-            size="S"
-            aria-label="View evaluation trace"
-            onPress={() => {
-              openTraceDialog(
-                traceId,
-                projectId,
-                `Evaluator Trace: ${annotation.name}`
-              );
-            }}
-          >
-            <Icon svg={<Icons.Trace />} />
-          </IconButton>
-          <Tooltip>View evaluation trace</Tooltip>
-        </TooltipTrigger>
-      ) : (
-        <div /> // placeholder for grid layout
       )}
+      <TooltipTrigger>
+        <IconButton
+          size="S"
+          isDisabled={!hasTrace}
+          aria-label="View evaluation trace"
+          onPress={() => {
+            if (!hasTrace) {
+              return;
+            }
+            openTraceDialog(
+              traceId,
+              projectId,
+              `Evaluator Trace: ${annotationSummary.annotationName}`
+            );
+          }}
+        >
+          <Icon svg={<Icons.Trace />} />
+        </IconButton>
+        <Tooltip>View evaluation trace</Tooltip>
+      </TooltipTrigger>
     </>
   );
 }
