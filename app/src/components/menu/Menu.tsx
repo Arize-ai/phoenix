@@ -117,7 +117,15 @@ export const MenuTriggerPlaceholder = ({
   children: React.ReactNode;
 }) => {
   return (
-    <Text color="grey-400" fontStyle="italic">
+    <Text
+      color="grey-400"
+      fontStyle="italic"
+      css={css`
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      `}
+    >
       {children}
     </Text>
   );

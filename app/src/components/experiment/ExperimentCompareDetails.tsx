@@ -522,15 +522,15 @@ function ExperimentRunOutputsSidebar() {
                   flex: 0 1 auto;
                 `}
               >
-                <Truncate maxWidth="100%">
-                  {selectedAnnotation ? (
+                {selectedAnnotation ? (
+                  <Truncate maxWidth="100%">
                     <Text>{selectedAnnotation}</Text>
-                  ) : (
-                    <MenuTriggerPlaceholder>
-                      No annotation
-                    </MenuTriggerPlaceholder>
-                  )}
-                </Truncate>
+                  </Truncate>
+                ) : (
+                  <MenuTriggerPlaceholder>
+                    Sort by annotation
+                  </MenuTriggerPlaceholder>
+                )}
                 <SelectChevronUpDownIcon />
               </Button>
               <Popover>
