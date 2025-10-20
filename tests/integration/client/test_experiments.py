@@ -1714,8 +1714,8 @@ class TestEvaluateExperiment:
         assert len(full_dataset_no_filter) == 4, (
             f"Expected all 4 examples with no filter, got {len(full_dataset_no_filter)}"
         )
-        assert full_dataset_no_filter._filtered_splits == [], (
-            f"Expected empty split_names with no filter, got {full_dataset_no_filter._filtered_splits}"
+        assert full_dataset_no_filter._filtered_split_names == [], (
+            f"Expected empty split_names with no filter, got {full_dataset_no_filter._filtered_split_names}"
         )
 
         # Verify all original example IDs are present
@@ -1797,8 +1797,8 @@ class TestEvaluateExperiment:
         assert len(train_dataset) == 2, (
             f"Expected 2 examples in train split, got {len(train_dataset)}"
         )
-        assert train_split_name in train_dataset._filtered_splits, (
-            "Train split name should be in dataset._filtered_splits"
+        assert train_split_name in train_dataset._filtered_split_names, (
+            "Train split name should be in dataset._filtered_split_names"
         )
 
         # Run experiment on the filtered train dataset
@@ -1870,8 +1870,8 @@ class TestEvaluateExperiment:
         assert len(both_splits_dataset) == 4, (
             f"Expected 4 examples with both splits, got {len(both_splits_dataset)}"
         )
-        assert train_split_name in both_splits_dataset._filtered_splits
-        assert test_split_name in both_splits_dataset._filtered_splits
+        assert train_split_name in both_splits_dataset._filtered_split_names
+        assert test_split_name in both_splits_dataset._filtered_split_names
 
         # Run experiment on dataset with both splits
         multi_split_result = await _await_or_return(

@@ -91,7 +91,7 @@ class Dataset:
         return self._examples_data["version_id"]
 
     @property
-    def _filtered_splits(self) -> list[str]:
+    def _filtered_split_names(self) -> list[str]:
         """The dataset split names."""
         return list(self._examples_data.get("filtered_splits", []))
 
@@ -214,8 +214,8 @@ class Dataset:
         }
 
         # Include filtered_splits if present (optional field for backwards compatibility)
-        if self._filtered_splits:
-            result["filtered_splits"] = self._filtered_splits
+        if self._filtered_split_names:
+            result["filtered_splits"] = self._filtered_split_names
 
         return result
 
