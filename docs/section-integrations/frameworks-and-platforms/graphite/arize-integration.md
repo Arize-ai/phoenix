@@ -419,7 +419,7 @@ Never hardcode API keys. Use environment variables or secret management:
 import os
 
 # Good: Use environment variables
-os.environ["ARIZE_API_KEY"] = os.getenv("ARIZE_API_KEY")
+api_key = os.getenv("ARIZE_API_KEY")
 
 # Bad: Never hardcode
 # os.environ["ARIZE_API_KEY"] = "hardcoded-key"
