@@ -362,13 +362,11 @@ export function ExperimentRunOutputs() {
           <ul
             css={css`
               flex: 1;
-              display: flex;
-              flex-direction: row;
-              justify-content: flex-start;
-              align-items: flex-start;
-              flex-wrap: none;
-              gap: var(--ac-global-dimension-static-size-200);
               overflow: auto;
+              display: grid;
+              grid-auto-flow: column;
+              align-items: stretch;
+              gap: var(--ac-global-dimension-static-size-200);
               padding: var(--ac-global-dimension-static-size-200);
             `}
           >
@@ -813,6 +811,7 @@ const experimentItemCSS = css`
   box-shadow: 0px 8px 8px rgba(0 0 0 / 0.05);
   width: var(--ac-global-dimension-static-size-6000);
   overflow: hidden;
+  height: 100%;
 `;
 
 /**
@@ -848,7 +847,7 @@ export function ExperimentItem({
   const hasTrace = traceId != null && projectId != null;
   return (
     <div css={experimentItemCSS}>
-      <Flex direction="column">
+      <Flex direction="column" height="100%">
         <View paddingX="size-200" paddingTop="size-200" flex="none">
           <Flex direction="row" gap="size-100" alignItems="center">
             <span
@@ -936,7 +935,7 @@ export function ExperimentItem({
                   {experimentRepetition.experimentRun.error}
                 </View>
               ) : (
-                <JSONBlock value={experimentRunOutputStr} />
+                <FullSizeJSONBlock value={experimentRunOutputStr ?? ""} />
               )}
             </View>
           </>
