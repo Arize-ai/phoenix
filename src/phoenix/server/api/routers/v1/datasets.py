@@ -836,10 +836,17 @@ async def get_dataset_examples(
             )
 
             # Add filter for splits (join with the association table)
-            query = query.join(
-                models.DatasetSplitDatasetExample,
-                models.DatasetExample.id == models.DatasetSplitDatasetExample.dataset_example_id,
-            ).filter(models.DatasetSplitDatasetExample.dataset_split_id.in_(resolved_split_ids))
+            # Use distinct() to prevent duplicates when an example belongs to
+            # multiple splits
+            query = (
+                query.join(
+                    models.DatasetSplitDatasetExample,
+                    models.DatasetExample.id
+                    == models.DatasetSplitDatasetExample.dataset_example_id,
+                )
+                .filter(models.DatasetSplitDatasetExample.dataset_split_id.in_(resolved_split_ids))
+                .distinct()
+            )
 
         examples = [
             DatasetExample(
