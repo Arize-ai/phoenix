@@ -41,10 +41,20 @@
                 "group": " ",
                 "pages": [
                   "phoenix",
-                  "phoenix/quickstart",
+                  {
+                    "group": "Get Started",
+                    "pages": [
+                      "phoenix/get-started/overview-get-started",
+                      "phoenix/get-started/get-started-tracing",
+                      "phoenix/get-started/get-started-evaluations",
+                      "phoenix/get-started/get-started-datasets-and-experiments",
+                      "phoenix/get-started/get-started-prompt-playground"
+                    ]
+                  },
                   "phoenix/user-guide",
                   "phoenix/environments",
                   "phoenix/phoenix-demo",
+                  "phoenix/end-to-end-features-notebook",
                   "phoenix/production-guide"
                 ]
               },
@@ -62,15 +72,7 @@
                       "phoenix/tracing/llm-traces/metrics"
                     ]
                   },
-                  {
-                    "group": "Quickstart: Tracing",
-                    "pages": [
-                      "phoenix/tracing/llm-traces-1",
-                      "phoenix/tracing/llm-traces-1/quickstart-tracing-python",
-                      "phoenix/tracing/llm-traces-1/quickstart-tracing-ts"
-                    ]
-                  },
-                  "phoenix/tracing/features-tracing",
+                  "phoenix/get-started/get-started-tracing",
                   {
                     "group": "How-to: Tracing",
                     "pages": [
@@ -131,7 +133,6 @@
                   {
                     "group": "Concepts: Tracing",
                     "pages": [
-                      "phoenix/tracing/concepts-tracing",
                       "phoenix/tracing/concepts-tracing/what-are-traces",
                       "phoenix/tracing/concepts-tracing/how-tracing-works",
                       "phoenix/tracing/concepts-tracing/annotations-concepts",
@@ -145,7 +146,7 @@
                 "icon": "code",
                 "pages": [
                   {
-                    "group": "Prompt Management",
+                    "group": "Overview: Prompts",
                     "pages": [
                       "phoenix/prompt-engineering/overview-prompts",
                       "phoenix/prompt-engineering/overview-prompts/prompt-management",
@@ -154,15 +155,7 @@
                       "phoenix/prompt-engineering/overview-prompts/prompts-in-code"
                     ]
                   },
-                  {
-                    "group": "Quickstart: Prompts",
-                    "pages": [
-                      "phoenix/prompt-engineering/quickstart-prompts",
-                      "phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ui",
-                      "phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-python",
-                      "phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ts"
-                    ]
-                  },
+                  "phoenix/get-started/get-started-prompt-playground",
                   {
                     "group": "How to: Prompts",
                     "pages": [
@@ -174,6 +167,13 @@
                       "phoenix/prompt-engineering/how-to-prompts/tag-a-prompt",
                       "phoenix/prompt-engineering/how-to-prompts/using-a-prompt"
                     ]
+                  },
+                  {
+                    "group": "Concepts: Prompts",
+                    "pages": [
+                      "phoenix/prompt-engineering/concepts-prompts/prompts-concepts",
+                      "phoenix/prompt-engineering/concepts-prompts/context-engineering-basics"
+                    ]
                   }
                 ]
               },
@@ -182,7 +182,7 @@
                 "icon": "flask",
                 "pages": [
                   "phoenix/datasets-and-experiments/overview-datasets",
-                  "phoenix/datasets-and-experiments/quickstart-datasets",
+                  "phoenix/get-started/get-started-datasets-and-experiments",
                   {
                     "group": "How-to: Datasets",
                     "pages": [
@@ -215,11 +215,10 @@
                       "phoenix/evaluation/llm-evals/evaluator-traces"
                     ]
                   },
-                  "phoenix/evaluation/evals",
+                  "phoenix/get-started/get-started-evaluations",
                   {
                     "group": "Concepts: Evals",
                     "pages": [
-                      "phoenix/evaluation/concepts-evals",
                       "phoenix/evaluation/concepts-evals/llm-as-a-judge",
                       "phoenix/evaluation/concepts-evals/evaluators",
                       "phoenix/evaluation/concepts-evals/input-mapping"
@@ -350,9 +349,9 @@
                 "icon": "gear",
                 "pages": [
                   "phoenix/cookbook/ai-engineering-workflows/llm-ops-overview",
-                  "/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
-                  "/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
-                  "/phoenix/cookbook/prompt-engineering/prompt-optimization"
+                  "phoenix/cookbook/ai-engineering-workflows/write-your-first-custom-eval",
+                  "phoenix/cookbook/ai-engineering-workflows/aligning-evals-with-human-feedback",
+                  "phoenix/cookbook/ai-engineering-workflows/prompt-optimization-techniques"          
                 ]
               },
               {
@@ -392,11 +391,12 @@
                 "group": "Evaluation",
                 "icon": "clipboard-check",
                 "pages": [
-                  "phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent",
-                  "phoenix/cookbook/datasets-and-experiments/model-comparison-for-an-email-text-extraction-service",
-                  "phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
-                  "phoenix/cookbook/datasets-and-experiments/summarization",
-                  "phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments",
+                  "/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
+                  "/phoenix/cookbook/evaluation/evaluate-an-agent",
+                  "/phoenix/cookbook/evaluation/evaluate-rag",
+                  "/phoenix/cookbook/evaluation/code-readability-evaluation",
+                  "phoenix/cookbook/evaluation/relevance-classification-evaluation",
+                  "phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
                   "phoenix/cookbook/evaluation/cookbooks"
                 ]
               },
@@ -404,11 +404,12 @@
                 "group": "Datasets & Experiments",
                 "icon": "flask",
                 "pages": [
-                  "phoenix/cookbook/datasets-and-experiments/summarization",
-                  "phoenix/cookbook/datasets-and-experiments/text2sql",
-                  "phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
+                  "phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments",
                   "phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent",
                   "phoenix/cookbook/datasets-and-experiments/model-comparison-for-an-email-text-extraction-service",
+                  "phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
+                  "phoenix/cookbook/datasets-and-experiments/summarization",
+                  "phoenix/cookbook/datasets-and-experiments/text2sql",
                   "phoenix/cookbook/datasets-and-experiments/cookbooks"
                 ]
               },
@@ -787,11 +788,9 @@
                   {
                     "group": "API Reference",
                     "pages": [
-                      "phoenix/sdk-api-reference/rest-api/api-reference",
                       {
                         "group": "Annotation Configs",
                         "pages": [
-                          "phoenix/sdk-api-reference/rest-api/api-reference/annotationconfig",
                           "phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations",
                           "phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/create-an-annotation-configuration",
                           "phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/get-an-annotation-configuration-by-id-or-name",
@@ -802,14 +801,12 @@
                       {
                         "group": "Annotations",
                         "pages": [
-                          "phoenix/sdk-api-reference/rest-api/api-reference/annotations",
                           "phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids"
                         ]
                       },
                       {
                         "group": "Datasets",
                         "pages": [
-                          "phoenix/sdk-api-reference/rest-api/api-reference/datasets",
                           "phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets",
                           "phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-dataset-by-id",
                           "phoenix/sdk-api-reference/rest-api/api-reference/datasets/delete-dataset-by-id",
@@ -824,7 +821,6 @@
                       {
                         "group": "Experiments",
                         "pages": [
-                          "phoenix/sdk-api-reference/rest-api/api-reference/experiments",
                           "phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset",
                           "phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-experiment-on-a-dataset",
                           "phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id",
@@ -838,7 +834,6 @@
                       {
                         "group": "Traces",
                         "pages": [
-                          "phoenix/sdk-api-reference/rest-api/api-reference/traces",
                           "phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier",
                           "phoenix/sdk-api-reference/rest-api/api-reference/traces/get-span-trace-or-document-evaluations-from-a-project",
                           "phoenix/sdk-api-reference/rest-api/api-reference/traces/add-span-trace-or-document-evaluations"
@@ -847,7 +842,6 @@
                       {
                         "group": "Spans",
                         "pages": [
-                          "phoenix/sdk-api-reference/rest-api/api-reference/spans",
                           "phoenix/sdk-api-reference/rest-api/api-reference/spans/search-spans-with-simple-filters-no-dsl",
                           "phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl",
                           "phoenix/sdk-api-reference/rest-api/api-reference/spans/create-spans",
@@ -858,7 +852,6 @@
                       {
                         "group": "Prompts",
                         "pages": [
-                          "phoenix/sdk-api-reference/rest-api/api-reference/prompts",
                           "phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-all-prompts",
                           "phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt",
                           "phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions",
@@ -872,7 +865,6 @@
                       {
                         "group": "Projects",
                         "pages": [
-                          "phoenix/sdk-api-reference/rest-api/api-reference/projects",
                           "phoenix/sdk-api-reference/rest-api/api-reference/projects/list-all-projects",
                           "phoenix/sdk-api-reference/rest-api/api-reference/projects/create-a-new-project",
                           "phoenix/sdk-api-reference/rest-api/api-reference/projects/get-project-by-id-or-name",
@@ -883,7 +875,6 @@
                       {
                         "group": "Users",
                         "pages": [
-                          "phoenix/sdk-api-reference/rest-api/api-reference/users",
                           "phoenix/sdk-api-reference/rest-api/api-reference/users/list-all-users",
                           "phoenix/sdk-api-reference/rest-api/api-reference/users/create-a-new-user",
                           "phoenix/sdk-api-reference/rest-api/api-reference/users/delete-a-user-by-id"
@@ -973,7 +964,6 @@
                   {
                     "group": "09.2025",
                     "pages": [
-                      "phoenix/release-notes/09-2025",
                       "phoenix/release-notes/09-2025/09-29-2025-day-0-support-for-claude-sonnet-4.5",
                       "phoenix/release-notes/09-2025/09-27-2025-dataset-splits",
                       "phoenix/release-notes/09-2025/09-26-2025-session-annotations",
@@ -992,7 +982,6 @@
                   {
                     "group": "08.2025",
                     "pages": [
-                      "phoenix/release-notes/08-2025",
                       "phoenix/release-notes/08-2025/08-28-2025-new-arize-phoenix-client-package",
                       "phoenix/release-notes/08-2025/08-22-2025-new-trace-timeline-view",
                       "phoenix/release-notes/08-2025/08-20-2025-new-experiment-and-annotation-quick-filters",
@@ -1010,7 +999,6 @@
                   {
                     "group": "07.2025",
                     "pages": [
-                      "phoenix/release-notes/07-2025",
                       "phoenix/release-notes/07-2025/07-29-2025-google-genai-evals",
                       "phoenix/release-notes/07-2025/07-25-2025-project-dashboards",
                       "phoenix/release-notes/07-2025/07-25-2025-average-metrics-in-experiment-comparison-table",
@@ -1026,7 +1014,6 @@
                   {
                     "group": "06.2025",
                     "pages": [
-                      "phoenix/release-notes/06-2025",
                       "phoenix/release-notes/06-2025/06-25-2025-cost-tracking",
                       "phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
                       "phoenix/release-notes/06-2025/06-25-2025-amazon-bedrock-support-in-playground",
@@ -1041,7 +1028,6 @@
                   {
                     "group": "05.2025",
                     "pages": [
-                      "phoenix/release-notes/05-2025",
                       "phoenix/release-notes/05-2025/05-30-2025-xai-and-deepseek-support-in-playground",
                       "phoenix/release-notes/05-2025/05-20-2025-datasets-and-experiment-evaluations-in-the-js-client",
                       "phoenix/release-notes/05-2025/05-14-2025-experiments-in-the-js-client",
@@ -1052,7 +1038,6 @@
                   {
                     "group": "04.2025",
                     "pages": [
-                      "phoenix/release-notes/04-2025",
                       "phoenix/release-notes/04-2025/04-30-2025-span-querying-and-data-extraction-for-phoenix-client",
                       "phoenix/release-notes/04-2025/04-28-2025-tls-support-for-phoenix-server",
                       "phoenix/release-notes/04-2025/04-28-2025-improved-shutdown-handling",
@@ -1070,7 +1055,6 @@
                   {
                     "group": "03.2025",
                     "pages": [
-                      "phoenix/release-notes/03-2025",
                       "phoenix/release-notes/03-2025/03-27-2025-span-view-improvements",
                       "phoenix/release-notes/03-2025/03-24-2025-tracing-configuration-tab",
                       "phoenix/release-notes/03-2025/03-21-2025-environment-variable-based-admin-user-configuration",
@@ -1086,7 +1070,6 @@
                   {
                     "group": "02.2025",
                     "pages": [
-                      "phoenix/release-notes/02-2025",
                       "phoenix/release-notes/02-2025/02-19-2025-prompts",
                       "phoenix/release-notes/02-2025/02-18-2025-one-line-instrumentation"
                     ]
@@ -1094,14 +1077,12 @@
                   {
                     "group": "01.2025",
                     "pages": [
-                      "phoenix/release-notes/01-2025",
                       "phoenix/release-notes/01-2025/01-18-2025-automatic-and-manual-span-tracing"
                     ]
                   },
                   {
                     "group": "2024",
                     "pages": [
-                      "phoenix/release-notes/2024",
                       "phoenix/release-notes/2024/12-09-2024-sessions",
                       "phoenix/release-notes/2024/11-18-2024-prompt-playground",
                       "phoenix/release-notes/2024/09-26-2024-authentication-and-rbac",

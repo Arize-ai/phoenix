@@ -13,3 +13,7 @@
 table {
   display: table !important;
 }
+
+.step-title {
+  font-size: 1.5rem !important;
+}
