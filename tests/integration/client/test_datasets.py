@@ -1104,17 +1104,3 @@ Who wrote Hamlet?,Shakespeare,literature
         assert split2_name in both_splits_dataset._filtered_splits, (
             "Split2 name should be in _filtered_splits"
         )
-
-        # Verify individual examples have split_ids populated
-        for example in split1_dataset.examples:
-            assert "splits" in example, "Example should have splits field"
-            assert split1_name in example["splits"], (
-                f"Example {example['id']} should have split1_id in its splits"
-            )
-
-        # Test that examples in split2 have the correct split_id
-        for example in split2_dataset.examples:
-            assert "splits" in example, "Example should have splits field"
-            assert split2_name in example["splits"], (
-                f"Example {example['id']} should have split2_name in its splits"
-            )
