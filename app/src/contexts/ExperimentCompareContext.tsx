@@ -18,6 +18,7 @@ type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
 >["edges"][number]["run"];
 
+// ExperimentRepetition is a repetition that may or may not have an associated experiment run
 type ExperimentRepetition = {
   experimentId: string;
   repetitionNumber: number;
@@ -54,8 +55,6 @@ interface ExperimentCompareContextType {
   // Sorting state
   selectedAnnotation: string | null;
   setSelectedAnnotation: (annotation: string | null) => void;
-  sortBy: "repetitionNumber" | "annotation";
-  setSortBy: (sortBy: "repetitionNumber" | "annotation") => void;
   sortDirection: "asc" | "desc";
   toggleSortDirection: () => void;
   // Computed state
@@ -143,9 +142,6 @@ export function ExperimentCompareDetailsProvider({
   const [selectedAnnotation, setSelectedAnnotation] = useState<string | null>(
     null
   );
-  const [sortBy, setSortBy] = useState<"repetitionNumber" | "annotation">(
-    "repetitionNumber"
-  );
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const toggleSortDirection = useCallback(() => {
@@ -160,14 +156,13 @@ export function ExperimentCompareDetailsProvider({
       const allRepetitions = Object.values(
         experimentRepetitionsByExperimentId
       ).flat();
-      const allRepetitionsSorted =
-        selectedAnnotation && sortBy === "annotation"
-          ? sortRepetitionsByAnnotation(
-              allRepetitions,
-              selectedAnnotation,
-              sortDirection
-            )
-          : sortRepetitionsByRepetitionNumber(allRepetitions, sortDirection);
+      const allRepetitionsSorted = selectedAnnotation
+        ? sortRepetitionsByAnnotation(
+            allRepetitions,
+            selectedAnnotation,
+            sortDirection
+          )
+        : allRepetitions;
       return allRepetitionsSorted.map((repetition) => ({
         experimentId: repetition.experimentId,
         experimentRepetitions: [repetition],
@@ -176,17 +171,13 @@ export function ExperimentCompareDetailsProvider({
     return experimentIds.map((experimentId) => {
       const experimentRepetitions =
         experimentRepetitionsByExperimentId[experimentId];
-      const experimentRepetitionsSorted =
-        selectedAnnotation && sortBy === "annotation"
-          ? sortRepetitionsByAnnotation(
-              experimentRepetitions,
-              selectedAnnotation,
-              sortDirection
-            )
-          : sortRepetitionsByRepetitionNumber(
-              experimentRepetitions,
-              sortDirection
-            );
+      const experimentRepetitionsSorted = selectedAnnotation
+        ? sortRepetitionsByAnnotation(
+            experimentRepetitions,
+            selectedAnnotation,
+            sortDirection
+          )
+        : experimentRepetitions;
       return {
         experimentId,
         experimentRepetitions: experimentRepetitionsSorted,
@@ -198,7 +189,6 @@ export function ExperimentCompareDetailsProvider({
     selectedAnnotation,
     includeRepetitions,
     sortDirection,
-    sortBy,
   ]);
 
   const noRunsSelected = useMemo(
@@ -220,8 +210,6 @@ export function ExperimentCompareDetailsProvider({
     toggleAllRepetitionsSelection,
     selectedAnnotation,
     setSelectedAnnotation,
-    sortBy,
-    setSortBy,
     sortDirection,
     toggleSortDirection,
     sortedExperimentRepetitions,
@@ -301,13 +289,6 @@ function sortRepetitionsByAnnotation(
     },
     sortDirection
   );
-}
-
-function sortRepetitionsByRepetitionNumber(
-  experimentRepetitions: ExperimentRepetition[],
-  sortDirection: "asc" | "desc"
-): ExperimentRepetition[] {
-  return orderBy(experimentRepetitions, "repetitionNumber", sortDirection);
 }
 
 export function areAllExperimentRunsSelected(

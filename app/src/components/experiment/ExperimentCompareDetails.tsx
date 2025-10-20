@@ -459,8 +459,6 @@ function ExperimentRunOutputsSidebar() {
     selectedAnnotation,
     setSelectedAnnotation,
     toggleSortDirection,
-    sortBy,
-    setSortBy,
   } = useExperimentCompareDetailsContext();
 
   const experimentIds = useMemo(
@@ -497,53 +495,13 @@ function ExperimentRunOutputsSidebar() {
         alignItems="center"
         justifyContent="space-between"
       >
-        <Flex direction="row" gap="size-50" alignItems="center">
-          <Checkbox
-            isSelected={allRepetitionsSelected}
-            isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
-            onChange={(checked) => toggleAllRepetitionsSelection(checked)}
-          />
-          <Flex
-            direction="row"
-            gap="size-50"
-            alignItems="center"
-            marginStart="size-50"
-            css={css`
-              &:hover {
-                .experiment-run-outputs-sidebar-sort-button {
-                  opacity: 1;
-                }
-              }
-            `}
-          >
-            <Text>Repetition</Text>
-            <IconButton
-              size="S"
-              aria-label={
-                sortBy === "repetitionNumber"
-                  ? "Change sort direction"
-                  : "Sort by repetition number"
-              }
-              onPress={
-                sortBy === "repetitionNumber"
-                  ? toggleSortDirection
-                  : () => {
-                      setSortBy("repetitionNumber");
-                    }
-              }
-              className="experiment-run-outputs-sidebar-sort-button"
-              css={css`
-                flex: none;
-                opacity: ${sortBy === "repetitionNumber" ? 1 : 0};
-                color: ${sortBy === "repetitionNumber"
-                  ? "var(--ac-global-color-grey-700)"
-                  : "var(--ac-global-color-grey-500)"};
-              `}
-            >
-              <Icon svg={<Icons.ArrowUpDown />} />
-            </IconButton>
-          </Flex>
-        </Flex>
+        <Checkbox
+          isSelected={allRepetitionsSelected}
+          isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
+          onChange={(checked) => toggleAllRepetitionsSelection(checked)}
+        >
+          <Text>Select all</Text>
+        </Checkbox>
         {annotationSummaries.length > 0 && (
           <Flex
             direction="row"
@@ -551,11 +509,6 @@ function ExperimentRunOutputsSidebar() {
             css={css`
               overflow: hidden;
               padding: var(--ac-global-dimension-size-25);
-              &:hover {
-                .experiment-run-outputs-sidebar-sort-button {
-                  opacity: ${selectedAnnotation ? 1 : 0};
-                }
-              }
             `}
           >
             <MenuTrigger
@@ -604,17 +557,9 @@ function ExperimentRunOutputsSidebar() {
               <IconButton
                 size="S"
                 aria-label="Change sort direction"
-                onPress={
-                  sortBy === "annotation"
-                    ? toggleSortDirection
-                    : () => {
-                        setSortBy("annotation");
-                      }
-                }
-                className="experiment-run-outputs-sidebar-sort-button"
+                onPress={toggleSortDirection}
                 css={css`
                   flex: none;
-                  opacity: ${sortBy === "annotation" ? 1 : 0};
                 `}
               >
                 <Icon svg={<Icons.ArrowUpDown />} />
