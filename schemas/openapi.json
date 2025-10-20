@@ -1263,7 +1263,7 @@
             "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
           },
           {
-            "name": "splits",
+            "name": "split",
             "in": "query",
             "required": false,
             "schema": {
@@ -1279,7 +1279,7 @@
                 }
               ],
               "description": "List of dataset split identifiers (GlobalIDs or names) to filter by",
-              "title": "Splits"
+              "title": "Split"
             },
             "description": "List of dataset split identifiers (GlobalIDs or names) to filter by"
           }
@@ -5009,13 +5009,6 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
-          },
-          "splits": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Splits"
           }
         },
         "type": "object",
