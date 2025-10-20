@@ -15,35 +15,3 @@ Learn more about [Environment](environments.md) options.&#x20;
 
 
 
-{% stepper %}
-{% step %}
-### How to get your data in to Phoenix
-
-Traces: For logging application data
-
-Loom
-
-1.2.3 steps
-
-Datasets: For CSV and local experimentation
-
-1.2.3 steps
-{% endstep %}
-
-{% step %}
-### Using Phoenix for prompt iteration
-
-
-{% endstep %}
-
-{% step %}
-### Running an eval (experiment) with Phoenix
-
-
-{% endstep %}
-{% endstepper %}
-
-
-
-
-
