@@ -566,6 +566,11 @@ export function PlaygroundDatasetExamplesTable({
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
+  const { baseExperimentId, compareExperimentIds } = useMemo(() => {
+    const experimentIds = instances.map((instance) => instance.experimentId);
+    const [baseExperimentId, ...compareExperimentIds] = experimentIds;
+    return { baseExperimentId, compareExperimentIds };
+  }, [instances]);
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
   >(null);
@@ -863,13 +868,6 @@ export function PlaygroundDatasetExamplesTable({
     resetData,
     setRepetitions,
   ]);
-
-  // Extract experiment IDs from playground instances
-  const experimentIds = useMemo(() => {
-    return instances
-      .map((instance) => instance.experimentId)
-      .filter((id) => id != null) as string[];
-  }, [instances]);
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
@@ -1194,14 +1192,15 @@ export function PlaygroundDatasetExamplesTable({
         <Modal variant="slideover" size="fullscreen">
           {selectedExampleIndex !== null &&
             exampleIds[selectedExampleIndex] &&
-            experimentIds.length > 0 && (
+            baseExperimentId != null &&
+            isStringArray(compareExperimentIds) && (
               <ExperimentCompareDetailsDialog
                 datasetId={datasetId}
                 datasetVersionId={datasetVersionId}
                 selectedExampleIndex={selectedExampleIndex}
                 selectedExampleId={exampleIds[selectedExampleIndex]}
-                baseExperimentId={experimentIds[0]}
-                compareExperimentIds={experimentIds.slice(1)}
+                baseExperimentId={baseExperimentId}
+                compareExperimentIds={compareExperimentIds}
                 exampleIds={exampleIds}
                 onExampleChange={(exampleIndex) => {
                   if (
@@ -1347,3 +1346,12 @@ graphql`
     }
   }
 `;
+
+/**
+ * A type guard for checking if a value is an array of strings
+ */
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
