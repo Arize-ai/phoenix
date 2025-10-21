@@ -18,13 +18,16 @@ from phoenix.server.api.input_types.ExperimentRunSort import (
     get_experiment_run_cursor,
 )
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
+from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
     Cursor,
     CursorString,
     connection_from_cursors_and_nodes,
+    connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
@@ -227,6 +230,17 @@ class Experiment(Node):
                 )
                 async for token_type, is_prompt, cost, tokens in data
             ]
+
+    @strawberry.field
+    async def dataset_splits(
+        self,
+        info: Info[Context, None],
+    ) -> Connection[DatasetSplit]:
+        """Returns the dataset splits associated with this experiment."""
+        splits = await info.context.data_loaders.experiment_dataset_splits.load(self.id_attr)
+        return connection_from_list(
+            [to_gql_dataset_split(split) for split in splits], ConnectionArgs()
+        )
 
 
 def to_gql_experiment(

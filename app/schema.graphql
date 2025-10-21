@@ -1254,6 +1254,7 @@ type Experiment implements Node {
   lastUpdatedAt: DateTime
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  datasetSplits: DatasetSplitConnection!
 }
 
 type ExperimentAnnotationSummary {
