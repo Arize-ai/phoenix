@@ -32,7 +32,8 @@ def get_pg_config(
         ssl_args = {"sslmode": "require"}
     elif enforce_ssl and ssl_args.get("sslmode") == "disable":
         raise ValueError(
-            "SSL cannot be disabled when using 'sslmode=enable'."
+            "SSL cannot be disabled when using AWS RDS IAM authentication. "
+            "Remove 'sslmode=disable' from the connection string."
         )
 
     # Create base URL without SSL parameters

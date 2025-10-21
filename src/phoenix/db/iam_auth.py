@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -22,8 +21,7 @@ def generate_aws_rds_token(
         host: The database hostname (e.g., 'mydb.abc123.us-west-2.rds.amazonaws.com')
         port: The database port (typically 5432 for PostgreSQL)
         user: The database username (must match an IAM-enabled database user)
-        region: AWS region (optional). If not provided, attempts to auto-detect from hostname
-                or uses boto3's default region resolution.
+        region: AWS region (optional). If not provided, uses boto3's default region resolution.
 
     Returns:
         A temporary authentication token string to use as the database password
@@ -48,11 +46,6 @@ def generate_aws_rds_token(
             "Install it with: pip install 'arize-phoenix[aws]'"
         ) from e
 
-    if region is None:
-        region = _extract_region_from_rds_host(host)
-        if region:
-            logger.debug(f"Auto-detected AWS region '{region}' from RDS hostname")
-
     try:
         client = boto3.client("rds", region_name=region)
 
@@ -73,37 +66,4 @@ def generate_aws_rds_token(
             "Ensure AWS credentials are configured and have 'rds-db:connect' permission."
         )
         raise
-
-
-def _extract_region_from_rds_host(host: str) -> Optional[str]:
-    """Extract AWS region from RDS/Aurora hostname.
-
-    Parses hostnames matching AWS RDS patterns to extract the region identifier.
-
-    Supported patterns:
-    - Standard RDS: <instance>.<identifier>.<region>.rds.amazonaws.com
-    - Aurora cluster: <cluster>.cluster-<id>.<region>.rds.amazonaws.com
-    - Aurora instance: <instance>.<cluster>.<region>.rds.amazonaws.com
-
-    Args:
-        host: The database hostname
-
-    Returns:
-        The AWS region code (e.g., 'us-west-2') or None if not recognizable
-
-    Examples:
-        >>> _extract_region_from_rds_host('mydb.abc123.us-west-2.rds.amazonaws.com')
-        'us-west-2'
-        >>> _extract_region_from_rds_host('mydb.cluster-abc.eu-central-1.rds.amazonaws.com')
-        'eu-central-1'
-        >>> _extract_region_from_rds_host('localhost')
-        None
-    """
-    region_pattern = r"\.([a-z]{2,}-[a-z]+-\d+)\.rds\.amazonaws\.com"
-
-    match = re.search(region_pattern, host, re.IGNORECASE)
-    if match:
-        return match.group(1)
-
-    return None
 
