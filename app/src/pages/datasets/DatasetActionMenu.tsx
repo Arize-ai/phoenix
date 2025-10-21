@@ -18,7 +18,6 @@ import {
 } from "@phoenix/components";
 import { DatasetLabelSelectionContent } from "@phoenix/components/dataset/DatasetLabelConfigButton";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
 import { EditDatasetDialog } from "./EditDatasetDialog";
@@ -40,7 +39,6 @@ enum DatasetAction {
 }
 
 export function DatasetActionMenu(props: DatasetActionMenuProps) {
-  const datasetSplitsEnabled = useFeatureFlag("datasetLabel");
   const {
     datasetId,
     datasetName,
@@ -85,7 +83,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                 <Text>Edit</Text>
               </Flex>
             </MenuItem>
-            {datasetSplitsEnabled && (
               <SubmenuTrigger>
                 <MenuItem id={DatasetAction.LABELS}>
                   <Flex
@@ -116,7 +113,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                   </Dialog>
                 </Popover>
               </SubmenuTrigger>
-            )}
             <MenuItem id={DatasetAction.DELETE}>
               <Flex
                 direction={"row"}
