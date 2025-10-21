@@ -1437,9 +1437,10 @@ def get_env_postgres_connection_str() -> Optional[str]:
     if use_iam_auth:
         if pg_password:
             logger.warning(
-                f"{ENV_PHOENIX_POSTGRES_PASSWORD} is set but will be ignored when using "
-                f"AWS RDS IAM authentication ({ENV_PHOENIX_POSTGRES_USE_IAM_AUTH}=true). "
-                "Authentication tokens will be generated using AWS credentials."
+                f"The environment variable {ENV_PHOENIX_POSTGRES_PASSWORD} is set but will be "
+                "ignored when using AWS RDS IAM authentication "
+                f"({ENV_PHOENIX_POSTGRES_USE_IAM_AUTH}=true). Authentication tokens will be "
+                "generated using AWS credentials."
             )
         connection_str = f"postgresql://{quote(pg_user)}@{pg_host}"
     else:
