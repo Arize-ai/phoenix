@@ -95,7 +95,7 @@ export function DatasetPage() {
       latestVersion={latestVersion}
     >
       <Suspense fallback={<Loading />}>
-        <DatasetPageContent dataset={data["dataset"]} />
+        <DatasetPageContent dataset={data.dataset} />
       </Suspense>
     </DatasetProvider>
   );
