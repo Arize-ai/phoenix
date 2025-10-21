@@ -2135,8 +2135,7 @@ def _validate_iam_auth_config() -> None:
     try:
         import boto3  # pyright: ignore
 
-        region = get_env_postgres_iam_region()
-        boto3.client("rds", region_name=region)  # pyright: ignore
+        boto3.client("rds")
         logger.info("✓ AWS credentials validated for RDS IAM authentication")
     except Exception as e:
         logger.warning(

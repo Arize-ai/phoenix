@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ def generate_aws_rds_token(
         ) from e
 
     try:
-        client = boto3.client("rds", region_name=region)
+        client = boto3.client("rds")
 
         logger.debug(f"Generating AWS RDS IAM auth token for user '{user}' at {host}:{port}")
         token = client.generate_db_auth_token(  # pyright: ignore
