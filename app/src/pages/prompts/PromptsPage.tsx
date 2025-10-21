@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
@@ -23,6 +23,11 @@ export function PromptsPage() {
   const loaderData = useLoaderData<PromptsLoaderType>();
   invariant(loaderData, "loaderData is required");
   const data = usePreloadedQuery(promptsLoaderGql, loaderData);
+  useEffect(() => {
+    return () => {
+      loaderData.dispose();
+    };
+  }, [loaderData]);
 
   return (
     <Flex direction="column" height="100%">
