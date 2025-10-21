@@ -1,0 +1,19 @@
+.card-group .card img {
+  max-height: 197px !important;
+}
+
+.card-group[class$="-2"] .card img {
+  height: 160px !important;
+}
+
+.card-group[class$="-3"] .card img {
+  height: 150px !important;
+}
+
+table {
+  display: table !important;
+}
+
+.step-title {
+  font-size: 1.5rem !important;
+}
