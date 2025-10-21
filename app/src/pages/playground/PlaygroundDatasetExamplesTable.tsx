@@ -65,7 +65,11 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
+import {
+  assertUnreachable,
+  isStringArray,
+  isStringKeyedObject,
+} from "@phoenix/typeUtils";
 import {
   getErrorMessagesFromRelayMutationError,
   getErrorMessagesFromRelaySubscriptionError,
@@ -1333,12 +1337,3 @@ graphql`
     }
   }
 `;
-
-/**
- * A type guard for checking if a value is an array of strings
- */
-function isStringArray(value: unknown): value is string[] {
-  return (
-    Array.isArray(value) && value.every((item) => typeof item === "string")
-  );
-}
