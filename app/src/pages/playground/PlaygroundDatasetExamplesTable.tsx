@@ -876,17 +876,18 @@ export function PlaygroundDatasetExamplesTable({
       query PlaygroundDatasetExamplesTableQuery(
         $datasetId: ID!
         $splitIds: [ID!]
-        $experimentIds: [ID!]
       ) {
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
             @arguments(splitIds: $splitIds)
           ... on Dataset {
-            experiments(filterIds: $experimentIds) {
+            latestVersions: versions(
+              first: 1
+              sort: { col: createdAt, dir: desc }
+            ) {
               edges {
-                experiment: node {
+                version: node {
                   id
-                  datasetVersionId
                 }
               }
             }
@@ -894,7 +895,7 @@ export function PlaygroundDatasetExamplesTable({
         }
       }
     `,
-    { datasetId, splitIds: splitIds ?? null, experimentIds }
+    { datasetId, splitIds: splitIds ?? null }
   );
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -951,13 +952,8 @@ export function PlaygroundDatasetExamplesTable({
     return tableData.map((row) => row.id);
   }, [tableData]);
 
-  // Extract dataset version ID from the first experiment
   const datasetVersionId = useMemo(() => {
-    const experiments = dataset?.experiments?.edges;
-    if (experiments && experiments.length > 0) {
-      return experiments[0].experiment.datasetVersionId;
-    }
-    return "";
+    return dataset?.latestVersions?.edges[0]?.version?.id ?? "";
   }, [dataset]);
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
