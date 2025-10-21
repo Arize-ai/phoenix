@@ -178,6 +178,7 @@ def aio_postgresql_engine(
     asyncpg_url, asyncpg_args = get_pg_config(url, "asyncpg", enforce_ssl=use_iam_auth)
 
     iam_config: Optional[dict[str, Any]] = None
+    token_lifetime: int = 0
     if use_iam_auth:
         iam_config = _extract_iam_config_from_url(url)
         token_lifetime = get_env_postgres_iam_token_lifetime()
@@ -202,8 +203,8 @@ def aio_postgresql_engine(
                 "database": iam_config["database"],
             }
 
-            if "ssl" in asyncpg_args:
-                conn_kwargs["ssl"] = asyncpg_args["ssl"]
+            if asyncpg_args:
+                conn_kwargs.update(asyncpg_args)
 
             return await asyncpg.connect(**conn_kwargs)
 
@@ -242,19 +243,18 @@ def aio_postgresql_engine(
                 user=_iam_config["user"],
             )
 
-            conninfo = (
-                f"host={_iam_config['host']} "
-                f"port={_iam_config['port']} "
-                f"user={_iam_config['user']} "
-                f"password={token} "
-                f"dbname={_iam_config['database']}"
-            )
+            conn_kwargs = {
+                "host": _iam_config["host"],
+                "port": _iam_config["port"],
+                "user": _iam_config["user"],
+                "password": token,
+                "dbname": _iam_config["database"],
+            }
 
             if psycopg_args:
-                for key, value in psycopg_args.items():
-                    conninfo += f" {key}={value}"
+                conn_kwargs.update(psycopg_args)
 
-            return psycopg.connect(conninfo)
+            return psycopg.connect(**conn_kwargs)
 
         sync_engine = sqlalchemy.create_engine(
             url=psycopg_url,
