@@ -49,9 +49,7 @@ def generate_aws_rds_token(
     try:
         client = boto3.client("rds", region_name=region)
 
-        logger.debug(
-            f"Generating AWS RDS IAM auth token for user '{user}' at {host}:{port}"
-        )
+        logger.debug(f"Generating AWS RDS IAM auth token for user '{user}' at {host}:{port}")
         token = client.generate_db_auth_token(  # pyright: ignore
             DBHostname=host,
             Port=port,
@@ -66,4 +64,3 @@ def generate_aws_rds_token(
             "Ensure AWS credentials are configured and have 'rds-db:connect' permission."
         )
         raise
-
