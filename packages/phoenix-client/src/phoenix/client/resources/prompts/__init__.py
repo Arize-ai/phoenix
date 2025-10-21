@@ -385,7 +385,7 @@ class AsyncPrompts:
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
         try:
-            prompt_response = self._client.get(url)
+            prompt_response = await self._client.get(url)
             prompt_response.raise_for_status()
         except HTTPStatusError as e:
             if e.response.status_code == 404:
