@@ -1131,6 +1131,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         filter: Optional[PromptFilter] = UNSET,
+        labelIds: Optional[list[GlobalID]] = UNSET,
     ) -> Connection[Prompt]:
         args = ConnectionArgs(
             first=first,
@@ -1147,6 +1148,16 @@ class Query:
             stmt = stmt.where(column.ilike(f"%{filter.value}%")).order_by(
                 models.Prompt.updated_at.desc()
             )
+        if labelIds:
+            stmt = stmt.join(models.PromptPromptLabel).where(
+                models.PromptPromptLabel.prompt_label_id.in_(
+                    from_global_id_with_expected_type(
+                        global_id=label_id, expected_type_name="PromptLabel"
+                    )
+                    for label_id in labelIds
+                )
+            )
+            stmt = stmt.distinct()
         async with info.context.db() as session:
             orm_prompts = await session.stream_scalars(stmt)
             data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]

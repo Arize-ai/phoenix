@@ -42,7 +42,7 @@ type PromptsTableProps = {
 };
 
 export function PromptsTable(props: PromptsTableProps) {
-  const { filter } = usePromptsFilterContext();
+  const { filter, selectedPromptLabelIds } = usePromptsFilterContext();
   const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -50,8 +50,10 @@ export function PromptsTable(props: PromptsTableProps) {
   const queryArgs = useMemo(
     () => ({
       filter: filter.trim() ? { value: filter, col: "name" as const } : null,
+      labelIds:
+        selectedPromptLabelIds.length > 0 ? selectedPromptLabelIds : null,
     }),
-    [filter]
+    [filter, selectedPromptLabelIds]
   );
 
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -63,9 +65,14 @@ export function PromptsTable(props: PromptsTableProps) {
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
           filter: { type: "PromptFilter", defaultValue: null }
+          labelIds: { type: "[ID!]", defaultValue: null }
         ) {
-          prompts(first: $first, after: $after, filter: $filter)
-            @connection(key: "PromptsTable_prompts") {
+          prompts(
+            first: $first
+            after: $after
+            filter: $filter
+            labelIds: $labelIds
+          ) @connection(key: "PromptsTable_prompts") {
             edges {
               prompt: node {
                 id

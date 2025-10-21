@@ -7,9 +7,16 @@ import {
   View,
 } from "@phoenix/components";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
+import { PromptsLabelMenu } from "@phoenix/pages/prompts/PromptsLabelMenu";
 
 export const PromptsFilterBar = () => {
-  const { setFilter, filter } = usePromptsFilterContext();
+  const {
+    setFilter,
+    filter,
+    selectedPromptLabelIds,
+    setSelectedPromptLabelIds,
+  } = usePromptsFilterContext();
+
   return (
     <View
       padding="size-200"
@@ -29,14 +36,20 @@ export const PromptsFilterBar = () => {
           defaultValue={filter}
           placeholder="Search prompts by name"
         />
-        <LinkButton
-          size="M"
-          leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
-          variant="primary"
-          to="/playground"
-        >
-          New Prompt
-        </LinkButton>
+        <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+          <PromptsLabelMenu
+            selectedLabelIds={selectedPromptLabelIds}
+            onSelectionChange={setSelectedPromptLabelIds}
+          />
+          <LinkButton
+            size="M"
+            leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
+            variant="primary"
+            to="/playground"
+          >
+            New Prompt
+          </LinkButton>
+        </Flex>
       </Flex>
     </View>
   );
