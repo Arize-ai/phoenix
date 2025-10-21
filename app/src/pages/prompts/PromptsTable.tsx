@@ -28,6 +28,7 @@ import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 
 import { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
 import { PromptsTablePromptsQuery } from "./__generated__/PromptsTablePromptsQuery.graphql";
@@ -38,22 +39,19 @@ const PAGE_SIZE = 100;
 
 type PromptsTableProps = {
   query: PromptsTable_prompts$key;
-  searchFilter: string;
 };
 
 export function PromptsTable(props: PromptsTableProps) {
-  const { searchFilter } = props;
+  const { filter } = usePromptsFilterContext();
   const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const queryArgs = useMemo(
     () => ({
-      filter: searchFilter.trim()
-        ? { value: searchFilter, col: "name" as const }
-        : null,
+      filter: filter.trim() ? { value: filter, col: "name" as const } : null,
     }),
-    [searchFilter]
+    [filter]
   );
 
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
