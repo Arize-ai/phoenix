@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
+ENV_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
 
 # Phoenix environment variables
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
@@ -31,7 +32,11 @@ def get_env_collector_endpoint() -> Optional[str]:
     Returns:
         Optional[str]: The collector endpoint URL if found, None otherwise.
     """
-    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or os.getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
+    return (
+        os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+        or os.getenv(ENV_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+        or os.getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
+    )
 
 
 def get_env_project_name() -> str:
