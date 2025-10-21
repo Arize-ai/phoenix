@@ -3,7 +3,7 @@ import { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
+import type { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
 import { DatasetPageQueryNode } from "./DatasetPage";
 
 /**
