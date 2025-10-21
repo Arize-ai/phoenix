@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -10,14 +11,18 @@ import {
   LinkButton,
   View,
 } from "@phoenix/components";
-import { promptsLoader } from "@phoenix/pages/prompts/promptsLoader";
+import {
+  promptsLoaderGql,
+  PromptsLoaderType,
+} from "@phoenix/pages/prompts/promptsLoader";
 
 import { PromptsTable } from "./PromptsTable";
 
 export function PromptsPage() {
   const [searchFilter, setSearchFilter] = useState("");
-  const loaderData = useLoaderData<typeof promptsLoader>();
+  const loaderData = useLoaderData<PromptsLoaderType>();
   invariant(loaderData, "loaderData is required");
+  const data = usePreloadedQuery(promptsLoaderGql, loaderData);
 
   return (
     <Flex direction="column" height="100%">
@@ -48,7 +53,7 @@ export function PromptsPage() {
           </LinkButton>
         </Flex>
       </View>
-      <PromptsTable query={loaderData} searchFilter={searchFilter} />
+      <PromptsTable query={data} searchFilter={searchFilter} />
     </Flex>
   );
 }
