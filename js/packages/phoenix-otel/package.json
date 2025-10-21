@@ -1,0 +1,25 @@
+{
+  "name": "@arizeai/phoenix-otel",
+  "version": "0.0.1",
+  "description": "Otel registration and convenience methods",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rimraf dist",
+    "prebuild": "pnpm run clean",
+    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "keywords": [
+    "otel",
+    "arize",
+    "llm",
+    "tracing"
+  ],
+  "author": "oss@arize.com",
+  "license": "Apache-2.0"
+}
