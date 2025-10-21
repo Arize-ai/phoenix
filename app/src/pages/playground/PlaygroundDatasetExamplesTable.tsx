@@ -58,6 +58,7 @@ import {
 import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
@@ -1205,8 +1206,18 @@ export function PlaygroundDatasetExamplesTable({
       </ModalOverlay>
       <ModalOverlay
         isOpen={!!dialog}
-        onOpenChange={() => {
-          setDialog(null);
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setDialog(null);
+            setSearchParams(
+              (prev) => {
+                const newParams = new URLSearchParams(prev);
+                newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                return newParams;
+              },
+              { replace: true }
+            );
+          }
         }}
       >
         <Modal variant="slideover" size="fullscreen">
