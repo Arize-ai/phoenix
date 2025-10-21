@@ -1429,7 +1429,7 @@ def get_env_postgres_connection_str() -> Optional[str]:
     pg_host = getenv(ENV_PHOENIX_POSTGRES_HOST, "").rstrip("/")
     pg_user = getenv(ENV_PHOENIX_POSTGRES_USER)
     pg_password = getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
-    use_iam_auth = get_env_postgres_use_iam_auth()
+    use_iam_auth = _bool_val(ENV_PHOENIX_POSTGRES_USE_IAM_AUTH, False)
 
     if not (pg_host and pg_user):
         return None
