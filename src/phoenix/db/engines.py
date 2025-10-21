@@ -169,7 +169,6 @@ def aio_postgresql_engine(
     log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
     from phoenix.config import (
-        get_env_postgres_iam_region,
         get_env_postgres_iam_token_lifetime,
         get_env_postgres_use_iam_auth,
     )
@@ -180,7 +179,7 @@ def aio_postgresql_engine(
 
     iam_config: Optional[dict[str, Any]] = None
     if use_iam_auth:
-        iam_config = _extract_iam_config_from_url(url, get_env_postgres_iam_region())
+        iam_config = _extract_iam_config_from_url(url)
         token_lifetime = get_env_postgres_iam_token_lifetime()
 
         async def iam_async_creator() -> Any:
@@ -193,7 +192,6 @@ def aio_postgresql_engine(
                 host=iam_config["host"],
                 port=iam_config["port"],
                 user=iam_config["user"],
-                region=iam_config["region"],
             )
 
             conn_kwargs = {
@@ -242,7 +240,6 @@ def aio_postgresql_engine(
                 host=_iam_config["host"],
                 port=_iam_config["port"],
                 user=_iam_config["user"],
-                region=_iam_config["region"],
             )
 
             conninfo = (
@@ -280,15 +277,14 @@ def aio_postgresql_engine(
     return engine
 
 
-def _extract_iam_config_from_url(url: URL, region: Optional[str]) -> dict[str, Any]:
+def _extract_iam_config_from_url(url: URL) -> dict[str, Any]:
     """Extract connection parameters needed for IAM authentication from a SQLAlchemy URL.
 
     Args:
         url: SQLAlchemy database URL
-        region: AWS region (optional, for auto-detection)
 
     Returns:
-        Dictionary with host, port, user, database, and region
+        Dictionary with host, port, user, and database
     """
     host = url.host
     if not host:
@@ -306,7 +302,6 @@ def _extract_iam_config_from_url(url: URL, region: Optional[str]) -> dict[str, A
         "port": port,
         "user": user,
         "database": database,
-        "region": region,
     }
 
 

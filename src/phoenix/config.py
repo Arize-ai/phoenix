@@ -115,14 +115,11 @@ to generate short-lived authentication tokens instead of using a static password
 This requires:
 - boto3 to be installed: pip install 'arize-phoenix[aws]'
 - AWS credentials configured (via environment, ~/.aws/credentials, or IAM role)
+- AWS region configured via standard AWS methods
 - The database user to be configured for IAM authentication in RDS/Aurora
 - SSL to be enabled (required by AWS RDS IAM auth)
 
 When enabled, PHOENIX_POSTGRES_PASSWORD should NOT be set.
-"""
-ENV_PHOENIX_POSTGRES_IAM_REGION = "PHOENIX_POSTGRES_IAM_REGION"
-"""
-AWS region for RDS IAM authentication (optional).
 """
 ENV_PHOENIX_POSTGRES_IAM_TOKEN_LIFETIME_SECONDS = "PHOENIX_POSTGRES_IAM_TOKEN_LIFETIME_SECONDS"
 """
@@ -2080,16 +2077,6 @@ def get_env_postgres_use_iam_auth() -> bool:
         bool: True if IAM authentication should be used, False otherwise (default)
     """
     return _bool_val(ENV_PHOENIX_POSTGRES_USE_IAM_AUTH, False)
-
-
-def get_env_postgres_iam_region() -> Optional[str]:
-    """
-    Gets the AWS region to use for RDS IAM authentication.
-
-    Returns:
-        Optional[str]: The AWS region code (e.g., 'us-west-2'), or None to auto-detect
-    """
-    return getenv(ENV_PHOENIX_POSTGRES_IAM_REGION)
 
 
 def get_env_postgres_iam_token_lifetime() -> int:

@@ -10,32 +10,31 @@ def generate_aws_rds_token(
     host: str,
     port: int,
     user: str,
-    region: Optional[str] = None,
 ) -> str:
     """Generate an AWS RDS IAM authentication token.
 
     This function creates a short-lived (15 minutes) authentication token for connecting
     to AWS RDS/Aurora PostgreSQL instances using IAM database authentication.
 
+    The AWS region is automatically resolved using boto3.
+
     Args:
         host: The database hostname (e.g., 'mydb.abc123.us-west-2.rds.amazonaws.com')
         port: The database port (typically 5432 for PostgreSQL)
         user: The database username (must match an IAM-enabled database user)
-        region: AWS region (optional). If not provided, uses boto3's default region resolution.
 
     Returns:
         A temporary authentication token string to use as the database password
 
     Raises:
         ImportError: If boto3 is not installed
-        Exception: If AWS credentials are not configured or token generation fails
+        Exception: If AWS credentials/region are not configured or token generation fails
 
     Example:
         >>> token = generate_aws_rds_token(
         ...     host='mydb.us-west-2.rds.amazonaws.com',
         ...     port=5432,
-        ...     user='myuser',
-        ...     region='us-west-2'
+        ...     user='myuser'
         ... )
     """
     try:
