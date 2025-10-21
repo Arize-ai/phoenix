@@ -950,9 +950,12 @@ export function PlaygroundDatasetExamplesTable({
     return tableData.map((row) => row.id);
   }, [tableData]);
 
+  // We assume that the experiments were run on the latest version of the dataset.
+  // This is subject to a race condition where a new dataset version is created after the playground experiments were run.
+  // We ignore this edge case for now.
   const datasetVersionId = useMemo(() => {
-    return dataset?.latestVersions?.edges[0]?.version?.id ?? "";
-  }, [dataset]);
+    return dataset.latestVersions?.edges[0].version.id ?? "";
+  }, [dataset.latestVersions?.edges]);
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => {
