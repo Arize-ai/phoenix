@@ -5,7 +5,7 @@ import logging
 from collections.abc import Callable
 from enum import Enum
 from sqlite3 import Connection
-from typing import Any
+from typing import Any, Optional
 
 import aiosqlite
 import numpy as np
@@ -168,27 +168,146 @@ def aio_postgresql_engine(
     log_to_stdout: bool = False,
     log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
-    asyncpg_url, asyncpg_args = get_pg_config(url, "asyncpg")
-    engine = create_async_engine(
-        url=asyncpg_url,
-        connect_args=asyncpg_args,
-        echo=log_to_stdout,
-        json_serializer=_dumps,
+    from phoenix.config import (
+        get_env_postgres_iam_region,
+        get_env_postgres_iam_token_lifetime,
+        get_env_postgres_use_iam_auth,
     )
+
+    use_iam_auth = get_env_postgres_use_iam_auth()
+
+    asyncpg_url, asyncpg_args = get_pg_config(url, "asyncpg", enforce_ssl=use_iam_auth)
+
+    iam_config: Optional[dict[str, Any]] = None
+    if use_iam_auth:
+        iam_config = _extract_iam_config_from_url(url, get_env_postgres_iam_region())
+        token_lifetime = get_env_postgres_iam_token_lifetime()
+
+        async def iam_async_creator() -> Any:
+            import asyncpg  # pyright: ignore
+
+            from phoenix.db.iam_auth import generate_aws_rds_token
+
+            assert iam_config is not None
+            token = generate_aws_rds_token(
+                host=iam_config["host"],
+                port=iam_config["port"],
+                user=iam_config["user"],
+                region=iam_config["region"],
+            )
+
+            conn_kwargs = {
+                "host": iam_config["host"],
+                "port": iam_config["port"],
+                "user": iam_config["user"],
+                "password": token,
+                "database": iam_config["database"],
+            }
+
+            if "ssl" in asyncpg_args:
+                conn_kwargs["ssl"] = asyncpg_args["ssl"]
+
+            return await asyncpg.connect(**conn_kwargs)
+
+        engine = create_async_engine(
+            url=asyncpg_url,
+            async_creator=iam_async_creator,
+            echo=log_to_stdout,
+            json_serializer=_dumps,
+            pool_recycle=token_lifetime,
+        )
+    else:
+        engine = create_async_engine(
+            url=asyncpg_url,
+            connect_args=asyncpg_args,
+            echo=log_to_stdout,
+            json_serializer=_dumps,
+        )
+
     if not migrate:
         return engine
 
-    psycopg_url, psycopg_args = get_pg_config(url, "psycopg")
-    sync_engine = sqlalchemy.create_engine(
-        url=psycopg_url,
-        connect_args=psycopg_args,
-        echo=log_migrations_to_stdout,
-        json_serializer=_dumps,
-    )
+    psycopg_url, psycopg_args = get_pg_config(url, "psycopg", enforce_ssl=use_iam_auth)
+
+    if use_iam_auth:
+        assert iam_config is not None
+        _iam_config = iam_config
+
+        def iam_sync_creator() -> Any:
+            import psycopg
+
+            from phoenix.db.iam_auth import generate_aws_rds_token
+
+            token = generate_aws_rds_token(
+                host=_iam_config["host"],
+                port=_iam_config["port"],
+                user=_iam_config["user"],
+                region=_iam_config["region"],
+            )
+
+            conninfo = (
+                f"host={_iam_config['host']} "
+                f"port={_iam_config['port']} "
+                f"user={_iam_config['user']} "
+                f"password={token} "
+                f"dbname={_iam_config['database']}"
+            )
+
+            if psycopg_args:
+                for key, value in psycopg_args.items():
+                    conninfo += f" {key}={value}"
+
+            return psycopg.connect(conninfo)
+
+        sync_engine = sqlalchemy.create_engine(
+            url=psycopg_url,
+            creator=iam_sync_creator,
+            echo=log_migrations_to_stdout,
+            json_serializer=_dumps,
+            pool_recycle=token_lifetime,
+        )
+    else:
+        sync_engine = sqlalchemy.create_engine(
+            url=psycopg_url,
+            connect_args=psycopg_args,
+            echo=log_migrations_to_stdout,
+            json_serializer=_dumps,
+        )
+
     if schema := get_env_database_schema():
         event.listen(sync_engine, "connect", set_postgresql_search_path(schema))
     migrate_in_thread(sync_engine)
     return engine
+
+
+def _extract_iam_config_from_url(url: URL, region: Optional[str]) -> dict[str, Any]:
+    """Extract connection parameters needed for IAM authentication from a SQLAlchemy URL.
+
+    Args:
+        url: SQLAlchemy database URL
+        region: AWS region (optional, for auto-detection)
+
+    Returns:
+        Dictionary with host, port, user, database, and region
+    """
+    host = url.host
+    if not host:
+        raise ValueError("Database host is required for IAM authentication")
+
+    port = url.port or 5432
+    user = url.username
+    if not user:
+        raise ValueError("Database user is required for IAM authentication")
+
+    database = url.database or "postgres"
+
+    return {
+        "host": host,
+        "port": port,
+        "user": user,
+        "database": database,
+        "region": region,
+    }
 
 
 def _dumps(obj: Any) -> str:
