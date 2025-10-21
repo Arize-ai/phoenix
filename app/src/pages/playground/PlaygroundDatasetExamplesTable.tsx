@@ -290,17 +290,13 @@ function ExampleOutputContent({
   repetitionNumber,
   setRepetitionNumber,
   totalRepetitions,
-  exampleId,
-  tableData,
-  setSelectedExampleIndex,
+  onViewExperimentRunDetailsPress,
 }: {
   exampleData: ExampleRunData;
   repetitionNumber: number;
   setRepetitionNumber: (n: SetStateAction<number>) => void;
   totalRepetitions: number;
-  exampleId: string;
-  tableData: TableRow[];
-  setSelectedExampleIndex: (index: number) => void;
+  onViewExperimentRunDetailsPress: () => void;
 }) {
   const { span, content, toolCalls, errorMessage, experimentRunId } =
     exampleData;
@@ -322,14 +318,7 @@ function ExampleOutputContent({
             size="S"
             aria-label="View experiment run details"
             isDisabled={!hasExperimentRun}
-            onPress={() => {
-              const rowIndex = tableData.findIndex(
-                (row) => row.id === exampleId
-              );
-              if (rowIndex !== -1) {
-                setSelectedExampleIndex(rowIndex);
-              }
-            }}
+            onPress={onViewExperimentRunDetailsPress}
           >
             <Icon svg={<Icons.ExpandOutline />} />
           </IconButton>
@@ -385,9 +374,7 @@ function ExampleOutputContent({
     setSearchParams,
     span,
     totalRepetitions,
-    exampleId,
-    tableData,
-    setSelectedExampleIndex,
+    onViewExperimentRunDetailsPress,
   ]);
 
   return (
@@ -445,16 +432,14 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   exampleId,
   instanceVariables,
   datasetExampleInput,
-  tableData,
-  setSelectedExampleIndex,
+  onViewExperimentRunDetailsPress,
 }: {
   instanceId: number;
   exampleId: string;
   isRunning: boolean;
   instanceVariables: string[];
   datasetExampleInput: unknown;
-  tableData: TableRow[];
-  setSelectedExampleIndex: (index: number) => void;
+  onViewExperimentRunDetailsPress: () => void;
 }) {
   const [repetitionNumber, setRepetitionNumber] = useState(1);
   const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
@@ -478,9 +463,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       repetitionNumber={repetitionNumber}
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}
-      exampleId={exampleId}
-      tableData={tableData}
-      setSelectedExampleIndex={setSelectedExampleIndex}
+      onViewExperimentRunDetailsPress={onViewExperimentRunDetailsPress}
     />
   );
 });
@@ -984,8 +967,9 @@ export function PlaygroundDatasetExamplesTable({
               isRunning={hasSomeRunIds}
               instanceVariables={instanceVariables}
               datasetExampleInput={row.original.input}
-              tableData={tableData}
-              setSelectedExampleIndex={setSelectedExampleIndex}
+              onViewExperimentRunDetailsPress={() => {
+                setSelectedExampleIndex(row.index);
+              }}
             />
           );
         },
@@ -997,7 +981,6 @@ export function PlaygroundDatasetExamplesTable({
     instances,
     templateFormat,
     allInstanceMessages,
-    tableData,
     setSelectedExampleIndex,
   ]);
 
