@@ -35,7 +35,6 @@ import {
 import { css } from "@emotion/react";
 
 import {
-  DialogTrigger,
   Flex,
   Icon,
   IconButton,
@@ -59,7 +58,6 @@ import {
 import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
@@ -105,12 +103,6 @@ import {
 } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
-
-type TableRow = {
-  id: string;
-  input: unknown;
-  output: unknown;
-};
 
 type ChatCompletionOverDatasetMutationPayload = Extract<
   PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"],
@@ -291,18 +283,19 @@ function ExampleOutputContent({
   setRepetitionNumber,
   totalRepetitions,
   onViewExperimentRunDetailsPress,
+  onViewExperimentRunTracePress,
 }: {
   exampleData: ExampleRunData;
   repetitionNumber: number;
   setRepetitionNumber: (n: SetStateAction<number>) => void;
   totalRepetitions: number;
   onViewExperimentRunDetailsPress: () => void;
+  onViewExperimentRunTracePress: (traceId: string, projectId: string) => void;
 }) {
   const { span, content, toolCalls, errorMessage, experimentRunId } =
     exampleData;
   const hasSpan = span != null;
   const hasExperimentRun = experimentRunId != null;
-  const [, setSearchParams] = useSearchParams();
   const spanControls = useMemo(() => {
     return (
       <>
@@ -327,43 +320,27 @@ function ExampleOutputContent({
             view experiment run
           </Tooltip>
         </TooltipTrigger>
-        <DialogTrigger
-          onOpenChange={(open) => {
-            if (!open) {
-              setSearchParams(
-                (prev) => {
-                  const newParams = new URLSearchParams(prev);
-                  newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-                  return newParams;
-                },
-                { replace: true }
-              );
-            }
-          }}
-        >
-          <TooltipTrigger isDisabled={!hasSpan}>
-            <IconButton
-              size="S"
-              aria-label="View run trace"
-              isDisabled={!hasSpan}
-            >
-              <Icon svg={<Icons.Trace />} />
-            </IconButton>
-            <Tooltip>
-              <TooltipArrow />
-              view run trace
-            </Tooltip>
-          </TooltipTrigger>
-          <ModalOverlay>
-            <Modal size="fullscreen" variant="slideover">
-              <PlaygroundRunTraceDetailsDialog
-                traceId={span?.context.traceId ?? ""}
-                projectId={span?.project.id ?? ""}
-                title={`Experiment Run Trace`}
-              />
-            </Modal>
-          </ModalOverlay>
-        </DialogTrigger>
+        <TooltipTrigger isDisabled={!hasSpan}>
+          <IconButton
+            size="S"
+            aria-label="View run trace"
+            isDisabled={!hasSpan}
+            onPress={() => {
+              if (span) {
+                onViewExperimentRunTracePress(
+                  span.context.traceId,
+                  span.project.id
+                );
+              }
+            }}
+          >
+            <Icon svg={<Icons.Trace />} />
+          </IconButton>
+          <Tooltip>
+            <TooltipArrow />
+            view run trace
+          </Tooltip>
+        </TooltipTrigger>
       </>
     );
   }, [
@@ -371,10 +348,10 @@ function ExampleOutputContent({
     hasSpan,
     repetitionNumber,
     setRepetitionNumber,
-    setSearchParams,
     span,
     totalRepetitions,
     onViewExperimentRunDetailsPress,
+    onViewExperimentRunTracePress,
   ]);
 
   return (
@@ -433,6 +410,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   instanceVariables,
   datasetExampleInput,
   onViewExperimentRunDetailsPress,
+  onViewExperimentRunTracePress,
 }: {
   instanceId: number;
   exampleId: string;
@@ -440,6 +418,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   instanceVariables: string[];
   datasetExampleInput: unknown;
   onViewExperimentRunDetailsPress: () => void;
+  onViewExperimentRunTracePress: (traceId: string, projectId: string) => void;
 }) {
   const [repetitionNumber, setRepetitionNumber] = useState(1);
   const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
@@ -464,6 +443,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}
       onViewExperimentRunDetailsPress={onViewExperimentRunDetailsPress}
+      onViewExperimentRunTracePress={onViewExperimentRunTracePress}
     />
   );
 });
@@ -928,6 +908,7 @@ export function PlaygroundDatasetExamplesTable({
       }),
     [data]
   );
+  type TableRow = (typeof tableData)[number];
 
   const exampleIds = useMemo(() => {
     return tableData.map((row) => row.id);
@@ -969,6 +950,15 @@ export function PlaygroundDatasetExamplesTable({
               datasetExampleInput={row.original.input}
               onViewExperimentRunDetailsPress={() => {
                 setSelectedExampleIndex(row.index);
+              }}
+              onViewExperimentRunTracePress={(traceId, projectId) => {
+                setDialog(
+                  <PlaygroundRunTraceDetailsDialog
+                    traceId={traceId}
+                    projectId={projectId}
+                    title={`Experiment Run Trace`}
+                  />
+                );
               }}
             />
           );
