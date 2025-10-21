@@ -37,6 +37,11 @@ jobs:
       - name: Install dependencies
         working-directory: ./app
         run: pnpm install --frozen-lockfile
+      - name: Relay Codegen
+        working-directory: ./app
+        run: |
+          pnpm run build:relay
+          git diff --exit-code
       - name: Type Check
         working-directory: ./app
         run: pnpm run typecheck
@@ -48,11 +53,6 @@ jobs:
         working-directory: ./app
         run: |
           pnpm run lint
-      - name: Relay Codegen
-        working-directory: ./app
-        run: |
-          pnpm run build:relay
-          git diff --exit-code
       - name: Test
         working-directory: ./app
         run: |
