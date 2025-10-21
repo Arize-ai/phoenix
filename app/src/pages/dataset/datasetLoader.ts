@@ -1,4 +1,4 @@
-import { loadQuery } from "react-relay";
+import { fetchQuery, loadQuery } from "react-relay";
 import { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
@@ -19,11 +19,14 @@ export async function datasetLoader(args: LoaderFunctionArgs) {
     }
   );
 
-  // Wait for the query to resolve so we can use the data for breadcrumbs
-  // @ts-expect-error - accessing internal source property
-  const result = await queryRef.source.toPromise();
-  // @ts-expect-error - GraphQL response typing
-  const data = result?.data as DatasetPageQuery["response"] | undefined;
+  // Also fetch the data for breadcrumbs (can be sync from cache)
+  const data = await fetchQuery<DatasetPageQuery>(
+    RelayEnvironment,
+    DatasetPageQueryNode,
+    {
+      id: datasetId as string,
+    }
+  ).toPromise();
 
   return {
     queryRef,
