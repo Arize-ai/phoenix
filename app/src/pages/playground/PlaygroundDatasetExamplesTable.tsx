@@ -323,7 +323,6 @@ function ExampleOutputContent({
             aria-label="View experiment run details"
             isDisabled={!hasExperimentRun}
             onPress={() => {
-              // Find the row index for this example
               const rowIndex = tableData.findIndex(
                 (row) => row.id === exampleId
               );
