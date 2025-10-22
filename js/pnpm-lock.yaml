@@ -290,6 +290,12 @@ importers:
 
   packages/phoenix-otel:
     dependencies:
+      '@arizeai/openinference-semantic-conventions':
+        specifier: ^1.1.0
+        version: 1.1.0
+      '@arizeai/openinference-vercel':
+        specifier: ^2.3.1
+        version: 2.3.4(@opentelemetry/api@1.9.0)
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -311,6 +317,10 @@ importers:
       '@opentelemetry/sdk-trace-node':
         specifier: ^1.30.1
         version: 1.30.1(@opentelemetry/api@1.9.0)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.9.1
+        version: 24.9.1
 
 packages:
 
@@ -1986,7 +1996,7 @@ packages:
     resolution: {integrity: sha512-IO+MJPVhoqz+28h1qLAcBEH2+xHMK6MTyHJc7MTnnYb6wsoLR29POVGJ7LycmVXIqyy/4/2ShP5sUwTXuOwb/w==}
     dependencies:
       '@types/minimatch': 5.1.2
-      '@types/node': 22.18.12
+      '@types/node': 20.19.23
     dev: true
 
   /@types/hast@3.0.4:
