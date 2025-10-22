@@ -184,7 +184,7 @@ def aio_postgresql_engine(
         token_lifetime = get_env_postgres_iam_token_lifetime()
 
         async def iam_async_creator() -> Any:
-            import asyncpg  # pyright: ignore  # type: ignore[import-untyped]
+            import asyncpg  # type: ignore
 
             from phoenix.db.iam_auth import generate_aws_rds_token
 
