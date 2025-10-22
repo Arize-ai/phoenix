@@ -22,7 +22,11 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
-from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    exclude_experiment_projects,
+    get_dataset_example_revisions,
+)
 from phoenix.db.models import LatencyMs
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
@@ -476,6 +480,7 @@ class Query:
                     )
                 )
             ).all()
+
             if not experiments or len(experiments) < len(experiment_rowids):
                 raise NotFound("Unable to resolve one or more experiment IDs.")
             num_datasets = len(set(experiment.dataset_id for experiment in experiments))
@@ -484,37 +489,38 @@ class Query:
             base_experiment = next(
                 experiment for experiment in experiments if experiment.id == base_experiment_rowid
             )
-            revision_ids = (
-                select(func.max(models.DatasetExampleRevision.id))
-                .join(
-                    models.DatasetExample,
-                    models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
+
+            base_experiment_split_ids_subquery = select(
+                models.ExperimentDatasetSplit.dataset_split_id
+            ).where(models.ExperimentDatasetSplit.experiment_id == base_experiment_rowid)
+
+            base_experiment_split_ids = (
+                await session.scalars(base_experiment_split_ids_subquery)
+            ).all()
+
+            # Use base experiment's split IDs for filtering (None if base has no splits)
+            split_ids_to_use = (
+                list(base_experiment_split_ids) if base_experiment_split_ids else None
+            )
+            # Get the revision IDs using the helper
+            revision_ids_query = (
+                get_dataset_example_revisions(
+                    base_experiment.dataset_version_id,
+                    dataset_id=base_experiment.dataset_id,
+                    split_ids=split_ids_to_use,
                 )
-                .where(
-                    and_(
-                        models.DatasetExampleRevision.dataset_version_id
-                        <= base_experiment.dataset_version_id,
-                        models.DatasetExample.dataset_id == base_experiment.dataset_id,
-                    )
-                )
-                .group_by(models.DatasetExampleRevision.dataset_example_id)
+                .with_only_columns(models.DatasetExampleRevision.dataset_example_id)
                 .scalar_subquery()
             )
+
+            # Now build the examples query using those revision IDs
             examples_query = (
                 select(models.DatasetExample)
-                .distinct(models.DatasetExample.id)
-                .join(
-                    models.DatasetExampleRevision,
-                    onclause=and_(
-                        models.DatasetExample.id
-                        == models.DatasetExampleRevision.dataset_example_id,
-                        models.DatasetExampleRevision.id.in_(revision_ids),
-                        models.DatasetExampleRevision.revision_kind != "DELETE",
-                    ),
-                )
+                .where(models.DatasetExample.id.in_(revision_ids_query))
                 .order_by(models.DatasetExample.id.desc())
                 .limit(page_size + 1)
             )
+
             if cursor is not None:
                 examples_query = examples_query.where(models.DatasetExample.id < cursor.rowid)
 
