@@ -7,7 +7,6 @@ import {
   Form,
   Input,
   Label,
-  Text,
   TextArea,
   TextField,
   Token,
@@ -85,11 +84,7 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
             >
               <Label>Label Name</Label>
               <Input placeholder="e.x. classifier" />
-              {error?.message ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">The name of the label</Text>
-              )}
+              {error?.message && <FieldError>{error.message}</FieldError>}
             </TextField>
           )}
         />
@@ -108,11 +103,7 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
             >
               <Label>Description</Label>
               <TextArea placeholder="A short description" />
-              {error?.message ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">The description of the label</Text>
-              )}
+              {error?.message && <FieldError>{error.message}</FieldError>}
             </TextField>
           )}
         />
