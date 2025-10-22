@@ -640,7 +640,7 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
-  evaluators: [Evaluator!]!
+  evaluators(first: Int = 50, last: Int, after: String, before: String): EvaluatorConnection!
   lastUpdatedAt: DateTime
 }
 
@@ -1252,6 +1252,24 @@ interface Evaluator implements Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type EvaluatorConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [EvaluatorEdge!]!
+}
+
+"""An edge in a connection."""
+type EvaluatorEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Evaluator!
 }
 
 enum EvaluatorKind {

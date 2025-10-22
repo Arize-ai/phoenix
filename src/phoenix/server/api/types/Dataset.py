@@ -459,13 +459,26 @@ class Dataset(Node):
         ]
 
     @strawberry.field
-    async def evaluators(self, info: Info[Context, None]) -> list[Evaluator]:
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Evaluator]:
         """Returns all evaluators associated with this dataset."""
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
         stmt = (
             select(models.Evaluator)
             .join(models.DatasetEvaluator)
             .where(models.DatasetEvaluator.dataset_id == self.id)
-            .order_by(models.Evaluator.id)
+            .order_by(models.Evaluator.id.desc())
         )
         async with info.context.db() as session:
             evaluators = await session.scalars(stmt)
@@ -475,7 +488,7 @@ class Dataset(Node):
                 ans.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
             else:
                 raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
-        return ans
+        return connection_from_list(data=ans, args=args)
 
     @strawberry.field
     def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
