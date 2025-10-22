@@ -178,6 +178,7 @@ export function ExperimentCompareDetails({
   const experiments = data.dataset.experiments?.edges;
   const annotationSummaries = useMemo(() => {
     return (
+      // we only want to show annotations that are present in at least one experiment run
       data.dataset.experimentAnnotationSummaries?.filter((summary) =>
         experimentRuns?.some((run) =>
           run.run.annotations?.edges.some(
