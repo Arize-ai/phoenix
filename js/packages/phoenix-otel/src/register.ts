@@ -32,14 +32,14 @@ type RegisterParams = {
    * It is recommended to use batching in production environments
    * @default true
    */
-  useBatchSpanProcessor: boolean;
+  useBatchSpanProcessor?: boolean;
 };
 
 export function register({
   url: paramsUrl,
   apiKey: paramsApiKey,
   projectName = "default",
-  useBatchSpanProcessor,
+  useBatchSpanProcessor = true,
 }: RegisterParams) {
   const url = paramsUrl || getEnvCollectorURL();
   const apiKey = paramsApiKey || getEnvApiKey();
