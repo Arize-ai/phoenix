@@ -9,11 +9,11 @@ import {
   NodeTracerProvider,
   SpanProcessor,
 } from "@opentelemetry/sdk-trace-node";
-import { getEnvCollectorURL } from "./config";
+import { getEnvApiKey, getEnvCollectorURL } from "./config";
 
 type RegisterParams = {
   /**
-   * the project the spans should be associated to
+   * The project the spans should be associated to
    * @default "default"
    */
   projectName?: string;
@@ -23,6 +23,11 @@ type RegisterParams = {
    */
   url?: string;
   /**
+   * The API key for the phoenix instance.
+   * If not provided, environment variables are checked.
+   */
+  apiKey?: string;
+  /**
    * Whether to use batching for span processing.
    * It is recommended to use batching in production environments
    * @default true
@@ -31,13 +36,21 @@ type RegisterParams = {
 };
 
 export function register({
-  url: paramUrl,
+  url: paramsUrl,
+  apiKey: paramsApiKey,
   projectName = "default",
   useBatchSpanProcessor,
 }: RegisterParams) {
-  const url = paramUrl || getEnvCollectorURL();
+  const url = paramsUrl || getEnvCollectorURL();
+  const apiKey = paramsApiKey || getEnvApiKey();
+  const headers: Record<string, string> = {};
+  const configureHeaders = typeof apiKey == "string";
+  if (configureHeaders) {
+    headers["authorization"] = `Bearer ${apiKey}`;
+  }
   const exporter = new OTLPTraceExporter({
     url,
+    headers,
   });
   let spanProcessor: SpanProcessor;
   if (useBatchSpanProcessor) {
