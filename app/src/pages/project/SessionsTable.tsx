@@ -21,9 +21,15 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp } from "@arizeai/components";
-
-import { Flex, Heading, Icon, Icons, View } from "@phoenix/components";
+import {
+  ContextualHelp,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@phoenix/components";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -39,17 +45,18 @@ import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { IntCell, TextCell } from "../../components/table";
 
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
-import {
-  ProjectSessionColumn,
-  SessionsTableQuery,
-} from "./__generated__/SessionsTableQuery.graphql";
+import { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { SessionColumnSelector } from "./SessionColumnSelector";
 import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
-import { makeAnnotationColumnId } from "./tableUtils";
+import {
+  DEFAULT_SESSION_SORT,
+  getGqlSessionSort,
+  makeAnnotationColumnId,
+} from "./tableUtils";
 type SessionsTableProps = {
   project: SessionsTable_sessions$key;
 };
@@ -72,7 +79,7 @@ const TableBody = <T extends { id: string }>({
         return (
           <tr
             key={row.id}
-            onClick={() => navigate(`${encodeURIComponent(row.id)}`)}
+            onClick={() => navigate(`${encodeURIComponent(row.original.id)}`)}
           >
             {row.getVisibleCells().map((cell) => {
               return (
@@ -229,12 +236,10 @@ export function SessionsTable(props: SessionsTableProps) {
     visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        enableSorting: false,
         columns: [
           {
             header: `labels`,
             accessorKey: makeAnnotationColumnId(name, "label"),
-            enableSorting: false,
             cell: ({ row }) => {
               const annotation = row.original.sessionAnnotationSummaries.find(
                 (annotation) => annotation.name === name
@@ -253,7 +258,6 @@ export function SessionsTable(props: SessionsTableProps) {
           {
             header: `mean score`,
             accessorKey: makeAnnotationColumnId(name, "score"),
-            enableSorting: false,
             cell: ({ row }) => {
               const annotation = row.original.sessionAnnotationSummaries.find(
                 (annotation) => annotation.name === name
@@ -271,16 +275,16 @@ export function SessionsTable(props: SessionsTableProps) {
   const annotationColumns: ColumnDef<TableRow>[] = [
     {
       header: () => (
-        <Flex direction="row" gap="size-50">
+        <Flex direction="row" gap="size-50" alignItems="center">
           <span>annotations</span>
           <ContextualHelp>
             <Heading level={3} weight="heavy">
               Annotations
             </Heading>
-            <Content>
+            <Text>
               Evaluations and human annotations logged via the API or set via
               the UI.
-            </Content>
+            </Text>
           </ContextualHelp>
         </Flex>
       ),
@@ -397,12 +401,7 @@ export function SessionsTable(props: SessionsTableProps) {
     startTransition(() => {
       refetch(
         {
-          sort: sort
-            ? {
-                col: sort.id as ProjectSessionColumn,
-                dir: sort.desc ? "desc" : "asc",
-              }
-            : { col: "startTime", dir: "desc" },
+          sort: sort ? getGqlSessionSort(sort) : DEFAULT_SESSION_SORT,
           after: null,
           first: PAGE_SIZE,
           filterIoSubstring: filterIoSubstringOrSessionId,
@@ -451,7 +450,6 @@ export function SessionsTable(props: SessionsTableProps) {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    getRowId: (row) => row.id,
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;

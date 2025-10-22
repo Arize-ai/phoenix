@@ -7,7 +7,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -60,11 +59,11 @@ class CreateExperimentRunResponseBody(ResponseBody[CreateExperimentRunResponseBo
     responses=add_errors_to_responses(
         [
             {
-                "status_code": HTTP_404_NOT_FOUND,
+                "status_code": 404,
                 "description": "Experiment or dataset example not found",
             },
             {
-                "status_code": HTTP_409_CONFLICT,
+                "status_code": 409,
                 "description": "This experiment run has already been submitted",
             },
         ]
@@ -79,7 +78,7 @@ async def create_experiment_run(
     except ValueError:
         raise HTTPException(
             detail=f"Experiment with ID {experiment_gid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
         )
 
     example_gid = GlobalID.from_id(request_body.dataset_example_id)
@@ -88,7 +87,7 @@ async def create_experiment_run(
     except ValueError:
         raise HTTPException(
             detail=f"DatasetExample with ID {example_gid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
         )
 
     trace_id = request_body.trace_id
@@ -115,7 +114,7 @@ async def create_experiment_run(
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise HTTPException(
                 detail="This experiment run has already been submitted",
-                status_code=HTTP_409_CONFLICT,
+                status_code=409,
             )
     request.state.event_queue.put(ExperimentRunInsertEvent((exp_run.id,)))
     run_gid = GlobalID("ExperimentRun", str(exp_run.id))
@@ -141,8 +140,8 @@ class ListExperimentRunsResponseBody(PaginatedResponseBody[ExperimentRunResponse
     response_description="Experiment runs retrieved successfully",
     responses=add_errors_to_responses(
         [
-            {"status_code": HTTP_404_NOT_FOUND, "description": "Experiment not found"},
-            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid cursor format"},
+            {"status_code": 404, "description": "Experiment not found"},
+            {"status_code": 422, "description": "Invalid cursor format"},
         ]
     ),
 )
@@ -160,13 +159,19 @@ async def list_experiment_runs(
         gt=0,
     ),
 ) -> ListExperimentRunsResponseBody:
-    experiment_gid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_gid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_gid, "Experiment")
     except ValueError:
         raise HTTPException(
             detail=f"Experiment with ID {experiment_gid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
         )
 
     stmt = (
@@ -182,7 +187,7 @@ async def list_experiment_runs(
         except ValueError:
             raise HTTPException(
                 detail=f"Invalid cursor format: {cursor}",
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
             )
 
     # Apply limit only if specified for pagination

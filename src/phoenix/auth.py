@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
 from hashlib import pbkdf2_hmac
 from typing import Any, Literal, Optional, Protocol
@@ -129,6 +129,18 @@ def set_oauth2_nonce_cookie(
     )
 
 
+def set_oauth2_code_verifier_cookie(
+    *, response: ResponseType, code_verifier: str, max_age: timedelta
+) -> ResponseType:
+    return _set_cookie(
+        response=response,
+        cookie_name=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
+        cookie_max_age=max_age,
+        samesite="lax",
+        value=code_verifier,
+    )
+
+
 def _set_cookie(
     *,
     response: ResponseType,
@@ -166,6 +178,11 @@ def delete_oauth2_state_cookie(response: ResponseType) -> ResponseType:
 
 def delete_oauth2_nonce_cookie(response: ResponseType) -> ResponseType:
     response.delete_cookie(key=PHOENIX_OAUTH2_NONCE_COOKIE_NAME)
+    return response
+
+
+def delete_oauth2_code_verifier_cookie(response: ResponseType) -> ResponseType:
+    response.delete_cookie(key=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME)
     return response
 
 
@@ -270,6 +287,8 @@ PHOENIX_OAUTH2_STATE_COOKIE_NAME = "phoenix-oauth2-state"
 """The name of the cookie that stores the state used for the OAuth2 authorization code flow."""
 PHOENIX_OAUTH2_NONCE_COOKIE_NAME = "phoenix-oauth2-nonce"
 """The name of the cookie that stores the nonce used for the OAuth2 authorization code flow."""
+PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME = "phoenix-oauth2-code-verifier"
+"""The name of the cookie that stores the PKCE code verifier for OAuth2."""
 DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES = 15
 """
 The default amount of time in minutes that can elapse between the initial
@@ -312,7 +331,13 @@ class ClaimSet:
 
     @property
     def status(self) -> ClaimSetStatus:
-        if self.expiration_time and self.expiration_time.timestamp() < datetime.now().timestamp():
+        # Per JWT RFC 7519 Section 4.1.4, the expiration time identifies the time
+        # "on or after which" the JWT must not be accepted. Use <= for inclusive check.
+        # https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4
+        if (
+            self.expiration_time
+            and self.expiration_time.timestamp() <= datetime.now(timezone.utc).timestamp()
+        ):
             return ClaimSetStatus.EXPIRED
         if self.token_id is not None and self.subject is not None:
             return ClaimSetStatus.VALID

@@ -56,7 +56,7 @@ export function DBUsagePieChart({
   );
 
   const totalUsedBytes = data.dbTableStats.reduce(
-    (acc, table) => acc + table.numBytes,
+    (acc, table) => acc + (table?.numBytes ?? 0),
     0
   );
   const remainingBytes =
@@ -127,7 +127,7 @@ export function DBUsagePieChart({
                 y="0%"
                 dx={10}
                 dy={15}
-                textAnchor="left"
+                textAnchor="start"
                 fill="var(--ac-global-text-color-500)"
                 fontSize="var(--ac-global-font-size-xs)"
               >
@@ -138,7 +138,7 @@ export function DBUsagePieChart({
                 y="0%"
                 dx={10}
                 dy={28}
-                textAnchor="left"
+                textAnchor="start"
                 fill="var(--ac-global-text-color-500)"
                 fontSize="var(--ac-global-font-size-xs)"
               >
@@ -151,7 +151,7 @@ export function DBUsagePieChart({
             y="100%"
             dx={-80}
             dy={-2}
-            textAnchor="right"
+            textAnchor="end"
             fill="var(--ac-global-text-color-500)"
             fontSize="var(--ac-global-font-size-xs)"
           >

@@ -19,14 +19,13 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp } from "@arizeai/components";
-
 import {
   Flex,
   Heading,
   Icon,
   Icons,
   Link,
+  Text,
   ToggleButton,
   ToggleButtonGroup,
   View,
@@ -38,6 +37,7 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { ContextualHelp } from "@phoenix/components/tooltip/ContextualHelp";
 import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
@@ -335,10 +335,10 @@ export function SpansTable(props: SpansTableProps) {
             <Heading level={3} weight="heavy">
               Annotations
             </Heading>
-            <Content>
+            <Text>
               Evaluations and human annotations logged via the API or set via
               the UI.
-            </Content>
+            </Text>
           </ContextualHelp>
         </Flex>
       ),
@@ -410,15 +410,12 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "status",
       accessorKey: "statusCode",
-      maxSize: 30,
       enableSorting: false,
+      minSize: 50,
+      maxSize: 75,
       cell: ({ getValue }) => {
         const statusCode = getValue() as SpanStatusCode;
-        return (
-          <Flex direction="row" gap="size-50" alignItems="center">
-            <SpanStatusCodeIcon statusCode={statusCode} />
-          </Flex>
-        );
+        return <SpanStatusCodeIcon statusCode={statusCode} />;
       },
     },
     {
@@ -713,7 +710,7 @@ export function SpansTable(props: SpansTableProps) {
                             },
                           }}
                         >
-                          <Truncate maxWidth="100%">
+                          <Truncate maxWidth={header.getSize()}>
                             {flexRender(
                               header.column.columnDef.header,
                               header.getContext()

@@ -24,6 +24,7 @@ class CreateExperimentRequestBody(TypedDict):
     description: NotRequired[str]
     metadata: NotRequired[Mapping[str, Any]]
     version_id: NotRequired[str]
+    splits: NotRequired[Sequence[str]]
     repetitions: NotRequired[int]
 
 
@@ -156,6 +157,7 @@ class ListDatasetExamplesData(TypedDict):
     dataset_id: str
     version_id: str
     examples: Sequence[DatasetExample]
+    filtered_splits: NotRequired[Sequence[str]]
 
 
 class ListDatasetExamplesResponseBody(TypedDict):
@@ -184,7 +186,7 @@ class ListExperimentsResponseBody(TypedDict):
 class LocalUserData(TypedDict):
     email: str
     username: str
-    role: Literal["SYSTEM", "ADMIN", "MEMBER"]
+    role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
     auth_method: Literal["LOCAL"]
     password: NotRequired[str]
 
@@ -199,7 +201,7 @@ class LocalUser(LocalUserData):
 class OAuth2UserData(TypedDict):
     email: str
     username: str
-    role: Literal["SYSTEM", "ADMIN", "MEMBER"]
+    role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
     auth_method: Literal["OAUTH2"]
     oauth2_client_id: NotRequired[str]
     oauth2_user_id: NotRequired[str]

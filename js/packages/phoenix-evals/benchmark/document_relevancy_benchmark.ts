@@ -5,6 +5,7 @@ import {
   asEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
+import { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
 
 const relevanceEvaluator = createDocumentRelevancyEvaluator({
   model: openai("gpt-4o-mini"),
@@ -230,8 +231,8 @@ async function main() {
     })),
   });
 
-  const task = async (example) => {
-    const evalResult = await relevanceEvaluator({
+  const task: ExperimentTask = async (example) => {
+    const evalResult = await relevanceEvaluator.evaluate({
       input: example.input.question as string,
       documentText: example.input.documentText as string,
     });

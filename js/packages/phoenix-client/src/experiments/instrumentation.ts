@@ -20,6 +20,7 @@ export function createProvider({
   baseUrl,
   headers,
   useBatchSpanProcessor = true,
+  diagLogLevel,
 }: {
   projectName: string;
   headers: HeadersOptions;
@@ -32,8 +33,15 @@ export function createProvider({
    * The base URL of the Phoenix. Doesn't include the /v1/traces path.
    */
   baseUrl: string;
+  /**
+   * The diag log level to set for the built in DiagConsoleLogger instance.
+   * Omit to disable built in logging.
+   */
+  diagLogLevel?: DiagLogLevel;
 }) {
-  diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
+  if (diagLogLevel) {
+    diag.setLogger(new DiagConsoleLogger(), diagLogLevel);
+  }
 
   const exporter = new OTLPTraceExporter({
     url: `${baseUrl}/v1/traces`,

@@ -17,6 +17,7 @@ import pandas as pd
 import pyarrow as pa
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
+from pydantic import ValidationError
 from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -24,12 +25,7 @@ from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.status import (
-    HTTP_200_OK,
-    HTTP_204_NO_CONTENT,
     HTTP_404_NOT_FOUND,
-    HTTP_409_CONFLICT,
-    HTTP_422_UNPROCESSABLE_ENTITY,
-    HTTP_429_TOO_MANY_REQUESTS,
 )
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
@@ -42,8 +38,11 @@ from phoenix.db.insertion.dataset import (
     ExampleContent,
     add_dataset_examples,
 )
+from phoenix.db.types.db_models import UNDEFINED
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
+from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
@@ -91,7 +90,7 @@ class ListDatasetsResponseBody(PaginatedResponseBody[Dataset]):
     "/datasets",
     operation_id="listDatasets",
     summary="List datasets",
-    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses([422]),
 )
 async def list_datasets(
     request: Request,
@@ -125,7 +124,7 @@ async def list_datasets(
             except ValueError:
                 raise HTTPException(
                     detail=f"Invalid cursor format: {cursor}",
-                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=422,
                 )
         if name:
             query = query.filter(models.Dataset.name == name)
@@ -164,11 +163,11 @@ async def list_datasets(
     "/datasets/{id}",
     operation_id="deleteDatasetById",
     summary="Delete dataset by ID",
-    status_code=HTTP_204_NO_CONTENT,
+    status_code=204,
     responses=add_errors_to_responses(
         [
-            {"status_code": HTTP_404_NOT_FOUND, "description": "Dataset not found"},
-            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid dataset ID"},
+            {"status_code": 404, "description": "Dataset not found"},
+            {"status_code": 422, "description": "Invalid dataset ID"},
         ]
     ),
 )
@@ -182,11 +181,9 @@ async def delete_dataset(
                 DATASET_NODE_NAME,
             )
         except ValueError:
-            raise HTTPException(
-                detail=f"Invalid Dataset ID: {id}", status_code=HTTP_422_UNPROCESSABLE_ENTITY
-            )
+            raise HTTPException(detail=f"Invalid Dataset ID: {id}", status_code=422)
     else:
-        raise HTTPException(detail="Missing Dataset ID", status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(detail="Missing Dataset ID", status_code=422)
     project_names_stmt = get_project_names_for_datasets(dataset_id)
     eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
     stmt = (
@@ -196,7 +193,7 @@ async def delete_dataset(
         project_names = await session.scalars(project_names_stmt)
         eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
         if (await session.scalar(stmt)) is None:
-            raise HTTPException(detail="Dataset does not exist", status_code=HTTP_404_NOT_FOUND)
+            raise HTTPException(detail="Dataset does not exist", status_code=404)
     tasks = BackgroundTasks()
     tasks.add_task(delete_projects, request.app.state.db, *project_names)
     tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
@@ -214,17 +211,21 @@ class GetDatasetResponseBody(ResponseBody[DatasetWithExampleCount]):
     "/datasets/{id}",
     operation_id="getDataset",
     summary="Get dataset by ID",
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+    responses=add_errors_to_responses([404]),
 )
 async def get_dataset(
     request: Request, id: str = Path(description="The ID of the dataset")
 ) -> GetDatasetResponseBody:
-    dataset_id = GlobalID.from_id(id)
+    try:
+        dataset_id = GlobalID.from_id(id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {id}",
+            status_code=422,
+        ) from e
 
     if (type_name := dataset_id.type_name) != DATASET_NODE_NAME:
-        raise HTTPException(
-            detail=f"ID {dataset_id} refers to a f{type_name}", status_code=HTTP_404_NOT_FOUND
-        )
+        raise HTTPException(detail=f"ID {dataset_id} refers to a f{type_name}", status_code=404)
     async with request.app.state.db() as session:
         result = await session.execute(
             select(models.Dataset, models.Dataset.example_count).filter(
@@ -235,9 +236,7 @@ async def get_dataset(
         dataset = dataset_query[0] if dataset_query else None
         example_count = dataset_query[1] if dataset_query else 0
         if dataset is None:
-            raise HTTPException(
-                detail=f"Dataset with ID {dataset_id} not found", status_code=HTTP_404_NOT_FOUND
-            )
+            raise HTTPException(detail=f"Dataset with ID {dataset_id} not found", status_code=404)
 
         dataset = DatasetWithExampleCount(
             id=str(dataset_id),
@@ -266,7 +265,7 @@ class ListDatasetVersionsResponseBody(PaginatedResponseBody[DatasetVersion]):
     "/datasets/{id}/versions",
     operation_id="listDatasetVersionsByDatasetId",
     summary="List dataset versions",
-    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses([422]),
 )
 async def list_dataset_versions(
     request: Request,
@@ -288,12 +287,12 @@ async def list_dataset_versions(
         except ValueError:
             raise HTTPException(
                 detail=f"Invalid Dataset ID: {id}",
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
             )
     else:
         raise HTTPException(
             detail="Missing Dataset ID",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
         )
     stmt = (
         select(models.DatasetVersion)
@@ -309,7 +308,7 @@ async def list_dataset_versions(
         except ValueError:
             raise HTTPException(
                 detail=f"Invalid cursor: {cursor}",
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
             )
         max_dataset_version_id = (
             select(models.DatasetVersion.id)
@@ -348,10 +347,10 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
     responses=add_errors_to_responses(
         [
             {
-                "status_code": HTTP_409_CONFLICT,
+                "status_code": 409,
                 "description": "Dataset of the same name already exists",
             },
-            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid request body"},
+            {"status_code": 422, "description": "Invalid request body"},
         ]
     ),
     # FastAPI cannot generate the request body portion of the OpenAPI schema for
@@ -414,7 +413,12 @@ async def upload_dataset(
         description="If true, fulfill request synchronously and return JSON containing dataset_id.",
     ),
 ) -> Optional[UploadDatasetResponseBody]:
-    request_content_type = request.headers["content-type"]
+    request_content_type = request.headers.get("content-type")
+    if not request_content_type:
+        raise HTTPException(
+            detail="Missing content-type header",
+            status_code=400,
+        )
     examples: Union[Examples, Awaitable[Examples]]
     if request_content_type.startswith("application/json"):
         try:
@@ -424,14 +428,14 @@ async def upload_dataset(
         except ValueError as e:
             raise HTTPException(
                 detail=str(e),
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
             )
         if action is DatasetAction.CREATE:
             async with request.app.state.db() as session:
                 if await _check_table_exists(session, name):
                     raise HTTPException(
                         detail=f"Dataset with the same name already exists: {name=}",
-                        status_code=HTTP_409_CONFLICT,
+                        status_code=409,
                     )
     elif request_content_type.startswith("multipart/form-data"):
         async with request.form() as form:
@@ -448,14 +452,14 @@ async def upload_dataset(
             except ValueError as e:
                 raise HTTPException(
                     detail=str(e),
-                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=422,
                 )
             if action is DatasetAction.CREATE:
                 async with request.app.state.db() as session:
                     if await _check_table_exists(session, name):
                         raise HTTPException(
                             detail=f"Dataset with the same name already exists: {name=}",
-                            status_code=HTTP_409_CONFLICT,
+                            status_code=409,
                         )
             content = await file.read()
         try:
@@ -472,12 +476,12 @@ async def upload_dataset(
         except ValueError as e:
             raise HTTPException(
                 detail=str(e),
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
             )
     else:
         raise HTTPException(
             detail="Invalid request Content-Type",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
         )
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
@@ -510,7 +514,7 @@ async def upload_dataset(
     except QueueFull:
         if isinstance(examples, Coroutine):
             examples.close()
-        raise HTTPException(detail="Too many requests.", status_code=HTTP_429_TOO_MANY_REQUESTS)
+        raise HTTPException(detail="Too many requests.", status_code=429)
     return None
 
 
@@ -700,6 +704,7 @@ class DatasetExample(V1RoutesBaseModel):
 class ListDatasetExamplesData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
+    filtered_splits: list[str] = UNDEFINED
     examples: list[DatasetExample]
 
 
@@ -711,7 +716,7 @@ class ListDatasetExamplesResponseBody(ResponseBody[ListDatasetExamplesData]):
     "/datasets/{id}/examples",
     operation_id="getDatasetExamples",
     summary="Get examples from a dataset",
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+    responses=add_errors_to_responses([404]),
 )
 async def get_dataset_examples(
     request: Request,
@@ -722,19 +727,35 @@ async def get_dataset_examples(
             "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
+    split: Optional[list[str]] = Query(
+        default=None,
+        description="List of dataset split identifiers (GlobalIDs or names) to filter by",
+    ),
 ) -> ListDatasetExamplesResponseBody:
-    dataset_gid = GlobalID.from_id(id)
-    version_gid = GlobalID.from_id(version_id) if version_id else None
+    try:
+        dataset_gid = GlobalID.from_id(id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {id}",
+            status_code=422,
+        ) from e
+
+    if version_id:
+        try:
+            version_gid = GlobalID.from_id(version_id)
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}",
+                status_code=422,
+            ) from e
+    else:
+        version_gid = None
 
     if (dataset_type := dataset_gid.type_name) != "Dataset":
-        raise HTTPException(
-            detail=f"ID {dataset_gid} refers to a {dataset_type}", status_code=HTTP_404_NOT_FOUND
-        )
+        raise HTTPException(detail=f"ID {dataset_gid} refers to a {dataset_type}", status_code=404)
 
     if version_gid and (version_type := version_gid.type_name) != "DatasetVersion":
-        raise HTTPException(
-            detail=f"ID {version_gid} refers to a {version_type}", status_code=HTTP_404_NOT_FOUND
-        )
+        raise HTTPException(detail=f"ID {version_gid} refers to a {version_type}", status_code=404)
 
     async with request.app.state.db() as session:
         if (
@@ -744,7 +765,7 @@ async def get_dataset_examples(
         ) is None:
             raise HTTPException(
                 detail=f"No dataset with id {dataset_gid} can be found.",
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
             )
 
         # Subquery to find the maximum created_at for each dataset_example_id
@@ -766,7 +787,7 @@ async def get_dataset_examples(
             ) is None:
                 raise HTTPException(
                     detail=f"No dataset version with id {version_id} can be found.",
-                    status_code=HTTP_404_NOT_FOUND,
+                    status_code=404,
                 )
             # if a version_id is provided, filter the subquery to only include revisions from that
             partial_subquery = partial_subquery.filter(
@@ -782,13 +803,17 @@ async def get_dataset_examples(
             ) is None:
                 raise HTTPException(
                     detail="Dataset has no versions.",
-                    status_code=HTTP_404_NOT_FOUND,
+                    status_code=404,
                 )
 
         subquery = partial_subquery.subquery()
+
         # Query for the most recent example revisions that are not deleted
         query = (
-            select(models.DatasetExample, models.DatasetExampleRevision)
+            select(
+                models.DatasetExample,
+                models.DatasetExampleRevision,
+            )
             .join(
                 models.DatasetExampleRevision,
                 models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
@@ -801,6 +826,28 @@ async def get_dataset_examples(
             .filter(models.DatasetExampleRevision.revision_kind != "DELETE")
             .order_by(models.DatasetExample.id.asc())
         )
+
+        # If splits are provided, filter by dataset splits
+        resolved_split_names: list[str] = []
+        if split:
+            # Resolve split identifiers (IDs or names) to IDs and names
+            resolved_split_ids, resolved_split_names = await _resolve_split_identifiers(
+                session, split
+            )
+
+            # Add filter for splits (join with the association table)
+            # Use distinct() to prevent duplicates when an example belongs to
+            # multiple splits
+            query = (
+                query.join(
+                    models.DatasetSplitDatasetExample,
+                    models.DatasetExample.id
+                    == models.DatasetSplitDatasetExample.dataset_example_id,
+                )
+                .filter(models.DatasetSplitDatasetExample.dataset_split_id.in_(resolved_split_ids))
+                .distinct()
+            )
+
         examples = [
             DatasetExample(
                 id=str(GlobalID("DatasetExample", str(example.id))),
@@ -815,6 +862,7 @@ async def get_dataset_examples(
         data=ListDatasetExamplesData(
             dataset_id=str(GlobalID("Dataset", str(resolved_dataset_id))),
             version_id=str(GlobalID("DatasetVersion", str(resolved_version_id))),
+            filtered_splits=resolved_split_names,
             examples=examples,
         )
     )
@@ -825,10 +873,10 @@ async def get_dataset_examples(
     operation_id="getDatasetCsv",
     summary="Download dataset examples as CSV file",
     response_class=StreamingResponse,
-    status_code=HTTP_200_OK,
+    status_code=200,
     responses={
-        **add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
-        **add_text_csv_content_to_responses(HTTP_200_OK),
+        **add_errors_to_responses([422]),
+        **add_text_csv_content_to_responses(200),
     },
 )
 async def get_dataset_csv(
@@ -848,7 +896,7 @@ async def get_dataset_csv(
                 session=session, id=id, version_id=version_id
             )
     except ValueError as e:
-        raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(detail=str(e), status_code=422)
     content = await run_in_threadpool(_get_content_csv, examples)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     return Response(
@@ -868,7 +916,7 @@ async def get_dataset_csv(
     responses=add_errors_to_responses(
         [
             {
-                "status_code": HTTP_422_UNPROCESSABLE_ENTITY,
+                "status_code": 422,
                 "description": "Invalid dataset or version ID",
             }
         ]
@@ -891,7 +939,7 @@ async def get_dataset_jsonl_openai_ft(
                 session=session, id=id, version_id=version_id
             )
     except ValueError as e:
-        raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(detail=str(e), status_code=422)
     content = await run_in_threadpool(_get_content_jsonl_openai_ft, examples)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     response.headers["content-disposition"] = (
@@ -908,7 +956,7 @@ async def get_dataset_jsonl_openai_ft(
     responses=add_errors_to_responses(
         [
             {
-                "status_code": HTTP_422_UNPROCESSABLE_ENTITY,
+                "status_code": 422,
                 "description": "Invalid dataset or version ID",
             }
         ]
@@ -931,7 +979,7 @@ async def get_dataset_jsonl_openai_evals(
                 session=session, id=id, version_id=version_id
             )
     except ValueError as e:
-        raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(detail=str(e), status_code=422)
     content = await run_in_threadpool(_get_content_jsonl_openai_evals, examples)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     response.headers["content-disposition"] = (
@@ -1010,12 +1058,25 @@ def _get_content_jsonl_openai_evals(examples: list[models.DatasetExampleRevision
 async def _get_db_examples(
     *, session: Any, id: str, version_id: Optional[str]
 ) -> tuple[str, list[models.DatasetExampleRevision]]:
-    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    try:
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {id}",
+            status_code=422,
+        ) from e
+
     dataset_version_id: Optional[int] = None
     if version_id:
-        dataset_version_id = from_global_id_with_expected_type(
-            GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
-        )
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
+            )
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}",
+                status_code=422,
+            ) from e
     latest_version = (
         select(
             models.DatasetExampleRevision.dataset_example_id,
@@ -1058,3 +1119,118 @@ async def _get_db_examples(
 
 def _is_all_dict(seq: Sequence[Any]) -> bool:
     return all(map(lambda obj: isinstance(obj, dict), seq))
+
+
+# Split identifier helper types and functions
+class _SplitId(int): ...
+
+
+_SplitIdentifier: TypeAlias = Union[_SplitId, Identifier]
+
+
+def _parse_split_identifier(split_identifier: str) -> _SplitIdentifier:
+    """
+    Parse a split identifier as either a GlobalID or a name.
+
+    Args:
+        split_identifier: The identifier string (GlobalID or name)
+
+    Returns:
+        Either a _SplitId or an Identifier
+
+    Raises:
+        HTTPException: If the identifier format is invalid
+    """
+    if not split_identifier:
+        raise HTTPException(422, "Invalid split identifier")
+    try:
+        split_id = from_global_id_with_expected_type(
+            GlobalID.from_id(split_identifier),
+            DatasetSplitNodeType.__name__,
+        )
+    except ValueError:
+        try:
+            return Identifier.model_validate(split_identifier)
+        except ValidationError:
+            raise HTTPException(422, "Invalid split name")
+    return _SplitId(split_id)
+
+
+async def _resolve_split_identifiers(
+    session: AsyncSession,
+    split_identifiers: list[str],
+) -> tuple[list[int], list[str]]:
+    """
+    Resolve a list of split identifiers (IDs or names) to split IDs and names.
+
+    Args:
+        session: The database session
+        split_identifiers: List of split identifiers (GlobalIDs or names)
+
+    Returns:
+        Tuple of (list of split IDs, list of split names)
+
+    Raises:
+        HTTPException: If any split identifier is invalid or not found
+    """
+    split_ids: list[int] = []
+    split_names: list[str] = []
+
+    # Parse all identifiers first
+    parsed_identifiers: list[_SplitIdentifier] = []
+    for identifier_str in split_identifiers:
+        parsed_identifiers.append(_parse_split_identifier(identifier_str))
+
+    # Separate IDs and names
+    requested_ids: list[int] = []
+    requested_names: list[str] = []
+    for identifier in parsed_identifiers:
+        if isinstance(identifier, _SplitId):
+            requested_ids.append(int(identifier))
+        elif isinstance(identifier, Identifier):
+            requested_names.append(identifier.root)
+        else:
+            assert_never(identifier)
+
+    # Query for splits by ID
+    if requested_ids:
+        id_results = await session.stream(
+            select(models.DatasetSplit.id, models.DatasetSplit.name).where(
+                models.DatasetSplit.id.in_(requested_ids)
+            )
+        )
+        async for split_id, split_name in id_results:
+            split_ids.append(split_id)
+            split_names.append(split_name)
+
+        # Check if all requested IDs were found
+        found_ids = set(split_ids[-len(requested_ids) :] if requested_ids else [])
+        missing_ids = [sid for sid in requested_ids if sid not in found_ids]
+        if missing_ids:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Dataset splits not found for IDs: {', '.join(map(str, missing_ids))}",
+            )
+
+    # Query for splits by name
+    if requested_names:
+        name_results = await session.stream(
+            select(models.DatasetSplit.id, models.DatasetSplit.name).where(
+                models.DatasetSplit.name.in_(requested_names)
+            )
+        )
+        name_to_id: dict[str, int] = {}
+        async for split_id, split_name in name_results:
+            split_ids.append(split_id)
+            split_names.append(split_name)
+            name_to_id[split_name] = split_id
+
+        # Check if all requested names were found
+        missing_names = [name for name in requested_names if name not in name_to_id]
+        if missing_names:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Dataset splits not found: {', '.join(missing_names)}",
+            )
+
+    return split_ids, split_names

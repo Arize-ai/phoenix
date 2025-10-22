@@ -49,7 +49,7 @@ jobs:
       - name: Build Packages
         working-directory: ./js
         run: |
-          pnpm run -r build
+          pnpm run --filter "./packages/**" -r build
       - name: Build Docs
         working-directory: ./js
         run: |

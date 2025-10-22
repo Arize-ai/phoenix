@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4ebdad9a635146234fbc4309a7823b35>>
+ * @generated SignedSource<<4fdcb00aeff3fdfca60119c13fbb1f21>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,8 +13,10 @@ import { FragmentRefs } from "relay-runtime";
 export type ExamplesTableQuery$variables = {
   after?: string | null;
   datasetVersionId?: string | null;
+  filter?: string | null;
   first?: number | null;
   id: string;
+  splitIds?: ReadonlyArray<string> | null;
 };
 export type ExamplesTableQuery$data = {
   readonly node: {
@@ -27,36 +29,44 @@ export type ExamplesTableQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "after"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "datasetVersionId"
-  },
-  {
-    "defaultValue": 100,
-    "kind": "LocalArgument",
-    "name": "first"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "id"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "after"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "datasetVersionId"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "filter"
+},
+v3 = {
+  "defaultValue": 100,
+  "kind": "LocalArgument",
+  "name": "first"
+},
+v4 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "id"
+},
+v5 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "splitIds"
+},
+v6 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v2 = [
+v7 = [
   {
     "kind": "Variable",
     "name": "after",
@@ -69,18 +79,28 @@ v2 = [
   },
   {
     "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
+  },
+  {
+    "kind": "Variable",
     "name": "first",
     "variableName": "first"
+  },
+  {
+    "kind": "Variable",
+    "name": "splitIds",
+    "variableName": "splitIds"
   }
 ],
-v3 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v4 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -89,21 +109,28 @@ v4 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/),
+      (v3/*: any*/),
+      (v4/*: any*/),
+      (v5/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "ExamplesTableQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           {
-            "args": (v2/*: any*/),
+            "args": (v7/*: any*/),
             "kind": "FragmentSpread",
             "name": "ExamplesTableFragment"
           }
@@ -116,26 +143,33 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/),
+      (v3/*: any*/),
+      (v5/*: any*/),
+      (v4/*: any*/)
+    ],
     "kind": "Operation",
     "name": "ExamplesTableQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
-          (v4/*: any*/),
+          (v8/*: any*/),
+          (v9/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v7/*: any*/),
                 "concreteType": "DatasetExampleConnection",
                 "kind": "LinkedField",
                 "name": "examples",
@@ -157,7 +191,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v4/*: any*/),
+                          (v9/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -166,7 +200,7 @@ return {
                             "name": "datasetSplits",
                             "plural": true,
                             "selections": [
-                              (v4/*: any*/),
+                              (v9/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -234,8 +268,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/)
+                          (v8/*: any*/),
+                          (v9/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -272,9 +306,11 @@ return {
               },
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v7/*: any*/),
                 "filters": [
-                  "datasetVersionId"
+                  "datasetVersionId",
+                  "filter",
+                  "splitIds"
                 ],
                 "handle": "connection",
                 "key": "ExamplesTable_examples",
@@ -291,16 +327,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "05c5b46076973161b52b958dd657c82e",
+    "cacheID": "25fc48ec69201eec67455bbeeb490734",
     "id": null,
     "metadata": {},
     "name": "ExamplesTableQuery",
     "operationKind": "query",
-    "text": "query ExamplesTableQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExamplesTableFragment_4a6F8Z\n    id\n  }\n}\n\nfragment ExamplesTableFragment_4a6F8Z on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        datasetSplits {\n          id\n          name\n          color\n        }\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExamplesTableQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $filter: String = null\n  $first: Int = 100\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExamplesTableFragment_FYWYy\n    id\n  }\n}\n\nfragment ExamplesTableFragment_FYWYy on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after, filter: $filter, splitIds: $splitIds) {\n    edges {\n      example: node {\n        id\n        datasetSplits {\n          id\n          name\n          color\n        }\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c328c873fd71552b25c7da8636c723f6";
+(node as any).hash = "ebe08bedf9904f2cb003b0ebc5d3f682";
 
 export default node;

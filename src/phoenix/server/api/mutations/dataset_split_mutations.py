@@ -10,11 +10,12 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.DatasetExample import DatasetExample, to_gql_dataset_example
 from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
@@ -69,6 +70,13 @@ class DatasetSplitMutationPayload:
 
 
 @strawberry.type
+class DatasetSplitMutationPayloadWithExamples:
+    dataset_split: DatasetSplit
+    query: "Query"
+    examples: list[DatasetExample]
+
+
+@strawberry.type
 class DeleteDatasetSplitsMutationPayload:
     dataset_splits: list[DatasetSplit]
     query: "Query"
@@ -77,16 +85,18 @@ class DeleteDatasetSplitsMutationPayload:
 @strawberry.type
 class AddDatasetExamplesToDatasetSplitsMutationPayload:
     query: "Query"
+    examples: list[DatasetExample]
 
 
 @strawberry.type
 class RemoveDatasetExamplesFromDatasetSplitsMutationPayload:
     query: "Query"
+    examples: list[DatasetExample]
 
 
 @strawberry.type
 class DatasetSplitMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_split(
         self, info: Info[Context, None], input: CreateDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
@@ -109,7 +119,7 @@ class DatasetSplitMutationMixin:
             dataset_split=to_gql_dataset_split(dataset_split_orm), query=Query()
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def patch_dataset_split(
         self, info: Info[Context, None], input: PatchDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
@@ -142,7 +152,7 @@ class DatasetSplitMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_dataset_splits(
         self, info: Info[Context, None], input: DeleteDatasetSplitInput
     ) -> DeleteDatasetSplitsMutationPayload:
@@ -181,7 +191,7 @@ class DatasetSplitMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def add_dataset_examples_to_dataset_splits(
         self, info: Info[Context, None], input: AddDatasetExamplesToDatasetSplitsInput
     ) -> AddDatasetExamplesToDatasetSplitsMutationPayload:
@@ -262,11 +272,19 @@ class DatasetSplitMutationMixin:
                 except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
                     raise Conflict("Failed to add examples to dataset splits.") from e
 
+            examples = (
+                await session.scalars(
+                    select(models.DatasetExample).where(
+                        models.DatasetExample.id.in_(example_rowids)
+                    )
+                )
+            ).all()
         return AddDatasetExamplesToDatasetSplitsMutationPayload(
             query=Query(),
+            examples=[to_gql_dataset_example(example) for example in examples],
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def remove_dataset_examples_from_dataset_splits(
         self, info: Info[Context, None], input: RemoveDatasetExamplesFromDatasetSplitsInput
     ) -> RemoveDatasetExamplesFromDatasetSplitsMutationPayload:
@@ -314,14 +332,23 @@ class DatasetSplitMutationMixin:
 
             await session.execute(stmt)
 
+            examples = (
+                await session.scalars(
+                    select(models.DatasetExample).where(
+                        models.DatasetExample.id.in_(example_rowids)
+                    )
+                )
+            ).all()
+
         return RemoveDatasetExamplesFromDatasetSplitsMutationPayload(
             query=Query(),
+            examples=[to_gql_dataset_example(example) for example in examples],
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_split_with_examples(
         self, info: Info[Context, None], input: CreateDatasetSplitWithExamplesInput
-    ) -> DatasetSplitMutationPayload:
+    ) -> DatasetSplitMutationPayloadWithExamples:
         user_id = get_user(info)
         validated_name = _validated_name(input.name)
         unique_example_rowids: set[int] = set()
@@ -374,9 +401,18 @@ class DatasetSplitMutationMixin:
                         "Failed to associate examples with the new dataset split."
                     ) from e
 
-        return DatasetSplitMutationPayload(
+            examples = (
+                await session.scalars(
+                    select(models.DatasetExample).where(
+                        models.DatasetExample.id.in_(example_rowids)
+                    )
+                )
+            ).all()
+
+        return DatasetSplitMutationPayloadWithExamples(
             dataset_split=to_gql_dataset_split(dataset_split_orm),
             query=Query(),
+            examples=[to_gql_dataset_example(example) for example in examples],
         )
 
 

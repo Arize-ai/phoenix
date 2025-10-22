@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<438890125493320563fbfa4214924473>>
+ * @generated SignedSource<<743e684f67682df7948978d4b91266aa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,8 +14,9 @@ export type DatasetColumn = "createdAt" | "name";
 export type DatasetFilterColumn = "name";
 export type SortDir = "asc" | "desc";
 export type DatasetFilter = {
-  col: DatasetFilterColumn;
-  value: string;
+  col?: DatasetFilterColumn | null;
+  filterLabels?: ReadonlyArray<string> | null;
+  value?: string | null;
 };
 export type DatasetSort = {
   col: DatasetColumn;
@@ -82,7 +83,21 @@ v1 = [
     "name": "sort",
     "variableName": "sort"
   }
-];
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -129,20 +144,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "name",
-                    "storageKey": null
-                  },
+                  (v2/*: any*/),
+                  (v3/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -176,6 +179,26 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "experimentCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "DatasetLabel",
+                    "kind": "LinkedField",
+                    "name": "labels",
+                    "plural": true,
+                    "selections": [
+                      (v2/*: any*/),
+                      (v3/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "color",
+                        "storageKey": null
+                      }
+                    ],
                     "storageKey": null
                   },
                   {
@@ -241,16 +264,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "08daa0d1d804707d650c0b689bcbd156",
+    "cacheID": "3e819f41f7a6ed480c70522da77062a9",
     "id": null,
     "metadata": {},
     "name": "DatasetsTableDatasetsQuery",
     "operationKind": "query",
-    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $filter: DatasetFilter = null\n  $first: Int = 100\n  $sort: DatasetSort = {col: createdAt, dir: desc}\n) {\n  ...DatasetsTable_datasets_3JsJJ3\n}\n\nfragment DatasetsTable_datasets_3JsJJ3 on Query {\n  datasets(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $filter: DatasetFilter = null\n  $first: Int = 100\n  $sort: DatasetSort = {col: createdAt, dir: desc}\n) {\n  ...DatasetsTable_datasets_3JsJJ3\n}\n\nfragment DatasetsTable_datasets_3JsJJ3 on Query {\n  datasets(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        labels {\n          id\n          name\n          color\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7e2060873b57927f5b7eac64411dbc94";
+(node as any).hash = "82e24aac9e40f779947bb6b87468f506";
 
 export default node;

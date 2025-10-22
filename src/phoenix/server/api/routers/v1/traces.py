@@ -14,12 +14,6 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.status import (
-    HTTP_404_NOT_FOUND,
-    HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-    HTTP_422_UNPROCESSABLE_ENTITY,
-    HTTP_503_SERVICE_UNAVAILABLE,
-)
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -49,7 +43,7 @@ def is_not_at_capacity(request: Request) -> None:
         SPAN_QUEUE_REJECTIONS.inc()
         raise HTTPException(
             detail="Server is at capacity and cannot process more requests",
-            status_code=HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=503,
         )
 
 
@@ -61,14 +55,14 @@ def is_not_at_capacity(request: Request) -> None:
     responses=add_errors_to_responses(
         [
             {
-                "status_code": HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                "status_code": 415,
                 "description": (
                     "Unsupported content type (only `application/x-protobuf` is supported)"
                 ),
             },
-            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid request body"},
+            {"status_code": 422, "description": "Invalid request body"},
             {
-                "status_code": HTTP_503_SERVICE_UNAVAILABLE,
+                "status_code": 503,
                 "description": "Server is at capacity and cannot process more requests",
             },
         ]
@@ -92,12 +86,12 @@ async def post_traces(
     if content_type != "application/x-protobuf":
         raise HTTPException(
             detail=f"Unsupported content type: {content_type}",
-            status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            status_code=415,
         )
     if content_encoding and content_encoding not in ("gzip", "deflate"):
         raise HTTPException(
             detail=f"Unsupported content encoding: {content_encoding}",
-            status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            status_code=415,
         )
     body = await request.body()
     if content_encoding == "gzip":
@@ -110,7 +104,7 @@ async def post_traces(
     except DecodeError:
         raise HTTPException(
             detail="Request body is invalid ExportTraceServiceRequest",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
         )
     background_tasks.add_task(_add_spans, req, request.state)
 
@@ -141,9 +135,7 @@ class AnnotateTracesResponseBody(ResponseBody[list[InsertedTraceAnnotation]]):
     dependencies=[Depends(is_not_locked)],
     operation_id="annotateTraces",
     summary="Create trace annotations",
-    responses=add_errors_to_responses(
-        [{"status_code": HTTP_404_NOT_FOUND, "description": "Trace not found"}]
-    ),
+    responses=add_errors_to_responses([{"status_code": 404, "description": "Trace not found"}]),
 )
 async def annotate_traces(
     request: Request,
@@ -177,7 +169,7 @@ async def annotate_traces(
         if missing_trace_ids:
             raise HTTPException(
                 detail=f"Traces with IDs {', '.join(missing_trace_ids)} do not exist.",
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
             )
         inserted_ids = []
         dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -220,7 +212,7 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
         "2. An OpenTelemetry trace_id (hex string)\n\n"
         "This will permanently remove all spans in the trace and their associated data."
     ),
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+    responses=add_errors_to_responses([404]),
     status_code=204,  # No Content for successful deletion
 )
 async def delete_trace(
@@ -268,7 +260,7 @@ async def delete_trace(
 
         if project_id is None:
             raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
                 detail=error_detail,
             )
 

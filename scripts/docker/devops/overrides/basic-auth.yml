@@ -1,0 +1,9 @@
+services:
+  phoenix:
+    environment:
+      - PHOENIX_DISABLE_BASIC_AUTH=false
+    labels:
+      - "phoenix.auth.mode=basic-auth"
+      - "phoenix.auth.basic=enabled"
+      - "phoenix.auth.client_type=basic"
+

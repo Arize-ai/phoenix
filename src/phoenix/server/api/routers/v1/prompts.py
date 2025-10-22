@@ -6,7 +6,6 @@ from pydantic import ValidationError, model_validator
 from sqlalchemy import select
 from sqlalchemy.sql import Select
 from starlette.requests import Request
-from starlette.status import HTTP_204_NO_CONTENT, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never
 
@@ -110,7 +109,7 @@ router = APIRouter(tags=["prompts"])
     response_description="A list of prompts with pagination information",
     responses=add_errors_to_responses(
         [
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            422,
         ]
     ),
 )
@@ -154,7 +153,7 @@ async def get_prompts(
             except ValueError:
                 raise HTTPException(
                     detail=f"Invalid cursor format: {cursor}",
-                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=422,
                 )
 
         query = query.limit(limit + 1)
@@ -181,7 +180,7 @@ async def get_prompts(
     description="Retrieve all versions of a specific prompt with pagination support. Each prompt "
     "can have multiple versions with different configurations.",
     response_description="A list of prompt versions with pagination information",
-    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY, HTTP_404_NOT_FOUND]),
+    responses=add_errors_to_responses([422, 404]),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
@@ -226,7 +225,7 @@ async def list_prompt_versions(
             except ValueError:
                 raise HTTPException(
                     detail=f"Invalid cursor format: {cursor}",
-                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=422,
                 )
 
         query = query.limit(limit + 1)
@@ -255,8 +254,8 @@ async def list_prompt_versions(
     response_description="The requested prompt version",
     responses=add_errors_to_responses(
         [
-            HTTP_404_NOT_FOUND,
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            404,
+            422,
         ]
     ),
     response_model_by_alias=True,
@@ -286,11 +285,11 @@ async def get_prompt_version_by_prompt_version_id(
             PromptVersionNodeType.__name__,
         )
     except ValueError:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt version ID")
+        raise HTTPException(422, "Invalid prompt version ID")
     async with request.app.state.db() as session:
         prompt_version = await session.get(models.PromptVersion, id_)
         if prompt_version is None:
-            raise HTTPException(HTTP_404_NOT_FOUND)
+            raise HTTPException(404)
     data = _prompt_version_from_orm_version(prompt_version)
     return GetPromptResponseBody(data=data)
 
@@ -304,8 +303,8 @@ async def get_prompt_version_by_prompt_version_id(
     response_description="The prompt version with the specified tag",
     responses=add_errors_to_responses(
         [
-            HTTP_404_NOT_FOUND,
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            404,
+            422,
         ]
     ),
     response_model_by_alias=True,
@@ -334,7 +333,7 @@ async def get_prompt_version_by_tag_name(
     try:
         name = Identifier.model_validate(tag_name)
     except ValidationError:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid tag name")
+        raise HTTPException(422, "Invalid tag name")
     stmt = (
         select(models.PromptVersion)
         .join_from(models.PromptVersion, models.PromptVersionTag)
@@ -344,7 +343,7 @@ async def get_prompt_version_by_tag_name(
     async with request.app.state.db() as session:
         prompt_version: models.PromptVersion = await session.scalar(stmt)
         if prompt_version is None:
-            raise HTTPException(HTTP_404_NOT_FOUND)
+            raise HTTPException(404)
     data = _prompt_version_from_orm_version(prompt_version)
     return GetPromptResponseBody(data=data)
 
@@ -357,8 +356,8 @@ async def get_prompt_version_by_tag_name(
     response_description="The latest version of the specified prompt",
     responses=add_errors_to_responses(
         [
-            HTTP_404_NOT_FOUND,
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            404,
+            422,
         ]
     ),
     response_model_by_alias=True,
@@ -387,7 +386,7 @@ async def get_prompt_version_by_latest(
     async with request.app.state.db() as session:
         prompt_version: models.PromptVersion = await session.scalar(stmt)
         if prompt_version is None:
-            raise HTTPException(HTTP_404_NOT_FOUND)
+            raise HTTPException(404)
     data = _prompt_version_from_orm_version(prompt_version)
     return GetPromptResponseBody(data=data)
 
@@ -401,7 +400,7 @@ async def get_prompt_version_by_latest(
     response_description="The newly created prompt version",
     responses=add_errors_to_responses(
         [
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            422,
         ]
     ),
     response_model_by_alias=True,
@@ -431,7 +430,7 @@ async def create_prompt(
         or request_body.version.template_type != PromptTemplateType.CHAT
     ):
         raise HTTPException(
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            422,
             "Only CHAT template type is supported for prompts",
         )
     prompt = request_body.prompt
@@ -439,7 +438,7 @@ async def create_prompt(
         name = Identifier.model_validate(prompt.name)
     except ValidationError as e:
         raise HTTPException(
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            422,
             "Invalid name identifier for prompt: " + e.errors()[0]["msg"],
         )
     version = request_body.version
@@ -496,8 +495,8 @@ class GetPromptVersionTagsResponseBody(PaginatedResponseBody[PromptVersionTag]):
     response_description="A list of tags associated with the prompt version",
     responses=add_errors_to_responses(
         [
-            HTTP_404_NOT_FOUND,
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            404,
+            422,
         ]
     ),
     response_model_by_alias=True,
@@ -537,7 +536,7 @@ async def list_prompt_version_tags(
             PromptVersionNodeType.__name__,
         )
     except ValueError:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt version ID")
+        raise HTTPException(422, "Invalid prompt version ID")
 
     # Build the query for tags
     stmt = (
@@ -560,7 +559,7 @@ async def list_prompt_version_tags(
         except ValueError:
             raise HTTPException(
                 detail=f"Invalid cursor format: {cursor}",
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
             )
 
     # Apply limit
@@ -571,7 +570,7 @@ async def list_prompt_version_tags(
 
     # Check if prompt version exists
     if not result:
-        raise HTTPException(HTTP_404_NOT_FOUND, "Prompt version not found")
+        raise HTTPException(404, "Prompt version not found")
 
     # Check if there are any tags
     has_tags = any(id_ is not None for _, id_, _, _ in result)
@@ -610,11 +609,11 @@ async def list_prompt_version_tags(
     description="Add a new tag to a specific prompt version. Tags help identify and categorize "
     "different versions of a prompt.",
     response_description="No content returned on successful tag creation",
-    status_code=HTTP_204_NO_CONTENT,
+    status_code=204,
     responses=add_errors_to_responses(
         [
-            HTTP_404_NOT_FOUND,
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            404,
+            422,
         ]
     ),
     response_model_by_alias=True,
@@ -647,7 +646,7 @@ async def create_prompt_version_tag(
             PromptVersionNodeType.__name__,
         )
     except ValueError:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt version ID")
+        raise HTTPException(422, "Invalid prompt version ID")
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled:
         assert isinstance(user := request.user, PhoenixUser)
@@ -655,7 +654,7 @@ async def create_prompt_version_tag(
     async with request.app.state.db() as session:
         prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
         if prompt_id is None:
-            raise HTTPException(HTTP_404_NOT_FOUND)
+            raise HTTPException(404)
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         values = dict(
             name=request_body.name,
@@ -686,7 +685,7 @@ def _parse_prompt_identifier(
     prompt_identifier: str,
 ) -> _PromptIdentifier:
     if not prompt_identifier:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt identifier")
+        raise HTTPException(422, "Invalid prompt identifier")
     try:
         prompt_id = from_global_id_with_expected_type(
             GlobalID.from_id(prompt_identifier),
@@ -696,7 +695,7 @@ def _parse_prompt_identifier(
         try:
             return Identifier.model_validate(prompt_identifier)
         except ValidationError:
-            raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt name")
+            raise HTTPException(422, "Invalid prompt name")
     return _PromptId(prompt_id)
 
 

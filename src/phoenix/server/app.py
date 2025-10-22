@@ -45,7 +45,6 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
-from starlette.status import HTTP_401_UNAUTHORIZED
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
 from strawberry.extensions import SchemaExtension
@@ -81,6 +80,7 @@ from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
+from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
     AnnotationConfigsByProjectDataLoader,
@@ -88,6 +88,7 @@ from phoenix.server.api.dataloaders import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
+    DatasetDatasetSplitsDataLoader,
     DatasetExampleRevisionsDataLoader,
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
     DatasetExampleSpansDataLoader,
@@ -96,6 +97,7 @@ from phoenix.server.api.dataloaders import (
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
     ExperimentAnnotationSummaryDataLoader,
+    ExperimentDatasetSplitsDataLoader,
     ExperimentErrorRatesDataLoader,
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
     ExperimentRepeatedRunGroupsDataLoader,
@@ -250,6 +252,8 @@ class AppConfig(NamedTuple):
     web_manifest_path: Path
     authentication_enabled: bool
     """ Whether authentication is enabled """
+    auth_error_messages: dict[AuthErrorCode, str]
+    """ Mapping of auth error codes to user-friendly messages """
     oauth2_idps: Sequence[OAuth2Idp]
     basic_auth_disabled: bool = False
     auto_login_idp_name: Optional[str] = None
@@ -326,6 +330,7 @@ class Static(StaticFiles):
                     "support_email": self._app_config.support_email,
                     "has_db_threshold": self._app_config.has_db_threshold,
                     "allow_external_resources": self._app_config.allow_external_resources,
+                    "auth_error_messages": self._app_config.auth_error_messages,
                 },
             )
         except Exception as e:
@@ -348,7 +353,7 @@ class RequestOriginHostnameValidator(BaseHTTPMiddleware):
             if not (url := headers.get(key)):
                 continue
             if urlparse(url).hostname not in self._trusted_hostnames:
-                return Response(f"untrusted {key}", status_code=HTTP_401_UNAUTHORIZED)
+                return Response(f"untrusted {key}", status_code=401)
         return await call_next(request)
 
 
@@ -706,6 +711,7 @@ def create_graphql_router(
                     db
                 ),
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
+                dataset_dataset_splits=DatasetDatasetSplitsDataLoader(db),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
                 dataset_example_spans=DatasetExampleSpansDataLoader(db),
                 dataset_examples_and_versions_by_experiment_run=DatasetExamplesAndVersionsByExperimentRunDataLoader(
@@ -730,6 +736,7 @@ def create_graphql_router(
                     ),
                 ),
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
+                experiment_dataset_splits=ExperimentDatasetSplitsDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
                 experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
                     db
@@ -1146,6 +1153,7 @@ def create_app(
                         and get_env_database_usage_insertion_blocking_threshold_percentage()
                     ),
                     allow_external_resources=get_env_allow_external_resources(),
+                    auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
                 ),
             ),
             name="static",

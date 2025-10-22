@@ -1,10 +1,6 @@
-import { graphql, useMutation } from "react-relay";
-
 import { Dialog, Modal } from "@phoenix/components";
-import {
-  type DatasetSplitParams,
-  NewDatasetSplitForm,
-} from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
+import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
+import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
 import {
   DialogCloseButton,
   DialogContent,
@@ -12,63 +8,18 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-
-import type { NewDatasetSplitDialogCreateSplitMutation } from "./__generated__/NewDatasetSplitDialogCreateSplitMutation.graphql";
 
 type NewDatasetSplitDialogProps = {
   onCompleted?: () => void;
+  exampleIds?: string[];
 };
 
 export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
-  const { onCompleted } = props;
-  const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
-
-  const [commit, isInFlight] =
-    useMutation<NewDatasetSplitDialogCreateSplitMutation>(graphql`
-      mutation NewDatasetSplitDialogCreateSplitMutation(
-        $input: CreateDatasetSplitInput!
-      ) {
-        createDatasetSplit(input: $input) {
-          datasetSplit {
-            id
-            name
-          }
-        }
-      }
-    `);
-
-  const onSubmit = (params: DatasetSplitParams) => {
-    const trimmed = params.name.trim();
-    // TODO: Validate params
-    if (!trimmed) return;
-    commit({
-      variables: {
-        input: {
-          name: trimmed,
-          description: params.description || null,
-          color: params.color,
-          metadata: null,
-        },
-      },
-      onCompleted: () => {
-        notifySuccess({
-          title: "Split created",
-          message: `Created split "${trimmed}"`,
-        });
-        onCompleted?.();
-      },
-      onError: (error) => {
-        const formattedError = getErrorMessagesFromRelayMutationError(error);
-        notifyError({
-          title: "Failed to create split",
-          message: formattedError?.[0] ?? error.message,
-        });
-      },
-    });
-  };
+  const { onCompleted, exampleIds } = props;
+  const { onSubmit, isCreatingDatasetSplit } = useDatasetSplitMutations({
+    onCompleted,
+    exampleIds,
+  });
 
   return (
     <Modal size="S">
@@ -80,7 +31,10 @@ export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
               <DialogCloseButton />
             </DialogTitleExtra>
           </DialogHeader>
-          <NewDatasetSplitForm onSubmit={onSubmit} isSubmitting={isInFlight} />
+          <NewDatasetSplitForm
+            onSubmit={onSubmit}
+            isSubmitting={isCreatingDatasetSplit}
+          />
         </DialogContent>
       </Dialog>
     </Modal>

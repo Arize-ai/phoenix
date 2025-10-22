@@ -20,6 +20,7 @@ from phoenix.server.api.dataloaders import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
+    DatasetDatasetSplitsDataLoader,
     DatasetExampleRevisionsDataLoader,
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
     DatasetExampleSpansDataLoader,
@@ -28,6 +29,7 @@ from phoenix.server.api.dataloaders import (
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
     ExperimentAnnotationSummaryDataLoader,
+    ExperimentDatasetSplitsDataLoader,
     ExperimentErrorRatesDataLoader,
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
     ExperimentRepeatedRunGroupsDataLoader,
@@ -101,6 +103,7 @@ class DataLoaders:
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     dataset_labels: DatasetLabelsDataLoader
+    dataset_dataset_splits: DatasetDatasetSplitsDataLoader
     dataset_examples_and_versions_by_experiment_run: (
         DatasetExamplesAndVersionsByExperimentRunDataLoader
     )
@@ -109,6 +112,7 @@ class DataLoaders:
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
+    experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
     experiment_repeated_run_group_annotation_summaries: (
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader

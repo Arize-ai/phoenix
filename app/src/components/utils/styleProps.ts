@@ -292,6 +292,17 @@ type StylePropsOptions = {
   matchedBreakpoints?: Breakpoint[];
 };
 
+export function filterStyleProps<T extends StyleProps>(
+  props: T,
+  handlers: StyleHandlers = baseStyleProps
+) {
+  const filtered = { ...props };
+  for (const key in handlers) {
+    delete filtered[key as keyof T];
+  }
+  return filtered;
+}
+
 export function useStyleProps<T extends StyleProps>(
   props: T,
   handlers: StyleHandlers = baseStyleProps,
@@ -315,7 +326,10 @@ export function useStyleProps<T extends StyleProps>(
     styleProps.hidden = true;
   }
 
+  const otherProps = filterStyleProps(props, handlers);
+
   return {
     styleProps,
+    otherProps,
   };
 }

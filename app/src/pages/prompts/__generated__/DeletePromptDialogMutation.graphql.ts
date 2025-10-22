@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<80564bac1b8bca89befdf82c8f966696>>
+ * @generated SignedSource<<a7476295d22857c2bba427ce5e638e32>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -263,7 +263,8 @@ return {
                 "alias": null,
                 "args": (v2/*: any*/),
                 "filters": [
-                  "filter"
+                  "filter",
+                  "labelIds"
                 ],
                 "handle": "connection",
                 "key": "PromptsTable_prompts",

@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
-from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -42,7 +41,7 @@ class AnnotateSpanDocumentsResponseBody(ResponseBody[list[InsertedSpanDocumentAn
     responses=add_errors_to_responses(
         [
             {
-                "status_code": HTTP_404_NOT_FOUND,
+                "status_code": 404,
                 "description": "Span not found",
             },
             {
@@ -102,7 +101,7 @@ async def annotate_span_documents(
         if missing_span_ids:
             raise HTTPException(
                 detail=f"Spans with IDs {', '.join(missing_span_ids)} do not exist.",
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
             )
 
         # Validate that document positions are within bounds

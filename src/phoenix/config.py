@@ -966,67 +966,189 @@ def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
 
 
+_ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS = (
+    "client_secret_basic",
+    "client_secret_post",
+    "none",
+)
+"""Allowed OAuth2 token endpoint authentication methods (OIDC Core §9)."""
+
+
 @dataclass(frozen=True)
 class OAuth2ClientConfig:
+    """Configuration for an OAuth2/OIDC identity provider."""
+
+    # Identity provider identification
     idp_name: str
     idp_display_name: str
+
+    # OAuth2 client credentials (RFC 6749 §2)
     client_id: str
-    client_secret: str
+    client_secret: Optional[
+        str
+    ]  # Optional when token_endpoint_auth_method is "none" (RFC 6749 §2.3.1)
     oidc_config_url: str
+
+    # Authentication behavior
     allow_sign_up: bool
     auto_login: bool
+    use_pkce: bool  # Proof Key for Code Exchange (RFC 7636)
+    token_endpoint_auth_method: Optional[str]  # OIDC Core §9
+
+    # Scopes and permissions (RFC 6749 §3.3: space-delimited)
+    scopes: str
+
+    # Group-based access control
+    groups_attribute_path: Optional[str]
+    allowed_groups: list[str]
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
-        idp_name_upper = idp_name.upper()
-        if not (
-            client_id := getenv(client_id_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_ID")
-        ):
-            raise ValueError(
-                f"A client id must be set for the {idp_name} OAuth2 IDP "
-                f"via the {client_id_env_var} environment variable"
-            )
-        if not (
-            client_secret := getenv(
-                client_secret_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_SECRET"
-            )
-        ):
-            raise ValueError(
-                f"A client secret must be set for the {idp_name} OAuth2 IDP "
-                f"via the {client_secret_env_var} environment variable"
-            )
-        if not (
-            oidc_config_url := (
-                getenv(
-                    oidc_config_url_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_OIDC_CONFIG_URL",
+        """Load OAuth2 client configuration from environment variables for the given IDP name."""
+        idp_prefix = f"PHOENIX_OAUTH2_{idp_name.upper()}"
+
+        def _get_required(suffix: str, description: str) -> str:
+            """Get a required environment variable or raise a descriptive error."""
+            env_var = f"{idp_prefix}_{suffix}"
+            value = getenv(env_var)
+            if value is None or not value:
+                raise ValueError(
+                    f"{description} must be set for the {idp_name} OAuth2 IDP "
+                    f"via the {env_var} environment variable"
                 )
-            )
-        ):
+            return value
+
+        def _get_optional(suffix: str) -> Optional[str]:
+            """Get an optional environment variable."""
+            return getenv(f"{idp_prefix}_{suffix}")
+
+        # Required configuration
+        client_id = _get_required("CLIENT_ID", "Client ID")
+        oidc_config_url = _get_required("OIDC_CONFIG_URL", "OpenID Connect configuration URL")
+
+        # Validate OIDC URL format and HTTPS requirement
+        parsed_url = urlparse(oidc_config_url)
+        if not parsed_url.scheme or not parsed_url.hostname:
             raise ValueError(
-                f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
-                f"via the {oidc_config_url_env_var} environment variable"
+                f"Invalid OIDC configuration URL for {idp_name} OAuth2 IDP: {oidc_config_url}"
             )
+
+        is_localhost = parsed_url.hostname in ("localhost", "127.0.0.1", "::1")
+        if parsed_url.scheme != "https" and not is_localhost:
+            raise ValueError(
+                f"OIDC configuration URL for {idp_name} OAuth2 IDP "
+                "must use HTTPS (except for localhost)"
+            )
+
+        # Boolean flags
         allow_sign_up = get_env_oauth2_allow_sign_up(idp_name)
         auto_login = get_env_oauth2_auto_login(idp_name)
-        parsed_oidc_config_url = urlparse(oidc_config_url)
-        is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
-        if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
+        use_pkce = _bool_val(f"{idp_prefix}_USE_PKCE", False)
+
+        # Token endpoint auth method validation
+        token_endpoint_auth_method = None
+        if auth_method := _get_optional("TOKEN_ENDPOINT_AUTH_METHOD"):
+            auth_method = auth_method.lower()
+            if auth_method not in _ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS:
+                raise ValueError(
+                    f"Invalid TOKEN_ENDPOINT_AUTH_METHOD for {idp_name}. "
+                    f"Allowed: {', '.join(sorted(_ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS))}"
+                )
+            token_endpoint_auth_method = auth_method
+
+        # CLIENT_SECRET: required based on TOKEN_ENDPOINT_AUTH_METHOD (OIDC Core §9)
+        client_secret: Optional[str] = None
+
+        # Determine if CLIENT_SECRET is required based on TOKEN_ENDPOINT_AUTH_METHOD:
+        # - "none": CLIENT_SECRET is optional (public clients, RFC 8252 §8.1)
+        # - "client_secret_basic" or "client_secret_post": CLIENT_SECRET is required
+        # - Not set: Default to requiring CLIENT_SECRET (assumes confidential client with
+        #   client_secret_basic)
+        #
+        # Note: PKCE (USE_PKCE, RFC 7636) is orthogonal to client authentication. PKCE can be
+        # used with both public clients (no secret) and confidential clients (with secret) to
+        # protect the authorization code from interception.
+
+        if token_endpoint_auth_method == "none":
+            # Public client - no client authentication required
+            client_secret = _get_optional("CLIENT_SECRET")
+        else:
+            # Confidential client (either explicitly set to client_secret_* or using default)
+            # CLIENT_SECRET is required
+            client_secret = _get_required("CLIENT_SECRET", "Client secret")
+
+        # Build scopes: start with required baseline, add custom scopes (deduplicated)
+        scopes = ["openid", "email", "profile"]
+        if custom_scopes := _get_optional("SCOPES"):
+            for scope in custom_scopes.split():
+                if scope and scope not in scopes:
+                    scopes.append(scope)
+
+        # Group-based access control
+        groups_attribute_path = _get_optional("GROUPS_ATTRIBUTE_PATH")
+        allowed_groups: list[str] = []
+        if raw_groups := _get_optional("ALLOWED_GROUPS"):
+            # Parse as comma-delimited
+            # Deduplicate while preserving order
+            seen = set()
+            for g in raw_groups.split(","):
+                g = g.strip()
+                if g and g not in seen:
+                    allowed_groups.append(g)
+                    seen.add(g)
+
+            # Validate: ALLOWED_GROUPS requires GROUPS_ATTRIBUTE_PATH
+            if allowed_groups and not groups_attribute_path:
+                raise ValueError(
+                    f"ALLOWED_GROUPS is set for {idp_name} but GROUPS_ATTRIBUTE_PATH is not. "
+                    "GROUPS_ATTRIBUTE_PATH must be configured to use group-based access control."
+                )
+
+        # Validate: GROUPS_ATTRIBUTE_PATH requires ALLOWED_GROUPS
+        if groups_attribute_path and not allowed_groups:
             raise ValueError(
-                f"Server metadata URL for {idp_name} OAuth2 IDP "
-                "must be a valid URL using the https protocol"
+                f"GROUPS_ATTRIBUTE_PATH is set for {idp_name} but ALLOWED_GROUPS is not. "
+                "If you want to extract groups, you must specify which groups are allowed. "
+                "If you don't need group-based access control, remove GROUPS_ATTRIBUTE_PATH."
             )
+
         return cls(
             idp_name=idp_name,
-            idp_display_name=getenv(
-                f"PHOENIX_OAUTH2_{idp_name_upper}_DISPLAY_NAME",
-                _get_default_idp_display_name(idp_name),
-            ),
+            idp_display_name=_get_optional("DISPLAY_NAME")
+            or _get_default_idp_display_name(idp_name),
             client_id=client_id,
             client_secret=client_secret,
             oidc_config_url=oidc_config_url,
             allow_sign_up=allow_sign_up,
             auto_login=auto_login,
+            use_pkce=use_pkce,
+            token_endpoint_auth_method=token_endpoint_auth_method,
+            scopes=" ".join(scopes),
+            groups_attribute_path=groups_attribute_path,
+            allowed_groups=allowed_groups,
         )
+
+
+_OAUTH2_CONFIG_SUFFIXES = (
+    "DISPLAY_NAME",  # User-friendly name shown in login UI
+    "CLIENT_ID",  # OAuth2 client ID from your identity provider (RFC 6749 §2.2)
+    # OAuth2 client secret (RFC 6749 §2.3.1, required by default, optional with auth method "none")
+    "CLIENT_SECRET",
+    "OIDC_CONFIG_URL",  # OpenID Connect discovery URL (.well-known/openid-configuration)
+    "ALLOW_SIGN_UP",  # Whether to allow new user registration (default: true)
+    "AUTO_LOGIN",  # Automatically redirect to this provider (default: false)
+    "USE_PKCE",  # Enable PKCE for authorization code protection (RFC 7636, default: false)
+    "TOKEN_ENDPOINT_AUTH_METHOD",  # How to authenticate at token endpoint (OIDC Core §9)
+    # Additional OAuth2 scopes beyond "openid email profile" (RFC 6749 §3.3: space-delimited)
+    "SCOPES",
+    "GROUPS_ATTRIBUTE_PATH",  # JMESPath expression to extract groups from ID token
+    "ALLOWED_GROUPS",  # Comma-separated list of groups allowed to sign in
+)
+
+
+_OAUTH2_ENV_VAR_PATTERN = re.compile(
+    rf"^PHOENIX_OAUTH2_(\w+)_({'|'.join(_OAUTH2_CONFIG_SUFFIXES)})$"
+)
 
 
 def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
@@ -1034,22 +1156,109 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     Retrieves and validates OAuth2/OpenID Connect (OIDC) identity provider configurations from environment variables.
 
     This function scans the environment for OAuth2 configuration variables and returns a list of
-    configured identity providers. It supports multiple identity providers simultaneously.
+    configured identity providers. Multiple identity providers can be configured simultaneously,
+    and users will see all enabled providers as login options in the Phoenix UI.
 
     Environment Variable Pattern:
         PHOENIX_OAUTH2_{IDP_NAME}_{CONFIG_TYPE}
 
+        Where {IDP_NAME} is any alphanumeric identifier you choose (e.g., GOOGLE, OKTA, KEYCLOAK).
+        The name is case-insensitive and used to group related configuration variables. You can use
+        any name that makes sense for your organization (e.g., COMPANY_SSO, INTERNAL_AUTH).
+
     Required Environment Variables for each IDP:
         - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ID: The OAuth2 client ID issued by the identity provider
-        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider
-        - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS)
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider.
+          Required by default for confidential clients. Only optional when TOKEN_ENDPOINT_AUTH_METHOD is
+          explicitly set to "none" (for public clients without client authentication).
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS
+          except for localhost). This URL typically ends with /.well-known/openid-configuration and is
+          used to auto-discover OAuth2 endpoints.
 
     Optional Environment Variables:
-        - PHOENIX_OAUTH2_{IDP_NAME}_DISPLAY_NAME: A user-friendly name for the identity provider
-        - PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Whether to allow new user registration (defaults to True)
-        When set to False, the system will check if the user exists in the database by their email address.
-        If the user does not exist or has a password set, they will be redirected to the login page with
-        an error message.
+        - PHOENIX_OAUTH2_{IDP_NAME}_DISPLAY_NAME: A user-friendly name for the identity provider shown in the UI
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Whether to allow new user registration via this OAuth2 provider
+          (defaults to True). When set to False, only existing users can sign in.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_AUTO_LOGIN: Automatically redirect to this provider's login page, skipping
+          the Phoenix login screen (defaults to False). Useful for single sign-on deployments.
+          Note: Only one provider should have AUTO_LOGIN enabled if you configure multiple IDPs.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_USE_PKCE: Enable PKCE (Proof Key for Code Exchange) with S256 code challenge
+          method for enhanced security. PKCE protects the authorization code from interception and can be used
+          with both public clients and confidential clients. This setting is orthogonal to client authentication -
+          whether CLIENT_SECRET is required is determined solely by TOKEN_ENDPOINT_AUTH_METHOD, not by USE_PKCE.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_TOKEN_ENDPOINT_AUTH_METHOD: OAuth2 token endpoint authentication method.
+          This setting determines how the client authenticates with the token endpoint and whether
+          CLIENT_SECRET is required. If not set, defaults to requiring CLIENT_SECRET (confidential client).
+
+          Options:
+            • client_secret_basic: Send credentials in HTTP Basic Auth header (most common).
+              CLIENT_SECRET is required. This is the assumed default behavior if not set.
+            • client_secret_post: Send credentials in POST body (required by some providers).
+              CLIENT_SECRET is required.
+            • none: No client authentication (for public clients).
+              CLIENT_SECRET is not required. Use this for public clients that cannot
+              securely store a client secret, typically in combination with PKCE.
+
+          Most providers work with the default behavior. Set this explicitly only if your provider requires
+          a specific method or if you're configuring a public client.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_SCOPES: Additional OAuth2 scopes to request (space-separated).
+          These are added to the required baseline scopes "openid email profile". For example, set to
+          "offline_access groups" to request refresh tokens and group information. The baseline scopes
+          are always included and cannot be removed.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_GROUPS_ATTRIBUTE_PATH: JMESPath expression to extract group/role claims
+          from the OIDC ID token or userinfo endpoint response. See https://jmespath.org for full syntax.
+
+          The path navigates nested JSON structures to find group/role information. This claim is checked
+          from both the ID token and userinfo endpoint (if available). The result is normalized to a list
+          of strings for group matching.
+
+          ⚠️ IMPORTANT: Claim keys with special characters (colons, dots, slashes, hyphens, etc.) MUST be
+          enclosed in double quotes. Examples:
+            • Auth0 namespace: `"https://myapp.com/groups"` (NOT `https://myapp.com/groups`)
+            • AWS Cognito: `"cognito:groups"` (NOT `cognito:groups`)
+            • Keycloak app: `resource_access."my-app".roles` (quotes only around special chars)
+
+          Common JMESPath patterns:
+            • Simple keys: `groups` - extracts top-level array
+            • Nested keys: `resource_access.phoenix.roles` - dot notation for nested objects
+            • Array projection: `teams[*].name` - extracts 'name' field from each object in array
+            • Array indexing: `groups[0]` - gets first element
+
+          Common provider examples:
+            • Google Workspace: `groups`
+            • Azure AD/Entra ID: `roles` or `groups`
+            • Keycloak: `resource_access.phoenix.roles` (nested structure)
+            • AWS Cognito: `"cognito:groups"` (use quotes for colon in key name)
+            • Okta: `groups`
+            • Auth0 (custom namespace): `"https://myapp.com/groups"` (use quotes for special chars)
+            • Custom objects: `teams[*].name` (extract field from array of objects)
+
+          If not set, group-based access control is disabled for this provider.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_ALLOWED_GROUPS: Comma-separated list of group names that
+          are permitted to sign in. Users must belong to at least one of these groups (extracted via
+          GROUPS_ATTRIBUTE_PATH) to authenticate successfully.
+
+          Example:
+            PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS="admin,developers,viewers"
+
+          Works together with GROUPS_ATTRIBUTE_PATH to implement group-based access control. If not set,
+          all authenticated users can sign in (subject to ALLOW_SIGN_UP restrictions).
+
+    Multiple Identity Providers:
+        You can configure multiple IDPs simultaneously. Users will see all configured providers
+        as login options. Each IDP is configured independently with its own set of variables.
+
+        Group-based access control is evaluated per-provider: if a user authenticates via an IDP
+        with ALLOWED_GROUPS configured, they must belong to one of those groups to sign in.
 
     Returns:
         list[OAuth2ClientConfig]: A list of configured OAuth2 identity providers, sorted alphabetically by IDP name.
@@ -1059,20 +1268,60 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         ValueError: If required environment variables are missing or invalid.
             Specifically, if the OIDC configuration URL is not HTTPS (except for localhost).
 
-    Example:
-        To configure Google as an identity provider, set these environment variables:
-        PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=your_client_id
-        PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=your_client_secret
-        PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
-        PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME=Google (optional)
-        PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP=true (optional, defaults to true)
+    Examples:
+        Basic configuration with Google:
+            PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=your_client_id
+            PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=your_client_secret
+            PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
+
+        With custom display name and auto-login:
+            PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME=Google Workspace
+            PHOENIX_OAUTH2_GOOGLE_AUTO_LOGIN=true
+
+        With group-based access control (simple path):
+            PHOENIX_OAUTH2_GOOGLE_GROUPS_ATTRIBUTE_PATH=groups
+            PHOENIX_OAUTH2_GOOGLE_ALLOWED_GROUPS=engineering platform-team
+
+        With nested group path (Keycloak):
+            PHOENIX_OAUTH2_KEYCLOAK_GROUPS_ATTRIBUTE_PATH=resource_access.phoenix.roles
+            PHOENIX_OAUTH2_KEYCLOAK_ALLOWED_GROUPS=admin developer
+
+        With special characters in path (AWS Cognito - quotes REQUIRED):
+            PHOENIX_OAUTH2_COGNITO_GROUPS_ATTRIBUTE_PATH='"cognito:groups"'
+            PHOENIX_OAUTH2_COGNITO_ALLOWED_GROUPS=Administrators PowerUsers
+
+        With namespaced claims (Auth0 - quotes REQUIRED):
+            PHOENIX_OAUTH2_AUTH0_GROUPS_ATTRIBUTE_PATH='"https://myapp.com/groups"'
+            PHOENIX_OAUTH2_AUTH0_ALLOWED_GROUPS=admin users
+
+        With array projection (extract names from objects):
+            PHOENIX_OAUTH2_CUSTOM_GROUPS_ATTRIBUTE_PATH=teams[*].name
+            PHOENIX_OAUTH2_CUSTOM_ALLOWED_GROUPS=engineering operations
+
+        For public clients using PKCE (no client secret needed):
+            PHOENIX_OAUTH2_MOBILE_CLIENT_ID=mobile_app_id
+            PHOENIX_OAUTH2_MOBILE_OIDC_CONFIG_URL=https://auth.example.com/.well-known/openid-configuration
+            PHOENIX_OAUTH2_MOBILE_TOKEN_ENDPOINT_AUTH_METHOD=none
+            PHOENIX_OAUTH2_MOBILE_USE_PKCE=true
+
+        Multiple identity providers (users can choose):
+            # Google OAuth
+            PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=google_client_id
+            PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=google_secret
+            PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
+
+            # Internal Okta
+            PHOENIX_OAUTH2_OKTA_CLIENT_ID=okta_client_id
+            PHOENIX_OAUTH2_OKTA_CLIENT_SECRET=okta_secret
+            PHOENIX_OAUTH2_OKTA_OIDC_CONFIG_URL=https://your-domain.okta.com/.well-known/openid-configuration
+            PHOENIX_OAUTH2_OKTA_GROUPS_ATTRIBUTE_PATH=groups
+            PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS=engineering
     """  # noqa: E501
     idp_names = set()
-    pattern = re.compile(
-        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP|AUTO_LOGIN)$"  # noqa: E501
-    )
     for env_var in os.environ:
-        if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
+        if (match := _OAUTH2_ENV_VAR_PATTERN.match(env_var)) is not None and (
+            idp_name := match.group(1).lower()
+        ):
             idp_names.add(idp_name)
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
 

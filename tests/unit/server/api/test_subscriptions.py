@@ -9,6 +9,7 @@ from openinference.semconv.trace import (
     SpanAttributes,
 )
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 from vcr.request import Request as VCRRequest
 
@@ -1424,6 +1425,239 @@ class TestChatCompletionOverDatasetSubscription:
 
         async with db() as session:
             await verify_experiment_examples_junction_table(session, experiment_id)
+
+    async def test_experiment_with_single_split_filters_examples(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        playground_dataset_with_splits: None,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that providing a single split ID filters examples correctly."""
+        from phoenix.db import models
+
+        dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
+        version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
+        train_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(1)))
+
+        variables = {
+            "input": {
+                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "datasetId": dataset_id,
+                "datasetVersionId": version_id,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+                "splitIds": [train_split_id],  # Only train split
+            }
+        }
+
+        payloads: dict[Optional[str], list[Any]] = {}
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionOverDatasetSubscription",
+        ) as subscription:
+            custom_vcr.register_matcher(
+                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            )
+            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
+                async for payload in subscription.stream():
+                    if (
+                        dataset_example_id := payload["chatCompletionOverDataset"][
+                            "datasetExampleId"
+                        ]
+                    ) not in payloads:
+                        payloads[dataset_example_id] = []
+                    payloads[dataset_example_id].append(payload)
+
+        # Should only have examples 1, 2, 3 (train split) + experiment payload
+        # Examples 4 and 5 (test split) should NOT be present
+        train_example_ids = [
+            str(GlobalID(type_name=DatasetExample.__name__, node_id=str(i))) for i in range(1, 4)
+        ]
+        test_example_ids = [
+            str(GlobalID(type_name=DatasetExample.__name__, node_id=str(i))) for i in range(4, 6)
+        ]
+
+        assert set(payloads.keys()) == set(train_example_ids) | {None}
+        for test_id in test_example_ids:
+            assert test_id not in payloads, f"Test example {test_id} should not be in results"
+
+        # Verify experiment payload exists
+        assert len(payloads[None]) == 1
+        assert (experiment_payload := payloads[None][0]["chatCompletionOverDataset"])[
+            "__typename"
+        ] == ChatCompletionSubscriptionExperiment.__name__
+        experiment_id = experiment_payload["experiment"]["id"]
+
+        # Verify experiment has the correct split association in DB
+        async with db() as session:
+            from phoenix.server.api.types.node import from_global_id
+
+            _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
+            result = await session.execute(
+                select(models.ExperimentDatasetSplit).where(
+                    models.ExperimentDatasetSplit.experiment_id == exp_id
+                )
+            )
+            split_links = result.scalars().all()
+            assert len(split_links) == 1
+            assert split_links[0].dataset_split_id == 1  # train split
+
+    async def test_experiment_with_multiple_splits(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        playground_dataset_with_splits: None,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that providing multiple split IDs includes examples from all specified splits."""
+        from phoenix.db import models
+
+        dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
+        version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
+        train_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(1)))
+        test_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(2)))
+
+        variables = {
+            "input": {
+                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "datasetId": dataset_id,
+                "datasetVersionId": version_id,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+                "splitIds": [train_split_id, test_split_id],  # Both splits
+            }
+        }
+
+        payloads: dict[Optional[str], list[Any]] = {}
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionOverDatasetSubscription",
+        ) as subscription:
+            custom_vcr.register_matcher(
+                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            )
+            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
+                async for payload in subscription.stream():
+                    if (
+                        dataset_example_id := payload["chatCompletionOverDataset"][
+                            "datasetExampleId"
+                        ]
+                    ) not in payloads:
+                        payloads[dataset_example_id] = []
+                    payloads[dataset_example_id].append(payload)
+
+        # Should have all examples 1-5 + experiment payload
+        all_example_ids = [
+            str(GlobalID(type_name=DatasetExample.__name__, node_id=str(i))) for i in range(1, 6)
+        ]
+        assert set(payloads.keys()) == set(all_example_ids) | {None}
+
+        # Verify experiment has both split associations in DB
+        assert len(payloads[None]) == 1
+        experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
+
+        async with db() as session:
+            from phoenix.server.api.types.node import from_global_id
+
+            _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
+            result = await session.execute(
+                select(models.ExperimentDatasetSplit)
+                .where(models.ExperimentDatasetSplit.experiment_id == exp_id)
+                .order_by(models.ExperimentDatasetSplit.dataset_split_id)
+            )
+            split_links = result.scalars().all()
+            assert len(split_links) == 2
+            assert split_links[0].dataset_split_id == 1  # train split
+            assert split_links[1].dataset_split_id == 2  # test split
+
+    async def test_experiment_without_splits_includes_all_examples(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        playground_dataset_with_splits: None,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test backward compatibility: when no splits are specified, all examples are included."""
+        from phoenix.db import models
+
+        dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
+        version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
+
+        variables = {
+            "input": {
+                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "datasetId": dataset_id,
+                "datasetVersionId": version_id,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+                # No splitIds provided
+            }
+        }
+
+        payloads: dict[Optional[str], list[Any]] = {}
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionOverDatasetSubscription",
+        ) as subscription:
+            custom_vcr.register_matcher(
+                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            )
+            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
+                async for payload in subscription.stream():
+                    if (
+                        dataset_example_id := payload["chatCompletionOverDataset"][
+                            "datasetExampleId"
+                        ]
+                    ) not in payloads:
+                        payloads[dataset_example_id] = []
+                    payloads[dataset_example_id].append(payload)
+
+        # Should have all examples 1-5 + experiment payload
+        all_example_ids = [
+            str(GlobalID(type_name=DatasetExample.__name__, node_id=str(i))) for i in range(1, 6)
+        ]
+        assert set(payloads.keys()) == set(all_example_ids) | {None}
+
+        # Verify experiment has NO split associations in DB
+        assert len(payloads[None]) == 1
+        experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
+
+        async with db() as session:
+            from phoenix.server.api.types.node import from_global_id
+
+            _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
+            result = await session.execute(
+                select(models.ExperimentDatasetSplit).where(
+                    models.ExperimentDatasetSplit.experiment_id == exp_id
+                )
+            )
+            split_links = result.scalars().all()
+            assert len(split_links) == 0  # No splits associated
 
 
 def _request_bodies_contain_same_city(request1: VCRRequest, request2: VCRRequest) -> None:

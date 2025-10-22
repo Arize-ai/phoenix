@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3bb88e81d60999be929b8769dd7baaad>>
+ * @generated SignedSource<<4c46c7255e92cc0aae04791f84cdb578>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -72,6 +72,9 @@ export type UpsertPromptFromTemplateDialogUpdateMutation$data = {
   readonly createChatPromptVersion: {
     readonly id: string;
     readonly name: string;
+    readonly version: {
+      readonly id: string;
+    };
   };
 };
 export type UpsertPromptFromTemplateDialogUpdateMutation = {
@@ -87,7 +90,14 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": null,
     "args": [
@@ -102,18 +112,24 @@ v1 = [
     "name": "createChatPromptVersion",
     "plural": false,
     "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "id",
-        "storageKey": null
-      },
+      (v1/*: any*/),
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
         "name": "name",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "PromptVersion",
+        "kind": "LinkedField",
+        "name": "version",
+        "plural": false,
+        "selections": [
+          (v1/*: any*/)
+        ],
         "storageKey": null
       }
     ],
@@ -126,7 +142,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "UpsertPromptFromTemplateDialogUpdateMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -135,19 +151,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "UpsertPromptFromTemplateDialogUpdateMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "5560d38314208ef482b716e9817358fe",
+    "cacheID": "fcdfc8d4bea005817cf45298e5122ee8",
     "id": null,
     "metadata": {},
     "name": "UpsertPromptFromTemplateDialogUpdateMutation",
     "operationKind": "mutation",
-    "text": "mutation UpsertPromptFromTemplateDialogUpdateMutation(\n  $input: CreateChatPromptVersionInput!\n) {\n  createChatPromptVersion(input: $input) {\n    id\n    name\n  }\n}\n"
+    "text": "mutation UpsertPromptFromTemplateDialogUpdateMutation(\n  $input: CreateChatPromptVersionInput!\n) {\n  createChatPromptVersion(input: $input) {\n    id\n    name\n    version {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "96205130072396cb213f4fa790a7a6b1";
+(node as any).hash = "0a15550cdbc5a206561a299196c7aacb";
 
 export default node;

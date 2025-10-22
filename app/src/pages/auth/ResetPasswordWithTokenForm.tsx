@@ -60,9 +60,8 @@ export function ResetPasswordWithTokenForm({
       } finally {
         setIsLoading(() => false);
       }
-      navigate(
-        `/login?message=${encodeURIComponent("Password has been reset.")}`
-      );
+      // Use success code instead of raw message to prevent phishing attacks
+      navigate("/login?message=password_reset");
     },
     [setError, navigate]
   );

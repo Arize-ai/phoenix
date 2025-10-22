@@ -3,16 +3,18 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import copy from "copy-to-clipboard";
 
-import { ActionMenu, ActionMenuProps, Item } from "@arizeai/components";
-
 import {
   Button,
   Dialog,
   Flex,
   Icon,
   Icons,
+  Menu,
+  MenuItem,
+  MenuTrigger,
   Modal,
   ModalOverlay,
+  Popover,
   Text,
   View,
 } from "@phoenix/components";
@@ -24,6 +26,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -40,7 +43,6 @@ type ExperimentActionMenuProps =
       projectId?: string | null;
       experimentId: string;
       metadata: unknown;
-      isQuiet?: ActionMenuProps<string>["isQuiet"];
       canDeleteExperiment: true;
       onExperimentDeleted: () => void;
     }
@@ -48,7 +50,6 @@ type ExperimentActionMenuProps =
       projectId?: string | null;
       experimentId: string;
       metadata: unknown;
-      isQuiet?: ActionMenuProps<string>["isQuiet"];
       canDeleteExperiment: false;
       onExperimentDeleted?: undefined;
     };
@@ -63,7 +64,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       }
     }
   `);
-  const { projectId, isQuiet = false } = props;
+  const { projectId } = props;
   const navigate = useNavigate();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMetadataDialogOpen, setIsMetadataDialogOpen] = useState(false);
@@ -100,7 +101,10 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   );
 
   const menuItems = [
-    <Item key={ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES}>
+    <MenuItem
+      key={ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES}
+      id={ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES}
+    >
       <Flex
         direction="row"
         gap="size-75"
@@ -110,8 +114,11 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         <Icon svg={<Icons.Trace />} />
         <Text>View run traces</Text>
       </Flex>
-    </Item>,
-    <Item key={ExperimentAction.VIEW_METADATA}>
+    </MenuItem>,
+    <MenuItem
+      key={ExperimentAction.VIEW_METADATA}
+      id={ExperimentAction.VIEW_METADATA}
+    >
       <Flex
         direction="row"
         gap="size-75"
@@ -121,8 +128,11 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         <Icon svg={<Icons.InfoOutline />} />
         <Text>View metadata</Text>
       </Flex>
-    </Item>,
-    <Item key={ExperimentAction.COPY_EXPERIMENT_ID}>
+    </MenuItem>,
+    <MenuItem
+      key={ExperimentAction.COPY_EXPERIMENT_ID}
+      id={ExperimentAction.COPY_EXPERIMENT_ID}
+    >
       <Flex
         direction="row"
         gap="size-75"
@@ -132,11 +142,14 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         <Icon svg={<Icons.ClipboardCopy />} />
         <Text>Copy experiment ID</Text>
       </Flex>
-    </Item>,
+    </MenuItem>,
   ];
   if (props.canDeleteExperiment) {
     menuItems.push(
-      <Item key={ExperimentAction.DELETE_EXPERIMENT}>
+      <MenuItem
+        key={ExperimentAction.DELETE_EXPERIMENT}
+        id={ExperimentAction.DELETE_EXPERIMENT}
+      >
         <Flex
           direction="row"
           gap="size-75"
@@ -146,59 +159,56 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           <Icon svg={<Icons.TrashOutline />} />
           <Text>{isDeletingExperiment ? "Deleting..." : "Delete"}</Text>
         </Flex>
-      </Item>
+      </MenuItem>
     );
   }
 
   return (
-    <>
-      <div
-        // TODO: add this logic to the ActionMenu component
-        onClick={(e) => {
-          // prevent parent anchor link from being followed
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-      >
-        <ActionMenu
-          buttonSize="compact"
-          align="end"
-          isQuiet={isQuiet}
-          disabledKeys={
-            projectId ? [] : [ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES]
-          }
-          onAction={(firedAction) => {
-            const action = firedAction as ExperimentAction;
-            switch (action) {
-              case ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES: {
-                return navigate(`/projects/${projectId}`);
-              }
-              case ExperimentAction.VIEW_METADATA: {
-                setIsMetadataDialogOpen(true);
-                break;
-              }
-              case ExperimentAction.COPY_EXPERIMENT_ID: {
-                copy(props.experimentId);
-                notifySuccess({
-                  title: "Copied",
-                  message:
-                    "The experiment ID has been copied to your clipboard",
-                });
-                break;
-              }
-              case ExperimentAction.DELETE_EXPERIMENT: {
-                setIsDeleteDialogOpen(true);
-                break;
-              }
-              default: {
-                assertUnreachable(action);
-              }
+    <StopPropagation>
+      <MenuTrigger>
+        <Button
+          aria-label="Experiment action menu"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          size="S"
+        />
+        <Popover>
+          <Menu
+            disabledKeys={
+              projectId ? [] : [ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES]
             }
-          }}
-        >
-          {menuItems}
-        </ActionMenu>
-      </div>
+            onAction={(firedAction) => {
+              const action = firedAction as ExperimentAction;
+              switch (action) {
+                case ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES: {
+                  return navigate(`/projects/${projectId}`);
+                }
+                case ExperimentAction.VIEW_METADATA: {
+                  setIsMetadataDialogOpen(true);
+                  break;
+                }
+                case ExperimentAction.COPY_EXPERIMENT_ID: {
+                  copy(props.experimentId);
+                  notifySuccess({
+                    title: "Copied",
+                    message:
+                      "The experiment ID has been copied to your clipboard",
+                  });
+                  break;
+                }
+                case ExperimentAction.DELETE_EXPERIMENT: {
+                  setIsDeleteDialogOpen(true);
+                  break;
+                }
+                default: {
+                  assertUnreachable(action);
+                }
+              }
+            }}
+          >
+            {menuItems}
+          </Menu>
+        </Popover>
+      </MenuTrigger>
       <ModalOverlay
         isDismissable
         isOpen={isDeleteDialogOpen}
@@ -263,6 +273,6 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           </Dialog>
         </Modal>
       </ModalOverlay>
-    </>
+    </StopPropagation>
   );
 }

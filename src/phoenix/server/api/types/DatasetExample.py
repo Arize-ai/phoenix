@@ -142,3 +142,10 @@ class DatasetExample(Node):
             to_gql_dataset_split(split)
             for split in await info.context.data_loaders.dataset_example_splits.load(self.id_attr)
         ]
+
+
+def to_gql_dataset_example(example: models.DatasetExample) -> DatasetExample:
+    return DatasetExample(
+        id_attr=example.id,
+        created_at=example.created_at,
+    )

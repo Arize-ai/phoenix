@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<af42e4ee22cfb4cae58d402480df64aa>>
+ * @generated SignedSource<<05fb47abe0e8a84f5509d6aa71a9734e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type UserRoleInput = "ADMIN" | "MEMBER";
+export type UserRoleInput = "ADMIN" | "MEMBER" | "VIEWER";
 export type PatchUserInput = {
   newPassword?: string | null;
   newRole?: UserRoleInput | null;
