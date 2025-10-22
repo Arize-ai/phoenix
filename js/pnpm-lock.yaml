@@ -202,7 +202,7 @@ importers:
         specifier: ^0.35.0
         version: 0.35.0
       ai:
-        specifier: ^5.0.38
+        specifier: ^5.0.76
         version: 5.0.76(zod@3.25.76)
       openai:
         specifier: ^5.12.1
