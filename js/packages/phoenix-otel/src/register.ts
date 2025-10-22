@@ -33,6 +33,11 @@ type RegisterParams = {
    * @default true
    */
   useBatchSpanProcessor?: boolean;
+  /**
+   * Whether to set the tracer as a global provider.
+   * @default true
+   */
+  setGlobalTracerProvider?: boolean;
 };
 
 export function register({
@@ -40,6 +45,7 @@ export function register({
   apiKey: paramsApiKey,
   projectName = "default",
   useBatchSpanProcessor = true,
+  setGlobalTracerProvider = true,
 }: RegisterParams) {
   const url = paramsUrl || getEnvCollectorURL();
   const apiKey = paramsApiKey || getEnvApiKey();
@@ -64,5 +70,9 @@ export function register({
     }),
     spanProcessors: [spanProcessor],
   });
+
+  if (setGlobalTracerProvider) {
+    provider.register();
+  }
   return provider;
 }
