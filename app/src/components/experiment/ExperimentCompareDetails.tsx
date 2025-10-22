@@ -176,7 +176,18 @@ export function ExperimentCompareDetails({
   const referenceOutput = data.example.revision?.referenceOutput;
   const experimentRuns = data.example.experimentRuns?.edges;
   const experiments = data.dataset.experiments?.edges;
-  const annotationSummaries = data.dataset.experimentAnnotationSummaries;
+  const annotationSummaries = useMemo(() => {
+    return (
+      // we only want to show annotations that are present in at least one experiment run
+      data.dataset.experimentAnnotationSummaries?.filter((summary) =>
+        experimentRuns?.some((run) =>
+          run.run.annotations?.edges.some(
+            (edge) => edge.annotation.name === summary.annotationName
+          )
+        )
+      ) ?? []
+    );
+  }, [data.dataset.experimentAnnotationSummaries, experimentRuns]);
 
   const experimentsById = useMemo(() => {
     const experimentsById: Record<string, Experiment> = {};
@@ -275,7 +286,7 @@ export function ExperimentCompareDetails({
             experimentRepetitionsByExperimentId={
               experimentRepetitionsByExperimentId
             }
-            annotationSummaries={annotationSummaries ?? []}
+            annotationSummaries={annotationSummaries}
             includeRepetitions={Object.values(experimentsById).some(
               (experiment) => experiment.repetitions > 1
             )}
@@ -982,7 +993,7 @@ export function ExperimentRunAnnotations({
         column-gap: var(--ac-global-dimension-size-100);
       `}
     >
-      {annotationSummaries?.map((annotationSummary) => {
+      {annotationSummaries.map((annotationSummary) => {
         const annotation = experimentRun.annotations?.edges.find(
           (edge) => edge.annotation.name === annotationSummary.annotationName
         )?.annotation;
