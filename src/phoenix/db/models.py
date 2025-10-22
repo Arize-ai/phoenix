@@ -1097,15 +1097,6 @@ class Dataset(HasId):
     dataset_evaluators: Mapped[list["DatasetEvaluator"]] = relationship(
         "DatasetEvaluator", back_populates="dataset", cascade="all, delete-orphan", uselist=True
     )
-    llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
-        "LLMEvaluator",
-        secondary="dataset_evaluators",
-        primaryjoin="Dataset.id == DatasetEvaluator.dataset_id",
-        secondaryjoin="and_(DatasetEvaluator.evaluator_id == LLMEvaluator.id, "
-        "LLMEvaluator.kind == 'LLM')",
-        viewonly=True,
-        uselist=True,
-    )
 
     @hybrid_property
     def example_count(self) -> Optional[int]:

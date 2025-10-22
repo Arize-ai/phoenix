@@ -843,21 +843,27 @@ class TestEvaluatorPolymorphism:
             ) == eval_id
 
         async with db() as session:
-            # Dataset relationships (junction table and viewonly relationship)
+            # Dataset relationships (junction table)
             dataset_result = await session.get(
                 models.Dataset,
                 dataset_id,
-                options=(
-                    selectinload(models.Dataset.llm_evaluators),
-                    selectinload(models.Dataset.dataset_evaluators),
-                ),
+                options=(selectinload(models.Dataset.dataset_evaluators),),
             )
             assert dataset_result is not None
             dataset = dataset_result
-            assert len(dataset.llm_evaluators) == 2
             assert len(dataset.dataset_evaluators) == 2
-            assert {e.name for e in dataset.llm_evaluators} == {eval_1_name, eval_2_name}
-            assert all(isinstance(e, models.LLMEvaluator) for e in dataset.llm_evaluators)
+
+            # Verify evaluators via join query
+            evaluators = (
+                await session.scalars(
+                    select(models.LLMEvaluator)
+                    .join(models.DatasetEvaluator)
+                    .where(models.DatasetEvaluator.dataset_id == dataset_id)
+                )
+            ).all()
+            assert len(evaluators) == 2
+            assert {e.name for e in evaluators} == {eval_1_name, eval_2_name}
+            assert all(isinstance(e, models.LLMEvaluator) for e in evaluators)
 
         # ===== INSERT: Create a new evaluator =====
         async with db() as session:
@@ -893,15 +899,15 @@ class TestEvaluatorPolymorphism:
 
         # Verify dataset relationship
         async with db() as session:
-            dataset_result = await session.get(
-                models.Dataset,
-                dataset_id,
-                options=(selectinload(models.Dataset.llm_evaluators),),
-            )
-            assert dataset_result is not None
-            dataset = dataset_result
-            assert len(dataset.llm_evaluators) == 3
-            assert {e.name for e in dataset.llm_evaluators} == {
+            evaluators = (
+                await session.scalars(
+                    select(models.LLMEvaluator)
+                    .join(models.DatasetEvaluator)
+                    .where(models.DatasetEvaluator.dataset_id == dataset_id)
+                )
+            ).all()
+            assert len(evaluators) == 3
+            assert {e.name for e in evaluators} == {
                 eval_1_name,
                 eval_2_name,
                 new_eval_name,
@@ -950,10 +956,12 @@ class TestEvaluatorPolymorphism:
 
         # Verify dataset relationship updated (junction table entry should be deleted)
         async with db() as session:
-            dataset_result = await session.get(
-                models.Dataset, dataset_id, options=(selectinload(models.Dataset.llm_evaluators),)
-            )
-            assert dataset_result is not None
-            dataset = dataset_result
-            assert len(dataset.llm_evaluators) == 2
-            assert {e.name for e in dataset.llm_evaluators} == {eval_1_name, eval_2_name}
+            evaluators = (
+                await session.scalars(
+                    select(models.LLMEvaluator)
+                    .join(models.DatasetEvaluator)
+                    .where(models.DatasetEvaluator.dataset_id == dataset_id)
+                )
+            ).all()
+            assert len(evaluators) == 2
+            assert {e.name for e in evaluators} == {eval_1_name, eval_2_name}

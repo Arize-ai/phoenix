@@ -55,7 +55,7 @@ class EvaluatorMutationMixin:
             except ValidationError as error:
                 raise BadRequest(str(error))
 
-            prompt_name = IdentifierModel.model_validate(input.name + f"-evaluator-{token_hex(3)}")
+            prompt_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
             prompt = models.Prompt(
                 name=prompt_name, description=input.description, prompt_versions=[prompt_version]
             )
