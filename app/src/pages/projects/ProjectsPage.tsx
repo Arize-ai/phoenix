@@ -346,7 +346,10 @@ export function ProjectsPageContent({
           >
             <ProjectViewModeToggle />
             <ConnectedTimeRangeSelector size="M" />
-            <NewProjectButton variant="primary" />
+            <NewProjectButton
+              variant="primary"
+              refetchProjects={() => refetch({})}
+            />
           </Flex>
         </Flex>
       </View>

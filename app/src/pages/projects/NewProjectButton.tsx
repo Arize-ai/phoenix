@@ -29,6 +29,7 @@ import { PythonProjectGuide } from "../../components/project/PythonProjectGuide"
 
 type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];
+  refetchProjects: () => void;
 };
 const PHOENIX_OTEL_DOC_LINK =
   "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
@@ -43,7 +44,10 @@ function TraceBasedProjectGuideIntro() {
     </Text>
   );
 }
-export function NewProjectButton({ variant }: NewProjectButtonProps) {
+export function NewProjectButton({
+  variant,
+  refetchProjects,
+}: NewProjectButtonProps) {
   return (
     <div>
       <DialogTrigger>
@@ -62,7 +66,7 @@ export function NewProjectButton({ variant }: NewProjectButtonProps) {
               width: 70vw !important;
             `}
           >
-            <NewProjectDialog />
+            <NewProjectDialog refetchProjects={refetchProjects} />
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
@@ -70,7 +74,11 @@ export function NewProjectButton({ variant }: NewProjectButtonProps) {
   );
 }
 
-function NewProjectDialog() {
+function NewProjectDialog({
+  refetchProjects,
+}: {
+  refetchProjects: () => void;
+}) {
   return (
     <Dialog>
       <DialogContent>
@@ -100,7 +108,7 @@ function NewProjectDialog() {
           </TabPanel>
           <TabPanel id="manual">
             <View padding="size-200" overflow="auto">
-              <ManualProjectGuide />
+              <ManualProjectGuide refetchProjects={refetchProjects} />
             </View>
           </TabPanel>
         </Tabs>
