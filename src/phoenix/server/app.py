@@ -771,6 +771,7 @@ def create_graphql_router(
                         cache_for_dataloaders.latency_ms_quantile if cache_for_dataloaders else None
                     ),
                 ),
+                llm_evaluator_fields=TableFieldsDataLoader(db, models.LLMEvaluator),
                 min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
                     db,
                     cache_map=(

@@ -16,6 +16,7 @@ from sqlalchemy import (
     Dialect,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     MetaData,
@@ -157,6 +158,7 @@ def render_values_w_union(
 
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
+EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "REMOTE"]
 
 
 class JSONB(JSON):
@@ -1092,6 +1094,18 @@ class Dataset(HasId):
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
         "DatasetsDatasetLabel", back_populates="dataset"
     )
+    dataset_evaluators: Mapped[list["DatasetEvaluator"]] = relationship(
+        "DatasetEvaluator", back_populates="dataset", cascade="all, delete-orphan", uselist=True
+    )
+    llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
+        "LLMEvaluator",
+        secondary="dataset_evaluators",
+        primaryjoin="Dataset.id == DatasetEvaluator.dataset_id",
+        secondaryjoin="and_(DatasetEvaluator.evaluator_id == LLMEvaluator.id, "
+        "LLMEvaluator.kind == 'LLM')",
+        viewonly=True,
+        uselist=True,
+    )
 
     @hybrid_property
     def example_count(self) -> Optional[int]:
@@ -1782,6 +1796,13 @@ class Prompt(HasId):
         uselist=True,
     )
 
+    llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
+        "LLMEvaluator",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
 
 class PromptPromptLabel(HasId):
     __tablename__ = "prompts_prompt_labels"
@@ -1877,6 +1898,12 @@ class PromptVersionTag(HasId):
     prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_version_tags")
     prompt_version: Mapped["PromptVersion"] = relationship(
         "PromptVersion", back_populates="prompt_version_tags"
+    )
+
+    llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
+        "LLMEvaluator",
+        back_populates="prompt_version_tag",
+        uselist=True,
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
@@ -2034,5 +2061,93 @@ class SpanCostDetail(HasId):
             "span_cost_id",
             "token_type",
             "is_prompt",
+        ),
+    )
+
+
+class Evaluator(HasId):
+    __tablename__ = "evaluators"
+    kind: Mapped[EvaluatorKind] = mapped_column(
+        CheckConstraint("kind IN ('LLM', 'CODE', 'REMOTE')", name="valid_evaluator_kind"),
+        nullable=False,
+    )
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False, unique=True)
+    description: Mapped[Optional[str]]
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    user: Mapped[Optional["User"]] = relationship("User")
+    dataset_evaluators: Mapped[list["DatasetEvaluator"]] = relationship(
+        "DatasetEvaluator",
+        back_populates="evaluator",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    __mapper_args__ = {
+        "polymorphic_on": "kind",
+        "polymorphic_identity": None,  # Base class is abstract
+    }
+
+    __table_args__ = (UniqueConstraint("kind", "id"),)
+
+
+class LLMEvaluator(Evaluator):
+    __tablename__ = "llm_evaluators"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[Literal["LLM"]] = mapped_column(
+        CheckConstraint("kind = 'LLM'", name="valid_evaluator_kind"),
+        server_default="LLM",
+        nullable=False,
+    )
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    prompt_version_tag_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
+        index=True,
+    )
+    output_config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    prompt: Mapped["Prompt"] = relationship("Prompt")
+    prompt_version_tag: Mapped[Optional["PromptVersionTag"]] = relationship("PromptVersionTag")
+    __mapper_args__ = {
+        "polymorphic_identity": "LLM",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["kind", "id"],
+            ["evaluators.kind", "evaluators.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class DatasetEvaluator(Base):
+    __tablename__ = "dataset_evaluators"
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+    )
+    evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="CASCADE"),
+        index=True,
+    )
+    input_config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="dataset_evaluators")
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator", back_populates="dataset_evaluators")
+
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "dataset_id",
+            "evaluator_id",
         ),
     )

@@ -21,6 +21,10 @@ from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Evaluator import (
+    Evaluator,
+    LLMEvaluator,
+)
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -453,6 +457,25 @@ class Dataset(Node):
             DatasetLabel(id=label.id, db_record=label)
             for label in await info.context.data_loaders.dataset_labels.load(self.id)
         ]
+
+    @strawberry.field
+    async def evaluators(self, info: Info[Context, None]) -> list[Evaluator]:
+        """Returns all evaluators associated with this dataset."""
+        stmt = (
+            select(models.Evaluator)
+            .join(models.DatasetEvaluator)
+            .where(models.DatasetEvaluator.dataset_id == self.id)
+            .order_by(models.Evaluator.id)
+        )
+        async with info.context.db() as session:
+            evaluators = await session.scalars(stmt)
+        ans: list[Evaluator] = []
+        for evaluator in evaluators:
+            if isinstance(evaluator, models.LLMEvaluator):
+                ans.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
+            else:
+                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+        return ans
 
     @strawberry.field
     def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:

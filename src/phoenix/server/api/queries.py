@@ -60,6 +60,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
+from phoenix.server.api.types.Evaluator import LLMEvaluator
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -952,6 +953,12 @@ class Query:
             return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
             return GenerativeModel(id=node_id)
+        elif type_name == LLMEvaluator.__name__:
+            async with info.context.db() as session:
+                llm_evaluator = await session.get(models.LLMEvaluator, node_id)
+                if not llm_evaluator:
+                    raise NotFound(f"Unknown evaluator: {id}")
+            return LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
