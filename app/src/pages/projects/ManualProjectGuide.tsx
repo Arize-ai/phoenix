@@ -7,7 +7,11 @@ import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import type { ManualProjectGuideCreateProjectMutation } from "./__generated__/ManualProjectGuideCreateProjectMutation.graphql";
 import { NewProjectForm, ProjectFormParams } from "./NewProjectForm";
 
-export function ManualProjectGuide() {
+export function ManualProjectGuide({
+  refetchProjects,
+}: {
+  refetchProjects: () => void;
+}) {
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
@@ -56,6 +60,7 @@ export function ManualProjectGuide() {
             title: "Project created",
             message: `Project "${createdProject.name}" has been successfully created.`,
           });
+          refetchProjects();
           // Navigate to the project page
           navigate(`/projects/${createdProject.id}`);
         },
@@ -68,7 +73,7 @@ export function ManualProjectGuide() {
         },
       });
     },
-    [commit, notifySuccess, notifyError, navigate]
+    [commit, notifySuccess, notifyError, navigate, refetchProjects]
   );
 
   return (
