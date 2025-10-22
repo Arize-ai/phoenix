@@ -184,6 +184,16 @@ runExperiment({
 });
 ```
 
+## Examples
+
+To run examples, install dependencies using `pnpm` and run:
+
+```bash
+pnpm install
+pnpx tsx examples/experiment_evaluation_example.ts
+# change the file name to run other examples
+```
+
 ## Community
 
 Join our community to connect with thousands of AI builders:

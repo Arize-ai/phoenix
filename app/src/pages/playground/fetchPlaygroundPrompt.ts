@@ -137,16 +137,23 @@ export const promptVersionToInstance = ({
   promptId,
   promptName,
   promptVersion,
+  promptVersionTag,
   supportedInvocationParameters,
 }: {
   promptId: string;
   promptName: string;
   promptVersion: PromptVersion;
+  promptVersionTag: string | null;
   supportedInvocationParameters?: PlaygroundInstance["model"]["supportedInvocationParameters"];
 }) => {
   const newInstance = {
     ...DEFAULT_INSTANCE_PARAMS(),
-    prompt: { id: promptId, name: promptName },
+    prompt: {
+      id: promptId,
+      name: promptName,
+      version: promptVersion.id,
+      tag: promptVersionTag,
+    },
   } satisfies Partial<PlaygroundInstance>;
 
   const modelName = promptVersion.modelName;
@@ -401,14 +408,18 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
 };
 
 const fetchPlaygroundPromptQuery = graphql`
-  query fetchPlaygroundPromptQuery($promptId: ID!) {
+  query fetchPlaygroundPromptQuery(
+    $promptId: ID!
+    $promptVersionId: ID
+    $tagName: Identifier
+  ) {
     prompt: node(id: $promptId) {
       ... on Prompt {
         id
         name
         createdAt
         description
-        version {
+        version(versionId: $promptVersionId, tagName: $tagName) {
           id
           description
           modelName
@@ -416,6 +427,10 @@ const fetchPlaygroundPromptQuery = graphql`
           invocationParameters
           templateType
           templateFormat
+          tags {
+            name
+            promptVersionId
+          }
           responseFormat {
             definition
           }
@@ -553,12 +568,22 @@ const fetchSupportedInvocationParameters = async ({
  * @param promptId - The prompt ID
  * @returns The prompt
  */
-export const fetchPlaygroundPrompt = async (promptId: string) => {
+export const fetchPlaygroundPrompt = async ({
+  promptId,
+  promptVersionId,
+  tagName,
+}: {
+  promptId: string;
+  promptVersionId?: string | null;
+  tagName?: string | null;
+}) => {
   return fetchQuery<fetchPlaygroundPromptQuery>(
     RelayEnvironment,
     fetchPlaygroundPromptQuery,
     {
       promptId,
+      promptVersionId,
+      tagName,
     }
   ).toPromise();
 };
@@ -579,18 +604,36 @@ const getLatestPromptVersion = (
 };
 
 /**
- * Fetches a prompt by ID and converts it to a playground instance.
+ * Fetches a prompt by ID, and optionally a specific version or tag, and converts it to a playground instance.
  *
- * @param promptId - The prompt ID
  * @returns The playground instance
  */
-export const fetchPlaygroundPromptAsInstance = async (
-  promptId?: string | null
-) => {
+export const fetchPlaygroundPromptAsInstance = async ({
+  promptId,
+  promptVersionId,
+  tagName,
+}: {
+  /**
+   * The prompt version ID to fetch specifically. If not provided, the latest version or tagged version will be used.
+   */
+  promptVersionId?: string | null;
+  /**
+   * Prompt version with the associated tag name. Will be ignored if promptVersionId is provided.
+   */
+  tagName?: string | null;
+  /**
+   * The prompt ID. Required if providing a version or tag.
+   */
+  promptId?: string | null;
+}) => {
   if (!promptId) {
     return null;
   }
-  const response = await fetchPlaygroundPrompt(promptId);
+  const response = await fetchPlaygroundPrompt({
+    promptId,
+    promptVersionId,
+    tagName,
+  });
   const latestPromptVersion = getLatestPromptVersion(response?.prompt);
   if (latestPromptVersion && latestPromptVersion.templateType === "CHAT") {
     const supportedInvocationParameters =
@@ -606,6 +649,7 @@ export const fetchPlaygroundPromptAsInstance = async (
       promptId,
       promptName,
       promptVersion: latestPromptVersion,
+      promptVersionTag: tagName || null,
       supportedInvocationParameters,
     });
     return { instance: newInstance, promptVersion: latestPromptVersion };

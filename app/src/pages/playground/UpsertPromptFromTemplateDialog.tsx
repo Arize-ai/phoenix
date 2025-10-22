@@ -70,6 +70,9 @@ export const UpsertPromptFromTemplateDialog = ({
         createChatPrompt(input: $input) {
           id
           name
+          version {
+            id
+          }
         }
       }
     `);
@@ -81,12 +84,15 @@ export const UpsertPromptFromTemplateDialog = ({
         createChatPromptVersion(input: $input) {
           id
           name
+          version {
+            id
+          }
         }
       }
     `);
   // tasks to complete after either mutation completes successfully
   const onSuccess = useCallback(
-    (promptId: string, promptName: string) => {
+    (promptId: string, promptName: string, promptVersion: string) => {
       const state = store.getState();
       const instance = state.instances.find(
         (instance) => instance.id === instanceId
@@ -100,6 +106,9 @@ export const UpsertPromptFromTemplateDialog = ({
           prompt: {
             id: promptId,
             name: promptName,
+            version: promptVersion,
+            // TODO: allow users to create tags at prompt creation time
+            tag: null,
           },
         },
         dirty: false,
@@ -136,7 +145,8 @@ export const UpsertPromptFromTemplateDialog = ({
           });
           onSuccess(
             response.createChatPrompt.id,
-            response.createChatPrompt.name
+            response.createChatPrompt.name,
+            response.createChatPrompt.version.id
           );
           close();
         },
@@ -191,7 +201,8 @@ export const UpsertPromptFromTemplateDialog = ({
           });
           onSuccess(
             response.createChatPromptVersion.id,
-            response.createChatPromptVersion.name
+            response.createChatPromptVersion.name,
+            response.createChatPromptVersion.version.id
           );
           close();
         },

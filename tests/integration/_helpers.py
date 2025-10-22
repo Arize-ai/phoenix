@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from email.message import Message
 from functools import cached_property
 from io import BytesIO
+from itertools import chain
 from random import random
 from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
@@ -89,6 +90,7 @@ _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 
 _ADMIN = UserRoleInput.ADMIN
 _MEMBER = UserRoleInput.MEMBER
+_VIEWER = UserRoleInput.VIEWER
 
 _ProjectName: TypeAlias = str
 _SpanName: TypeAlias = str
@@ -345,13 +347,21 @@ class _LoggedInTokens(_CanLogOut[None]):
 class _LoggedInUser(_User, _CanLogOut[_User]):
     tokens: _LoggedInTokens
 
+    @property
+    def user(self) -> _User:
+        return _User(self.gid, self.role, self.profile)
+
     @override
     def log_out(self, app: _AppInfo) -> _User:
         self.tokens.access_token.log_out(app)
-        return _User(self.gid, self.role, self.profile)
+        return self.user
 
     def refresh(self, app: _AppInfo) -> _LoggedInUser:
         return replace(self, tokens=self.tokens.refresh(app))
+
+    def visit(self, app: _AppInfo, expected_status_code: int = 200) -> None:
+        response = _httpx_client(app, self).get("/graphql")
+        assert response.status_code == expected_status_code
 
 
 _RoleOrUser = Union[UserRoleInput, _User]
@@ -1145,7 +1155,12 @@ def _json(
     assert (resp_dict := cast(dict[str, Any], resp.json()))
     if errers := resp_dict.get("errors"):
         msg = errers[0]["message"]
-        if "not auth" in msg or IsAdmin.message in msg:
+        # Raise Unauthorized for permission-related errors
+        if (
+            "not auth" in msg
+            or IsAdmin.message in msg
+            or "Viewers cannot perform this action" in msg
+        ):
             raise Unauthorized(msg)
         raise RuntimeError(msg)
     return resp_dict
@@ -1262,23 +1277,41 @@ class _OIDCServer:
 
     Key features:
     - Implements standard OIDC endpoints (/auth, /token, /.well-known/openid-configuration, etc.)
-    - Supports the authorization code flow
+    - Supports both standard OAuth2 authorization code flow and PKCE
+    - Supports group-based access control claims
     - Generates JWT tokens with appropriate claims
     - Provides JWKS endpoint for token verification
     - Runs in a separate thread to avoid blocking the main test process
 
+    PKCE Support:
+    - Public clients (no client_secret): Validates code_verifier only
+    - Confidential clients with PKCE: Validates BOTH client_secret AND code_verifier (defense-in-depth)
+
     Usage:
+        # Standard OAuth2 flow
         with _OIDCServer(port=8000) as oidc_server:
             # Use oidc_server.client_id and oidc_server.client_secret for OAuth2 configuration
             # The server will be available at oidc_server.base_url
+
+        # PKCE flow with groups
+        with _OIDCServer(port=8000, use_pkce=True, groups=["admin", "users"]) as oidc_server:
+            # PKCE-enabled server with group claims
+            pass
     """
 
-    def __init__(self, port: int):
+    def __init__(
+        self,
+        port: int,
+        use_pkce: bool = False,
+        groups: Optional[list[str]] = None,
+    ):
         """
         Initialize a new OIDC server instance.
 
         Args:
             port: The port number on which the server will listen.
+            use_pkce: Enable PKCE (Proof Key for Code Exchange) support.
+            groups: List of groups to include in ID token claims (for group-based access control testing).
         """
         self._name: str = f"oidc_server_{token_hex(8)}"
         self._client_id: str = f"client_id_{token_hex(8)}"
@@ -1286,11 +1319,15 @@ class _OIDCServer:
         self._secret_key: str = f"secret_key_{token_hex(16)}"
         self._host: str = "127.0.0.1"
         self._port: int = port
+        self._use_pkce: bool = use_pkce
+        self._groups: list[str] = groups or []
         self._app = FastAPI()
         self._nonce: Optional[str] = None
         self._user_id: Optional[str] = None
         self._user_email: Optional[str] = None
         self._user_name: Optional[str] = None
+        # PKCE state: maps auth_code -> code_challenge
+        self._code_challenges: dict[str, str] = {}
         self._server: Optional[Generator[Thread, None, None]] = None
         self._thread: Optional[Thread] = None
         self._setup_routes()
@@ -1313,19 +1350,52 @@ class _OIDCServer:
             Authorization endpoint that simulates the initial OAuth2 authorization request.
 
             Validates the client_id and returns a redirect with an authorization code.
+            For PKCE flows, also receives and stores the code_challenge.
             """
             params = dict(request.query_params)
             if params.get("client_id") != self._client_id:
                 return JSONResponse({"error": "invalid_client"}, status_code=400)
+
             state = params.get("state")
             nonce = params.get("nonce")
             redirect_uri = params.get("redirect_uri")
+
+            # Generate unique authorization code
+            auth_code = f"auth_code_{token_hex(16)}"
+
+            # PKCE: Store code_challenge if provided
+            if self._use_pkce:
+                code_challenge = params.get("code_challenge")
+                code_challenge_method = params.get("code_challenge_method")
+
+                if not code_challenge:
+                    return JSONResponse(
+                        {
+                            "error": "invalid_request",
+                            "error_description": "code_challenge required",
+                        },
+                        status_code=400,
+                    )
+
+                if code_challenge_method != "S256":
+                    return JSONResponse(
+                        {
+                            "error": "invalid_request",
+                            "error_description": "code_challenge_method must be S256",
+                        },
+                        status_code=400,
+                    )
+
+                self._code_challenges[auth_code] = code_challenge
+
+            # Generate user for this session
             self._nonce = nonce
             self._user_id = f"user_id_{token_hex(8)}"
             self._user_email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
             self._user_name = f"User {token_hex(8)}"
+
             return RedirectResponse(
-                f"{redirect_uri}?code=test_auth_code&state={state}",
+                f"{redirect_uri}?code={auth_code}&state={state}",
                 status_code=302,
             )
 
@@ -1334,37 +1404,145 @@ class _OIDCServer:
             """
             Token endpoint that exchanges authorization codes for access and ID tokens.
 
-            Validates client credentials and returns a token response with:
-            - access_token: A randomly generated access token
-            - id_token: A JWT containing user information and the nonce from the auth request
-            - refresh_token: A randomly generated refresh token
-            - Other standard OAuth2 token response fields
+            Supports both standard OAuth2 and PKCE flows:
+            - Standard: Validates client_secret via HTTP Basic Auth
+            - PKCE: Validates code_verifier against stored code_challenge
+            - Confidential + PKCE: Validates BOTH client_secret AND code_verifier
+
+            Returns a token response with access_token, id_token, and refresh_token.
             """
+            from hashlib import sha256
+
+            form_data = await request.form()
+            code = form_data.get("code")
+
+            if not code:
+                return JSONResponse(
+                    {"error": "invalid_request", "error_description": "code required"},
+                    status_code=400,
+                )
+
+            # Type assertions for form data (FastAPI form_data.get returns Union[UploadFile, str])
+            assert isinstance(code, str)
+
+            # Step 1: Validate client authentication (if required)
+            client_authenticated = False
             auth_header = request.headers.get("Authorization")
+
+            # Try HTTP Basic Auth (client_secret_basic)
             if auth_header and auth_header.startswith("Basic "):
                 try:
                     credentials = b64decode(auth_header[6:]).decode()
-                    client_id, client_secret = credentials.split(":")
-                    if client_id != self._client_id or client_secret != self._client_secret:
-                        return JSONResponse({"error": "invalid_client"}, status_code=400)
+                    client_id, client_secret = credentials.split(":", 1)
+                    if client_id == self._client_id and client_secret == self._client_secret:
+                        client_authenticated = True
                 except Exception:
-                    return JSONResponse({"error": "invalid_client"}, status_code=400)
+                    pass
+
+            # Try POST body (client_secret_post)
+            if not client_authenticated:
+                body_client_id = form_data.get("client_id")
+                body_client_secret = form_data.get("client_secret")
+                if body_client_id == self._client_id and body_client_secret == self._client_secret:
+                    client_authenticated = True
+
+            # Step 2: Validate PKCE (if required)
+            pkce_valid = False
+            code_verifier = form_data.get("code_verifier")
+
+            if self._use_pkce and code in self._code_challenges:
+                # Reject missing or empty code_verifier
+                if not code_verifier:
+                    return JSONResponse(
+                        {
+                            "error": "invalid_request",
+                            "error_description": "code_verifier required for PKCE",
+                        },
+                        status_code=400,
+                    )
+
+                assert isinstance(code_verifier, str)
+
+                # Compute challenge from verifier
+                challenge = (
+                    urlsafe_b64encode(sha256(code_verifier.encode()).digest()).decode().rstrip("=")
+                )
+
+                stored_challenge = self._code_challenges.get(code)
+                if challenge == stored_challenge:
+                    pkce_valid = True
+                    # Clean up after successful validation
+                    del self._code_challenges[code]
+                else:
+                    return JSONResponse(
+                        {
+                            "error": "invalid_grant",
+                            "error_description": "code_verifier does not match code_challenge",
+                        },
+                        status_code=400,
+                    )
+
+            # Step 3: Determine authentication mode and validate
+            if self._use_pkce:
+                # PKCE flow
+                if not pkce_valid:
+                    return JSONResponse(
+                        {"error": "invalid_grant", "error_description": "PKCE validation failed"},
+                        status_code=400,
+                    )
+                # For confidential clients with PKCE, also check client_secret if provided
+                # (This is defense-in-depth: both PKCE and client_secret)
+                # If client_secret is in the request, it must be valid
+                if auth_header or form_data.get("client_secret"):
+                    if not client_authenticated:
+                        return JSONResponse(
+                            {
+                                "error": "invalid_client",
+                                "error_description": "Invalid client credentials",
+                            },
+                            status_code=400,
+                        )
             else:
-                return JSONResponse({"error": "invalid_client"}, status_code=400)
+                # Standard flow (non-PKCE): Validate code_verifier BEFORE client auth
+                # to avoid leaking information about server configuration
+                if code_verifier is not None and code_verifier != "":
+                    return JSONResponse(
+                        {
+                            "error": "invalid_request",
+                            "error_description": "code_verifier not allowed when PKCE is not enabled",
+                        },
+                        status_code=400,
+                    )
+
+                # Now validate client authentication
+                if not client_authenticated:
+                    return JSONResponse(
+                        {
+                            "error": "invalid_client",
+                            "error_description": "Invalid client credentials",
+                        },
+                        status_code=400,
+                    )
 
             # Create ID token with required claims
             now = int(time())
+            id_token_claims = {
+                "iss": self.base_url,
+                "sub": self._user_id,
+                "aud": self._client_id,
+                "iat": now,
+                "exp": now + 3600,
+                "email": self._user_email,
+                "name": self._user_name,
+                "nonce": self._nonce,
+            }
+
+            # NOTE: Groups are intentionally NOT included in ID token to simulate
+            # real-world IDPs (AWS Cognito, Azure AD) that keep ID tokens small.
+            # Groups must be fetched from the /userinfo endpoint instead.
+
             id_token = jwt.encode(
-                payload={
-                    "iss": self.base_url,
-                    "sub": self._user_id,
-                    "aud": self._client_id,
-                    "iat": now,
-                    "exp": now + 3600,
-                    "email": self._user_email,
-                    "name": self._user_name,
-                    "nonce": self._nonce,
-                },
+                payload=id_token_claims,
                 key=self._secret_key.encode(),
                 algorithm="HS256",
             )
@@ -1389,30 +1567,47 @@ class _OIDCServer:
             Returns the standard OIDC configuration document that clients use to
             discover the endpoints and capabilities of this identity provider.
             """
-            return JSONResponse(
-                {
-                    "issuer": self.base_url,
-                    "authorization_endpoint": self.auth_url,
-                    "token_endpoint": self.token_url,
-                    "userinfo_endpoint": f"{self.base_url}/userinfo",
-                    "jwks_uri": f"{self.base_url}/.well-known/jwks.json",
-                    "response_types_supported": ["code"],
-                    "subject_types_supported": ["public"],
-                    "id_token_signing_alg_values_supported": ["HS256"],
-                    "scopes_supported": ["openid", "profile", "email"],
-                    "token_endpoint_auth_methods_supported": ["client_secret_basic"],
-                    "claims_supported": [
-                        "sub",
-                        "iss",
-                        "aud",
-                        "exp",
-                        "iat",
-                        "name",
-                        "email",
-                        "picture",
-                    ],
-                }
-            )
+            config = {
+                "issuer": self.base_url,
+                "authorization_endpoint": self.auth_url,
+                "token_endpoint": self.token_url,
+                "userinfo_endpoint": f"{self.base_url}/userinfo",
+                "jwks_uri": f"{self.base_url}/.well-known/jwks.json",
+                "response_types_supported": ["code"],
+                "subject_types_supported": ["public"],
+                "id_token_signing_alg_values_supported": ["HS256"],
+                "scopes_supported": ["openid", "profile", "email"],
+                "token_endpoint_auth_methods_supported": [
+                    "client_secret_basic",
+                    "client_secret_post",
+                ],
+                "claims_supported": [
+                    "sub",
+                    "iss",
+                    "aud",
+                    "exp",
+                    "iat",
+                    "name",
+                    "email",
+                    "picture",
+                ],
+            }
+
+            # Add PKCE support to discovery document
+            if self._use_pkce:
+                config["code_challenge_methods_supported"] = ["S256"]
+                # Public clients don't require client authentication
+                token_auth_methods = config["token_endpoint_auth_methods_supported"]
+                assert isinstance(token_auth_methods, list)
+                token_auth_methods.append("none")
+
+            # Add groups claim if configured
+            if self._groups:
+                claims_supported = config["claims_supported"]
+                assert isinstance(claims_supported, list)
+                claims_supported.append("groups")
+
+            return JSONResponse(config)
 
         @self._app.get("/userinfo")
         async def userinfo() -> Response:
@@ -1421,6 +1616,7 @@ class _OIDCServer:
 
             Returns a JSON response with user profile information that would typically
             be retrieved from a real identity provider's user database.
+            Includes groups claim if configured.
             """
             user_info = {
                 "sub": self._user_id,
@@ -1428,6 +1624,11 @@ class _OIDCServer:
                 "email": self._user_email,
                 "picture": "https://example.com/picture.jpg",
             }
+
+            # Add groups if configured
+            if self._groups:
+                user_info["groups"] = self._groups  # type: ignore[assignment]
+
             return JSONResponse(user_info)
 
         @self._app.get("/.well-known/jwks.json")
@@ -1515,6 +1716,16 @@ class _OIDCServer:
     def client_secret(self) -> str:
         """Get the OAuth client secret."""
         return self._client_secret
+
+    @property
+    def groups(self) -> list[str]:
+        """Get the configured groups for this OIDC server."""
+        return self._groups
+
+    @property
+    def use_pkce(self) -> bool:
+        """Check if PKCE is enabled for this OIDC server."""
+        return self._use_pkce
 
     def __str__(self) -> str:
         return self._name
@@ -1708,3 +1919,166 @@ async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None
 
 def _randomize_casing(email: str) -> str:
     return "".join(c.lower() if random() < 0.5 else c.upper() for c in email)
+
+
+# GET endpoints that all roles can read with expected status codes
+_COMMON_RESOURCE_ENDPOINTS = (
+    # Projects
+    (404, "GET", "v1/projects/fake-id-{}"),
+    (200, "GET", "v1/projects"),
+    # Datasets
+    (422, "GET", "v1/datasets/fake-id-{}"),
+    (200, "GET", "v1/datasets"),
+    (422, "GET", "v1/datasets/fake-id-{}/versions"),
+    (422, "GET", "v1/datasets/fake-id-{}/examples"),
+    (422, "GET", "v1/datasets/fake-id-{}/csv"),
+    (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_ft"),
+    (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
+    # Experiments
+    (422, "GET", "v1/experiments/fake-id-{}"),
+    (422, "GET", "v1/datasets/fake-id-{}/experiments"),
+    (422, "GET", "v1/experiments/fake-id-{}/runs"),
+    (422, "GET", "v1/experiments/fake-id-{}/json"),
+    (422, "GET", "v1/experiments/fake-id-{}/csv"),
+    # Prompts
+    (200, "GET", "v1/prompts"),
+    (200, "GET", "v1/prompts/fake-id-{}/versions"),
+    (422, "GET", "v1/prompt_versions/fake-id-{}"),
+    (404, "GET", "v1/prompts/fake-id-{}/tags/test-tag"),
+    (404, "GET", "v1/prompts/fake-id-{}/latest"),
+    (422, "GET", "v1/prompt_versions/fake-id-{}/tags"),
+    # Annotation configs
+    (200, "GET", "v1/annotation_configs"),
+    (404, "GET", "v1/annotation_configs/fake-id-{}"),
+    # Evaluations
+    (404, "GET", "v1/evaluations"),
+    # Spans (project-scoped)
+    (404, "GET", "v1/projects/fake-id-{}/spans"),
+    (404, "GET", "v1/projects/fake-id-{}/spans/otlpv1"),
+    # Annotations (project-scoped)
+    (422, "GET", "v1/projects/fake-id-{}/span_annotations"),
+    (422, "GET", "v1/projects/fake-id-{}/trace_annotations"),
+    (422, "GET", "v1/projects/fake-id-{}/session_annotations"),
+    # Spans
+    (422, "GET", "v1/spans"),
+)
+
+# Admin-only endpoints (user management, project CRUD)
+# Non-admins always receive 403, admins get expected_admin_status
+_ADMIN_ONLY_ENDPOINTS = (
+    (200, "GET", "v1/users"),
+    (422, "POST", "v1/users"),
+    (422, "DELETE", "v1/users/fake-id-{}"),
+    (422, "PUT", "v1/projects/fake-id-{}"),
+    (404, "DELETE", "v1/projects/fake-id-{}"),
+)
+
+# Write operations blocked for viewers (POST/PUT/DELETE)
+# Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
+_VIEWER_BLOCKED_WRITE_OPERATIONS = (
+    # POST routes
+    (422, "POST", "v1/annotation_configs"),
+    (400, "POST", "v1/datasets/upload"),
+    (422, "POST", "v1/datasets/fake-id-{}/experiments"),
+    (422, "POST", "v1/document_annotations"),
+    (415, "POST", "v1/evaluations"),
+    (422, "POST", "v1/experiment_evaluations"),
+    (422, "POST", "v1/experiments/fake-id-{}/runs"),
+    (422, "POST", "v1/projects"),
+    (422, "POST", "v1/projects/fake-id-{}/spans"),
+    (422, "POST", "v1/prompts"),
+    (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
+    (422, "POST", "v1/session_annotations"),
+    (422, "POST", "v1/span_annotations"),
+    (422, "POST", "v1/spans"),
+    (422, "POST", "v1/trace_annotations"),
+    (415, "POST", "v1/traces"),
+    # PUT routes
+    (422, "PUT", "v1/annotation_configs/fake-id-{}"),
+    # DELETE routes
+    (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}"),
+    (404, "DELETE", "v1/spans/fake-id-{}"),
+    (404, "DELETE", "v1/traces/fake-id-{}"),
+)
+
+
+def _ensure_endpoint_coverage_is_exhaustive() -> None:
+    """Verify that test constants cover all actual v1 API routes.
+
+    This runs at module import time as a prerequisite check. If endpoint
+    coverage is incomplete, all tests that import this module will fail fast.
+    """
+    import re
+
+    from fastapi.routing import APIRoute
+
+    from phoenix.server.api.routers.v1 import create_v1_router
+
+    # Get all actual routes from the v1 router
+    router = create_v1_router(authentication_enabled=False)
+    actual_routes = {
+        (method, route.path)
+        for route in router.routes
+        if isinstance(route, APIRoute)
+        for method in route.methods
+    }
+
+    # Get all routes from test constants
+    test_routes = {
+        (method, endpoint)
+        for _, method, endpoint in chain(
+            _COMMON_RESOURCE_ENDPOINTS,
+            _ADMIN_ONLY_ENDPOINTS,
+            _VIEWER_BLOCKED_WRITE_OPERATIONS,
+        )
+    }
+
+    # Normalize paths: server uses {param_name}, tests use fake-id-{}
+    def normalize_path(path: str) -> str:
+        if not path.startswith("/"):
+            path = "/" + path
+        path = re.sub(r"fake-id-\{\}", "{id}", path)
+        path = re.sub(r"\{[^}]*\}", "{id}", path)
+        path = re.sub(r"/tags/test-tag$", "/tags/{id}", path)
+        return path
+
+    # Map normalized paths back to original paths for error reporting
+    normalized_to_actual = {(m, normalize_path(p)): (m, p) for m, p in actual_routes}
+    normalized_to_test = {(m, normalize_path(p)): (m, p) for m, p in test_routes}
+
+    normalized_actual = set(normalized_to_actual.keys())
+    normalized_test = set(normalized_to_test.keys())
+
+    # Check for discrepancies
+    missing_in_tests = normalized_actual - normalized_test
+    extra_in_tests = normalized_test - normalized_actual
+
+    if missing_in_tests or extra_in_tests:
+        error_parts = []
+        if missing_in_tests:
+            # Show actual server paths (not normalized)
+            actual_paths = [normalized_to_actual[route] for route in sorted(missing_in_tests)]
+            routes_str = "\n".join(f"  {m} {p}" for m, p in actual_paths)
+            error_parts.append(
+                f"Routes in server but NOT in test constants:\n{routes_str}\n\n"
+                f"Add these to _helpers.py:\n"
+                f"  - GET routes → _COMMON_RESOURCE_ENDPOINTS\n"
+                f"  - Admin-only routes (users, project CRUD) → _ADMIN_ONLY_ENDPOINTS\n"
+                f"  - Write operations (POST/PUT/DELETE) → _VIEWER_BLOCKED_WRITE_OPERATIONS\n\n"
+                f"Format: (expected_status_code, method, endpoint_path)\n"
+                f'Example: (404, "GET", "v1/projects/fake-id-{{}}") or (422, "POST", "v1/datasets/upload")'
+            )
+        if extra_in_tests:
+            # Show actual test paths (not normalized)
+            test_paths = [normalized_to_test[route] for route in sorted(extra_in_tests)]
+            routes_str = "\n".join(f"  {m} {p}" for m, p in test_paths)
+            error_parts.append(
+                f"Routes in test constants but NOT in server (removed?):\n{routes_str}\n\n"
+                f"Remove these from _COMMON_RESOURCE_ENDPOINTS, _ADMIN_ONLY_ENDPOINTS,\n"
+                f"or _VIEWER_BLOCKED_WRITE_OPERATIONS in _helpers.py"
+            )
+        raise AssertionError("Endpoint coverage is incomplete!\n\n" + "\n\n".join(error_parts))
+
+
+_ensure_endpoint_coverage_is_exhaustive()

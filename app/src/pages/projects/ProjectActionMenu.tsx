@@ -1,8 +1,6 @@
 import { startTransition, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { ActionMenu, Item } from "@arizeai/components";
-
 import {
   Button,
   Dialog,
@@ -10,8 +8,12 @@ import {
   Flex,
   Icon,
   Icons,
+  Menu,
+  MenuItem,
+  MenuTrigger,
   Modal,
   ModalOverlay,
+  Popover,
   Text,
   View,
 } from "@phoenix/components";
@@ -22,6 +24,8 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
@@ -40,15 +44,14 @@ export function ProjectActionMenu({
   onProjectDelete,
   onProjectClear,
   onProjectRemoveData,
-  variant = "quiet",
 }: {
   projectId: string;
   projectName: string;
   onProjectClear: () => void;
   onProjectRemoveData: () => void;
   onProjectDelete: () => void;
-  variant?: "quiet" | "default";
 }) {
+  const notifySuccess = useNotifySuccess();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showRemoveDataDialog, setShowRemoveDataDialog] = useState(false);
@@ -110,87 +113,86 @@ export function ProjectActionMenu({
   }, []);
 
   return (
-    <div
-      // TODO: add this logic to the ActionMenu component
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <ActionMenu
-        buttonVariant={variant}
-        buttonSize="compact"
-        align="end"
-        onAction={(action) => {
-          switch (action as ProjectAction) {
-            case ProjectAction.COPY_NAME: {
-              navigator.clipboard.writeText(projectName);
-              return;
-            }
-            case ProjectAction.DELETE: {
-              return onDelete();
-            }
-            case ProjectAction.CLEAR: {
-              return onClear();
-            }
-            case ProjectAction.REMOVE_DATA: {
-              return onRemoveData();
-            }
-          }
-        }}
-        disabledKeys={canDelete ? [] : [ProjectAction.DELETE]}
-      >
-        <Item key={ProjectAction.COPY_NAME} textValue="Copy Name">
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
+    <StopPropagation>
+      <MenuTrigger>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+        />
+        <Popover>
+          <Menu
+            aria-label="Project Actions Menu"
+            onAction={(action) => {
+              switch (action as ProjectAction) {
+                case ProjectAction.COPY_NAME: {
+                  navigator.clipboard.writeText(projectName);
+                  notifySuccess({
+                    title: "Project name copied to clipboard",
+                  });
+                  return;
+                }
+                case ProjectAction.DELETE: {
+                  return onDelete();
+                }
+                case ProjectAction.CLEAR: {
+                  return onClear();
+                }
+                case ProjectAction.REMOVE_DATA: {
+                  return onRemoveData();
+                }
+              }
+            }}
+            disabledKeys={canDelete ? [] : [ProjectAction.DELETE]}
           >
-            <Icon svg={<Icons.ClipboardCopy />} />
-            <Text>Copy Name</Text>
-          </Flex>
-        </Item>
-        <Item key={ProjectAction.CLEAR} textValue="Clear All Traces">
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.Refresh />} />
-            <Text>Clear All Data</Text>
-          </Flex>
-        </Item>
-        <Item key={ProjectAction.REMOVE_DATA} textValue="Remove Data">
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.CloseCircleOutline />} />
-            <Text>Remove Data</Text>
-          </Flex>
-        </Item>
-        {canDelete ? (
-          <Item key={ProjectAction.DELETE}>
-            <Flex
-              direction={"row"}
-              gap="size-75"
-              justifyContent={"start"}
-              alignItems={"center"}
-            >
-              <Icon svg={<Icons.TrashOutline />} />
-              <Text>Delete</Text>
-            </Flex>
-          </Item>
-        ) : (
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (null as any)
-        )}
-      </ActionMenu>
+            <MenuItem id={ProjectAction.COPY_NAME} textValue="Copy Name">
+              <Flex
+                direction={"row"}
+                gap="size-75"
+                justifyContent={"start"}
+                alignItems={"center"}
+              >
+                <Icon svg={<Icons.ClipboardCopy />} />
+                <Text>Copy Name</Text>
+              </Flex>
+            </MenuItem>
+            <MenuItem id={ProjectAction.CLEAR} textValue="Clear All Traces">
+              <Flex
+                direction={"row"}
+                gap="size-75"
+                justifyContent={"start"}
+                alignItems={"center"}
+              >
+                <Icon svg={<Icons.Refresh />} />
+                <Text>Clear All Data</Text>
+              </Flex>
+            </MenuItem>
+            <MenuItem id={ProjectAction.REMOVE_DATA} textValue="Remove Data">
+              <Flex
+                direction={"row"}
+                gap="size-75"
+                justifyContent={"start"}
+                alignItems={"center"}
+              >
+                <Icon svg={<Icons.CloseCircleOutline />} />
+                <Text>Remove Data</Text>
+              </Flex>
+            </MenuItem>
+            {canDelete ? (
+              <MenuItem id={ProjectAction.DELETE}>
+                <Flex
+                  direction={"row"}
+                  gap="size-75"
+                  justifyContent={"start"}
+                  alignItems={"center"}
+                >
+                  <Icon svg={<Icons.TrashOutline />} />
+                  <Text>Delete</Text>
+                </Flex>
+              </MenuItem>
+            ) : null}
+          </Menu>
+        </Popover>
+      </MenuTrigger>
       <DialogTrigger
         isOpen={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
@@ -306,6 +308,6 @@ export function ProjectActionMenu({
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
-    </div>
+    </StopPropagation>
   );
 }

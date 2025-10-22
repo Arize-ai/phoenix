@@ -5,10 +5,18 @@ import { resolve } from "path";
 // import { visualizer } from "rollup-plugin-visualizer";
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
+import reactFallbackThrottlePlugin from "vite-plugin-react-fallback-throttle";
 import relay from "vite-plugin-relay";
 
 export default defineConfig(() => {
-  const plugins = [react(), relay, lezer()];
+  const plugins = [
+    // disable react's built-in 300ms suspense fallback timer
+    // without this build plugin we see a 300ms delay on most UI interactions
+    reactFallbackThrottlePlugin(),
+    react(),
+    relay,
+    lezer(),
+  ];
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());
   return {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2642136bf7794dccde28797d49473eaf>>
+ * @generated SignedSource<<f9244c389a68977844f574b446f3bcaa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -54,6 +54,7 @@ export type ExperimentCompareListPage_comparisons$data = {
                   };
                 };
                 readonly endTime: string;
+                readonly experimentId: string;
                 readonly id: string;
                 readonly output: any | null;
                 readonly startTime: string;
@@ -67,7 +68,12 @@ export type ExperimentCompareListPage_comparisons$data = {
           };
           readonly id: string;
           readonly output: any | null;
+          readonly repetitionNumber: number;
           readonly startTime: string;
+          readonly trace: {
+            readonly projectId: string;
+            readonly traceId: string;
+          } | null;
         };
       }>;
     };
@@ -204,6 +210,13 @@ v6 = {
     }
   ],
   "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "experimentId",
+  "storageKey": null
 };
 return {
   "argumentDefinitions": [
@@ -226,6 +239,11 @@ return {
       "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "sort"
     }
   ],
   "kind": "Fragment",
@@ -273,7 +291,13 @@ return {
             (v1/*: any*/),
             {
               "alias": "runs",
-              "args": null,
+              "args": [
+                {
+                  "kind": "Variable",
+                  "name": "sort",
+                  "variableName": "sort"
+                }
+              ],
               "concreteType": "ExperimentRunConnection",
               "kind": "LinkedField",
               "name": "__ExperimentCompareListPage_runs_connection",
@@ -296,9 +320,41 @@ return {
                       "plural": false,
                       "selections": [
                         (v1/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "repetitionNumber",
+                          "storageKey": null
+                        },
                         (v2/*: any*/),
                         (v3/*: any*/),
                         (v4/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "Trace",
+                          "kind": "LinkedField",
+                          "name": "trace",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "traceId",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "projectId",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
                         (v5/*: any*/),
                         (v6/*: any*/),
                         {
@@ -349,13 +405,7 @@ return {
                               "name": "experimentRepeatedRunGroups",
                               "plural": true,
                               "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "experimentId",
-                                  "storageKey": null
-                                },
+                                (v7/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -365,6 +415,7 @@ return {
                                   "plural": true,
                                   "selections": [
                                     (v1/*: any*/),
+                                    (v7/*: any*/),
                                     (v2/*: any*/),
                                     (v3/*: any*/),
                                     (v4/*: any*/),
@@ -451,6 +502,6 @@ return {
 };
 })();
 
-(node as any).hash = "86359ac799bb8e8c2dedb939c7b5ccfb";
+(node as any).hash = "9ccda00d27d4d8a3fb4233f2ffadb778";
 
 export default node;

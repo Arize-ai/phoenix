@@ -1,10 +1,9 @@
 import { startTransition, useEffect, useState } from "react";
 import { fetchQuery, graphql } from "react-relay";
 
-import { Content, ContextualHelp } from "@arizeai/components";
-
 import {
   Button,
+  ContextualHelp,
   Flex,
   Heading,
   Label,
@@ -71,14 +70,12 @@ const contextualHelp = (
     <Heading weight="heavy" level={4}>
       Model Dimension
     </Heading>
-    <Content>
-      <Text>
-        A dimension is a feature, tag, prediction, or actual value that is
-        associated with a model inference. Features represent inputs, tags
-        represent metadata, predictions represent outputs, and actuals represent
-        ground truth.
-      </Text>
-    </Content>
+    <Text>
+      A dimension is a feature, tag, prediction, or actual value that is
+      associated with a model inference. Features represent inputs, tags
+      represent metadata, predictions represent outputs, and actuals represent
+      ground truth.
+    </Text>
   </ContextualHelp>
 );
 

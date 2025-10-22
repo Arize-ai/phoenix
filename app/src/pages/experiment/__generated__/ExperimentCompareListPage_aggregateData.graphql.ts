@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d9d70392c9f2d8f47e45c1cca4c7cdb9>>
+ * @generated SignedSource<<c493a11429b88d1122faf2aad63d5246>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -33,6 +33,7 @@ export type ExperimentCompareListPage_aggregateData$data = {
           };
           readonly datasetVersionId: string;
           readonly id: string;
+          readonly repetitions: number;
           readonly runCount: number;
         };
       }>;
@@ -157,6 +158,13 @@ return {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
+                          "name": "repetitions",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
                           "name": "datasetVersionId",
                           "storageKey": null
                         },
@@ -251,6 +259,6 @@ return {
 };
 })();
 
-(node as any).hash = "fc91dd988055b0f691ffd85326f71915";
+(node as any).hash = "46e4b2378bc6dc7c46e9b892397393d9";
 
 export default node;

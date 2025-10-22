@@ -25,13 +25,13 @@ export function PromptVersionTagsList({
   return (
     <Flex direction="row" gap="size-50" alignItems="center" wrap="wrap">
       {data.tags.map((tag) => (
-        <VersionLabel key={tag.id}>{tag.name}</VersionLabel>
+        <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
       ))}
     </Flex>
   );
 }
 
-function VersionLabel({ children }: { children: string }) {
+export function TagVersionLabel({ children }: { children: string }) {
   const color: TokenProps["color"] = useMemo(() => {
     switch (children) {
       case "production":

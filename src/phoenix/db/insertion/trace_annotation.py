@@ -166,7 +166,7 @@ def _key(p: Received[Precursors.TraceAnnotation]) -> _Key:
 
 
 def _unique_by(p: Received[Insertables.TraceAnnotation]) -> _UniqueBy:
-    return p.item.obj.name, p.item.trace_rowid, p.item.identifier
+    return p.item.obj.name, p.item.trace_rowid, p.item.obj.identifier
 
 
 def _time(p: Received[Any]) -> datetime:

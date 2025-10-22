@@ -1,13 +1,9 @@
 import { ComponentProps } from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Button, Flex, ToastRegion } from "@phoenix/components";
-import {
-  NotificationProvider,
-  useNotify,
-  useNotifyError,
-  useNotifySuccess,
-} from "@phoenix/contexts";
+import { Button, Flex } from "@phoenix/components";
+import { ToastRegion } from "@phoenix/components/toast/ToastRegion";
+import { useNotify, useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 /**
  * ToastRegion manages the display of one or more queued toasts
@@ -100,7 +96,8 @@ const TriggerToasts = () => {
 };
 
 export const Template: StoryFn<ComponentProps<typeof ToastRegion>> = () => (
-  <NotificationProvider>
+  <>
+    <ToastRegion />
     <TriggerToasts />
-  </NotificationProvider>
+  </>
 );

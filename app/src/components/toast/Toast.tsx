@@ -2,33 +2,30 @@ import {
   QueuedToast,
   UNSTABLE_Toast as AriaToast,
   UNSTABLE_ToastContent as AriaToastContent,
-  UNSTABLE_ToastQueue as AriaToastQueue,
-  UNSTABLE_ToastRegion as AriaToastRegion,
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
 import { Button } from "@phoenix/components/button";
 import { Text } from "@phoenix/components/content";
 import { Icon, Icons } from "@phoenix/components/icon";
-import { toastCss, toastRegionCss } from "@phoenix/components/toast/styles";
-import { NotificationParams, useTheme } from "@phoenix/contexts";
+import { toastCss } from "@phoenix/components/toast/styles";
+import {
+  type NotificationParams,
+  toastQueue,
+} from "@phoenix/contexts/NotificationContext";
+import { useTheme } from "@phoenix/contexts/ThemeContext";
 
-export const ToastRegion = <Q extends AriaToastQueue<NotificationParams>>({
-  queue,
-}: {
-  queue: Q;
-}) => {
-  return (
-    <AriaToastRegion
-      queue={queue}
-      css={toastRegionCss}
-      className="react-aria-ToastRegion"
-    >
-      {({ toast }) => {
-        return <Toast toast={toast} queue={queue} />;
-      }}
-    </AriaToastRegion>
-  );
+const iconFromVariant = (
+  variant: "success" | "error" | "default" | undefined
+) => {
+  switch (variant) {
+    case "success":
+      return <Icon svg={<Icons.CheckmarkCircleFilled />} />;
+    case "error":
+      return <Icon svg={<Icons.AlertCircleFilled />} />;
+    default:
+      return null;
+  }
 };
 
 const colorFromVariant = (
@@ -44,17 +41,13 @@ const colorFromVariant = (
   }
 };
 
-export const Toast = <
-  T extends QueuedToast<NotificationParams>,
-  Q extends AriaToastQueue<NotificationParams>,
->({
+export const Toast = <T extends QueuedToast<NotificationParams>>({
   toast,
-  queue,
 }: {
   toast: T;
-  queue?: Q;
 }) => {
   const { theme } = useTheme();
+  const icon = iconFromVariant(toast.content.variant);
   return (
     <AriaToast
       toast={toast}
@@ -77,7 +70,7 @@ export const Toast = <
       >
         <AriaToastContent>
           <Text slot="title" size="M">
-            {toast.content.icon}
+            {icon}
             {toast.content.title}
           </Text>
           <Text slot="description">{toast.content.message}</Text>
@@ -105,7 +98,7 @@ export const Toast = <
                   // close on click by default
                   const closeOnClick = action.closeOnClick ?? true;
                   const close = () => {
-                    queue?.close(toast.key);
+                    toastQueue?.close(toast.key);
                   };
                   // pass close callback to action for manual close ability
                   action.onClick(close);

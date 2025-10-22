@@ -169,7 +169,7 @@ def _key(p: Received[Precursors.SessionAnnotation]) -> _Key:
 
 
 def _unique_by(p: Received[Insertables.SessionAnnotation]) -> _UniqueBy:
-    return p.item.obj.name, p.item.project_session_rowid, p.item.identifier
+    return p.item.obj.name, p.item.project_session_rowid, p.item.obj.identifier
 
 
 def _time(p: Received[Any]) -> datetime:

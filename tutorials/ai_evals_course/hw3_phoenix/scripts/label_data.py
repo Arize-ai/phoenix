@@ -120,7 +120,7 @@ def generate_phoenix_labels(
     test_results.set_index(sampled_df.index)
 
     px_client = Client()
-    px_client.annotations.log_span_annotations_dataframe(
+    px_client.spans.log_span_annotations_dataframe(
         dataframe=test_results,
         annotation_name="Ground Truth Labels",
         annotator_kind="LLM",

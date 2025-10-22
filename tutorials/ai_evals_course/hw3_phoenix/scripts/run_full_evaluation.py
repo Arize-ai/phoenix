@@ -101,7 +101,7 @@ def run_judge_on_traces(
     predictions.set_index(traces_df.index)
 
     px_client = Client()
-    px_client.annotations.log_span_annotations_dataframe(
+    px_client.spans.log_span_annotations_dataframe(
         dataframe=predictions,
         annotation_name="LLM-as-Judge Evaluation",
         annotator_kind="LLM",

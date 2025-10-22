@@ -1099,9 +1099,8 @@ class TestEvaluateDataframe:
         assert result_df["mock_evaluator_execution_details"].notna().all()
 
         # Verify execution details contain expected fields
-        import json
 
-        details = json.loads(result_df["mock_evaluator_execution_details"].iloc[0])
+        details = result_df["mock_evaluator_execution_details"].iloc[0]
         assert "status" in details
         assert "exceptions" in details
         assert "execution_seconds" in details
@@ -1215,24 +1214,17 @@ class TestEvaluateDataframe:
         assert len(scores) == 3, f"Expected 3 scores, got {len(scores)}"
         assert all(score is not None for score in scores), "Some scores are None"
 
-        # Parse scores to verify they match the expected content
-        import json
-
-        parsed_scores = [json.loads(score) for score in scores]
-
         # Verify each score corresponds to the correct row
-        assert "Evaluated: Short" in parsed_scores[0]["explanation"], (
-            "First score doesn't match first row"
-        )
-        assert "Evaluated: Medium length" in parsed_scores[1]["explanation"], (
+        assert "Evaluated: Short" in scores[0]["explanation"], "First score doesn't match first row"
+        assert "Evaluated: Medium length" in scores[1]["explanation"], (
             "Second score doesn't match second row"
         )
-        assert "Evaluated: Very long text here" in parsed_scores[2]["explanation"], (
+        assert "Evaluated: Very long text here" in scores[2]["explanation"], (
             "Third score doesn't match third row"
         )
 
         # Verify score values are different (based on text length)
-        score_values = [score["score"] for score in parsed_scores]
+        score_values = [score["score"] for score in scores]
         assert score_values[0] != score_values[1] != score_values[2], (
             "Score values should be different"
         )
@@ -1348,24 +1340,19 @@ class TestEvaluateDataframe:
         assert len(scores) == 3, f"Expected 3 scores, got {len(scores)}"
         assert all(score is not None for score in scores), "Some scores are None"
 
-        # Parse scores to verify they match the expected content
-        import json
-
-        parsed_scores = [json.loads(score) for score in scores]
-
         # Verify each score corresponds to the correct row
-        assert "Async evaluated: Short" in parsed_scores[0]["explanation"], (
+        assert "Async evaluated: Short" in scores[0]["explanation"], (
             "First score doesn't match first row"
         )
-        assert "Async evaluated: Medium length" in parsed_scores[1]["explanation"], (
+        assert "Async evaluated: Medium length" in scores[1]["explanation"], (
             "Second score doesn't match second row"
         )
-        assert "Async evaluated: Very long text here" in parsed_scores[2]["explanation"], (
+        assert "Async evaluated: Very long text here" in scores[2]["explanation"], (
             "Third score doesn't match third row"
         )
 
         # Verify score values are different (based on text length)
-        score_values = [score["score"] for score in parsed_scores]
+        score_values = [score["score"] for score in scores]
         assert score_values[0] != score_values[1] != score_values[2], (
             "Score values should be different"
         )
@@ -1415,11 +1402,8 @@ class TestEvaluateDataframe:
         assert scores[1] is None  # Failure
 
         # Check execution details: failure should have FAILED status
-        import json
+        exec_details = result_df["failing_eval_execution_details"].tolist()
 
-        exec_details = [
-            json.loads(detail) for detail in result_df["failing_eval_execution_details"]
-        ]
         assert exec_details[0]["status"] == "COMPLETED"
         assert exec_details[1]["status"] == "FAILED"
         assert len(exec_details[1]["exceptions"]) > 0
@@ -1471,11 +1455,8 @@ class TestEvaluateDataframe:
         assert scores[1] is None  # Failure
 
         # Check execution details: failure should have FAILED status
-        import json
+        exec_details = result_df["async_failing_eval_execution_details"].tolist()
 
-        exec_details = [
-            json.loads(detail) for detail in result_df["async_failing_eval_execution_details"]
-        ]
         assert exec_details[0]["status"] == "COMPLETED"
         assert exec_details[1]["status"] == "FAILED"
         assert len(exec_details[1]["exceptions"]) > 0

@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
-from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -26,6 +25,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import ExperimentInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 
+from .datasets import _resolve_split_identifiers
 from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses, add_text_csv_content_to_responses
 
@@ -81,6 +81,10 @@ class CreateExperimentRequestBody(V1RoutesBaseModel):
             "(if omitted, the latest version will be used)"
         ),
     )
+    splits: Optional[list[str]] = Field(
+        default=None,
+        description="List of dataset split identifiers (GlobalIDs or names) to filter by",
+    )
     repetitions: int = Field(
         default=1, description="Number of times the experiment should be repeated for each example"
     )
@@ -96,7 +100,7 @@ class CreateExperimentResponseBody(ResponseBody[Experiment]):
     operation_id="createExperiment",
     summary="Create experiment on a dataset",
     responses=add_errors_to_responses(
-        [{"status_code": HTTP_404_NOT_FOUND, "description": "Dataset or DatasetVersion not found"}]
+        [{"status_code": 404, "description": "Dataset or DatasetVersion not found"}]
     ),
     response_description="Experiment retrieved successfully",
 )
@@ -105,26 +109,38 @@ async def create_experiment(
     request_body: CreateExperimentRequestBody,
     dataset_id: str = Path(..., title="Dataset ID"),
 ) -> CreateExperimentResponseBody:
-    dataset_globalid = GlobalID.from_id(dataset_id)
+    try:
+        dataset_globalid = GlobalID.from_id(dataset_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {dataset_id}",
+            status_code=422,
+        ) from e
     try:
         dataset_rowid = from_global_id_with_expected_type(dataset_globalid, "Dataset")
     except ValueError:
         raise HTTPException(
             detail="Dataset with ID {dataset_globalid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
         )
 
     dataset_version_globalid_str = request_body.version_id
     if dataset_version_globalid_str is not None:
         try:
             dataset_version_globalid = GlobalID.from_id(dataset_version_globalid_str)
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {dataset_version_globalid_str}",
+                status_code=422,
+            ) from e
+        try:
             dataset_version_id = from_global_id_with_expected_type(
                 dataset_version_globalid, "DatasetVersion"
             )
         except ValueError:
             raise HTTPException(
                 detail=f"DatasetVersion with ID {dataset_version_globalid_str} does not exist",
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
             )
 
     async with request.app.state.db() as session:
@@ -134,7 +150,7 @@ async def create_experiment(
         if result is None:
             raise HTTPException(
                 detail=f"Dataset with ID {dataset_globalid} does not exist",
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
             )
         dataset_name = result.name
         if dataset_version_globalid_str is None:
@@ -147,7 +163,7 @@ async def create_experiment(
             if not dataset_version:
                 raise HTTPException(
                     detail=f"Dataset {dataset_globalid} does not have any versions",
-                    status_code=HTTP_404_NOT_FOUND,
+                    status_code=404,
                 )
             dataset_version_id = dataset_version.id
             dataset_version_globalid = GlobalID("DatasetVersion", str(dataset_version_id))
@@ -159,7 +175,7 @@ async def create_experiment(
             if not dataset_version:
                 raise HTTPException(
                     detail=f"DatasetVersion with ID {dataset_version_globalid} does not exist",
-                    status_code=HTTP_404_NOT_FOUND,
+                    status_code=404,
                 )
         user_id: Optional[int] = None
         if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
@@ -181,6 +197,20 @@ async def create_experiment(
             project_name=project_name,
             user_id=user_id,
         )
+
+        if request_body.splits is not None:
+            # Resolve split identifiers (IDs or names) to IDs and names
+            resolved_split_ids, _ = await _resolve_split_identifiers(session, request_body.splits)
+
+            # Generate experiment dataset splits relation
+            # prior to the crosswalk table insert
+            # in insert_experiment_with_examples_snapshot
+            experiment.experiment_dataset_splits = [
+                models.ExperimentDatasetSplit(dataset_split_id=split_id)
+                for split_id in resolved_split_ids
+            ]
+
+        # crosswalk table assumes the relation is already present
         await insert_experiment_with_examples_snapshot(session, experiment)
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -228,18 +258,24 @@ class GetExperimentResponseBody(ResponseBody[Experiment]):
     operation_id="getExperiment",
     summary="Get experiment by ID",
     responses=add_errors_to_responses(
-        [{"status_code": HTTP_404_NOT_FOUND, "description": "Experiment not found"}]
+        [{"status_code": 404, "description": "Experiment not found"}]
     ),
     response_description="Experiment retrieved successfully",
 )
 async def get_experiment(request: Request, experiment_id: str) -> GetExperimentResponseBody:
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
         raise HTTPException(
             detail="Experiment with ID {experiment_globalid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
         )
 
     async with request.app.state.db() as session:
@@ -250,7 +286,7 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
         if not experiment:
             raise HTTPException(
                 detail=f"Experiment with ID {experiment_globalid} does not exist",
-                status_code=HTTP_404_NOT_FOUND,
+                status_code=404,
             )
 
         dataset_globalid = GlobalID("Dataset", str(experiment.dataset_id))
@@ -283,13 +319,19 @@ async def list_experiments(
     request: Request,
     dataset_id: str = Path(..., title="Dataset ID"),
 ) -> ListExperimentsResponseBody:
-    dataset_gid = GlobalID.from_id(dataset_id)
+    try:
+        dataset_gid = GlobalID.from_id(dataset_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {dataset_id}",
+            status_code=422,
+        ) from e
     try:
         dataset_rowid = from_global_id_with_expected_type(dataset_gid, "Dataset")
     except ValueError:
         raise HTTPException(
             detail=f"Dataset with ID {dataset_gid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
         )
     async with request.app.state.db() as session:
         query = (
@@ -328,7 +370,7 @@ async def _get_experiment_runs_and_revisions(
 ) -> tuple[models.Experiment, tuple[models.ExperimentRun], tuple[models.DatasetExampleRevision]]:
     experiment = await session.get(models.Experiment, experiment_rowid)
     if not experiment:
-        raise HTTPException(detail="Experiment not found", status_code=HTTP_404_NOT_FOUND)
+        raise HTTPException(detail="Experiment not found", status_code=404)
     revision_ids = (
         select(func.max(models.DatasetExampleRevision.id))
         .join(
@@ -377,7 +419,7 @@ async def _get_experiment_runs_and_revisions(
     if not runs_and_revisions:
         raise HTTPException(
             detail="Experiment has no runs",
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
         )
     runs, revisions = zip(*runs_and_revisions)
     return experiment, runs, revisions
@@ -390,7 +432,7 @@ async def _get_experiment_runs_and_revisions(
     response_class=PlainTextResponse,
     responses=add_errors_to_responses(
         [
-            {"status_code": HTTP_404_NOT_FOUND, "description": "Experiment not found"},
+            {"status_code": 404, "description": "Experiment not found"},
         ]
     ),
 )
@@ -398,13 +440,19 @@ async def get_experiment_json(
     request: Request,
     experiment_id: str = Path(..., title="Experiment ID"),
 ) -> Response:
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
         raise HTTPException(
             detail=f"Invalid experiment ID: {experiment_globalid}",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
         )
 
     async with request.app.state.db() as session:
@@ -459,19 +507,25 @@ async def get_experiment_json(
     "/experiments/{experiment_id}/csv",
     operation_id="getExperimentCSV",
     summary="Download experiment runs as a CSV file",
-    responses={**add_text_csv_content_to_responses(HTTP_200_OK)},
+    responses={**add_text_csv_content_to_responses(200)},
 )
 async def get_experiment_csv(
     request: Request,
     experiment_id: str = Path(..., title="Experiment ID"),
 ) -> Response:
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
         raise HTTPException(
             detail=f"Invalid experiment ID: {experiment_globalid}",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
         )
 
     async with request.app.state.db() as session:

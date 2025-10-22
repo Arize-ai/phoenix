@@ -839,6 +839,7 @@ class TestExperimentsIntegration:
         dataset._examples_data = v1.ListDatasetExamplesData(
             dataset_id=original_dataset_id,
             version_id=original_version_id,
+            filtered_splits=[],
             examples=[],
         )
 
@@ -1600,3 +1601,314 @@ class TestEvaluateExperiment:
         assert eval_result["experiment_id"] == "DRY_RUN"
         assert len(eval_result["task_runs"]) == 1
         assert len(eval_result["evaluation_runs"]) == 1
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_experiment_with_dataset_splits(
+        self,
+        is_async: bool,
+        role_or_user: UserRoleInput,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that experiments correctly record split_ids and populate the experiments_dataset_splits junction table."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        from .._helpers import _gql
+
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = user.create_api_key(_app)
+        api_key_str = str(api_key)
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_exp_splits_{uuid.uuid4().hex[:8]}"
+
+        # Create dataset with examples
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"question": "What is 2+2?"},
+                    {"question": "What is the capital of France?"},
+                    {"question": "Who wrote Python?"},
+                    {"question": "What is recursion?"},
+                ],
+                outputs=[
+                    {"answer": "4"},
+                    {"answer": "Paris"},
+                    {"answer": "Guido van Rossum"},
+                    {"answer": "A function calling itself"},
+                ],
+                metadata=[
+                    {"category": "math"},
+                    {"category": "geography"},
+                    {"category": "programming"},
+                    {"category": "computer_science"},
+                ],
+            )
+        )
+
+        assert len(dataset) == 4
+        example_ids = [example["id"] for example in dataset.examples]
+
+        # Create splits using GraphQL
+        # Split 1: Training set (first 2 examples)
+        split_mutation = """
+            mutation($input: CreateDatasetSplitWithExamplesInput!) {
+                createDatasetSplitWithExamples(input: $input) {
+                    datasetSplit {
+                        id
+                        name
+                    }
+                }
+            }
+        """
+
+        train_split_result, _ = _gql(
+            _app,
+            api_key,
+            query=split_mutation,
+            variables={
+                "input": {
+                    "name": f"{unique_name}_train",
+                    "color": "#FF0000",
+                    "exampleIds": [example_ids[0], example_ids[1]],
+                }
+            },
+        )
+        train_split_id = train_split_result["data"]["createDatasetSplitWithExamples"][
+            "datasetSplit"
+        ]["id"]
+        train_split_name = train_split_result["data"]["createDatasetSplitWithExamples"][
+            "datasetSplit"
+        ]["name"]
+
+        # Split 2: Test set (last 2 examples)
+        test_split_result, _ = _gql(
+            _app,
+            api_key,
+            query=split_mutation,
+            variables={
+                "input": {
+                    "name": f"{unique_name}_test",
+                    "color": "#00FF00",
+                    "exampleIds": [example_ids[2], example_ids[3]],
+                }
+            },
+        )
+        test_split_id = test_split_result["data"]["createDatasetSplitWithExamples"]["datasetSplit"][
+            "id"
+        ]
+        test_split_name = test_split_result["data"]["createDatasetSplitWithExamples"][
+            "datasetSplit"
+        ]["name"]
+
+        # First, verify that getting dataset with no splits filter returns ALL examples
+        full_dataset_no_filter = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).datasets.get_dataset(
+                dataset=dataset.id
+            )
+        )
+        assert len(full_dataset_no_filter) == 4, (
+            f"Expected all 4 examples with no filter, got {len(full_dataset_no_filter)}"
+        )
+        assert full_dataset_no_filter._filtered_split_names == [], (
+            f"Expected empty split_names with no filter, got {full_dataset_no_filter._filtered_split_names}"
+        )
+
+        # Verify all original example IDs are present
+        full_dataset_example_ids = {example["id"] for example in full_dataset_no_filter.examples}
+        assert full_dataset_example_ids == set(example_ids), (
+            "Full dataset should contain all original example IDs"
+        )
+
+        # Define GraphQL query for verifying experiment splits (used multiple times below)
+        verify_splits_query = """
+            query($experimentId: ID!) {
+                node(id: $experimentId) {
+                    ... on Experiment {
+                        id
+                        datasetSplits {
+                            edges {
+                                node {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+
+        # Define a simple task for the experiment (used in multiple tests below)
+        def simple_task(input: Dict[str, Any]) -> str:
+            question = input.get("question", "")
+            if "2+2" in question:
+                return "The answer is 4"
+            elif "capital" in question:
+                return "The capital is Paris"
+            elif "Python" in question:
+                return "Created by Guido van Rossum"
+            elif "recursion" in question:
+                return "When a function calls itself"
+            else:
+                return "I don't know"
+
+        # Run an experiment on the full dataset (no split filter) to verify it processes all examples
+        full_dataset_experiment = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).experiments.run_experiment(
+                dataset=full_dataset_no_filter,
+                task=simple_task,
+                experiment_name=f"test_no_split_experiment_{uuid.uuid4().hex[:8]}",
+                experiment_description="Test experiment with no split filter",
+                print_summary=False,
+            )
+        )
+
+        assert len(full_dataset_experiment["task_runs"]) == 4, (
+            f"Expected 4 task runs on full dataset, got {len(full_dataset_experiment['task_runs'])}"
+        )
+
+        # Verify that experiment with no split filter has empty dataset_splits association
+        no_split_exp_id = full_dataset_experiment["experiment_id"]
+        no_split_verification, _ = _gql(
+            _app,
+            api_key,
+            query=verify_splits_query,
+            variables={"experimentId": no_split_exp_id},
+        )
+        no_split_exp_node = no_split_verification["data"]["node"]
+        no_split_edges = no_split_exp_node["datasetSplits"]["edges"]
+        assert len(no_split_edges) == 0, (
+            f"Expected 0 splits for experiment with no filter, got {len(no_split_edges)}"
+        )
+
+        # Get dataset filtered by train split only
+        train_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=[train_split_name],
+            )
+        )
+
+        assert len(train_dataset) == 2, (
+            f"Expected 2 examples in train split, got {len(train_dataset)}"
+        )
+        assert train_split_name in train_dataset._filtered_split_names, (
+            "Train split name should be in dataset._filtered_split_names"
+        )
+
+        # Run experiment on the filtered train dataset
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).experiments.run_experiment(
+                dataset=train_dataset,
+                task=simple_task,
+                experiment_name=f"test_split_experiment_{uuid.uuid4().hex[:8]}",
+                experiment_description="Test experiment with dataset splits",
+                print_summary=False,
+            )
+        )
+
+        # Verify experiment was created and ran on correct number of examples
+        assert "experiment_id" in result
+        assert result["experiment_id"] != "DRY_RUN"
+        assert "dataset_id" in result
+        assert result["dataset_id"] == dataset.id
+        assert len(result["task_runs"]) == 2, (
+            f"Expected 2 task runs (train split), got {len(result['task_runs'])}"
+        )
+
+        experiment_id = result["experiment_id"]
+
+        # Query the database to verify the experiments_dataset_splits junction table is populated
+        splits_verification, _ = _gql(
+            _app,
+            api_key,
+            query=verify_splits_query,
+            variables={"experimentId": experiment_id},
+        )
+
+        experiment_node = splits_verification["data"]["node"]
+        assert experiment_node is not None, "Experiment should exist"
+        assert "datasetSplits" in experiment_node, "Experiment should have datasetSplits field"
+
+        dataset_splits_edges = experiment_node["datasetSplits"]["edges"]
+        assert len(dataset_splits_edges) == 1, (
+            f"Expected 1 split associated with experiment, got {len(dataset_splits_edges)}"
+        )
+
+        associated_split = dataset_splits_edges[0]["node"]
+        assert associated_split["id"] == train_split_id, (
+            f"Expected train split {train_split_id}, got {associated_split['id']}"
+        )
+        assert associated_split["name"] == train_split_name, (
+            f"Expected train split name {train_split_name}, got {associated_split['name']}"
+        )
+
+        # Test retrieving the experiment and verifying it contains split information
+        retrieved_experiment = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).experiments.get_experiment(
+                experiment_id=experiment_id
+            )
+        )
+
+        assert retrieved_experiment["experiment_id"] == experiment_id
+        assert retrieved_experiment["dataset_id"] == dataset.id
+        assert len(retrieved_experiment["task_runs"]) == 2
+
+        # Now test running an experiment on multiple splits
+        both_splits_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=[train_split_name, test_split_name],
+            )
+        )
+
+        assert len(both_splits_dataset) == 4, (
+            f"Expected 4 examples with both splits, got {len(both_splits_dataset)}"
+        )
+        assert train_split_name in both_splits_dataset._filtered_split_names
+        assert test_split_name in both_splits_dataset._filtered_split_names
+
+        # Run experiment on dataset with both splits
+        multi_split_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key_str).experiments.run_experiment(
+                dataset=both_splits_dataset,
+                task=simple_task,
+                experiment_name=f"test_multi_split_experiment_{uuid.uuid4().hex[:8]}",
+                experiment_description="Test experiment with multiple dataset splits",
+                print_summary=False,
+            )
+        )
+
+        assert len(multi_split_result["task_runs"]) == 4, (
+            f"Expected 4 task runs (both splits), got {len(multi_split_result['task_runs'])}"
+        )
+
+        multi_split_exp_id = multi_split_result["experiment_id"]
+
+        # Verify both splits are associated with the experiment
+        multi_splits_verification, _ = _gql(
+            _app,
+            api_key,
+            query=verify_splits_query,
+            variables={"experimentId": multi_split_exp_id},
+        )
+
+        multi_exp_node = multi_splits_verification["data"]["node"]
+        multi_splits_edges = multi_exp_node["datasetSplits"]["edges"]
+        assert len(multi_splits_edges) == 2, (
+            f"Expected 2 splits associated with experiment, got {len(multi_splits_edges)}"
+        )
+
+        # Verify both split IDs are present
+        associated_split_ids = {edge["node"]["id"] for edge in multi_splits_edges}
+        assert train_split_id in associated_split_ids, (
+            f"Train split {train_split_id} should be in associated splits"
+        )
+        assert test_split_id in associated_split_ids, (
+            f"Test split {test_split_id} should be in associated splits"
+        )

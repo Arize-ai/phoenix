@@ -11,18 +11,29 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.input_types.ExperimentRunSort import (
+    ExperimentRunSort,
+    add_order_by_and_page_start_to_query,
+    get_experiment_run_cursor,
+)
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
+from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
+    Cursor,
     CursorString,
+    connection_from_cursors_and_nodes,
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
+
+_DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE = 50
 
 
 @strawberry.type
@@ -57,33 +68,60 @@ class Experiment(Node):
     async def runs(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
+        first: Optional[int] = _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE,
         after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
+        sort: Optional[ExperimentRunSort] = UNSET,
     ) -> Connection[ExperimentRun]:
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, CursorString) else None,
-            last=last,
-            before=before if isinstance(before, CursorString) else None,
+        if first is not None and first <= 0:
+            raise BadRequest("first must be a positive integer if set")
+        experiment_rowid = self.id_attr
+        page_size = first or _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE
+        experiment_runs_query = (
+            select(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == experiment_rowid)
+            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
+            .limit(page_size + 1)
         )
-        experiment_id = self.id_attr
+
+        after_experiment_run_rowid = None
+        after_sort_column_value = None
+        if after:
+            cursor = Cursor.from_string(after)
+            after_experiment_run_rowid = cursor.rowid
+            if cursor.sort_column is not None:
+                after_sort_column_value = cursor.sort_column.value
+
+        experiment_runs_query = add_order_by_and_page_start_to_query(
+            query=experiment_runs_query,
+            sort=sort,
+            experiment_rowid=experiment_rowid,
+            after_experiment_run_rowid=after_experiment_run_rowid,
+            after_sort_column_value=after_sort_column_value,
+        )
+
         async with info.context.db() as session:
-            runs = (
-                await session.scalars(
-                    select(models.ExperimentRun)
-                    .where(models.ExperimentRun.experiment_id == experiment_id)
-                    .order_by(
-                        models.ExperimentRun.dataset_example_id.asc(),
-                        models.ExperimentRun.repetition_number.asc(),
-                    )
-                    .options(
-                        joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
-                    )
-                )
-            ).all()
-        return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
+            results = (await session.execute(experiment_runs_query)).all()
+
+        has_next_page = False
+        if len(results) > page_size:
+            results = results[:page_size]
+            has_next_page = True
+
+        cursors_and_nodes = []
+        for result in results:
+            run = result[0]
+            annotation_score = result[1] if len(result) > 1 else None
+            gql_run = to_gql_experiment_run(run)
+            cursor = get_experiment_run_cursor(
+                run=run, annotation_score=annotation_score, sort=sort
+            )
+            cursors_and_nodes.append((cursor, gql_run))
+
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=False,  # set to false since we are only doing forward pagination (https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo.Fields) # noqa: E501
+            has_next_page=has_next_page,
+        )
 
     @strawberry.field
     async def run_count(self, info: Info[Context, None]) -> int:
@@ -192,6 +230,17 @@ class Experiment(Node):
                 )
                 async for token_type, is_prompt, cost, tokens in data
             ]
+
+    @strawberry.field
+    async def dataset_splits(
+        self,
+        info: Info[Context, None],
+    ) -> Connection[DatasetSplit]:
+        """Returns the dataset splits associated with this experiment."""
+        splits = await info.context.data_loaders.experiment_dataset_splits.load(self.id_attr)
+        return connection_from_list(
+            [to_gql_dataset_split(split) for split in splits], ConnectionArgs()
+        )
 
 
 def to_gql_experiment(

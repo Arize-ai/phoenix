@@ -1,0 +1,24 @@
+{
+  "folders": [
+    {
+      "path": "/phoenix/env/phoenix",
+      "name": "Phoenix Source Code",
+    },
+    {
+      "path": "/phoenix/env",
+      "name": "Python Environment",
+    },
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "/usr/local/bin/python",
+    "python.analysis.extraPaths": ["/phoenix/env/phoenix"],
+    "python.analysis.autoSearchPaths": true,
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "ms-python.debugpy",
+    ],
+  },
+}
