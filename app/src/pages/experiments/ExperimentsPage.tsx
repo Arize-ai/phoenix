@@ -86,7 +86,7 @@ function ErrorBoundaryFallback() {
         <View width="400px">
           <Heading>Sorry about that!</Heading>
           <Text>
-            There&apos;s a known issue in one of our depanancies that causes
+            There&apos;s a known issue in one of our dependencies that causes
             intermittent errors. We will resolve it as soon as there is an
             upstream fix.
             <br />

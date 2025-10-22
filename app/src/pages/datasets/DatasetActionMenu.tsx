@@ -1,8 +1,23 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { SubmenuTrigger } from "react-aria-components";
 
-import { ActionMenu, Item } from "@arizeai/components";
-
-import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import {
+  Button,
+  Dialog,
+  Flex,
+  Icon,
+  Icons,
+  Loading,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover,
+  PopoverArrow,
+  Text,
+} from "@phoenix/components";
+import { DatasetLabelSelectionContent } from "@phoenix/components/dataset/DatasetLabelConfigButton";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
 import { EditDatasetDialog } from "./EditDatasetDialog";
@@ -20,9 +35,11 @@ type DatasetActionMenuProps = {
 enum DatasetAction {
   DELETE = "deleteDataset",
   EDIT = "editDataset",
+  LABELS = "configureLabels",
 }
 
 export function DatasetActionMenu(props: DatasetActionMenuProps) {
+  const datasetSplitsEnabled = useFeatureFlag("datasetLabel");
   const {
     datasetId,
     datasetName,
@@ -35,53 +52,82 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
   } = props;
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-
   return (
-    <div
-      // TODO: add this logic to the ActionMenu component
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <ActionMenu
-        align="end"
-        buttonSize="compact"
-        onAction={(action) => {
-          switch (action) {
-            case DatasetAction.DELETE:
-              setIsDeleteOpen(true);
-              break;
-            case DatasetAction.EDIT:
-              setIsEditOpen(true);
-              break;
-          }
-        }}
-      >
-        <Item key={DatasetAction.EDIT}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
+    <StopPropagation>
+      <MenuTrigger>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+        />
+        <Popover>
+          <Menu
+            onAction={(action) => {
+              switch (action) {
+                case DatasetAction.DELETE:
+                  setIsDeleteOpen(true);
+                  break;
+                case DatasetAction.EDIT:
+                  setIsEditOpen(true);
+                  break;
+                case DatasetAction.LABELS:
+                  // no-op, submenu trigger will open the popover
+                  break;
+              }
+            }}
           >
-            <Icon svg={<Icons.Edit2Outline />} />
-            <Text>Edit</Text>
-          </Flex>
-        </Item>
-        <Item key={DatasetAction.DELETE}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.TrashOutline />} />
-            <Text>Delete</Text>
-          </Flex>
-        </Item>
-      </ActionMenu>
+            <MenuItem id={DatasetAction.EDIT}>
+              <Flex
+                direction={"row"}
+                gap="size-75"
+                justifyContent={"start"}
+                alignItems={"center"}
+              >
+                <Icon svg={<Icons.Edit2Outline />} />
+                <Text>Edit</Text>
+              </Flex>
+            </MenuItem>
+            {datasetSplitsEnabled && (
+              <SubmenuTrigger>
+                <MenuItem id={DatasetAction.LABELS}>
+                  <Flex
+                    direction={"row"}
+                    gap="size-75"
+                    justifyContent={"start"}
+                    alignItems={"center"}
+                  >
+                    <Icon svg={<Icons.PriceTagsOutline />} />
+                    <Text>Label</Text>
+                  </Flex>
+                </MenuItem>
+                <Popover placement="left">
+                  <PopoverArrow />
+                  <Dialog>
+                    {({ close }) => (
+                      <Suspense fallback={<Loading />}>
+                        <DatasetLabelSelectionContent
+                          datasetId={datasetId}
+                          onClose={() => close()}
+                        />
+                      </Suspense>
+                    )}
+                  </Dialog>
+                </Popover>
+              </SubmenuTrigger>
+            )}
+            <MenuItem id={DatasetAction.DELETE}>
+              <Flex
+                direction={"row"}
+                gap="size-75"
+                justifyContent={"start"}
+                alignItems={"center"}
+              >
+                <Icon svg={<Icons.TrashOutline />} />
+                <Text>Delete</Text>
+              </Flex>
+            </MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
 
       {/* Delete Dataset Dialog */}
       <DeleteDatasetDialog
@@ -104,6 +150,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         isOpen={isEditOpen}
         onOpenChange={setIsEditOpen}
       />
-    </div>
+    </StopPropagation>
   );
 }

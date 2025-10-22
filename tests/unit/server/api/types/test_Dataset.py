@@ -197,10 +197,10 @@ class TestDatasetExampleCountResolver:
 
 class TestDatasetExamplesResolver:
     QUERY = """
-      query ($datasetId: ID!, $datasetVersionId: ID = null, $revisionDatasetVersionId: ID = null) {
+      query ($datasetId: ID!, $datasetVersionId: ID = null, $revisionDatasetVersionId: ID = null, $filter: String = null) {
         node(id: $datasetId) {
           ... on Dataset {
-            examples(datasetVersionId: $datasetVersionId) {
+            examples(datasetVersionId: $datasetVersionId, filter: $filter) {
               edges {
                 node {
                   id
@@ -383,6 +383,102 @@ class TestDatasetExamplesResolver:
             },
         ]
         assert response.data == {"node": {"examples": {"edges": edges}}}
+
+    async def test_filter_examples_by_content(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        # Test filtering examples by content in input field
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filter": "second-input",
+            },
+        )
+        assert not response.errors
+        edges = [
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+        ]
+        assert response.data == {"node": {"examples": {"edges": edges}}}
+
+    async def test_filter_examples_by_output_content(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        # Test filtering examples by content in output field
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filter": "second-output",
+            },
+        )
+        assert not response.errors
+        edges = [
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+        ]
+        assert response.data == {"node": {"examples": {"edges": edges}}}
+
+    async def test_filter_examples_returns_empty_when_no_match(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        # Test filtering examples with content that doesn't exist
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filter": "nonexistent-content",
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"examples": {"edges": []}}}
 
 
 @pytest.mark.parametrize(

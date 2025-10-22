@@ -25,9 +25,15 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp } from "@arizeai/components";
-
-import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Link,
+  Text,
+  View,
+} from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TextCell } from "@phoenix/components/table";
@@ -35,6 +41,7 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { ContextualHelp } from "@phoenix/components/tooltip/ContextualHelp";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
@@ -415,16 +422,16 @@ export function TracesTable(props: TracesTableProps) {
     () => [
       {
         header: () => (
-          <Flex direction="row" gap="size-50">
+          <Flex direction="row" gap="size-50" alignItems="center">
             <span>Annotations</span>
             <ContextualHelp>
               <Heading level={3} weight="heavy">
                 Annotations
               </Heading>
-              <Content>
+              <Text>
                 Evaluations and human annotations logged via the API or set via
                 the UI.
-              </Content>
+              </Text>
             </ContextualHelp>
           </Flex>
         ),
@@ -511,8 +518,9 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: "status",
         accessorKey: "statusCode",
-        maxSize: 30,
         enableSorting: false,
+        minSize: 50,
+        maxSize: 75,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) {
             return null;
@@ -766,7 +774,6 @@ export function TracesTable(props: TracesTableProps) {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    getRowId: (row) => row.id,
   });
   const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().flatRows;

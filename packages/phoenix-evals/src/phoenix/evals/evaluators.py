@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import inspect
 import itertools
 import json
@@ -36,7 +37,7 @@ from .legacy.evaluators import (
 from .llm import LLM
 from .llm.types import ObjectGenerationMethod
 from .templating import Template
-from .utils import remap_eval_input
+from .utils import default_tqdm_progress_bar_formatter, remap_eval_input
 
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
@@ -153,8 +154,20 @@ class Evaluator(ABC):
     """
     Core abstraction for evaluators.
 
-    Instances are callable: `scores = evaluator(eval_input)` (sync or async via `async_evaluate`).
-    Supports single-record (`evaluate`) mode with optional per-call field_mapping.
+    Supports single-record synchronous (`evaluate`) and asynchronous (`async_evaluate`) modes with
+    optional per-call field_mapping.
+
+    Note: Subclasses must implement either the `_evaluate` or `_async_evaluate` method.
+    Implementing both methods is recommended.
+
+    Args:
+        name: The name of this evaluator, used for identification and Score naming.
+        source: The source of this evaluator (human, llm, or heuristic).
+        input_schema: Optional Pydantic BaseModel for input typing and validation. If None,
+            subclasses infer fields from prompts or function signatures and may construct a
+            model dynamically.
+        direction: The direction for score optimization ("maximize" or "minimize"). Defaults
+            to "maximize".
     """
 
     def __init__(
@@ -164,18 +177,6 @@ class Evaluator(ABC):
         direction: DirectionType = "maximize",
         input_schema: Optional[type[BaseModel]] = None,
     ):
-        """
-        Initialize the evaluator with a required name, source, and optional input schema.
-
-        Args:
-            name: The name of this evaluator, used for identification and Score naming.
-            source: The source of this evaluator (human, llm, or heuristic).
-            input_schema: Optional Pydantic BaseModel for input typing and validation. If None,
-                subclasses infer fields from prompts or function signatures and may construct a
-                model dynamically.
-            direction: The direction for score optimization ("maximize" or "minimize"). Defaults
-                to "maximize".
-        """
         self._name = name
         self._source = source
         self._direction = direction
@@ -270,6 +271,10 @@ class Evaluator(ABC):
         """Binds an evaluator with a fixed input mapping."""
         self._input_mapping = input_mapping
 
+    def unbind(self) -> None:
+        """Unbinds an evaluator from an input mapping."""
+        self._input_mapping = None
+
     def _get_required_fields(self, input_mapping: Optional[InputMappingType]) -> Set[str]:
         """
         Determine required field names for mapping/validation.
@@ -316,6 +321,21 @@ class LLMEvaluator(Evaluator):
     """
     Base LLM evaluator that infers required input fields from its prompt template and
     constructs a default Pydantic input schema when none is supplied.
+
+    Note: Subclasses must implement either the `_evaluate` or `_async_evaluate` method.
+    Implementing both methods is recommended.
+
+    Args:
+        name: Identifier for this evaluator and the name used in produced Scores.
+        llm: The LLM instance to use for evaluation.
+        prompt_template: The prompt template (string or Template) with placeholders for
+            required fields; used to infer required variables.
+        schema: Optional tool/JSON schema for structured output when supported by the LLM.
+        input_schema: Optional Pydantic model describing/validating inputs. If not provided,
+            a model is dynamically created from the prompt variables (all str, required).
+        direction: The score optimization direction ("maximize" or "minimize"). Defaults to
+            "maximize".
+        **kwargs: Invocation parameters forwarded to the LLM client
     """
 
     def __init__(
@@ -326,21 +346,8 @@ class LLMEvaluator(Evaluator):
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
+        **kwargs: Any,
     ):
-        """
-        Initialize the LLM evaluator.
-
-        Args:
-            name: Identifier for this evaluator and the name used in produced Scores.
-            llm: The LLM instance to use for evaluation.
-            prompt_template: The prompt template (string or Template) with placeholders for
-                required fields; used to infer required variables.
-            schema: Optional tool/JSON schema for structured output when supported by the LLM.
-            input_schema: Optional Pydantic model describing/validating inputs. If not provided,
-                a model is dynamically created from the prompt variables (all str, required).
-            direction: The score optimization direction ("maximize" or "minimize"). Defaults to
-                "maximize".
-        """
         # Infer required fields from prompt_template
         if isinstance(prompt_template, str):
             prompt_template = Template(template=prompt_template)
@@ -356,6 +363,8 @@ class LLMEvaluator(Evaluator):
                 model_name,
                 **cast(Any, field_defs),
             )
+
+        self.invocation_parameters = kwargs
 
         super().__init__(
             name=name,
@@ -387,15 +396,42 @@ class LLMEvaluator(Evaluator):
 # --- LLM ClassificationEvaluator ---
 class ClassificationEvaluator(LLMEvaluator):
     """
-    LLM-based evaluator for classification tasks.
+    LLM-based evaluator for classification-style judgements.
 
     Supports label-only or label+score mappings, and returns explanations by default.
+    Note: Requires the LLM to have tool calling or structured output capabilities.
+
+    Args:
+        name: Identifier for this evaluator and the name used in produced Scores.
+        llm: The LLM instance to use for evaluation. Must support tool calling or
+            structured output for reliable classification.
+        prompt_template: The prompt template (string or Template) with placeholders for
+            required input fields. Template variables are inferred automatically.
+        choices: Classification choices in one of three formats:
+            a. List[str]: Simple list of label names (e.g., ["positive", "negative"]).
+                Scores will be None.
+            b. Dict[str, Union[float, int]]: Labels mapped to numeric scores
+                (e.g., {"positive": 1.0, "negative": 0.0}).
+            c. Dict[str, Tuple[Union[float, int], str]]: Labels mapped to tuples of
+                (score, description) (e.g., {"positive": (1.0, "Positive sentiment"),
+                "negative": (0.0, "Negative sentiment")}). Not recommended as LLMs do not
+                reliably follow this schema.
+        include_explanation: Whether to request explanations for classification decisions.
+            Defaults to True in accordance with best practices.
+        input_schema: Optional Pydantic model for input validation. If not provided,
+            a model is automatically created from prompt template variables.
+        direction: Score optimization direction ("maximize" or "minimize"). Defaults to
+            "maximize".
+        **kwargs: Invocation parameters forwarded to the LLM client
+
+    Returns:
+        List[Score]: A list containing a single Score object with the classification
+            result, including label, optional score, and optional explanation.
 
     Examples:
-        Simple binary classification::
+        Classification with labels only::
 
-            from phoenix.evals import ClassificationEvaluator
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import ClassificationEvaluator, LLM
 
             evaluator = ClassificationEvaluator(
                 name="sentiment",
@@ -407,6 +443,7 @@ class ClassificationEvaluator(LLMEvaluator):
             result = evaluator.evaluate({"text": "I love this product!"})
             print(result[0].label)  # "positive"
             print(result[0].explanation)  # LLM's reasoning
+            print(result[0].score)  # None
 
         Classification with scores::
 
@@ -428,7 +465,7 @@ class ClassificationEvaluator(LLMEvaluator):
             print(result[0].label)  # "excellent"
             print(result[0].score)  # 5
 
-        Classification with scores and descriptions::
+        Classification with scores and descriptions (use with caution)::
 
             # Map labels to (score, description) tuples
             evaluator = ClassificationEvaluator(
@@ -449,6 +486,7 @@ class ClassificationEvaluator(LLMEvaluator):
             })
             print(result[0].label)  # "highly_relevant"
             print(result[0].score)  # 1.0
+
     """
 
     def __init__(
@@ -462,30 +500,15 @@ class ClassificationEvaluator(LLMEvaluator):
         include_explanation: bool = True,
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
+        **kwargs: Any,
     ):
-        """
-        Initialize the LLM evaluator.
-
-        Args:
-            name: Identifier for this evaluator and the name used in produced Scores.
-            llm: The LLM instance to use for evaluation.
-            prompt_template: The prompt template (string or Template) with placeholders for inputs.
-            choices: One of:
-                - List[str]: set of label names; scores will be None.
-                - Dict[str, Union[float, int]]: map label -> score.
-                - Dict[str, Tuple[Union[float, int], str]]: map label -> (score, description).
-            include_explanation: If True, request an explanation in addition to the label.
-            input_schema: Optional Pydantic model describing/validating inputs. If not provided,
-                a model is derived from prompt variables.
-            direction: The score optimization direction ("maximize" or "minimize"). Defaults to
-                "maximize".
-        """
         super().__init__(
             name=name,
             llm=llm,
             prompt_template=prompt_template,
             input_schema=input_schema,
             direction=direction,
+            **kwargs,
         )
 
         self.include_explanation = include_explanation
@@ -523,6 +546,7 @@ class ClassificationEvaluator(LLMEvaluator):
             labels=self.labels,
             include_explanation=self.include_explanation,
             method=method,
+            **self.invocation_parameters,
         )
         label = response["label"]
         explanation = response.get("explanation", None)
@@ -562,6 +586,7 @@ class ClassificationEvaluator(LLMEvaluator):
             labels=self.labels,
             include_explanation=self.include_explanation,
             method=method,
+            **self.invocation_parameters,
         )
         label = response["label"]
         explanation = response.get("explanation", None)
@@ -609,7 +634,7 @@ def create_evaluator(
 
     The decorated function should accept keyword args matching its required fields and return a
     value that can be converted to a Score. The returned object is an Evaluator with full support
-    for evaluate/async_evaluate and direct callability.
+    for evaluate/async_evaluate and maintains direct callability.
 
     Args:
         name: Identifier for the evaluator and the name used in produced Scores.
@@ -617,9 +642,6 @@ def create_evaluator(
             "heuristic".
         direction: The score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
-
-    Returns:
-        An `Evaluator` instance.
 
     Examples:
         Basic usage with numeric return::
@@ -639,6 +661,10 @@ def create_evaluator(
                 "relevant_documents": [2, 4, 6]
             })
             print(result[0].score)  # 0.5
+
+            # Direct callability maintained:
+            result = precision(retrieved_documents=[1, 2, 3, 4], relevant_documents=[2, 4, 6])
+            print(result)  # 0.5
 
         Different return types::
 
@@ -893,6 +919,8 @@ def create_classifier(
     """
     Factory to create a `ClassificationEvaluator`.
 
+    Note: The evaluator requires the LLM to have tool calling or structured output capabilities.
+
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
         llm: The LLM instance to use for evaluation.
@@ -908,8 +936,7 @@ def create_classifier(
     Examples:
         Creating a simple sentiment classifier::
 
-            from phoenix.evals import create_classifier
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import create_classifier, LLM
 
             llm = LLM(provider="openai", model="gpt-4")
 
@@ -922,6 +949,7 @@ def create_classifier(
 
             result = sentiment_evaluator.evaluate({"text": "Great product!"})
             print(result[0].label)  # "positive"
+            print(result[0].score)  # None
 
         Creating a classifier with numeric scores::
 
@@ -1053,8 +1081,12 @@ def bind_evaluator(
             }
             result = bound_evaluator.evaluate(data)
     """
-    evaluator.bind(input_mapping=input_mapping)
-    return evaluator
+    # Create a shallow copy of the evaluator to avoid deepcopying LLM (contains locks)
+    evaluator_copy = copy.copy(evaluator)
+    # Deep copy the input mapping so the bound copy is fully independent
+    mapping_copy = copy.deepcopy(input_mapping) if input_mapping is not None else None
+    evaluator_copy.bind(input_mapping=mapping_copy)
+    return evaluator_copy
 
 
 # --- Helper functions for dataframe evaluation ---
@@ -1094,14 +1126,14 @@ def _prepare_dataframe_evaluation(
     return result_df, eval_inputs, task_inputs
 
 
-def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
-    """Process execution details into JSON string."""
+def _process_execution_details(eval_execution_details: ExecutionDetails) -> Dict[str, Any]:
+    """Process execution details into a JSON-serializable dict."""
     result: Dict[str, Any] = {
         "status": eval_execution_details.status.value,
         "exceptions": [repr(exc) for exc in eval_execution_details.exceptions],
         "execution_seconds": eval_execution_details.execution_seconds,
     }
-    return json.dumps(result)
+    return result
 
 
 def _process_results_and_add_to_dataframe(
@@ -1120,14 +1152,15 @@ def _process_results_and_add_to_dataframe(
         for evaluator in evaluators
     }
 
-    # Pre-allocate score dictionaries
-    score_dicts: DefaultDict[str, Dict[int, Optional[str]]] = defaultdict(dict)
+    # Pre-allocate score dictionaries - store dicts for each row index
+    score_dicts: DefaultDict[str, Dict[int, Dict[str, Any]]] = defaultdict(dict)
     for i, (eval_input_index, evaluator_index) in enumerate(task_inputs):
         # Process and add execution details to dataframe
         details = execution_details[i]
         evaluator_name = evaluators[evaluator_index].name
         col_idx = execution_details_cols[evaluator_name]
-        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)
+        #  use iat to avoid Series alignment on dict
+        result_df.iat[eval_input_index, col_idx] = _process_execution_details(details)
 
         # Process scores
         if results is None:
@@ -1139,7 +1172,7 @@ def _process_results_and_add_to_dataframe(
             if not score.name:
                 raise ValueError(f"Score has no name: {score}")
             score_col = f"{score.name}_score"
-            score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
+            score_dicts[score_col][eval_input_index] = score.to_dict()
 
     # Add scores to dataframe
     for score_col, score_dict in score_dicts.items():
@@ -1152,6 +1185,7 @@ def evaluate_dataframe(
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     tqdm_bar_format: Optional[str] = None,
+    hide_tqdm_bar: bool = False,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -1165,8 +1199,10 @@ def evaluate_dataframe(
             to each evaluator.
         evaluators: List of evaluators to apply to each row. Input mapping should be
             already bound via `bind_evaluator` or column names should match evaluator input fields.
-        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
-            disabled.
+        tqdm_bar_format: Optional format string for the progress bar. If None and hide_tqdm_bar is
+            False, the default progress bar formatter is used.
+        hide_tqdm_bar: Optional flag to control whether to hide the progress bar. If None, the
+            progress bar is shown. Defaults to False.
         exit_on_error: Optional flag to control whether execution should stop on the first error.
             If None, uses SyncExecutor's default (True).
         max_retries: Optional number of times to retry on exceptions. If None, uses SyncExecutor's
@@ -1202,7 +1238,7 @@ def evaluate_dataframe(
             })
 
             evaluators = [word_count, has_question]
-            results_df = evaluate_dataframe(df, evaluators)
+            results_df = evaluate_dataframe(df, evaluators, hide_tqdm_bar=True)
 
             # Results include original columns plus score columns
             print(results_df.columns)
@@ -1268,8 +1304,15 @@ def evaluate_dataframe(
 
     # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
-    if tqdm_bar_format is not None:
-        executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
+    if hide_tqdm_bar:
+        executor_kwargs["tqdm_bar_format"] = None
+    else:
+        if tqdm_bar_format is None:
+            executor_kwargs["tqdm_bar_format"] = default_tqdm_progress_bar_formatter(
+                "Evaluating Dataframe"
+            )
+        else:
+            executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
     if exit_on_error is not None:
         executor_kwargs["exit_on_error"] = exit_on_error
     if max_retries is not None:
@@ -1291,6 +1334,7 @@ async def async_evaluate_dataframe(
     evaluators: List[Evaluator],
     concurrency: Optional[int] = None,
     tqdm_bar_format: Optional[str] = None,
+    hide_tqdm_bar: Optional[bool] = False,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -1306,8 +1350,10 @@ async def async_evaluate_dataframe(
             already bound via `bind_evaluator` or column names should match evaluator input fields.
         concurrency: Optional number of concurrent consumers. If None, uses AsyncExecutor's default
             (3).
-        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
-            disabled.
+        tqdm_bar_format: Optional format string for the progress bar. If None, use the default
+            formatter.
+        hide_tqdm_bar: Optional flag to control whether to hide the progress bar. If None, the
+            progress bar is shown. Defaults to False.
         exit_on_error: Optional flag to control whether execution should stop on the first
             error. If None, uses AsyncExecutor's default (True).
         max_retries: Optional number of times to retry on exceptions. If None, uses
@@ -1347,6 +1393,7 @@ async def async_evaluate_dataframe(
                     df,
                     [text_analysis],
                     concurrency=5  # Process up to 5 rows concurrently
+                    hide_tqdm_bar=True,
                 )
                 return results_df
 
@@ -1355,8 +1402,7 @@ async def async_evaluate_dataframe(
 
         With LLM evaluators::
 
-            from phoenix.evals import create_classifier
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import create_classifier, LLM
 
             llm = LLM(provider="openai", model="gpt-4")
 
@@ -1433,8 +1479,15 @@ async def async_evaluate_dataframe(
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
-    if tqdm_bar_format is not None:
-        executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
+    if hide_tqdm_bar:
+        executor_kwargs["tqdm_bar_format"] = None
+    else:
+        if tqdm_bar_format is None:
+            executor_kwargs["tqdm_bar_format"] = default_tqdm_progress_bar_formatter(
+                "Evaluating Dataframe"
+            )
+        else:
+            executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
     if exit_on_error is not None:
         executor_kwargs["exit_on_error"] = exit_on_error
     if max_retries is not None:

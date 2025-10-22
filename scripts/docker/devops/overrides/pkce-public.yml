@@ -1,0 +1,28 @@
+services:
+  oidc-dev:
+    environment:
+      - OIDC_CLIENT_AUTH_METHOD=pkce-public
+
+  phoenix:
+    environment:
+      - PHOENIX_OAUTH2_DEV_USE_PKCE=true
+      - PHOENIX_OAUTH2_DEV_CLIENT_SECRET=
+      - PHOENIX_OAUTH2_DEV_TOKEN_ENDPOINT_AUTH_METHOD=none
+      - PHOENIX_OAUTH2_DEV_SCOPES=groups
+      - PHOENIX_OAUTH2_DEV_GROUPS_ATTRIBUTE_PATH=groups
+      - PHOENIX_OAUTH2_DEV_ALLOWED_GROUPS=phoenix-admins,phoenix-members,phoenix-viewers
+
+  grafana:
+    profiles: ["pkce-public"]
+    environment:
+      - GF_AUTH_GENERIC_OAUTH_USE_PKCE=true
+      - GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=
+      - GF_AUTH_GENERIC_OAUTH_AUTH_URL=http://localhost:18273/oidc/auth
+      - GF_AUTH_GENERIC_OAUTH_TOKEN_URL=http://oidc-dev:9000/token
+      - GF_AUTH_GENERIC_OAUTH_API_URL=http://oidc-dev:9000/userinfo
+      - GF_AUTH_GENERIC_OAUTH_GROUPS_ATTRIBUTE_PATH=groups
+      - GF_AUTH_GENERIC_OAUTH_ALLOWED_GROUPS=phoenix-admins
+    labels:
+      - "grafana.oauth.mode=pkce-public"
+      - "grafana.oauth.pkce=enabled"
+      - "grafana.oauth.client_type=public"

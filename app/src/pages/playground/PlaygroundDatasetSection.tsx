@@ -1,15 +1,23 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { useNavigate } from "react-router";
 
-import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { Flex, Icon, Icons, LinkButton, Text, View } from "@phoenix/components";
+import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
 
-export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
+export function PlaygroundDatasetSection({
+  datasetId,
+  splitIds,
+}: {
+  datasetId: string;
+  splitIds?: string[];
+}) {
+  const isDatasetSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const instances = usePlaygroundContext((state) => state.instances);
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const experimentIds = useMemo(() => {
@@ -17,23 +25,42 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
       .map((instance) => instance.experimentId)
       .filter((id) => id != null);
   }, [instances]);
-  const navigate = useNavigate();
 
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
-      query PlaygroundDatasetSectionQuery($datasetId: ID!) {
+      query PlaygroundDatasetSectionQuery($datasetId: ID!, $splitIds: [ID!]) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             name
-            exampleCount
+            exampleCount(splitIds: $splitIds)
+            splits {
+              id
+              name
+              color
+            }
           }
         }
       }
     `,
     {
       datasetId,
+      splitIds: splitIds ?? null,
     }
   );
+
+  // Filter to only the selected splits
+  const selectedSplits = useMemo(() => {
+    if (!splitIds || !data.dataset.splits) {
+      return [];
+    }
+    return data.dataset.splits
+      .filter((split) => splitIds.includes(split.id))
+      .map((split) => ({
+        id: split.id,
+        name: split.name,
+        color: split.color ?? "#808080",
+      }));
+  }, [data, splitIds]);
   return (
     <Flex direction={"column"} height={"100%"}>
       <View
@@ -46,8 +73,11 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
         height={50}
       >
         <Flex justifyContent="space-between" alignItems="center" height="100%">
-          <Flex gap="size-100">
+          <Flex gap="size-100" alignItems="center">
             <Text>{data.dataset.name ?? "Dataset"} results</Text>
+            {isDatasetSplitsEnabled && selectedSplits.length > 0 && (
+              <DatasetSplits labels={selectedSplits} />
+            )}
             {data.dataset.exampleCount != null ? (
               <Text fontStyle="italic" color={"text-700"}>
                 {data.dataset.exampleCount} examples
@@ -55,7 +85,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
             ) : null}
           </Flex>
           {experimentIds.length > 0 && (
-            <Button
+            <LinkButton
               size="S"
               isDisabled={isRunning}
               leadingVisual={
@@ -69,18 +99,18 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
                   }
                 />
               }
-              onPress={() => {
-                const queryParams = `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`;
-                navigate(`/datasets/${datasetId}/compare${queryParams}`);
-              }}
+              to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
             >
               View Experiment{instances.length > 1 ? "s" : ""}
-            </Button>
+            </LinkButton>
           )}
         </Flex>
       </View>
       <PlaygroundDatasetExamplesTableProvider>
-        <PlaygroundDatasetExamplesTable datasetId={datasetId} />
+        <PlaygroundDatasetExamplesTable
+          datasetId={datasetId}
+          splitIds={splitIds}
+        />
       </PlaygroundDatasetExamplesTableProvider>
     </Flex>
   );

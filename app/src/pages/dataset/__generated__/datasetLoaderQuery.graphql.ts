@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8a0a704d47701ec99dbd41250b75c8be>>
+ * @generated SignedSource<<5b0576bab0b3e522e3ff470c00b40b7e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,11 @@ export type datasetLoaderQuery$data = {
     readonly exampleCount?: number;
     readonly experimentCount?: number;
     readonly id: string;
+    readonly labels?: ReadonlyArray<{
+      readonly color: string;
+      readonly id: string;
+      readonly name: string;
+    }>;
     readonly latestVersions?: {
       readonly edges: ReadonlyArray<{
         readonly version: {
@@ -61,20 +66,21 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "name",
   "storageKey": null
 },
 v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v5 = {
   "kind": "InlineFragment",
   "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "name",
-      "storageKey": null
-    },
     (v3/*: any*/),
+    (v4/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -87,6 +93,26 @@ v4 = {
       "args": null,
       "kind": "ScalarField",
       "name": "experimentCount",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "DatasetLabel",
+      "kind": "LinkedField",
+      "name": "labels",
+      "plural": true,
+      "selections": [
+        (v2/*: any*/),
+        (v3/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "color",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     },
     {
@@ -128,7 +154,7 @@ v4 = {
               "plural": false,
               "selections": [
                 (v2/*: any*/),
-                (v3/*: any*/),
+                (v4/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -165,7 +191,7 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
@@ -195,23 +221,23 @@ return {
             "storageKey": null
           },
           (v2/*: any*/),
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "997dd3d4849cc24ed81f11148c2a5d39",
+    "cacheID": "5ba8ebf4f5fb94654a8719703a46bac5",
     "id": null,
     "metadata": {},
     "name": "datasetLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      exampleCount\n      experimentCount\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query datasetLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      exampleCount\n      experimentCount\n      labels {\n        id\n        name\n        color\n      }\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5ff18bc8372a865b84a24396d3b3782a";
+(node as any).hash = "d72f520af32d53dad5a6e33611650186";
 
 export default node;

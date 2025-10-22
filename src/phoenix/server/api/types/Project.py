@@ -7,7 +7,6 @@ from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, case, desc, distinct, exists, func, or_, select
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
 from strawberry import ID, UNSET, Private, lazy
@@ -21,8 +20,8 @@ from phoenix.db.helpers import SupportedSQLDialect, date_trunc
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.ProjectSessionSort import (
-    ProjectSessionColumn,
     ProjectSessionSort,
+    ProjectSessionSortConfig,
 )
 from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
@@ -459,74 +458,31 @@ class Project(Node):
                 end_time=time_range.end if time_range else None,
             )
             stmt = stmt.where(table.id.in_(filtered_session_rowids))
+        sort_config: Optional[ProjectSessionSortConfig] = None
+        cursor_rowid_column: Any = table.id
         if sort:
-            key: ColumnElement[Any]
-            if sort.col is ProjectSessionColumn.startTime:
-                key = table.start_time.label("key")
-            elif sort.col is ProjectSessionColumn.endTime:
-                key = table.end_time.label("key")
-            elif (
-                sort.col is ProjectSessionColumn.tokenCountTotal
-                or sort.col is ProjectSessionColumn.numTraces
-            ):
-                if sort.col is ProjectSessionColumn.tokenCountTotal:
-                    sort_subq = (
-                        select(
-                            models.Trace.project_session_rowid.label("id"),
-                            func.sum(models.Span.cumulative_llm_token_count_total).label("key"),
-                        )
-                        .join_from(models.Trace, models.Span)
-                        .where(models.Span.parent_id.is_(None))
-                        .group_by(models.Trace.project_session_rowid)
-                    ).subquery()
-                elif sort.col is ProjectSessionColumn.numTraces:
-                    sort_subq = (
-                        select(
-                            models.Trace.project_session_rowid.label("id"),
-                            func.count(models.Trace.id).label("key"),
-                        ).group_by(models.Trace.project_session_rowid)
-                    ).subquery()
+            sort_config = sort.update_orm_expr(stmt)
+            stmt = sort_config.stmt
+            if sort_config.dir is SortDir.desc:
+                cursor_rowid_column = desc(cursor_rowid_column)
+        if after:
+            cursor = Cursor.from_string(after)
+            if sort_config and cursor.sort_column:
+                sort_column = cursor.sort_column
+                compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
+                if sort_column.type is CursorSortColumnDataType.NULL:
+                    stmt = stmt.where(sort_config.orm_expression.is_(None))
+                    stmt = stmt.where(compare(table.id, cursor.rowid))
                 else:
-                    assert_never(sort.col)
-                key = sort_subq.c.key
-                stmt = stmt.join(sort_subq, table.id == sort_subq.c.id)
-            elif sort.col is ProjectSessionColumn.costTotal:
-                sort_subq = (
-                    select(
-                        models.Trace.project_session_rowid.label("id"),
-                        func.sum(models.SpanCost.total_cost).label("key"),
+                    stmt = stmt.where(
+                        compare(
+                            tuple_(sort_config.orm_expression, table.id),
+                            (sort_column.value, cursor.rowid),
+                        )
                     )
-                    .join_from(
-                        models.Trace,
-                        models.SpanCost,
-                        models.Trace.id == models.SpanCost.trace_rowid,
-                    )
-                    .group_by(models.Trace.project_session_rowid)
-                ).subquery()
-                key = sort_subq.c.key
-                stmt = stmt.join(sort_subq, table.id == sort_subq.c.id)
             else:
-                assert_never(sort.col)
-            stmt = stmt.add_columns(key)
-            if sort.dir is SortDir.asc:
-                stmt = stmt.order_by(key.asc(), table.id.asc())
-            else:
-                stmt = stmt.order_by(key.desc(), table.id.desc())
-            if after:
-                cursor = Cursor.from_string(after)
-                assert cursor.sort_column is not None
-                compare = operator.lt if sort.dir is SortDir.desc else operator.gt
-                stmt = stmt.where(
-                    compare(
-                        tuple_(key, table.id),
-                        (cursor.sort_column.value, cursor.rowid),
-                    )
-                )
-        else:
-            stmt = stmt.order_by(table.id.desc())
-            if after:
-                cursor = Cursor.from_string(after)
                 stmt = stmt.where(table.id < cursor.rowid)
+        stmt = stmt.order_by(cursor_rowid_column)
         if first:
             stmt = stmt.limit(
                 first + 1  # over-fetch by one to determine whether there's a next page
@@ -537,10 +493,10 @@ class Project(Node):
             async for record in islice(records, first):
                 project_session = record[0]
                 cursor = Cursor(rowid=project_session.id)
-                if sort:
+                if sort_config:
                     assert len(record) > 1
                     cursor.sort_column = CursorSortColumn(
-                        type=sort.col.data_type,
+                        type=sort_config.column_data_type,
                         value=record[1],
                     )
                 cursors_and_nodes.append((cursor, to_gql_project_session(project_session)))
@@ -724,7 +680,7 @@ class Project(Node):
             stmt = span_filter(select(models.Span))
             dialect = info.context.db.dialect
             if dialect is SupportedSQLDialect.POSTGRESQL:
-                str(stmt.compile(dialect=sqlite.dialect()))  # type: ignore[no-untyped-call]
+                str(stmt.compile(dialect=sqlite.dialect()))
             elif dialect is SupportedSQLDialect.SQLITE:
                 str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
             else:

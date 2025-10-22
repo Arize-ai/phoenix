@@ -2,15 +2,19 @@ import React, {
   ReactNode,
   RefObject,
   startTransition,
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useSearchParams } from "react-router";
+import {
+  graphql,
+  PreloadedQuery,
+  usePaginationFragment,
+  usePreloadedQuery,
+} from "react-relay";
+import { useSearchParams } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -23,9 +27,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Dialog,
-  DialogCloseButton,
   DialogTrigger,
   Empty,
   Flex,
@@ -33,7 +35,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  Loading,
   Modal,
   ModalOverlay,
   Popover,
@@ -50,12 +51,6 @@ import {
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/dialog";
-import {
   ExperimentAverageRunTokenCosts,
   useExperimentColors,
 } from "@phoenix/components/experiment";
@@ -69,24 +64,24 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
+import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
+import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
-
-import { TraceDetails } from "../trace";
 
 import type {
   ExperimentCompareTable_comparisons$data,
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
-import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import type { ExperimentCompareTableQuery as ExperimentCompareTableQueryType } from "./__generated__/ExperimentCompareTableQuery.graphql";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
 import { ExperimentRepetitionSelector } from "./ExperimentRepetitionSelector";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
 
 type ExampleCompareTableProps = {
-  query: ExperimentCompareTable_comparisons$key;
+  queryRef: PreloadedQuery<ExperimentCompareTableQueryType>;
   datasetId: string;
   baseExperimentId: string;
   compareExperimentIds: string[];
@@ -96,7 +91,7 @@ type Experiment = NonNullable<
   ExperimentCompareTable_comparisons$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type ExperimentInfoMap = Record<string, Experiment>;
+type ExperimentInfoMap = Partial<Record<string, Experiment>>;
 
 type ExperimentComparison =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"];
@@ -130,20 +125,25 @@ const tableWrapCSS = css`
 const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
-    null
-  );
+  const [selectedExampleIndex, setSelectedExampleIndex] = useState<
+    number | null
+  >(null);
   const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId, baseExperimentId, compareExperimentIds } = props;
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
+
+  const preloadedData = usePreloadedQuery(
+    ExperimentComparePageQueriesCompareGridQuery,
+    props.queryRef
+  );
 
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
-      ExperimentCompareTableQuery,
+      ExperimentCompareTableQueryType,
       ExperimentCompareTable_comparisons$key
     >(
       graphql`
@@ -248,7 +248,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           }
         }
       `,
-      props.query
+      preloadedData
     );
   const experimentInfoById = useMemo(() => {
     return (
@@ -314,7 +314,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                         setDialog(
                           <ExampleDetailsDialog
                             exampleId={row.original.example.id}
-                            datasetVersionId={baseExperiment.datasetVersionId}
+                            datasetVersionId={baseExperiment?.datasetVersionId}
                           />
                         );
                       }}
@@ -365,7 +365,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         ),
       },
     ];
-  }, [baseExperiment.datasetVersionId, displayFullText, setDialog]);
+  }, [baseExperiment?.datasetVersionId, displayFullText, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [baseExperimentId, ...compareExperimentIds].map(
@@ -405,7 +405,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 <ExperimentActionMenu
                   experimentId={experimentId}
                   metadata={metadata}
-                  isQuiet={true}
                   projectId={projectId}
                   canDeleteExperiment={false}
                 />
@@ -419,18 +418,22 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         cell: ({ row }) => {
           const repeatedRunGroup =
             row.original.repeatedRunGroupsByExperimentId[experimentId];
+          // if a new experiment was just added, data may not be fully loaded yet
+          if (repeatedRunGroup == null) {
+            return null;
+          }
           const annotationSummaries = repeatedRunGroup.annotationSummaries;
 
           return (
             <ExperimentRunOutputCell
+              rowIndex={row.index}
               experimentRepetitionCount={
                 experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
               displayFullText={displayFullText}
               setDialog={setDialog}
-              setSelectedExampleId={setSelectedExampleId}
-              tableRow={row.original}
+              setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
             />
           );
@@ -639,43 +642,62 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         </div>
       </Flex>
       <ModalOverlay
-        isOpen={!!selectedExampleId}
-        onOpenChange={() => {
-          setSelectedExampleId(null);
+        isOpen={selectedExampleIndex !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedExampleIndex(null);
+          }
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {selectedExampleId && (
-            <ExperimentCompareDetailsDialog
-              datasetId={datasetId}
-              datasetVersionId={baseExperiment.datasetVersionId}
-              selectedExampleId={selectedExampleId}
-              baseExperimentId={baseExperimentId}
-              compareExperimentIds={compareExperimentIds}
-              exampleIds={exampleIds}
-              onNextExample={(nextId) => {
-                setSelectedExampleId(nextId);
-                if (
-                  nextId === exampleIds[exampleIds.length - 1] &&
-                  !isLoadingNext &&
-                  hasNext
-                ) {
-                  loadNext(PAGE_SIZE);
-                }
-              }}
-              onPreviousExample={(previousId) =>
-                setSelectedExampleId(previousId)
-              }
-            />
-          )}
+          {selectedExampleIndex !== null &&
+            exampleIds[selectedExampleIndex] &&
+            baseExperiment && (
+              <ExperimentCompareDetailsDialog
+                datasetId={datasetId}
+                datasetVersionId={baseExperiment.datasetVersionId}
+                selectedExampleIndex={selectedExampleIndex}
+                selectedExampleId={exampleIds[selectedExampleIndex]}
+                baseExperimentId={baseExperimentId}
+                compareExperimentIds={compareExperimentIds}
+                exampleIds={exampleIds}
+                onExampleChange={(exampleIndex) => {
+                  if (
+                    exampleIndex === exampleIds.length - 1 &&
+                    !isLoadingNext &&
+                    hasNext
+                  ) {
+                    loadNext(PAGE_SIZE);
+                  }
+                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
+                    setSelectedExampleIndex(exampleIndex);
+                  }
+                }}
+                openTraceDialog={(traceId, projectId, title) => {
+                  setDialog(
+                    <TraceDetailsDialog
+                      traceId={traceId}
+                      projectId={projectId}
+                      title={title}
+                    />
+                  );
+                }}
+              />
+            )}
         </Modal>
       </ModalOverlay>
       <ModalOverlay
         isOpen={!!dialog}
         onOpenChange={() => {
           // Clear the URL search params for the span selection
-          searchParams.delete("selectedSpanNodeId");
-          setSearchParams(searchParams, { replace: true });
+          setSearchParams(
+            (prev) => {
+              const newParams = new URLSearchParams(prev);
+              newParams.delete("selectedSpanNodeId");
+              return newParams;
+            },
+            { replace: true }
+          );
           setDialog(null);
         }}
       >
@@ -693,7 +715,7 @@ function TableBody<T>({
   tableContainerRef,
 }: {
   table: Table<T>;
-  tableContainerRef: RefObject<HTMLDivElement>;
+  tableContainerRef: RefObject<HTMLDivElement | null>;
 }) {
   const rows = table.getRowModel().rows;
   const virtualizer = useVirtualizer({
@@ -881,41 +903,6 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
   );
 }
 
-function TraceDetailsDialog({
-  traceId,
-  projectId,
-  title,
-}: {
-  traceId: string;
-  projectId: string;
-  title: string;
-}) {
-  const navigate = useNavigate();
-  return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogTitleExtra>
-            <Button
-              size="S"
-              onPress={() =>
-                navigate(`/projects/${projectId}/traces/${traceId}`)
-              }
-            >
-              View Trace in Project
-            </Button>
-            <DialogCloseButton />
-          </DialogTitleExtra>
-        </DialogHeader>
-        <Suspense fallback={<Loading />}>
-          <TraceDetails traceId={traceId} projectId={projectId} />
-        </Suspense>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function PaddedCell({ children }: { children: ReactNode }) {
   return (
     <View paddingX="size-200" paddingY="size-100">
@@ -1049,16 +1036,16 @@ function ExperimentRunOutputCell({
   repeatedRunGroup,
   displayFullText,
   setDialog,
-  setSelectedExampleId,
-  tableRow,
+  rowIndex,
+  setSelectedExampleIndex,
   annotationSummaries,
 }: {
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
   displayFullText: boolean;
   setDialog: (dialog: ReactNode) => void;
-  setSelectedExampleId: (id: string) => void;
-  tableRow: TableRow;
+  rowIndex: number;
+  setSelectedExampleIndex: (index: number) => void;
   annotationSummaries: readonly AnnotationSummary[];
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
@@ -1103,7 +1090,7 @@ function ExperimentRunOutputCell({
           size="S"
           aria-label="View example run details"
           onPress={() => {
-            setSelectedExampleId(tableRow.id);
+            setSelectedExampleIndex(rowIndex);
           }}
         >
           <Icon svg={<Icons.ExpandOutline />} />

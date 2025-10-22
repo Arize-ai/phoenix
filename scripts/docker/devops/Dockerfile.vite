@@ -1,0 +1,55 @@
+# Single-stage build for development with Vite dev server
+# This Dockerfile is used when vite-dev service is enabled (default mode)
+ARG PYTHON_VERSION=3.13
+
+FROM python:${PYTHON_VERSION}-slim-bullseye
+WORKDIR /phoenix
+
+# Install system dependencies + uv in one layer (rarely changes)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    netcat-openbsd \
+    socat \
+    curl \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* \
+    && pip install uv
+
+# Copy dependency files first for better layer caching
+COPY ./pyproject.toml ./LICENSE ./IP_NOTICE ./README.md ./
+
+# Copy only essential files needed for dependency resolution and version detection
+COPY ./src/phoenix/__init__.py ./src/phoenix/version.py ./src/phoenix/
+
+# Install dependencies into /phoenix/env (changes when requirements change)
+RUN uv pip install --compile-bytecode --target ./env ".[container, pg]" debugpy
+
+# Copy startup script (rarely changes)
+COPY --chmod=755 scripts/docker/devops/scripts/start-phoenix.sh /usr/local/bin/start-phoenix.sh
+
+# Copy actual source code (changes frequently)
+COPY ./src ./src
+
+# Reinstall Phoenix + modify template in one layer
+RUN find src/ -xtype l -delete && \
+    uv pip install --target ./env --no-deps --force-reinstall "." && \
+    sed -i "s|http://localhost:5173|/phoenix/vite|g" \
+    /phoenix/env/phoenix/server/templates/index.html && \
+    mkdir -p /phoenix/env/phoenix/server/static/.vite && \
+    echo '{}' > /phoenix/env/phoenix/server/static/.vite/manifest.json
+
+# Copy VSCode debugging configuration
+RUN mkdir -p /phoenix/env/phoenix/.vscode
+COPY scripts/docker/devops/vscode-config/launch.json /phoenix/env/phoenix/.vscode/launch.json
+COPY scripts/docker/devops/vscode-config/phoenix-debug.code-workspace /root/phoenix-debug.code-workspace
+
+# Set working directory for VS Code Remote
+WORKDIR /phoenix
+
+# Environment setup
+ENV PYTHONPATH="/phoenix/env"
+ENV PYTHONUNBUFFERED=1
+
+# Expose ports
+EXPOSE 6006 4317 9090
+
+# Default command (development mode with --dev flag)
+CMD ["/usr/local/bin/start-phoenix.sh", "--dev"]

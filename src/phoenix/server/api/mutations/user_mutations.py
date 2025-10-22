@@ -27,7 +27,7 @@ from phoenix.auth import (
 )
 from phoenix.config import get_env_disable_basic_auth
 from phoenix.db import models
-from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
@@ -110,7 +110,7 @@ class UserMutationPayload:
 
 @strawberry.type
 class UserMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin, IsLocked])  # type: ignore
     async def create_user(
         self,
         info: Info[Context, None],
@@ -157,7 +157,7 @@ class UserMutationMixin:
                 logger.error(f"Failed to send welcome email: {error}")
         return UserMutationPayload(user=to_gql_user(user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin])  # type: ignore
     async def patch_user(
         self,
         info: Info[Context, None],
@@ -174,6 +174,7 @@ class UserMutationMixin:
             if not (user := await session.scalar(_select_user_by_id(user_id))):
                 raise NotFound("User not found")
             stack.enter_context(session.no_autoflush)
+            should_log_out = False
             if input.new_role:
                 if user.email == DEFAULT_ADMIN_EMAIL:
                     raise Unauthorized("Cannot modify role for the default admin user")
@@ -183,6 +184,7 @@ class UserMutationMixin:
                 if user_role_id is None:
                     raise NotFound(f"Role {input.new_role.value} not found")
                 user.user_role_id = user_role_id
+                should_log_out = True
             if password := input.new_password:
                 if user.auth_method != "LOCAL":
                     raise Conflict("Cannot modify password for non-local user")
@@ -191,6 +193,7 @@ class UserMutationMixin:
                 user.password_salt = salt
                 user.password_hash = await info.context.hash_password(Secret(password), salt)
                 user.reset_password = True
+                should_log_out = True
             if username := input.new_username:
                 user.username = username
             assert user in session.dirty
@@ -199,7 +202,7 @@ class UserMutationMixin:
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(_user_operation_error_message(error, "modify"))
         assert user
-        if input.new_password:
+        if should_log_out:
             await info.context.log_out(user.id)
         return UserMutationPayload(user=to_gql_user(user))
 
@@ -245,7 +248,7 @@ class UserMutationMixin:
             response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
         return UserMutationPayload(user=to_gql_user(user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin, IsLocked])  # type: ignore
     async def delete_users(
         self,
         info: Info[Context, None],

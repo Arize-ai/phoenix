@@ -3,12 +3,9 @@ import { defaultGetEnvironmentOptions } from "../src/config";
 import { getMergedOptions } from "../src";
 
 describe("Phoenix client configuration", () => {
-  // Store original process.env
-  const originalEnv = process.env;
-
   beforeEach(() => {
     // Reset process.env before each test
-    process.env = { ...originalEnv };
+    process.env = {};
   });
 
   describe("environment parsing", () => {

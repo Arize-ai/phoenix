@@ -14,16 +14,19 @@ import {
 } from "react-relay";
 
 import {
+  Autocomplete,
   Button,
-  Card,
   Dialog,
   DialogTrigger,
   Flex,
   Icon,
   Icons,
   Link,
+  LinkButton,
   Loading,
   Popover,
+  PopoverArrow,
+  useFilter,
   useNullableTimeRangeContext,
   View,
 } from "@phoenix/components";
@@ -113,22 +116,23 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           variant={disabled ? "default" : "primary"}
           isDisabled={disabled}
           size="S"
-          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          aria-label="Add Annotation"
         >
-          Add Annotation
+          Annotation
         </Button>
-        <Popover style={{ border: "none" }} placement="bottom end">
+        <Popover placement="bottom end">
+          <PopoverArrow />
           <Dialog>
-            {({ close }) => (
-              <NewAnnotationCard
+            <Suspense fallback={<Loading />}>
+              <AnnotationList
                 projectId={projectId}
                 spanNodeId={spanNodeId}
                 onAnnotationNameSelect={(name) => {
                   onAnnotationNameSelect(name);
                 }}
-                onClose={close}
               />
-            )}
+            </Suspense>
           </Dialog>
         </Popover>
       </DialogTrigger>
@@ -136,29 +140,24 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
   );
 }
 
-type NewAnnotationCardProps = {
+type AnnotationListProps = {
   projectId: string;
   spanNodeId: string;
-  onClose: () => void;
   onAnnotationNameSelect: (name: string) => void;
 };
 
-function NewAnnotationCard(props: NewAnnotationCardProps) {
-  const { projectId, spanNodeId, onClose } = props;
+function AnnotationList(props: AnnotationListProps) {
+  const { projectId, spanNodeId } = props;
+  const { contains } = useFilter({ sensitivity: "base" });
   return (
-    <Card
-      title="Add Annotation from Config"
-      backgroundColor="light"
-      borderColor="light"
-    >
-      <Suspense>
-        <NewAnnotationFromConfig
-          projectId={projectId}
-          spanId={spanNodeId}
-          onClose={onClose}
-        />
-      </Suspense>
-    </Card>
+    <Autocomplete filter={contains}>
+      <AnnotationConfigList projectId={projectId} spanId={spanNodeId} />
+      <View padding="size-100" borderTopWidth="thin" borderTopColor="dark">
+        <LinkButton variant="quiet" to="/settings/annotations" size="S">
+          Edit Annotation Configs
+        </LinkButton>
+      </View>
+    </Autocomplete>
   );
 }
 
@@ -577,23 +576,6 @@ function SpanAnnotationsList(props: {
           })}
         </FocusScope>
       )}
-    </View>
-  );
-}
-
-function NewAnnotationFromConfig(props: {
-  projectId: string;
-  spanId: string;
-  onClose: () => void;
-}) {
-  const { projectId, spanId } = props;
-  return (
-    <View minWidth={320}>
-      <Suspense fallback={<Loading />}>
-        <Flex direction="column" gap="size-100">
-          <AnnotationConfigList projectId={projectId} spanId={spanId} />
-        </Flex>
-      </Suspense>
     </View>
   );
 }

@@ -1,5 +1,20 @@
 # @arizeai/phoenix-client
 
+## 4.2.0
+
+### Minor Changes
+
+- 85430fa: feat: Add configurable DiagLogLevel to runExperiment
+- c7cc7d9: feat: Add createOrGetDataset helper function to phoenix-client
+
+  Additionally clean up build artifacts and type-checking amongst example scripts.
+
+## 4.1.0
+
+### Minor Changes
+
+- 2981780: add session annotation functions
+
 ## 4.0.3
 
 ### Patch Changes

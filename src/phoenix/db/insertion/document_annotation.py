@@ -181,7 +181,7 @@ def _key(p: Received[Precursors.DocumentAnnotation]) -> _Key:
 
 
 def _unique_by(p: Received[Insertables.DocumentAnnotation]) -> _UniqueBy:
-    return p.item.obj.name, p.item.span_rowid, p.item.document_position, p.item.identifier
+    return p.item.obj.name, p.item.span_rowid, p.item.document_position, p.item.obj.identifier
 
 
 def _time(p: Received[Any]) -> datetime:

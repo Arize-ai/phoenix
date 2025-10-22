@@ -25,7 +25,7 @@ export type CopyToClipboardButtonProps = Omit<
   /**
    * The text to copy to the clipboard
    */
-  text: string | RefObject<string>;
+  text: string | RefObject<string | null>;
 };
 
 const copyToClipboardButtonCSS = css`

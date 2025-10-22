@@ -6,7 +6,7 @@ from starlette.requests import Request
 from strawberry import UNSET, Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers.annotations import get_user_identifier
@@ -29,7 +29,7 @@ class TraceAnnotationMutationPayload:
 
 @strawberry.type
 class TraceAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_trace_annotations(
         self, info: Info[Context, None], input: list[CreateTraceAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
@@ -120,7 +120,7 @@ class TraceAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def patch_trace_annotations(
         self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
@@ -195,7 +195,7 @@ class TraceAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_trace_annotations(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> TraceAnnotationMutationPayload:

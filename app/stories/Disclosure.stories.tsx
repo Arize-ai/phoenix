@@ -58,8 +58,7 @@ const SingleItemStory: StoryFn<DisclosureProps> = (args) => (
   </Disclosure>
 );
 
-export const SingleItem: Meta<typeof SingleItemStory> = {
-  render: SingleItemStory,
+export const SingleItem = SingleItemStory.bind({
   args: {
     defaultExpanded: true,
     isExpanded: undefined,
@@ -75,7 +74,7 @@ export const SingleItem: Meta<typeof SingleItemStory> = {
       options: ["M", "L"],
     },
   },
-};
+});
 
 const ExtraTitleContentStory: StoryFn<DisclosureTriggerProps> = (args) => (
   <Card title="Disclosure">
@@ -110,8 +109,7 @@ const ExtraTitleContentStory: StoryFn<DisclosureTriggerProps> = (args) => (
   </Card>
 );
 
-export const ExtraTitleContent: Meta<typeof ExtraTitleContentStory> = {
-  render: ExtraTitleContentStory,
+export const ExtraTitleContent = ExtraTitleContentStory.bind({
   args: {
     justifyContent: "start",
     arrowPosition: "end",
@@ -126,4 +124,4 @@ export const ExtraTitleContent: Meta<typeof ExtraTitleContentStory> = {
       options: ["space-between", "start"],
     },
   },
-};
+});

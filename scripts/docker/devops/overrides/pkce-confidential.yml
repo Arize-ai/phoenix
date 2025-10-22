@@ -1,0 +1,29 @@
+services:
+  oidc-dev:
+    environment:
+      - OIDC_CLIENT_AUTH_METHOD=pkce-confidential
+
+  phoenix:
+    environment:
+      - PHOENIX_OAUTH2_DEV_USE_PKCE=true
+      - PHOENIX_OAUTH2_DEV_CLIENT_SECRET=phoenix-oidc-client-secret-abc-123
+      - PHOENIX_OAUTH2_DEV_TOKEN_ENDPOINT_AUTH_METHOD=client_secret_basic
+      - PHOENIX_OAUTH2_DEV_SCOPES=groups
+      - PHOENIX_OAUTH2_DEV_GROUPS_ATTRIBUTE_PATH=groups
+      - PHOENIX_OAUTH2_DEV_ALLOWED_GROUPS=phoenix-admins,phoenix-members,phoenix-viewers
+
+  grafana:
+    profiles: ["pkce-confidential"]
+    environment:
+      - GF_AUTH_GENERIC_OAUTH_USE_PKCE=true
+      - GF_AUTH_GENERIC_OAUTH_AUTH_URL=http://localhost:18273/oidc/auth
+      - GF_AUTH_GENERIC_OAUTH_TOKEN_URL=http://localhost:18273/oidc/token
+      - GF_AUTH_GENERIC_OAUTH_API_URL=http://localhost:18273/oidc/userinfo
+      - GF_AUTH_GENERIC_OAUTH_GROUPS_ATTRIBUTE_PATH=groups
+      - GF_AUTH_GENERIC_OAUTH_ALLOWED_GROUPS=phoenix-admins
+    extra_hosts:
+      - "localhost:host-gateway"
+    labels:
+      - "grafana.oauth.mode=pkce-confidential"
+      - "grafana.oauth.pkce=enabled"
+      - "grafana.oauth.client_type=confidential"

@@ -17,6 +17,7 @@ input AddDatasetExamplesToDatasetSplitsInput {
 
 type AddDatasetExamplesToDatasetSplitsMutationPayload {
   query: Query!
+  examples: [DatasetExample!]!
 }
 
 input AddExamplesToDatasetInput {
@@ -268,6 +269,7 @@ input ChatCompletionOverDatasetInput {
   repetitions: Int!
   datasetId: ID!
   datasetVersionId: ID = null
+  splitIds: [ID!] = null
   experimentName: String = null
   experimentDescription: String = null
   experimentMetadata: JSON = {}
@@ -603,8 +605,9 @@ type Dataset implements Node {
   """
   Number of examples in a specific version if version is specified, or in the latest version if version is not specified.
   """
-  exampleCount(datasetVersionId: ID): Int!
-  examples(datasetVersionId: ID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
+  exampleCount(datasetVersionId: ID, splitIds: [ID!]): Int!
+  examples(datasetVersionId: ID, splitIds: [ID!], first: Int = 50, last: Int, after: String, before: String, filter: String): DatasetExampleConnection!
+  splits: [DatasetSplit!]!
 
   """
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
@@ -698,8 +701,9 @@ type DatasetExperimentAnnotationSummary {
 
 """A filter for datasets"""
 input DatasetFilter {
-  col: DatasetFilterColumn!
-  value: String!
+  col: DatasetFilterColumn = null
+  value: String = null
+  filterLabels: [String!]
 }
 
 enum DatasetFilterColumn {
@@ -774,6 +778,12 @@ type DatasetSplitEdge {
 type DatasetSplitMutationPayload {
   datasetSplit: DatasetSplit!
   query: Query!
+}
+
+type DatasetSplitMutationPayloadWithExamples {
+  datasetSplit: DatasetSplit!
+  query: Query!
+  examples: [DatasetExample!]!
 }
 
 type DatasetValues {
@@ -1235,7 +1245,7 @@ type Experiment implements Node {
 
   """Sequence number (1-based) of experiments belonging to the same dataset"""
   sequenceNumber: Int!
-  runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
+  runs(first: Int = 50, after: String, sort: ExperimentRunSort): ExperimentRunConnection!
   runCount: Int!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
@@ -1244,6 +1254,7 @@ type Experiment implements Node {
   lastUpdatedAt: DateTime
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  datasetSplits: DatasetSplitConnection!
 }
 
 type ExperimentAnnotationSummary {
@@ -1376,6 +1387,11 @@ enum ExperimentRunAnnotatorKind {
   CODE
 }
 
+input ExperimentRunColumn @oneOf {
+  metric: ExperimentRunMetric
+  annotationName: String
+}
+
 """A connection to a list of items."""
 type ExperimentRunConnection {
   """Pagination data for this connection"""
@@ -1392,6 +1408,10 @@ type ExperimentRunEdge {
 
   """The item at the end of the edge"""
   node: ExperimentRun!
+}
+
+enum ExperimentRunMetric {
+  latencyMs
 }
 
 type ExperimentRunMetricComparison {
@@ -1424,6 +1444,12 @@ type ExperimentRunMetricComparisons {
   totalCost: ExperimentRunMetricComparison!
   promptCost: ExperimentRunMetricComparison!
   completionCost: ExperimentRunMetricComparison!
+}
+
+"""The sort key and direction for experiment run connections"""
+input ExperimentRunSort {
+  col: ExperimentRunColumn!
+  dir: SortDir!
 }
 
 type ExportedFile {
@@ -1717,6 +1743,8 @@ type Mutation {
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
+  setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
+  unsetDatasetLabels(input: UnsetDatasetLabelsInput!): UnsetDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -1729,7 +1757,7 @@ type Mutation {
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
   addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
   removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
-  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayload!
+  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -2029,6 +2057,16 @@ type ProjectSession implements Node {
   sessionAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
 }
 
+enum ProjectSessionAnnoAttr {
+  score
+  label
+}
+
+input ProjectSessionAnnoResultKey {
+  name: String!
+  attr: ProjectSessionAnnoAttr!
+}
+
 type ProjectSessionAnnotation implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2077,7 +2115,8 @@ type ProjectSessionEdge {
 
 """The sort key and direction for ProjectSession connections."""
 input ProjectSessionSort {
-  col: ProjectSessionColumn!
+  col: ProjectSessionColumn
+  annoResultKey: ProjectSessionAnnoResultKey
   dir: SortDir!
 }
 
@@ -2145,7 +2184,7 @@ type Prompt implements Node {
   name: Identifier!
   description: String
   createdAt: DateTime!
-  version(versionId: ID = null): PromptVersion!
+  version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt
@@ -2352,7 +2391,7 @@ type Query {
   model: InferenceModel!
   node(id: ID!): Node!
   viewer: User
-  prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter): PromptConnection!
+  prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
   datasetLabels(first: Int = 50, last: Int, after: String, before: String): DatasetLabelConnection!
   datasetSplits(first: Int = 50, last: Int, after: String, before: String): DatasetSplitConnection!
@@ -2409,6 +2448,7 @@ input RemoveDatasetExamplesFromDatasetSplitsInput {
 
 type RemoveDatasetExamplesFromDatasetSplitsMutationPayload {
   query: Query!
+  examples: [DatasetExample!]!
 }
 
 type ResponseFormat {
@@ -2449,6 +2489,15 @@ type Segments {
 
 type ServerStatus {
   insufficientStorage: Boolean!
+}
+
+input SetDatasetLabelsInput {
+  datasetLabelIds: [ID!]!
+  datasetIds: [ID!]!
+}
+
+type SetDatasetLabelsMutationPayload {
+  query: Query!
 }
 
 input SetPromptLabelsInput {
@@ -3074,6 +3123,15 @@ type UMAPPoints {
   contextRetrievals: [Retrieval!]!
 }
 
+input UnsetDatasetLabelsInput {
+  datasetLabelIds: [ID!]!
+  datasetIds: [ID!]!
+}
+
+type UnsetDatasetLabelsMutationPayload {
+  query: Query!
+}
+
 input UnsetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
@@ -3188,6 +3246,7 @@ type UserRole implements Node {
 enum UserRoleInput {
   ADMIN
   MEMBER
+  VIEWER
 }
 
 type ValidationResult {

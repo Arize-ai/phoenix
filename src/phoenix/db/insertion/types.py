@@ -248,7 +248,6 @@ class Insertables(ABC):
     class SpanAnnotation(Precursors.SpanAnnotation):
         updated_at: datetime
         span_rowid: int
-        identifier: str = ""
 
         @property
         def row(self) -> models.SpanAnnotation:
@@ -261,7 +260,6 @@ class Insertables(ABC):
     class TraceAnnotation(Precursors.TraceAnnotation):
         updated_at: datetime
         trace_rowid: int
-        identifier: str = ""
 
         @property
         def row(self) -> models.TraceAnnotation:
@@ -274,7 +272,6 @@ class Insertables(ABC):
     class DocumentAnnotation(Precursors.DocumentAnnotation):
         updated_at: datetime
         span_rowid: int
-        identifier: str = ""
 
         @property
         def row(self) -> models.DocumentAnnotation:
@@ -287,7 +284,6 @@ class Insertables(ABC):
     class SessionAnnotation(Precursors.SessionAnnotation):
         updated_at: datetime
         project_session_rowid: int
-        identifier: str = ""
 
         @property
         def row(self) -> models.ProjectSessionAnnotation:

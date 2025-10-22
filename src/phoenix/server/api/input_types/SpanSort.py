@@ -11,6 +11,7 @@ from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
+from phoenix.db.helpers import truncate_name
 from phoenix.server.api.types.pagination import CursorSortColumnDataType
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.trace.schemas import SpanID
@@ -32,7 +33,7 @@ class SpanColumn(Enum):
 
     @property
     def column_name(self) -> str:
-        return f"{self.name}_span_sort_column"
+        return truncate_name(f"{self.name}_span_sort_column")
 
     def as_orm_expression(self, joined_table: Optional[Any] = None) -> Any:
         expr: Any

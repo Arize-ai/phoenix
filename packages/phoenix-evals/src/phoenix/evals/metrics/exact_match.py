@@ -5,6 +5,8 @@ from ..evaluators import Score, create_evaluator
 def exact_match(output: str, expected: str) -> Score:
     """Return exact_match score: 1.0 if output == expected else 0.0.
 
+    Note: No text normalization is performed.
+
     Args:
         output (str): The output to evaluate.
         expected (str): The expected output.
