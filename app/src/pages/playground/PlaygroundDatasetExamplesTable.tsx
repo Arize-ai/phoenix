@@ -77,7 +77,6 @@ import {
 
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
-import { TraceDetailsDialog } from "../experiment/TraceDetailsDialog";
 
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import PlaygroundDatasetExamplesTableMutation, {
@@ -542,7 +541,10 @@ export function PlaygroundDatasetExamplesTable({
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
   >(null);
-  const [dialog, setDialog] = useState<ReactNode>(null);
+  const [selectedTraceInfo, setSelectedTraceInfo] = useState<{
+    traceId: string;
+    projectId: string;
+  } | null>(null);
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
   );
@@ -957,13 +959,7 @@ export function PlaygroundDatasetExamplesTable({
                 setSelectedExampleIndex(row.index);
               }}
               onViewExperimentRunTracePress={(traceId, projectId) => {
-                setDialog(
-                  <PlaygroundRunTraceDetailsDialog
-                    traceId={traceId}
-                    projectId={projectId}
-                    title={`Experiment Run Trace`}
-                  />
-                );
+                setSelectedTraceInfo({ traceId, projectId });
               }}
             />
           );
@@ -1195,24 +1191,18 @@ export function PlaygroundDatasetExamplesTable({
                     setSelectedExampleIndex(exampleIndex);
                   }
                 }}
-                openTraceDialog={(traceId, projectId, title) => {
-                  setDialog(
-                    <TraceDetailsDialog
-                      traceId={traceId}
-                      projectId={projectId}
-                      title={title}
-                    />
-                  );
+                openTraceDialog={(traceId, projectId) => {
+                  setSelectedTraceInfo({ traceId, projectId });
                 }}
               />
             )}
         </Modal>
       </ModalOverlay>
       <ModalOverlay
-        isOpen={!!dialog}
+        isOpen={selectedTraceInfo !== null}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setDialog(null);
+            setSelectedTraceInfo(null);
             setSearchParams(
               (prev) => {
                 const newParams = new URLSearchParams(prev);
@@ -1225,7 +1215,13 @@ export function PlaygroundDatasetExamplesTable({
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {dialog}
+          {selectedTraceInfo && (
+            <PlaygroundRunTraceDetailsDialog
+              traceId={selectedTraceInfo.traceId}
+              projectId={selectedTraceInfo.projectId}
+              title="Experiment Run Trace"
+            />
+          )}
         </Modal>
       </ModalOverlay>
     </div>
