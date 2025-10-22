@@ -35,7 +35,7 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX HOSTNAME"
 ```
 
 {% hint style="info" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://arize.com/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint)
 {% endhint %}
 {% endtab %}
 
@@ -51,7 +51,7 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006/v1/traces"
 ```
 
 {% hint style="warning" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://arize.com/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint)
 {% endhint %}
 {% endtab %}
 {% endtabs %}

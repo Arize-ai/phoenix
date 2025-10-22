@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Quickstart: Evals
 
 This quickstart guide will walk you through the basics of evaluating data from your AI application.
@@ -50,7 +54,7 @@ Steps: set up evaluators, run the evaluations, and log the results to visualize 
 
 In this example, we want to run two evaluators. For the first, we use the built-in Hallucination evaluator that the Phoenix team has already benchmarked on hallucination detection tasks. For the second, we define our own custom LLM-as-a-judge evaluator to measure answer completeness.
 
-We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](how-to-evals/configuring-the-llm.md). First, we need to add our OpenAI API key to our environment.
+We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](how-to-evals/configuring-the-llm/). First, we need to add our OpenAI API key to our environment.
 
 ```python
 import os

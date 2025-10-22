@@ -13,7 +13,7 @@ Don't see an integration you were looking for? We'd love to [hear from you!](htt
 Phoenix has a wide range of integrations. Generally these fall into a few categories:
 
 1. **Tracing integrations** - where Phoenix will capture traces of applications built using a specific library.
-   1. _E.g._ [_OpenAI_](llm-providers/openai/)_,_ [_LangChain_](frameworks-and-platforms/langchain/)_,_ [_Vercel AI SDK_](frameworks-and-platforms/vercel/vercel-ai-sdk-tracing-js.md)_,_ [_Amazon Bedrock_](llm-providers/amazon-bedrock/)_,_ [_Hugging Face smolagents_](frameworks-and-platforms/hugging-face-smolagents/)
+   1. _E.g._ [_OpenAI_](llm-providers/openai/)_,_ [_LangChain_](python/langchain/)_,_ [_Vercel AI SDK_](typescript/vercel/vercel-ai-sdk-tracing-js.md)_,_ [_Amazon Bedrock_](llm-providers/amazon-bedrock/)_,_ [_Hugging Face smolagents_](python/hugging-face-smolagents/)
 2. **Eval Model integrations** - where Phoenix's eval Python package will make calls to a specific model.
    1. _E.g._ [_OpenAI_](llm-providers/openai/)_,_ [_Anthropic_](llm-providers/anthropic/)_,_ [_Google VertexAI_](llm-providers/vertexai/)_,_ [_Mistral_](llm-providers/mistralai/)
 3. **Eval Library integrations** - where Phoenix traces can be evaluated using an outside eval library, instead of Phoenix's eval library, and visualized in Phoenix.
