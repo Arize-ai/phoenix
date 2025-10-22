@@ -246,9 +246,19 @@ def _format_score_data(
 
     # Parse JSON score data
     cols = ["score", "label", "explanation", "source"]
-    parsed_score_col = eval_df[score_column].apply(
-        lambda x: json.loads(x) if isinstance(x, str) and x else None
-    )
+
+    def _safe_json_load(x: Any) -> Any:
+        if isinstance(x, str):
+            if not x.strip():  # empty string
+                return None
+            return json.loads(x)  # JSON string
+        elif isinstance(x, dict):
+            return x  # already parsed
+        else:
+            return None
+
+    parsed_score_col = eval_df[score_column].apply(_safe_json_load)
+
     eval_df[cols] = parsed_score_col.apply(lambda d: pd.Series([(d or {}).get(k) for k in cols]))
 
     eval_df["metadata"] = parsed_score_col.apply(
@@ -370,6 +380,21 @@ def to_annotation_dataframe(
     return result_df
 
 
+def default_tqdm_progress_bar_formatter(title: str) -> str:
+    """Returns a progress bar formatter for use with tqdm.
+
+    Args:
+        title (str): The title of the progress bar, displayed as a prefix.
+
+    Returns:
+        str: A formatter to be passed to the bar_format argument of tqdm.
+    """
+    return (
+        title + " |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
+        "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}"
+    )
+
+
 __all__ = [
     # evals 1.0
     "NOT_PARSABLE",
@@ -392,4 +417,5 @@ __all__ = [
     "remap_eval_input",
     "extract_with_jsonpath",
     "to_annotation_dataframe",
+    "default_tqdm_progress_bar_formatter",
 ]
