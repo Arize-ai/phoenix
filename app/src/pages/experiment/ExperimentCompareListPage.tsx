@@ -371,6 +371,15 @@ export function ExperimentCompareListPage({
           if (!compareExperimentRunAnnotationsByName[annotationName]) {
             compareExperimentRunAnnotationsByName[annotationName] = [];
           }
+          if (
+            !compareExperimentRunAnnotationsByNameAndExperimentId[
+              annotationName
+            ]
+          ) {
+            compareExperimentRunAnnotationsByNameAndExperimentId[
+              annotationName
+            ] = {};
+          }
           compareExperimentIds.forEach((experimentId) => {
             const annotation =
               compareExperimentRunAnnotationsByNameAndExperimentId[
