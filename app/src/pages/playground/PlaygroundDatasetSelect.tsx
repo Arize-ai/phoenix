@@ -83,7 +83,7 @@ export function PlaygroundDatasetSelect() {
         <DatasetSelect
           size="S"
           placeholder="Test over a dataset"
-          selectedKey={datasetId ?? undefined}
+          selectedKey={datasetId ?? null}
           onSelectionChange={(key) => {
             setSearchParams((prev) => {
               if (key) {

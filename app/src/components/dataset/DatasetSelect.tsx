@@ -21,7 +21,7 @@ type DatasetSelectProps = {
   onBlur?: () => void;
   validationState?: "valid" | "invalid";
   errorMessage?: string;
-  selectedKey?: string;
+  selectedKey?: string | null;
   placeholder?: string;
   size?: "S" | "M";
   label?: string;
