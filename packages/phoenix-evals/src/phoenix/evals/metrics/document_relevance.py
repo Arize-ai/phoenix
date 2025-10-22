@@ -45,14 +45,16 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
 
     Examples::
 
-        from phoenix.evals.metrics.document_relevance import
-        DocumentRelevanceEvaluator
+        from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
         from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini") relevance_eval =
-        DocumentRelevanceEvaluator(llm=llm) eval_input = {
-            "input": "What is the capital of France?", "document": "Paris is the
-            capital and largest city of France" }
-        scores = relevance_eval.evaluate(eval_input) print(scores)
+        llm = LLM(provider="openai", model="gpt-4o-mini")
+        relevance_eval = DocumentRelevanceEvaluator(llm=llm)
+        eval_input = {
+            "input": "What is the capital of France?",
+            "document": "Paris is the capital and largest city of France"
+            }
+        scores = relevance_eval.evaluate(eval_input)
+        print(scores)
     """
 
     NAME = "document_relevance"
