@@ -32,7 +32,7 @@ type RegisterParams = {
    * It is recommended to use batching in production environments
    * @default true
    */
-  useBatchSpanProcessor?: boolean;
+  batch?: boolean;
   /**
    * Whether to set the tracer as a global provider.
    * @default true
@@ -44,7 +44,7 @@ export function register({
   url: paramsUrl,
   apiKey: paramsApiKey,
   projectName = "default",
-  useBatchSpanProcessor = true,
+  batch = true,
   setGlobalTracerProvider = true,
 }: RegisterParams) {
   const url = paramsUrl || getEnvCollectorURL();
@@ -59,7 +59,7 @@ export function register({
     headers,
   });
   let spanProcessor: SpanProcessor;
-  if (useBatchSpanProcessor) {
+  if (batch) {
     spanProcessor = new OpenInferenceBatchSpanProcessor({ exporter });
   } else {
     spanProcessor = new OpenInferenceSimpleSpanProcessor({ exporter });
