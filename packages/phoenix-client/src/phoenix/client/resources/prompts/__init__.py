@@ -157,7 +157,7 @@ class Prompts:
     def get_prompt_versions(
         self,
         *,
-        prompt_identifier: Optional[str] = None,
+        prompt_identifier: str,
         limit: Optional[int] = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.PromptVersion]:
@@ -169,8 +169,7 @@ class Prompts:
         prompt configuration including template, model settings, and invocation parameters.
 
         Args:
-            prompt_identifier: The unique identifier for the prompt. If not provided,
-                uses the prompt identifier from the current object context.
+            prompt_identifier: The unique identifier for the prompt.
             limit: Maximum number of versions to return, starting from the most recent.
                 Defaults to 100.
             timeout: Optional request timeout in seconds. Uses the default timeout
@@ -206,7 +205,7 @@ class Prompts:
             if "created_at" in record:
                 record["created_at"] = _parse_datetime(record["created_at"])
 
-        return records
+        return records  # type: ignore[no-any-return]
 
 
 class PromptVersionTags:
@@ -476,7 +475,7 @@ class AsyncPrompts:
     async def get_prompt_versions(
         self,
         *,
-        prompt_identifier: Optional[str] = None,
+        prompt_identifier: str,
         limit: Optional[int] = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.PromptVersion]:
@@ -488,8 +487,7 @@ class AsyncPrompts:
         prompt configuration including template, model settings, and invocation parameters.
 
         Args:
-            prompt_identifier: The unique identifier for the prompt. If not provided,
-                uses the prompt identifier from the current object context.
+            prompt_identifier: The unique identifier for the prompt.
             limit: Maximum number of versions to return, starting from the most recent.
                 Defaults to 100.
             timeout: Optional request timeout in seconds. Uses the default timeout
@@ -525,7 +523,7 @@ class AsyncPrompts:
             if "created_at" in record:
                 record["created_at"] = _parse_datetime(record["created_at"])
 
-        return records
+        return records  # type: ignore[no-any-return]
 
 
 class AsyncPromptVersionTags:
