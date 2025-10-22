@@ -2121,7 +2121,7 @@ def _validate_iam_auth_config() -> None:
         return
 
     try:
-        import boto3  # noqa: F401
+        import boto3  # pyright: ignore  # noqa: F401
     except ImportError:
         raise ImportError(
             f"boto3 is required when {ENV_PHOENIX_POSTGRES_USE_IAM_AUTH} is enabled. "
