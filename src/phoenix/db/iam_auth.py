@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mypy_boto3_rds.client import RDSClient
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +41,7 @@ def generate_aws_rds_token(
         ... )
     """
     try:
-        import boto3  # pyright: ignore
+        import boto3
     except ImportError as e:
         raise ImportError(
             "boto3 is required for AWS RDS IAM authentication. "
@@ -45,16 +49,16 @@ def generate_aws_rds_token(
         ) from e
 
     try:
-        client = boto3.client("rds")
+        client: RDSClient = boto3.client("rds")
 
         logger.debug(f"Generating AWS RDS IAM auth token for user '{user}' at {host}:{port}")
-        token = client.generate_db_auth_token(  # pyright: ignore
+        token = client.generate_db_auth_token(
             DBHostname=host,
             Port=port,
             DBUsername=user,
         )
 
-        return str(token)  # pyright: ignore
+        return token
 
     except Exception as e:
         logger.error(
