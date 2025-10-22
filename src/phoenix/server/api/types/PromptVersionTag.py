@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
 from strawberry import UNSET, Info
@@ -8,6 +8,9 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.User import User
+
+if TYPE_CHECKING:
+    from .User import User
 
 
 @strawberry.type
@@ -61,7 +64,9 @@ class PromptVersionTag(Node):
         return val
 
     @strawberry.field
-    async def user(self, info: Info[Context, None]) -> Optional[User]:
+    async def user(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
         if self.db_record:
             user_id = self.db_record.user_id
         else:
@@ -70,4 +75,6 @@ class PromptVersionTag(Node):
             )
         if user_id is None:
             return None
+        from .User import User
+
         return User(id=user_id)
