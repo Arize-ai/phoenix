@@ -119,7 +119,7 @@ class PromptMutationMixin:
             try:
                 await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                raise NotFound(NotFound(f"Prompt with ID '{input.prompt_id}' not found"))
+                raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
             if input.tags:
                 for tag in input.tags:
                     await upsert_prompt_version_tag(

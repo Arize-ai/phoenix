@@ -74,7 +74,7 @@ class LLMEvaluator(Evaluator, Node):
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
-            raise ValueError("Project ID mismatch")
+            raise ValueError("Evaluator ID mismatch")
 
     @strawberry.field
     async def name(
