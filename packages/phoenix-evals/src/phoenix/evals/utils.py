@@ -249,9 +249,11 @@ def _format_score_data(
 
     def _safe_json_load(x: Any) -> Any:
         if isinstance(x, str):
-            return json.loads(x)
+            if not x.strip():  # empty string
+                return None
+            return json.loads(x)  # JSON string
         elif isinstance(x, dict):
-            return x
+            return x  # already parsed
         else:
             return None
 
