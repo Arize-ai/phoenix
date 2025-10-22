@@ -37,7 +37,7 @@ def generate_aws_rds_token(
         ... )
     """
     try:
-        import boto3  # pyright: ignore
+        import boto3  # pyright: ignore  # type: ignore[import-untyped]
     except ImportError as e:
         raise ImportError(
             "boto3 is required for AWS RDS IAM authentication. "
