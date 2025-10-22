@@ -124,13 +124,16 @@ class DataLoaders:
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
+    llm_evaluator_fields: TableFieldsDataLoader
     num_child_spans: NumChildSpansDataLoader
     num_spans_per_trace: NumSpansPerTraceDataLoader
     project_by_name: ProjectByNameDataLoader
     project_fields: TableFieldsDataLoader
     project_trace_retention_policy_fields: TableFieldsDataLoader
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
+    prompt_fields: TableFieldsDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
+    prompt_version_tag_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
     session_annotations_by_session: SessionAnnotationsBySessionDataLoader
     session_first_inputs: SessionIODataLoader
@@ -173,6 +176,7 @@ class DataLoaders:
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
     trace_root_spans: TraceRootSpansDataLoader
     user_roles: UserRolesDataLoader
+    user_fields: TableFieldsDataLoader
     users: UsersDataLoader
 
 

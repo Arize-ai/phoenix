@@ -440,6 +440,13 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreateDatasetLLMEvaluatorInput {
+  datasetId: ID!
+  name: Identifier!
+  description: String = null
+  promptVersion: ChatPromptVersionInput!
+}
+
 input CreateDatasetLabelInput {
   name: String!
   description: String
@@ -616,6 +623,7 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
+  evaluators: [Evaluator!]!
   lastUpdatedAt: DateTime
 }
 
@@ -1205,6 +1213,22 @@ input EvalResultKey {
   attr: EvalAttr!
 }
 
+interface Evaluator implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum EvaluatorKind {
+  LLM
+  CODE
+  REMOTE
+}
+
 type Event {
   id: ID!
   eventMetadata: EventMetadata!
@@ -1693,6 +1717,25 @@ type JSONInvocationParameter implements InvocationParameterBase {
   defaultValue: JSON
 }
 
+type LLMEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  prompt: Prompt!
+  promptVersionTag: PromptVersionTag
+  user: User
+  promptVersion: PromptVersion!
+}
+
+type LLMEvaluatorMutationPayload {
+  evaluator: LLMEvaluator!
+  query: Query!
+}
+
 type LabelFraction {
   label: String!
   fraction: Float!
@@ -1758,6 +1801,7 @@ type Mutation {
   addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
   removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
