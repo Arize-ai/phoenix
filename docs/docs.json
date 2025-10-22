@@ -1125,7 +1125,7 @@
       "anchors": [
         {
           "anchor": "Community",
-          "href": "https://arize.com/community/",
+          "href": "https://arize-ai.slack.com/ssb/redirect#/shared-invite/email",
           "icon": "users"
         },
         {
@@ -1166,5 +1166,475 @@
       "x": "https://x.com/ArizePhoenix",
       "github": "https://github.com/Arize-ai/phoenix"
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/tracing/how-to-tracing/setup-tracing/setup-tracing-python",
+      "destination": "/tracing/how-to-tracing/setup-tracing"
+    },
+    {
+      "source": "/deployment/deploying-phoenix",
+      "destination": "/self-hosting"
+    },
+    {
+      "source": "/deployment/persistence",
+      "destination": "/self-hosting/configuration"
+    },
+    {
+      "source": "/deployment/authentication",
+      "destination": "/self-hosting/features/authentication"
+    },
+    {
+      "source": "/setup/configuration",
+      "destination": "/self-hosting/configuration"
+    },
+    {
+      "source": "/hosted-phoenix",
+      "destination": "/environments"
+    },
+    {
+      "source": "/tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly",
+      "destination": "/tracing/how-to-tracing/setup-tracing/custom-spans"
+    },
+    {
+      "source": "/self-hosting/local-instance",
+      "destination": "/environments"
+    },
+    {
+      "source": "/setup/authentication",
+      "destination": "/self-hosting/features/authentication"
+    },
+    {
+      "source": "/self-hosting/persistence",
+      "destination": "/self-hosting/configuration"
+    },
+    {
+      "source": "/references/release-notes",
+      "destination": "/release-notes"
+    },
+    {
+      "source": "/tracing/quickstart-tracing-python",
+      "destination": "/get-started/get-started-tracing"
+    },
+    {
+      "source": "/setup",
+      "destination": "/environments"
+    },
+    {
+      "source": "/tracing/how-to-tracing/setup-tracing/setup-tracing-ts",
+      "destination": "/tracing/how-to-tracing/setup-tracing/javascript"
+    },
+    {
+      "source": "/self-hosting/deploying-phoenix",
+      "destination": "/self-hosting/readme"
+    },
+    {
+      "source": "/datasets-experiments/how-to-datasets/exporting-datasets",
+      "destination": "/datasets-and-experiments/how-to-datasets/exporting-datasets"
+    },
+    {
+      "source": "/tracing/how-to-tracing/customize-traces",
+      "destination": "/tracing/how-to-tracing/add-metadata"
+    },
+    {
+      "source": "/tracing/how-to-tracing/setup-tracing-python",
+      "destination": "/tracing/how-to-tracing/setup-tracing"
+    },
+    {
+      "source": "/self-hosting/python-notebook",
+      "destination": "/environments"
+    },
+    {
+      "source": "/tracing/how-to-tracing/trace-a-deployed-app",
+      "destination": "/tracing/llm-traces-1"
+    },
+    {
+      "source": "/tracing/how-to-tracing/filtering-spans",
+      "destination": "/tracing/how-to-tracing/advanced/modifying-spans"
+    },
+    {
+      "source": "/tracing/how-to-interact-with-traces",
+      "destination": "/tracing/how-to-tracing"
+    },
+    {
+      "source": "/tracing/how-to-tracing/save-and-load-traces",
+      "destination": "/tracing/how-to-tracing/importing-and-exporting-traces"
+    },
+    {
+      "source": "/tracing/how-to-tracing/instrumentation",
+      "destination": "/tracing/how-to-tracing"
+    },
+    {
+      "source": "/tracing/how-to-tracing/customize-spans/filtering-spans",
+      "destination": "/tracing/how-to-tracing/advanced/modifying-spans"
+    },
+    {
+      "source": "/notebooks",
+      "destination": "/cookbook"
+    },
+    {
+      "source": "/tracing/use-cases-tracing/structured-extraction",
+      "destination": "/cookbook/tracing/structured-data-extraction"
+    },
+    {
+      "source": "/prompt-engineering/use-cases-prompts/prompt-optimization",
+      "destination": "/cookbook/prompt-engineering/prompt-optimization"
+    },
+    {
+      "source": "/prompt-engineering/use-cases-prompts/react-prompting",
+      "destination": "/cookbook/prompt-engineering/react-prompting"
+    },
+    {
+      "source": "/prompt-engineering/use-cases-prompts/chain-of-thought-prompting",
+      "destination": "/cookbook/prompt-engineering/chain-of-thought-prompting"
+    },
+    {
+      "source": "/prompt-engineering/use-cases-prompts/few-shot-prompting",
+      "destination": "/cookbook/prompt-engineering/few-shot-prompting"
+    },
+    {
+      "source": "/use-cases-evals/rag-evaluation",
+      "destination": "/cookbook/evaluation/evaluate-rag"
+    },
+    {
+      "source": "/inferences/use-cases-inferences/embeddings-analysis",
+      "destination": "/cookbook/retrieval-and-inferences/embeddings-analysis"
+    },
+    {
+      "source": "/self-hosting/environments",
+      "destination": "/environments"
+    },
+    {
+      "source": "/api/session",
+      "destination": "/sdk-api-reference/python/overview"
+    },
+    {
+      "source": "/deployment/kubernetes",
+      "destination": "/self-hosting/deployment-options/kubernetes"
+    },
+    {
+      "source": "/deployment/docker",
+      "destination": "/self-hosting/deployment-options/docker"
+    },
+    {
+      "source": "/deployment/railway",
+      "destination": "/self-hosting/deployment-options/railway"
+    },
+    {
+      "source": "/deployment/aws-with-cloudformation",
+      "destination": "/self-hosting/deployment-options/aws-with-cloudformation"
+    },
+    {
+      "source": "/tracing/integrations-tracing",
+      "destination": "/integrations"
+    },
+    {
+      "source": "/tracing/integrations-tracing/beeai",
+      "destination": "/integrations/python/beeai"
+    },
+    {
+      "source": "/tracing/integrations-tracing/openai",
+      "destination": "/integrations/llm-providers/openai"
+    },
+    {
+      "source": "/tracing/integrations-tracing/bedrock",
+      "destination": "/integrations/llm-providers/amazon-bedrock"
+    },
+    {
+      "source": "/tracing/integrations-tracing/anthropic",
+      "destination": "/integrations/llm-providers/anthropic"
+    },
+    {
+      "source": "/tracing/integrations-tracing/litellm",
+      "destination": "/integrations/llm-providers/litellm"
+    },
+    {
+      "source": "/tracing/integrations-tracing/mistralai",
+      "destination": "/integrations/llm-providers/mistralai"
+    },
+    {
+      "source": "/tracing/integrations-tracing/groq",
+      "destination": "/integrations/llm-providers/groq"
+    },
+    {
+      "source": "/tracing/integrations-tracing/vertexai",
+      "destination": "/integrations/llm-providers/vertexai"
+    },
+    {
+      "source": "/tracing/integrations-tracing/agno",
+      "destination": "/integrations/python/agno"
+    },
+    {
+      "source": "/tracing/integrations-tracing/autogen-support",
+      "destination": "/integrations/python/autogen"
+    },
+    {
+      "source": "/tracing/integrations-tracing/crewai",
+      "destination": "/integrations/python/crewai"
+    },
+    {
+      "source": "/tracing/integrations-tracing/dspy",
+      "destination": "/integrations/python/dspy"
+    },
+    {
+      "source": "/tracing/integrations-tracing/guardrails-ai",
+      "destination": "/integrations/python/guardrails-ai"
+    },
+    {
+      "source": "/tracing/integrations-tracing/haystack",
+      "destination": "/integrations/python/haystack"
+    },
+    {
+      "source": "/tracing/integrations-tracing/hfsmolagents",
+      "destination": "/integrations/python/hugging-face-smolagents"
+    },
+    {
+      "source": "/tracing/integrations-tracing/instructor",
+      "destination": "/integrations/python/instructor"
+    },
+    {
+      "source": "/tracing/integrations-tracing/llamaindex",
+      "destination": "/integrations/python/llamaindex"
+    },
+    {
+      "source": "/tracing/integrations-tracing/langchain",
+      "destination": "/integrations/python/langchain"
+    },
+    {
+      "source": "/tracing/integrations-tracing/langgraph",
+      "destination": "/integrations/python/langgraph"
+    },
+    {
+      "source": "/tracing/integrations-tracing/langflow",
+      "destination": "/integrations/platforms/langflow"
+    },
+    {
+      "source": "/tracing/integrations-tracing/prompt-flow",
+      "destination": "/integrations/platforms/prompt-flow"
+    },
+    {
+      "source": "/tracing/integrations-tracing/vercel-ai-sdk",
+      "destination": "/integrations/typescript/vercel"
+    },
+    {
+      "source": "/self-hosting/docker",
+      "destination": "/self-hosting/deployment-options/docker"
+    },
+    {
+      "source": "/integrations/ragas",
+      "destination": "/integrations/evaluation-integrations/ragas"
+    },
+    {
+      "source": "/tracing/how-to-tracing/manual-instrumentation",
+      "destination": "/tracing/how-to-tracing"
+    },
+    {
+      "source": "/inferences/use-cases-inferences",
+      "destination": "/cookbook/retrieval-and-inferences/cookbooks"
+    },
+    {
+      "source": "/tracing/integrations-tracing/openai-agents-sdk",
+      "destination": "/integrations/llm-providers/openai/openai-agents-sdk-tracing"
+    },
+    {
+      "source": "/tracing/integrations-tracing/google-genai",
+      "destination": "/integrations/llm-providers/google-gen-ai/google-genai-tracing"
+    },
+    {
+      "source": "/tracing/integrations-tracing/bedrock-1",
+      "destination": "/integrations/llm-providers/amazon-bedrock"
+    },
+    {
+      "source": "/tracing/integrations-tracing/openai-node-sdk",
+      "destination": "/integrations/llm-providers/openai/openai-node.js-sdk"
+    },
+    {
+      "source": "/tracing/integrations-tracing/flowise",
+      "destination": "/integrations/platforms/flowise"
+    },
+    {
+      "source": "/api/evaluation-models",
+      "destination": "/sdk-api-reference/python/arize-phoenix-evals"
+    },
+    {
+      "source": "/learn/agents/readme/autogen",
+      "destination": "/cookbook/agent-workflow-patterns/autogen"
+    },
+    {
+      "source": "/learn/agents/readme/crewai",
+      "destination": "/cookbook/agent-workflow-patterns/crewai"
+    },
+    {
+      "source": "/learn/agents/readme/google-genai-sdk",
+      "destination": "/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration"
+    },
+    {
+      "source": "/learn/agents/readme/openai-agents",
+      "destination": "/cookbook/agent-workflow-patterns/openai-agents"
+    },
+    {
+      "source": "/learn/agents/readme/langgraph",
+      "destination": "/cookbook/agent-workflow-patterns/langgraph"
+    },
+    {
+      "source": "/learn/agents/readme/smolagents",
+      "destination": "/cookbook/agent-workflow-patterns/smolagents"
+    },
+    {
+      "source": "/learn/prompt-engineering/prompts-concepts",
+      "destination": "/prompt-engineering/concepts-prompts/prompts-concepts"
+    },
+    {
+      "source": "/learn/context-engineering/context-engineering-concepts",
+      "destination": "/prompt-engineering/concepts-prompts/context-engineering-basics"
+    },
+    {
+      "source": "/learn/resources/faqs",
+      "destination": "/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/learn/resources/faqs/what-is-the-difference-between-phoenix-and-arize",
+      "destination": "/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize"
+    },
+    {
+      "source": "/learn/resources/faqs/what-is-my-phoenix-endpoint",
+      "destination": "/resources/frequently-asked-questions/what-is-my-phoenix-endpoint"
+    },
+    {
+      "source": "/learn/resources/faqs/what-is-llamatrace-vs-phoenix-cloud",
+      "destination": "/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud"
+    },
+    {
+      "source": "/learn/resources/faqs/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
+      "destination": "/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix"
+    },
+    {
+      "source": "/learn/resources/faqs/phoenix-cloud-migration-guide-legacy-to-new-version",
+      "destination": "/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version"
+    },
+    {
+      "source": "/learn/resources/faqs/can-i-add-other-users-to-my-phoenix-instance",
+      "destination": "/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance"
+    },
+    {
+      "source": "/learn/resources/faqs/can-i-use-azure-openai",
+      "destination": "/resources/frequently-asked-questions/can-i-use-azure-openai"
+    },
+    {
+      "source": "/learn/resources/faqs/can-i-use-phoenix-locally-from-a-remote-jupyter-instance",
+      "destination": "/resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance"
+    },
+    {
+      "source": "/learn/resources/faqs/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container",
+      "destination": "/resources/frequently-asked-questions/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container"
+    },
+    {
+      "source": "/learn/resources/faqs/can-i-run-phoenix-on-sagemaker",
+      "destination": "/resources/frequently-asked-questions/can-i-run-phoenix-on-sagemaker"
+    },
+    {
+      "source": "/learn/resources/faqs/can-i-persist-data-in-a-notebook",
+      "destination": "/resources/frequently-asked-questions/can-i-persist-data-in-a-notebook"
+    },
+    {
+      "source": "/learn/resources/faqs/what-is-the-difference-between-grpc-and-http",
+      "destination": "/resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http"
+    },
+    {
+      "source": "/learn/resources/faqs/can-i-use-grpc-for-trace-collection",
+      "destination": "/resources/frequently-asked-questions/can-i-use-grpc-for-trace-collection"
+    },
+    {
+      "source": "/learn/resources/faqs/how-do-i-resolve-phoenix-evals-showing-not_parsable",
+      "destination": "/resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable"
+    },
+    {
+      "source": "/phoenix/learn/resources/faqs/langfuse-alternatives",
+      "destination": "/resources/frequently-asked-questions/langfuse-alternative-arize-phoenix-vs-langfuse-key-differences"
+    },
+    {
+      "source": "/learn/resources/faqs/langsmith-alternatives",
+      "destination": "/resources/frequently-asked-questions/open-source-langsmith-alternative-arize-phoenix-vs.-langsmith"
+    },
+    {
+      "source": "/learn/resources/faqs/braintrust-open-source-alternative-llm-evaluation-platform-comparison",
+      "destination": "/resources/frequently-asked-questions/braintrust-open-source-alternative-llm-evaluation-platform-comparison"
+    },
+    {
+      "source": "/learn/resources/contribute-to-phoenix",
+      "destination": "/resources/contribute-to-phoenix"
+    },
+    {
+      "source": "/learn/tracing/how-tracing-works",
+      "destination": "/tracing/concepts-tracing/how-tracing-works"
+    },
+    {
+      "source": "/tracing/concepts-tracing/concepts-annotations",
+      "destination": "/tracing/concepts-tracing/annotations-concepts"
+    },
+    {
+      "source": "/learn/tracing/faqs-tracing",
+      "destination": "/tracing/concepts-tracing/faqs-tracing"
+    },
+    {
+      "source": "/learn/datasets-and-experiments/datasets-concepts",
+      "destination": "/datasets-and-experiments/concepts-datasets"
+    },
+    {
+      "source": "/learn/evaluation/eval-data-types",
+      "destination": "/evaluation/concepts-evals/evaluation-types"
+    },
+    {
+      "source": "/learn/evaluation/llm-as-a-judge",
+      "destination": "/evaluation/concepts-evals/llm-as-a-judge"
+    },
+    {
+      "source": "/learn/evaluation/custom-task-evaluation",
+      "destination": "/evaluation/concepts-evals/building-your-own-evals"
+    },
+    {
+      "source": "/learn/evaluating-multi-agent-systems",
+      "destination": "/evaluation/concepts-evals/evaluating-multi-agent-systems"
+    },
+    {
+      "source": "/learn/resources/faqs/langfuse-alternatives",
+      "destination": "/resources/frequently-asked-questions/langfuse-alternative-arize-phoenix-vs-langfuse-key-differences"
+    },
+    {
+      "source": "/integrations/llm-providers/google-gen-ai/google-adk-tracing",
+      "destination": "/integrations/python/google-adk"
+    },
+    {
+      "source": "/learn",
+      "destination": "/cookbook/readme"
+    },
+    {
+      "source": "/learn/faqs/what-is-my-phoenix-endpoint",
+      "destination": "/resources/frequently-asked-questions/what-is-my-phoenix-endpoint"
+    },
+    {
+      "source": "/quickstart",
+      "destination": "/get-started"
+    },
+    {
+      "source": "/datasets-and-experiments/quickstart-datasets",
+      "destination": "/get-started/get-started-datasets-and-experiments"
+    },
+    {
+      "source": "/evaluation/evals",
+      "destination": "/get-started/get-started-evaluations"
+    },
+    {
+      "source": "/prompt-engineering/quickstart-prompts",
+      "destination": "/get-started/get-started-prompt-playground"
+    },
+    {
+      "source": "/tracing/llm-traces-1/quickstart-tracing-python",
+      "destination": "/get-started/get-started-tracing"
+    },
+    {
+      "source": "/tracing/llm-traces-1/quickstart-tracing-ts",
+      "destination": "/get-started/get-started-tracing"
+    }
+  ]
 }
