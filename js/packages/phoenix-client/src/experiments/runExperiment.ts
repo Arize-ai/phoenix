@@ -43,6 +43,7 @@ import {
   getExperimentUrl,
 } from "../utils/urlUtils";
 import assert from "assert";
+import { GetDatasetExamplesParams } from "../datasets/getDatasetExamples";
 
 /**
  * Validate that a repetition is valid
@@ -74,6 +75,14 @@ export type RunExperimentParams = ClientFn & {
    * The dataset to run the experiment on
    */
   dataset: DatasetSelector;
+  /**
+   * The version ID of the dataset to run the experiment on
+   */
+  datasetVersionId?: string;
+  /**
+   * Optional list of split names to filter the dataset examples by
+   */
+  datasetSplits?: GetDatasetExamplesParams["splits"];
   /**
    * The task to run
    */
@@ -161,6 +170,8 @@ export async function runExperiment({
   experimentMetadata = {},
   client: _client,
   dataset: DatasetSelector,
+  datasetSplits,
+  datasetVersionId,
   task,
   evaluators,
   logger = console,
@@ -180,7 +191,12 @@ export async function runExperiment({
   let provider: NodeTracerProvider | undefined;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
-  const dataset = await getDataset({ dataset: DatasetSelector, client });
+  const dataset = await getDataset({
+    dataset: DatasetSelector,
+    client,
+    splits: datasetSplits,
+    versionId: datasetVersionId,
+  });
   invariant(dataset, `Dataset not found`);
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
   const nExamples =
@@ -197,6 +213,7 @@ export async function runExperiment({
       id: localId(),
       datasetId: dataset.id,
       datasetVersionId: dataset.versionId,
+      datasetSplits: datasetSplits ?? [],
       projectName,
       metadata: experimentMetadata,
     };
@@ -215,6 +232,8 @@ export async function runExperiment({
           metadata: experimentMetadata,
           project_name: projectName,
           repetitions,
+          ...(datasetSplits ? { splits: datasetSplits } : {}),
+          ...(datasetVersionId ? { version_id: datasetVersionId } : {}),
         },
       })
       .then((res) => res.data?.data);
@@ -224,6 +243,7 @@ export async function runExperiment({
       id: experimentResponse.id,
       datasetId: experimentResponse.dataset_id,
       datasetVersionId: experimentResponse.dataset_version_id,
+      datasetSplits: datasetSplits ?? [],
       projectName,
       metadata: experimentResponse.metadata,
     };
@@ -559,6 +579,8 @@ export async function evaluateExperiment({
   const dataset = await getDataset({
     dataset: { datasetId: experiment.datasetId },
     client,
+    versionId: experiment.datasetVersionId,
+    splits: experiment.datasetSplits,
   });
   invariant(dataset, `Dataset "${experiment.datasetId}" not found`);
   invariant(

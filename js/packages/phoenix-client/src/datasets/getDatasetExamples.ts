@@ -5,19 +5,26 @@ import { DatasetSelector, DatasetExamples } from "../types/datasets";
 import { getDatasetInfoByName } from "./getDatasetInfoByName";
 
 export type GetDatasetExamplesParams = ClientFn & {
+  /** Dataset selector (ID, name, or version ID) */
   dataset: DatasetSelector;
+  /** Optional specific version ID (ignored if dataset selector is datasetVersionId) */
   versionId?: string;
+  /** Optional list of split names to filter by */
+  splits?: string[];
 };
 
 /**
  * Get examples from a dataset
  * @param dataset - Dataset selector (ID, name, or version ID)
  * @param versionId - Optional specific version ID (ignored if dataset selector is datasetVersionId)
+ * @param splits - Optional list of split names to filter by
+ * @returns Dataset examples
  */
 export async function getDatasetExamples({
   client: _client,
   dataset,
   versionId,
+  splits,
 }: GetDatasetExamplesParams): Promise<DatasetExamples> {
   const client = _client || createClient();
 
@@ -38,11 +45,10 @@ export async function getDatasetExamples({
       path: {
         id: datasetId,
       },
-      query: versionId
-        ? {
-            version_id: versionId,
-          }
-        : undefined,
+      query: {
+        ...(versionId ? { version_id: versionId } : {}),
+        ...(splits ? { split: splits } : {}),
+      },
     },
   });
 
