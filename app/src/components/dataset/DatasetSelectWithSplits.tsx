@@ -22,8 +22,10 @@ import {
   TabList,
   Tabs,
   Text,
+  Token,
   View,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 
 import { DatasetSelectWithSplitsQuery } from "./__generated__/DatasetSelectWithSplitsQuery.graphql";
 
@@ -50,11 +52,18 @@ type SplitItem = {
   name: string;
 };
 
+type LabelItem = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 type DatasetItem = {
   id: string;
   name: string;
   exampleCount: number;
   splits: SplitItem[];
+  labels: LabelItem[];
   isSelected: boolean;
   selectedSplitIds: string[];
 };
@@ -74,6 +83,11 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               splits {
                 id
                 name
+              }
+              labels {
+                id
+                name
+                color
               }
             }
           }
@@ -95,6 +109,11 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         splits: dataset.splits.map((split) => ({
           id: split.id,
           name: split.name,
+        })),
+        labels: dataset.labels.map((label) => ({
+          id: label.id,
+          name: label.name,
+          color: label.color,
         })),
         isSelected: dataset.id === datasetId,
         selectedSplitIds: dataset.id === datasetId ? splitIds : [],
@@ -170,23 +189,47 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               name,
               exampleCount,
               splits,
+              labels,
               isSelected,
               selectedSplitIds,
             }) => (
               <SubmenuTrigger>
                 <MenuItem textValue={name}>
-                  <Flex
-                    direction="row"
-                    alignItems="center"
-                    gap="size-200"
-                    justifyContent="space-between"
-                    width="100%"
-                  >
-                    <Text>{name}</Text>
-                    <Text color="text-700" size="XS">
-                      {exampleCount}{" "}
-                      {exampleCount === 1 ? "example" : "examples"}
-                    </Text>
+                  <Flex direction="column" gap="size-100" width="100%">
+                    <Flex
+                      direction="row"
+                      alignItems="center"
+                      gap="size-200"
+                      justifyContent="space-between"
+                      width="100%"
+                    >
+                      <Text>{name}</Text>
+                      <Text color="text-700" size="XS">
+                        {exampleCount}{" "}
+                        {exampleCount === 1 ? "example" : "examples"}
+                      </Text>
+                    </Flex>
+                    {labels.length > 0 && (
+                      <ul
+                        css={css`
+                          display: flex;
+                          flex-direction: row;
+                          gap: var(--ac-global-dimension-size-50);
+                          min-width: 0;
+                          flex-wrap: wrap;
+                        `}
+                      >
+                        {labels.map((label) => (
+                          <li key={label.id}>
+                            <Token color={label.color}>
+                              <Truncate maxWidth={150} title={label.name}>
+                                {label.name}
+                              </Truncate>
+                            </Token>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </Flex>
                 </MenuItem>
                 <Popover
