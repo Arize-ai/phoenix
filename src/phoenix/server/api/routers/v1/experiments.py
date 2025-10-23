@@ -495,7 +495,13 @@ async def get_incomplete_runs(
         Paginated list of incomplete runs grouped by dataset example,
         with repetition numbers that need to be run
     """
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         id_ = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:

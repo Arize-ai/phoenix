@@ -284,7 +284,13 @@ async def get_incomplete_evaluations(
     Returns:
         Paginated list of runs with incomplete evaluations
     """
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
