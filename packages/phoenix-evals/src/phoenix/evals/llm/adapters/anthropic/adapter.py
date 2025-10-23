@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Any, Dict, Type, Union, cast
 
@@ -283,4 +282,3 @@ class AnthropicAdapter(BaseLLMAdapter):
                     f"are not defined in properties. "
                     f"Properties: {list(property_names)}, Required: {list(required_names)}"
                 )
-

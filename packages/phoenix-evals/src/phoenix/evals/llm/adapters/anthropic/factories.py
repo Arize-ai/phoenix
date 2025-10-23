@@ -22,4 +22,3 @@ def create_anthropic_client(model: str, is_async: bool = False, **kwargs: Any) -
         return AnthropicClientWrapper(client, model)
     except ImportError:
         raise ImportError("Anthropic package not installed. Run: pip install anthropic")
-
