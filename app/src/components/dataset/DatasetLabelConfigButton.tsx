@@ -103,7 +103,6 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
             connections={connections}
             datasetId={datasetId}
             onCompleted={() => {
-              // Only close the create modal, keep the labels popover open
               setShowNewLabelDialog(false);
             }}
           />
