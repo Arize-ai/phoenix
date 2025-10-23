@@ -128,7 +128,13 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
             onCompleted: () => {
               onCompleted();
             },
-            onError: () => {
+            onError: (error) => {
+              // Notify user that auto-apply failed
+              const formattedError =
+                getErrorMessagesFromRelayMutationError(error);
+              setError(
+                `Label created successfully, but failed to apply to dataset: ${formattedError?.[0] ?? error.message}`
+              );
               // Still call onCompleted even if auto-apply fails
               // The label was created successfully
               onCompleted();

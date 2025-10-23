@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { ModalOverlay } from "react-aria-components";
 import {
   ConnectionHandler,
@@ -220,14 +220,8 @@ function DatasetLabelList({
     [datasetData?.labels]
   );
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Selection>(
-    () => new Set(selectedLabelIds)
-  );
-
-  // Sync local selection state when dataset labels change (e.g., from auto-apply)
-  useEffect(() => {
-    setSelected(new Set(selectedLabelIds));
-  }, [selectedLabelIds]);
+  // Derive selected state directly from Relay data - no need for separate state
+  const selected = useMemo(() => new Set(selectedLabelIds), [selectedLabelIds]);
 
   const [setDatasetLabels] =
     useMutation<DatasetLabelConfigButtonSetLabelsMutation>(graphql`
@@ -291,7 +285,6 @@ function DatasetLabelList({
     if (selection === "all") {
       return;
     }
-    setSelected(selection);
 
     const newLabelIds = [...selection] as string[];
     const labelIdsToAdd: string[] = newLabelIds.filter(
