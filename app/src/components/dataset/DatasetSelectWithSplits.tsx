@@ -164,7 +164,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
             selectionMode="single"
             selectedKeys={selectedDatasetKeys}
             items={datasetItems}
-            renderEmptyState={() => "No datasets found"}
+            renderEmptyState={() => <Text>No datasets found</Text>}
           >
             {({
               id,
