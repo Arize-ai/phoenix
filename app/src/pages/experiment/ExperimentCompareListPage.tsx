@@ -1385,7 +1385,7 @@ function TableBody<T>({
             height: `${spacerRowHeight}px`,
             padding: 0,
           }}
-          colSpan={table.getAllColumns().length}
+          colSpan={table.getVisibleLeafColumns().length}
         />
       </tr>
     </tbody>
