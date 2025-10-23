@@ -24,10 +24,19 @@ type NewDatasetLabelDialogProps = {
    * Optional dataset ID. If provided, newly created labels will be auto-applied to the dataset upon creation.
    */
   datasetId?: string;
+  /**
+   * Current label IDs for the dataset. Required if datasetId is provided.
+   */
+  currentLabelIds?: string[];
 };
 export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
   const [error, setError] = useState("");
-  const { onCompleted, connections: providedConnections, datasetId } = props;
+  const {
+    onCompleted,
+    connections: providedConnections,
+    datasetId,
+    currentLabelIds,
+  } = props;
   const [addLabel, isSubmitting] = useMutation<NewDatasetLabelDialogMutation>(
     graphql`
       mutation NewDatasetLabelDialogMutation(
@@ -118,25 +127,32 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
       },
       onCompleted: (response) => {
         // Auto-apply the new label to the dataset if datasetId is provided
-        if (datasetId && response.createDatasetLabel.datasetLabel.id) {
+        if (
+          datasetId &&
+          response.createDatasetLabel.datasetLabel.id &&
+          currentLabelIds
+        ) {
+          const newLabelId = response.createDatasetLabel.datasetLabel.id;
+
+          // Combine current labels with the new one
+          const allLabelIds = [...new Set([...currentLabelIds, newLabelId])];
+
+          // Set all labels on the dataset
           setDatasetLabels({
             variables: {
               datasetIds: [datasetId],
-              datasetLabelIds: [response.createDatasetLabel.datasetLabel.id],
+              datasetLabelIds: allLabelIds,
               currentDatasetId: datasetId,
             },
             onCompleted: () => {
               onCompleted();
             },
             onError: (error) => {
-              // Notify user that auto-apply failed
               const formattedError =
                 getErrorMessagesFromRelayMutationError(error);
               setError(
                 `Label created successfully, but failed to apply to dataset: ${formattedError?.[0] ?? error.message}`
               );
-              // Still call onCompleted even if auto-apply fails
-              // The label was created successfully
               onCompleted();
             },
           });

@@ -170,11 +170,15 @@ class DatasetLabelMutationMixin:
     async def set_dataset_labels(
         self, info: Info[Context, None], input: SetDatasetLabelsInput
     ) -> SetDatasetLabelsMutationPayload:
+        """
+        Sets the dataset labels for the given datasets to exactly the provided list of labels.
+        This replaces any existing labels - labels not in the list will be removed,
+        and labels in the list will be added if not already present.
+        """
         if not input.dataset_ids:
             raise BadRequest("No datasets provided.")
-        if not input.dataset_label_ids:
-            raise BadRequest("No dataset labels provided.")
 
+        # Parse and validate dataset IDs
         unique_dataset_rowids: set[int] = set()
         for dataset_gid in input.dataset_ids:
             try:
@@ -184,6 +188,7 @@ class DatasetLabelMutationMixin:
             unique_dataset_rowids.add(dataset_rowid)
         dataset_rowids = list(unique_dataset_rowids)
 
+        # Parse and validate dataset label IDs
         unique_dataset_label_rowids: set[int] = set()
         for dataset_label_gid in input.dataset_label_ids:
             try:
@@ -196,6 +201,7 @@ class DatasetLabelMutationMixin:
         dataset_label_rowids = list(unique_dataset_label_rowids)
 
         async with info.context.db() as session:
+            # Verify all datasets exist
             existing_dataset_ids = (
                 await session.scalars(
                     select(models.Dataset.id).where(models.Dataset.id.in_(dataset_rowids))
@@ -204,45 +210,42 @@ class DatasetLabelMutationMixin:
             if len(existing_dataset_ids) != len(dataset_rowids):
                 raise NotFound("One or more datasets not found")
 
-            existing_dataset_label_ids = (
-                await session.scalars(
-                    select(models.DatasetLabel.id).where(
-                        models.DatasetLabel.id.in_(dataset_label_rowids)
-                    )
-                )
-            ).all()
-            if len(existing_dataset_label_ids) != len(dataset_label_rowids):
-                raise NotFound("One or more dataset labels not found")
-
-            existing_dataset_label_keys = await session.execute(
-                select(
-                    models.DatasetsDatasetLabel.dataset_id,
-                    models.DatasetsDatasetLabel.dataset_label_id,
-                ).where(
-                    models.DatasetsDatasetLabel.dataset_id.in_(dataset_rowids)
-                    & models.DatasetsDatasetLabel.dataset_label_id.in_(dataset_label_rowids)
-                )
-            )
-            unique_dataset_label_keys = set(existing_dataset_label_keys.all())
-
-            datasets_dataset_labels = []
-            for dataset_rowid in dataset_rowids:
-                for dataset_label_rowid in dataset_label_rowids:
-                    if (dataset_rowid, dataset_label_rowid) in unique_dataset_label_keys:
-                        continue
-                    datasets_dataset_labels.append(
-                        models.DatasetsDatasetLabel(
-                            dataset_id=dataset_rowid,
-                            dataset_label_id=dataset_label_rowid,
+            # Verify all dataset labels exist (only if labels provided)
+            if dataset_label_rowids:
+                existing_dataset_label_ids = (
+                    await session.scalars(
+                        select(models.DatasetLabel.id).where(
+                            models.DatasetLabel.id.in_(dataset_label_rowids)
                         )
                     )
-            session.add_all(datasets_dataset_labels)
+                ).all()
+                if len(existing_dataset_label_ids) != len(dataset_label_rowids):
+                    raise NotFound("One or more dataset labels not found")
 
-            if datasets_dataset_labels:
-                try:
-                    await session.commit()
-                except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-                    raise Conflict("Failed to add dataset labels to datasets.") from e
+            # Delete all existing label associations for these datasets
+            await session.execute(
+                delete(models.DatasetsDatasetLabel).where(
+                    models.DatasetsDatasetLabel.dataset_id.in_(dataset_rowids)
+                )
+            )
+
+            # Add the new label associations
+            if dataset_label_rowids:
+                datasets_dataset_labels = []
+                for dataset_rowid in dataset_rowids:
+                    for dataset_label_rowid in dataset_label_rowids:
+                        datasets_dataset_labels.append(
+                            models.DatasetsDatasetLabel(
+                                dataset_id=dataset_rowid,
+                                dataset_label_id=dataset_label_rowid,
+                            )
+                        )
+                session.add_all(datasets_dataset_labels)
+
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+                raise Conflict("Failed to set dataset labels.") from e
 
         return SetDatasetLabelsMutationPayload(
             query=Query(),
