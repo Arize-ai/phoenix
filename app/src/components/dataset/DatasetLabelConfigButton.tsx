@@ -59,10 +59,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
 
   return (
     <>
-      <DialogTrigger
-        isOpen={isOpen && !showNewLabelDialog}
-        onOpenChange={setIsOpen}
-      >
+      <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
         <Button
           variant={variant}
           size="S"
@@ -106,8 +103,8 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
             connections={connections}
             datasetId={datasetId}
             onCompleted={() => {
+              // Only close the create modal, keep the labels popover open
               setShowNewLabelDialog(false);
-              setIsOpen(false);
             }}
           />
         </Modal>
@@ -390,11 +387,9 @@ function DatasetLabelList({
 
       {/* Footer section */}
       <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
-        <Flex direction="row" justifyContent="start" alignItems="center">
-          <LinkButton variant="quiet" size="S" to="/settings/datasets">
-            Manage Labels
-          </LinkButton>
-        </Flex>
+        <LinkButton variant="quiet" size="S" to="/settings/datasets">
+          Edit Labels
+        </LinkButton>
       </View>
     </>
   );
