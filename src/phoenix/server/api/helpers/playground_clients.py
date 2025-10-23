@@ -53,7 +53,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ToolCallChunk,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
-from phoenix.server.api.utils import get_aws_model_inference_prefix
+from phoenix.server.api.utils import get_aws_full_model_name
 
 if TYPE_CHECKING:
     import httpx
@@ -697,7 +697,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
             "AWS_SESSION_TOKEN"
         )
-        self.model_name = f"{get_aws_model_inference_prefix(self.region)}.{model.name}"
+        self.model_name = get_aws_full_model_name(model.name, self.region)
         self.client = boto3.client(
             service_name="bedrock-runtime",
             region_name=self.region,
