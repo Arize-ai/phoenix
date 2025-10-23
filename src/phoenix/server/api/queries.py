@@ -253,7 +253,7 @@ class Query:
             select(models.User)
             .join(models.UserRole)
             .where(models.UserRole.name != "SYSTEM")
-            .order_by(models.User.email)
+            .order_by(models.User.id.desc())
             .options(joinedload(models.User.role))
         )
         async with info.context.db() as session:
