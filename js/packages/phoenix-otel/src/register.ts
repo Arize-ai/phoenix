@@ -10,8 +10,12 @@ import {
   SpanProcessor,
 } from "@opentelemetry/sdk-trace-node";
 import { getEnvApiKey, getEnvCollectorURL } from "./config";
+import {
+  Instrumentation,
+  registerInstrumentations,
+} from "@opentelemetry/instrumentation";
 
-type RegisterParams = {
+export type RegisterParams = {
   /**
    * The project the spans should be associated to
    * @default "default"
@@ -33,20 +37,26 @@ type RegisterParams = {
    * It is recommended to use batching in production environments
    * @default true
    */
+  /**
+   * A list of instrumenation to register.
+   * Note: this may only work with commonjs projects. ESM projects will require manually applying instrumentation.
+   */
+  instrumentations?: Instrumentation[];
   batch?: boolean;
   /**
    * Whether to set the tracer as a global provider.
    * @default true
    */
-  setGlobalTracerProvider?: boolean;
+  global?: boolean;
 };
 
 export function register({
   url: paramsUrl,
   apiKey: paramsApiKey,
   projectName = "default",
+  instrumentations,
   batch = true,
-  setGlobalTracerProvider = true,
+  global = true,
 }: RegisterParams) {
   const url = ensureCollectorEndpoint(
     paramsUrl || getEnvCollectorURL() || "http://localhost:6006"
@@ -74,8 +84,13 @@ export function register({
     spanProcessors: [spanProcessor],
   });
 
-  if (setGlobalTracerProvider) {
+  if (global) {
     provider.register();
+  }
+  if (instrumentations) {
+    registerInstrumentations({
+      instrumentations,
+    });
   }
   return provider;
 }
