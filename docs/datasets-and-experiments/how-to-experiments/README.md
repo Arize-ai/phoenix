@@ -7,6 +7,7 @@
 * [How to configure evaluators](run-experiments.md#define-evaluators)
 * [How to run the experiment](run-experiments.md#run-an-experiment)
 * [How to use repetitions in experiments](repetitions.md)
+* [How to run an experiment over a dataset split](splits.md)
 
 ## How to use evaluators
 

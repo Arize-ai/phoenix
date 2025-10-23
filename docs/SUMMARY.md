@@ -93,6 +93,7 @@
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
   * [Repetitions](datasets-and-experiments/how-to-experiments/repetitions.md)
+  * [Splits](datasets-and-experiments/how-to-experiments/splits.md)
 * [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 
 ## Evaluation
