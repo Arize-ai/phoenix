@@ -66,19 +66,14 @@ export function AnnotationDetailsContent({
             </Flex>
           </View>
         ) : null}
-        {annotation.metadata &&
-        Object.keys(annotation.metadata).length > 0 ? (
+        {annotation.metadata && Object.keys(annotation.metadata).length > 0 ? (
           <View paddingTop="size-50">
             <Flex direction="column">
               <Text weight="heavy" color="inherit">
                 metadata
               </Text>
               <View maxHeight="300px" overflow="auto">
-                <JSONText
-                  json={annotation.metadata}
-                  space={2}
-                  disableTitle
-                />
+                <JSONText json={annotation.metadata} space={2} disableTitle />
               </View>
             </Flex>
           </View>

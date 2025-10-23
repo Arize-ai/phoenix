@@ -26,9 +26,6 @@ class ExperimentEvaluationResult(V1RoutesBaseModel):
     explanation: Optional[str] = Field(
         default=None, description="Explanation of the evaluation result"
     )
-    metadata: Optional[dict[str, Any]] = Field(
-        default=None, description="Additional metadata for the evaluation result"
-    )
 
 
 class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
@@ -96,10 +93,7 @@ async def upsert_experiment_evaluation(
     score = result.score if result else None
     explanation = result.explanation if result else None
     error = request_body.error
-    metadata = {
-        **(request_body.metadata or {}),
-        **(result.metadata if result and result.metadata else {}),
-    }
+    metadata = request_body.metadata or {}
     start_time = payload["start_time"]
     end_time = payload["end_time"]
     async with request.app.state.db() as session:
