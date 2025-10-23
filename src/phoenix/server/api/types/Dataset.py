@@ -231,7 +231,7 @@ class Dataset(Node):
                     models.DatasetExampleRevision.revision_kind != "DELETE",
                 )
             )
-            .order_by(models.DatasetExampleRevision.dataset_example_id.desc())
+            .order_by(models.DatasetExample.id.desc())
         )
 
         # Filter by split IDs if provided

@@ -2,6 +2,7 @@
 description: >-
   Tracing is a critical part of AI Observability and should be used both in
   production and development
+hidden: true
 ---
 
 # Features: Tracing

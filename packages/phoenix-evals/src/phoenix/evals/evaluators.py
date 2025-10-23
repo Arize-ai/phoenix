@@ -37,7 +37,7 @@ from .legacy.evaluators import (
 from .llm import LLM
 from .llm.types import ObjectGenerationMethod
 from .templating import Template
-from .utils import remap_eval_input
+from .utils import default_tqdm_progress_bar_formatter, remap_eval_input
 
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
@@ -433,8 +433,7 @@ class ClassificationEvaluator(LLMEvaluator):
     Examples:
         Classification with labels only::
 
-            from phoenix.evals import ClassificationEvaluator
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import ClassificationEvaluator, LLM
 
             evaluator = ClassificationEvaluator(
                 name="sentiment",
@@ -928,8 +927,7 @@ def create_classifier(
     Examples:
         Creating a simple sentiment classifier::
 
-            from phoenix.evals import create_classifier
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import create_classifier, LLM
 
             llm = LLM(provider="openai", model="gpt-4")
 
@@ -1075,8 +1073,11 @@ def bind_evaluator(
             }
             result = bound_evaluator.evaluate(data)
     """
-    evaluator_copy = copy.deepcopy(evaluator)
-    evaluator_copy.bind(input_mapping=input_mapping)
+    # Create a shallow copy of the evaluator to avoid deepcopying LLM (contains locks)
+    evaluator_copy = copy.copy(evaluator)
+    # Deep copy the input mapping so the bound copy is fully independent
+    mapping_copy = copy.deepcopy(input_mapping) if input_mapping is not None else None
+    evaluator_copy.bind(input_mapping=mapping_copy)
     return evaluator_copy
 
 
@@ -1117,14 +1118,14 @@ def _prepare_dataframe_evaluation(
     return result_df, eval_inputs, task_inputs
 
 
-def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
-    """Process execution details into JSON string."""
+def _process_execution_details(eval_execution_details: ExecutionDetails) -> Dict[str, Any]:
+    """Process execution details into a JSON-serializable dict."""
     result: Dict[str, Any] = {
         "status": eval_execution_details.status.value,
         "exceptions": [repr(exc) for exc in eval_execution_details.exceptions],
         "execution_seconds": eval_execution_details.execution_seconds,
     }
-    return json.dumps(result)
+    return result
 
 
 def _process_results_and_add_to_dataframe(
@@ -1143,14 +1144,15 @@ def _process_results_and_add_to_dataframe(
         for evaluator in evaluators
     }
 
-    # Pre-allocate score dictionaries
-    score_dicts: DefaultDict[str, Dict[int, Optional[str]]] = defaultdict(dict)
+    # Pre-allocate score dictionaries - store dicts for each row index
+    score_dicts: DefaultDict[str, Dict[int, Dict[str, Any]]] = defaultdict(dict)
     for i, (eval_input_index, evaluator_index) in enumerate(task_inputs):
         # Process and add execution details to dataframe
         details = execution_details[i]
         evaluator_name = evaluators[evaluator_index].name
         col_idx = execution_details_cols[evaluator_name]
-        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)
+        #  use iat to avoid Series alignment on dict
+        result_df.iat[eval_input_index, col_idx] = _process_execution_details(details)
 
         # Process scores
         if results is None:
@@ -1162,7 +1164,7 @@ def _process_results_and_add_to_dataframe(
             if not score.name:
                 raise ValueError(f"Score has no name: {score}")
             score_col = f"{score.name}_score"
-            score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
+            score_dicts[score_col][eval_input_index] = score.to_dict()
 
     # Add scores to dataframe
     for score_col, score_dict in score_dicts.items():
@@ -1176,6 +1178,7 @@ def evaluate_dataframe(
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     tqdm_bar_format: Optional[str] = None,
+    hide_tqdm_bar: bool = False,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -1189,8 +1192,10 @@ def evaluate_dataframe(
             to each evaluator.
         evaluators: List of evaluators to apply to each row. Input mapping should be
             already bound via `bind_evaluator` or column names should match evaluator input fields.
-        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
-            disabled.
+        tqdm_bar_format: Optional format string for the progress bar. If None and hide_tqdm_bar is
+            False, the default progress bar formatter is used.
+        hide_tqdm_bar: Optional flag to control whether to hide the progress bar. If None, the
+            progress bar is shown. Defaults to False.
         exit_on_error: Optional flag to control whether execution should stop on the first error.
             If None, uses SyncExecutor's default (True).
         max_retries: Optional number of times to retry on exceptions. If None, uses SyncExecutor's
@@ -1226,7 +1231,7 @@ def evaluate_dataframe(
             })
 
             evaluators = [word_count, has_question]
-            results_df = evaluate_dataframe(dataframe=df, evaluators=evaluators)
+            results_df = evaluate_dataframe(dataframe=df, evaluators=evaluators, hide_tqdm_bar=True)
 
             # Results include original columns plus score columns
             print(results_df.columns)
@@ -1292,8 +1297,15 @@ def evaluate_dataframe(
 
     # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
-    if tqdm_bar_format is not None:
-        executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
+    if hide_tqdm_bar:
+        executor_kwargs["tqdm_bar_format"] = None
+    else:
+        if tqdm_bar_format is None:
+            executor_kwargs["tqdm_bar_format"] = default_tqdm_progress_bar_formatter(
+                "Evaluating Dataframe"
+            )
+        else:
+            executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
     if exit_on_error is not None:
         executor_kwargs["exit_on_error"] = exit_on_error
     if max_retries is not None:
@@ -1316,6 +1328,7 @@ async def async_evaluate_dataframe(
     evaluators: List[Evaluator],
     concurrency: Optional[int] = None,
     tqdm_bar_format: Optional[str] = None,
+    hide_tqdm_bar: Optional[bool] = False,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -1331,8 +1344,10 @@ async def async_evaluate_dataframe(
             already bound via `bind_evaluator` or column names should match evaluator input fields.
         concurrency: Optional number of concurrent consumers. If None, uses AsyncExecutor's default
             (3).
-        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
-            disabled.
+        tqdm_bar_format: Optional format string for the progress bar. If None, use the default
+            formatter.
+        hide_tqdm_bar: Optional flag to control whether to hide the progress bar. If None, the
+            progress bar is shown. Defaults to False.
         exit_on_error: Optional flag to control whether execution should stop on the first
             error. If None, uses AsyncExecutor's default (True).
         max_retries: Optional number of times to retry on exceptions. If None, uses
@@ -1372,6 +1387,7 @@ async def async_evaluate_dataframe(
                     dataframe=df,
                     evaluators=[text_analysis],
                     concurrency=5  # Process up to 5 rows concurrently
+                    hide_tqdm_bar=True,
                 )
                 return results_df
 
@@ -1380,8 +1396,7 @@ async def async_evaluate_dataframe(
 
         With LLM evaluators::
 
-            from phoenix.evals import create_classifier
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import create_classifier, LLM
 
             llm = LLM(provider="openai", model="gpt-4")
 
@@ -1458,8 +1473,15 @@ async def async_evaluate_dataframe(
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
-    if tqdm_bar_format is not None:
-        executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
+    if hide_tqdm_bar:
+        executor_kwargs["tqdm_bar_format"] = None
+    else:
+        if tqdm_bar_format is None:
+            executor_kwargs["tqdm_bar_format"] = default_tqdm_progress_bar_formatter(
+                "Evaluating Dataframe"
+            )
+        else:
+            executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
     if exit_on_error is not None:
         executor_kwargs["exit_on_error"] = exit_on_error
     if max_retries is not None:

@@ -8,7 +8,7 @@ from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, Sequence, Union
 from urllib.parse import quote
 
 import httpx
@@ -38,7 +38,8 @@ def _is_valid_dataset_example(obj: Any) -> bool:
     if not isinstance(obj, dict):
         return False
 
-    required_fields = set(DatasetExample.__annotations__.keys())
+    # Exclude optional fields (splits is NotRequired for backwards compatibility)
+    required_fields = set(DatasetExample.__annotations__.keys()) - {"splits"}
 
     if not required_fields.issubset(obj.keys()):  # pyright: ignore[reportUnknownArgumentType]
         return False
@@ -58,6 +59,7 @@ class Dataset:
         created_at (datetime): When the dataset was created.
         updated_at (datetime): When the dataset was last updated.
         example_count (int): Number of examples in this version.
+        split_names (list[str]): List of dataset split names.
     """
 
     def __init__(
@@ -89,6 +91,11 @@ class Dataset:
         return self._examples_data["version_id"]
 
     @property
+    def _filtered_split_names(self) -> list[str]:
+        """The dataset split names."""
+        return list(self._examples_data.get("filtered_splits", []))
+
+    @property
     def examples(self) -> list[DatasetExample]:
         """List of examples in this version."""
         return list(self._examples_data["examples"])
@@ -115,8 +122,6 @@ class Dataset:
     @property
     def example_count(self) -> int:
         """Number of examples in this version."""
-        if "example_count" in self._dataset_info:
-            return self._dataset_info["example_count"]
         return len(self.examples)
 
     def __repr__(self) -> str:
@@ -195,7 +200,7 @@ class Dataset:
             json_data = dataset.to_dict()
             restored = Dataset.from_dict(json_data)
         """
-        return {
+        result: dict[str, Any] = {
             "id": self.id,
             "name": self.name,
             "description": self.description,
@@ -207,6 +212,12 @@ class Dataset:
             "version_id": self.version_id,
             "examples": deepcopy(self.examples),
         }
+
+        # Include filtered_splits if present (optional field for backwards compatibility)
+        if self._filtered_split_names:
+            result["filtered_splits"] = self._filtered_split_names
+
+        return result
 
     @classmethod
     def from_dict(cls, json_data: dict[str, Any]) -> "Dataset":
@@ -254,10 +265,14 @@ class Dataset:
         if json_data.get("example_count") is not None:
             dataset_info["example_count"] = json_data["example_count"]
 
-        examples_data = {
+        examples_data: dict[str, Any] = {
             "version_id": json_data["version_id"],
             "examples": deepcopy(json_data["examples"]),
         }
+
+        # Handle optional split_ids for backwards compatibility
+        if "filtered_splits" in json_data:
+            examples_data["filtered_splits"] = json_data["filtered_splits"]
 
         return cls(dataset_info, examples_data)  # type: ignore[arg-type]
 
@@ -414,6 +429,7 @@ class Datasets:
         *,
         dataset: DatasetIdentifier,
         version_id: Optional[str] = None,
+        splits: Optional[Sequence[str]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -428,6 +444,8 @@ class Datasets:
                 ID string, name string, Dataset object, or dict with 'id'/'name' fields.
             version_id (Optional[str]): Specific version ID of the dataset. If
                 None, returns the latest version.
+            splits (Optional[list[str]]): List of dataset split names to filter by.
+                If provided, only returns examples that belong to the specified splits.
             timeout (Optional[int]): Request timeout in seconds (default: 5).
 
         Returns:
@@ -452,6 +470,11 @@ class Datasets:
             versioned = client.datasets.get_dataset(
                 dataset="my-dataset", version_id="version-123"
             )
+
+            # Get dataset filtered by splits
+            train_data = client.datasets.get_dataset(
+                dataset="my-dataset", splits=["train", "validation"]
+            )
         """
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
@@ -471,9 +494,13 @@ class Datasets:
         dataset_response.raise_for_status()
         dataset_info = dataset_response.json()["data"]
 
-        params = {"version_id": version_id} if version_id else None
+        params: dict[str, Union[str, Sequence[str]]] = (
+            {"version_id": version_id} if version_id else {}
+        )
+        if splits and len(splits) > 0:
+            params["split"] = splits
         examples_response = self._client.get(
-            url=f"v1/datasets/{quote(dataset_id)}/examples",
+            url=f"v1/datasets/{quote(dataset_id)}/examples",  # ?version_id=...&split=...&split=...
             params=params,
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -1131,6 +1158,7 @@ class AsyncDatasets:
         *,
         dataset: DatasetIdentifier,
         version_id: Optional[str] = None,
+        splits: Optional[Sequence[str]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -1141,6 +1169,8 @@ class AsyncDatasets:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict with 'id'/'name' fields.
             version_id: An ID for the version of the dataset, or None.
+            splits: Optional list of dataset split names to filter by.
+                If provided, only returns examples that belong to the specified splits.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -1170,7 +1200,11 @@ class AsyncDatasets:
         dataset_response.raise_for_status()
         dataset_info = dataset_response.json()["data"]
 
-        params = {"version_id": version_id} if version_id else None
+        params: dict[str, Union[str, Sequence[str]]] = (
+            {"version_id": version_id} if version_id else {}
+        )
+        if splits and len(splits) > 0:
+            params["split"] = splits
         examples_response = await self._client.get(
             url=f"v1/datasets/{quote(dataset_id)}/examples",
             params=params,

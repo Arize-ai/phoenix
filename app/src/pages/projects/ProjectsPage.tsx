@@ -346,7 +346,10 @@ export function ProjectsPageContent({
           >
             <ProjectViewModeToggle />
             <ConnectedTimeRangeSelector size="M" />
-            <NewProjectButton variant="primary" />
+            <NewProjectButton
+              variant="primary"
+              refetchProjects={() => refetch({})}
+            />
           </Flex>
         </Flex>
       </View>
@@ -764,7 +767,6 @@ function ProjectsTable({
           cell: ({ row }) => {
             return (
               <ProjectActionMenu
-                variant="default"
                 projectId={row.original.id}
                 projectName={row.original.name}
                 onProjectClear={() => onClear(row.original.name)}

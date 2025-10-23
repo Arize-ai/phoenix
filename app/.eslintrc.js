@@ -248,6 +248,41 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { Switch } from '@phoenix/components'",
       },
+      {
+        name: "DropdownButton",
+        module: "@arizeai/components",
+        use: "import { Button, DialogTrigger } from '@phoenix/components'",
+      },
+      {
+        name: "DropdownTrigger",
+        module: "@arizeai/components",
+        use: "import { DialogTrigger } from '@phoenix/components'",
+      },
+      {
+        name: "DropdownMenu",
+        module: "@arizeai/components",
+        use: "import { Popover, Dialog } from '@phoenix/components'",
+      },
+      {
+        name: "ActionMenu",
+        module: "@arizeai/components",
+        use: "import { Popover, Menu, MenuTrigger } from '@phoenix/components'",
+      },
+      {
+        name: "ActionItem",
+        module: "@arizeai/components",
+        use: "import { MenuItem } from '@phoenix/components'",
+      },
+      {
+        name: "Dropdown",
+        module: "@arizeai/components",
+        use: "import { Select } from '@phoenix/components'",
+      },
+      {
+        name: "ContextualHelp",
+        module: "@arizeai/components",
+        use: "import { ContextualHelp } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },

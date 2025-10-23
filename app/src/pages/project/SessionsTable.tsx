@@ -21,9 +21,15 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp } from "@arizeai/components";
-
-import { Flex, Heading, Icon, Icons, View } from "@phoenix/components";
+import {
+  ContextualHelp,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@phoenix/components";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -73,7 +79,7 @@ const TableBody = <T extends { id: string }>({
         return (
           <tr
             key={row.id}
-            onClick={() => navigate(`${encodeURIComponent(row.id)}`)}
+            onClick={() => navigate(`${encodeURIComponent(row.original.id)}`)}
           >
             {row.getVisibleCells().map((cell) => {
               return (
@@ -269,16 +275,16 @@ export function SessionsTable(props: SessionsTableProps) {
   const annotationColumns: ColumnDef<TableRow>[] = [
     {
       header: () => (
-        <Flex direction="row" gap="size-50">
+        <Flex direction="row" gap="size-50" alignItems="center">
           <span>annotations</span>
           <ContextualHelp>
             <Heading level={3} weight="heavy">
               Annotations
             </Heading>
-            <Content>
+            <Text>
               Evaluations and human annotations logged via the API or set via
               the UI.
-            </Content>
+            </Text>
           </ContextualHelp>
         </Flex>
       ),

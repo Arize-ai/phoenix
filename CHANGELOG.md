@@ -1,5 +1,42 @@
 # Changelog
 
+## [12.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.6.0...arize-phoenix-v12.6.1) (2025-10-14)
+
+
+### Bug Fixes
+
+* Ensure correct id is used when clicking sessions table row ([#9895](https://github.com/Arize-ai/phoenix/issues/9895)) ([5d5bc40](https://github.com/Arize-ai/phoenix/commit/5d5bc407498cb65a2821fc533ab81b999cfcf210))
+
+## [12.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.5.0...arize-phoenix-v12.6.0) (2025-10-13)
+
+
+### Features
+
+* Upgrade to React 19.2 ([#9783](https://github.com/Arize-ai/phoenix/issues/9783)) ([a1fcb1a](https://github.com/Arize-ai/phoenix/commit/a1fcb1a5100d940b031a8883741b2604bf848563))
+
+
+### Bug Fixes
+
+* experiment compare list page sort ([#9680](https://github.com/Arize-ai/phoenix/issues/9680)) ([429b2aa](https://github.com/Arize-ai/phoenix/commit/429b2aa4a9430a354d7c4f7492033f70a0087aa1))
+
+## [12.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.4.0...arize-phoenix-v12.5.0) (2025-10-10)
+
+
+### Features
+
+* Add filtering to examples table and split management filter menu ([#9859](https://github.com/Arize-ai/phoenix/issues/9859)) ([03a7ad7](https://github.com/Arize-ai/phoenix/commit/03a7ad77e150f6743a09ea9d5c83bade90c18c8d))
+* add viewer role ([#9803](https://github.com/Arize-ai/phoenix/issues/9803)) ([d26f3e7](https://github.com/Arize-ai/phoenix/commit/d26f3e78ba2872e0613354753471ce365f4eacd0))
+* dataset edit labels ([#9791](https://github.com/Arize-ai/phoenix/issues/9791)) ([ff87412](https://github.com/Arize-ai/phoenix/commit/ff874124753f8c07de2d78fd64b6a52e7d98cbb9))
+* **experiments:** add trace links to experiment compare slideover ([#9847](https://github.com/Arize-ai/phoenix/issues/9847)) ([1d28e71](https://github.com/Arize-ai/phoenix/commit/1d28e71ccf753eaff527e853ab0b24c74058a5a3))
+* **experiments:** handle missing experiment runs in compare slideover ([#9823](https://github.com/Arize-ai/phoenix/issues/9823)) ([df93e73](https://github.com/Arize-ai/phoenix/commit/df93e73e3abdc127030b919bcda3635d4d17e4a2))
+* Select Dataset Splits with Datasets ([#9771](https://github.com/Arize-ai/phoenix/issues/9771)) ([b22a7db](https://github.com/Arize-ai/phoenix/commit/b22a7dbab8b4cebe909e45ccb6d437b5b4e99a8c))
+* sort on annotations in sessions table ([#9773](https://github.com/Arize-ai/phoenix/issues/9773)) ([933a533](https://github.com/Arize-ai/phoenix/commit/933a533a0165983040feae1f80fdb45ed1f5b805))
+
+
+### Bug Fixes
+
+* **dataset:** correct Python code for dataset retrieval ([#9836](https://github.com/Arize-ai/phoenix/issues/9836)) ([d58b956](https://github.com/Arize-ai/phoenix/commit/d58b95674c39db306a4d1b9c6eff189b6b1ef5b9))
+
 ## [12.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.3.0...arize-phoenix-v12.4.0) (2025-10-08)
 
 

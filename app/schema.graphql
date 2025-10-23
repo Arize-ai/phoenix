@@ -269,6 +269,7 @@ input ChatCompletionOverDatasetInput {
   repetitions: Int!
   datasetId: ID!
   datasetVersionId: ID = null
+  splitIds: [ID!] = null
   experimentName: String = null
   experimentDescription: String = null
   experimentMetadata: JSON = {}
@@ -700,8 +701,9 @@ type DatasetExperimentAnnotationSummary {
 
 """A filter for datasets"""
 input DatasetFilter {
-  col: DatasetFilterColumn!
-  value: String!
+  col: DatasetFilterColumn = null
+  value: String = null
+  filterLabels: [String!]
 }
 
 enum DatasetFilterColumn {
@@ -1243,7 +1245,7 @@ type Experiment implements Node {
 
   """Sequence number (1-based) of experiments belonging to the same dataset"""
   sequenceNumber: Int!
-  runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
+  runs(first: Int = 50, after: String, sort: ExperimentRunSort): ExperimentRunConnection!
   runCount: Int!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
@@ -1252,6 +1254,7 @@ type Experiment implements Node {
   lastUpdatedAt: DateTime
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  datasetSplits: DatasetSplitConnection!
 }
 
 type ExperimentAnnotationSummary {
@@ -1384,6 +1387,11 @@ enum ExperimentRunAnnotatorKind {
   CODE
 }
 
+input ExperimentRunColumn @oneOf {
+  metric: ExperimentRunMetric
+  annotationName: String
+}
+
 """A connection to a list of items."""
 type ExperimentRunConnection {
   """Pagination data for this connection"""
@@ -1400,6 +1408,10 @@ type ExperimentRunEdge {
 
   """The item at the end of the edge"""
   node: ExperimentRun!
+}
+
+enum ExperimentRunMetric {
+  latencyMs
 }
 
 type ExperimentRunMetricComparison {
@@ -1432,6 +1444,12 @@ type ExperimentRunMetricComparisons {
   totalCost: ExperimentRunMetricComparison!
   promptCost: ExperimentRunMetricComparison!
   completionCost: ExperimentRunMetricComparison!
+}
+
+"""The sort key and direction for experiment run connections"""
+input ExperimentRunSort {
+  col: ExperimentRunColumn!
+  dir: SortDir!
 }
 
 type ExportedFile {
@@ -2373,7 +2391,7 @@ type Query {
   model: InferenceModel!
   node(id: ID!): Node!
   viewer: User
-  prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter): PromptConnection!
+  prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
   datasetLabels(first: Int = 50, last: Int, after: String, before: String): DatasetLabelConnection!
   datasetSplits(first: Int = 50, last: Int, after: String, before: String): DatasetSplitConnection!
@@ -3228,6 +3246,7 @@ type UserRole implements Node {
 enum UserRoleInput {
   ADMIN
   MEMBER
+  VIEWER
 }
 
 type ValidationResult {

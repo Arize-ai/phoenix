@@ -37,6 +37,6 @@ Below are some of the main capabilities:
 
 ## Next steps
 
-* To get started, check out the [Quickstart guide](../llm-traces-1/).
+* To get started, check out the [Get Started: Tracing guide](../../get-started/get-started-tracing.md).&#x20;
 * Read more about [What are Traces](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/tracing/what-are-traces "mention") and [How Tracing Works](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/tracing/how-tracing-works "mention").
 * Check out the [How-To Guides](../how-to-tracing/) for specific tutorials.

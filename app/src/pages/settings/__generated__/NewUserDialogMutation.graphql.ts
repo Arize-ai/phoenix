@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ea7cfb8562aa738cafadec9c4311965a>>
+ * @generated SignedSource<<81ba4471a31127c0f9ec058198df3761>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type AuthMethod = "LOCAL" | "OAUTH2";
-export type UserRoleInput = "ADMIN" | "MEMBER";
+export type UserRoleInput = "ADMIN" | "MEMBER" | "VIEWER";
 export type CreateUserInput = {
   authMethod?: AuthMethod | null;
   email: string;

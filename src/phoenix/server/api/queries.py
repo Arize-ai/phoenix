@@ -22,7 +22,10 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
-from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    exclude_experiment_projects,
+)
 from phoenix.db.models import LatencyMs
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
@@ -385,7 +388,35 @@ class Query:
             sort_col = getattr(models.Dataset, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
         if filter:
-            stmt = stmt.where(getattr(models.Dataset, filter.col.value).ilike(f"%{filter.value}%"))
+            # Apply name filter
+            if filter.col and filter.value:
+                stmt = stmt.where(
+                    getattr(models.Dataset, filter.col.value).ilike(f"%{filter.value}%")
+                )
+
+            # Apply label filter
+            if filter.filter_labels and filter.filter_labels is not UNSET:
+                label_rowids = []
+                for label_id in filter.filter_labels:
+                    try:
+                        label_rowid = from_global_id_with_expected_type(
+                            global_id=GlobalID.from_id(label_id),
+                            expected_type_name="DatasetLabel",
+                        )
+                        label_rowids.append(label_rowid)
+                    except ValueError:
+                        continue  # Skip invalid label IDs
+
+                if label_rowids:
+                    # Join with the junction table to filter by labels
+                    stmt = (
+                        stmt.join(
+                            models.DatasetsDatasetLabel,
+                            models.Dataset.id == models.DatasetsDatasetLabel.dataset_id,
+                        )
+                        .where(models.DatasetsDatasetLabel.dataset_label_id.in_(label_rowids))
+                        .distinct()
+                    )
         async with info.context.db() as session:
             datasets = await session.scalars(stmt)
         return connection_from_list(
@@ -448,6 +479,7 @@ class Query:
                     )
                 )
             ).all()
+
             if not experiments or len(experiments) < len(experiment_rowids):
                 raise NotFound("Unable to resolve one or more experiment IDs.")
             num_datasets = len(set(experiment.dataset_id for experiment in experiments))
@@ -456,37 +488,19 @@ class Query:
             base_experiment = next(
                 experiment for experiment in experiments if experiment.id == base_experiment_rowid
             )
-            revision_ids = (
-                select(func.max(models.DatasetExampleRevision.id))
-                .join(
-                    models.DatasetExample,
-                    models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
-                )
-                .where(
-                    and_(
-                        models.DatasetExampleRevision.dataset_version_id
-                        <= base_experiment.dataset_version_id,
-                        models.DatasetExample.dataset_id == base_experiment.dataset_id,
-                    )
-                )
-                .group_by(models.DatasetExampleRevision.dataset_example_id)
-                .scalar_subquery()
-            )
+
+            # Use ExperimentDatasetExample to pull down examples.
+            # Splits are mutable and should not be used for comparison.
+            # The comparison should only occur against examples which were assigned to the same
+            # splits at the time of execution of the ExperimentRun.
             examples_query = (
                 select(models.DatasetExample)
-                .distinct(models.DatasetExample.id)
-                .join(
-                    models.DatasetExampleRevision,
-                    onclause=and_(
-                        models.DatasetExample.id
-                        == models.DatasetExampleRevision.dataset_example_id,
-                        models.DatasetExampleRevision.id.in_(revision_ids),
-                        models.DatasetExampleRevision.revision_kind != "DELETE",
-                    ),
-                )
+                .join(models.ExperimentDatasetExample)
+                .where(models.ExperimentDatasetExample.experiment_id == base_experiment_rowid)
                 .order_by(models.DatasetExample.id.desc())
                 .limit(page_size + 1)
             )
+
             if cursor is not None:
                 examples_query = examples_query.where(models.DatasetExample.id < cursor.rowid)
 
@@ -1103,6 +1117,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         filter: Optional[PromptFilter] = UNSET,
+        labelIds: Optional[list[GlobalID]] = UNSET,
     ) -> Connection[Prompt]:
         args = ConnectionArgs(
             first=first,
@@ -1119,6 +1134,16 @@ class Query:
             stmt = stmt.where(column.ilike(f"%{filter.value}%")).order_by(
                 models.Prompt.updated_at.desc()
             )
+        if labelIds:
+            stmt = stmt.join(models.PromptPromptLabel).where(
+                models.PromptPromptLabel.prompt_label_id.in_(
+                    from_global_id_with_expected_type(
+                        global_id=label_id, expected_type_name="PromptLabel"
+                    )
+                    for label_id in labelIds
+                )
+            )
+            stmt = stmt.distinct()
         async with info.context.db() as session:
             orm_prompts = await session.stream_scalars(stmt)
             data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]

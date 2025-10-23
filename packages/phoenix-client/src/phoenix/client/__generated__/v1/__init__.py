@@ -24,6 +24,7 @@ class CreateExperimentRequestBody(TypedDict):
     description: NotRequired[str]
     metadata: NotRequired[Mapping[str, Any]]
     version_id: NotRequired[str]
+    splits: NotRequired[Sequence[str]]
     repetitions: NotRequired[int]
 
 
@@ -156,6 +157,7 @@ class ListDatasetExamplesData(TypedDict):
     dataset_id: str
     version_id: str
     examples: Sequence[DatasetExample]
+    filtered_splits: NotRequired[Sequence[str]]
 
 
 class ListDatasetExamplesResponseBody(TypedDict):

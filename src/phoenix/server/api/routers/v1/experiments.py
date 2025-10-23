@@ -25,6 +25,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import ExperimentInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 
+from .datasets import _resolve_split_identifiers
 from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses, add_text_csv_content_to_responses
 
@@ -80,6 +81,10 @@ class CreateExperimentRequestBody(V1RoutesBaseModel):
             "(if omitted, the latest version will be used)"
         ),
     )
+    splits: Optional[list[str]] = Field(
+        default=None,
+        description="List of dataset split identifiers (GlobalIDs or names) to filter by",
+    )
     repetitions: int = Field(
         default=1, description="Number of times the experiment should be repeated for each example"
     )
@@ -104,7 +109,13 @@ async def create_experiment(
     request_body: CreateExperimentRequestBody,
     dataset_id: str = Path(..., title="Dataset ID"),
 ) -> CreateExperimentResponseBody:
-    dataset_globalid = GlobalID.from_id(dataset_id)
+    try:
+        dataset_globalid = GlobalID.from_id(dataset_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {dataset_id}",
+            status_code=422,
+        ) from e
     try:
         dataset_rowid = from_global_id_with_expected_type(dataset_globalid, "Dataset")
     except ValueError:
@@ -117,6 +128,12 @@ async def create_experiment(
     if dataset_version_globalid_str is not None:
         try:
             dataset_version_globalid = GlobalID.from_id(dataset_version_globalid_str)
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {dataset_version_globalid_str}",
+                status_code=422,
+            ) from e
+        try:
             dataset_version_id = from_global_id_with_expected_type(
                 dataset_version_globalid, "DatasetVersion"
             )
@@ -180,6 +197,20 @@ async def create_experiment(
             project_name=project_name,
             user_id=user_id,
         )
+
+        if request_body.splits is not None:
+            # Resolve split identifiers (IDs or names) to IDs and names
+            resolved_split_ids, _ = await _resolve_split_identifiers(session, request_body.splits)
+
+            # Generate experiment dataset splits relation
+            # prior to the crosswalk table insert
+            # in insert_experiment_with_examples_snapshot
+            experiment.experiment_dataset_splits = [
+                models.ExperimentDatasetSplit(dataset_split_id=split_id)
+                for split_id in resolved_split_ids
+            ]
+
+        # crosswalk table assumes the relation is already present
         await insert_experiment_with_examples_snapshot(session, experiment)
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -232,7 +263,13 @@ class GetExperimentResponseBody(ResponseBody[Experiment]):
     response_description="Experiment retrieved successfully",
 )
 async def get_experiment(request: Request, experiment_id: str) -> GetExperimentResponseBody:
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
@@ -282,7 +319,13 @@ async def list_experiments(
     request: Request,
     dataset_id: str = Path(..., title="Dataset ID"),
 ) -> ListExperimentsResponseBody:
-    dataset_gid = GlobalID.from_id(dataset_id)
+    try:
+        dataset_gid = GlobalID.from_id(dataset_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid dataset ID format: {dataset_id}",
+            status_code=422,
+        ) from e
     try:
         dataset_rowid = from_global_id_with_expected_type(dataset_gid, "Dataset")
     except ValueError:
@@ -397,7 +440,13 @@ async def get_experiment_json(
     request: Request,
     experiment_id: str = Path(..., title="Experiment ID"),
 ) -> Response:
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
@@ -464,7 +513,13 @@ async def get_experiment_csv(
     request: Request,
     experiment_id: str = Path(..., title="Experiment ID"),
 ) -> Response:
-    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:

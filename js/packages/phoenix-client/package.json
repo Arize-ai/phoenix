@@ -68,6 +68,7 @@
   "devDependencies": {
     "@ai-sdk/openai": "^2.0.27",
     "@anthropic-ai/sdk": "^0.35.0",
+    "@arizeai/phoenix-evals": "workspace:*",
     "@types/async": "^3.2.24",
     "@types/node": "^20.17.22",
     "ai": "^5.0.38",
@@ -75,8 +76,7 @@
     "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
-    "vitest": "^2.1.9",
-    "@arizeai/phoenix-evals": "workspace:*"
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^1.1.0",
@@ -100,7 +100,7 @@
   },
   "optionalDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
-    "ai": "^5.0.38",
+    "ai": "^5.0.76",
     "openai": "^5.12.1"
   }
 }

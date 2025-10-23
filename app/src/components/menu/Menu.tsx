@@ -7,7 +7,7 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames, Icon, Icons } from "@phoenix/components";
+import { classNames, Icon, Icons, Text } from "@phoenix/components";
 
 const menuCss = css`
   padding: var(--ac-global-dimension-static-size-50);
@@ -108,5 +108,25 @@ export const MenuItem = <T extends object>({
         );
       }}
     </AriaMenuItem>
+  );
+};
+
+export const MenuTriggerPlaceholder = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  return (
+    <Text
+      color="grey-400"
+      fontStyle="italic"
+      css={css`
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      `}
+    >
+      {children}
+    </Text>
   );
 };

@@ -1,10 +1,16 @@
 # Table of contents
 
 * [Arize Phoenix](README.md)
+* [Get Started](get-started/README.md)
+  * [Get Started: Tracing](get-started/get-started-tracing.md)
+  * [Get Started: Evaluations](get-started/get-started-evaluations.md)
+  * [Get Started: Datasets & Experiments](get-started/get-started-datasets-and-experiments.md)
+  * [Get Started: Prompt Playground](get-started/get-started-prompt-playground.md)
 * [Quickstarts](quickstart.md)
 * [User Guide](user-guide.md)
 * [Environments](environments.md)
 * [Phoenix Demo](https://phoenix-demo.arize.com/projects)
+* [End to End Phoenix Features Notebook ](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llm_ops_overview.ipynb)
 * [Production Guide](production-guide.md)
 
 ## Tracing
@@ -14,6 +20,7 @@
   * [Sessions](tracing/llm-traces/sessions.md)
   * [Annotations](tracing/llm-traces/how-to-annotate-traces.md)
   * [Metrics](tracing/llm-traces/metrics.md)
+* [Quickstart: Tracing](get-started/get-started-tracing.md)
 * [Quickstart: Tracing](tracing/llm-traces-1/README.md)
   * [Quickstart: Tracing (Python)](tracing/llm-traces-1/quickstart-tracing-python.md)
   * [Quickstart: Tracing (TS)](tracing/llm-traces-1/quickstart-tracing-ts.md)
@@ -58,6 +65,7 @@
   * [Prompt Playground](prompt-engineering/overview-prompts/prompt-playground.md)
   * [Span Replay](prompt-engineering/overview-prompts/span-replay.md)
   * [Prompts in Code](prompt-engineering/overview-prompts/prompts-in-code.md)
+* [Quickstart: Prompts](get-started/get-started-prompt-playground.md)
 * [Quickstart: Prompts](prompt-engineering/quickstart-prompts/README.md)
   * [Quickstart: Prompts (UI)](prompt-engineering/quickstart-prompts/quickstart-prompts-ui.md)
   * [Quickstart: Prompts (Python)](prompt-engineering/quickstart-prompts/quickstart-prompts-python.md)
@@ -77,6 +85,7 @@
 
 * [Overview: Datasets & Experiments](datasets-and-experiments/overview-datasets.md)
 * [Quickstart: Datasets & Experiments](datasets-and-experiments/quickstart-datasets.md)
+* [Quickstart: Datasets & Experiments](get-started/get-started-datasets-and-experiments.md)
 * [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
   * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
   * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
@@ -92,6 +101,7 @@
   * [Executors](evaluation/llm-evals/executors.md)
   * [Evaluator Traces](evaluation/llm-evals/evaluator-traces.md)
   * [Use Any LLM](evaluation/llm-evals/use-any-llm.md)
+* [Quickstart: Evals](get-started/get-started-evaluations.md)
 * [Quickstart: Evals](evaluation/evals.md)
 * [Concepts: Evals](evaluation/concepts-evals/README.md)
   * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
@@ -102,7 +112,8 @@
   * [Input Mapping](evaluation/concepts-evals/input-mapping.md)
 * [How to: Evals](evaluation/how-to-evals/README.md)
   * [Custom LLM Evaluators](evaluation/how-to-evals/custom-llm-evaluators.md)
-  * [Configuring the LLM](evaluation/how-to-evals/configuring-the-llm.md)
+  * [Configuring the LLM](evaluation/how-to-evals/configuring-the-llm/README.md)
+    * [Calling models with LiteLLM](evaluation/how-to-evals/configuring-the-llm/calling-models-with-litellm.md)
   * [Heuristic Evaluators](evaluation/how-to-evals/heuristic-evaluators.md)
   * [Batch Evaluations](evaluation/how-to-evals/batch-evaluations.md)
   * [Using Evals with Phoenix](evaluation/how-to-evals/using-evals-with-phoenix.md)

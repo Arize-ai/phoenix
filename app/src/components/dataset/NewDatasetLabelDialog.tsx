@@ -20,10 +20,14 @@ type NewDatasetLabelDialogProps = {
    * Optional connection IDs to update. If not provided, defaults to DatasetLabelsTable connection.
    */
   connections?: string[];
+  /**
+   * Optional dataset ID. If provided, newly created labels will be auto-applied to the dataset upon creation.
+   */
+  datasetId?: string;
 };
 export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
   const [error, setError] = useState("");
-  const { onCompleted, connections: providedConnections } = props;
+  const { onCompleted, connections: providedConnections, datasetId } = props;
   const [addLabel, isSubmitting] = useMutation<NewDatasetLabelDialogMutation>(
     graphql`
       mutation NewDatasetLabelDialogMutation(
@@ -44,6 +48,31 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
       }
     `
   );
+
+  const [setDatasetLabels] = useMutation(graphql`
+    mutation NewDatasetLabelDialogSetLabelsMutation(
+      $datasetIds: [ID!]!
+      $datasetLabelIds: [ID!]!
+      $currentDatasetId: ID!
+    ) {
+      setDatasetLabels(
+        input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
+      ) {
+        query {
+          node(id: $currentDatasetId) {
+            ... on Dataset {
+              id
+              labels {
+                id
+                name
+                color
+              }
+            }
+          }
+        }
+      }
+    }
+  `);
   const onSubmit = (label: LabelParams) => {
     // Convert RGBA to hex format for backend
     const convertToHex = (color: string): string => {
@@ -70,6 +99,14 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
         "client:root",
         "DatasetLabelsTable__datasetLabels"
       ),
+      ConnectionHandler.getConnectionID(
+        "client:root",
+        "DatasetLabelFilterButton_datasetLabels"
+      ),
+      ConnectionHandler.getConnectionID(
+        "client:root",
+        "DatasetLabelConfigButtonAllLabels_datasetLabels"
+      ),
     ];
     addLabel({
       variables: {
@@ -79,7 +116,34 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
         },
         connections,
       },
-      onCompleted,
+      onCompleted: (response) => {
+        // Auto-apply the new label to the dataset if datasetId is provided
+        if (datasetId && response.createDatasetLabel.datasetLabel.id) {
+          setDatasetLabels({
+            variables: {
+              datasetIds: [datasetId],
+              datasetLabelIds: [response.createDatasetLabel.datasetLabel.id],
+              currentDatasetId: datasetId,
+            },
+            onCompleted: () => {
+              onCompleted();
+            },
+            onError: (error) => {
+              // Notify user that auto-apply failed
+              const formattedError =
+                getErrorMessagesFromRelayMutationError(error);
+              setError(
+                `Label created successfully, but failed to apply to dataset: ${formattedError?.[0] ?? error.message}`
+              );
+              // Still call onCompleted even if auto-apply fails
+              // The label was created successfully
+              onCompleted();
+            },
+          });
+        } else {
+          onCompleted();
+        }
+      },
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);
         setError(formattedError?.[0] ?? error.message);

@@ -35,6 +35,7 @@ class ApiKey(BaseModel):
 class ChatCompletionSubscriptionPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     datasetExampleId: Optional[str] = None
+    repetitionNumber: Optional[int] = None
 
 
 class ExampleRevision(BaseModel):
@@ -85,6 +86,11 @@ class TimeSeries(BaseModel):
 class AddAnnotationConfigToProjectPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     project: Project
+
+
+class AddDatasetExamplesToDatasetSplitsMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    examples: list[DatasetExample]
 
 
 class AnnotationConfigConnection(BaseModel):
@@ -213,6 +219,7 @@ class ChatCompletionOverDatasetMutationExamplePayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     datasetExampleId: str
     experimentRunId: str
+    repetitionNumber: int
     result: Union["ChatCompletionMutationError", "ChatCompletionMutationPayload"]
 
 
@@ -228,18 +235,21 @@ class ChatCompletionSubscriptionError(ChatCompletionSubscriptionPayload):
     model_config = ConfigDict(frozen=True)
     datasetExampleId: Optional[str] = None
     message: str
+    repetitionNumber: Optional[int] = None
 
 
 class ChatCompletionSubscriptionExperiment(ChatCompletionSubscriptionPayload):
     model_config = ConfigDict(frozen=True)
     datasetExampleId: Optional[str] = None
     experiment: Experiment
+    repetitionNumber: Optional[int] = None
 
 
 class ChatCompletionSubscriptionResult(ChatCompletionSubscriptionPayload):
     model_config = ConfigDict(frozen=True)
     datasetExampleId: Optional[str] = None
     experimentRun: Optional[ExperimentRun] = None
+    repetitionNumber: Optional[int] = None
     span: Optional[Span] = None
 
 
@@ -257,25 +267,6 @@ class Cluster(BaseModel):
     id: str = Field(...)
     performanceMetric: DatasetValues = Field(...)
     primaryToCorpusRatio: Optional[float] = Field(default=None)
-
-
-class CompareExperimentRunAnnotationMetricCounts(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    annotationName: str
-    compareExperimentId: str
-    numDecreases: int
-    numEqual: int
-    numIncreases: int
-
-
-class CompareExperimentRunMetricCounts(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    compareExperimentId: str
-    completionTokenCount: MetricCounts
-    latency: MetricCounts
-    promptTokenCount: MetricCounts
-    totalCost: MetricCounts
-    totalTokenCount: MetricCounts
 
 
 class ContinuousAnnotationConfig(AnnotationConfigBase, Node):
@@ -300,6 +291,11 @@ class CreateAnnotationConfigPayload(BaseModel):
     annotationConfig: Union[
         "CategoricalAnnotationConfig", "ContinuousAnnotationConfig", "FreeformAnnotationConfig"
     ]
+
+
+class CreateDatasetLabelMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetLabel: DatasetLabel
 
 
 class CreateModelMutationPayload(BaseModel):
@@ -330,10 +326,11 @@ class Dataset(Node):
     description: Optional[str] = None
     exampleCount: int = Field(...)
     examples: DatasetExampleConnection
-    experimentAnnotationSummaries: list[ExperimentAnnotationSummary]
+    experimentAnnotationSummaries: list[DatasetExperimentAnnotationSummary]
     experimentCount: int = Field(...)
     experiments: ExperimentConnection
     id: str = Field(...)
+    labels: list[DatasetLabel]
     lastUpdatedAt: Optional[str] = None
     metadata: dict[str, Any]
     name: str
@@ -356,6 +353,8 @@ class DatasetEdge(BaseModel):
 class DatasetExample(Node):
     model_config = ConfigDict(frozen=True)
     createdAt: str
+    datasetSplits: list[DatasetSplit]
+    experimentRepeatedRunGroups: list[ExperimentRepeatedRunGroup]
     experimentRuns: ExperimentRunConnection
     id: str = Field(...)
     revision: DatasetExampleRevision
@@ -383,9 +382,70 @@ class DatasetExampleRevision(ExampleRevision):
     revisionKind: Literal["CREATE", "DELETE", "PATCH"]
 
 
+class DatasetExperimentAnnotationSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationName: str
+    maxScore: Optional[float] = None
+    minScore: Optional[float] = None
+
+
+class DatasetLabel(Node):
+    model_config = ConfigDict(frozen=True)
+    color: str
+    description: Optional[str] = None
+    id: str = Field(...)
+    name: str
+
+
+class DatasetLabelConnection(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    edges: list[DatasetLabelEdge] = Field(...)
+    pageInfo: PageInfo = Field(...)
+
+
+class DatasetLabelEdge(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    cursor: str = Field(...)
+    node: DatasetLabel = Field(...)
+
+
 class DatasetMutationPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     dataset: Dataset
+
+
+class DatasetSplit(Node):
+    model_config = ConfigDict(frozen=True)
+    color: str
+    createdAt: str
+    description: Optional[str] = None
+    id: str = Field(...)
+    metadata: dict[str, Any]
+    name: str
+    updatedAt: str
+
+
+class DatasetSplitConnection(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    edges: list[DatasetSplitEdge] = Field(...)
+    pageInfo: PageInfo = Field(...)
+
+
+class DatasetSplitEdge(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    cursor: str = Field(...)
+    node: DatasetSplit = Field(...)
+
+
+class DatasetSplitMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetSplit: DatasetSplit
+
+
+class DatasetSplitMutationPayloadWithExamples(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetSplit: DatasetSplit
+    examples: list[DatasetExample]
 
 
 class DatasetValues(BaseModel):
@@ -434,6 +494,16 @@ class DeleteApiKeyMutationPayload(BaseModel):
     apiKeyId: str
 
 
+class DeleteDatasetLabelsMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetLabels: list[DatasetLabel]
+
+
+class DeleteDatasetSplitsMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetSplits: list[DatasetSplit]
+
+
 class DeleteModelMutationPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     model: GenerativeModel
@@ -476,15 +546,22 @@ class DimensionWithValue(BaseModel):
     value: Optional[str] = Field(default=None)
 
 
-class DocumentEvaluation(Annotation):
+class DocumentAnnotation(Annotation, Node):
     model_config = ConfigDict(frozen=True)
+    annotatorKind: Literal["CODE", "HUMAN", "LLM"]
     createdAt: str = Field(...)
-    documentPosition: int = Field(...)
+    documentPosition: int
     explanation: Optional[str] = Field(default=None)
+    id: str = Field(...)
+    identifier: str
     label: Optional[str] = Field(default=None)
+    metadata: dict[str, Any]
     name: str = Field(...)
     score: Optional[float] = Field(default=None)
+    source: Literal["API", "APP"]
+    span: Span
     updatedAt: str = Field(...)
+    user: Optional[User] = None
 
 
 class DocumentEvaluationSummary(BaseModel):
@@ -570,6 +647,7 @@ class Experiment(Node):
     costDetailSummaryEntries: list[SpanCostDetailSummaryEntry]
     costSummary: SpanCostSummary
     createdAt: str
+    datasetVersionId: str
     description: Optional[str] = None
     errorRate: Optional[float] = None
     id: str = Field(...)
@@ -578,6 +656,7 @@ class Experiment(Node):
     name: str
     project: Optional[Project] = None
     projectName: Optional[str] = None
+    repetitions: int
     runCount: int
     runs: ExperimentRunConnection
     sequenceNumber: int = Field(...)
@@ -598,7 +677,7 @@ class ExperimentComparison(Node):
     model_config = ConfigDict(frozen=True)
     example: DatasetExample
     id: str = Field(...)
-    runComparisonItems: list[RunComparisonItem]
+    repeatedRunGroups: list[ExperimentRepeatedRunGroup]
 
 
 class ExperimentComparisonConnection(BaseModel):
@@ -630,6 +709,23 @@ class ExperimentMutationPayload(BaseModel):
     experiments: list[Experiment]
 
 
+class ExperimentRepeatedRunGroup(Node):
+    model_config = ConfigDict(frozen=True)
+    annotationSummaries: list[ExperimentRepeatedRunGroupAnnotationSummary]
+    averageLatencyMs: Optional[float] = None
+    costDetailSummaryEntries: list[SpanCostDetailSummaryEntry]
+    costSummary: SpanCostSummary
+    experimentId: str
+    id: str = Field(...)
+    runs: list[ExperimentRun]
+
+
+class ExperimentRepeatedRunGroupAnnotationSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationName: str
+    meanScore: Optional[float] = None
+
+
 class ExperimentRun(Node):
     model_config = ConfigDict(frozen=True)
     annotations: ExperimentRunAnnotationConnection
@@ -640,7 +736,9 @@ class ExperimentRun(Node):
     example: DatasetExample
     experimentId: str
     id: str = Field(...)
+    latencyMs: float
     output: Optional[dict[str, Any]] = None
+    repetitionNumber: int
     startTime: str
     trace: Optional[Trace] = None
     traceId: Optional[str] = None
@@ -684,6 +782,25 @@ class ExperimentRunEdge(BaseModel):
     model_config = ConfigDict(frozen=True)
     cursor: str = Field(...)
     node: ExperimentRun = Field(...)
+
+
+class ExperimentRunMetricComparison(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    numRunsEqual: int = Field(...)
+    numRunsImproved: int = Field(...)
+    numRunsRegressed: int = Field(...)
+    numRunsWithoutComparison: int = Field(...)
+
+
+class ExperimentRunMetricComparisons(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    completionCost: ExperimentRunMetricComparison
+    completionTokenCount: ExperimentRunMetricComparison
+    latency: ExperimentRunMetricComparison
+    promptCost: ExperimentRunMetricComparison
+    promptTokenCount: ExperimentRunMetricComparison
+    totalCost: ExperimentRunMetricComparison
+    totalTokenCount: ExperimentRunMetricComparison
 
 
 class ExportedFile(BaseModel):
@@ -734,6 +851,7 @@ class FunctionCallChunk(ChatCompletionSubscriptionPayload):
     arguments: str
     datasetExampleId: Optional[str] = None
     name: str
+    repetitionNumber: Optional[int] = None
 
 
 class Functionality(BaseModel):
@@ -870,13 +988,6 @@ class LabelFraction(BaseModel):
     label: str
 
 
-class MetricCounts(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    numDecreases: int
-    numEqual: int
-    numIncreases: int
-
-
 class MissingValueBin(BaseModel):
     model_config = ConfigDict(frozen=True)
     name: Optional[str] = None
@@ -941,6 +1052,7 @@ class Project(Node):
     latencyMsQuantile: Optional[float] = None
     name: str
     recordCount: int
+    sessionAnnotationNames: list[str] = Field(...)
     sessions: ProjectSessionConnection
     spanAnnotationNames: list[str] = Field(...)
     spanAnnotationScoreTimeSeries: SpanAnnotationScoreTimeSeries
@@ -996,12 +1108,34 @@ class ProjectSession(Node):
     lastOutput: Optional[SpanIOValue] = None
     numTraces: int
     numTracesWithError: int
-    projectId: str
+    project: Project
+    sessionAnnotationSummaries: list[AnnotationSummary] = Field(...)
+    sessionAnnotations: list[ProjectSessionAnnotation]
     sessionId: str
     startTime: str
     tokenUsage: TokenUsage
     traceLatencyMsQuantile: Optional[float] = None
     traces: TraceConnection
+
+
+class ProjectSessionAnnotation(Node):
+    model_config = ConfigDict(frozen=True)
+    annotatorKind: Literal["CODE", "HUMAN", "LLM"]
+    explanation: Optional[str] = None
+    id: str = Field(...)
+    identifier: str
+    label: Optional[str] = None
+    metadata: dict[str, Any]
+    name: str
+    projectSessionId: str
+    score: Optional[float] = None
+    source: Literal["API", "APP"]
+    user: Optional[User] = None
+
+
+class ProjectSessionAnnotationMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    projectSessionAnnotation: ProjectSessionAnnotation
 
 
 class ProjectSessionConnection(BaseModel):
@@ -1051,6 +1185,7 @@ class Prompt(Node):
     createdAt: str
     description: Optional[str] = None
     id: str = Field(...)
+    labels: list[PromptLabel]
     name: str
     promptVersions: PromptVersionConnection
     sourcePrompt: Optional[Prompt] = None
@@ -1078,16 +1213,25 @@ class PromptEdge(BaseModel):
 
 class PromptLabel(Node):
     model_config = ConfigDict(frozen=True)
+    color: str
     description: Optional[str] = None
     id: str = Field(...)
     name: str
-    prompts: list[Prompt]
+
+
+class PromptLabelAssociationMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
 
 
 class PromptLabelConnection(BaseModel):
     model_config = ConfigDict(frozen=True)
     edges: list[PromptLabelEdge] = Field(...)
     pageInfo: PageInfo = Field(...)
+
+
+class PromptLabelDeleteMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    deletedPromptLabelIds: list[str]
 
 
 class PromptLabelEdge(BaseModel):
@@ -1098,7 +1242,7 @@ class PromptLabelEdge(BaseModel):
 
 class PromptLabelMutationPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
-    promptLabel: Optional[PromptLabel] = None
+    promptLabels: list[PromptLabel]
 
 
 class PromptMessage(BaseModel):
@@ -1172,6 +1316,11 @@ class RemoveAnnotationConfigFromProjectPayload(BaseModel):
     project: Project
 
 
+class RemoveDatasetExamplesFromDatasetSplitsMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    examples: list[DatasetExample]
+
+
 class ResponseFormat(BaseModel):
     model_config = ConfigDict(frozen=True)
     definition: dict[str, Any]
@@ -1182,12 +1331,6 @@ class Retrieval(BaseModel):
     documentId: str
     queryId: str
     relevance: Optional[float] = None
-
-
-class RunComparisonItem(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    experimentId: str
-    runs: list[ExperimentRun]
 
 
 class Segment(BaseModel):
@@ -1207,6 +1350,10 @@ class ServerStatus(BaseModel):
     insufficientStorage: bool
 
 
+class SetDatasetLabelsMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+
 class Span(Node):
     model_config = ConfigDict(frozen=True)
     asExampleRevision: SpanAsExampleRevision = Field(...)
@@ -1219,7 +1366,7 @@ class Span(Node):
     cumulativeTokenCountPrompt: Optional[int] = Field(default=None)
     cumulativeTokenCountTotal: Optional[int] = Field(default=None)
     descendants: SpanConnection = Field(...)
-    documentEvaluations: list[DocumentEvaluation] = Field(...)
+    documentEvaluations: list[DocumentAnnotation] = Field(...)
     documentRetrievalMetrics: list[DocumentRetrievalMetrics] = Field(...)
     endTime: Optional[str] = None
     events: list[SpanEvent]
@@ -1457,6 +1604,7 @@ class TextChunk(ChatCompletionSubscriptionPayload):
     model_config = ConfigDict(frozen=True)
     content: str
     datasetExampleId: Optional[str] = None
+    repetitionNumber: Optional[int] = None
 
 
 class TextContentPart(BaseModel):
@@ -1502,6 +1650,7 @@ class ToolCallChunk(ChatCompletionSubscriptionPayload):
     datasetExampleId: Optional[str] = None
     function: FunctionCallChunk
     id: str
+    repetitionNumber: Optional[int] = None
 
 
 class ToolCallContentPart(BaseModel):
@@ -1552,6 +1701,7 @@ class Trace(Node):
     session: Optional[ProjectSession] = None
     spans: SpanConnection
     startTime: str
+    traceAnnotationSummaries: list[AnnotationSummary] = Field(...)
     traceAnnotations: list[TraceAnnotation] = Field(...)
     traceId: str
 
@@ -1567,7 +1717,7 @@ class TraceAnnotation(Node):
     name: str
     score: Optional[float] = None
     source: Literal["API", "APP"]
-    traceId: str
+    trace: Trace
     user: Optional[User] = None
 
 
@@ -1683,11 +1833,20 @@ class UMAPPoints(BaseModel):
     referenceData: list[UMAPPoint]
 
 
+class UnsetDatasetLabelsMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+
 class UpdateAnnotationConfigPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     annotationConfig: Union[
         "CategoricalAnnotationConfig", "ContinuousAnnotationConfig", "FreeformAnnotationConfig"
     ]
+
+
+class UpdateDatasetLabelMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetLabel: DatasetLabel
 
 
 class UpdateModelMutationPayload(BaseModel):
@@ -1754,6 +1913,12 @@ class AddAnnotationConfigToProjectInput(BaseModel):
     projectId: str
 
 
+class AddDatasetExamplesToDatasetSplitsInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetSplitIds: list[str]
+    exampleIds: list[str]
+
+
 class AddExamplesToDatasetInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     datasetId: str
@@ -1777,6 +1942,19 @@ class AnnotationConfigInput(BaseModel):
     freeform: Optional[FreeformAnnotationConfigInput] = None
 
 
+class AnnotationFilter(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    exclude: Optional[AnnotationFilterCondition] = None
+    include: Optional[AnnotationFilterCondition] = None
+
+
+class AnnotationFilterCondition(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    names: Optional[list[str]] = None
+    sources: Optional[list[Literal["API", "APP"]]] = None
+    userIds: Optional[list[Optional[str]]] = None
+
+
 class CategoricalAnnotationConfigInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     description: Optional[str] = None
@@ -1798,6 +1976,7 @@ class ChatCompletionInput(BaseModel):
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
     promptName: Optional[str] = None
+    repetitions: int
     template: Optional[PromptTemplateOptions] = None
     tools: Optional[list[dict[str, Any]]] = None
 
@@ -1822,6 +2001,7 @@ class ChatCompletionOverDatasetInput(BaseModel):
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
     promptName: Optional[str] = None
+    repetitions: int
     templateFormat: Literal["F_STRING", "MUSTACHE", "NONE"]
     tools: Optional[list[dict[str, Any]]] = None
 
@@ -1908,6 +2088,30 @@ class CreateDatasetInput(BaseModel):
     name: str
 
 
+class CreateDatasetLabelInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    color: str
+    description: Optional[str] = None
+    name: str
+
+
+class CreateDatasetSplitInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    color: str
+    description: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
+    name: str
+
+
+class CreateDatasetSplitWithExamplesInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    color: str
+    description: Optional[str] = None
+    exampleIds: list[str]
+    metadata: Optional[dict[str, Any]] = None
+    name: str
+
+
 class CreateModelMutationInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     costs: list[TokenPriceInput]
@@ -1925,6 +2129,19 @@ class CreateProjectInput(BaseModel):
     name: str
 
 
+class CreateProjectSessionAnnotationInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotatorKind: Literal["CODE", "HUMAN", "LLM"]
+    explanation: Optional[str] = None
+    identifier: Optional[str] = None
+    label: Optional[str] = None
+    metadata: dict[str, Any]
+    name: str
+    projectSessionId: str
+    score: Optional[float] = None
+    source: Literal["API", "APP"]
+
+
 class CreateProjectTraceRetentionPolicyInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     addProjects: Optional[list[str]] = None
@@ -1935,6 +2152,7 @@ class CreateProjectTraceRetentionPolicyInput(BaseModel):
 
 class CreatePromptLabelInput(BaseModel):
     model_config = ConfigDict(frozen=True)
+    color: str
     description: Optional[str] = None
     name: str
 
@@ -2068,6 +2286,16 @@ class DeleteDatasetInput(BaseModel):
     datasetId: str
 
 
+class DeleteDatasetLabelsInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetLabelIds: list[str]
+
+
+class DeleteDatasetSplitInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetSplitIds: list[str]
+
+
 class DeleteExperimentsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     experimentIds: list[str]
@@ -2088,9 +2316,9 @@ class DeletePromptInput(BaseModel):
     promptId: str
 
 
-class DeletePromptLabelInput(BaseModel):
+class DeletePromptLabelsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
-    promptLabelId: str
+    promptLabelIds: list[str]
 
 
 class DeletePromptVersionTagInput(BaseModel):
@@ -2138,6 +2366,7 @@ class GenerativeModelInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     apiVersion: Optional[str] = None
     baseUrl: Optional[str] = None
+    customHeaders: Optional[dict[str, Any]] = None
     endpoint: Optional[str] = None
     name: str
     providerKey: Literal[
@@ -2221,6 +2450,15 @@ class PatchDatasetExamplesInput(BaseModel):
 class PatchDatasetInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     datasetId: str
+    description: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
+    name: Optional[str] = None
+
+
+class PatchDatasetSplitInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    color: Optional[str] = None
+    datasetSplitId: str
     description: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
     name: Optional[str] = None
@@ -2339,15 +2577,27 @@ class RemoveAnnotationConfigFromProjectInput(BaseModel):
     projectId: str
 
 
+class RemoveDatasetExamplesFromDatasetSplitsInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetSplitIds: list[str]
+    exampleIds: list[str]
+
+
 class ResponseFormatInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     definition: dict[str, Any]
 
 
-class SetPromptLabelInput(BaseModel):
+class SetDatasetLabelsInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetIds: list[str]
+    datasetLabelIds: list[str]
+
+
+class SetPromptLabelsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     promptId: str
-    promptLabelId: str
+    promptLabelIds: list[str]
 
 
 class SetPromptVersionTagInput(BaseModel):
@@ -2355,19 +2605,6 @@ class SetPromptVersionTagInput(BaseModel):
     description: Optional[str] = None
     name: str
     promptVersionId: str
-
-
-class SpanAnnotationFilter(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    exclude: Optional[SpanAnnotationFilterCondition] = None
-    include: Optional[SpanAnnotationFilterCondition] = None
-
-
-class SpanAnnotationFilterCondition(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    names: Optional[list[str]] = None
-    sources: Optional[list[Literal["API", "APP"]]] = None
-    userIds: Optional[list[Optional[str]]] = None
 
 
 class SpanAnnotationSort(BaseModel):
@@ -2451,16 +2688,42 @@ class TraceAnnotationSort(BaseModel):
     dir: Literal["asc", "desc"]
 
 
-class UnsetPromptLabelInput(BaseModel):
+class UnsetDatasetLabelsInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    datasetIds: list[str]
+    datasetLabelIds: list[str]
+
+
+class UnsetPromptLabelsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     promptId: str
-    promptLabelId: str
+    promptLabelIds: list[str]
 
 
 class UpdateAnnotationConfigInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     annotationConfig: AnnotationConfigInput
     id: str
+
+
+class UpdateAnnotationInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotatorKind: Literal["CODE", "HUMAN", "LLM"]
+    explanation: Optional[str] = None
+    id: str
+    label: Optional[str] = None
+    metadata: dict[str, Any]
+    name: str
+    score: Optional[float] = None
+    source: Literal["API", "APP"]
+
+
+class UpdateDatasetLabelInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    color: str
+    datasetLabelId: str
+    description: Optional[str] = None
+    name: str
 
 
 class UpdateModelMutationInput(BaseModel):
