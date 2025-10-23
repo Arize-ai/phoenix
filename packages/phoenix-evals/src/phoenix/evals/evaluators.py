@@ -219,7 +219,7 @@ class Evaluator(ABC):
         return cast(List[Score], result)
 
     def evaluate(
-        self, *, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         """
         Validate and remap `eval_input` using the evaluator's input fields (from
@@ -245,7 +245,7 @@ class Evaluator(ABC):
         return self._evaluate(remapped_eval_input)
 
     async def async_evaluate(
-        self, *, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         """
         Async variant of `evaluate`. Validates and remaps input as described in `evaluate`.
@@ -385,12 +385,12 @@ class LLMEvaluator(Evaluator):
         raise NotImplementedError("Subclasses must implement _async_evaluate")
 
     def evaluate(
-        self, *, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         return super().evaluate(eval_input=eval_input, input_mapping=input_mapping)
 
     async def async_evaluate(
-        self, *, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         return await super().async_evaluate(eval_input=eval_input, input_mapping=input_mapping)
 
