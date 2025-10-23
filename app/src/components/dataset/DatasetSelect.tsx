@@ -79,22 +79,34 @@ export function DatasetSelect(props: DatasetSelectProps) {
             min-height: auto;
           `}
         >
-          {data.datasets.edges.map(({ dataset }) => (
-            <SelectItem key={dataset.id} id={dataset.id}>
-              <Flex
-                direction="row"
-                alignItems="center"
-                gap="size-200"
-                justifyContent="space-between"
-                width="100%"
+          {data.datasets.edges.map(({ dataset }) => {
+            const isDisabled = dataset.exampleCount === 0;
+            return (
+              <SelectItem
+                key={dataset.id}
+                id={dataset.id}
+                isDisabled={isDisabled}
               >
-                <Text>{dataset.name}</Text>
-                <Text color="text-700" size="XS">
-                  {dataset.exampleCount} examples
-                </Text>
-              </Flex>
-            </SelectItem>
-          ))}
+                <Flex
+                  direction="row"
+                  alignItems="center"
+                  gap="size-200"
+                  justifyContent="space-between"
+                  width="100%"
+                  css={css`
+                    opacity: ${isDisabled
+                      ? "var(--ac-global-opacity-disabled)"
+                      : 1};
+                  `}
+                >
+                  <Text>{dataset.name}</Text>
+                  <Text color="text-700" size="XS">
+                    {dataset.exampleCount} examples
+                  </Text>
+                </Flex>
+              </SelectItem>
+            );
+          })}
         </ListBox>
         <View padding="size-50" borderTopColor="light" borderTopWidth="thin">
           <LinkButton to="/datasets" variant="quiet" size="S">
