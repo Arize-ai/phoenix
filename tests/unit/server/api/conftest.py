@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, NamedTuple
 
 import pytest
 from sqlalchemy import insert
@@ -900,3 +900,471 @@ async def playground_dataset_with_splits(db: DbSessionFactory) -> None:
         await session.flush()
         session.add_all(split_assignments)
         await session.flush()
+
+
+class ExperimentsWithIncompleteRuns(NamedTuple):
+    """
+    Type-safe fixture data for experiments with incomplete runs testing.
+    Tests versioning, deletions, and various run states across multiple dataset versions.
+
+    Dataset structure:
+    - version1: 5 examples (ex0, ex1, ex2, ex3, ex4)
+    - version2: 6 examples (ex0, ex1, ex2 [deleted], ex3 [patched], ex4, ex5 [new])
+
+    Experiment structure:
+    - experiment_v1_mixed: version1, 5 examples, mixed run states
+    - experiment_v1_empty: version1, 5 examples, no runs
+    - experiment_v2_with_deletion: version2, 4 examples (ex2 deleted), mixed runs
+    - experiment_v2_incremental: version2, 2 examples, no runs (for incremental testing)
+    """
+
+    # Core dataset
+    dataset: models.Dataset
+
+    # Dataset versions
+    version1: models.DatasetVersion
+    version2: models.DatasetVersion
+
+    # Examples organized by lifecycle
+    examples_in_v1: list[models.DatasetExample]  # all 5 examples in version1
+    examples_in_v2_active: list[models.DatasetExample]  # 5 active in v2 (ex0,ex1,ex3,ex4,ex5)
+    example_deleted_in_v2: models.DatasetExample  # ex2 - exists in v1, deleted in v2
+    example_added_in_v2: models.DatasetExample  # ex5 - only in v2
+
+    # Revisions for version1
+    revisions_v1: list[models.DatasetExampleRevision]  # 5 CREATE revisions
+
+    # Revisions for version2
+    revisions_v2: list[models.DatasetExampleRevision]  # mixed CREATE/PATCH/DELETE
+
+    # Experiments on version1
+    experiment_v1_mixed: models.Experiment  # 5 examples, 7 successful + 3 failed runs
+    experiment_v1_empty: models.Experiment  # 5 examples, 0 runs
+
+    # Experiments on version2
+    experiment_v2_with_deletion: models.Experiment  # 4 examples (ex2 deleted), mixed runs
+    experiment_v2_incremental: models.Experiment  # 2 examples, 0 runs (for testing)
+
+    # Helper mappings
+    example_by_name: dict[str, models.DatasetExample]  # "ex0" -> example object
+    example_id_map: dict[int, int]  # maps v1 example index (0-4) to example ID
+
+
+@pytest.fixture
+async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsWithIncompleteRuns:
+    """
+    Comprehensive fixture for testing experiments across multiple dataset versions.
+    Tests versioning, deletions, patches, and various run completion states.
+    """
+    async with db() as session:
+        # Create dataset
+        dataset = models.Dataset(
+            name="test-dataset-versioning",
+            metadata_={},
+        )
+        session.add(dataset)
+        await session.flush()
+        dataset_id = dataset.id
+
+        # ===== VERSION 1 =====
+        version1 = models.DatasetVersion(
+            dataset_id=dataset_id,
+            metadata_={"version": 1},
+        )
+        session.add(version1)
+        await session.flush()
+        v1_id = version1.id
+
+        # Create 5 examples for version 1 (ex0-ex4)
+        examples_v1 = []
+        example_ids_v1 = []
+        for i in range(5):
+            example = models.DatasetExample(dataset_id=dataset_id)
+            session.add(example)
+            await session.flush()
+            examples_v1.append(example)
+            example_ids_v1.append(example.id)
+
+        # Create revisions for version 1 (all CREATE)
+        revisions_v1 = []
+        revision_ids_v1 = []
+        for i, example in enumerate(examples_v1):
+            revision = models.DatasetExampleRevision(
+                dataset_example_id=example.id,
+                dataset_version_id=v1_id,
+                input={"query": f"ex{i}-v1"},
+                output={"response": f"expected-{i}-v1"},
+                metadata_={},
+                revision_kind="CREATE",
+            )
+            session.add(revision)
+            await session.flush()
+            revisions_v1.append(revision)
+            revision_ids_v1.append(revision.id)
+
+        # ===== VERSION 2 =====
+        version2 = models.DatasetVersion(
+            dataset_id=dataset_id,
+            metadata_={"version": 2},
+        )
+        session.add(version2)
+        await session.flush()
+        v2_id = version2.id
+
+        # Create one new example for version 2 (ex5)
+        ex5 = models.DatasetExample(dataset_id=dataset_id)
+        session.add(ex5)
+        await session.flush()
+
+        # Create revisions for version 2:
+        # - ex0, ex1, ex4: CREATE (carried forward)
+        # - ex2: DELETE (removed in v2)
+        # - ex3: PATCH (modified in v2)
+        # - ex5: CREATE (new in v2)
+        revisions_v2 = []
+        revision_ids_v2 = []
+
+        # ex0: CREATE (carried forward unchanged)
+        rev = models.DatasetExampleRevision(
+            dataset_example_id=examples_v1[0].id,
+            dataset_version_id=v2_id,
+            input={"query": "ex0-v1"},  # same as v1
+            output={"response": "expected-0-v1"},
+            metadata_={},
+            revision_kind="CREATE",
+        )
+        session.add(rev)
+        await session.flush()
+        revisions_v2.append(rev)
+        revision_ids_v2.append(rev.id)
+
+        # ex1: CREATE (carried forward unchanged)
+        rev = models.DatasetExampleRevision(
+            dataset_example_id=examples_v1[1].id,
+            dataset_version_id=v2_id,
+            input={"query": "ex1-v1"},
+            output={"response": "expected-1-v1"},
+            metadata_={},
+            revision_kind="CREATE",
+        )
+        session.add(rev)
+        await session.flush()
+        revisions_v2.append(rev)
+        revision_ids_v2.append(rev.id)
+
+        # ex2: DELETE (removed in v2)
+        rev_deleted = models.DatasetExampleRevision(
+            dataset_example_id=examples_v1[2].id,
+            dataset_version_id=v2_id,
+            input={},
+            output={},
+            metadata_={},
+            revision_kind="DELETE",
+        )
+        session.add(rev_deleted)
+        await session.flush()
+        revisions_v2.append(rev_deleted)
+
+        # ex3: PATCH (modified in v2)
+        rev = models.DatasetExampleRevision(
+            dataset_example_id=examples_v1[3].id,
+            dataset_version_id=v2_id,
+            input={"query": "ex3-v2-patched"},  # changed
+            output={"response": "expected-3-v2-patched"},
+            metadata_={},
+            revision_kind="PATCH",
+        )
+        session.add(rev)
+        await session.flush()
+        revisions_v2.append(rev)
+        revision_ids_v2.append(rev.id)
+
+        # ex4: CREATE (carried forward unchanged)
+        rev = models.DatasetExampleRevision(
+            dataset_example_id=examples_v1[4].id,
+            dataset_version_id=v2_id,
+            input={"query": "ex4-v1"},
+            output={"response": "expected-4-v1"},
+            metadata_={},
+            revision_kind="CREATE",
+        )
+        session.add(rev)
+        await session.flush()
+        revisions_v2.append(rev)
+        revision_ids_v2.append(rev.id)
+
+        # ex5: CREATE (new in v2)
+        rev_new = models.DatasetExampleRevision(
+            dataset_example_id=ex5.id,
+            dataset_version_id=v2_id,
+            input={"query": "ex5-v2-new"},
+            output={"response": "expected-5-v2-new"},
+            metadata_={},
+            revision_kind="CREATE",
+        )
+        session.add(rev_new)
+        await session.flush()
+        revisions_v2.append(rev_new)
+        revision_ids_v2.append(rev_new.id)
+
+        now = datetime.now(timezone.utc)
+
+        # ===== EXPERIMENT 1: version1, 5 examples, mixed runs =====
+        # ex0(3 success), ex1(1 success, 1 fail, 1 miss), ex2(all miss),
+        # ex3(2 success, 1 fail), ex4(1 fail, 1 miss, 1 success)
+        # Total: 7 successful, 3 failed
+        exp_v1_mixed = models.Experiment(
+            dataset_id=dataset_id,
+            dataset_version_id=v1_id,
+            name="exp-v1-mixed-runs",
+            repetitions=3,
+            metadata_={},
+        )
+        session.add(exp_v1_mixed)
+        await session.flush()
+
+        # Link all 5 examples from v1
+        for example_id, revision_id in zip(example_ids_v1, revision_ids_v1):
+            junction = models.ExperimentDatasetExample(
+                experiment_id=exp_v1_mixed.id,
+                dataset_example_id=example_id,
+                dataset_example_revision_id=revision_id,
+            )
+            session.add(junction)
+        await session.flush()
+
+        # Add runs
+        for rep in [1, 2, 3]:
+            session.add(
+                models.ExperimentRun(
+                    experiment_id=exp_v1_mixed.id,
+                    dataset_example_id=example_ids_v1[0],
+                    repetition_number=rep,
+                    output={"result": f"ex0-rep{rep}"},
+                    error=None,
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+        session.add(
+            models.ExperimentRun(
+                experiment_id=exp_v1_mixed.id,
+                dataset_example_id=example_ids_v1[1],
+                repetition_number=1,
+                output={"result": "ex1-rep1"},
+                error=None,
+                start_time=now,
+                end_time=now,
+            )
+        )
+        session.add(
+            models.ExperimentRun(
+                experiment_id=exp_v1_mixed.id,
+                dataset_example_id=example_ids_v1[1],
+                repetition_number=2,
+                output=None,
+                error="Failed",
+                start_time=now,
+                end_time=now,
+            )
+        )
+        for rep in [1, 2]:
+            session.add(
+                models.ExperimentRun(
+                    experiment_id=exp_v1_mixed.id,
+                    dataset_example_id=example_ids_v1[3],
+                    repetition_number=rep,
+                    output={"result": f"ex3-rep{rep}"},
+                    error=None,
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+        session.add(
+            models.ExperimentRun(
+                experiment_id=exp_v1_mixed.id,
+                dataset_example_id=example_ids_v1[3],
+                repetition_number=3,
+                output=None,
+                error="Failed",
+                start_time=now,
+                end_time=now,
+            )
+        )
+        session.add(
+            models.ExperimentRun(
+                experiment_id=exp_v1_mixed.id,
+                dataset_example_id=example_ids_v1[4],
+                repetition_number=1,
+                output=None,
+                error="Failed",
+                start_time=now,
+                end_time=now,
+            )
+        )
+        session.add(
+            models.ExperimentRun(
+                experiment_id=exp_v1_mixed.id,
+                dataset_example_id=example_ids_v1[4],
+                repetition_number=3,
+                output={"result": "ex4-rep3"},
+                error=None,
+                start_time=now,
+                end_time=now,
+            )
+        )
+        await session.flush()
+
+        # ===== EXPERIMENT 2: version1, 5 examples, no runs =====
+        exp_v1_empty = models.Experiment(
+            dataset_id=dataset_id,
+            dataset_version_id=v1_id,
+            name="exp-v1-empty",
+            repetitions=2,
+            metadata_={},
+        )
+        session.add(exp_v1_empty)
+        await session.flush()
+
+        for example_id, revision_id in zip(example_ids_v1, revision_ids_v1):
+            junction = models.ExperimentDatasetExample(
+                experiment_id=exp_v1_empty.id,
+                dataset_example_id=example_id,
+                dataset_example_revision_id=revision_id,
+            )
+            session.add(junction)
+        await session.flush()
+
+        # ===== EXPERIMENT 3: version2, 4 examples (ex2 deleted), mixed runs =====
+        # Uses: ex0, ex1, ex3 (patched), ex4
+        # Runs: ex0(2 success), ex1(1 success, 1 fail), ex3(no runs), ex4(1 success)
+        # Total: 4 successful, 1 failed
+        exp_v2_deletion = models.Experiment(
+            dataset_id=dataset_id,
+            dataset_version_id=v2_id,
+            name="exp-v2-with-deletion",
+            repetitions=2,
+            metadata_={},
+        )
+        session.add(exp_v2_deletion)
+        await session.flush()
+
+        # Link ex0, ex1, ex3, ex4 from v2 (ex2 is deleted, ex5 not included)
+        # revision_ids_v2: [ex0, ex1, ex2(DELETE), ex3, ex4, ex5]
+        # We want indices: 0, 1, 3, 4
+        for idx, revision_idx in [(0, 0), (1, 1), (3, 3), (4, 4)]:
+            junction = models.ExperimentDatasetExample(
+                experiment_id=exp_v2_deletion.id,
+                dataset_example_id=example_ids_v1[idx],
+                dataset_example_revision_id=revision_ids_v2[revision_idx],
+            )
+            session.add(junction)
+        await session.flush()
+
+        # Add runs
+        for rep in [1, 2]:
+            session.add(
+                models.ExperimentRun(
+                    experiment_id=exp_v2_deletion.id,
+                    dataset_example_id=example_ids_v1[0],
+                    repetition_number=rep,
+                    output={"result": f"ex0-v2-rep{rep}"},
+                    error=None,
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+        session.add(
+            models.ExperimentRun(
+                experiment_id=exp_v2_deletion.id,
+                dataset_example_id=example_ids_v1[1],
+                repetition_number=1,
+                output={"result": "ex1-v2-rep1"},
+                error=None,
+                start_time=now,
+                end_time=now,
+            )
+        )
+        session.add(
+            models.ExperimentRun(
+                experiment_id=exp_v2_deletion.id,
+                dataset_example_id=example_ids_v1[1],
+                repetition_number=2,
+                output=None,
+                error="Failed",
+                start_time=now,
+                end_time=now,
+            )
+        )
+        session.add(
+            models.ExperimentRun(
+                experiment_id=exp_v2_deletion.id,
+                dataset_example_id=example_ids_v1[4],
+                repetition_number=1,
+                output={"result": "ex4-v2-rep1"},
+                error=None,
+                start_time=now,
+                end_time=now,
+            )
+        )
+        await session.flush()
+
+        # ===== EXPERIMENT 4: version2, 2 examples (ex5 new + ex0), no runs =====
+        exp_v2_incremental = models.Experiment(
+            dataset_id=dataset_id,
+            dataset_version_id=v2_id,
+            name="exp-v2-incremental",
+            repetitions=3,
+            metadata_={},
+        )
+        session.add(exp_v2_incremental)
+        await session.flush()
+
+        # Link ex0 and ex5
+        junction = models.ExperimentDatasetExample(
+            experiment_id=exp_v2_incremental.id,
+            dataset_example_id=examples_v1[0].id,
+            dataset_example_revision_id=revision_ids_v2[0],
+        )
+        session.add(junction)
+        junction = models.ExperimentDatasetExample(
+            experiment_id=exp_v2_incremental.id,
+            dataset_example_id=ex5.id,
+            dataset_example_revision_id=rev_new.id,  # ex5's revision
+        )
+        session.add(junction)
+        await session.flush()
+
+        # Build example_by_name mapping
+        example_by_name = {
+            "ex0": examples_v1[0],
+            "ex1": examples_v1[1],
+            "ex2": examples_v1[2],
+            "ex3": examples_v1[3],
+            "ex4": examples_v1[4],
+            "ex5": ex5,
+        }
+
+        # Build example_id_map for v1 examples (index -> id)
+        example_id_map = {i: example.id for i, example in enumerate(examples_v1)}
+
+        # Examples active in v2 (ex2 deleted)
+        examples_v2_active = [examples_v1[0], examples_v1[1], examples_v1[3], examples_v1[4], ex5]
+
+    return ExperimentsWithIncompleteRuns(
+        dataset=dataset,
+        version1=version1,
+        version2=version2,
+        examples_in_v1=examples_v1,
+        examples_in_v2_active=examples_v2_active,
+        example_deleted_in_v2=examples_v1[2],
+        example_added_in_v2=ex5,
+        revisions_v1=revisions_v1,
+        revisions_v2=revisions_v2,
+        experiment_v1_mixed=exp_v1_mixed,
+        experiment_v1_empty=exp_v1_empty,
+        experiment_v2_with_deletion=exp_v2_deletion,
+        experiment_v2_incremental=exp_v2_incremental,
+        example_by_name=example_by_name,
+        example_id_map=example_id_map,
+    )

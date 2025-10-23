@@ -255,7 +255,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List experiments by dataset */
+        /**
+         * List experiments by dataset
+         * @description Retrieve a paginated list of experiments for the specified dataset.
+         */
         get: operations["listExperiments"];
         put?: never;
         /** Create experiment on a dataset */
@@ -275,6 +278,39 @@ export interface paths {
         };
         /** Get experiment by ID */
         get: operations["getExperiment"];
+        put?: never;
+        post?: never;
+        /** Delete experiment by ID */
+        delete: operations["deleteExperiment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/experiments/{experiment_id}/incomplete-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get incomplete runs for an experiment
+         * @description Get runs that need to be completed for this experiment.
+         *
+         *     Returns all incomplete runs, including both missing runs (not yet attempted)
+         *     and failed runs (attempted but have errors).
+         *
+         *     Args:
+         *         experiment_id: The ID of the experiment
+         *         cursor: Cursor for pagination
+         *         limit: Maximum number of results to return
+         *
+         *     Returns:
+         *         Paginated list of incomplete runs grouped by dataset example,
+         *         with repetition numbers that need to be run
+         */
+        get: operations["getIncompleteRuns"];
         put?: never;
         post?: never;
         delete?: never;
@@ -332,6 +368,39 @@ export interface paths {
         put?: never;
         /** Create run for an experiment */
         post: operations["createExperimentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/experiments/{experiment_id}/incomplete-evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get incomplete evaluations for an experiment
+         * @description Get experiment runs that have incomplete evaluations.
+         *
+         *     Returns runs with:
+         *     - Missing evaluations (evaluator has not been run)
+         *     - Failed evaluations (evaluator ran but has errors)
+         *
+         *     Args:
+         *         experiment_id: The ID of the experiment
+         *         evaluator_name: List of evaluator names to check (required, at least one)
+         *         cursor: Cursor for pagination
+         *         limit: Maximum number of results to return
+         *
+         *     Returns:
+         *         Paginated list of runs with incomplete evaluations
+         */
+        get: operations["getIncompleteEvaluations"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1199,6 +1268,26 @@ export interface components {
              * @description The last update timestamp of the experiment
              */
             updated_at: string;
+            /**
+             * Example Count
+             * @description Number of examples in the experiment
+             */
+            example_count: number;
+            /**
+             * Successful Run Count
+             * @description Number of successful runs in the experiment
+             */
+            successful_run_count: number;
+            /**
+             * Failed Run Count
+             * @description Number of failed runs in the experiment
+             */
+            failed_run_count: number;
+            /**
+             * Missing Run Count
+             * @description Number of missing (not yet executed) runs in the experiment
+             */
+            missing_run_count: number;
         };
         /** ExperimentEvaluationResult */
         ExperimentEvaluationResult: {
@@ -1218,8 +1307,8 @@ export interface components {
              */
             explanation?: string | null;
         };
-        /** ExperimentRunResponse */
-        ExperimentRunResponse: {
+        /** ExperimentRun */
+        ExperimentRun: {
             /**
              * Dataset Example Id
              * @description The ID of the dataset example used in the experiment run
@@ -1314,6 +1403,20 @@ export interface components {
         GetExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
         };
+        /** GetIncompleteEvaluationsResponseBody */
+        GetIncompleteEvaluationsResponseBody: {
+            /** Data */
+            data: components["schemas"]["IncompleteEvaluation"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** GetIncompleteRunsResponseBody */
+        GetIncompleteRunsResponseBody: {
+            /** Data */
+            data: components["schemas"]["IncompleteRun"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetProjectResponseBody */
         GetProjectResponseBody: {
             data: components["schemas"]["Project"];
@@ -1364,6 +1467,39 @@ export interface components {
         };
         /** Identifier */
         Identifier: string;
+        /**
+         * IncompleteEvaluation
+         * @description Information about an experiment run with incomplete evaluations
+         */
+        IncompleteEvaluation: {
+            /** @description The experiment run */
+            experiment_run: components["schemas"]["ExperimentRun"];
+            /** @description The dataset example */
+            dataset_example: components["schemas"]["DatasetExample"];
+            /**
+             * Missing Evaluator Names
+             * @description List of evaluator names that have not been run for this run
+             */
+            missing_evaluator_names: string[];
+            /**
+             * Failed Evaluator Names
+             * @description List of evaluator names that failed (have errors) for this run
+             */
+            failed_evaluator_names: string[];
+        };
+        /**
+         * IncompleteRun
+         * @description Information about incomplete runs for a dataset example
+         */
+        IncompleteRun: {
+            /** @description The dataset example */
+            dataset_example: components["schemas"]["DatasetExample"];
+            /**
+             * Repetition Numbers
+             * @description List of repetition numbers that need to be run
+             */
+            repetition_numbers: number[];
+        };
         /** InsertedSessionAnnotation */
         InsertedSessionAnnotation: {
             /**
@@ -1428,7 +1564,7 @@ export interface components {
         /** ListExperimentRunsResponseBody */
         ListExperimentRunsResponseBody: {
             /** Data */
-            data: components["schemas"]["ExperimentRunResponse"][];
+            data: components["schemas"]["ExperimentRun"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -1436,6 +1572,8 @@ export interface components {
         ListExperimentsResponseBody: {
             /** Data */
             data: components["schemas"]["Experiment"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** LocalUser */
         LocalUser: {
@@ -3628,7 +3766,12 @@ export interface operations {
     };
     listExperiments: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Cursor for pagination (base64-encoded experiment ID) */
+                cursor?: string | null;
+                /** @description The max number of experiments to return at a time. */
+                limit?: number;
+            };
             header?: never;
             path: {
                 dataset_id: string;
@@ -3637,7 +3780,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Experiments retrieved successfully */
+            /** @description Paginated list of experiments for the dataset */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3655,13 +3798,13 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };
@@ -3764,6 +3907,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteExperiment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Experiment deleted successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getIncompleteRuns: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination */
+                cursor?: string | null;
+                /** @description Maximum number of examples with incomplete runs to return */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incomplete runs retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetIncompleteRunsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid cursor format */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -3954,15 +4198,6 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description This experiment run has already been submitted */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3970,6 +4205,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getIncompleteEvaluations: {
+        parameters: {
+            query?: {
+                /** @description Evaluator names to check (can be repeated) */
+                evaluator_name?: string[];
+                /** @description Cursor for pagination */
+                cursor?: string | null;
+                /** @description Maximum number of runs with incomplete evaluations to return */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incomplete evaluations retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetIncompleteEvaluationsResponseBody"];
+                };
+            };
+            /** @description No evaluator names provided */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid cursor format */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
