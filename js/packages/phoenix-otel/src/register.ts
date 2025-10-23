@@ -15,6 +15,9 @@ import {
   registerInstrumentations,
 } from "@opentelemetry/instrumentation";
 
+/**
+ * Configuration parameters for registering Phoenix OpenTelemetry tracing
+ */
 export type RegisterParams = {
   /**
    * The project the spans should be associated to
@@ -22,7 +25,7 @@ export type RegisterParams = {
    */
   projectName?: string;
   /**
-   * the URL to the phoenix server. Can be postfixed with tracing path.
+   * The URL to the phoenix server. Can be postfixed with tracing path.
    * If not provided, environment variables are checked.
    * @example "https://app.phoenix.arize.com"
    */
@@ -37,12 +40,12 @@ export type RegisterParams = {
    * It is recommended to use batching in production environments
    * @default true
    */
+  batch?: boolean;
   /**
-   * A list of instrumenation to register.
+   * A list of instrumentation to register.
    * Note: this may only work with commonjs projects. ESM projects will require manually applying instrumentation.
    */
   instrumentations?: Instrumentation[];
-  batch?: boolean;
   /**
    * Whether to set the tracer as a global provider.
    * @default true
@@ -50,6 +53,30 @@ export type RegisterParams = {
   global?: boolean;
 };
 
+/**
+ * Registers Phoenix OpenTelemetry tracing with the specified configuration
+ *
+ * @param params - Configuration parameters for Phoenix tracing
+ * @param params.url - The URL to the phoenix server. Can be postfixed with tracing path
+ * @param params.apiKey - The API key for the phoenix instance
+ * @param params.projectName - The project the spans should be associated to
+ * @param params.instrumentations - A list of instrumentation to register
+ * @param params.batch - Whether to use batching for span processing
+ * @param params.global - Whether to set the tracer as a global provider
+ * @returns {NodeTracerProvider} The configured NodeTracerProvider instance
+ *
+ * @example
+ * ```typescript
+ * import { register } from '@arizeai/phoenix-otel';
+ *
+ * const provider = register({
+ *   projectName: 'my-app',
+ *   url: 'https://app.phoenix.arize.com',
+ *   apiKey: 'your-api-key',
+ *   batch: true
+ * });
+ * ```
+ */
 export function register({
   url: paramsUrl,
   apiKey: paramsApiKey,
@@ -57,7 +84,7 @@ export function register({
   instrumentations,
   batch = true,
   global = true,
-}: RegisterParams) {
+}: RegisterParams): NodeTracerProvider {
   const url = ensureCollectorEndpoint(
     paramsUrl || getEnvCollectorURL() || "http://localhost:6006"
   );
@@ -97,9 +124,11 @@ export function register({
 }
 
 /**
- * A utility method to normalize the url to be http compatible.
- * Assumes we are using http over gRPC.
- * @param url the url to the phoenix server. May contain a slug
+ * A utility method to normalize the URL to be HTTP compatible.
+ * Assumes we are using HTTP over gRPC and ensures the URL ends with the correct traces endpoint.
+ *
+ * @param url - The URL to the phoenix server. May contain a slug
+ * @returns {string} The normalized URL with the '/v1/traces' endpoint
  */
 export function ensureCollectorEndpoint(url: string): string {
   if (!url.includes("/v1/traces")) {
