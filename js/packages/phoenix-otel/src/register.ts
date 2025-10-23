@@ -111,14 +111,14 @@ export function register({
     spanProcessors: [spanProcessor],
   });
 
-  if (global) {
-    provider.register();
-  }
   if (instrumentations) {
     registerInstrumentations({
       instrumentations,
       tracerProvider: provider,
     });
+  }
+  if (global) {
+    provider.register();
   }
   return provider;
 }
