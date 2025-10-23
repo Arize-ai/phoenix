@@ -698,7 +698,7 @@ def create_evaluator(
                 "text": ["Hello world", "This is a longer sentence", "Short"]
             })
 
-            results_df = evaluate_dataframe(df, [word_count])
+            results_df = evaluate_dataframe(dataframe=df, evaluators=[word_count])
             print(results_df["word_count_score"])  # JSON scores for each row
 
     Notes:
@@ -1020,7 +1020,7 @@ def bind_evaluator(
 
             # Map 'message' field to 'content' parameter
             mapping = {"content": "message"}
-            bound_evaluator = bind_evaluator(text_length, mapping)
+            bound_evaluator = bind_evaluator(evaluator=text_length, input_mapping=mapping)
 
             # Now we can use 'message' instead of 'content'
             result = bound_evaluator.evaluate({"message": "Hello world"})
@@ -1039,7 +1039,7 @@ def bind_evaluator(
                 "retrieved_docs": "retrieved_documents",
                 "relevant_docs": lambda x: [x["expected_document"]]
             }
-            bound_evaluator = bind_evaluator(precision, mapping)
+            bound_evaluator = bind_evaluator(evaluator=precision, input_mapping=mapping)
 
             data = {
                 "retrieved_documents": [1, 2, 3],
@@ -1066,7 +1066,7 @@ def bind_evaluator(
                 "answer": "response.text",
                 "context": lambda x: " ".join(x["documents"])
             }
-            bound_evaluator = bind_evaluator(response_quality, mapping)
+            bound_evaluator = bind_evaluator(evaluator=response_quality, input_mapping=mapping)
 
             data = {
                 "query": "What is the capital?",
@@ -1226,7 +1226,7 @@ def evaluate_dataframe(
             })
 
             evaluators = [word_count, has_question]
-            results_df = evaluate_dataframe(df, evaluators)
+            results_df = evaluate_dataframe(dataframe=df, evaluators=evaluators)
 
             # Results include original columns plus score columns
             print(results_df.columns)
@@ -1243,7 +1243,7 @@ def evaluate_dataframe(
 
             # Data has 'answer' column but evaluator expects 'response'
             mapping = {"response": "answer"}
-            bound_evaluator = bind_evaluator(response_length, mapping)
+            bound_evaluator = bind_evaluator(evaluator=response_length, input_mapping=mapping)
 
             df = pd.DataFrame({
                 "question": ["What is AI?", "How does ML work?"],
@@ -1251,13 +1251,13 @@ def evaluate_dataframe(
                           "ML uses algorithms to learn patterns"]
             })
 
-            results_df = evaluate_dataframe(df, [bound_evaluator])
+            results_df = evaluate_dataframe(dataframe=df, evaluators=[bound_evaluator])
 
         With progress bar and error handling::
 
             results_df = evaluate_dataframe(
-                df,
-                evaluators,
+                dataframe=df,
+                evaluators=evaluators,
                 tqdm_bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
                 exit_on_error=False,  # Continue on errors
                 max_retries=3
@@ -1369,8 +1369,8 @@ async def async_evaluate_dataframe(
 
             async def main():
                 results_df = await async_evaluate_dataframe(
-                    df,
-                    [text_analysis],
+                    dataframe=df,
+                    evaluators=[text_analysis],
                     concurrency=5  # Process up to 5 rows concurrently
                 )
                 return results_df
@@ -1402,8 +1402,8 @@ async def async_evaluate_dataframe(
 
             async def evaluate_sentiment():
                 results_df = await async_evaluate_dataframe(
-                    df,
-                    [sentiment_evaluator],
+                    dataframe=df,
+                    evaluators=[sentiment_evaluator],
                     concurrency=2,  # Limit concurrent LLM calls
                     tqdm_bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}"
                 )
@@ -1415,8 +1415,8 @@ async def async_evaluate_dataframe(
 
             async def robust_evaluation():
                 results_df = await async_evaluate_dataframe(
-                    df,
-                    evaluators,
+                    dataframe=df,
+                    evaluators=evaluators,
                     concurrency=3,
                     exit_on_error=False,  # Continue despite errors
                     max_retries=5,        # Retry failed evaluations
