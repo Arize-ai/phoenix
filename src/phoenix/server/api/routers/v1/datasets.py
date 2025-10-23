@@ -17,7 +17,6 @@ import pandas as pd
 import pyarrow as pa
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
-from pydantic import ValidationError
 from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -39,7 +38,6 @@ from phoenix.db.insertion.dataset import (
     add_dataset_examples,
 )
 from phoenix.db.types.db_models import UNDEFINED
-from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
 from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
@@ -1125,7 +1123,7 @@ def _is_all_dict(seq: Sequence[Any]) -> bool:
 class _SplitId(int): ...
 
 
-_SplitIdentifier: TypeAlias = Union[_SplitId, Identifier]
+_SplitIdentifier: TypeAlias = Union[_SplitId, str]
 
 
 def _parse_split_identifier(split_identifier: str) -> _SplitIdentifier:
@@ -1149,10 +1147,7 @@ def _parse_split_identifier(split_identifier: str) -> _SplitIdentifier:
             DatasetSplitNodeType.__name__,
         )
     except ValueError:
-        try:
-            return Identifier.model_validate(split_identifier)
-        except ValidationError:
-            raise HTTPException(422, "Invalid split name")
+        return split_identifier
     return _SplitId(split_id)
 
 
@@ -1179,7 +1174,7 @@ async def _resolve_split_identifiers(
     # Parse all identifiers first
     parsed_identifiers: list[_SplitIdentifier] = []
     for identifier_str in split_identifiers:
-        parsed_identifiers.append(_parse_split_identifier(identifier_str))
+        parsed_identifiers.append(_parse_split_identifier(identifier_str.strip()))
 
     # Separate IDs and names
     requested_ids: list[int] = []
@@ -1187,8 +1182,8 @@ async def _resolve_split_identifiers(
     for identifier in parsed_identifiers:
         if isinstance(identifier, _SplitId):
             requested_ids.append(int(identifier))
-        elif isinstance(identifier, Identifier):
-            requested_names.append(identifier.root)
+        elif isinstance(identifier, str):
+            requested_names.append(identifier)
         else:
             assert_never(identifier)
 
