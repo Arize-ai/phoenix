@@ -1,12 +1,12 @@
 ---
 description: >-
-  How to run experiments over select subsets splits of your dataset for targeted experimentation
+  How to run experiments over select splits of your dataset for targeted experimentation
 ---
 
 # Splits
 
 {% hint style="info" %}
-dataset splits are available in `arize-phoenix` [11.37.0](https://github.com/Arize-ai/phoenix/releases/tag/arize-phoenix-v11.37.0).
+dataset splits are available in `arize-phoenix` [12.7.0](https://github.com/Arize-ai/phoenix/releases/tag/arize-phoenix-v12.7.0).
 {% endhint %}
 
 Often we want to run an experiment over just a subset of our entire dataset. These subsets of dataset examples are called "splits." Common splits include:
@@ -15,7 +15,7 @@ Often we want to run an experiment over just a subset of our entire dataset. The
 - a split of examples used in a few-shot prompt and a disjoint, non-overlapping split of examples used for evaluation,
 - train, validation, and test splits for fine-tuning an LLM.
 
-Running experiments over splits rather than entire datasets produces more evaluation metrics that better capture the performance of your agent, workflow, or prompt on a particular type of data you care about.
+Running experiments over splits rather than entire datasets produces evaluation metrics that better capture the performance of your agent, workflow, or prompt on the particular type of data you care about.
 
 ### Configuring Splits
 
