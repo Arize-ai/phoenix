@@ -25,7 +25,6 @@ from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     SupportedSQLDialect,
     exclude_experiment_projects,
-    get_dataset_example_revisions,
 )
 from phoenix.db.models import LatencyMs
 from phoenix.pointcloud.clustering import Hdbscan
@@ -490,33 +489,14 @@ class Query:
                 experiment for experiment in experiments if experiment.id == base_experiment_rowid
             )
 
-            base_experiment_split_ids_subquery = select(
-                models.ExperimentDatasetSplit.dataset_split_id
-            ).where(models.ExperimentDatasetSplit.experiment_id == base_experiment_rowid)
-
-            base_experiment_split_ids = (
-                await session.scalars(base_experiment_split_ids_subquery)
-            ).all()
-
-            # Use base experiment's split IDs for filtering (None if base has no splits)
-            split_ids_to_use = (
-                list(base_experiment_split_ids) if base_experiment_split_ids else None
-            )
-            # Get the revision IDs using the helper
-            revision_ids_query = (
-                get_dataset_example_revisions(
-                    base_experiment.dataset_version_id,
-                    dataset_id=base_experiment.dataset_id,
-                    split_ids=split_ids_to_use,
-                )
-                .with_only_columns(models.DatasetExampleRevision.dataset_example_id)
-                .scalar_subquery()
-            )
-
-            # Now build the examples query using those revision IDs
+            # Use ExperimentDatasetExample to pull down examples.
+            # Splits are mutable and should not be used for comparison.
+            # The comparison should only occur against examples which were assigned to the same
+            # splits at the time of execution of the ExperimentRun.
             examples_query = (
                 select(models.DatasetExample)
-                .where(models.DatasetExample.id.in_(revision_ids_query))
+                .join(models.ExperimentDatasetExample)
+                .where(models.ExperimentDatasetExample.experiment_id == base_experiment_rowid)
                 .order_by(models.DatasetExample.id.desc())
                 .limit(page_size + 1)
             )
