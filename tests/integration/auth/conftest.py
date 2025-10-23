@@ -117,6 +117,104 @@ def _env_oauth2_standard_groups_denied(
 
 
 @pytest.fixture(scope="package")
+def _env_oauth2_role_admin(
+    _oidc_server_with_role_admin: _OIDCServer,
+) -> dict[str, str]:
+    """Configure OAuth2 with role mapping - Owner → ADMIN."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_admin}_ADMIN_CLIENT_ID".upper(): _oidc_server_with_role_admin.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_admin}_ADMIN_CLIENT_SECRET".upper(): _oidc_server_with_role_admin.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_admin}_ADMIN_OIDC_CONFIG_URL".upper(): f"{_oidc_server_with_role_admin.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_admin}_ADMIN_ROLE_ATTRIBUTE_PATH".upper(): "role",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_admin}_ADMIN_ROLE_MAPPING".upper(): "Owner:ADMIN,Developer:MEMBER,Reader:VIEWER",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_role_member(
+    _oidc_server_with_role_member: _OIDCServer,
+) -> dict[str, str]:
+    """Configure OAuth2 with role mapping - Developer → MEMBER."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_member}_MEMBER_CLIENT_ID".upper(): _oidc_server_with_role_member.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_member}_MEMBER_CLIENT_SECRET".upper(): _oidc_server_with_role_member.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_member}_MEMBER_OIDC_CONFIG_URL".upper(): f"{_oidc_server_with_role_member.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_member}_MEMBER_ROLE_ATTRIBUTE_PATH".upper(): "role",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_member}_MEMBER_ROLE_MAPPING".upper(): "Owner:ADMIN,Developer:MEMBER,Reader:VIEWER",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_role_viewer(
+    _oidc_server_with_role_viewer: _OIDCServer,
+) -> dict[str, str]:
+    """Configure OAuth2 with role mapping - Reader → VIEWER."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_viewer}_VIEWER_CLIENT_ID".upper(): _oidc_server_with_role_viewer.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_viewer}_VIEWER_CLIENT_SECRET".upper(): _oidc_server_with_role_viewer.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_viewer}_VIEWER_OIDC_CONFIG_URL".upper(): f"{_oidc_server_with_role_viewer.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_viewer}_VIEWER_ROLE_ATTRIBUTE_PATH".upper(): "role",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_viewer}_VIEWER_ROLE_MAPPING".upper(): "Owner:ADMIN,Developer:MEMBER,Reader:VIEWER",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_role_system(
+    _oidc_server_with_role_system: _OIDCServer,
+) -> dict[str, str]:
+    """Configure OAuth2 to test SYSTEM role blocking (no explicit mapping needed - raw value test)."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_system}_SYSTEM_CLIENT_ID".upper(): _oidc_server_with_role_system.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_system}_SYSTEM_CLIENT_SECRET".upper(): _oidc_server_with_role_system.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_system}_SYSTEM_OIDC_CONFIG_URL".upper(): f"{_oidc_server_with_role_system.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_role_system}_SYSTEM_ROLE_ATTRIBUTE_PATH".upper(): "role",
+        # No role_mapping - tests raw value handling
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_role_invalid_non_strict(
+    _oidc_server_with_invalid_role: _OIDCServer,
+) -> dict[str, str]:
+    """Configure OAuth2 with role mapping - Invalid role defaults to VIEWER (non-strict)."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_INVALID_CLIENT_ID".upper(): _oidc_server_with_invalid_role.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_INVALID_CLIENT_SECRET".upper(): _oidc_server_with_invalid_role.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_INVALID_OIDC_CONFIG_URL".upper(): f"{_oidc_server_with_invalid_role.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_INVALID_ROLE_ATTRIBUTE_PATH".upper(): "role",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_INVALID_ROLE_MAPPING".upper(): "Owner:ADMIN,Developer:MEMBER,Reader:VIEWER",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_INVALID_ROLE_ATTRIBUTE_STRICT".upper(): "false",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_role_invalid_strict(
+    _oidc_server_with_invalid_role: _OIDCServer,
+) -> dict[str, str]:
+    """Configure OAuth2 with role mapping - Invalid role denies access (strict mode)."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_STRICT_CLIENT_ID".upper(): _oidc_server_with_invalid_role.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_STRICT_CLIENT_SECRET".upper(): _oidc_server_with_invalid_role.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_STRICT_OIDC_CONFIG_URL".upper(): f"{_oidc_server_with_invalid_role.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_STRICT_ROLE_ATTRIBUTE_PATH".upper(): "role",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_STRICT_ROLE_MAPPING".upper(): "Owner:ADMIN,Developer:MEMBER,Reader:VIEWER",
+        f"PHOENIX_OAUTH2_{_oidc_server_with_invalid_role}_STRICT_ROLE_ATTRIBUTE_STRICT".upper(): "true",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_role_missing_defaults_viewer(
+    _oidc_server_without_role: _OIDCServer,
+) -> dict[str, str]:
+    """Configure OAuth2 without role mapping - defaults to VIEWER."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_without_role}_DEFAULT_CLIENT_ID".upper(): _oidc_server_without_role.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_without_role}_DEFAULT_CLIENT_SECRET".upper(): _oidc_server_without_role.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_without_role}_DEFAULT_OIDC_CONFIG_URL".upper(): f"{_oidc_server_without_role.base_url}/.well-known/openid-configuration",
+    }
+
+
+@pytest.fixture(scope="package")
 def _env_oauth2(
     _env_oauth2_standard: dict[str, str],
     _env_oauth2_pkce_public: dict[str, str],
@@ -125,6 +223,13 @@ def _env_oauth2(
     _env_oauth2_pkce_groups_denied: dict[str, str],
     _env_oauth2_standard_groups_granted: dict[str, str],
     _env_oauth2_standard_groups_denied: dict[str, str],
+    _env_oauth2_role_admin: dict[str, str],
+    _env_oauth2_role_member: dict[str, str],
+    _env_oauth2_role_viewer: dict[str, str],
+    _env_oauth2_role_system: dict[str, str],
+    _env_oauth2_role_invalid_non_strict: dict[str, str],
+    _env_oauth2_role_invalid_strict: dict[str, str],
+    _env_oauth2_role_missing_defaults_viewer: dict[str, str],
 ) -> dict[str, str]:
     """Combine all OAuth2 environment configurations for testing."""
     return {
@@ -135,6 +240,13 @@ def _env_oauth2(
         **_env_oauth2_pkce_groups_denied,
         **_env_oauth2_standard_groups_granted,
         **_env_oauth2_standard_groups_denied,
+        **_env_oauth2_role_admin,
+        **_env_oauth2_role_member,
+        **_env_oauth2_role_viewer,
+        **_env_oauth2_role_system,
+        **_env_oauth2_role_invalid_non_strict,
+        **_env_oauth2_role_invalid_strict,
+        **_env_oauth2_role_missing_defaults_viewer,
     }
 
 
@@ -273,6 +385,60 @@ def _oidc_server(
 ) -> _OIDCServer:
     """Alias for backward compatibility with existing tests."""
     return _oidc_server_standard
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_with_role_admin(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """OIDC server with role claim set to 'Owner' (maps to ADMIN)."""
+    with _OIDCServer(port=next(_ports), use_pkce=False, role="Owner") as server:
+        yield server
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_with_role_member(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """OIDC server with role claim set to 'Developer' (maps to MEMBER)."""
+    with _OIDCServer(port=next(_ports), use_pkce=False, role="Developer") as server:
+        yield server
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_with_role_viewer(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """OIDC server with role claim set to 'Reader' (maps to VIEWER)."""
+    with _OIDCServer(port=next(_ports), use_pkce=False, role="Reader") as server:
+        yield server
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_with_role_system(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """OIDC server with role claim set to 'SYSTEM' (should be blocked)."""
+    with _OIDCServer(port=next(_ports), use_pkce=False, role="SYSTEM") as server:
+        yield server
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_with_invalid_role(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """OIDC server with role claim set to an invalid/unmapped role."""
+    with _OIDCServer(port=next(_ports), use_pkce=False, role="InvalidRole") as server:
+        yield server
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_without_role(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """OIDC server without role claim (role=None)."""
+    with _OIDCServer(port=next(_ports), use_pkce=False, role=None) as server:
+        yield server
 
 
 def _encrypt_private_key(key_path: Path, password: str) -> Path:
