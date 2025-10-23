@@ -170,15 +170,9 @@ class DatasetLabelMutationMixin:
     async def set_dataset_labels(
         self, info: Info[Context, None], input: SetDatasetLabelsInput
     ) -> SetDatasetLabelsMutationPayload:
-        """
-        Sets the dataset labels for the given datasets to exactly the provided list of labels.
-        This replaces any existing labels - labels not in the list will be removed,
-        and labels in the list will be added if not already present.
-        """
         if not input.dataset_ids:
             raise BadRequest("No datasets provided.")
 
-        # Parse and validate dataset IDs
         unique_dataset_rowids: set[int] = set()
         for dataset_gid in input.dataset_ids:
             try:
@@ -188,7 +182,6 @@ class DatasetLabelMutationMixin:
             unique_dataset_rowids.add(dataset_rowid)
         dataset_rowids = list(unique_dataset_rowids)
 
-        # Parse and validate dataset label IDs
         unique_dataset_label_rowids: set[int] = set()
         for dataset_label_gid in input.dataset_label_ids:
             try:
@@ -201,7 +194,6 @@ class DatasetLabelMutationMixin:
         dataset_label_rowids = list(unique_dataset_label_rowids)
 
         async with info.context.db() as session:
-            # Verify all datasets exist
             existing_dataset_ids = (
                 await session.scalars(
                     select(models.Dataset.id).where(models.Dataset.id.in_(dataset_rowids))
@@ -210,7 +202,6 @@ class DatasetLabelMutationMixin:
             if len(existing_dataset_ids) != len(dataset_rowids):
                 raise NotFound("One or more datasets not found")
 
-            # Verify all dataset labels exist (only if labels provided)
             if dataset_label_rowids:
                 existing_dataset_label_ids = (
                     await session.scalars(
@@ -222,14 +213,12 @@ class DatasetLabelMutationMixin:
                 if len(existing_dataset_label_ids) != len(dataset_label_rowids):
                     raise NotFound("One or more dataset labels not found")
 
-            # Delete all existing label associations for these datasets
             await session.execute(
                 delete(models.DatasetsDatasetLabel).where(
                     models.DatasetsDatasetLabel.dataset_id.in_(dataset_rowids)
                 )
             )
 
-            # Add the new label associations
             if dataset_label_rowids:
                 datasets_dataset_labels = []
                 for dataset_rowid in dataset_rowids:
