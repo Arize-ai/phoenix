@@ -8,10 +8,21 @@ from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, Sequence, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    BinaryIO,
+    Iterator,
+    Literal,
+    Optional,
+    Sequence,
+    TypedDict,
+    Union,
+)
 from urllib.parse import quote
 
 import httpx
+from typing_extensions import Required
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -22,6 +33,20 @@ from phoenix.client.utils.id_handling import is_node_id
 logger = logging.getLogger(__name__)
 
 DatasetExample = v1.DatasetExample
+
+
+class InputDatasetExample(TypedDict, total=False):
+    """
+    This type is created manually since we do not have compiled request types
+    for the POST /v1/datasets/upload route.
+
+    https://github.com/Arize-ai/phoenix/blob/19e69091543b9c0f4051b9e561fa53d4f39d0fa4/src/phoenix/server/api/routers/v1/datasets.py#L354
+    """
+
+    input: Required[Mapping[str, Any]]
+    output: Required[Mapping[str, Any]]
+    metadata: Mapping[str, Any]
+
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
@@ -691,7 +716,7 @@ class Datasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[InputDatasetExample, Iterable[InputDatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -751,7 +776,7 @@ class Datasets:
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            metadata = [dict(example.get("metadata", {})) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1395,7 +1420,7 @@ class AsyncDatasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[InputDatasetExample, Iterable[InputDatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1455,7 +1480,7 @@ class AsyncDatasets:
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            metadata = [dict(example.get("metadata", {})) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
