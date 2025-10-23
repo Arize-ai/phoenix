@@ -299,7 +299,6 @@ function DatasetLabelList({
       return;
     }
 
-    // Simply set the labels to the new selection
     const newLabelIds = [...selection] as string[];
 
     setDatasetLabels({
