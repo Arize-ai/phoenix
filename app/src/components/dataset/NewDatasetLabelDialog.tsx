@@ -21,7 +21,7 @@ type NewDatasetLabelDialogProps = {
    */
   connections?: string[];
   /**
-   * Optional dataset ID to auto-apply the label to after creation
+   * Optional dataset ID. If provided, newly created labels will be auto-applied to the dataset upon creation.
    */
   datasetId?: string;
 };
