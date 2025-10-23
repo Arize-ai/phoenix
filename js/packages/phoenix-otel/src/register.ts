@@ -90,6 +90,7 @@ export function register({
   if (instrumentations) {
     registerInstrumentations({
       instrumentations,
+      tracerProvider: provider,
     });
   }
   return provider;
