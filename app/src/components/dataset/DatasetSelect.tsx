@@ -5,6 +5,7 @@ import {
   Button,
   Flex,
   Label,
+  LinkButton,
   ListBox,
   Popover,
   Select,
@@ -12,6 +13,7 @@ import {
   SelectItem,
   SelectValue,
   Text,
+  View,
 } from "@phoenix/components";
 
 import { DatasetSelectQuery } from "./__generated__/DatasetSelectQuery.graphql";
@@ -94,6 +96,11 @@ export function DatasetSelect(props: DatasetSelectProps) {
             </SelectItem>
           ))}
         </ListBox>
+        <View padding="size-50" borderTopColor="light" borderTopWidth="thin">
+          <LinkButton to="/datasets" variant="quiet" size="S">
+            Go to datasets
+          </LinkButton>
+        </View>
       </Popover>
     </Select>
   );

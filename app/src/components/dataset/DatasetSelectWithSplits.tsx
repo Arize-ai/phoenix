@@ -12,6 +12,7 @@ import {
   Button,
   Flex,
   LazyTabPanel,
+  LinkButton,
   Menu,
   MenuItem,
   MenuTrigger,
@@ -278,6 +279,16 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
             )}
           </Menu>
         </Autocomplete>
+        <View
+          paddingX="size-150"
+          paddingY="size-150"
+          borderTopColor="light"
+          borderTopWidth="thin"
+        >
+          <LinkButton to="/datasets" variant="quiet" size="S">
+            Go to datasets
+          </LinkButton>
+        </View>
       </Popover>
     </MenuTrigger>
   );
