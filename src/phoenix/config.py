@@ -1442,6 +1442,7 @@ def get_env_postgres_connection_str() -> Optional[str]:
                 f"({ENV_PHOENIX_POSTGRES_USE_IAM_AUTH}=true). Authentication tokens will be "
                 "generated using AWS credentials."
             )
+        connection_str = f"postgresql://{quote(pg_user)}@{pg_host}"
     else:
         if not pg_password:
             raise ValueError(
