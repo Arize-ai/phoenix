@@ -214,4 +214,3 @@ class DatasetLabelMutationMixin:
         return SetDatasetLabelsMutationPayload(
             query=Query(),
         )
-
