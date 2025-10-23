@@ -294,7 +294,6 @@ function DatasetLabelList({
     }
     setSelected(selection);
 
-    // Auto-apply changes immediately
     const newLabelIds = [...selection] as string[];
     const labelIdsToAdd: string[] = newLabelIds.filter(
       (id) => !selectedLabelIds.includes(id)
