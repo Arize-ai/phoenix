@@ -18,8 +18,9 @@ type RegisterParams = {
    */
   projectName?: string;
   /**
-   * the URL to the phoenix OTEL endpoint
+   * the URL to the phoenix server. Can be postfixed with tracing path.
    * If not provided, environment variables are checked.
+   * @example "https://app.phoenix.arize.com"
    */
   url?: string;
   /**
@@ -47,7 +48,9 @@ export function register({
   batch = true,
   setGlobalTracerProvider = true,
 }: RegisterParams) {
-  const url = paramsUrl || getEnvCollectorURL();
+  const url = ensureCollectorEndpoint(
+    paramsUrl || getEnvCollectorURL() || "http://localhost:6006"
+  );
   const apiKey = paramsApiKey || getEnvApiKey();
   const headers: Record<string, string> = {};
   const configureHeaders = typeof apiKey == "string";
@@ -75,4 +78,16 @@ export function register({
     provider.register();
   }
   return provider;
+}
+
+/**
+ * A utility method to normalize the url to be http compatible.
+ * Assumes we are using http over gRPC.
+ * @param url the url to the phoenix server. May contain a slug
+ */
+export function ensureCollectorEndpoint(url: string): string {
+  if (!url.includes("/v1/traces")) {
+    return new URL("/v1/traces", url).toString();
+  }
+  return new URL(url).toString();
 }
