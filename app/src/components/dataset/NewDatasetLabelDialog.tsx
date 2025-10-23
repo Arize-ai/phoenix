@@ -118,7 +118,7 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
       },
       onCompleted: (response) => {
         // Auto-apply the new label to the dataset if datasetId is provided
-        if (datasetId && response.createDatasetLabel?.datasetLabel?.id) {
+        if (datasetId && response.createDatasetLabel.datasetLabel.id) {
           setDatasetLabels({
             variables: {
               datasetIds: [datasetId],
