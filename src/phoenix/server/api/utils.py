@@ -8,7 +8,7 @@ from phoenix.server.types import DbSessionFactory
 # See: https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions.html
 AWS_REGION_PREFIXES = ["af", "ap", "ca", "eu", "il", "mx", "me", "sa", "us"]
 # See: https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
-AWS_BEDROCK_MODEL_PREFIXES = ["apac", "au", "ca", "eu", "global", "jp", "us", "us-gov"]
+AWS_BEDROCK_MODEL_PREFIXES = ["apac", "au", "ca", "eu", "global", "il", "jp", "us", "us-gov"]
 AWS_BEDROCK_MODEL_PREFIX_PATTERN = re.compile(rf"^({'|'.join(AWS_BEDROCK_MODEL_PREFIXES)})\.")
 
 AWS_REGION_PREFIX_TO_MODEL_PREFIX_MAPPING = {
