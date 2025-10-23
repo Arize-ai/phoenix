@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-otel",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "Otel registration and convenience methods",
   "main": "index.js",
   "scripts": {
