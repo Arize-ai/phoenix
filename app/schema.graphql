@@ -1744,7 +1744,6 @@ type Mutation {
   updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
-  unsetDatasetLabels(input: UnsetDatasetLabelsInput!): UnsetDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -2492,8 +2491,8 @@ type ServerStatus {
 }
 
 input SetDatasetLabelsInput {
+  datasetId: ID!
   datasetLabelIds: [ID!]!
-  datasetIds: [ID!]!
 }
 
 type SetDatasetLabelsMutationPayload {
@@ -3121,15 +3120,6 @@ type UMAPPoints {
   clusters: [Cluster!]!
   corpusData: [UMAPPoint!]!
   contextRetrievals: [Retrieval!]!
-}
-
-input UnsetDatasetLabelsInput {
-  datasetLabelIds: [ID!]!
-  datasetIds: [ID!]!
-}
-
-type UnsetDatasetLabelsMutationPayload {
-  query: Query!
 }
 
 input UnsetPromptLabelsInput {

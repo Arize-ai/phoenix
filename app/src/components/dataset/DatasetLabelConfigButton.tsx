@@ -266,15 +266,14 @@ function DatasetLabelList({
   const [setDatasetLabels] =
     useMutation<DatasetLabelConfigButtonSetLabelsMutation>(graphql`
       mutation DatasetLabelConfigButtonSetLabelsMutation(
-        $datasetIds: [ID!]!
+        $datasetId: ID!
         $datasetLabelIds: [ID!]!
-        $currentDatasetId: ID!
       ) {
         setDatasetLabels(
-          input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
+          input: { datasetId: $datasetId, datasetLabelIds: $datasetLabelIds }
         ) {
           query {
-            node(id: $currentDatasetId) {
+            node(id: $datasetId) {
               ... on Dataset {
                 id
                 labels {
@@ -305,9 +304,8 @@ function DatasetLabelList({
 
     setDatasetLabels({
       variables: {
-        datasetIds: [datasetData.id],
+        datasetId: datasetData.id,
         datasetLabelIds: newLabelIds,
-        currentDatasetId: datasetData.id,
       },
       onError: () => {
         notifyError({

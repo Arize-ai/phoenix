@@ -60,15 +60,14 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
 
   const [setDatasetLabels] = useMutation(graphql`
     mutation NewDatasetLabelDialogSetLabelsMutation(
-      $datasetIds: [ID!]!
+      $datasetId: ID!
       $datasetLabelIds: [ID!]!
-      $currentDatasetId: ID!
     ) {
       setDatasetLabels(
-        input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
+        input: { datasetId: $datasetId, datasetLabelIds: $datasetLabelIds }
       ) {
         query {
-          node(id: $currentDatasetId) {
+          node(id: $datasetId) {
             ... on Dataset {
               id
               labels {
@@ -140,9 +139,8 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
           // Set all labels on the dataset
           setDatasetLabels({
             variables: {
-              datasetIds: [datasetId],
+              datasetId: datasetId,
               datasetLabelIds: allLabelIds,
-              currentDatasetId: datasetId,
             },
             onCompleted: () => {
               onCompleted();
