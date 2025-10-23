@@ -130,7 +130,7 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
         if (
           datasetId &&
           response.createDatasetLabel.datasetLabel.id &&
-          currentLabelIds
+          currentLabelIds !== undefined
         ) {
           const newLabelId = response.createDatasetLabel.datasetLabel.id;
 
