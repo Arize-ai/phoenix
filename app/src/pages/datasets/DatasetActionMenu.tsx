@@ -1,5 +1,6 @@
 import { Suspense, useState } from "react";
 import { SubmenuTrigger } from "react-aria-components";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -52,6 +53,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
   } = props;
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
   return (
     <StopPropagation>
       <MenuTrigger>
@@ -68,9 +70,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                   break;
                 case DatasetAction.EDIT:
                   setIsEditOpen(true);
-                  break;
-                case DatasetAction.LABELS:
-                  // no-op, submenu trigger will open the popover
                   break;
               }
             }}
@@ -99,17 +98,21 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                     <Text>Label</Text>
                   </Flex>
                 </MenuItem>
-                <Popover placement="left">
+                <Popover placement="start top">
                   <PopoverArrow />
                   <Dialog>
-                    {({ close }) => (
-                      <Suspense fallback={<Loading />}>
-                        <DatasetLabelSelectionContent
-                          datasetId={datasetId}
-                          onClose={() => close()}
+                    <Suspense
+                      fallback={
+                        <Loading
+                          css={css`
+                            min-width: 300px;
+                            min-height: 100px;
+                          `}
                         />
-                      </Suspense>
-                    )}
+                      }
+                    >
+                      <DatasetLabelSelectionContent datasetId={datasetId} />
+                    </Suspense>
                   </Dialog>
                 </Popover>
               </SubmenuTrigger>
