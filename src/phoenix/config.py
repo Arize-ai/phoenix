@@ -1436,16 +1436,18 @@ def get_env_postgres_connection_str() -> Optional[str]:
 
     if use_iam_auth:
         if pg_password:
-            logger.warning(
+            raise ValueError(
                 f"The environment variable {ENV_PHOENIX_POSTGRES_PASSWORD} is set but will be "
                 "ignored when using AWS RDS IAM authentication "
                 f"({ENV_PHOENIX_POSTGRES_USE_IAM_AUTH}=true). Authentication tokens will be "
                 "generated using AWS credentials."
             )
-        connection_str = f"postgresql://{quote(pg_user)}@{pg_host}"
     else:
         if not pg_password:
-            return None
+            raise ValueError(
+                f"The environment variable {ENV_PHOENIX_POSTGRES_PASSWORD} is not set. "
+                "Please set it to the password for the PostgreSQL database."
+            )
         encoded_user = quote(pg_user)
         encoded_password = quote(pg_password)
         connection_str = f"postgresql://{encoded_user}:{encoded_password}@{pg_host}"
@@ -2136,7 +2138,8 @@ def _validate_iam_auth_config() -> None:
     try:
         import boto3  # pyright: ignore
 
-        boto3.client("rds")
+        client = boto3.client("sts")  # type: ignore
+        client.get_caller_identity()  # type: ignore
         logger.info("✓ AWS credentials validated for RDS IAM authentication")
     except Exception as e:
         logger.warning(
