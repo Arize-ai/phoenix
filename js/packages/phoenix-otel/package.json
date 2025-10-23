@@ -2,11 +2,21 @@
   "name": "@arizeai/phoenix-otel",
   "version": "0.0.1",
   "description": "Otel registration and convenience methods",
-  "main": "index.js",
+  "main": "dist/src/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/src/index.js"
+    }
+  },
   "scripts": {
     "clean": "rimraf dist",
     "prebuild": "pnpm run clean",
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "type:check": "tsc --noEmit",
     "test": "vitest --typecheck"
   },
   "files": [
@@ -17,6 +27,7 @@
   "keywords": [
     "otel",
     "arize",
+    "phoenix",
     "llm",
     "tracing"
   ],
