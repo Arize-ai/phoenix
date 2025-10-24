@@ -825,6 +825,80 @@ const experimentItemCSS = css`
   height: 100%;
 `;
 
+function ExperimentItemHeader({
+  children,
+  onTraceClick,
+  copyText,
+}: {
+  children: React.ReactNode;
+  onTraceClick?: () => void;
+  copyText?: string;
+}) {
+  return (
+    <View paddingX="size-200" paddingTop="size-200" flex="none">
+      <Flex direction="row" gap="size-100" alignItems="center">
+        {children}
+        <div
+          css={css`
+            margin-left: auto;
+            padding-left: var(--ac-global-dimension-size-100);
+          `}
+        >
+          <Flex direction="row" gap="size-100">
+            {onTraceClick && (
+              <TooltipTrigger>
+                <IconButton
+                  size="S"
+                  aria-label="View run trace"
+                  onPress={onTraceClick}
+                >
+                  <Icon svg={<Icons.Trace />} />
+                </IconButton>
+                <Tooltip>View run trace</Tooltip>
+              </TooltipTrigger>
+            )}
+            {copyText && <CopyToClipboardButton text={copyText} />}
+          </Flex>
+        </div>
+      </Flex>
+    </View>
+  );
+}
+
+function ExperimentItemMetadata({
+  experimentRun,
+}: {
+  experimentRun: ExperimentRun;
+}) {
+  return (
+    <View
+      paddingX="size-200"
+      paddingTop="size-100"
+      paddingBottom="size-100"
+      flex="none"
+    >
+      <ExperimentRunMetadata {...experimentRun} />
+    </View>
+  );
+}
+
+function ExperimentItemAnnotations({
+  experimentRun,
+}: {
+  experimentRun?: ExperimentRun;
+}) {
+  return (
+    <View
+      paddingX="size-100"
+      paddingBottom="size-100"
+      borderBottomColor="grey-300"
+      borderBottomWidth="thin"
+    >
+      <ExperimentRunAnnotations experimentRun={experimentRun} />
+    </View>
+  );
+}
+
 /**
  * Shows a single experiment's output and annotations
  */
@@ -856,90 +930,58 @@ export function ExperimentItem({
   const traceId = experimentRepetition?.experimentRun?.trace?.traceId;
   const projectId = experimentRepetition?.experimentRun?.trace?.projectId;
   const hasTrace = traceId != null && projectId != null;
+
+  const handleTraceClick = hasTrace
+    ? () => openTraceDialog(traceId, projectId, "Experiment Run Trace")
+    : undefined;
+
+  const copyText =
+    experimentRunOutputStr && !experimentRepetition.experimentRun?.error
+      ? experimentRunOutputStr
+      : undefined;
+
   return (
     <div css={experimentItemCSS}>
       <Flex direction="column" height="100%">
-        <View paddingX="size-200" paddingTop="size-200" flex="none">
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <span
-              css={css`
-                flex: none;
-              `}
-            >
-              <ColorSwatch color={color} shape="circle" />
-            </span>
-            <Heading
-              weight="heavy"
-              level={3}
-              css={css`
-                min-width: 0;
-              `}
-            >
-              <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
-            </Heading>
-            {includeRepetitions && (
-              <>
-                <Icon svg={<Icons.ChevronRight />} />
-                <Heading weight="heavy" level={3}>
-                  repetition&nbsp;{experimentRepetition.repetitionNumber}
-                </Heading>
-              </>
-            )}
-            <div
-              css={css`
-                margin-left: auto;
-                padding-left: var(--ac-global-dimension-size-100);
-              `}
-            >
-              <Flex direction="row" gap="size-100">
-                {hasTrace && (
-                  <TooltipTrigger>
-                    <IconButton
-                      size="S"
-                      aria-label="View run trace"
-                      onPress={() => {
-                        openTraceDialog(
-                          traceId,
-                          projectId,
-                          "Experiment Run Trace"
-                        );
-                      }}
-                    >
-                      <Icon svg={<Icons.Trace />} />
-                    </IconButton>
-                    <Tooltip>View run trace</Tooltip>
-                  </TooltipTrigger>
-                )}
-                {experimentRunOutputStr &&
-                  !experimentRepetition.experimentRun?.error && (
-                    <CopyToClipboardButton text={experimentRunOutputStr} />
-                  )}
-              </Flex>
-            </div>
-          </Flex>
-        </View>
+        <ExperimentItemHeader
+          onTraceClick={handleTraceClick}
+          copyText={copyText}
+        >
+          <span
+            css={css`
+              flex: none;
+            `}
+          >
+            <ColorSwatch color={color} shape="circle" />
+          </span>
+          <Heading
+            weight="heavy"
+            level={3}
+            css={css`
+              min-width: 0;
+            `}
+          >
+            <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
+          </Heading>
+          {includeRepetitions && (
+            <>
+              <Icon svg={<Icons.ChevronRight />} />
+              <Heading weight="heavy" level={3}>
+                repetition&nbsp;{experimentRepetition.repetitionNumber}
+              </Heading>
+            </>
+          )}
+        </ExperimentItemHeader>
         {!experimentRepetition?.experimentRun ? (
           <Empty message="Did not run" />
         ) : (
           <>
-            <View
-              paddingX="size-200"
-              paddingTop="size-100"
-              paddingBottom="size-100"
-              flex="none"
-            >
-              <ExperimentRunMetadata {...experimentRepetition.experimentRun} />
-            </View>
-            <View
-              paddingX="size-100"
-              paddingBottom="size-100"
-              borderBottomColor="grey-300"
-              borderBottomWidth="thin"
-            >
-              <ExperimentRunAnnotations
-                experimentRun={experimentRepetition.experimentRun}
-              />
-            </View>
+            <ExperimentItemMetadata
+              experimentRun={experimentRepetition.experimentRun}
+            />
+            <ExperimentItemAnnotations
+              experimentRun={experimentRepetition.experimentRun}
+            />
             <View flex={1}>
               {experimentRepetition.experimentRun.error ? (
                 <View padding="size-200">
@@ -980,7 +1022,7 @@ function FullSizeJSONBlock({ value }: { value: string }) {
 export function ExperimentRunAnnotations({
   experimentRun,
 }: {
-  experimentRun: ExperimentRun;
+  experimentRun?: ExperimentRun;
 }) {
   const { annotationSummaries } = useExperimentCompareDetailsContext();
   return (
@@ -994,7 +1036,7 @@ export function ExperimentRunAnnotations({
       `}
     >
       {annotationSummaries.map((annotationSummary) => {
-        const annotation = experimentRun.annotations?.edges.find(
+        const annotation = experimentRun?.annotations?.edges.find(
           (edge) => edge.annotation.name === annotationSummary.annotationName
         )?.annotation;
         return (
