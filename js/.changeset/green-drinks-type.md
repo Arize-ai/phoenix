@@ -14,7 +14,7 @@ This release introduces support for dataset splits, enabling you to segment and 
 
 ## Breaking Changes
 
-- **`runExperiment` API Changes**: 
+- **`runExperiment` API Changes**:
   - The `datasetVersionId` parameter has been removed from `runExperiment`
   - Version selection is now handled through the `DatasetSelector` interface
   - Pass `versionId` and `splits` as properties of the `DatasetSelector` argument instead
@@ -22,22 +22,24 @@ This release introduces support for dataset splits, enabling you to segment and 
 ## Migration Guide
 
 **Before:**
+
 ```typescript
 runExperiment({
   dataset: { datasetId: "my-dataset" },
   datasetVersionId: "version-123",
   // ... other params
-})
+});
 ```
 
 **After:**
+
 ```typescript
 runExperiment({
-  dataset: { 
+  dataset: {
     datasetId: "my-dataset",
     versionId: "version-123",
-    splits: ["train", "test"]
+    splits: ["train", "test"],
   },
   // ... other params
-})
+});
 ```
