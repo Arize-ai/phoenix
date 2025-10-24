@@ -112,7 +112,7 @@ export function DatasetSelect(props: DatasetSelectProps) {
               textDecoration: "none",
             }}
           >
-            Go to datasets
+            Go to Datasets
           </ListBoxItem>
         </ListBox>
       </Popover>

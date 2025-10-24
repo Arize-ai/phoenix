@@ -51,11 +51,11 @@ importers:
   examples/apps/phoenix-experiment-runner:
     dependencies:
       '@arizeai/openinference-instrumentation-openai':
-        specifier: ^2.3.0
-        version: 2.3.1
+        specifier: ^3.2.3
+        version: 3.2.3
       '@arizeai/openinference-semantic-conventions':
-        specifier: ^1.1.0
-        version: 1.1.0
+        specifier: ^2.1.2
+        version: 2.1.2
       '@arizeai/phoenix-client':
         specifier: workspace:*
         version: link:../../../packages/phoenix-client
@@ -363,6 +363,9 @@ packages:
 
   '@arizeai/openinference-instrumentation-openai@2.3.1':
     resolution: {integrity: sha512-8z5TEPwhj8fE7+6li2ufLP2jknkPTV7KAQwiNLj4/9IIz0o0dbFltm5O834bpE7LjzkGAqPt8CMVRDhpnw82IA==}
+
+  '@arizeai/openinference-instrumentation-openai@3.2.3':
+    resolution: {integrity: sha512-4GiUyUIafNkAf7milnsS4Xjh0rZwjPvhHu+xkcj2MQ19a0Teu6PcFDa7DCt7YV/xw2o+wcxeaLfVURmGGLAHOg==}
 
   '@arizeai/openinference-semantic-conventions@1.1.0':
     resolution: {integrity: sha512-rxRYnUWjt28DlVXnWukcQAyGhPYQ3ckmKrjEdUjmUNnvvv4k8Dabbp5h6AEjNy7YzN9jL2smNRJnbLIVtkrLEg==}
@@ -3202,6 +3205,16 @@ snapshots:
     dependencies:
       '@arizeai/openinference-core': 1.0.3
       '@arizeai/openinference-semantic-conventions': 2.0.0
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/instrumentation': 0.46.0(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@arizeai/openinference-instrumentation-openai@3.2.3':
+    dependencies:
+      '@arizeai/openinference-core': 1.0.7
+      '@arizeai/openinference-semantic-conventions': 2.1.2
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/instrumentation': 0.46.0(@opentelemetry/api@1.9.0)
