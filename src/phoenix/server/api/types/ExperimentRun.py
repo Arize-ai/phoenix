@@ -12,10 +12,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
-from phoenix.server.api.types.ExperimentRunAnnotation import (
-    ExperimentRunAnnotation,
-    to_gql_experiment_run_annotation,
-)
+from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -62,7 +59,11 @@ class ExperimentRun(Node):
         run_id = self.id_attr
         annotations = await info.context.data_loaders.experiment_run_annotations.load(run_id)
         return connection_from_list(
-            [to_gql_experiment_run_annotation(annotation) for annotation in annotations], args
+            [
+                ExperimentRunAnnotation(id=annotation.id, db_record=annotation)
+                for annotation in annotations
+            ],
+            args,
         )
 
     @strawberry.field
@@ -72,7 +73,7 @@ class ExperimentRun(Node):
         dataloader = info.context.data_loaders.trace_by_trace_ids
         if (trace := await dataloader.load(self.trace_id)) is None:
             return None
-        return Trace(trace_rowid=trace.id, db_trace=trace)
+        return Trace(id=trace.id, db_record=trace)
 
     @strawberry.field
     async def example(

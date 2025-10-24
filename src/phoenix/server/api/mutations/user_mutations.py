@@ -33,7 +33,7 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauth
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.User import User, to_gql_user
+from phoenix.server.api.types.User import User
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import AccessTokenId, ApiKeyId, PasswordResetTokenId, RefreshTokenId
 
@@ -155,7 +155,7 @@ class UserMutationMixin:
             except Exception as error:
                 # Log the error but do not raise it
                 logger.error(f"Failed to send welcome email: {error}")
-        return UserMutationPayload(user=to_gql_user(user))
+        return UserMutationPayload(user=User(id=user.id, db_record=user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin])  # type: ignore
     async def patch_user(
@@ -204,7 +204,7 @@ class UserMutationMixin:
         assert user
         if should_log_out:
             await info.context.log_out(user.id)
-        return UserMutationPayload(user=to_gql_user(user))
+        return UserMutationPayload(user=User(id=user.id, db_record=user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def patch_viewer(
@@ -246,7 +246,7 @@ class UserMutationMixin:
             response = info.context.get_response()
             response.delete_cookie(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
             response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
-        return UserMutationPayload(user=to_gql_user(user))
+        return UserMutationPayload(user=User(id=user.id, db_record=user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin, IsLocked])  # type: ignore
     async def delete_users(

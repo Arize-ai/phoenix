@@ -1,10 +1,11 @@
 import json
-from typing import Optional, cast
+from typing import Any, Optional, Union, cast
 
 import strawberry
 from strawberry import UNSET
 from strawberry.scalars import JSON
 
+from phoenix.db import models
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
     ContentPart,
@@ -12,11 +13,15 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptMessage,
     PromptMessageRole,
     PromptTemplateFormat,
+    PromptTemplateType,
     RoleConversion,
     TextContentPart,
     ToolCallContentPart,
     ToolCallFunction,
     ToolResultContentPart,
+    normalize_response_format,
+    normalize_tools,
+    validate_invocation_parameters,
 )
 
 
@@ -87,6 +92,47 @@ class ChatPromptVersionInput:
         self.invocation_parameters = {
             k: v for k, v in self.invocation_parameters.items() if v is not None
         }
+
+    def to_orm_prompt_version(
+        self,
+        user_id: Optional[int],
+    ) -> models.PromptVersion:
+        tool_definitions = [tool.definition for tool in self.tools]
+        tool_choice = cast(
+            Optional[Union[str, dict[str, Any]]],
+            cast(dict[str, Any], self.invocation_parameters).pop("tool_choice", None),
+        )
+        model_provider = ModelProvider(self.model_provider)
+        tools = (
+            normalize_tools(tool_definitions, model_provider, tool_choice)
+            if tool_definitions
+            else None
+        )
+        template = to_pydantic_prompt_chat_template_v1(self.template)
+        response_format = (
+            normalize_response_format(
+                self.response_format.definition,
+                model_provider,
+            )
+            if self.response_format
+            else None
+        )
+        invocation_parameters = validate_invocation_parameters(
+            self.invocation_parameters,
+            model_provider,
+        )
+        return models.PromptVersion(
+            description=self.description,
+            user_id=user_id,
+            template_type=PromptTemplateType.CHAT,
+            template_format=self.template_format,
+            template=template,
+            invocation_parameters=invocation_parameters,
+            tools=tools,
+            response_format=response_format,
+            model_provider=ModelProvider(self.model_provider),
+            model_name=self.model_name,
+        )
 
 
 def to_pydantic_prompt_chat_template_v1(

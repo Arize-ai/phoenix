@@ -12,7 +12,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
-from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
+from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
     ExperimentRepeatedRunGroup,
@@ -57,7 +57,7 @@ class DatasetExample(Node):
         info: Info[Context, None],
     ) -> Optional[Span]:
         return (
-            Span(span_rowid=span.id, db_span=span)
+            Span(id=span.id, db_record=span)
             if (span := await info.context.data_loaders.dataset_example_spans.load(self.id_attr))
             else None
         )
@@ -139,7 +139,7 @@ class DatasetExample(Node):
         info: Info[Context, None],
     ) -> list[DatasetSplit]:
         return [
-            to_gql_dataset_split(split)
+            DatasetSplit(id=split.id, db_record=split)
             for split in await info.context.data_loaders.dataset_example_splits.load(self.id_attr)
         ]
 

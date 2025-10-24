@@ -103,21 +103,28 @@ class DataLoaders:
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     dataset_labels: DatasetLabelsDataLoader
+    dataset_label_fields: TableFieldsDataLoader
     dataset_dataset_splits: DatasetDatasetSplitsDataLoader
     dataset_examples_and_versions_by_experiment_run: (
         DatasetExamplesAndVersionsByExperimentRunDataLoader
     )
     dataset_example_splits: DatasetExampleSplitsDataLoader
+    dataset_fields: TableFieldsDataLoader
+    dataset_split_fields: TableFieldsDataLoader
+    dataset_version_fields: TableFieldsDataLoader
+    document_annotation_fields: TableFieldsDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
+    experiment_fields: TableFieldsDataLoader
     experiment_repeated_run_group_annotation_summaries: (
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
     )
     experiment_repeated_run_groups: ExperimentRepeatedRunGroupsDataLoader
+    experiment_run_annotation_fields: TableFieldsDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
     experiment_run_counts: ExperimentRunCountsDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
@@ -130,7 +137,12 @@ class DataLoaders:
     project_fields: TableFieldsDataLoader
     project_trace_retention_policy_fields: TableFieldsDataLoader
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
+    prompt_fields: TableFieldsDataLoader
+    prompt_label_fields: TableFieldsDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
+    prompt_version_tag_fields: TableFieldsDataLoader
+    project_session_annotation_fields: TableFieldsDataLoader
+    project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
     session_annotations_by_session: SessionAnnotationsBySessionDataLoader
     session_first_inputs: SessionIODataLoader
@@ -139,6 +151,7 @@ class DataLoaders:
     session_num_traces_with_error: SessionNumTracesWithErrorDataLoader
     session_token_usages: SessionTokenUsagesDataLoader
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
+    span_annotation_fields: TableFieldsDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_by_id: SpanByIdDataLoader
     span_cost_by_span: SpanCostBySpanDataLoader
@@ -167,12 +180,15 @@ class DataLoaders:
     span_fields: TableFieldsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
+    trace_annotation_fields: TableFieldsDataLoader
     trace_annotations_by_trace: TraceAnnotationsByTraceDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
     trace_fields: TableFieldsDataLoader
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
     trace_root_spans: TraceRootSpansDataLoader
     user_roles: UserRolesDataLoader
+    user_api_key_fields: TableFieldsDataLoader
+    user_fields: TableFieldsDataLoader
     users: UsersDataLoader
 
 

@@ -502,7 +502,7 @@ class ChatCompletionMutationMixin:
                 session.add(span_cost)
                 await session.flush()
 
-        gql_span = Span(span_rowid=span.id, db_span=span)
+        gql_span = Span(id=span.id, db_record=span)
 
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
 

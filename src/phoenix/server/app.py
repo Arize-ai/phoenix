@@ -718,7 +718,11 @@ def create_graphql_router(
                     db
                 ),
                 dataset_example_splits=DatasetExampleSplitsDataLoader(db),
+                dataset_fields=TableFieldsDataLoader(db, models.Dataset),
+                dataset_split_fields=TableFieldsDataLoader(db, models.DatasetSplit),
+                dataset_version_fields=TableFieldsDataLoader(db, models.DatasetVersion),
                 dataset_labels=DatasetLabelsDataLoader(db),
+                dataset_label_fields=TableFieldsDataLoader(db, models.DatasetLabel),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
                     db,
                     cache_map=(
@@ -727,6 +731,7 @@ def create_graphql_router(
                         else None
                     ),
                 ),
+                document_annotation_fields=TableFieldsDataLoader(db, models.DocumentAnnotation),
                 document_evaluations=DocumentEvaluationsDataLoader(db),
                 document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
                 annotation_summaries=AnnotationSummaryDataLoader(
@@ -738,10 +743,14 @@ def create_graphql_router(
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
                 experiment_dataset_splits=ExperimentDatasetSplitsDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
+                experiment_fields=TableFieldsDataLoader(db, models.Experiment),
                 experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
                     db
                 ),
                 experiment_repeated_run_groups=ExperimentRepeatedRunGroupsDataLoader(db),
+                experiment_run_annotation_fields=TableFieldsDataLoader(
+                    db, models.ExperimentRunAnnotation
+                ),
                 experiment_run_annotations=ExperimentRunAnnotations(db),
                 experiment_run_counts=ExperimentRunCountsDataLoader(db),
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
@@ -768,7 +777,14 @@ def create_graphql_router(
                 projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
                     db
                 ),
+                prompt_fields=TableFieldsDataLoader(db, models.Prompt),
+                prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
+                prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
+                project_session_annotation_fields=TableFieldsDataLoader(
+                    db, models.ProjectSessionAnnotation
+                ),
+                project_session_fields=TableFieldsDataLoader(db, models.ProjectSession),
                 record_counts=RecordCountDataLoader(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
@@ -780,6 +796,7 @@ def create_graphql_router(
                 session_num_traces_with_error=SessionNumTracesWithErrorDataLoader(db),
                 session_token_usages=SessionTokenUsagesDataLoader(db),
                 session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
+                span_annotation_fields=TableFieldsDataLoader(db, models.SpanAnnotation),
                 span_annotations=SpanAnnotationsDataLoader(db),
                 span_fields=TableFieldsDataLoader(db, models.Span),
                 span_by_id=SpanByIdDataLoader(db),
@@ -820,6 +837,7 @@ def create_graphql_router(
                     db,
                     cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
                 ),
+                trace_annotation_fields=TableFieldsDataLoader(db, models.TraceAnnotation),
                 trace_annotations_by_trace=TraceAnnotationsByTraceDataLoader(db),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
                 trace_fields=TableFieldsDataLoader(db, models.Trace),
@@ -832,6 +850,8 @@ def create_graphql_router(
                 trace_root_spans=TraceRootSpansDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
                 users=UsersDataLoader(db),
+                user_api_key_fields=TableFieldsDataLoader(db, models.ApiKey),
+                user_fields=TableFieldsDataLoader(db, models.User),
                 user_roles=UserRolesDataLoader(db),
             ),
             cache_for_dataloaders=cache_for_dataloaders,

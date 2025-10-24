@@ -90,15 +90,16 @@ class ApiKeyMutationMixin:
             ),
         )
         token, token_id = await token_store.create_api_key(claims)
+        # Load the newly created API key from the database
+        async with info.context.db() as session:
+            api_key = await session.scalar(
+                select(models.ApiKey).where(models.ApiKey.id == int(token_id))
+            )
+            if api_key is None:
+                raise ValueError("Failed to create API key")
         return CreateSystemApiKeyMutationPayload(
             jwt=token,
-            api_key=SystemApiKey(
-                id_attr=int(token_id),
-                name=input.name,
-                description=input.description or None,
-                created_at=issued_at,
-                expires_at=input.expires_at or None,
-            ),
+            api_key=SystemApiKey(id=api_key.id, db_record=api_key),
             query=Query(),
         )
 
@@ -132,16 +133,16 @@ class ApiKeyMutationMixin:
             ),
         )
         token, token_id = await token_store.create_api_key(claims)
+        # Load the newly created API key from the database
+        async with info.context.db() as session:
+            api_key = await session.scalar(
+                select(models.ApiKey).where(models.ApiKey.id == int(token_id))
+            )
+            if api_key is None:
+                raise ValueError("Failed to create API key")
         return CreateUserApiKeyMutationPayload(
             jwt=token,
-            api_key=UserApiKey(
-                id_attr=int(token_id),
-                name=input.name,
-                description=input.description or None,
-                created_at=issued_at,
-                expires_at=input.expires_at or None,
-                user_id=int(user.identity),
-            ),
+            api_key=UserApiKey(id=api_key.id, db_record=api_key),
             query=Query(),
         )
 
