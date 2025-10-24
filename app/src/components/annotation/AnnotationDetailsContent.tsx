@@ -1,5 +1,6 @@
 import { Flex, Text, View } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
+import { JSONText } from "@phoenix/components/code/JSONText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -61,6 +62,18 @@ export function AnnotationDetailsContent({
               </Text>
               <View maxHeight="300px" overflow="auto">
                 <Text color="inherit">{annotation.explanation}</Text>
+              </View>
+            </Flex>
+          </View>
+        ) : null}
+        {annotation.metadata && Object.keys(annotation.metadata).length > 0 ? (
+          <View paddingTop="size-50">
+            <Flex direction="column">
+              <Text weight="heavy" color="inherit">
+                metadata
+              </Text>
+              <View maxHeight="300px" overflow="auto">
+                <JSONText json={annotation.metadata} space={2} disableTitle />
               </View>
             </Flex>
           </View>
