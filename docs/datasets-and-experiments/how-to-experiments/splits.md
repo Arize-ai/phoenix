@@ -1,6 +1,7 @@
 ---
 description: >-
-  How to run experiments over select splits of your dataset for targeted experimentation
+  How to run experiments over select splits of your dataset for targeted
+  experimentation
 ---
 
 # Splits
@@ -11,9 +12,9 @@ dataset splits are available in `arize-phoenix` [12.7.0](https://github.com/Ariz
 
 Often we want to run an experiment over just a subset of our entire dataset. These subsets of dataset examples are called "splits." Common splits include:
 
-- hard examples that frequently produce poor output,
-- a split of examples used in a few-shot prompt and a disjoint, non-overlapping split of examples used for evaluation,
-- train, validation, and test splits for fine-tuning an LLM.
+* hard examples that frequently produce poor output,
+* a split of examples used in a few-shot prompt and a disjoint, non-overlapping split of examples used for evaluation,
+* train, validation, and test splits for fine-tuning an LLM.
 
 Running experiments over splits rather than entire datasets produces evaluation metrics that better capture the performance of your agent, workflow, or prompt on the particular type of data you care about.
 
@@ -21,10 +22,7 @@ Running experiments over splits rather than entire datasets produces evaluation 
 
 Experiments can be run over previously configured splits either via the Python or JavaScript clients or via the Phoenix playground.
 
-{% tab title="Playground" %}
 Coming soon.
-{% endtab %}
-{% endtabs %}
 
 {% tabs %}
 {% tab title="Python" %}
@@ -53,6 +51,31 @@ experiment = client.experiments.run_experiment(
 {% endtab %}
 
 {% tab title="TypeScript" %}
-Coming soon.
+Splits can be configured within a DatasetSelector, when fetching datasets. Dataset examples contained within the selected splits will be used in experiment runs, or evaluations.
+
+```typescript
+// npm install @arizeai/phoenix-client@latest
+import { runExperiment } from "@arizeai/phoenix-client/experiments"
+import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import type { DatasetSelector } from "@arizeai/phoenix-client/types/datasets";
+
+const myTask: ExperimentTask = (example) => {
+  return `Hello, ${example?.name ?? "stranger"}!`
+}
+
+// Create a dataset selector that can be used to fetch a dataset
+const datasetSelector: DatasetSelector = {
+  datasetName: "my-dataset",
+  splits: ["test", "hard_examples"] // names of previously created splits
+}
+
+runExperiment({
+  // runExperiment will perform a just-in-time fetch of the dataset "my-dataset"
+  // with its examples filtered by the provided splits
+  dataset: datasetSelector,
+  task,
+  experimentName: "greeting-experiment"
+})
+```
 {% endtab %}
 {% endtabs %}
