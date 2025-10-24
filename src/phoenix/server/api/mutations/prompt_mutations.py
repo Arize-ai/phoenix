@@ -23,6 +23,7 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
+    to_orm_prompt_version,
     to_pydantic_prompt_chat_template_v1,
 )
 from phoenix.server.api.mutations.prompt_version_tag_mutations import (
@@ -86,49 +87,12 @@ class PromptMutationMixin:
             user_id = int(user.identity)
 
         input_prompt_version = input.prompt_version
-        tool_definitions = [tool.definition for tool in input_prompt_version.tools]
-        tool_choice = cast(
-            Optional[Union[str, dict[str, Any]]],
-            cast(dict[str, Any], input.prompt_version.invocation_parameters).pop(
-                "tool_choice", None
-            ),
-        )
-        model_provider = ModelProvider(input_prompt_version.model_provider)
-        try:
-            tools = (
-                normalize_tools(tool_definitions, model_provider, tool_choice)
-                if tool_definitions
-                else None
-            )
-            template = to_pydantic_prompt_chat_template_v1(input_prompt_version.template)
-            response_format = (
-                normalize_response_format(
-                    input_prompt_version.response_format.definition,
-                    model_provider,
-                )
-                if input_prompt_version.response_format
-                else None
-            )
-            invocation_parameters = validate_invocation_parameters(
-                input_prompt_version.invocation_parameters,
-                model_provider,
-            )
-        except ValidationError as error:
-            raise BadRequest(str(error))
 
         async with info.context.db() as session:
-            prompt_version = models.PromptVersion(
-                description=input_prompt_version.description,
-                user_id=user_id,
-                template_type="CHAT",
-                template_format=input_prompt_version.template_format,
-                template=template,
-                invocation_parameters=invocation_parameters,
-                tools=tools,
-                response_format=response_format,
-                model_provider=input_prompt_version.model_provider,
-                model_name=input_prompt_version.model_name,
-            )
+            try:
+                prompt_version = to_orm_prompt_version(input_prompt_version, user_id)
+            except ValidationError as error:
+                raise BadRequest(str(error))
             name = IdentifierModel.model_validate(str(input.name))
             prompt = models.Prompt(
                 name=name,

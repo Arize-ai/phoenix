@@ -440,6 +440,13 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreateDatasetLLMEvaluatorInput {
+  datasetId: ID!
+  name: String!
+  description: String = null
+  promptVersion: ChatPromptVersionInput!
+}
+
 input CreateDatasetLabelInput {
   name: String!
   description: String
@@ -616,6 +623,7 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
+  evaluators(first: Int = 50, last: Int, after: String, before: String): EvaluatorConnection!
   lastUpdatedAt: DateTime
 }
 
@@ -640,6 +648,11 @@ type DatasetEdge {
 
   """The item at the end of the edge"""
   node: Dataset!
+}
+
+type DatasetEvaluatorMutationPayload {
+  dataset: Dataset!
+  query: Query!
 }
 
 type DatasetExample implements Node {
@@ -1203,6 +1216,32 @@ enum EvalAttr {
 input EvalResultKey {
   name: String!
   attr: EvalAttr!
+}
+
+interface Evaluator implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The name of the evaluator"""
+  name: String!
+}
+
+"""A connection to a list of items."""
+type EvaluatorConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [EvaluatorEdge!]!
+}
+
+"""An edge in a connection."""
+type EvaluatorEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Evaluator!
 }
 
 type Event {
@@ -1806,6 +1845,7 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): Void
+  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
