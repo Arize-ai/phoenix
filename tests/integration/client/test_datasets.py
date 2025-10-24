@@ -497,7 +497,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         assert len(target_dataset) == 1
 
-        # Pass dataset.examples directly to add_examples_to_dataset
+        # Pass converted dataset.examples to add_examples_to_dataset
         updated_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
                 dataset=target_dataset,
@@ -508,7 +508,7 @@ Who wrote Hamlet?,Shakespeare,literature
                         metadata=example["metadata"],
                     )
                     for example in source_dataset.examples
-                ],  # Direct pass of examples list
+                ],
             )
         )
 
