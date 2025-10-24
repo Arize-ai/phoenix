@@ -121,7 +121,9 @@ This requires:
 
 When enabled, PHOENIX_POSTGRES_PASSWORD should NOT be set.
 """
-ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS = "PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS"
+ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS = (
+    "PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS"
+)
 """
 Token lifetime in seconds for connection pool recycling when using AWS RDS IAM authentication.
 AWS RDS auth tokens are valid for 15 minutes. This should be set slightly lower to ensure
