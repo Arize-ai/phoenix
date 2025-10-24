@@ -54,20 +54,22 @@ DEFAULT_TIMEOUT_IN_SECONDS = 5
 def _is_input_dataset_example(obj: Any) -> TypeGuard[InputDatasetExample]:
     """
     Checks if an object is a valid InputDatasetExample.
-
-    Args:
-        obj (Any): The object to validate.
-
-    Returns:
-        bool: True if the object is a valid InputDatasetExample, False otherwise.
     """
     if not isinstance(obj, dict):
         return False
 
     keys = set(obj.keys())
     required_keys = {"input", "output"}
-    allowed_keys = {"input", "output", "metadata"}
-    return required_keys.issubset(keys) and keys.issubset(allowed_keys)
+    return required_keys.issubset(keys)
+
+
+def _is_iterable_of_input_dataset_examples(obj: Any) -> TypeGuard[Iterable[InputDatasetExample]]:
+    """
+    Checks if an object is an iterable of InputDatasetExample objects.
+    """
+    return isinstance(obj, Iterable) and all(
+        isinstance(example, InputDatasetExample) for example in obj
+    )
 
 
 class Dataset:
@@ -770,8 +772,13 @@ class Datasets:
             examples_list: list[InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
+            elif _is_iterable_of_input_dataset_examples(examples):
+                examples_list = list(examples)
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                raise ValueError(
+                    "`examples` must be a single InputDatasetExample "
+                    "or an iterable of InputDatasetExample objects"
+                )
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
@@ -875,9 +882,14 @@ class Datasets:
         if examples is not None:
             examples_list: list[InputDatasetExample]
             if _is_input_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+                examples_list = [examples]
+            elif _is_iterable_of_input_dataset_examples(examples):
+                examples_list = list(examples)
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                raise ValueError(
+                    "`examples` must be a single InputDatasetExample "
+                    "or an iterable of InputDatasetExample objects"
+                )
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
@@ -1474,8 +1486,13 @@ class AsyncDatasets:
             examples_list: list[InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
+            elif _is_iterable_of_input_dataset_examples(examples):
+                examples_list = list(examples)
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                raise ValueError(
+                    "`examples` must be a single InputDatasetExample "
+                    "or an iterable of InputDatasetExample objects"
+                )
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
@@ -1580,8 +1597,13 @@ class AsyncDatasets:
             examples_list: list[InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
+            elif _is_iterable_of_input_dataset_examples(examples):
+                examples_list = list(examples)
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                raise ValueError(
+                    "`examples` must be a single InputDatasetExample "
+                    "or an iterable of InputDatasetExample objects"
+                )
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
