@@ -806,7 +806,7 @@ class Datasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[InputDatasetExample, Iterable[InputDatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -882,7 +882,7 @@ class Datasets:
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            metadata = [dict(example.get("metadata", {})) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1510,7 +1510,7 @@ class AsyncDatasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[InputDatasetExample, Iterable[InputDatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1586,7 +1586,7 @@ class AsyncDatasets:
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            metadata = [dict(example.get("metadata", {})) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
