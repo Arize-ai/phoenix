@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 DatasetExample = v1.DatasetExample
 
 
-class InputDatasetExample(TypedDict, total=False):
+class _InputDatasetExample(TypedDict, total=False):
     """
     This type is created manually since we do not have compiled request types
     for the POST /v1/datasets/upload route.
@@ -51,9 +51,9 @@ class InputDatasetExample(TypedDict, total=False):
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
-def _is_input_dataset_example(obj: Any) -> TypeGuard[InputDatasetExample]:
+def _is_input_dataset_example(obj: Any) -> TypeGuard[_InputDatasetExample]:
     """
-    Checks if an object is a valid InputDatasetExample.
+    Checks if an object is a valid _InputDatasetExample.
     """
     if not isinstance(obj, dict):
         return False
@@ -63,9 +63,9 @@ def _is_input_dataset_example(obj: Any) -> TypeGuard[InputDatasetExample]:
     return required_keys.issubset(keys)  # pyright: ignore[reportUnknownArgumentType]
 
 
-def _is_iterable_of_input_dataset_examples(obj: Any) -> TypeGuard[Iterable[InputDatasetExample]]:
+def _is_iterable_of_input_dataset_examples(obj: Any) -> TypeGuard[Iterable[_InputDatasetExample]]:
     """
-    Checks if an object is an iterable of InputDatasetExample objects.
+    Checks if an object is an iterable of _InputDatasetExample objects.
     """
     return isinstance(obj, Iterable) and all(_is_input_dataset_example(example) for example in obj)  # pyright: ignore[reportUnknownVariableType]
 
@@ -715,7 +715,7 @@ class Datasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[InputDatasetExample, Iterable[InputDatasetExample]]] = None,
+        examples: Optional[Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -732,8 +732,9 @@ class Datasets:
 
         Args:
             dataset_name: Name of the dataset.
-            examples: Either a single InputDatasetExample or list of InputDatasetExample objects to
-                add. When provided, inputs/outputs/metadata are extracted automatically.
+            examples: Either a single dictionary with required 'input' and 'output' keys
+                and an optional 'metadata' key, or an iterable of such dictionaries.
+                When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -767,15 +768,15 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[InputDatasetExample]
+            examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
             elif _is_iterable_of_input_dataset_examples(examples):
                 examples_list = list(examples)
             else:
                 raise ValueError(
-                    "`examples` must be a single InputDatasetExample "
-                    "or an iterable of InputDatasetExample objects"
+                    "examples must be a single dictionary with required 'input' and 'output' keys "
+                    "and an optional 'metadata' key, or an iterable of such dictionaries"
                 )
 
             inputs = [dict(example["input"]) for example in examples_list]
@@ -810,7 +811,7 @@ class Datasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[InputDatasetExample, Iterable[InputDatasetExample]]] = None,
+        examples: Optional[Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -827,8 +828,9 @@ class Datasets:
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict with 'id'/'name' fields.
-            examples: Either a single InputDatasetExample or list of InputDatasetExample objects to
-                add. When provided, inputs/outputs/metadata are extracted automatically.
+            examples: Either a single dictionary with required 'input' and 'output' keys
+                and an optional 'metadata' key, or an iterable of such dictionaries.
+                When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -878,15 +880,15 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[InputDatasetExample]
+            examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
             elif _is_iterable_of_input_dataset_examples(examples):
                 examples_list = list(examples)
             else:
                 raise ValueError(
-                    "`examples` must be a single InputDatasetExample "
-                    "or an iterable of InputDatasetExample objects"
+                    "examples must be a single dictionary with required 'input' and 'output' keys "
+                    "and an optional 'metadata' key, or an iterable of such dictionaries"
                 )
 
             inputs = [dict(example["input"]) for example in examples_list]
@@ -1429,7 +1431,7 @@ class AsyncDatasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[InputDatasetExample, Iterable[InputDatasetExample]]] = None,
+        examples: Optional[Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1446,7 +1448,8 @@ class AsyncDatasets:
 
         Args:
             dataset_name: Name of the dataset.
-            examples: Either a single InputDatasetExample or list of InputDatasetExample objects
+            examples: Either a single dictionary with required 'input' and 'output' keys
+                and an optional 'metadata' key, or an iterable of such dictionaries.
                 to add. When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
@@ -1481,15 +1484,15 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[InputDatasetExample]
+            examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
             elif _is_iterable_of_input_dataset_examples(examples):
                 examples_list = list(examples)
             else:
                 raise ValueError(
-                    "`examples` must be a single InputDatasetExample "
-                    "or an iterable of InputDatasetExample objects"
+                    "examples must be a single dictionary with required 'input' and 'output' keys "
+                    "and an optional 'metadata' key, or an iterable of such dictionaries"
                 )
 
             inputs = [dict(example["input"]) for example in examples_list]
@@ -1524,7 +1527,7 @@ class AsyncDatasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[InputDatasetExample, Iterable[InputDatasetExample]]] = None,
+        examples: Optional[Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1541,8 +1544,9 @@ class AsyncDatasets:
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict with 'id'/'name' fields.
-            examples: Either a single InputDatasetExample or list of InputDatasetExample objects to
-                add. When provided, inputs/outputs/metadata are extracted automatically.
+            examples: Either a single dictionary with required 'input' and 'output' keys
+                and an optional 'metadata' key, or an iterable of such dictionaries.
+                When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -1592,15 +1596,15 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[InputDatasetExample]
+            examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
             elif _is_iterable_of_input_dataset_examples(examples):
                 examples_list = list(examples)
             else:
                 raise ValueError(
-                    "`examples` must be a single InputDatasetExample "
-                    "or an iterable of InputDatasetExample objects"
+                    "examples must be a single dictionary with required 'input' and 'output' keys "
+                    "and an optional 'metadata' key, or an iterable of such dictionaries"
                 )
 
             inputs = [dict(example["input"]) for example in examples_list]

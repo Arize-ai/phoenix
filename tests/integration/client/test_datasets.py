@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.resources.datasets import Dataset, InputDatasetExample
+from phoenix.client.resources.datasets import Dataset
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser, _gql
@@ -318,7 +318,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         # Create source dataset
         source_name = f"test_source_{uuid.uuid4().hex[:8]}"
-        await _await_or_return(
+        source = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=source_name,
                 inputs=[{"q": "Q1"}, {"q": "Q2"}, {"q": "Q3"}],
@@ -332,9 +332,7 @@ Who wrote Hamlet?,Shakespeare,literature
         target = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=target_name,
-                examples=InputDatasetExample(
-                    input={"q": "Q1"}, output={"a": "A1"}
-                ),  # Single example
+                examples=source[0],  # Single example
             )
         )
 
@@ -346,10 +344,7 @@ Who wrote Hamlet?,Shakespeare,literature
         updated = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
                 dataset=target,
-                examples=[
-                    InputDatasetExample(input={"q": "Q2"}, output={"a": "A2"}, metadata={"idx": 2}),
-                    InputDatasetExample(input={"q": "Q3"}, output={"a": "A3"}),
-                ],
+                examples=source.examples[1:3],  # Multiple examples
             )
         )
 
@@ -497,18 +492,11 @@ Who wrote Hamlet?,Shakespeare,literature
 
         assert len(target_dataset) == 1
 
-        # Pass converted dataset.examples to add_examples_to_dataset
+        # Pass dataset.examples directly to add_examples_to_dataset
         updated_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
                 dataset=target_dataset,
-                examples=[
-                    InputDatasetExample(
-                        input=example["input"],
-                        output=example["output"],
-                        metadata=example["metadata"],
-                    )
-                    for example in source_dataset.examples
-                ],
+                examples=source_dataset.examples,  # Direct pass of examples list
             )
         )
 
@@ -526,22 +514,11 @@ Who wrote Hamlet?,Shakespeare,literature
             assert target_example["metadata"] == source_example["metadata"]
 
         # Also test passing a subset of examples
-        examples = [
-            InputDatasetExample(
-                input={"question": "What is Python?"},
-                output={"answer": "A programming language"},
-                metadata={"topic": "basics"},
-            ),
-            InputDatasetExample(
-                input={"question": "Explain async/await"},
-                output={"answer": "Concurrency primitives"},
-            ),
-        ]
         subset_target_name = f"test_subset_{uuid.uuid4().hex[:8]}"
         subset_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=subset_target_name,
-                examples=examples,
+                examples=source_dataset.examples[:2],  # Only first 2 examples
             )
         )
 
@@ -1227,11 +1204,9 @@ Who wrote Hamlet?,Shakespeare,literature
             f"Expected 3 examples with split1, got {len(split1_dataset)}"
         )
         split1_example_ids = {ex["id"] for ex in split1_dataset.examples}
-        assert split1_example_ids == {
-            example_ids[0],
-            example_ids[1],
-            example_ids[3],
-        }, f"Split1 should contain examples 0, 1, 3. Got: {split1_example_ids}"
+        assert split1_example_ids == {example_ids[0], example_ids[1], example_ids[3]}, (
+            f"Split1 should contain examples 0, 1, 3. Got: {split1_example_ids}"
+        )
 
         # Get dataset filtered by split 2 only - should return 3 examples
         split2_dataset = await _await_or_return(
@@ -1244,11 +1219,9 @@ Who wrote Hamlet?,Shakespeare,literature
             f"Expected 3 examples with split2, got {len(split2_dataset)}"
         )
         split2_example_ids = {ex["id"] for ex in split2_dataset.examples}
-        assert split2_example_ids == {
-            example_ids[0],
-            example_ids[2],
-            example_ids[3],
-        }, f"Split2 should contain examples 0, 2, 3. Got: {split2_example_ids}"
+        assert split2_example_ids == {example_ids[0], example_ids[2], example_ids[3]}, (
+            f"Split2 should contain examples 0, 2, 3. Got: {split2_example_ids}"
+        )
 
         # Get dataset filtered by BOTH splits - should return 4 DISTINCT examples
         # Even though examples 0 and 3 belong to both splits, they should only appear once
