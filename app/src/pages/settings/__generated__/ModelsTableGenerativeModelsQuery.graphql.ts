@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fabf690993ea8ec5673cb7cd26b0092a>>
+ * @generated SignedSource<<af7a11ba7f800ff619c9a34c974884fb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,31 +10,51 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type settingsModelsLoaderQuery$variables = Record<PropertyKey, never>;
-export type settingsModelsLoaderQuery$data = {
+export type ModelsTableGenerativeModelsQuery$variables = {
+  after?: string | null;
+  first?: number | null;
+};
+export type ModelsTableGenerativeModelsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels">;
 };
-export type settingsModelsLoaderQuery = {
-  response: settingsModelsLoaderQuery$data;
-  variables: settingsModelsLoaderQuery$variables;
+export type ModelsTableGenerativeModelsQuery = {
+  response: ModelsTableGenerativeModelsQuery$data;
+  variables: ModelsTableGenerativeModelsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "kind": "Literal",
-    "name": "first",
-    "value": 1000
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "after"
+  },
+  {
+    "defaultValue": 1000,
+    "kind": "LocalArgument",
+    "name": "first"
   }
 ],
-v1 = {
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "first"
+  }
+],
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -43,13 +63,13 @@ v2 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "settingsModelsLoaderQuery",
+    "name": "ModelsTableGenerativeModelsQuery",
     "selections": [
       {
-        "args": null,
+        "args": (v1/*: any*/),
         "kind": "FragmentSpread",
         "name": "ModelsTable_generativeModels"
       }
@@ -59,13 +79,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "settingsModelsLoaderQuery",
+    "name": "ModelsTableGenerativeModelsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v1/*: any*/),
         "concreteType": "GenerativeModelConnection",
         "kind": "LinkedField",
         "name": "generativeModels",
@@ -87,7 +107,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -144,7 +164,7 @@ return {
                     "name": "lastUsedAt",
                     "storageKey": null
                   },
-                  (v2/*: any*/),
+                  (v3/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -160,7 +180,7 @@ return {
                         "name": "tokenType",
                         "storageKey": null
                       },
-                      (v2/*: any*/),
+                      (v3/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -196,7 +216,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v1/*: any*/)
+                  (v2/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -229,11 +249,11 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": "generativeModels(first:1000)"
+        "storageKey": null
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v1/*: any*/),
         "filters": null,
         "handle": "connection",
         "key": "ModelsTable_generativeModels",
@@ -243,16 +263,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2561e105687af94ee14ba63f1a570f9b",
+    "cacheID": "d2c39f2a952d3a47ca39883bdff49cc4",
     "id": null,
     "metadata": {},
-    "name": "settingsModelsLoaderQuery",
+    "name": "ModelsTableGenerativeModelsQuery",
     "operationKind": "query",
-    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 1000) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ModelsTableGenerativeModelsQuery(\n  $after: String = null\n  $first: Int = 1000\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a0f3a13e85b11b62ee06f77c3efabae7";
+(node as any).hash = "e067fb55e7a09f7237e0cc8eb1eb4c75";
 
 export default node;

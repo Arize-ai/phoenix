@@ -1513,6 +1513,24 @@ type GenerativeModel implements Node & ModelInterface {
   lastUsedAt: DateTime
 }
 
+"""A connection to a list of items."""
+type GenerativeModelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [GenerativeModelEdge!]!
+}
+
+"""An edge in a connection."""
+type GenerativeModelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: GenerativeModel!
+}
+
 input GenerativeModelInput {
   providerKey: GenerativeProviderKey!
   name: String!
@@ -2373,7 +2391,7 @@ type PromptVersionTagMutationPayload {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
-  generativeModels: [GenerativeModel!]!
+  generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
