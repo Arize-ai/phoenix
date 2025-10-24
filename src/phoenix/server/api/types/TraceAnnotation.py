@@ -55,7 +55,7 @@ class TraceAnnotation(Node):
 
     @strawberry.field(
         description="Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary."  # noqa: E501
-    )
+    )  # type: ignore
     async def label(
         self,
         info: Info[Context, None],
