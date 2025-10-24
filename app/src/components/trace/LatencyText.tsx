@@ -9,7 +9,7 @@ export function LatencyText({
   size = "M",
   showIcon = true,
 }: {
-  latencyMs: number;
+  latencyMs: number | null;
   size?: TextProps["size"];
   /**
    * Whether to show the clock icon.
@@ -18,7 +18,9 @@ export function LatencyText({
   showIcon?: boolean;
 }) {
   const color: TextColorValue = useMemo(() => {
-    if (latencyMs < 3000) {
+    if (latencyMs == null) {
+      return "text-700";
+    } else if (latencyMs < 3000) {
       return "success";
     } else if (latencyMs < 8000) {
       return "warning";
@@ -27,7 +29,9 @@ export function LatencyText({
     }
   }, [latencyMs]);
   const latencyText = useMemo(() => {
-    if (latencyMs < 10) {
+    if (latencyMs == null) {
+      return "--";
+    } else if (latencyMs < 10) {
       return formatFloat(latencyMs) + "ms";
     }
     return formatFloat(latencyMs / 1000) + "s";

@@ -251,21 +251,6 @@ export function ExperimentCompareDetails({
               >
                 <FullSizeJSONBlock value={JSON.stringify(input, null, 2)} />
               </Card>
-              <Card
-                title="Reference Output"
-                extra={
-                  <CopyToClipboardButton
-                    text={JSON.stringify(referenceOutput)}
-                  />
-                }
-                height="100%"
-                flex={1}
-                scrollBody={true}
-              >
-                <FullSizeJSONBlock
-                  value={JSON.stringify(referenceOutput, null, 2)}
-                />
-              </Card>
             </Flex>
           </View>
         </div>
@@ -287,6 +272,7 @@ export function ExperimentCompareDetails({
               experimentRepetitionsByExperimentId
             }
             annotationSummaries={annotationSummaries}
+            referenceOutput={referenceOutput}
             includeRepetitions={Object.values(experimentsById).some(
               (experiment) => experiment.repetitions > 1
             )}
@@ -308,6 +294,7 @@ export function ExperimentRunOutputs() {
     experimentsById,
     baseExperimentId,
     compareExperimentIds,
+    referenceOutput,
   } = useExperimentCompareDetailsContext();
 
   const experimentIds = useMemo(
@@ -381,6 +368,15 @@ export function ExperimentRunOutputs() {
               padding: var(--ac-global-dimension-static-size-200);
             `}
           >
+            {referenceOutput && (
+              <li
+                css={css`
+                  flex: none;
+                `}
+              >
+                <ReferenceOutputItem />
+              </li>
+            )}
             {sortedExperimentRepetitions.map(
               ({ experimentId, experimentRepetitions }) => {
                 const experiment = experimentsById[experimentId];
@@ -868,7 +864,7 @@ function ExperimentItemHeader({
 function ExperimentItemMetadata({
   experimentRun,
 }: {
-  experimentRun: ExperimentRun;
+  experimentRun?: ExperimentRun;
 }) {
   return (
     <View
@@ -877,7 +873,13 @@ function ExperimentItemMetadata({
       paddingBottom="size-100"
       flex="none"
     >
-      <ExperimentRunMetadata {...experimentRun} />
+      <div
+        css={css`
+          opacity: ${experimentRun ? 1 : 0.25};
+        `}
+      >
+        <ExperimentRunMetadata {...experimentRun} />
+      </div>
     </View>
   );
 }
@@ -993,6 +995,38 @@ export function ExperimentItem({
             </View>
           </>
         )}
+      </Flex>
+    </div>
+  );
+}
+
+function ReferenceOutputItem() {
+  const { referenceOutput } = useExperimentCompareDetailsContext();
+
+  const referenceOutputStr = useMemo(
+    () => JSON.stringify(referenceOutput, null, 2),
+    [referenceOutput]
+  );
+
+  return (
+    <div css={experimentItemCSS}>
+      <Flex direction="column" height="100%">
+        <ExperimentItemHeader copyText={referenceOutputStr}>
+          <Heading
+            weight="heavy"
+            level={3}
+            css={css`
+              min-width: 0;
+            `}
+          >
+            Reference Output
+          </Heading>
+        </ExperimentItemHeader>
+        <ExperimentItemMetadata />
+        <ExperimentItemAnnotations />
+        <View flex={1}>
+          <FullSizeJSONBlock value={referenceOutputStr} />
+        </View>
       </Flex>
     </div>
   );

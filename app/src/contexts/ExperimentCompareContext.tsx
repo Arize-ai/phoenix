@@ -29,6 +29,10 @@ type AnnotationSummaries = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
 >;
 
+type ReferenceOutput = NonNullable<
+  ExperimentCompareDetailsQuery$data["example"]["revision"]
+>["referenceOutput"];
+
 type ExperimentRepetitionSelectionState = {
   experimentId: string;
   repetitionNumber: number;
@@ -41,6 +45,7 @@ interface ExperimentCompareContextType {
   experimentsById: Record<string, Experiment>;
   experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>;
   annotationSummaries: AnnotationSummaries;
+  referenceOutput: ReferenceOutput;
   includeRepetitions: boolean;
   openTraceDialog: (traceId: string, projectId: string, title: string) => void;
   // Selection state
@@ -75,6 +80,7 @@ export function ExperimentCompareDetailsProvider({
   experimentsById,
   experimentRepetitionsByExperimentId,
   annotationSummaries,
+  referenceOutput,
   includeRepetitions,
   openTraceDialog,
   defaultSelectedRepetitionNumber,
@@ -85,6 +91,7 @@ export function ExperimentCompareDetailsProvider({
   experimentsById: Record<string, Experiment>;
   experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>;
   annotationSummaries: AnnotationSummaries;
+  referenceOutput: ReferenceOutput;
   includeRepetitions: boolean;
   openTraceDialog: (traceId: string, projectId: string, title: string) => void;
   defaultSelectedRepetitionNumber?: number;
@@ -202,6 +209,7 @@ export function ExperimentCompareDetailsProvider({
     experimentsById,
     experimentRepetitionsByExperimentId,
     annotationSummaries,
+    referenceOutput,
     includeRepetitions,
     openTraceDialog,
     selectedExperimentRepetitions,
