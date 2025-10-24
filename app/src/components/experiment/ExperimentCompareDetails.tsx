@@ -295,6 +295,7 @@ export function ExperimentRunOutputs() {
     baseExperimentId,
     compareExperimentIds,
     referenceOutput,
+    referenceOutputSelected,
   } = useExperimentCompareDetailsContext();
 
   const experimentIds = useMemo(
@@ -368,7 +369,7 @@ export function ExperimentRunOutputs() {
               padding: var(--ac-global-dimension-static-size-200);
             `}
           >
-            {referenceOutput && (
+            {referenceOutput && referenceOutputSelected && (
               <li
                 css={css`
                   flex: none;
@@ -462,6 +463,9 @@ function ExperimentRunOutputsSidebar() {
     setSelectedAnnotation,
     toggleSortDirection,
     includeRepetitions,
+    referenceOutput,
+    referenceOutputSelected,
+    toggleReferenceOutputSelected,
   } = useExperimentCompareDetailsContext();
 
   const experimentIds = useMemo(
@@ -490,105 +494,118 @@ function ExperimentRunOutputsSidebar() {
         box-sizing: border-box;
       `}
     >
-      <Flex
-        direction="row"
-        gap="size-200"
-        alignItems="center"
-        justifyContent="space-between"
-        css={css`
-          // vertically align with collapse buttons if they are present
-          padding-left: ${includeRepetitions
-            ? `var(--ac-global-dimension-size-85)`
-            : 0};
-        `}
+      <View
+        // vertically align with collapse buttons if they are present
+        paddingStart={includeRepetitions ? "size-85" : 0}
       >
-        <Checkbox
-          isSelected={allRepetitionsSelected}
-          isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
-          onChange={(checked) => toggleAllRepetitionsSelection(checked)}
+        <Flex
+          direction="row"
+          gap="size-200"
+          alignItems="center"
+          justifyContent="space-between"
         >
-          <Text>
-            <Truncate maxWidth="100%">Select all</Truncate>
-          </Text>
-        </Checkbox>
-        {annotationSummaries.length > 0 && (
-          <Flex
-            direction="row"
-            alignItems="center"
-            css={css`
-              overflow: hidden;
-              padding: var(--ac-global-dimension-size-25);
-            `}
+          <Checkbox
+            isSelected={allRepetitionsSelected}
+            isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
+            onChange={(checked) => toggleAllRepetitionsSelection(checked)}
           >
-            <MenuTrigger>
-              <Button
-                variant="quiet"
-                size="S"
-                css={css`
-                  min-width: 100px;
-                  flex: 0 1 auto;
-                `}
-              >
-                {selectedAnnotation ? (
-                  <Truncate maxWidth="100%">
-                    <Text>{selectedAnnotation}</Text>
-                  </Truncate>
-                ) : (
-                  <MenuTriggerPlaceholder>
-                    Sort by annotation
-                  </MenuTriggerPlaceholder>
-                )}
-                <SelectChevronUpDownIcon />
-              </Button>
-              <Popover>
-                <Menu
-                  items={annotationSummaries}
-                  selectionMode="single"
-                  selectedKeys={selectedAnnotation ? [selectedAnnotation] : []}
-                  onSelectionChange={(keys) => {
-                    if (keys === "all") {
-                      return;
-                    }
-                    setSelectedAnnotation(keys.values().next().value as string);
-                  }}
+            <Text>
+              <Truncate maxWidth="100%">Select all</Truncate>
+            </Text>
+          </Checkbox>
+          {annotationSummaries.length > 0 && (
+            <Flex
+              direction="row"
+              alignItems="center"
+              css={css`
+                overflow: hidden;
+                padding: var(--ac-global-dimension-size-25);
+              `}
+            >
+              <MenuTrigger>
+                <Button
+                  variant="quiet"
+                  size="S"
                   css={css`
-                    font-size: var(--ac-global-font-size-s);
+                    min-width: 100px;
+                    flex: 0 1 auto;
                   `}
                 >
-                  {(annotation) => (
-                    <MenuItem
-                      key={annotation.annotationName}
-                      id={annotation.annotationName}
-                    >
-                      {annotation.annotationName}
-                    </MenuItem>
+                  {selectedAnnotation ? (
+                    <Truncate maxWidth="100%">
+                      <Text>{selectedAnnotation}</Text>
+                    </Truncate>
+                  ) : (
+                    <MenuTriggerPlaceholder>
+                      Sort by annotation
+                    </MenuTriggerPlaceholder>
                   )}
-                </Menu>
-              </Popover>
-            </MenuTrigger>
-            {selectedAnnotation ? (
-              <IconButton
-                size="S"
-                aria-label="Change sort direction"
-                onPress={toggleSortDirection}
-                css={css`
-                  flex: none;
-                `}
-              >
-                <Icon svg={<Icons.ArrowUpDown />} />
-              </IconButton>
-            ) : (
-              <div // placeholder to prevent layout shift when annotation is selected
-                css={css`
-                  width: 30px;
-                  height: 30px;
-                  flex: none;
-                `}
-              />
-            )}
-          </Flex>
+                  <SelectChevronUpDownIcon />
+                </Button>
+                <Popover>
+                  <Menu
+                    items={annotationSummaries}
+                    selectionMode="single"
+                    selectedKeys={
+                      selectedAnnotation ? [selectedAnnotation] : []
+                    }
+                    onSelectionChange={(keys) => {
+                      if (keys === "all") {
+                        return;
+                      }
+                      setSelectedAnnotation(
+                        keys.values().next().value as string
+                      );
+                    }}
+                    css={css`
+                      font-size: var(--ac-global-font-size-s);
+                    `}
+                  >
+                    {(annotation) => (
+                      <MenuItem
+                        key={annotation.annotationName}
+                        id={annotation.annotationName}
+                      >
+                        {annotation.annotationName}
+                      </MenuItem>
+                    )}
+                  </Menu>
+                </Popover>
+              </MenuTrigger>
+              {selectedAnnotation ? (
+                <IconButton
+                  size="S"
+                  aria-label="Change sort direction"
+                  onPress={toggleSortDirection}
+                  css={css`
+                    flex: none;
+                  `}
+                >
+                  <Icon svg={<Icons.ArrowUpDown />} />
+                </IconButton>
+              ) : (
+                <div // placeholder to prevent layout shift when annotation is selected
+                  css={css`
+                    width: 30px;
+                    height: 30px;
+                    flex: none;
+                  `}
+                />
+              )}
+            </Flex>
+          )}
+        </Flex>
+        {referenceOutput && (
+          <Checkbox
+            isSelected={referenceOutputSelected}
+            onChange={toggleReferenceOutputSelected}
+          >
+            <Flex minHeight={30} alignItems="center">
+              <Text>Reference Output</Text>
+            </Flex>
+          </Checkbox>
         )}
-      </Flex>
+      </View>
       {sortedExperimentRepetitions.map(
         ({ experimentId, experimentRepetitions }) => {
           const experiment = experimentsById[experimentId];
