@@ -21,22 +21,16 @@ type NewDatasetLabelDialogProps = {
    */
   connections?: string[];
   /**
-   * Optional dataset ID. If provided, newly created labels will be auto-applied to the dataset upon creation.
+   * Optional dataset data. If provided, newly created labels will be auto-applied to the dataset upon creation.
    */
-  datasetId?: string;
-  /**
-   * Current label IDs for the dataset. Required if datasetId is provided.
-   */
-  currentLabelIds?: string[];
+  dataset?: {
+    id: string;
+    labels?: readonly { readonly id: string }[] | null;
+  };
 };
 export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
   const [error, setError] = useState("");
-  const {
-    onCompleted,
-    connections: providedConnections,
-    datasetId,
-    currentLabelIds,
-  } = props;
+  const { onCompleted, connections: providedConnections, dataset } = props;
   const [addLabel, isSubmitting] = useMutation<NewDatasetLabelDialogMutation>(
     graphql`
       mutation NewDatasetLabelDialogMutation(
@@ -125,13 +119,10 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
         connections,
       },
       onCompleted: (response) => {
-        // Auto-apply the new label to the dataset if datasetId is provided
-        if (
-          datasetId &&
-          response.createDatasetLabel.datasetLabel.id &&
-          currentLabelIds !== undefined
-        ) {
+        // Auto-apply the new label to the dataset if dataset is provided
+        if (dataset && response.createDatasetLabel.datasetLabel.id) {
           const newLabelId = response.createDatasetLabel.datasetLabel.id;
+          const currentLabelIds = dataset.labels?.map((l) => l.id) || [];
 
           // Combine current labels with the new one
           const allLabelIds = [...new Set([...currentLabelIds, newLabelId])];
@@ -139,7 +130,7 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
           // Set all labels on the dataset
           setDatasetLabels({
             variables: {
-              datasetId: datasetId,
+              datasetId: dataset.id,
               datasetLabelIds: allLabelIds,
             },
             onCompleted: () => {

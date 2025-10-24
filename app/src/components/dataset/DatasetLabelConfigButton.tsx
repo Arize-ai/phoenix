@@ -35,7 +35,7 @@ import { useNotifyError } from "@phoenix/contexts";
 
 import { DatasetLabelConfigButton_allLabels$key } from "./__generated__/DatasetLabelConfigButton_allLabels.graphql";
 import { DatasetLabelConfigButton_datasetLabels$key } from "./__generated__/DatasetLabelConfigButton_datasetLabels.graphql";
-import { DatasetLabelConfigButtonCurrentLabelsQuery } from "./__generated__/DatasetLabelConfigButtonCurrentLabelsQuery.graphql";
+import { DatasetLabelConfigButtonDialogContentQuery } from "./__generated__/DatasetLabelConfigButtonDialogContentQuery.graphql";
 import { DatasetLabelConfigButtonQuery } from "./__generated__/DatasetLabelConfigButtonQuery.graphql";
 import { DatasetLabelConfigButtonSetLabelsMutation } from "./__generated__/DatasetLabelConfigButtonSetLabelsMutation.graphql";
 
@@ -100,7 +100,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
       >
         <Modal size="S">
           <Suspense fallback={<Loading />}>
-            <NewDatasetLabelDialogWithData
+            <DatasetLabelDialogContent
               connections={connections}
               datasetId={datasetId}
               onCompleted={() => {
@@ -114,7 +114,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
   );
 }
 
-function NewDatasetLabelDialogWithData({
+function DatasetLabelDialogContent({
   datasetId,
   connections,
   onCompleted,
@@ -123,11 +123,12 @@ function NewDatasetLabelDialogWithData({
   connections: string[];
   onCompleted: () => void;
 }) {
-  const data = useLazyLoadQuery<DatasetLabelConfigButtonCurrentLabelsQuery>(
+  const query = useLazyLoadQuery<DatasetLabelConfigButtonDialogContentQuery>(
     graphql`
-      query DatasetLabelConfigButtonCurrentLabelsQuery($datasetId: ID!) {
+      query DatasetLabelConfigButtonDialogContentQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
+            id
             labels {
               id
             }
@@ -138,13 +139,14 @@ function NewDatasetLabelDialogWithData({
     { datasetId }
   );
 
-  const currentLabelIds = data.dataset?.labels?.map((l) => l.id) || [];
+  const dataset = query.dataset?.id
+    ? { id: query.dataset.id, labels: query.dataset.labels ?? null }
+    : undefined;
 
   return (
     <NewDatasetLabelDialog
       connections={connections}
-      datasetId={datasetId}
-      currentLabelIds={currentLabelIds}
+      dataset={dataset}
       onCompleted={onCompleted}
     />
   );
@@ -200,7 +202,7 @@ export function DatasetLabelSelectionContent(props: { datasetId: string }) {
       >
         <Modal size="S">
           <Suspense fallback={<Loading />}>
-            <NewDatasetLabelDialogWithData
+            <DatasetLabelDialogContent
               connections={connections}
               datasetId={datasetId}
               onCompleted={() => {
