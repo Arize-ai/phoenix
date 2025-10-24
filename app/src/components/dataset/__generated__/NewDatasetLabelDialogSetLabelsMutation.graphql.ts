@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c7f3d403a0d2a8ed97cf4e275e03b8f8>>
+ * @generated SignedSource<<abc6b9b78d67ec45fcbe63dee41eedaf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,8 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type NewDatasetLabelDialogSetLabelsMutation$variables = {
-  datasetId: string;
+  currentDatasetId: string;
+  datasetIds: ReadonlyArray<string>;
   datasetLabelIds: ReadonlyArray<string>;
 };
 export type NewDatasetLabelDialogSetLabelsMutation$data = {
@@ -33,25 +34,28 @@ export type NewDatasetLabelDialogSetLabelsMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "datasetId"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "datasetLabelIds"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "currentDatasetId"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "datasetIds"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "datasetLabelIds"
+},
+v3 = [
   {
     "fields": [
       {
         "kind": "Variable",
-        "name": "datasetId",
-        "variableName": "datasetId"
+        "name": "datasetIds",
+        "variableName": "datasetIds"
       },
       {
         "kind": "Variable",
@@ -63,21 +67,21 @@ v1 = [
     "name": "input"
   }
 ],
-v2 = [
+v4 = [
   {
     "kind": "Variable",
     "name": "id",
-    "variableName": "datasetId"
+    "variableName": "currentDatasetId"
   }
 ],
-v3 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "DatasetLabel",
@@ -85,7 +89,7 @@ v4 = {
   "name": "labels",
   "plural": true,
   "selections": [
-    (v3/*: any*/),
+    (v5/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -105,14 +109,18 @@ v4 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "NewDatasetLabelDialogSetLabelsMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": "SetDatasetLabelsMutationPayload",
         "kind": "LinkedField",
         "name": "setDatasetLabels",
@@ -128,7 +136,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v4/*: any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -137,8 +145,8 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v3/*: any*/),
-                      (v4/*: any*/)
+                      (v5/*: any*/),
+                      (v6/*: any*/)
                     ],
                     "type": "Dataset",
                     "abstractKey": null
@@ -158,13 +166,17 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v2/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "NewDatasetLabelDialogSetLabelsMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": "SetDatasetLabelsMutationPayload",
         "kind": "LinkedField",
         "name": "setDatasetLabels",
@@ -180,7 +192,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v4/*: any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -193,11 +205,11 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v3/*: any*/),
+                  (v5/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v4/*: any*/)
+                      (v6/*: any*/)
                     ],
                     "type": "Dataset",
                     "abstractKey": null
@@ -214,16 +226,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6707c25818a6b235991f92c32b1a479d",
+    "cacheID": "6d08d5d9e333102aac1b4224a3f6c208",
     "id": null,
     "metadata": {},
     "name": "NewDatasetLabelDialogSetLabelsMutation",
     "operationKind": "mutation",
-    "text": "mutation NewDatasetLabelDialogSetLabelsMutation(\n  $datasetId: ID!\n  $datasetLabelIds: [ID!]!\n) {\n  setDatasetLabels(input: {datasetId: $datasetId, datasetLabelIds: $datasetLabelIds}) {\n    query {\n      node(id: $datasetId) {\n        __typename\n        ... on Dataset {\n          id\n          labels {\n            id\n            name\n            color\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation NewDatasetLabelDialogSetLabelsMutation(\n  $datasetIds: [ID!]!\n  $datasetLabelIds: [ID!]!\n  $currentDatasetId: ID!\n) {\n  setDatasetLabels(input: {datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds}) {\n    query {\n      node(id: $currentDatasetId) {\n        __typename\n        ... on Dataset {\n          id\n          labels {\n            id\n            name\n            color\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5a3295e12874ebce5aeb57381ebceca1";
+(node as any).hash = "6c55ba5246323a6c7692773e67c7c889";
 
 export default node;
