@@ -150,7 +150,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         )}
       </Button>
       <Popover
-        placement="bottom end"
+        placement="bottom end" // right align popover to end of menu trigger to prevent dynamic movement when submenu items are
         css={css`
           overflow: auto;
         `}
@@ -261,11 +261,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         items={[
                           {
                             id: "all-examples",
-                            name: `Use ${
-                              exampleCount === 1
-                                ? `${exampleCount} example`
-                                : `all ${exampleCount} examples`
-                            }`,
+                            name: "All examples",
                             isAllExamples: true,
                           },
                           ...splits.map((split) => ({
@@ -273,11 +269,6 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                             isAllExamples: false,
                           })),
                         ]}
-                        renderEmptyState={() => (
-                          <View padding="size-200">
-                            <Text color="text-700">No splits found</Text>
-                          </View>
-                        )}
                         selectionMode="multiple"
                         selectedKeys={
                           isSelected && selectedSplitIds.length === 0
