@@ -146,6 +146,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         )}
       </Button>
       <Popover
+        placement="bottom end"
         css={css`
           overflow: auto;
         `}
@@ -177,6 +178,44 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               selectedSplitIds,
             }) => {
               const isDisabled = exampleCount === 0;
+              const hasSplits = splits.length > 0;
+
+              // If no splits, just select the dataset directly
+              if (!hasSplits) {
+                return (
+                  <MenuItem
+                    textValue={name}
+                    isDisabled={isDisabled}
+                    onAction={() => {
+                      props.onSelectionChange?.({
+                        datasetId: id,
+                        splitIds: [],
+                      });
+                    }}
+                  >
+                    <Flex
+                      direction="row"
+                      alignItems="center"
+                      gap="size-200"
+                      justifyContent="space-between"
+                      width="100%"
+                      css={css`
+                        opacity: ${isDisabled
+                          ? "var(--ac-global-opacity-disabled)"
+                          : 1};
+                      `}
+                    >
+                      <Text>{name}</Text>
+                      <Text color="text-700" size="XS">
+                        {exampleCount}{" "}
+                        {exampleCount === 1 ? "example" : "examples"}
+                      </Text>
+                    </Flex>
+                  </MenuItem>
+                );
+              }
+
+              // If has splits, show submenu
               return (
                 <SubmenuTrigger>
                   <MenuItem textValue={name} isDisabled={isDisabled}>
@@ -200,6 +239,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                     </Flex>
                   </MenuItem>
                   <Popover
+                    placement="right"
                     css={css`
                       overflow: auto;
                     `}
