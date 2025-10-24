@@ -23,7 +23,6 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   ExamplesCache,
   useExamplesFilterContext,
@@ -50,7 +49,6 @@ export function ExamplesTable({
     setExamplesCache,
   } = useExamplesFilterContext();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
-  const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
@@ -217,15 +215,13 @@ export function ExamplesTable({
         cell: CompactJSONCell,
       },
     ];
-    if (isSplitsEnabled) {
-      cols.splice(2, 0, {
-        header: "splits",
-        accessorKey: "splits",
-        cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
-      });
-    }
+    cols.splice(2, 0, {
+      header: "splits",
+      accessorKey: "splits",
+      cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
+    });
     return cols;
-  }, [isSplitsEnabled]);
+  }, []);
 
   const table = useReactTable<TableRow>({
     columns,
