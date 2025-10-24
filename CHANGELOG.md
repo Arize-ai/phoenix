@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.7.0...arize-phoenix-v12.7.1) (2025-10-24)
+
+
+### Bug Fixes
+
+* Ensure latest user api keys are fetched on profile page ([#10004](https://github.com/Arize-ai/phoenix/issues/10004)) ([5fba007](https://github.com/Arize-ai/phoenix/commit/5fba0073e72b133c225c4bc7a5bc862db8f28af9))
+
 ## [12.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.6.1...arize-phoenix-v12.7.0) (2025-10-24)
 
 
