@@ -43,7 +43,6 @@ import {
   getExperimentUrl,
 } from "../utils/urlUtils";
 import assert from "assert";
-import { GetDatasetExamplesParams } from "../datasets/getDatasetExamples";
 
 /**
  * Validate that a repetition is valid
