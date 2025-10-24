@@ -251,11 +251,12 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         content = self._build_content(prompt)
         tool = self._schema_to_tool(schema)
+        any_config_mode = genai.types.FunctionCallingConfigMode("ANY")
 
         config = genai.types.GenerateContentConfig(
             tools=[tool],
             tool_config=genai.types.ToolConfig(
-                function_calling_config=genai.types.FunctionCallingConfig(mode="ANY")  # pyright: ignore
+                function_calling_config=genai.types.FunctionCallingConfig(mode=any_config_mode)
             ),
         )
 
@@ -286,11 +287,12 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         content = self._build_content(prompt)
         tool = self._schema_to_tool(schema)
+        any_config_mode = genai.types.FunctionCallingConfigMode("ANY")
 
         config = genai.types.GenerateContentConfig(
             tools=[tool],
             tool_config=genai.types.ToolConfig(
-                function_calling_config=genai.types.FunctionCallingConfig(mode="any")  # pyright: ignore
+                function_calling_config=genai.types.FunctionCallingConfig(mode=any_config_mode)
             ),
         )
 
@@ -340,7 +342,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         function_declaration = genai.types.FunctionDeclaration(
             name="extract_structured_data",
             description=description,
-            parameters=schema,  # pyright: ignore
+            parameters_json_schema=schema,
         )
 
         return genai.types.Tool(function_declarations=[function_declaration])
