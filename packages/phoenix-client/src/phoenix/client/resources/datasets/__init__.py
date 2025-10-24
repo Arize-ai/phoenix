@@ -58,18 +58,16 @@ def _is_input_dataset_example(obj: Any) -> TypeGuard[InputDatasetExample]:
     if not isinstance(obj, dict):
         return False
 
-    keys = set(obj.keys())
+    keys = set(obj.keys())  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
     required_keys = {"input", "output"}
-    return required_keys.issubset(keys)
+    return required_keys.issubset(keys)  # pyright: ignore[reportUnknownArgumentType]
 
 
 def _is_iterable_of_input_dataset_examples(obj: Any) -> TypeGuard[Iterable[InputDatasetExample]]:
     """
     Checks if an object is an iterable of InputDatasetExample objects.
     """
-    return isinstance(obj, Iterable) and all(
-        isinstance(example, InputDatasetExample) for example in obj
-    )
+    return isinstance(obj, Iterable) and all(_is_input_dataset_example(example) for example in obj)  # pyright: ignore[reportUnknownVariableType]
 
 
 class Dataset:
