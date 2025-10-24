@@ -22,7 +22,7 @@ from typing import (
 from urllib.parse import quote
 
 import httpx
-from typing_extensions import Required
+from typing_extensions import Required, TypeGuard
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -51,24 +51,23 @@ class InputDatasetExample(TypedDict, total=False):
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
-def _is_valid_dataset_example(obj: Any) -> bool:
-    """Check if an object is a valid DatasetExample using the TypedDict's annotations.
+def _is_input_dataset_example(obj: Any) -> TypeGuard[InputDatasetExample]:
+    """
+    Checks if an object is a valid InputDatasetExample.
 
     Args:
         obj (Any): The object to validate.
 
     Returns:
-        bool: True if the object is a valid DatasetExample, False otherwise.
+        bool: True if the object is a valid InputDatasetExample, False otherwise.
     """
     if not isinstance(obj, dict):
         return False
 
-    # Exclude optional fields (splits is NotRequired for backwards compatibility)
-    required_fields = set(DatasetExample.__annotations__.keys()) - {"splits"}
-
-    if not required_fields.issubset(obj.keys()):  # pyright: ignore[reportUnknownArgumentType]
-        return False
-    return True
+    keys = set(obj.keys())
+    required_keys = {"input", "output"}
+    allowed_keys = {"input", "output", "metadata"}
+    return required_keys.issubset(keys) and keys.issubset(allowed_keys)
 
 
 class Dataset:
@@ -733,8 +732,8 @@ class Datasets:
 
         Args:
             dataset_name: Name of the dataset.
-            examples: Either a single DatasetExample or list of DatasetExample objects to add.
-                When provided, inputs/outputs/metadata are extracted automatically.
+            examples: Either a single InputDatasetExample or list of InputDatasetExample objects to
+                add. When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -768,9 +767,9 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[InputDatasetExample]
+            if _is_input_dataset_example(examples):
+                examples_list = [examples]
             else:
                 examples_list = list(examples)  # type: ignore[arg-type]
 
@@ -823,8 +822,8 @@ class Datasets:
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict with 'id'/'name' fields.
-            examples: Either a single DatasetExample or list of DatasetExample objects to add.
-                When provided, inputs/outputs/metadata are extracted automatically.
+            examples: Either a single InputDatasetExample or list of InputDatasetExample objects to
+                add. When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -874,8 +873,8 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
+            examples_list: list[InputDatasetExample]
+            if _is_input_dataset_example(examples):
                 examples_list = [examples]  # type: ignore[list-item]
             else:
                 examples_list = list(examples)  # type: ignore[arg-type]
@@ -1437,8 +1436,8 @@ class AsyncDatasets:
 
         Args:
             dataset_name: Name of the dataset.
-            examples: Either a single DatasetExample or list of DatasetExample objects to add.
-                When provided, inputs/outputs/metadata are extracted automatically.
+            examples: Either a single InputDatasetExample or list of InputDatasetExample objects
+                to add. When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -1472,9 +1471,9 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[InputDatasetExample]
+            if _is_input_dataset_example(examples):
+                examples_list = [examples]
             else:
                 examples_list = list(examples)  # type: ignore[arg-type]
 
@@ -1527,8 +1526,8 @@ class AsyncDatasets:
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict with 'id'/'name' fields.
-            examples: Either a single DatasetExample or list of DatasetExample objects to add.
-                When provided, inputs/outputs/metadata are extracted automatically.
+            examples: Either a single InputDatasetExample or list of InputDatasetExample objects to
+                add. When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -1578,9 +1577,9 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[InputDatasetExample]
+            if _is_input_dataset_example(examples):
+                examples_list = [examples]
             else:
                 examples_list = list(examples)  # type: ignore[arg-type]
 
