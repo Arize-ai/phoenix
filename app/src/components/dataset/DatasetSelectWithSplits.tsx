@@ -376,7 +376,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         </Autocomplete>
         <View padding="size-150" borderTopColor="light" borderTopWidth="thin">
           <LinkButton to="/datasets" variant="quiet" size="S">
-            Go to datasets
+            Go to Datasets
           </LinkButton>
         </View>
       </Popover>
