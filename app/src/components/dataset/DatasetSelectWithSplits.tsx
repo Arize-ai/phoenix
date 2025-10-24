@@ -116,6 +116,10 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
   }, [selectedDataset, splitIds]);
 
   const selectedDatasetKeys = datasetId ? [datasetId] : undefined;
+  const atLeastOneDatasetHasSplits = useMemo(
+    () => datasetItems.some((dataset) => dataset.splits.length > 0),
+    [datasetItems]
+  );
 
   return (
     <MenuTrigger>
@@ -203,6 +207,9 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         opacity: ${isDisabled
                           ? "var(--ac-global-opacity-disabled)"
                           : 1};
+                        padding-right: ${atLeastOneDatasetHasSplits
+                          ? "28px"
+                          : undefined}; // right align the examples text if a submenu chevron is present
                       `}
                     >
                       <Text>{name}</Text>
