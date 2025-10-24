@@ -16,14 +16,9 @@ class GoogleGenAIRateLimitError(Exception):
 
 
 def identify_google_genai_client(client: Any) -> bool:
-    if isinstance(client, GoogleGenAIClientWrapper):
+    if hasattr(client, "models") and hasattr(client, "chats"):
         return True
-
-    return (
-        hasattr(client, "__module__")
-        and client.__module__ is not None
-        and "google.genai" in client.__module__
-    )
+    return False
 
 
 def get_google_genai_rate_limit_errors() -> list[Type[Exception]]:
@@ -51,28 +46,13 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         return "google-genai"
 
     def _validate_client(self) -> None:
-        actual_client = getattr(self.client, "client", self.client)
-        if not hasattr(actual_client, "models"):
-            raise ValueError(
-                "GoogleGenAIAdapter requires a Google GenAI client instance with "
-                f"models attribute, got {type(self.client)}"
-            )
+        if not hasattr(self.client, "models"):
+            raise ValueError("GoogleGenAIAdapter requires a Google GenAI client.")
 
     def _check_if_async_client(self) -> bool:
-        actual_client = getattr(self.client, "client", self.client)
-
-        if hasattr(actual_client, "__module__") and actual_client.__module__:
-            if "google.genai" in actual_client.__module__:
-                class_name = actual_client.__class__.__name__
-                return "Async" in class_name
-
-        generate_method = getattr(actual_client.models, "generate_content", None)
-        if generate_method:
-            import inspect
-
-            return inspect.iscoroutinefunction(generate_method)
-
-        return False
+        if hasattr(self.client, "aio"):
+            return False
+        return True
 
     def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         if self._is_async:
