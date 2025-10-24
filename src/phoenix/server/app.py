@@ -754,6 +754,7 @@ def create_graphql_router(
                         cache_for_dataloaders.latency_ms_quantile if cache_for_dataloaders else None
                     ),
                 ),
+                llm_evaluator_fields=TableFieldsDataLoader(db, models.LLMEvaluator),
                 min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
                     db,
                     cache_map=(
@@ -768,7 +769,9 @@ def create_graphql_router(
                 projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
                     db
                 ),
+                prompt_fields=TableFieldsDataLoader(db, models.Prompt),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
+                prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
                 record_counts=RecordCountDataLoader(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
@@ -832,6 +835,7 @@ def create_graphql_router(
                 trace_root_spans=TraceRootSpansDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
                 users=UsersDataLoader(db),
+                user_fields=TableFieldsDataLoader(db, models.User),
                 user_roles=UserRolesDataLoader(db),
             ),
             cache_for_dataloaders=cache_for_dataloaders,

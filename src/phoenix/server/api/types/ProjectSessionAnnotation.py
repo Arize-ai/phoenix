@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
 from strawberry import Private
@@ -11,7 +11,9 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
 from .AnnotationSource import AnnotationSource
-from .User import User, to_gql_user
+
+if TYPE_CHECKING:
+    from .User import User
 
 
 @strawberry.type
@@ -38,13 +40,12 @@ class ProjectSessionAnnotation(Node):
     async def user(
         self,
         info: Info[Context, None],
-    ) -> Optional[User]:
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
         if self.user_id is None:
             return None
-        user = await info.context.data_loaders.users.load(self.user_id)
-        if user is None:
-            return None
-        return to_gql_user(user)
+        from .User import User
+
+        return User(id=self.user_id)
 
 
 def to_gql_project_session_annotation(

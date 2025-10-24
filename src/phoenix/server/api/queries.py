@@ -60,6 +60,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
+from phoenix.server.api.types.Evaluator import LLMEvaluator
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -91,10 +92,10 @@ from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
-from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
+from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
-from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
+from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
@@ -102,7 +103,7 @@ from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
-from phoenix.server.api.types.User import User, to_gql_user
+from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
@@ -261,7 +262,7 @@ class Query:
         )
         async with info.context.db() as session:
             users = await session.stream_scalars(stmt)
-            data = [to_gql_user(user) async for user in users]
+            data = [User(id=user.id, db_record=user) async for user in users]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
@@ -1007,14 +1008,7 @@ class Query:
         elif type_name == User.__name__:
             if int((user := info.context.user).identity) != node_id and not user.is_admin:
                 raise Unauthorized(MSG_ADMIN_ONLY)
-            async with info.context.db() as session:
-                if not (
-                    user := await session.scalar(
-                        select(models.User).where(models.User.id == node_id)
-                    )
-                ):
-                    raise NotFound(f"Unknown user: {id}")
-            return to_gql_user(user)
+            return User(id=node_id)
         elif type_name == ProjectSession.__name__:
             async with info.context.db() as session:
                 if not (
@@ -1026,12 +1020,9 @@ class Query:
             return to_gql_project_session(project_session)
         elif type_name == Prompt.__name__:
             async with info.context.db() as session:
-                if orm_prompt := await session.scalar(
-                    select(models.Prompt).where(models.Prompt.id == node_id)
-                ):
-                    return to_gql_prompt_from_orm(orm_prompt)
-                else:
-                    raise NotFound(f"Unknown prompt: {id}")
+                if prompt := await session.get(models.Prompt, node_id):
+                    return Prompt(id=prompt.id, db_record=prompt)
+                raise NotFound(f"Unknown prompt: {id}")
         elif type_name == PromptVersion.__name__:
             async with info.context.db() as session:
                 if orm_prompt_version := await session.scalar(
@@ -1053,7 +1044,7 @@ class Query:
             async with info.context.db() as session:
                 if not (prompt_version_tag := await session.get(models.PromptVersionTag, node_id)):
                     raise NotFound(f"Unknown prompt version tag: {id}")
-            return to_gql_prompt_version_tag(prompt_version_tag)
+            return PromptVersionTag(id=prompt_version_tag.id, db_record=prompt_version_tag)
         elif type_name == ProjectTraceRetentionPolicy.__name__:
             async with info.context.db() as session:
                 db_policy = await session.scalar(
@@ -1086,6 +1077,12 @@ class Query:
                 if not model:
                     raise NotFound(f"Unknown model: {id}")
             return to_gql_generative_model(model)
+        elif type_name == LLMEvaluator.__name__:
+            async with info.context.db() as session:
+                llm_evaluator = await session.get(models.LLMEvaluator, node_id)
+                if not llm_evaluator:
+                    raise NotFound(f"Unknown evaluator: {id}")
+            return LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -1097,16 +1094,7 @@ class Query:
             return None
         if isinstance(user, UnauthenticatedUser):
             return None
-        async with info.context.db() as session:
-            if (
-                user := await session.scalar(
-                    select(models.User)
-                    .where(models.User.id == int(user.identity))
-                    .options(joinedload(models.User.role))
-                )
-            ) is None:
-                return None
-        return to_gql_user(user)
+        return User(id=int(user.identity))
 
     @strawberry.field
     async def prompts(
@@ -1146,7 +1134,9 @@ class Query:
             stmt = stmt.distinct()
         async with info.context.db() as session:
             orm_prompts = await session.stream_scalars(stmt)
-            data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]
+            data = [
+                Prompt(id=orm_prompt.id, db_record=orm_prompt) async for orm_prompt in orm_prompts
+            ]
             return connection_from_list(
                 data=data,
                 args=args,
