@@ -2,7 +2,6 @@ import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { ExamplesSplitMenu } from "@phoenix/pages/examples/ExamplesSplitMenu";
 
@@ -18,7 +17,6 @@ export const ExamplesFilterBar = () => {
   } = useExamplesFilterContext();
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
-  const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   return (
     <View
       padding="size-100"
@@ -41,15 +39,13 @@ export const ExamplesFilterBar = () => {
           placeholder="Search examples by input, output, or metadata"
           aria-label="Search examples"
         />
-        {isSplitsEnabled && (
-          <ExamplesSplitMenu
-            onSelectionChange={setSelectedSplitIds}
-            onExampleSelectionChange={setSelectedExampleIds}
-            selectedSplitIds={selectedSplitIds}
-            selectedExampleIds={selectedExampleIds}
-            examplesCache={examplesCache}
-          />
-        )}
+        <ExamplesSplitMenu
+          onSelectionChange={setSelectedSplitIds}
+          onExampleSelectionChange={setSelectedExampleIds}
+          selectedSplitIds={selectedSplitIds}
+          selectedExampleIds={selectedExampleIds}
+          examplesCache={examplesCache}
+        />
       </Flex>
     </View>
   );

@@ -11,7 +11,6 @@ import { css } from "@emotion/react";
 import {
   Button,
   Flex,
-  LazyTabPanel,
   LinkButton,
   Menu,
   MenuItem,
@@ -19,9 +18,6 @@ import {
   Popover,
   SearchField,
   SelectChevronUpDownIcon,
-  Tab,
-  TabList,
-  Tabs,
   Text,
   View,
 } from "@phoenix/components";
@@ -120,6 +116,10 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
   }, [selectedDataset, splitIds]);
 
   const selectedDatasetKeys = datasetId ? [datasetId] : undefined;
+  const atLeastOneDatasetHasSplits = useMemo(
+    () => datasetItems.some((dataset) => dataset.splits.length > 0),
+    [datasetItems]
+  );
 
   return (
     <MenuTrigger>
@@ -150,6 +150,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         )}
       </Button>
       <Popover
+        placement="bottom end" // right align popover to end of menu trigger to prevent dynamic movement when submenu items are
         css={css`
           overflow: auto;
         `}
@@ -181,6 +182,47 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               selectedSplitIds,
             }) => {
               const isDisabled = exampleCount === 0;
+              const hasSplits = splits.length > 0;
+
+              // If no splits, just select the dataset directly
+              if (!hasSplits) {
+                return (
+                  <MenuItem
+                    textValue={name}
+                    isDisabled={isDisabled}
+                    onAction={() => {
+                      props.onSelectionChange?.({
+                        datasetId: id,
+                        splitIds: [],
+                      });
+                    }}
+                  >
+                    <Flex
+                      direction="row"
+                      alignItems="center"
+                      gap="size-200"
+                      justifyContent="space-between"
+                      width="100%"
+                      css={css`
+                        opacity: ${isDisabled
+                          ? "var(--ac-global-opacity-disabled)"
+                          : 1};
+                        padding-right: ${atLeastOneDatasetHasSplits
+                          ? "28px"
+                          : undefined}; // right align the examples text if a submenu chevron is present
+                      `}
+                    >
+                      <Text>{name}</Text>
+                      <Text color="text-700" size="XS">
+                        {exampleCount}{" "}
+                        {exampleCount === 1 ? "example" : "examples"}
+                      </Text>
+                    </Flex>
+                  </MenuItem>
+                );
+              }
+
+              // If has splits, show submenu
               return (
                 <SubmenuTrigger>
                   <MenuItem textValue={name} isDisabled={isDisabled}>
@@ -204,91 +246,126 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                     </Flex>
                   </MenuItem>
                   <Popover
+                    placement="right"
                     css={css`
                       overflow: auto;
                     `}
                   >
-                    <View width="100%">
-                      <Tabs
-                        defaultSelectedKey={
-                          selectedSplitIds.length > 0
-                            ? "splits"
-                            : "all-examples"
+                    <Autocomplete filter={contains}>
+                      <View paddingX="size-100" marginTop="size-100">
+                        <SearchField aria-label="Search" autoFocus>
+                          <Input placeholder="Search splits" />
+                        </SearchField>
+                      </View>
+                      <Menu
+                        items={[
+                          {
+                            id: "all-examples",
+                            name: "All examples",
+                            isAllExamples: true,
+                          },
+                          ...splits.map((split) => ({
+                            ...split,
+                            isAllExamples: false,
+                          })),
+                        ]}
+                        selectionMode="multiple"
+                        selectedKeys={
+                          isSelected && selectedSplitIds.length === 0
+                            ? ["all-examples"]
+                            : isSelected
+                              ? selectedSplitIds
+                              : []
                         }
-                      >
-                        <TabList>
-                          <Tab id="all-examples">All Examples</Tab>
-                          <Tab id="splits">Splits</Tab>
-                        </TabList>
-                        <LazyTabPanel id="all-examples">
-                          <Menu
-                            items={[
-                              { id: "all-examples", label: "All Examples" },
-                            ]}
-                            selectionMode="single"
-                            onSelectionChange={() => {
+                        onSelectionChange={(keys) => {
+                          if (keys === "all") {
+                            // Select all splits
+                            props.onSelectionChange?.({
+                              datasetId: id,
+                              splitIds: splits.map((s) => s.id),
+                            });
+                          } else {
+                            const newSelectedIds = Array.from(
+                              keys as Set<string>
+                            );
+                            const prevSelectedIds =
+                              selectedSplitIds.length === 0
+                                ? ["all-examples"]
+                                : selectedSplitIds;
+
+                            const hasAllExamples =
+                              newSelectedIds.includes("all-examples");
+                            const splitSelections = newSelectedIds.filter(
+                              (sid) => sid !== "all-examples"
+                            );
+
+                            // Check if "all-examples" was just clicked (added to selection)
+                            const wasAllExamplesJustClicked =
+                              hasAllExamples &&
+                              !prevSelectedIds.includes("all-examples");
+
+                            if (wasAllExamplesJustClicked) {
+                              // User clicked "all-examples" - clear all split selections
                               props.onSelectionChange?.({
                                 datasetId: id,
                                 splitIds: [],
                               });
-                            }}
+                            } else if (
+                              hasAllExamples &&
+                              splitSelections.length > 0
+                            ) {
+                              // User clicked a split while "all-examples" was selected
+                              // Remove "all-examples" and keep only the splits
+                              props.onSelectionChange?.({
+                                datasetId: id,
+                                splitIds: splitSelections,
+                              });
+                            } else if (
+                              hasAllExamples &&
+                              splitSelections.length === 0
+                            ) {
+                              // Only "all-examples" is selected
+                              props.onSelectionChange?.({
+                                datasetId: id,
+                                splitIds: [],
+                              });
+                            } else if (
+                              !hasAllExamples &&
+                              splitSelections.length > 0
+                            ) {
+                              // Only splits are selected
+                              props.onSelectionChange?.({
+                                datasetId: id,
+                                splitIds: splitSelections,
+                              });
+                            } else {
+                              // Nothing selected - default to all examples
+                              props.onSelectionChange?.({
+                                datasetId: id,
+                                splitIds: [],
+                              });
+                            }
+                          }
+                        }}
+                      >
+                        {({ id: itemId, name, isAllExamples }) => (
+                          <MenuItem
+                            id={itemId}
+                            textValue={name}
+                            css={
+                              isAllExamples
+                                ? css`
+                                    border-bottom: 1px solid
+                                      var(--ac-global-color-grey-200);
+                                  `
+                                : undefined
+                            }
                           >
-                            {() => (
-                              <MenuItem textValue="All Examples">
-                                <Text>
-                                  Use{" "}
-                                  {exampleCount === 1
-                                    ? `${exampleCount} example`
-                                    : `all ${exampleCount} examples`}
-                                </Text>
-                              </MenuItem>
-                            )}
-                          </Menu>
-                        </LazyTabPanel>
-                        <LazyTabPanel id="splits">
-                          <Autocomplete filter={contains}>
-                            <View paddingX="size-100" marginTop="size-100">
-                              <SearchField aria-label="Search" autoFocus>
-                                <Input placeholder="Search splits" />
-                              </SearchField>
-                            </View>
-                            <Menu
-                              items={splits}
-                              renderEmptyState={() => (
-                                <View padding="size-200">
-                                  <Text color="text-700">No splits found</Text>
-                                </View>
-                              )}
-                              selectionMode="multiple"
-                              selectedKeys={isSelected ? selectedSplitIds : []}
-                              onSelectionChange={(keys) => {
-                                if (keys === "all") {
-                                  // Select all splits
-                                  props.onSelectionChange?.({
-                                    datasetId: id,
-                                    splitIds: splits.map((s) => s.id),
-                                  });
-                                } else {
-                                  const selectedIds = Array.from(
-                                    keys as Set<string>
-                                  );
-                                  props.onSelectionChange?.({
-                                    datasetId: id,
-                                    splitIds: selectedIds,
-                                  });
-                                }
-                              }}
-                            >
-                              {({ id: splitId, name }) => (
-                                <MenuItem id={splitId} textValue={name}>
-                                  {name}
-                                </MenuItem>
-                              )}
-                            </Menu>
-                          </Autocomplete>
-                        </LazyTabPanel>
-                      </Tabs>
-                    </View>
+                            <Text>{name}</Text>
+                          </MenuItem>
+                        )}
+                      </Menu>
+                    </Autocomplete>
                   </Popover>
                 </SubmenuTrigger>
               );
@@ -297,7 +374,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         </Autocomplete>
         <View padding="size-150" borderTopColor="light" borderTopWidth="thin">
           <LinkButton to="/datasets" variant="quiet" size="S">
-            Go to datasets
+            Go to Datasets
           </LinkButton>
         </View>
       </Popover>
