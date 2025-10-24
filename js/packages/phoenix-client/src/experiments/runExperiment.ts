@@ -76,14 +76,6 @@ export type RunExperimentParams = ClientFn & {
    */
   dataset: DatasetSelector;
   /**
-   * The version ID of the dataset to run the experiment on
-   */
-  datasetVersionId?: string;
-  /**
-   * Optional list of split names to filter the dataset examples by
-   */
-  datasetSplits?: GetDatasetExamplesParams["splits"];
-  /**
    * The task to run
    */
   task: ExperimentTask;
@@ -170,8 +162,6 @@ export async function runExperiment({
   experimentMetadata = {},
   client: _client,
   dataset: DatasetSelector,
-  datasetSplits,
-  datasetVersionId,
   task,
   evaluators,
   logger = console,
@@ -194,8 +184,6 @@ export async function runExperiment({
   const dataset = await getDataset({
     dataset: DatasetSelector,
     client,
-    splits: datasetSplits,
-    versionId: datasetVersionId,
   });
   invariant(dataset, `Dataset not found`);
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
@@ -213,7 +201,8 @@ export async function runExperiment({
       id: localId(),
       datasetId: dataset.id,
       datasetVersionId: dataset.versionId,
-      datasetSplits: datasetSplits ?? [],
+      // @todo: the dataset should return splits in response body
+      datasetSplits: DatasetSelector?.splits ?? [],
       projectName,
       metadata: experimentMetadata,
     };
@@ -232,8 +221,11 @@ export async function runExperiment({
           metadata: experimentMetadata,
           project_name: projectName,
           repetitions,
-          ...(datasetSplits ? { splits: datasetSplits } : {}),
-          ...(datasetVersionId ? { version_id: datasetVersionId } : {}),
+          // @todo: the dataset should return splits in response body
+          ...(DatasetSelector?.splits
+            ? { splits: DatasetSelector.splits }
+            : {}),
+          ...(dataset?.versionId ? { version_id: dataset.versionId } : {}),
         },
       })
       .then((res) => res.data?.data);
@@ -243,7 +235,8 @@ export async function runExperiment({
       id: experimentResponse.id,
       datasetId: experimentResponse.dataset_id,
       datasetVersionId: experimentResponse.dataset_version_id,
-      datasetSplits: datasetSplits ?? [],
+      // @todo: the dataset should return splits in response body
+      datasetSplits: DatasetSelector?.splits ?? [],
       projectName,
       metadata: experimentResponse.metadata,
     };
@@ -577,10 +570,12 @@ export async function evaluateExperiment({
       ? Math.min(dryRun, Object.keys(experiment.runs).length)
       : Object.keys(experiment.runs).length;
   const dataset = await getDataset({
-    dataset: { datasetId: experiment.datasetId },
+    dataset: {
+      datasetId: experiment.datasetId,
+      versionId: experiment.datasetVersionId,
+      splits: experiment.datasetSplits,
+    },
     client,
-    versionId: experiment.datasetVersionId,
-    splits: experiment.datasetSplits,
   });
   invariant(dataset, `Dataset "${experiment.datasetId}" not found`);
   invariant(

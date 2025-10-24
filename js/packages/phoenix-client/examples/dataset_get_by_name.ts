@@ -13,10 +13,12 @@ async function main() {
     console.log("Getting dataset by name...");
     const dataset = await getDataset({
       client,
-      dataset: { datasetName: "dataset-get-by-name" },
-      // optionally filter dataset examples by split name
-      // for example, a split called "required" that contains examples that must pass some evaluation
-      // splits: ["required"]
+      dataset: {
+        datasetName: "dataset-get-by-name",
+        // optionally filter dataset examples by split name
+        // for example, a split called "required" that contains examples that must pass some evaluation
+        // splits: ["required"]
+      },
     });
     console.log("Retrieved dataset:", dataset.id);
     console.log("Retrieved dataset:", dataset.name);
