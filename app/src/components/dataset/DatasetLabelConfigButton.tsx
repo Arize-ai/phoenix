@@ -35,9 +35,9 @@ import { useNotifyError } from "@phoenix/contexts";
 
 import { DatasetLabelConfigButton_allLabels$key } from "./__generated__/DatasetLabelConfigButton_allLabels.graphql";
 import { DatasetLabelConfigButton_datasetLabels$key } from "./__generated__/DatasetLabelConfigButton_datasetLabels.graphql";
+import { DatasetLabelConfigButtonDialogContentQuery } from "./__generated__/DatasetLabelConfigButtonDialogContentQuery.graphql";
 import { DatasetLabelConfigButtonQuery } from "./__generated__/DatasetLabelConfigButtonQuery.graphql";
 import { DatasetLabelConfigButtonSetLabelsMutation } from "./__generated__/DatasetLabelConfigButtonSetLabelsMutation.graphql";
-import { DatasetLabelConfigButtonUnsetLabelsMutation } from "./__generated__/DatasetLabelConfigButtonUnsetLabelsMutation.graphql";
 
 type DatasetLabelConfigButtonProps = {
   datasetId: string;
@@ -99,16 +99,56 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
         onOpenChange={setShowNewLabelDialog}
       >
         <Modal size="S">
-          <NewDatasetLabelDialog
-            connections={connections}
-            datasetId={datasetId}
-            onCompleted={() => {
-              setShowNewLabelDialog(false);
-            }}
-          />
+          <Suspense fallback={<Loading />}>
+            <DatasetLabelDialogContent
+              connections={connections}
+              datasetId={datasetId}
+              onCompleted={() => {
+                setShowNewLabelDialog(false);
+              }}
+            />
+          </Suspense>
         </Modal>
       </ModalOverlay>
     </>
+  );
+}
+
+function DatasetLabelDialogContent({
+  datasetId,
+  connections,
+  onCompleted,
+}: {
+  datasetId: string;
+  connections: string[];
+  onCompleted: () => void;
+}) {
+  const query = useLazyLoadQuery<DatasetLabelConfigButtonDialogContentQuery>(
+    graphql`
+      query DatasetLabelConfigButtonDialogContentQuery($datasetId: ID!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            id
+            labels {
+              id
+            }
+          }
+        }
+      }
+    `,
+    { datasetId }
+  );
+
+  const dataset = query.dataset?.id
+    ? { id: query.dataset.id, labels: query.dataset.labels ?? null }
+    : undefined;
+
+  return (
+    <NewDatasetLabelDialog
+      connections={connections}
+      dataset={dataset}
+      onCompleted={onCompleted}
+    />
   );
 }
 
@@ -161,14 +201,16 @@ export function DatasetLabelSelectionContent(props: { datasetId: string }) {
         onOpenChange={setShowNewLabelDialog}
       >
         <Modal size="S">
-          <NewDatasetLabelDialog
-            connections={connections}
-            datasetId={datasetId}
-            onCompleted={() => {
-              // Only close the create modal, keep the popover open
-              setShowNewLabelDialog(false);
-            }}
-          />
+          <Suspense fallback={<Loading />}>
+            <DatasetLabelDialogContent
+              connections={connections}
+              datasetId={datasetId}
+              onCompleted={() => {
+                // Only close the create modal, keep the popover open
+                setShowNewLabelDialog(false);
+              }}
+            />
+          </Suspense>
         </Modal>
       </ModalOverlay>
     </>
@@ -226,41 +268,14 @@ function DatasetLabelList({
   const [setDatasetLabels] =
     useMutation<DatasetLabelConfigButtonSetLabelsMutation>(graphql`
       mutation DatasetLabelConfigButtonSetLabelsMutation(
-        $datasetIds: [ID!]!
+        $datasetId: ID!
         $datasetLabelIds: [ID!]!
-        $currentDatasetId: ID!
       ) {
         setDatasetLabels(
-          input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
+          input: { datasetId: $datasetId, datasetLabelIds: $datasetLabelIds }
         ) {
           query {
-            node(id: $currentDatasetId) {
-              ... on Dataset {
-                id
-                labels {
-                  id
-                  name
-                  color
-                }
-              }
-            }
-          }
-        }
-      }
-    `);
-
-  const [unsetDatasetLabels] =
-    useMutation<DatasetLabelConfigButtonUnsetLabelsMutation>(graphql`
-      mutation DatasetLabelConfigButtonUnsetLabelsMutation(
-        $datasetIds: [ID!]!
-        $datasetLabelIds: [ID!]!
-        $currentDatasetId: ID!
-      ) {
-        unsetDatasetLabels(
-          input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
-        ) {
-          query {
-            node(id: $currentDatasetId) {
+            node(id: $datasetId) {
               ... on Dataset {
                 id
                 labels {
@@ -287,47 +302,19 @@ function DatasetLabelList({
     }
 
     const newLabelIds = [...selection] as string[];
-    const labelIdsToAdd: string[] = newLabelIds.filter(
-      (id) => !selectedLabelIds.includes(id)
-    );
-    const labelIdsToRemove: string[] = selectedLabelIds.filter(
-      (id) => !newLabelIds.includes(id)
-    );
 
-    const promises = [];
-
-    if (labelIdsToAdd.length) {
-      promises.push(
-        setDatasetLabels({
-          variables: {
-            datasetIds: [datasetData.id],
-            datasetLabelIds: labelIdsToAdd,
-            currentDatasetId: datasetData.id,
-          },
-        })
-      );
-    }
-    if (labelIdsToRemove.length) {
-      promises.push(
-        unsetDatasetLabels({
-          variables: {
-            datasetIds: [datasetData.id],
-            datasetLabelIds: labelIdsToRemove,
-            currentDatasetId: datasetData.id,
-          },
-        })
-      );
-    }
-
-    // Handle errors but don't close on success (let user continue selecting)
-    if (promises.length > 0) {
-      Promise.all(promises).catch(() => {
+    setDatasetLabels({
+      variables: {
+        datasetId: datasetData.id,
+        datasetLabelIds: newLabelIds,
+      },
+      onError: () => {
         notifyError({
           title: "Failed to save label changes",
           message: "Failed to save label changes. Please try again.",
         });
-      });
-    }
+      },
+    });
   };
 
   return (

@@ -21,13 +21,16 @@ type NewDatasetLabelDialogProps = {
    */
   connections?: string[];
   /**
-   * Optional dataset ID. If provided, newly created labels will be auto-applied to the dataset upon creation.
+   * Optional dataset data. If provided, newly created labels will be auto-applied to the dataset upon creation.
    */
-  datasetId?: string;
+  dataset?: {
+    id: string;
+    labels?: readonly { readonly id: string }[] | null;
+  };
 };
 export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
   const [error, setError] = useState("");
-  const { onCompleted, connections: providedConnections, datasetId } = props;
+  const { onCompleted, connections: providedConnections, dataset } = props;
   const [addLabel, isSubmitting] = useMutation<NewDatasetLabelDialogMutation>(
     graphql`
       mutation NewDatasetLabelDialogMutation(
@@ -51,15 +54,14 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
 
   const [setDatasetLabels] = useMutation(graphql`
     mutation NewDatasetLabelDialogSetLabelsMutation(
-      $datasetIds: [ID!]!
+      $datasetId: ID!
       $datasetLabelIds: [ID!]!
-      $currentDatasetId: ID!
     ) {
       setDatasetLabels(
-        input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
+        input: { datasetId: $datasetId, datasetLabelIds: $datasetLabelIds }
       ) {
         query {
-          node(id: $currentDatasetId) {
+          node(id: $datasetId) {
             ... on Dataset {
               id
               labels {
@@ -117,26 +119,29 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
         connections,
       },
       onCompleted: (response) => {
-        // Auto-apply the new label to the dataset if datasetId is provided
-        if (datasetId && response.createDatasetLabel.datasetLabel.id) {
+        // Auto-apply the new label to the dataset if dataset is provided
+        if (dataset && response.createDatasetLabel.datasetLabel.id) {
+          const newLabelId = response.createDatasetLabel.datasetLabel.id;
+          const currentLabelIds = dataset.labels?.map((l) => l.id) || [];
+
+          // Combine current labels with the new one
+          const allLabelIds = [...new Set([...currentLabelIds, newLabelId])];
+
+          // Set all labels on the dataset
           setDatasetLabels({
             variables: {
-              datasetIds: [datasetId],
-              datasetLabelIds: [response.createDatasetLabel.datasetLabel.id],
-              currentDatasetId: datasetId,
+              datasetId: dataset.id,
+              datasetLabelIds: allLabelIds,
             },
             onCompleted: () => {
               onCompleted();
             },
             onError: (error) => {
-              // Notify user that auto-apply failed
               const formattedError =
                 getErrorMessagesFromRelayMutationError(error);
               setError(
                 `Label created successfully, but failed to apply to dataset: ${formattedError?.[0] ?? error.message}`
               );
-              // Still call onCompleted even if auto-apply fails
-              // The label was created successfully
               onCompleted();
             },
           });
