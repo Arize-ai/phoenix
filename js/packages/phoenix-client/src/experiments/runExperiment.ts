@@ -22,13 +22,15 @@ import { getDataset } from "../datasets/getDataset";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
-import { createProvider, createNoOpProvider } from "./instrumentation";
 import {
   type DiagLogLevel,
   SpanStatusCode,
   Tracer,
   trace,
   NodeTracerProvider,
+  objectAsAttributes,
+  createNoOpProvider,
+  register,
 } from "@arizeai/phoenix-otel";
 import {
   MimeType,
@@ -36,13 +38,13 @@ import {
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
 import { ensureString } from "../utils/ensureString";
-import { objectAsAttributes } from "../utils/objectAsAttributes";
 import {
   getDatasetUrl,
   getDatasetExperimentsUrl,
   getExperimentUrl,
 } from "../utils/urlUtils";
 import assert from "assert";
+import { toObjectHeaders } from "../utils/toObjectHeaders";
 
 /**
  * Validate that a repetition is valid
@@ -245,17 +247,18 @@ export async function runExperiment({
       baseUrl,
       "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
     );
-    provider = createProvider({
+
+    provider = register({
       projectName,
-      baseUrl,
-      headers: client.config.headers ?? {},
-      useBatchSpanProcessor,
+      url: baseUrl,
+      headers: client.config.headers
+        ? toObjectHeaders(client.config.headers)
+        : undefined,
+      batch: useBatchSpanProcessor,
       diagLogLevel,
+      global: setGlobalTracerProvider,
     });
-    // Register the provider
-    if (setGlobalTracerProvider) {
-      provider.register();
-    }
+
     taskTracer = provider.getTracer(projectName);
   }
   if (!record) {
@@ -548,16 +551,16 @@ export async function evaluateExperiment({
   if (paramsTracerProvider) {
     provider = paramsTracerProvider;
   } else if (!isDryRun) {
-    provider = createProvider({
+    provider = register({
       projectName: "evaluators",
-      baseUrl,
-      headers: client.config.headers ?? {},
-      useBatchSpanProcessor,
+      url: baseUrl,
+      headers: client.config.headers
+        ? toObjectHeaders(client.config.headers)
+        : undefined,
+      batch: useBatchSpanProcessor,
       diagLogLevel,
+      global: setGlobalTracerProvider,
     });
-    if (setGlobalTracerProvider) {
-      provider.register();
-    }
   } else {
     provider = createNoOpProvider();
   }
