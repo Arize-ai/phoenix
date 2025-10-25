@@ -14,6 +14,9 @@ import {
   Instrumentation,
   registerInstrumentations,
 } from "@opentelemetry/instrumentation";
+import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
+
+export type Headers = Record<string, string>;
 
 /**
  * Configuration parameters for registering Phoenix OpenTelemetry tracing
@@ -36,6 +39,10 @@ export type RegisterParams = {
    */
   apiKey?: string;
   /**
+   * Headers to be used when communicating with the OTLP collector
+   */
+  headers?: Headers;
+  /**
    * Whether to use batching for span processing.
    * It is recommended to use batching in production environments
    * @default true
@@ -51,6 +58,11 @@ export type RegisterParams = {
    * @default true
    */
   global?: boolean;
+  /**
+   * The diag log level to set for the built in DiagConsoleLogger instance.
+   * Omit to disable built in logging.
+   */
+  diagLogLevel?: DiagLogLevel;
 };
 
 /**
@@ -63,6 +75,7 @@ export type RegisterParams = {
  * @param params.instrumentations - A list of instrumentation to register
  * @param params.batch - Whether to use batching for span processing
  * @param params.global - Whether to set the tracer as a global provider
+ * @param params.diagLogLevel - the diagnostics log level
  * @returns {NodeTracerProvider} The configured NodeTracerProvider instance
  *
  * @example
@@ -80,16 +93,23 @@ export type RegisterParams = {
 export function register({
   url: paramsUrl,
   apiKey: paramsApiKey,
+  headers: paramsHeaders = {},
   projectName = "default",
   instrumentations,
   batch = true,
   global = true,
+  diagLogLevel,
 }: RegisterParams): NodeTracerProvider {
+  if (diagLogLevel) {
+    diag.setLogger(new DiagConsoleLogger(), diagLogLevel);
+  }
   const url = ensureCollectorEndpoint(
     paramsUrl || getEnvCollectorURL() || "http://localhost:6006"
   );
   const apiKey = paramsApiKey || getEnvApiKey();
-  const headers: Record<string, string> = {};
+  const headers: Headers = Array.isArray(paramsHeaders)
+    ? Object.fromEntries(paramsHeaders)
+    : paramsHeaders;
   const configureHeaders = typeof apiKey == "string";
   if (configureHeaders) {
     headers["authorization"] = `Bearer ${apiKey}`;
