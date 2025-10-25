@@ -172,6 +172,7 @@ class Evaluator(ABC):
 
     def __init__(
         self,
+        *,
         name: str,
         source: SourceType,
         direction: DirectionType = "maximize",
@@ -231,9 +232,9 @@ class Evaluator(ABC):
         input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
-            eval_input,
-            required_fields,
-            input_mapping,
+            eval_input=eval_input,
+            required_fields=required_fields,
+            input_mapping=input_mapping,
         )
         if self.input_schema is not None:
             try:
@@ -255,9 +256,9 @@ class Evaluator(ABC):
         input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
-            eval_input,
-            required_fields,
-            input_mapping,
+            eval_input=eval_input,
+            required_fields=required_fields,
+            input_mapping=input_mapping,
         )
         if self.input_schema is not None:
             try:
@@ -340,6 +341,7 @@ class LLMEvaluator(Evaluator):
 
     def __init__(
         self,
+        *,
         name: str,
         llm: LLM,
         prompt_template: Union[str, Template],
@@ -385,12 +387,12 @@ class LLMEvaluator(Evaluator):
     def evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
-        return super().evaluate(eval_input, input_mapping)
+        return super().evaluate(eval_input=eval_input, input_mapping=input_mapping)
 
     async def async_evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
-        return await super().async_evaluate(eval_input, input_mapping)
+        return await super().async_evaluate(eval_input=eval_input, input_mapping=input_mapping)
 
 
 # --- LLM ClassificationEvaluator ---
@@ -491,6 +493,7 @@ class ClassificationEvaluator(LLMEvaluator):
 
     def __init__(
         self,
+        *,
         name: str,
         llm: LLM,
         prompt_template: Union[str, Template],
@@ -615,19 +618,8 @@ class ClassificationEvaluator(LLMEvaluator):
         ]
 
 
-# --- Registry & simple evaluator decorator ---
-_registry: Dict[str, Callable[..., List[Score]]] = {}
-
-
-def list_evaluators() -> List[str]:
-    """
-    Return a list of names of all registered evaluators.
-    """
-    return list(_registry.keys())
-
-
 def create_evaluator(
-    name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
+    *, name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
 ) -> Callable[[Callable[..., Any]], Evaluator]:
     """
     Decorator that turns a simple function into an Evaluator instance.
@@ -705,7 +697,7 @@ def create_evaluator(
                 "text": ["Hello world", "This is a longer sentence", "Short"]
             })
 
-            results_df = evaluate_dataframe(df, [word_count])
+            results_df = evaluate_dataframe(dataframe=df, evaluators=[word_count])
             print(results_df["word_count_score"])  # JSON scores for each row
 
     Notes:
@@ -855,7 +847,6 @@ def create_evaluator(
 
             _AsyncFunctionEvaluator.__doc__ = original_docstring
             evaluator_instance = _AsyncFunctionEvaluator()
-            _registry[name] = evaluator_instance.evaluate
             return evaluator_instance
         else:
 
@@ -900,7 +891,6 @@ def create_evaluator(
 
             _FunctionEvaluator.__doc__ = original_docstring
             evaluator_instance = _FunctionEvaluator()  # pyright: ignore
-            _registry[name] = evaluator_instance.evaluate
             return evaluator_instance
 
     return deco
@@ -908,6 +898,7 @@ def create_evaluator(
 
 # --- Factory functions ---
 def create_classifier(
+    *,
     name: str,
     prompt_template: str,
     llm: LLM,
@@ -996,6 +987,7 @@ def create_classifier(
 
 # --- Bound Evaluator ---
 def bind_evaluator(
+    *,
     evaluator: Evaluator,
     input_mapping: InputMappingType,
 ) -> Evaluator:
@@ -1026,7 +1018,7 @@ def bind_evaluator(
 
             # Map 'message' field to 'content' parameter
             mapping = {"content": "message"}
-            bound_evaluator = bind_evaluator(text_length, mapping)
+            bound_evaluator = bind_evaluator(evaluator=text_length, input_mapping=mapping)
 
             # Now we can use 'message' instead of 'content'
             result = bound_evaluator.evaluate({"message": "Hello world"})
@@ -1045,7 +1037,7 @@ def bind_evaluator(
                 "retrieved_docs": "retrieved_documents",
                 "relevant_docs": lambda x: [x["expected_document"]]
             }
-            bound_evaluator = bind_evaluator(precision, mapping)
+            bound_evaluator = bind_evaluator(evaluator=precision, input_mapping=mapping)
 
             data = {
                 "retrieved_documents": [1, 2, 3],
@@ -1072,7 +1064,7 @@ def bind_evaluator(
                 "answer": "response.text",
                 "context": lambda x: " ".join(x["documents"])
             }
-            bound_evaluator = bind_evaluator(response_quality, mapping)
+            bound_evaluator = bind_evaluator(evaluator=response_quality, input_mapping=mapping)
 
             data = {
                 "query": "What is the capital?",
@@ -1182,6 +1174,7 @@ def _process_results_and_add_to_dataframe(
 
 
 def evaluate_dataframe(
+    *,
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     tqdm_bar_format: Optional[str] = None,
@@ -1238,7 +1231,7 @@ def evaluate_dataframe(
             })
 
             evaluators = [word_count, has_question]
-            results_df = evaluate_dataframe(df, evaluators, hide_tqdm_bar=True)
+            results_df = evaluate_dataframe(dataframe=df, evaluators=evaluators, hide_tqdm_bar=True)
 
             # Results include original columns plus score columns
             print(results_df.columns)
@@ -1255,7 +1248,7 @@ def evaluate_dataframe(
 
             # Data has 'answer' column but evaluator expects 'response'
             mapping = {"response": "answer"}
-            bound_evaluator = bind_evaluator(response_length, mapping)
+            bound_evaluator = bind_evaluator(evaluator=response_length, input_mapping=mapping)
 
             df = pd.DataFrame({
                 "question": ["What is AI?", "How does ML work?"],
@@ -1263,13 +1256,13 @@ def evaluate_dataframe(
                           "ML uses algorithms to learn patterns"]
             })
 
-            results_df = evaluate_dataframe(df, [bound_evaluator])
+            results_df = evaluate_dataframe(dataframe=df, evaluators=[bound_evaluator])
 
         With progress bar and error handling::
 
             results_df = evaluate_dataframe(
-                df,
-                evaluators,
+                dataframe=df,
+                evaluators=evaluators,
                 tqdm_bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
                 exit_on_error=False,  # Continue on errors
                 max_retries=3
@@ -1299,7 +1292,7 @@ def evaluate_dataframe(
         eval_input_index, evaluator_index = task_input
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
-        scores = evaluator.evaluate(eval_input)
+        scores = evaluator.evaluate(eval_input=eval_input)
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
@@ -1330,6 +1323,7 @@ def evaluate_dataframe(
 
 
 async def async_evaluate_dataframe(
+    *,
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     concurrency: Optional[int] = None,
@@ -1390,8 +1384,8 @@ async def async_evaluate_dataframe(
 
             async def main():
                 results_df = await async_evaluate_dataframe(
-                    df,
-                    [text_analysis],
+                    dataframe=df,
+                    evaluators=[text_analysis],
                     concurrency=5  # Process up to 5 rows concurrently
                     hide_tqdm_bar=True,
                 )
@@ -1423,8 +1417,8 @@ async def async_evaluate_dataframe(
 
             async def evaluate_sentiment():
                 results_df = await async_evaluate_dataframe(
-                    df,
-                    [sentiment_evaluator],
+                    dataframe=df,
+                    evaluators=[sentiment_evaluator],
                     concurrency=2,  # Limit concurrent LLM calls
                     tqdm_bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}"
                 )
@@ -1436,8 +1430,8 @@ async def async_evaluate_dataframe(
 
             async def robust_evaluation():
                 results_df = await async_evaluate_dataframe(
-                    df,
-                    evaluators,
+                    dataframe=df,
+                    evaluators=evaluators,
                     concurrency=3,
                     exit_on_error=False,  # Continue despite errors
                     max_retries=5,        # Retry failed evaluations
@@ -1474,7 +1468,7 @@ async def async_evaluate_dataframe(
         eval_input_index, evaluator_index = task_input
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
-        scores = await evaluator.async_evaluate(eval_input)
+        scores = await evaluator.async_evaluate(eval_input=eval_input)
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults
@@ -1521,7 +1515,6 @@ __all__ = [
     "Evaluator",
     "LLMEvaluator",
     "ClassificationEvaluator",
-    "list_evaluators",
     "create_evaluator",
     "create_classifier",
     "bind_evaluator",
