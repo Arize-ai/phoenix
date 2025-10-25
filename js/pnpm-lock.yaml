@@ -87,8 +87,8 @@ importers:
         specifier: ^16.4.7
         version: 16.6.1
       openai:
-        specifier: ^4.98.0
-        version: 4.104.0(zod@3.25.76)
+        specifier: ^6.7.0
+        version: 6.7.0(zod@3.25.76)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -2365,18 +2365,6 @@ packages:
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
 
-  openai@4.104.0:
-    resolution: {integrity: sha512-p99EFNsA/yX6UhVO93f5kJsDRLAg+CTA2RBqdHK4RtK8u5IJw32Hyb2dTGKbnnFmnuoBv5r7Z2CURI9sGZpSuA==}
-    hasBin: true
-    peerDependencies:
-      ws: ^8.18.0
-      zod: ^3.23.8
-    peerDependenciesMeta:
-      ws:
-        optional: true
-      zod:
-        optional: true
-
   openai@4.47.1:
     resolution: {integrity: sha512-WWSxhC/69ZhYWxH/OBsLEirIjUcfpQ5+ihkXKp06hmeYXgBBIUCa9IptMzYx6NdkiOCsSGYCnTIsxaic3AjRCQ==}
     hasBin: true
@@ -2387,6 +2375,18 @@ packages:
     peerDependencies:
       ws: ^8.18.0
       zod: ^3.23.8
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
+
+  openai@6.7.0:
+    resolution: {integrity: sha512-mgSQXa3O/UXTbA8qFzoa7aydbXBJR5dbLQXCRapAOtoNT+v69sLdKMZzgiakpqhclRnhPggPAXoniVGn2kMY2A==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
     peerDependenciesMeta:
       ws:
         optional: true
@@ -4265,23 +4265,23 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@18.19.130))':
+  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.19
     optionalDependencies:
       msw: 2.11.6(@types/node@18.19.130)(typescript@5.9.3)
-      vite: 5.4.21(@types/node@18.19.130)
+      vite: 5.4.21(@types/node@24.9.1)
 
-  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@20.19.23))':
+  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.19
     optionalDependencies:
       msw: 2.11.6(@types/node@20.19.23)(typescript@5.9.3)
-      vite: 5.4.21(@types/node@20.19.23)
+      vite: 5.4.21(@types/node@24.9.1)
 
   '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
     dependencies:
@@ -5420,20 +5420,6 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  openai@4.104.0(zod@3.25.76):
-    dependencies:
-      '@types/node': 18.19.130
-      '@types/node-fetch': 2.6.13
-      abort-controller: 3.0.0
-      agentkeepalive: 4.6.0
-      form-data-encoder: 1.7.2
-      formdata-node: 4.4.1
-      node-fetch: 2.7.0
-    optionalDependencies:
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - encoding
-
   openai@4.47.1:
     dependencies:
       '@types/node': 18.19.130
@@ -5451,6 +5437,10 @@ snapshots:
     optionalDependencies:
       zod: 3.25.76
     optional: true
+
+  openai@6.7.0(zod@3.25.76):
+    optionalDependencies:
+      zod: 3.25.76
 
   openapi-fetch@0.12.5:
     dependencies:
@@ -6093,7 +6083,7 @@ snapshots:
   vitest@2.1.9(@types/node@18.19.130)(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3)):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@18.19.130))
+      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -6128,7 +6118,7 @@ snapshots:
   vitest@2.1.9(@types/node@20.19.23)(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3)):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@20.19.23))
+      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
