@@ -106,5 +106,5 @@ class ProjectTraceRetentionPolicy(Node):
         project_rowids = await info.context.data_loaders.projects_by_trace_retention_policy_id.load(
             self.id
         )
-        data = [Project(project_rowid=project_rowid) for project_rowid in project_rowids]
+        data = [Project(id=project_rowid) for project_rowid in project_rowids]
         return connection_from_list(data=data, args=args)

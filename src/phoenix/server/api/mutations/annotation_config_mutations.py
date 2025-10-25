@@ -374,7 +374,7 @@ class AnnotationConfigMutationMixin:
                 )
             return AddAnnotationConfigToProjectPayload(
                 query=Query(),
-                project=Project(project_rowid=project_id),
+                project=Project(id=project_id),
             )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
@@ -409,5 +409,5 @@ class AnnotationConfigMutationMixin:
                 raise NotFound("Could not find one or more input project annotation configs")
         return RemoveAnnotationConfigFromProjectPayload(
             query=Query(),
-            project=Project(project_rowid=project_id),
+            project=Project(id=project_id),
         )

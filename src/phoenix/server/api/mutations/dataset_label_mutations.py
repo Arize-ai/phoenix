@@ -15,7 +15,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset
-from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
+from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -97,7 +97,7 @@ class DatasetLabelMutationMixin:
             except sqlalchemy.exc.StatementError as error:
                 raise BadRequest(str(error.orig))
         return CreateDatasetLabelMutationPayload(
-            dataset_label=to_gql_dataset_label(dataset_label_orm)
+            dataset_label=DatasetLabel(id=dataset_label_orm.id, db_record=dataset_label_orm)
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -130,7 +130,7 @@ class DatasetLabelMutationMixin:
             except sqlalchemy.exc.StatementError as error:
                 raise BadRequest(str(error.orig))
         return UpdateDatasetLabelMutationPayload(
-            dataset_label=to_gql_dataset_label(dataset_label_orm)
+            dataset_label=DatasetLabel(id=dataset_label_orm.id, db_record=dataset_label_orm)
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -161,7 +161,10 @@ class DatasetLabelMutationMixin:
         }
         return DeleteDatasetLabelsMutationPayload(
             dataset_labels=[
-                to_gql_dataset_label(deleted_dataset_labels_by_id[dataset_label_row_id])
+                DatasetLabel(
+                    id=deleted_dataset_labels_by_id[dataset_label_row_id].id,
+                    db_record=deleted_dataset_labels_by_id[dataset_label_row_id],
+                )
                 for dataset_label_row_id in dataset_label_row_ids
             ]
         )

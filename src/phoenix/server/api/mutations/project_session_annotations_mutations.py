@@ -19,10 +19,7 @@ from phoenix.server.api.input_types.UpdateAnnotationInput import UpdateAnnotatio
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.ProjectSessionAnnotation import (
-    ProjectSessionAnnotation,
-    to_gql_project_session_annotation,
-)
+from phoenix.server.api.types.ProjectSessionAnnotation import ProjectSessionAnnotation
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import (
     ProjectSessionAnnotationDeleteEvent,
@@ -81,7 +78,7 @@ class ProjectSessionAnnotationMutationMixin:
         info.context.event_queue.put(ProjectSessionAnnotationInsertEvent((anno.id,)))
 
         return ProjectSessionAnnotationMutationPayload(
-            project_session_annotation=to_gql_project_session_annotation(anno),
+            project_session_annotation=ProjectSessionAnnotation(id=anno.id, db_record=anno),
             query=Query(),
         )
 
@@ -122,7 +119,7 @@ class ProjectSessionAnnotationMutationMixin:
 
         info.context.event_queue.put(ProjectSessionAnnotationInsertEvent((anno.id,)))
         return ProjectSessionAnnotationMutationPayload(
-            project_session_annotation=to_gql_project_session_annotation(anno),
+            project_session_annotation=ProjectSessionAnnotation(id=anno.id, db_record=anno),
             query=Query(),
         )
 
@@ -154,7 +151,7 @@ class ProjectSessionAnnotationMutationMixin:
 
             await session.delete(anno)
 
-        deleted_gql_annotation = to_gql_project_session_annotation(anno)
+        deleted_gql_annotation = ProjectSessionAnnotation(id=anno.id, db_record=anno)
         info.context.event_queue.put(ProjectSessionAnnotationDeleteEvent((id_,)))
         return ProjectSessionAnnotationMutationPayload(
             project_session_annotation=deleted_gql_annotation, query=Query()

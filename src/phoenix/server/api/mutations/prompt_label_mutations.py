@@ -16,7 +16,7 @@ from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
-from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
+from phoenix.server.api.types.PromptLabel import PromptLabel
 
 
 @strawberry.input
@@ -85,7 +85,7 @@ class PromptLabelMutationMixin:
                 raise Conflict(f"A prompt label named '{input.name}' already exists.")
 
             return PromptLabelMutationPayload(
-                prompt_labels=[to_gql_prompt_label(label_orm)],
+                prompt_labels=[PromptLabel(id=label_orm.id, db_record=label_orm)],
                 query=Query(),
             )
 
@@ -113,7 +113,7 @@ class PromptLabelMutationMixin:
                 raise Conflict("Error patching PromptLabel. Possibly a name conflict?")
 
             return PromptLabelMutationPayload(
-                prompt_labels=[to_gql_prompt_label(label_orm)],
+                prompt_labels=[PromptLabel(id=label_orm.id, db_record=label_orm)],
                 query=Query(),
             )
 
