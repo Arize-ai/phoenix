@@ -28,14 +28,14 @@ import {
   SpanStatusCode,
   Tracer,
   trace,
-} from "@opentelemetry/api";
+  NodeTracerProvider,
+} from "@arizeai/phoenix-otel";
 import {
   MimeType,
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
 import { ensureString } from "../utils/ensureString";
-import type { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { objectAsAttributes } from "../utils/objectAsAttributes";
 import {
   getDatasetUrl,

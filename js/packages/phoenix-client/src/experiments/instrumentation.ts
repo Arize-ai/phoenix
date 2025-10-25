@@ -1,16 +1,5 @@
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-import {
-  NodeTracerProvider,
-  SpanProcessor,
-} from "@opentelemetry/sdk-trace-node";
-import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { HeadersOptions } from "openapi-fetch";
-import {
-  OpenInferenceBatchSpanProcessor,
-  OpenInferenceSimpleSpanProcessor,
-} from "@arizeai/openinference-vercel";
+import { register, DiagLogLevel } from "@arizeai/phoenix-otel";
 
 /**
  * Creates a provider that exports traces to Phoenix.
@@ -39,37 +28,15 @@ export function createProvider({
    */
   diagLogLevel?: DiagLogLevel;
 }) {
-  if (diagLogLevel) {
-    diag.setLogger(new DiagConsoleLogger(), diagLogLevel);
-  }
-
-  const exporter = new OTLPTraceExporter({
-    url: `${baseUrl}/v1/traces`,
+  const provider = register({
+    url: baseUrl,
+    projectName,
+    batch: useBatchSpanProcessor,
     headers: Array.isArray(headers) ? Object.fromEntries(headers) : headers,
+    diagLogLevel,
+    global: false, // don't set global here. Delegate to higher up
   });
-
-  let spanProcessor: SpanProcessor;
-  if (useBatchSpanProcessor) {
-    spanProcessor = new OpenInferenceBatchSpanProcessor({ exporter });
-  } else {
-    spanProcessor = new OpenInferenceSimpleSpanProcessor({ exporter });
-  }
-
-  const provider = new NodeTracerProvider({
-    resource: resourceFromAttributes({
-      [SEMRESATTRS_PROJECT_NAME]: projectName,
-    }),
-    spanProcessors: [spanProcessor],
-  });
-
   return provider;
 }
 
-/**
- * For dry runs we create a provider that doesn't export traces.
- */
-export function createNoOpProvider() {
-  const provider = new NodeTracerProvider({});
-
-  return provider;
-}
+export { createNoOpProvider } from "@arizeai/phoenix-otel";
