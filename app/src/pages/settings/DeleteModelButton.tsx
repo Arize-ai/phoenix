@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
-import { graphql, useMutation } from "react-relay";
-import { useRevalidator } from "react-router";
+import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import {
   Button,
@@ -33,13 +32,22 @@ function DeleteModelDialogContent({
   modelName: string;
   onClose: () => void;
 }) {
-  const { revalidate } = useRevalidator();
+  const connectionId = ConnectionHandler.getConnectionID(
+    "client:root",
+    "ModelsTable_generativeModels"
+  );
   const [commitDeleteModel, isCommittingDeleteModel] =
     useMutation<DeleteModelButtonMutation>(graphql`
-      mutation DeleteModelButtonMutation($input: DeleteModelMutationInput!) {
+      mutation DeleteModelButtonMutation(
+        $input: DeleteModelMutationInput!
+        $connectionId: ID!
+      ) {
         deleteModel(input: $input) {
           query {
             ...ModelsTable_generativeModels
+          }
+          model {
+            id @deleteEdge(connections: [$connectionId])
           }
         }
       }
@@ -51,6 +59,7 @@ function DeleteModelDialogContent({
     commitDeleteModel({
       variables: {
         input: { id: modelId },
+        connectionId,
       },
       onCompleted: () => {
         notifySuccess({
@@ -58,7 +67,6 @@ function DeleteModelDialogContent({
           message: `The "${modelName}" model has been deleted.`,
         });
         onClose();
-        revalidate();
       },
       onError: (error) => {
         const errorMessages = getErrorMessagesFromRelayMutationError(error);
@@ -75,7 +83,7 @@ function DeleteModelDialogContent({
     notifyError,
     notifySuccess,
     onClose,
-    revalidate,
+    connectionId,
   ]);
 
   return (

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1d2e2ace0c26ace14641b447a6152247>>
+ * @generated SignedSource<<891835024a09fb2d987fe1480714a1e2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,6 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type RetentionPoliciesTable_policies$data = {
   readonly projectTraceRetentionPolicies: {
-    readonly __id: string;
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly " $fragmentSpreads": FragmentRefs<"RetentionPoliciesTable_retentionPolicy">;
@@ -256,18 +255,6 @@ return {
             }
           ],
           "storageKey": null
-        },
-        {
-          "kind": "ClientExtension",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "__id",
-              "storageKey": null
-            }
-          ]
         }
       ],
       "storageKey": null
@@ -278,6 +265,6 @@ return {
 };
 })();
 
-(node as any).hash = "21f8b6156e669019ebb7877c04f48ade";
+(node as any).hash = "8da56e8b5110f6f33602737458f4ab8b";
 
 export default node;

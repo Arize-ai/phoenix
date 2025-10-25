@@ -1,5 +1,5 @@
 import { Suspense, useState } from "react";
-import { graphql, useMutation } from "react-relay";
+import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import {
   Button,
@@ -43,10 +43,6 @@ export interface RetentionPolicyActionMenuProps {
   projectNames: string[];
   onPolicyEdit: () => void;
   onPolicyDelete: () => void;
-  /**
-   * The ID of the connection to the policy.
-   */
-  connectionId: string;
 }
 
 export const RetentionPolicyActionMenu = ({
@@ -55,12 +51,14 @@ export const RetentionPolicyActionMenu = ({
   projectNames,
   onPolicyEdit,
   onPolicyDelete,
-  connectionId,
 }: RetentionPolicyActionMenuProps) => {
   const canDelete = policyName !== DEFAULT_POLICY_NAME;
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
+  const connectionId = ConnectionHandler.getConnectionID(
+    "client:root",
+    "RetentionPoliciesTable_projectTraceRetentionPolicies"
+  );
   const [deletePolicy, isDeleting] = useMutation(graphql`
     mutation RetentionPolicyActionMenuDeletePolicyMutation(
       $policyId: ID!

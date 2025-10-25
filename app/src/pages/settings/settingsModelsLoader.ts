@@ -1,27 +1,26 @@
-import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
+import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { settingsModelsLoaderQuery } from "./__generated__/settingsModelsLoaderQuery.graphql";
+import {
+  settingsModelsLoaderQuery,
+  settingsModelsLoaderQuery$variables,
+} from "./__generated__/settingsModelsLoaderQuery.graphql";
+
+export const settingsModelsLoaderGql = graphql`
+  query settingsModelsLoaderQuery {
+    ...ModelsTable_generativeModels
+  }
+`;
 
 /**
  * Loads in the necessary page data for the models page
  */
-export async function settingsModelsLoader(_args: LoaderFunctionArgs) {
-  const data = await fetchQuery<settingsModelsLoaderQuery>(
-    RelayEnvironment,
-    graphql`
-      query settingsModelsLoaderQuery {
-        ...ModelsTable_generativeModels
-      }
-    `,
-    {}
-  ).toPromise();
-
-  if (!data) {
-    throw new Error("Failed to load models");
-  }
-
-  return data;
+export function settingsModelsLoader() {
+  return loadQuery<
+    settingsModelsLoaderQuery,
+    settingsModelsLoaderQuery$variables
+  >(RelayEnvironment, settingsModelsLoaderGql, {});
 }
+
+export type SettingsModelsLoaderType = ReturnType<typeof settingsModelsLoader>;

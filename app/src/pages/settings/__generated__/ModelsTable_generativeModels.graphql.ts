@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ca8bb56d94981513b62a855201578fec>>
+ * @generated SignedSource<<ce7dd85cd4afd3098432acc2efb84b60>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,23 +14,27 @@ export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEP
 export type TokenKind = "COMPLETION" | "PROMPT";
 import { FragmentRefs } from "relay-runtime";
 export type ModelsTable_generativeModels$data = {
-  readonly generativeModels: ReadonlyArray<{
-    readonly createdAt: string;
-    readonly id: string;
-    readonly kind: GenerativeModelKind;
-    readonly lastUsedAt: string | null;
-    readonly name: string;
-    readonly namePattern: string;
-    readonly provider: string | null;
-    readonly providerKey: GenerativeProviderKey | null;
-    readonly startTime: string | null;
-    readonly tokenPrices: ReadonlyArray<{
-      readonly costPerMillionTokens: number;
-      readonly kind: TokenKind;
-      readonly tokenType: string;
+  readonly generativeModels: {
+    readonly edges: ReadonlyArray<{
+      readonly generativeModel: {
+        readonly createdAt: string;
+        readonly id: string;
+        readonly kind: GenerativeModelKind;
+        readonly lastUsedAt: string | null;
+        readonly name: string;
+        readonly namePattern: string;
+        readonly provider: string | null;
+        readonly providerKey: GenerativeProviderKey | null;
+        readonly startTime: string | null;
+        readonly tokenPrices: ReadonlyArray<{
+          readonly costPerMillionTokens: number;
+          readonly kind: TokenKind;
+          readonly tokenType: string;
+        }>;
+        readonly updatedAt: string;
+      };
     }>;
-    readonly updatedAt: string;
-  }>;
+  };
   readonly " $fragmentType": "ModelsTable_generativeModels";
 };
 export type ModelsTable_generativeModels$key = {
@@ -38,8 +42,13 @@ export type ModelsTable_generativeModels$key = {
   readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels">;
 };
 
+import ModelsTableGenerativeModelsQuery_graphql from './ModelsTableGenerativeModelsQuery.graphql';
+
 const node: ReaderFragment = (function(){
-var v0 = {
+var v0 = [
+  "generativeModels"
+],
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -47,104 +56,208 @@ var v0 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [],
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "after"
+    },
+    {
+      "defaultValue": 1000,
+      "kind": "LocalArgument",
+      "name": "first"
+    }
+  ],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "connection": [
+      {
+        "count": "first",
+        "cursor": "after",
+        "direction": "forward",
+        "path": (v0/*: any*/)
+      }
+    ],
+    "refetch": {
+      "connection": {
+        "forward": {
+          "count": "first",
+          "cursor": "after"
+        },
+        "backward": null,
+        "path": (v0/*: any*/)
+      },
+      "fragmentPathInResult": [],
+      "operation": ModelsTableGenerativeModelsQuery_graphql
+    }
+  },
   "name": "ModelsTable_generativeModels",
   "selections": [
     {
-      "alias": null,
+      "alias": "generativeModels",
       "args": null,
-      "concreteType": "GenerativeModel",
+      "concreteType": "GenerativeModelConnection",
       "kind": "LinkedField",
-      "name": "generativeModels",
-      "plural": true,
+      "name": "__ModelsTable_generativeModels_connection",
+      "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "id",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "name",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "provider",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "namePattern",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "providerKey",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "startTime",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "createdAt",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "updatedAt",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "lastUsedAt",
-          "storageKey": null
-        },
-        (v0/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "TokenPrice",
+          "concreteType": "GenerativeModelEdge",
           "kind": "LinkedField",
-          "name": "tokenPrices",
+          "name": "edges",
           "plural": true,
+          "selections": [
+            {
+              "alias": "generativeModel",
+              "args": null,
+              "concreteType": "GenerativeModel",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "id",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "name",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "provider",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "namePattern",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "providerKey",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "startTime",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "createdAt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "updatedAt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "lastUsedAt",
+                  "storageKey": null
+                },
+                (v1/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "TokenPrice",
+                  "kind": "LinkedField",
+                  "name": "tokenPrices",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "tokenType",
+                      "storageKey": null
+                    },
+                    (v1/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "costPerMillionTokens",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "cursor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "GenerativeModel",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "__typename",
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PageInfo",
+          "kind": "LinkedField",
+          "name": "pageInfo",
+          "plural": false,
           "selections": [
             {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "tokenType",
+              "name": "endCursor",
               "storageKey": null
             },
-            (v0/*: any*/),
             {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "costPerMillionTokens",
+              "name": "hasNextPage",
               "storageKey": null
             }
           ],
@@ -159,6 +272,6 @@ return {
 };
 })();
 
-(node as any).hash = "72e6b970ebca0dd6ce7b1e6e8e75cbc9";
+(node as any).hash = "e067fb55e7a09f7237e0cc8eb1eb4c75";
 
 export default node;

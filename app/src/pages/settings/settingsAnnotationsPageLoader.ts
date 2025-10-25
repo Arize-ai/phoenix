@@ -1,21 +1,23 @@
-import { fetchQuery, graphql } from "react-relay";
+import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import { settingsAnnotationsPageLoaderQuery } from "./__generated__/settingsAnnotationsPageLoaderQuery.graphql";
 
-export async function settingsAnnotationsPageLoader() {
-  return await fetchQuery<settingsAnnotationsPageLoaderQuery>(
+export const settingsAnnotationsPageLoaderGql = graphql`
+  query settingsAnnotationsPageLoaderQuery {
+    ...SettingsAnnotationsPageFragment
+  }
+`;
+
+export function settingsAnnotationsPageLoader() {
+  return loadQuery<settingsAnnotationsPageLoaderQuery>(
     RelayEnvironment,
-    graphql`
-      query settingsAnnotationsPageLoaderQuery {
-        ...SettingsAnnotationsPageFragment
-      }
-    `,
+    settingsAnnotationsPageLoaderGql,
     {}
-  ).toPromise();
+  );
 }
 
-export type SettingsAnnotationsPageLoaderData = NonNullable<
-  Awaited<ReturnType<typeof settingsAnnotationsPageLoader>>
+export type SettingsAnnotationsPageLoaderType = ReturnType<
+  typeof settingsAnnotationsPageLoader
 >;

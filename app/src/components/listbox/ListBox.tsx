@@ -1,4 +1,4 @@
-import { forwardRef, Ref } from "react";
+import { Ref } from "react";
 import {
   ListBox as AriaListBox,
   ListBoxProps as AriaListBoxProps,
@@ -64,20 +64,12 @@ const listBoxCSS = css`
   }
 `;
 
-export interface ListBoxProps<T> extends AriaListBoxProps<T>, StylableProps {}
+export interface ListBoxProps<T> extends AriaListBoxProps<T>, StylableProps {
+  ref?: Ref<HTMLDivElement>;
+}
 
-function ListBox<T extends object>(
-  props: ListBoxProps<T>,
-  ref: Ref<HTMLDivElement>
-) {
-  const { css: propsCSS, ...restProps } = props;
+export function ListBox<T extends object>(props: ListBoxProps<T>) {
+  const { css: propsCSS, ref, ...restProps } = props;
   const mergedCSS = css(listBoxCSS, propsCSS);
   return <AriaListBox css={mergedCSS} ref={ref} {...restProps} />;
 }
-
-type ListBoxComponent = <T extends object>(
-  props: ListBoxProps<T> & React.RefAttributes<HTMLDivElement>
-) => React.ReactElement<unknown> | null;
-
-const _ListBox = forwardRef(ListBox) as ListBoxComponent;
-export { _ListBox as ListBox };

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { graphql, useMutation } from "react-relay";
-import { useRevalidator } from "react-router";
+import { ConnectionHandler, graphql, useMutation } from "react-relay";
 import { getLocalTimeZone } from "@internationalized/date";
 
 import {
@@ -29,23 +28,31 @@ export function NewModelButton({
 }: {
   onModelCreated?: (model: ModelFormParams) => void;
 }) {
-  const { revalidate } = useRevalidator();
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
+  const connectionId = ConnectionHandler.getConnectionID(
+    "client:root",
+    "ModelsTable_generativeModels"
+  );
 
   const [commit, isCommitting] = useMutation<NewModelButtonCreateModelMutation>(
     graphql`
       mutation NewModelButtonCreateModelMutation(
         $input: CreateModelMutationInput!
+        $connectionId: ID!
       ) {
         createModel(input: $input) {
           query {
-            generativeModels {
-              id
-            }
             ...ModelsTable_generativeModels
+          }
+          model
+            @prependNode(
+              connections: [$connectionId]
+              edgeTypeName: "GenerativeModel"
+            ) {
+            id
           }
         }
       }
@@ -108,6 +115,7 @@ export function NewModelButton({
                           kind: cost.kind,
                         })),
                       },
+                      connectionId,
                     },
                     onCompleted: () => {
                       onModelCreated && onModelCreated(params);
@@ -115,7 +123,6 @@ export function NewModelButton({
                         title: `Model Created`,
                         message: `Model "${params.name}" added successfully`,
                       });
-                      revalidate();
                     },
                     onError: (error) => {
                       const formattedError =

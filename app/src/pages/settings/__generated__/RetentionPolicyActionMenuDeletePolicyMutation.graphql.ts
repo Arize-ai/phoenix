@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d97c7415da3bb3b176723a30541ce9a5>>
+ * @generated SignedSource<<97370abae2d7bf869ce7cf52931c8dad>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -316,18 +316,6 @@ return {
                       }
                     ],
                     "storageKey": null
-                  },
-                  {
-                    "kind": "ClientExtension",
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "__id",
-                        "storageKey": null
-                      }
-                    ]
                   }
                 ],
                 "storageKey": "projectTraceRetentionPolicies(first:1000)"

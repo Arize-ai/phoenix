@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b906b5c2fbea428abfe5d6894ca45a5a>>
+ * @generated SignedSource<<f93bfeb076e4a2e680a84fc11eb96936>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,10 +19,18 @@ export type SettingsAnnotationsPageFragment$key = {
   readonly " $fragmentSpreads": FragmentRefs<"SettingsAnnotationsPageFragment">;
 };
 
+import SettingsAnnotationsPageFragmentQuery_graphql from './SettingsAnnotationsPageFragmentQuery.graphql';
+
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "refetch": {
+      "connection": null,
+      "fragmentPathInResult": [],
+      "operation": SettingsAnnotationsPageFragmentQuery_graphql
+    }
+  },
   "name": "SettingsAnnotationsPageFragment",
   "selections": [
     {
@@ -35,6 +43,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "899b97b5d6aabeea206cd9b4ffb1a773";
+(node as any).hash = "1108c006f0bdef6068549534988a5206";
 
 export default node;

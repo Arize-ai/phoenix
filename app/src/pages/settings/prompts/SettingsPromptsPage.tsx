@@ -1,22 +1,21 @@
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { usePreloadedQuery } from "react-relay";
+import { useLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 
-import { SettingsPromptsPageQuery } from "@phoenix/pages/settings/prompts/__generated__/SettingsPromptsPageQuery.graphql";
+import {
+  settingsPromptsPageLoaderGql,
+  SettingsPromptsPageLoaderType,
+} from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 
 import { PromptLabelsSettingsCard } from "./PromptLabelsSettingsCard";
 
 export function SettingsPromptsPage() {
-  const query = useLazyLoadQuery<SettingsPromptsPageQuery>(
-    graphql`
-      query SettingsPromptsPageQuery {
-        ...PromptLabelsSettingsCardFragment
-      }
-    `,
-    {},
-    { fetchPolicy: "network-only" }
-  );
+  const loaderData = useLoaderData<SettingsPromptsPageLoaderType>();
+  invariant(loaderData, "loaderData is required");
+  const data = usePreloadedQuery(settingsPromptsPageLoaderGql, loaderData);
   return (
     <main>
-      <PromptLabelsSettingsCard query={query} />
+      <PromptLabelsSettingsCard query={data} />
     </main>
   );
 }
