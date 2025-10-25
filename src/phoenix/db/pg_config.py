@@ -10,12 +10,14 @@ from typing_extensions import assert_never
 def get_pg_config(
     url: URL,
     driver: Literal["psycopg", "asyncpg"],
+    enforce_ssl: bool = False,
 ) -> tuple[URL, dict[str, Any]]:
     """Convert SQLAlchemy URL to driver-specific configuration.
 
     Args:
         url: SQLAlchemy URL
         driver: "psycopg" or "asyncpg"
+        enforce_ssl: If True, ensure SSL is enabled (required for AWS RDS IAM auth)
 
     Returns:
         Tuple of (base_url, connect_args):
@@ -25,6 +27,14 @@ def get_pg_config(
     # Create new URL with appropriate driver
     query = url.query
     ssl_args = _get_ssl_args(query)
+
+    if enforce_ssl and not ssl_args:
+        ssl_args = {"sslmode": "require"}
+    elif enforce_ssl and ssl_args.get("sslmode") == "disable":
+        raise ValueError(
+            "SSL cannot be disabled when using AWS RDS IAM authentication. "
+            "Remove 'sslmode=disable' from the connection string."
+        )
 
     # Create base URL without SSL parameters
     base_url = url.set(
