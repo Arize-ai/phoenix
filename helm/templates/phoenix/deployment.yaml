@@ -83,9 +83,13 @@ spec:
           {{- range $authSecrets := .Values.auth.secret }}
             - name: {{ $authSecrets.key }}
               valueFrom:
+              {{- if $authSecrets.valueFrom }}
+                {{- $authSecrets.valueFrom | toYaml | nindent 16 }}
+              {{- else }}
                 secretKeyRef:
                   name: {{ $.Values.auth.name }}
                   key: {{ $authSecrets.key }}
+              {{- end }}
           {{- end }}
           {{- end }}
           {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
