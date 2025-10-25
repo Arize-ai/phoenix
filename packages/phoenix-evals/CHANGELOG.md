@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.5.0...arize-phoenix-evals-v2.6.0) (2025-10-25)
+
+
+### Features
+
+* Add GPT-5 support to Azure OpenAI models ([#9829](https://github.com/Arize-ai/phoenix/issues/9829)) ([e4c664d](https://github.com/Arize-ai/phoenix/commit/e4c664d4c3f890338e1313a9da543d75869133fb))
+* Support invocation params in ClassificationEvaluators ([#9831](https://github.com/Arize-ai/phoenix/issues/9831)) ([1530304](https://github.com/Arize-ai/phoenix/commit/15303046cd95a203f2863524c8770fbacb7e7de9))
+
+
+### Bug Fixes
+
+* **evals:** miscellaneous fixes and ergonomic improvements ([#9879](https://github.com/Arize-ai/phoenix/issues/9879)) ([5546179](https://github.com/Arize-ai/phoenix/commit/5546179b230812d38770e011d541d3ac5107d652))
+
+
+### Documentation
+
+* sync main to docs ([65a68f4](https://github.com/Arize-ai/phoenix/commit/65a68f4c05635e76068b2c85b2929b4d13ca2668))
+
 ## [2.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.4.0...arize-phoenix-evals-v2.5.0) (2025-10-07)
 
 
