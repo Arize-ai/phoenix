@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 import {
   Autocomplete,
   Button,
+  ButtonProps,
   Checkbox,
   Flex,
   Heading,
@@ -34,6 +35,7 @@ type ExamplesSplitMenuProps = {
   selectedSplitIds: string[];
   selectedExampleIds: string[];
   examplesCache: ExamplesCache;
+  size?: ButtonProps["size"];
 };
 
 const getInitialMode = (selectedExampleIds: string[]) => {
@@ -57,6 +59,7 @@ export const ExamplesSplitMenu = ({
   selectedSplitIds,
   selectedExampleIds,
   examplesCache,
+  size,
 }: ExamplesSplitMenuProps) => {
   const [mode, setMode] = useState<"filter" | "apply" | "create">(() =>
     getInitialMode(selectedExampleIds)
@@ -87,7 +90,10 @@ export const ExamplesSplitMenu = ({
         }
       }}
     >
-      <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
+      <Button
+        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        size={size}
+      >
         Splits
         {selectedSplitIds.length > 0 ? ` (${selectedSplitIds.length})` : ""}
       </Button>
@@ -130,7 +136,7 @@ export const ExamplesSplitMenu = ({
  * In filter mode, the user can select splits from a list.
  * In apply mode, the user can select splits to add or remove from the selected examples.
  */
-const SplitMenu = ({
+export const SplitMenu = ({
   selectedSplitIds,
   selectedExampleIds,
   onSelectionChange,
@@ -247,7 +253,9 @@ const SplitMenu = ({
           >
             <Heading level={4} weight="heavy">
               {selectedExampleIds.length > 0
-                ? "Apply splits to selected examples"
+                ? selectedExampleIds.length === 1
+                  ? "Apply splits to example"
+                  : "Apply splits to selected examples"
                 : "Filter examples by splits"}
             </Heading>
             <IconButton
