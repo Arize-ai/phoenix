@@ -4,7 +4,6 @@ import { css } from "@emotion/react";
 
 import {
   Button,
-  Dialog,
   Flex,
   Icon,
   Icons,
