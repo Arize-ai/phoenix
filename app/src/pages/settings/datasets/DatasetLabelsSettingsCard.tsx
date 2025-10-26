@@ -24,7 +24,7 @@ export function DatasetLabelsSettingsCard({
       title="Dataset Labels"
       extra={
         <NewDatasetLabelButton
-          connections={[
+          updateConnectionIds={[
             ConnectionHandler.getConnectionID(
               "client:root",
               "DatasetLabelsTable__datasetLabels"

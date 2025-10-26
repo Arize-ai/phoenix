@@ -19,7 +19,7 @@ type NewDatasetLabelDialogProps = {
   /**
    * Optional Relay connection IDs to update. These must be connections of DatasetLabelEdge types.
    */
-  connections?: DataID[];
+  updateConnectionIds?: DataID[];
   /**
    * Optional dataset ID. If provided, newly created labels will be auto-applied to the dataset upon creation.
    */
@@ -27,7 +27,7 @@ type NewDatasetLabelDialogProps = {
 };
 export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
   const [error, setError] = useState("");
-  const { onCompleted, connections, datasetId } = props;
+  const { onCompleted, updateConnectionIds, datasetId } = props;
   const [addLabel, isSubmitting] = useMutation<NewDatasetLabelDialogMutation>(
     graphql`
       mutation NewDatasetLabelDialogMutation(
@@ -85,7 +85,7 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
           color: convertToHex(label.color),
           datasetIds: datasetId ? [datasetId] : undefined,
         },
-        connections: connections ?? [],
+        connections: updateConnectionIds ?? [],
       },
       onCompleted: () => {
         onCompleted();

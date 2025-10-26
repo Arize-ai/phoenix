@@ -10,7 +10,7 @@ type NewDatasetLabelButtonProps = {
   /**
    * Optional Relay connection IDs to update. These must be connections of DatasetLabelEdge types.
    */
-  connections?: DataID[];
+  updateConnectionIds?: DataID[];
 };
 
 export function NewDatasetLabelButton(props: NewDatasetLabelButtonProps) {
@@ -32,7 +32,7 @@ export function NewDatasetLabelButton(props: NewDatasetLabelButtonProps) {
       >
         <Modal size="S">
           <NewDatasetLabelDialog
-            connections={props.connections}
+            updateConnectionIds={props.updateConnectionIds}
             onCompleted={() => setShowNewDatasetLabelDialog(false)}
           />
         </Modal>

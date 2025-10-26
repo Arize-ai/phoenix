@@ -50,14 +50,6 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Get the connection ID so new labels appear immediately
-  const connections = [
-    ConnectionHandler.getConnectionID(
-      "client:root",
-      "DatasetLabelConfigButtonAllLabels_datasetLabels"
-    ),
-  ];
-
   return (
     <>
       <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
@@ -101,7 +93,12 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
       >
         <Modal size="S">
           <NewDatasetLabelDialog
-            connections={connections}
+            updateConnectionIds={[
+              ConnectionHandler.getConnectionID(
+                "client:root",
+                "DatasetLabelConfigButtonAllLabels_datasetLabels"
+              ),
+            ]}
             datasetId={datasetId}
             onCompleted={() => {
               setShowNewLabelDialog(false);
@@ -143,14 +140,6 @@ export function DatasetLabelSelectionContent(props: { datasetId: string }) {
   const { datasetId } = props;
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
 
-  // Get the connection ID for this specific query so new labels appear immediately
-  const connections = [
-    ConnectionHandler.getConnectionID(
-      "client:root",
-      "DatasetLabelConfigButtonAllLabels_datasetLabels"
-    ),
-  ];
-
   return (
     <>
       <DatasetLabelSelectionDialogContent
@@ -163,7 +152,12 @@ export function DatasetLabelSelectionContent(props: { datasetId: string }) {
       >
         <Modal size="S">
           <NewDatasetLabelDialog
-            connections={connections}
+            updateConnectionIds={[
+              ConnectionHandler.getConnectionID(
+                "client:root",
+                "DatasetLabelConfigButtonAllLabels_datasetLabels"
+              ),
+            ]}
             datasetId={datasetId}
             onCompleted={() => {
               // Only close the create modal, keep the popover open
