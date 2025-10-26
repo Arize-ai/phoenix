@@ -32,12 +32,13 @@ import {
 } from "@phoenix/components";
 import { NewDatasetLabelDialog } from "@phoenix/components/dataset/NewDatasetLabelDialog";
 import { useNotifyError } from "@phoenix/contexts";
+import { isStringArray } from "@phoenix/typeUtils";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetLabelConfigButton_allLabels$key } from "./__generated__/DatasetLabelConfigButton_allLabels.graphql";
 import { DatasetLabelConfigButton_datasetLabels$key } from "./__generated__/DatasetLabelConfigButton_datasetLabels.graphql";
 import { DatasetLabelConfigButtonQuery } from "./__generated__/DatasetLabelConfigButtonQuery.graphql";
 import { DatasetLabelConfigButtonSetLabelsMutation } from "./__generated__/DatasetLabelConfigButtonSetLabelsMutation.graphql";
-import { DatasetLabelConfigButtonUnsetLabelsMutation } from "./__generated__/DatasetLabelConfigButtonUnsetLabelsMutation.graphql";
 
 type DatasetLabelConfigButtonProps = {
   datasetId: string;
@@ -226,49 +227,18 @@ function DatasetLabelList({
   const [setDatasetLabels] =
     useMutation<DatasetLabelConfigButtonSetLabelsMutation>(graphql`
       mutation DatasetLabelConfigButtonSetLabelsMutation(
-        $datasetIds: [ID!]!
+        $datasetId: ID!
         $datasetLabelIds: [ID!]!
-        $currentDatasetId: ID!
       ) {
         setDatasetLabels(
-          input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
+          input: { datasetId: $datasetId, datasetLabelIds: $datasetLabelIds }
         ) {
-          query {
-            node(id: $currentDatasetId) {
-              ... on Dataset {
-                id
-                labels {
-                  id
-                  name
-                  color
-                }
-              }
-            }
-          }
-        }
-      }
-    `);
-
-  const [unsetDatasetLabels] =
-    useMutation<DatasetLabelConfigButtonUnsetLabelsMutation>(graphql`
-      mutation DatasetLabelConfigButtonUnsetLabelsMutation(
-        $datasetIds: [ID!]!
-        $datasetLabelIds: [ID!]!
-        $currentDatasetId: ID!
-      ) {
-        unsetDatasetLabels(
-          input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
-        ) {
-          query {
-            node(id: $currentDatasetId) {
-              ... on Dataset {
-                id
-                labels {
-                  id
-                  name
-                  color
-                }
-              }
+          dataset {
+            id
+            labels {
+              id
+              name
+              color
             }
           }
         }
@@ -285,49 +255,23 @@ function DatasetLabelList({
     if (selection === "all") {
       return;
     }
-
-    const newLabelIds = [...selection] as string[];
-    const labelIdsToAdd: string[] = newLabelIds.filter(
-      (id) => !selectedLabelIds.includes(id)
-    );
-    const labelIdsToRemove: string[] = selectedLabelIds.filter(
-      (id) => !newLabelIds.includes(id)
-    );
-
-    const promises = [];
-
-    if (labelIdsToAdd.length) {
-      promises.push(
-        setDatasetLabels({
-          variables: {
-            datasetIds: [datasetData.id],
-            datasetLabelIds: labelIdsToAdd,
-            currentDatasetId: datasetData.id,
-          },
-        })
-      );
+    const datasetLabelIds = [...selection];
+    if (!isStringArray(datasetLabelIds)) {
+      return;
     }
-    if (labelIdsToRemove.length) {
-      promises.push(
-        unsetDatasetLabels({
-          variables: {
-            datasetIds: [datasetData.id],
-            datasetLabelIds: labelIdsToRemove,
-            currentDatasetId: datasetData.id,
-          },
-        })
-      );
-    }
-
-    // Handle errors but don't close on success (let user continue selecting)
-    if (promises.length > 0) {
-      Promise.all(promises).catch(() => {
+    setDatasetLabels({
+      variables: {
+        datasetId: datasetData.id,
+        datasetLabelIds,
+      },
+      onError: (error) => {
+        const formattedError = getErrorMessagesFromRelayMutationError(error);
         notifyError({
           title: "Failed to save label changes",
-          message: "Failed to save label changes. Please try again.",
+          message: formattedError?.[0] ?? error.message,
         });
-      });
-    }
+      },
+    });
   };
 
   return (

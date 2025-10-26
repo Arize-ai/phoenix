@@ -14,7 +14,7 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
@@ -24,11 +24,13 @@ class CreateDatasetLabelInput:
     name: str
     description: Optional[str] = UNSET
     color: str
+    dataset_ids: Optional[list[GlobalID]] = UNSET
 
 
 @strawberry.type
 class CreateDatasetLabelMutationPayload:
     dataset_label: DatasetLabel
+    datasets: list[Dataset]
 
 
 @strawberry.input
@@ -62,7 +64,8 @@ class SetDatasetLabelsInput:
 
 @strawberry.type
 class SetDatasetLabelsMutationPayload:
-    query: "Query"
+    query: Query
+    dataset: Dataset
 
 
 @strawberry.type
@@ -76,17 +79,51 @@ class DatasetLabelMutationMixin:
         name = input.name
         description = input.description
         color = input.color
+        dataset_rowids: list[int] = []
+        if input.dataset_ids:
+            for dataset_id in input.dataset_ids:
+                try:
+                    dataset_rowid = from_global_id_with_expected_type(dataset_id, Dataset.__name__)
+                except ValueError:
+                    raise BadRequest(f"Invalid dataset ID: {dataset_id}")
+                dataset_rowids.append(dataset_rowid)
+
         async with info.context.db() as session:
             dataset_label_orm = models.DatasetLabel(name=name, description=description, color=color)
             session.add(dataset_label_orm)
             try:
-                await session.commit()
+                await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A dataset label named '{name}' already exists")
             except sqlalchemy.exc.StatementError as error:
                 raise BadRequest(str(error.orig))
+
+            datasets_by_id: dict[int, models.Dataset] = {}
+            if dataset_rowids:
+                datasets_by_id = {
+                    dataset.id: dataset
+                    for dataset in await session.scalars(
+                        select(models.Dataset).where(models.Dataset.id.in_(dataset_rowids))
+                    )
+                }
+                if len(datasets_by_id) != len(dataset_rowids):
+                    raise NotFound("One or more datasets not found")
+                session.add_all(
+                    [
+                        models.DatasetsDatasetLabel(
+                            dataset_id=dataset_rowid,
+                            dataset_label_id=dataset_label_orm.id,
+                        )
+                        for dataset_rowid in dataset_rowids
+                    ]
+                )
+                await session.commit()
+
         return CreateDatasetLabelMutationPayload(
-            dataset_label=to_gql_dataset_label(dataset_label_orm)
+            dataset_label=to_gql_dataset_label(dataset_label_orm),
+            datasets=[
+                to_gql_dataset(datasets_by_id[dataset_rowid]) for dataset_rowid in dataset_rowids
+            ],
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -212,5 +249,6 @@ class DatasetLabelMutationMixin:
                 raise Conflict("Failed to set dataset labels.") from e
 
         return SetDatasetLabelsMutationPayload(
+            dataset=to_gql_dataset(dataset),
             query=Query(),
         )

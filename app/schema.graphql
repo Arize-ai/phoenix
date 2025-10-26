@@ -444,10 +444,12 @@ input CreateDatasetLabelInput {
   name: String!
   description: String
   color: String!
+  datasetIds: [ID!]
 }
 
 type CreateDatasetLabelMutationPayload {
   datasetLabel: DatasetLabel!
+  datasets: [Dataset!]!
 }
 
 input CreateDatasetSplitInput {
@@ -2497,6 +2499,7 @@ input SetDatasetLabelsInput {
 
 type SetDatasetLabelsMutationPayload {
   query: Query!
+  dataset: Dataset!
 }
 
 input SetPromptLabelsInput {
