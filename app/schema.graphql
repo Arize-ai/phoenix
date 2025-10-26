@@ -444,10 +444,12 @@ input CreateDatasetLabelInput {
   name: String!
   description: String
   color: String!
+  datasetIds: [ID!]
 }
 
 type CreateDatasetLabelMutationPayload {
   datasetLabel: DatasetLabel!
+  datasets: [Dataset!]!
 }
 
 input CreateDatasetSplitInput {
@@ -1741,7 +1743,6 @@ type Mutation {
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
-  updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
@@ -2497,6 +2498,7 @@ input SetDatasetLabelsInput {
 
 type SetDatasetLabelsMutationPayload {
   query: Query!
+  dataset: Dataset!
 }
 
 input SetPromptLabelsInput {
@@ -3146,17 +3148,6 @@ input UpdateAnnotationInput {
   explanation: String = null
   metadata: JSON! = {}
   source: AnnotationSource! = APP
-}
-
-input UpdateDatasetLabelInput {
-  datasetLabelId: ID!
-  name: String!
-  description: String = null
-  color: String!
-}
-
-type UpdateDatasetLabelMutationPayload {
-  datasetLabel: DatasetLabel!
 }
 
 input UpdateModelMutationInput {
