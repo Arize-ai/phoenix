@@ -4,6 +4,8 @@ import sqlalchemy
 import strawberry
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.orm import joinedload
+from sqlalchemy.sql import tuple_
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
@@ -44,19 +46,6 @@ class DeleteDatasetLabelsMutationPayload:
 
 
 @strawberry.input
-class UpdateDatasetLabelInput:
-    dataset_label_id: GlobalID
-    name: str
-    description: Optional[str] = None
-    color: str
-
-
-@strawberry.type
-class UpdateDatasetLabelMutationPayload:
-    dataset_label: DatasetLabel
-
-
-@strawberry.input
 class SetDatasetLabelsInput:
     dataset_id: GlobalID
     dataset_label_ids: list[GlobalID]
@@ -79,7 +68,9 @@ class DatasetLabelMutationMixin:
         name = input.name
         description = input.description
         color = input.color
-        dataset_rowids: list[int] = {}  # use dictionary to de-duplicate while preserving order
+        dataset_rowids: dict[
+            int, None
+        ] = {}  # use dictionary to de-duplicate while preserving order
         if input.dataset_ids:
             for dataset_id in input.dataset_ids:
                 try:
@@ -106,7 +97,7 @@ class DatasetLabelMutationMixin:
                         select(models.Dataset).where(models.Dataset.id.in_(dataset_rowids.keys()))
                     )
                 }
-                if len(datasets_by_id) != len(dataset_rowids):
+                if len(datasets_by_id) < len(dataset_rowids):
                     raise NotFound("One or more datasets not found")
                 session.add_all(
                     [
@@ -124,39 +115,6 @@ class DatasetLabelMutationMixin:
             datasets=[
                 to_gql_dataset(datasets_by_id[dataset_rowid]) for dataset_rowid in dataset_rowids
             ],
-        )
-
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def update_dataset_label(
-        self, info: Info[Context, None], input: UpdateDatasetLabelInput
-    ) -> UpdateDatasetLabelMutationPayload:
-        if not input.name or not input.name.strip():
-            raise BadRequest("Dataset label name cannot be empty")
-
-        try:
-            dataset_label_id = from_global_id_with_expected_type(
-                input.dataset_label_id, DatasetLabel.__name__
-            )
-        except ValueError:
-            raise BadRequest(f"Invalid dataset label ID: {input.dataset_label_id}")
-
-        async with info.context.db() as session:
-            dataset_label_orm = await session.get(models.DatasetLabel, dataset_label_id)
-            if not dataset_label_orm:
-                raise NotFound(f"DatasetLabel with ID {input.dataset_label_id} not found")
-
-            dataset_label_orm.name = input.name.strip()
-            dataset_label_orm.description = input.description
-            dataset_label_orm.color = input.color.strip()
-
-            try:
-                await session.commit()
-            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                raise Conflict(f"A dataset label named '{input.name}' already exists")
-            except sqlalchemy.exc.StatementError as error:
-                raise BadRequest(str(error.orig))
-        return UpdateDatasetLabelMutationPayload(
-            dataset_label=to_gql_dataset_label(dataset_label_orm)
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -201,7 +159,9 @@ class DatasetLabelMutationMixin:
         except ValueError:
             raise BadRequest(f"Invalid dataset ID: {input.dataset_id}")
 
-        dataset_label_ids: list[int] = []
+        dataset_label_ids: dict[
+            int, None
+        ] = {}  # use dictionary to de-duplicate while preserving order
         for dataset_label_gid in input.dataset_label_ids:
             try:
                 dataset_label_id = from_global_id_with_expected_type(
@@ -209,44 +169,67 @@ class DatasetLabelMutationMixin:
                 )
             except ValueError:
                 raise BadRequest(f"Invalid dataset label ID: {dataset_label_gid}")
-            dataset_label_ids.append(dataset_label_id)
+            dataset_label_ids[dataset_label_id] = None
 
         async with info.context.db() as session:
-            dataset = await session.get(models.Dataset, dataset_id)
+            dataset = await session.scalar(
+                select(models.Dataset)
+                .where(models.Dataset.id == dataset_id)
+                .options(joinedload(models.Dataset.datasets_dataset_labels))
+            )
+
             if not dataset:
                 raise NotFound(f"Dataset with ID {input.dataset_id} not found")
 
-            if dataset_label_ids:
-                existing_label_ids = (
-                    await session.scalars(
-                        select(models.DatasetLabel.id).where(
-                            models.DatasetLabel.id.in_(dataset_label_ids)
+            existing_label_ids = (
+                await session.scalars(
+                    select(models.DatasetLabel.id).where(
+                        models.DatasetLabel.id.in_(dataset_label_ids.keys())
+                    )
+                )
+            ).all()
+            if len(existing_label_ids) != len(dataset_label_ids):
+                raise NotFound("One or more dataset labels not found")
+
+            previously_applied_dataset_label_ids = {
+                dataset_dataset_label.dataset_label_id
+                for dataset_dataset_label in dataset.datasets_dataset_labels
+            }
+
+            datasets_dataset_labels_to_add = [
+                models.DatasetsDatasetLabel(
+                    dataset_id=dataset_id,
+                    dataset_label_id=dataset_label_id,
+                )
+                for dataset_label_id in dataset_label_ids
+                if dataset_label_id not in previously_applied_dataset_label_ids
+            ]
+            if datasets_dataset_labels_to_add:
+                session.add_all(datasets_dataset_labels_to_add)
+                await session.flush()
+
+            datasets_dataset_labels_to_delete = [
+                dataset_dataset_label
+                for dataset_dataset_label in dataset.datasets_dataset_labels
+                if dataset_dataset_label.dataset_label_id not in dataset_label_ids
+            ]
+            if datasets_dataset_labels_to_delete:
+                await session.execute(
+                    delete(models.DatasetsDatasetLabel).where(
+                        tuple_(
+                            models.DatasetsDatasetLabel.dataset_id,
+                            models.DatasetsDatasetLabel.dataset_label_id,
+                        ).in_(
+                            [
+                                (
+                                    datasets_dataset_labels.dataset_id,
+                                    datasets_dataset_labels.dataset_label_id,
+                                )
+                                for datasets_dataset_labels in datasets_dataset_labels_to_delete
+                            ]
                         )
                     )
-                ).all()
-                if len(existing_label_ids) != len(dataset_label_ids):
-                    raise NotFound("One or more dataset labels not found")
-
-            await session.execute(
-                delete(models.DatasetsDatasetLabel).where(
-                    models.DatasetsDatasetLabel.dataset_id == dataset_id
                 )
-            )
-
-            if dataset_label_ids:
-                datasets_dataset_labels = [
-                    models.DatasetsDatasetLabel(
-                        dataset_id=dataset_id,
-                        dataset_label_id=dataset_label_id,
-                    )
-                    for dataset_label_id in dataset_label_ids
-                ]
-                session.add_all(datasets_dataset_labels)
-
-            try:
-                await session.commit()
-            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-                raise Conflict("Failed to set dataset labels.") from e
 
         return SetDatasetLabelsMutationPayload(
             dataset=to_gql_dataset(dataset),
