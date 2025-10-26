@@ -13,55 +13,23 @@ This module provides **automatic instrumentation** for [BeeAI framework](https:/
 ## Install
 
 ```shell
-npm install --save beeai-framework \ 
+npm install --save beeai-framework \
   @arizeai/openinference-instrumentation-beeai \
-  @arizeai/openinference-semantic-conventions \
-  @opentelemetry/sdk-trace-node \
-  @opentelemetry/resources \
-  @opentelemetry/exporter-trace-otlp-proto \
-  @opentelemetry/semantic-conventions \
-  @opentelemetry/instrumentation
+  @arizeai/phoenix-otel
 ```
 
 ## Setup
 
-To instrument your application, import and enable BeeAIInstrumentation. Create the `instrumentation.js` file:
+To instrument your application, import and enable BeeAIInstrumentation. Create the `instrumentation.ts` file:
 
 ```typescript
-import {
-  NodeTracerProvider,
-  SimpleSpanProcessor,
-  ConsoleSpanExporter,
-} from "@opentelemetry/sdk-trace-node";
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
-import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
+import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
 import * as beeaiFramework from "beeai-framework";
-import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { BeeAIInstrumentation } from "@arizeai/openinference-instrumentation-beeai";
 
-const COLLECTOR_ENDPOINT = "your-phoenix-collector-endpoint";
-
-const provider = new NodeTracerProvider({
-  resource: resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: "beeai-project",
-    [SEMRESATTRS_PROJECT_NAME]: "beeai-project",
-  }),
-  spanProcessors: [
-    new SimpleSpanProcessor(new ConsoleSpanExporter()),
-    new SimpleSpanProcessor(
-      new OTLPTraceExporter({
-        url: `${COLLECTOR_ENDPOINT}/v1/traces`,
-        // (optional) if connecting to Phoenix with Authentication enabled
-        headers: { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
-      }),
-    ),
-  ],
+const provider = register({
+  projectName: "beeai-project",
 });
-
-provider.register();
 
 const beeAIInstrumentation = new BeeAIInstrumentation();
 beeAIInstrumentation.manuallyInstrument(beeaiFramework);
@@ -78,7 +46,7 @@ console.log("👀 OpenInference initialized");
 Sample agent built using BeeAI with automatic tracing:
 
 ```typescript
-import "./instrumentation.js";
+import "./instrumentation.ts";
 import { ToolCallingAgent } from "beeai-framework/agents/toolCalling/agent";
 import { TokenMemory } from "beeai-framework/memory/tokenMemory";
 import { DuckDuckGoSearchTool } from "beeai-framework/tools/search/duckDuckGoSearch";
@@ -88,7 +56,7 @@ import { OpenAIChatModel } from "beeai-framework/adapters/openai/backend/chat";
 const llm = new OpenAIChatModel(
   "gpt-4o", 
   {},
-  { apiKey: 'your-openai-api-key' }
+  { apiKey: process.env.OPENAI_API_KEY }
 );
 
 const agent = new ToolCallingAgent({
@@ -114,51 +82,6 @@ Phoenix provides visibility into your BeeAI agent operations by automatically tr
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/beeai-js-phoenix.png" %}
 
-## Troubleshooting
-
-Add the following at the top of your `instrumentation.js` to see OpenTelemetry diagnostic logs in your console while debugging:
-
-```typescript
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
-
-// Enable OpenTelemetry diagnostic logging
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
-```
-
-If traces aren't appearing, a common cause is an outdated `beeai-framework` package. Check the diagnostic logs for version or initialization errors and update your package as needed.
-
-## Custom Tracer Provider
-
-You can specify a custom tracer provider for BeeAI instrumentation in multiple ways:
-
-### Method 1: Pass tracerProvider on instantiation
-
-```typescript
-const beeAIInstrumentation = new BeeAIInstrumentation({
-  tracerProvider: customTracerProvider,
-});
-beeAIInstrumentation.manuallyInstrument(beeaiFramework);
-```
-
-### Method 2: Set tracerProvider after instantiation
-
-```typescript
-const beeAIInstrumentation = new BeeAIInstrumentation();
-beeAIInstrumentation.setTracerProvider(customTracerProvider);
-beeAIInstrumentation.manuallyInstrument(beeaiFramework);
-```
-
-### Method 3: Pass tracerProvider to registerInstrumentations
-
-```typescript
-const beeAIInstrumentation = new BeeAIInstrumentation();
-beeAIInstrumentation.manuallyInstrument(beeaiFramework);
-
-registerInstrumentations({
-  instrumentations: [beeAIInstrumentation],
-  tracerProvider: customTracerProvider,
-});
-```
 
 ## Resources
 

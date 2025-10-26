@@ -54,7 +54,7 @@ pip install arize-phoenix-otel
 {% tab title="TS" %}
 ```bash
 # npm, pnpm, yarn, etc
-npm install @arizeai/openinference-semantic-conventions @opentelemetry/semantic-conventions @opentelemetry/api @opentelemetry/instrumentation @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto
+npm install @arizeai/phoenix-otel
 ```
 {% endtab %}
 {% endtabs %}
@@ -90,7 +90,7 @@ Update your `instrumentation.ts`file, registering the instrumentation. Steps wil
 </strong>
 // ... rest of imports
 import OpenAI from "openai"
-import { registerInstrumentations } from "@opentelemetry/instrumentation";
+import { registerInstrumentations } from "@arizeai/phoenix-otel";
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
 // ... previous code
@@ -108,7 +108,7 @@ registerInstrumentations({
 <pre class="language-typescript"><code class="lang-typescript"><strong>// instrumentation.ts
 </strong>
 // ... rest of imports
-import { registerInstrumentations } from "@opentelemetry/instrumentation";
+import { registerInstrumentations } from "@arizeai/phoenix-otel";
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
 // ... previous code
@@ -177,46 +177,26 @@ In a new file called `instrumentation.ts` (or .js if applicable)
 
 ```typescript
 // instrumentation.ts
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
+import { register } from "@arizeai/phoenix-otel";
 
-import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
-
-const COLLECTOR_ENDPOINT = process.env.PHOENIX_COLLECTOR_ENDPOINT;
-const SERVICE_NAME = "my-llm-app";
-
-const provider = new NodeTracerProvider({
-  resource: resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: SERVICE_NAME,
-    // defaults to "default" in the Phoenix UI
-    [SEMRESATTRS_PROJECT_NAME]: SERVICE_NAME,
-  }),
-  spanProcessors: [
-    // BatchSpanProcessor will flush spans in batches after some time,
-    // this is recommended in production. For development or testing purposes
-    // you may try SimpleSpanProcessor for instant span flushing to the Phoenix UI.
-    new BatchSpanProcessor(
-      new OTLPTraceExporter({
-        url: `${COLLECTOR_ENDPOINT}/v1/traces`,
-        // (optional) if connecting to Phoenix Cloud
-        // headers: { "api_key": process.env.PHOENIX_API_KEY },
-        // (optional) if connecting to self-hosted Phoenix with Authentication enabled
-        // headers: { "Authorization": `Bearer ${process.env.PHOENIX_API_KEY}` }
-      })
-    ),
-  ],
+const provider = register({
+  projectName: "my-llm-app", // Sets the project name in Phoenix UI
 });
-
-provider.register();
 ```
 
-Now, import this file at the top of your main program entrypoint, or invoke it with the node cli's `require`flag:
+The `register` function automatically:
+- Reads `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` from environment variables
+- Configures the collector endpoint (defaults to `http://localhost:6006`)
+- Sets up batch span processing for production use
+- Registers the provider globally
+
+{% hint style="info" %}
+**Environment Variables:**
+- `PHOENIX_COLLECTOR_ENDPOINT` - The URL to your Phoenix instance (e.g., `https://app.phoenix.arize.com`)
+- `PHOENIX_API_KEY` - Your Phoenix API key for authentication
+{% endhint %}
+
+Now, import this file at the top of your main program entrypoint, or invoke it with the node cli's `--require` flag:
 
 * Import Method:
   * In main.ts or similar: `import "./instrumentation.ts"`
