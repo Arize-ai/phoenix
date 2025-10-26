@@ -1191,7 +1191,9 @@ class Query:
             before=before if isinstance(before, CursorString) else None,
         )
         async with info.context.db() as session:
-            dataset_labels = await session.scalars(select(models.DatasetLabel))
+            dataset_labels = await session.scalars(
+                select(models.DatasetLabel).order_by(models.DatasetLabel.name.asc())
+            )
         data = [to_gql_dataset_label(dataset_label) for dataset_label in dataset_labels]
         return connection_from_list(data=data, args=args)
 

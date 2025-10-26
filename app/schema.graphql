@@ -444,10 +444,12 @@ input CreateDatasetLabelInput {
   name: String!
   description: String
   color: String!
+  datasetIds: [ID!]
 }
 
 type CreateDatasetLabelMutationPayload {
   datasetLabel: DatasetLabel!
+  datasets: [Dataset!]!
 }
 
 input CreateDatasetSplitInput {
@@ -1741,10 +1743,8 @@ type Mutation {
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
-  updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
-  unsetDatasetLabels(input: UnsetDatasetLabelsInput!): UnsetDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -2492,12 +2492,13 @@ type ServerStatus {
 }
 
 input SetDatasetLabelsInput {
+  datasetId: ID!
   datasetLabelIds: [ID!]!
-  datasetIds: [ID!]!
 }
 
 type SetDatasetLabelsMutationPayload {
   query: Query!
+  dataset: Dataset!
 }
 
 input SetPromptLabelsInput {
@@ -3123,15 +3124,6 @@ type UMAPPoints {
   contextRetrievals: [Retrieval!]!
 }
 
-input UnsetDatasetLabelsInput {
-  datasetLabelIds: [ID!]!
-  datasetIds: [ID!]!
-}
-
-type UnsetDatasetLabelsMutationPayload {
-  query: Query!
-}
-
 input UnsetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
@@ -3156,17 +3148,6 @@ input UpdateAnnotationInput {
   explanation: String = null
   metadata: JSON! = {}
   source: AnnotationSource! = APP
-}
-
-input UpdateDatasetLabelInput {
-  datasetLabelId: ID!
-  name: String!
-  description: String = null
-  color: String!
-}
-
-type UpdateDatasetLabelMutationPayload {
-  datasetLabel: DatasetLabel!
 }
 
 input UpdateModelMutationInput {

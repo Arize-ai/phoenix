@@ -1,11 +1,19 @@
 import { useState } from "react";
+import type { DataID } from "react-relay";
 
 import { Button, DialogTrigger, Icon, Icons } from "@phoenix/components";
 import { Modal, ModalOverlay } from "@phoenix/components/overlay";
 
 import { NewDatasetLabelDialog } from "./NewDatasetLabelDialog";
 
-export function NewDatasetLabelButton() {
+type NewDatasetLabelButtonProps = {
+  /**
+   * Optional Relay connection IDs to update. These must be connections of DatasetLabelEdge types.
+   */
+  updateConnectionIds?: DataID[];
+};
+
+export function NewDatasetLabelButton(props: NewDatasetLabelButtonProps) {
   const [showNewDatasetLabelDialog, setShowNewDatasetLabelDialog] =
     useState(false);
   return (
@@ -24,6 +32,7 @@ export function NewDatasetLabelButton() {
       >
         <Modal size="S">
           <NewDatasetLabelDialog
+            updateConnectionIds={props.updateConnectionIds}
             onCompleted={() => setShowNewDatasetLabelDialog(false)}
           />
         </Modal>
