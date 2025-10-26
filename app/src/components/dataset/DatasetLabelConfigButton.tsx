@@ -71,19 +71,14 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
         >
           <PopoverArrow />
           <Dialog>
-            <View padding="size-200">
-              <Flex direction="column" gap="size-200">
-                <Heading level={3}>Configure Dataset Labels</Heading>
-                <Suspense fallback={<Loading />}>
-                  <DatasetLabelSelectionDialogContent
-                    datasetId={datasetId}
-                    onNewLabelPress={() => {
-                      setShowNewLabelDialog(true);
-                    }}
-                  />
-                </Suspense>
-              </Flex>
-            </View>
+            <Suspense fallback={<Loading />}>
+              <DatasetLabelSelectionDialogContent
+                datasetId={datasetId}
+                onNewLabelPress={() => {
+                  setShowNewLabelDialog(true);
+                }}
+              />
+            </Suspense>
           </Dialog>
         </Popover>
       </DialogTrigger>
@@ -270,7 +265,6 @@ function DatasetLabelList({
 
   return (
     <>
-      {/* Header section matching PromptLabelConfigButton */}
       <View
         padding="size-100"
         borderBottomWidth="thin"
@@ -298,8 +292,6 @@ function DatasetLabelList({
           />
         </Flex>
       </View>
-
-      {/* Labels list */}
       <ListBox
         aria-label="labels"
         items={labels}
@@ -313,8 +305,6 @@ function DatasetLabelList({
       >
         {(item) => <DatasetLabelListBoxItem key={item.id} item={item} />}
       </ListBox>
-
-      {/* Footer section */}
       <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
         <LinkButton variant="quiet" size="S" to="/settings/datasets">
           Edit Labels
