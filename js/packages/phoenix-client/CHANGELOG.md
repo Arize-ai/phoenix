@@ -1,5 +1,16 @@
 # @arizeai/phoenix-client
 
+## 5.1.0
+
+### Minor Changes
+
+- de6f111: refactor to use phoenix-otel across the client
+
+### Patch Changes
+
+- Updated dependencies [de6f111]
+  - @arizeai/phoenix-otel@0.2.0
+
 ## 5.0.0
 
 ### Major Changes
