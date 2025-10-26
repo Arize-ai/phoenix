@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ConnectionHandler, graphql, useMutation } from "react-relay";
+import { type DataID, graphql, useMutation } from "react-relay";
 
 import {
   Alert,
@@ -17,9 +17,9 @@ import type { NewDatasetLabelDialogMutation } from "./__generated__/NewDatasetLa
 type NewDatasetLabelDialogProps = {
   onCompleted: () => void;
   /**
-   * Optional connection IDs to update. If not provided, defaults to DatasetLabelsTable connection.
+   * Optional Relay connection IDs to update. These must be connections of DatasetLabelEdge types.
    */
-  connections?: string[];
+  connections?: DataID[];
   /**
    * Optional dataset ID. If provided, newly created labels will be auto-applied to the dataset upon creation.
    */
@@ -27,7 +27,7 @@ type NewDatasetLabelDialogProps = {
 };
 export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
   const [error, setError] = useState("");
-  const { onCompleted, connections: providedConnections, datasetId } = props;
+  const { onCompleted, connections, datasetId } = props;
   const [addLabel, isSubmitting] = useMutation<NewDatasetLabelDialogMutation>(
     graphql`
       mutation NewDatasetLabelDialogMutation(
@@ -78,20 +78,6 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
       return color; // fallback to original color
     };
 
-    const connections = providedConnections || [
-      ConnectionHandler.getConnectionID(
-        "client:root",
-        "DatasetLabelsTable__datasetLabels"
-      ),
-      ConnectionHandler.getConnectionID(
-        "client:root",
-        "DatasetLabelFilterButton_datasetLabels"
-      ),
-      ConnectionHandler.getConnectionID(
-        "client:root",
-        "DatasetLabelConfigButtonAllLabels_datasetLabels"
-      ),
-    ];
     addLabel({
       variables: {
         input: {
@@ -99,7 +85,7 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
           color: convertToHex(label.color),
           datasetIds: datasetId ? [datasetId] : undefined,
         },
-        connections,
+        connections: connections ?? [],
       },
       onCompleted: () => {
         onCompleted();
