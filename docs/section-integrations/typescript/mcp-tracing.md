@@ -12,10 +12,10 @@ The `@arizeai/openinference-instrumentation-mcp` instrumentor is unique compared
 npm install @arizeai/openinference-instrumentation-mcp
 ```
 
-You will also need to install OpenTelemetry packages:
+You will also need to install the Phoenix OTEL package:
 
 ```bash
-npm install @opentelemetry/api @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto @opentelemetry/resources @opentelemetry/semantic-conventions @arizeai/openinference-semantic-conventions
+npm install @arizeai/phoenix-otel
 ```
 
 {% hint style="warning" %}
@@ -36,7 +36,7 @@ First, create an instrumentation file to set up OpenTelemetry:
 
 ```typescript
 // client.ts
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import { register } from "@arizeai/phoenix-otel";
 import { MCPInstrumentation } from "@arizeai/openinference-instrumentation-mcp";
 import * as MCPClientStdioModule from "@modelcontextprotocol/sdk/client/stdio";
 import * as MCPServerStdioModule from "@modelcontextprotocol/sdk/server/stdio";
@@ -44,9 +44,10 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { spawn } from "child_process";
 
-// Set up OpenTelemetry instrumentation
-const provider = new NodeTracerProvider();
-provider.register();
+// Set up Phoenix tracing
+const provider = register({
+  projectName: "financial-analysis-client",
+});
 
 const mcpInstrumentation = new MCPInstrumentation();
 // MCP must be manually instrumented as it doesn't have a traditional module structure
@@ -96,18 +97,18 @@ runMCPClient().catch(console.error);
 
 ```typescript
 // server.ts
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import { register, trace } from "@arizeai/phoenix-otel";
 import { MCPInstrumentation } from "@arizeai/openinference-instrumentation-mcp";
 import * as MCPClientStdioModule from "@modelcontextprotocol/sdk/client/stdio";
 import * as MCPServerStdioModule from "@modelcontextprotocol/sdk/server/stdio";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { trace } from "@opentelemetry/api";
 
-// Set up OpenTelemetry instrumentation
-const provider = new NodeTracerProvider();
-provider.register();
+// Set up Phoenix tracing
+const provider = register({
+  projectName: "financial-analysis-server",
+});
 
 const mcpInstrumentation = new MCPInstrumentation();
 mcpInstrumentation.manuallyInstrument({

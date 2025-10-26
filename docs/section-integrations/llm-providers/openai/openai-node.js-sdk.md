@@ -9,56 +9,31 @@ This module provides automatic instrumentation for the [OpenAI Node.js SDK](http
 ## Install
 
 ```bash
-npm install --save @arizeai/openinference-instrumentation-openai openai
-
-npm install --save @opentelemetry/api @opentelemetry/sdk-trace-node \
-  @opentelemetry/sdk-trace-base \
-  @opentelemetry/resources \
-  @opentelemetry/semantic-conventions \
-  @opentelemetry/instrumentation \
-  @opentelemetry/exporter-trace-otlp-proto \
-  @arizeai/openinference-semantic-conventions
+npm install --save @arizeai/openinference-instrumentation-openai \
+  @arizeai/phoenix-otel \
+  openai
 ```
 
 ## Setup
 
-To instrument your application, import and enable `OpenAIInstrumentation`
+To instrument your application, import and enable `OpenAIInstrumentation`.
 
-Create the `instrumentation.js` file:
+Create the `instrumentation.ts` (or `.js`) file:
 
-<pre class="language-typescript"><code class="lang-typescript">import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-<strong>import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
-</strong>import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
-import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import { registerInstrumentations } from "@opentelemetry/instrumentation";
-// OpenAI instrumentation
+{% tabs %}
+{% tab title="ESM Project" %}
+```typescript
+// instrumentation.ts
+import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
 import OpenAI from "openai";
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
-const COLLECTOR_ENDPOINT = "your-phoenix-collector-endpoint";
-const SERVICE_NAME = "openai-app";
-
-const provider = new NodeTracerProvider({
-  resource: resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: SERVICE_NAME,
-    [SEMRESATTRS_PROJECT_NAME]: SERVICE_NAME,
-  }),
-  spanProcessors: [
-    new SimpleSpanProcessor(
-      new OTLPTraceExporter({
-        url: `${COLLECTOR_ENDPOINT}/v1/traces`,
-        // (optional) if connecting to Phoenix with Authentication enabled
-        headers: { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
-      })
-    ),
-  ],
+// Register Phoenix OTEL with automatic configuration
+const provider = register({
+  projectName: "openai-app",
 });
 
-provider.register();
-console.log("Provider registered");
-
+// Manually instrument OpenAI for ESM projects
 const instrumentation = new OpenAIInstrumentation();
 instrumentation.manuallyInstrument(OpenAI);
 
@@ -66,68 +41,96 @@ registerInstrumentations({
   instrumentations: [instrumentation],
 });
 
-console.log("OpenAI instrumentation registered");
-</code></pre>
+console.log("✅ OpenAI instrumentation registered");
+```
+
+{% hint style="info" %}
+**ESM Projects:** You must manually instrument OpenAI by calling `instrumentation.manuallyInstrument(OpenAI)` before using the OpenAI client.
+{% endhint %}
+{% endtab %}
+
+{% tab title="CommonJS Project" %}
+```typescript
+// instrumentation.ts
+import { register } from "@arizeai/phoenix-otel";
+import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+
+// Register Phoenix OTEL with automatic instrumentation
+const provider = register({
+  projectName: "openai-app",
+  instrumentations: [new OpenAIInstrumentation()],
+});
+
+console.log("✅ OpenAI instrumentation registered");
+```
+
+{% hint style="info" %}
+**CommonJS Projects:** Auto-instrumentation works automatically by passing the `OpenAIInstrumentation` to the `instrumentations` parameter.
+{% endhint %}
+{% endtab %}
+{% endtabs %}
+
+### Configuration
+
+The `register` function automatically reads from environment variables:
+
+- `PHOENIX_COLLECTOR_ENDPOINT` - Your Phoenix instance URL (defaults to `http://localhost:6006`)
+- `PHOENIX_API_KEY` - Your Phoenix API key for authentication
+
+You can also configure these directly:
+
+```typescript
+const provider = register({
+  projectName: "openai-app",
+  url: "https://app.phoenix.arize.com",
+  apiKey: process.env.PHOENIX_API_KEY,
+});
+```
 
 ## Run OpenAI <a href="#run-beeai" id="run-beeai"></a>
 
-Import the `instrumentation.js` file first, then use OpenAI as usual.
+Import the `instrumentation.ts` file first, then use OpenAI as usual.
 
 ```typescript
-import "./instrumentation.js"; 
+// main.ts
+import "./instrumentation.ts"; 
 import OpenAI from "openai";
 
-// set OPENAI_API_KEY in environment, or pass it in arguments
+// Set OPENAI_API_KEY in environment, or pass it in arguments
 const openai = new OpenAI({
-    apiKey: 'your-openai-api-key'
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 openai.chat.completions
   .create({
     model: "gpt-4o",
-    messages: [{ role: "user", content: "Write a haiku."}],
+    messages: [{ role: "user", content: "Write a haiku." }],
   })
   .then((response) => {
     console.log(response.choices[0].message.content);
-  });
+  })
+  // Keep process alive for BatchSpanProcessor to flush traces
+  .then(() => new Promise((resolve) => setTimeout(resolve, 6000)));
+```
+
+Run your application:
+
+```bash
+# Set your API keys
+export OPENAI_API_KEY='your-openai-api-key'
+export PHOENIX_COLLECTOR_ENDPOINT='http://localhost:6006'  # or your Phoenix URL
+export PHOENIX_API_KEY='your-phoenix-api-key' 
+
+# Run the application
+node main.ts
+# Or using --require flag
+node --require ./instrumentation.ts main.ts
 ```
 
 ## Observe
 
 After setting up instrumentation and running your  OpenAI application, traces will appear in the Phoenix UI for visualization and analysis.
 
-## Custom Tracer Provider
-
-You can specify a custom tracer provider for OpenAI instrumentation in multiple ways:
-
-### Method 1: Pass tracerProvider on instantiation
-
-```typescript
-const instrumentation = new OpenAIInstrumentation({
-  tracerProvider: customTracerProvider,
-});
-instrumentation.manuallyInstrument(OpenAI);
-```
-
-### Method 2: Set tracerProvider after instantiation
-
-```typescript
-const instrumentation = new OpenAIInstrumentation();
-instrumentation.setTracerProvider(customTracerProvider);
-instrumentation.manuallyInstrument(OpenAI);
-```
-
-### Method 3: Pass tracerProvider to registerInstrumentations
-
-```typescript
-const instrumentation = new OpenAIInstrumentation();
-instrumentation.manuallyInstrument(OpenAI);
-
-registerInstrumentations({
-  instrumentations: [instrumentation],
-  tracerProvider: customTracerProvider,
-});
-```
 
 ## Resources
 
