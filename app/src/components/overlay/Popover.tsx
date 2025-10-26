@@ -30,6 +30,7 @@ const popoverCSS = css`
   background: var(--background-color);
   color: var(--ac-global-text-color-900);
   outline: none;
+  z-index: var(--ac-global-z-index-popover);
 
   &[data-entering],
   &[data-exiting] {

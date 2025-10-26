@@ -15,7 +15,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 import type { NewDatasetLabelDialogMutation } from "./__generated__/NewDatasetLabelDialogMutation.graphql";
 
 type NewDatasetLabelDialogProps = {
-  onCompleted: () => void;
+  onCompleted?: () => void;
   /**
    * Optional Relay connection IDs to update. These must be connections of DatasetLabelEdge types.
    */
@@ -88,7 +88,7 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
         connections: updateConnectionIds ?? [],
       },
       onCompleted: () => {
-        onCompleted();
+        onCompleted?.();
       },
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);
@@ -98,18 +98,26 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
   };
   return (
     <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New Dataset Label</DialogTitle>
-          <DialogCloseButton />
-        </DialogHeader>
-        {error ? (
-          <Alert banner variant="danger">
-            {error}
-          </Alert>
-        ) : null}
-        <NewLabelForm onSubmit={onSubmit} isSubmitting={isSubmitting} />
-      </DialogContent>
+      {({ close }) => (
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Dataset Label</DialogTitle>
+            <DialogCloseButton />
+          </DialogHeader>
+          {error ? (
+            <Alert banner variant="danger">
+              {error}
+            </Alert>
+          ) : null}
+          <NewLabelForm
+            onSubmit={(...args) => {
+              onSubmit(...args);
+              close();
+            }}
+            isSubmitting={isSubmitting}
+          />
+        </DialogContent>
+      )}
     </Dialog>
   );
 }

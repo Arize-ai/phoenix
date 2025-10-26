@@ -97,20 +97,18 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
               </MenuItem>
               <Popover placement="start top">
                 <PopoverArrow />
-                <Dialog>
-                  <Suspense
-                    fallback={
-                      <Loading
-                        css={css`
-                          min-width: 300px;
-                          min-height: 100px;
-                        `}
-                      />
-                    }
-                  >
-                    <DatasetLabelSelectionContent datasetId={datasetId} />
-                  </Suspense>
-                </Dialog>
+                <Suspense
+                  fallback={
+                    <Loading
+                      css={css`
+                        min-width: 300px;
+                        min-height: 100px;
+                      `}
+                    />
+                  }
+                >
+                  <DatasetLabelSelectionContent datasetId={datasetId} />
+                </Suspense>
               </Popover>
             </SubmenuTrigger>
             <MenuItem id={DatasetAction.DELETE}>

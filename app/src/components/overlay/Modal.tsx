@@ -156,7 +156,7 @@ const modalOverlayCSS = css`
   position: fixed;
   inset: 0;
   background: rgba(0 0 0 / 0.5);
-  z-index: 1000;
+  z-index: var(--ac-global-z-index-modal-overlay);
 
   &[data-entering] {
     // ensure overlay animation is longer than child animations

@@ -1,5 +1,4 @@
 import { Suspense, useMemo, useState } from "react";
-import { ModalOverlay } from "react-aria-components";
 import {
   ConnectionHandler,
   graphql,
@@ -25,6 +24,7 @@ import {
   ListBoxItem,
   Loading,
   Modal,
+  ModalOverlay,
   Popover,
   PopoverArrow,
   type Selection,
@@ -47,68 +47,37 @@ type DatasetLabelConfigButtonProps = {
 
 export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
   const { datasetId, variant = "default" } = props;
-  const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
-  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <>
-      <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
-        <Button
-          variant={variant}
-          size="S"
-          leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
-          aria-label="Configure dataset labels"
-        >
-          Label
-        </Button>
-        <Popover
-          placement="bottom start"
-          shouldCloseOnInteractOutside={() => true}
-          css={css`
-            min-width: 400px;
-            max-width: 500px;
-          `}
-        >
-          <PopoverArrow />
-          <Dialog>
-            <Suspense fallback={<Loading />}>
-              <DatasetLabelSelectionDialogContent
-                datasetId={datasetId}
-                onNewLabelPress={() => {
-                  setShowNewLabelDialog(true);
-                }}
-              />
-            </Suspense>
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
-      <ModalOverlay
-        isOpen={showNewLabelDialog}
-        onOpenChange={setShowNewLabelDialog}
+    <DialogTrigger>
+      <Button
+        variant={variant}
+        size="S"
+        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        aria-label="Configure dataset labels"
       >
-        <Modal size="S">
-          <NewDatasetLabelDialog
-            updateConnectionIds={[
-              ConnectionHandler.getConnectionID(
-                "client:root",
-                "DatasetLabelConfigButtonAllLabels_datasetLabels"
-              ),
-            ]}
-            datasetId={datasetId}
-            onCompleted={() => {
-              setShowNewLabelDialog(false);
-            }}
-          />
-        </Modal>
-      </ModalOverlay>
-    </>
+        Label
+      </Button>
+      <Popover
+        placement="bottom start"
+        shouldCloseOnInteractOutside={() => true}
+        css={css`
+          min-width: 400px;
+          max-width: 500px;
+        `}
+      >
+        <PopoverArrow />
+        <Dialog>
+          <Suspense fallback={<Loading />}>
+            <DatasetLabelSelectionDialogContent datasetId={datasetId} />
+          </Suspense>
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
   );
 }
 
-function DatasetLabelSelectionDialogContent(props: {
-  datasetId: string;
-  onNewLabelPress: () => void;
-}) {
+function DatasetLabelSelectionDialogContent(props: { datasetId: string }) {
   const { datasetId } = props;
   const query = useLazyLoadQuery<DatasetLabelConfigButtonQuery>(
     graphql`
@@ -132,35 +101,9 @@ function DatasetLabelSelectionDialogContent(props: {
  * Styled to match PromptLabelConfigButton
  */
 export function DatasetLabelSelectionContent(props: { datasetId: string }) {
-  const { datasetId } = props;
-  const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
-
   return (
     <>
-      <DatasetLabelSelectionDialogContent
-        {...props}
-        onNewLabelPress={() => setShowNewLabelDialog(true)}
-      />
-      <ModalOverlay
-        isOpen={showNewLabelDialog}
-        onOpenChange={setShowNewLabelDialog}
-      >
-        <Modal size="S">
-          <NewDatasetLabelDialog
-            updateConnectionIds={[
-              ConnectionHandler.getConnectionID(
-                "client:root",
-                "DatasetLabelConfigButtonAllLabels_datasetLabels"
-              ),
-            ]}
-            datasetId={datasetId}
-            onCompleted={() => {
-              // Only close the create modal, keep the popover open
-              setShowNewLabelDialog(false);
-            }}
-          />
-        </Modal>
-      </ModalOverlay>
+      <DatasetLabelSelectionDialogContent {...props} />
     </>
   );
 }
@@ -168,11 +111,9 @@ export function DatasetLabelSelectionContent(props: { datasetId: string }) {
 function DatasetLabelList({
   query,
   dataset,
-  onNewLabelPress,
 }: {
   dataset: DatasetLabelConfigButton_datasetLabels$key;
   query: DatasetLabelConfigButton_allLabels$key;
-  onNewLabelPress: () => void;
 }) {
   const notifyError = useNotifyError();
   const datasetData = useFragment<DatasetLabelConfigButton_datasetLabels$key>(
@@ -280,9 +221,26 @@ function DatasetLabelList({
             <Heading level={4} weight="heavy">
               Assign labels to this dataset
             </Heading>
-            <Button variant="quiet" size="S" onPress={onNewLabelPress}>
-              <Icon svg={<Icons.PlusOutline />} />
-            </Button>
+            <DialogTrigger>
+              <Button
+                variant="quiet"
+                size="S"
+                leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+              />
+              <ModalOverlay>
+                <Modal size="S">
+                  <NewDatasetLabelDialog
+                    updateConnectionIds={[
+                      ConnectionHandler.getConnectionID(
+                        "client:root",
+                        "DatasetLabelConfigButtonAllLabels_datasetLabels"
+                      ),
+                    ]}
+                    datasetId={datasetData.id}
+                  />
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
           </Flex>
           <DebouncedSearch
             autoFocus
