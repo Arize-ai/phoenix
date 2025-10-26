@@ -26,7 +26,6 @@ import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
@@ -63,7 +62,6 @@ export function DatasetsTable(props: DatasetsTableProps) {
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
-  const isDatasetLabelEnabled = useFeatureFlag("datasetLabel");
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
       DatasetsTableDatasetsQuery,
@@ -150,40 +148,34 @@ export function DatasetsTable(props: DatasetsTableProps) {
           return <Link to={to}>{row.original.name}</Link>;
         },
       },
-      ...(isDatasetLabelEnabled
-        ? [
-            {
-              header: "labels",
-              accessorKey: "labels",
-              enableSorting: false,
-              cell: ({
-                row,
-              }: CellContext<(typeof tableData)[number], unknown>) => {
-                return (
-                  <ul
-                    css={css`
-                      display: flex;
-                      flex-direction: row;
-                      gap: var(--ac-global-dimension-size-100);
-                      min-width: 0;
-                      flex-wrap: wrap;
-                    `}
-                  >
-                    {row.original.labels.map((label) => (
-                      <li key={label.id}>
-                        <Token color={label.color}>
-                          <Truncate maxWidth={200} title={label.name}>
-                            {label.name}
-                          </Truncate>
-                        </Token>
-                      </li>
-                    ))}
-                  </ul>
-                );
-              },
-            },
-          ]
-        : []),
+      {
+        header: "labels",
+        accessorKey: "labels",
+        enableSorting: false,
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
+          return (
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: row;
+                gap: var(--ac-global-dimension-size-100);
+                min-width: 0;
+                flex-wrap: wrap;
+              `}
+            >
+              {row.original.labels.map((label) => (
+                <li key={label.id}>
+                  <Token color={label.color}>
+                    <Truncate maxWidth={200} title={label.name}>
+                      {label.name}
+                    </Truncate>
+                  </Token>
+                </li>
+              ))}
+            </ul>
+          );
+        },
+      },
       {
         header: "description",
         accessorKey: "description",
@@ -292,14 +284,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
       },
     ];
     return cols;
-  }, [
-    isDatasetLabelEnabled,
-    filter,
-    labelFilter,
-    notifyError,
-    notifySuccess,
-    refetch,
-  ]);
+  }, [filter, labelFilter, notifyError, notifySuccess, refetch]);
   const table = useReactTable({
     columns,
     data: tableData,

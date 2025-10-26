@@ -22,27 +22,29 @@ import { getDataset } from "../datasets/getDataset";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
-import { createProvider, createNoOpProvider } from "./instrumentation";
 import {
   type DiagLogLevel,
   SpanStatusCode,
   Tracer,
   trace,
-} from "@opentelemetry/api";
+  NodeTracerProvider,
+  objectAsAttributes,
+  createNoOpProvider,
+  register,
+} from "@arizeai/phoenix-otel";
 import {
   MimeType,
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
 import { ensureString } from "../utils/ensureString";
-import type { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import { objectAsAttributes } from "../utils/objectAsAttributes";
 import {
   getDatasetUrl,
   getDatasetExperimentsUrl,
   getExperimentUrl,
 } from "../utils/urlUtils";
 import assert from "assert";
+import { toObjectHeaders } from "../utils/toObjectHeaders";
 
 /**
  * Validate that a repetition is valid
@@ -160,7 +162,7 @@ export async function runExperiment({
   experimentDescription,
   experimentMetadata = {},
   client: _client,
-  dataset: DatasetSelector,
+  dataset: datasetSelector,
   task,
   evaluators,
   logger = console,
@@ -180,7 +182,10 @@ export async function runExperiment({
   let provider: NodeTracerProvider | undefined;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
-  const dataset = await getDataset({ dataset: DatasetSelector, client });
+  const dataset = await getDataset({
+    dataset: datasetSelector,
+    client,
+  });
   invariant(dataset, `Dataset not found`);
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
   const nExamples =
@@ -197,6 +202,8 @@ export async function runExperiment({
       id: localId(),
       datasetId: dataset.id,
       datasetVersionId: dataset.versionId,
+      // @todo: the dataset should return splits in response body
+      datasetSplits: datasetSelector?.splits ?? [],
       projectName,
       metadata: experimentMetadata,
     };
@@ -215,6 +222,11 @@ export async function runExperiment({
           metadata: experimentMetadata,
           project_name: projectName,
           repetitions,
+          // @todo: the dataset should return splits in response body
+          ...(datasetSelector?.splits
+            ? { splits: datasetSelector.splits }
+            : {}),
+          ...(dataset?.versionId ? { version_id: dataset.versionId } : {}),
         },
       })
       .then((res) => res.data?.data);
@@ -224,6 +236,8 @@ export async function runExperiment({
       id: experimentResponse.id,
       datasetId: experimentResponse.dataset_id,
       datasetVersionId: experimentResponse.dataset_version_id,
+      // @todo: the dataset should return splits in response body
+      datasetSplits: datasetSelector?.splits ?? [],
       projectName,
       metadata: experimentResponse.metadata,
     };
@@ -233,17 +247,18 @@ export async function runExperiment({
       baseUrl,
       "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
     );
-    provider = createProvider({
+
+    provider = register({
       projectName,
-      baseUrl,
-      headers: client.config.headers ?? {},
-      useBatchSpanProcessor,
+      url: baseUrl,
+      headers: client.config.headers
+        ? toObjectHeaders(client.config.headers)
+        : undefined,
+      batch: useBatchSpanProcessor,
       diagLogLevel,
+      global: setGlobalTracerProvider,
     });
-    // Register the provider
-    if (setGlobalTracerProvider) {
-      provider.register();
-    }
+
     taskTracer = provider.getTracer(projectName);
   }
   if (!record) {
@@ -536,16 +551,16 @@ export async function evaluateExperiment({
   if (paramsTracerProvider) {
     provider = paramsTracerProvider;
   } else if (!isDryRun) {
-    provider = createProvider({
+    provider = register({
       projectName: "evaluators",
-      baseUrl,
-      headers: client.config.headers ?? {},
-      useBatchSpanProcessor,
+      url: baseUrl,
+      headers: client.config.headers
+        ? toObjectHeaders(client.config.headers)
+        : undefined,
+      batch: useBatchSpanProcessor,
       diagLogLevel,
+      global: setGlobalTracerProvider,
     });
-    if (setGlobalTracerProvider) {
-      provider.register();
-    }
   } else {
     provider = createNoOpProvider();
   }
@@ -557,7 +572,11 @@ export async function evaluateExperiment({
       ? Math.min(dryRun, Object.keys(experiment.runs).length)
       : Object.keys(experiment.runs).length;
   const dataset = await getDataset({
-    dataset: { datasetId: experiment.datasetId },
+    dataset: {
+      datasetId: experiment.datasetId,
+      versionId: experiment.datasetVersionId,
+      splits: experiment.datasetSplits,
+    },
     client,
   });
   invariant(dataset, `Dataset "${experiment.datasetId}" not found`);

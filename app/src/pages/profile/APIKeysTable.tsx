@@ -44,10 +44,10 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
   const [commit] = useMutation(graphql`
     mutation APIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
       deleteUserApiKey(input: $input) {
-        __typename
-        apiKeyId
         query {
-          ...UserAPIKeysTableFragment
+          viewer {
+            ...APIKeysTableFragment
+          }
         }
       }
     }
@@ -69,7 +69,7 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
             refetch(
               {},
               {
-                fetchPolicy: "network-only",
+                fetchPolicy: "store-and-network",
               }
             );
           });
@@ -80,7 +80,9 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
   );
 
   const tableData = useMemo(() => {
-    return [...data.apiKeys];
+    // ensure we don't have any undefined values in the array
+    // there is some hard to reproduce bug where the apiKeys array is not always populated
+    return data.apiKeys.filter(Boolean);
   }, [data]);
 
   type TableRow = (typeof tableData)[number];

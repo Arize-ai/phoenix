@@ -44,18 +44,20 @@
   },
   "keywords": [
     "evals",
+    "arize",
     "phoenix",
     "llm",
     "evaluation"
   ],
   "author": "oss@arize.com",
-  "license": "ELv2",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@ai-sdk/openai": "^2.0.0",
     "@arizeai/openinference-instrumentation-openai": "^2.3.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@types/mustache": "^4.2.6",
     "@types/node": "^24.0.10",
+    "msw": "^2.11.6",
     "nock": "^14.0.5",
     "tsx": "^4.19.3",
     "typedoc": "^0.27.9",

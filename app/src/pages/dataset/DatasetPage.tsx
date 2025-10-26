@@ -159,7 +159,6 @@ function DatasetPageContent({
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
   const isEvaluatorsEnabled = useFeatureFlag("evaluators");
-  const isDatasetLabelEnabled = useFeatureFlag("datasetLabel");
   const datasetId = dataset.id;
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
@@ -287,9 +286,7 @@ function DatasetPageContent({
                 refreshLatestVersion();
               }}
             />
-            {isDatasetLabelEnabled && (
-              <DatasetLabelConfigButton datasetId={dataset.id} />
-            )}
+            <DatasetLabelConfigButton datasetId={dataset.id} />
             <Button
               size="S"
               variant="primary"

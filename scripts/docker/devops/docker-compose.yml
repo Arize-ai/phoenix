@@ -249,7 +249,7 @@ services:
   # ==========================================================================
   
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.1.0
     profiles: ["grafana"]
     restart: always
     expose:
@@ -271,7 +271,7 @@ services:
       - "network.simulation=false"
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.4.0
     profiles: ["grafana"]
     restart: always
     expose:
@@ -331,7 +331,7 @@ services:
       - "network.simulation=false"
 
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
+    image: prometheuscommunity/postgres-exporter:v0.16.0
     profiles: ["grafana"]
     restart: always
     environment:
@@ -348,7 +348,7 @@ services:
       - "network.simulation=false"
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.51.0
     profiles: ["grafana"]
     restart: always
     expose:
@@ -379,7 +379,7 @@ services:
   # ==========================================================================
   
   toxiproxy:
-    image: ghcr.io/shopify/toxiproxy:latest
+    image: ghcr.io/shopify/toxiproxy:2.11.0
     profiles: ["toxiproxy"]
     restart: unless-stopped
     expose:
@@ -395,7 +395,7 @@ services:
       - "network.simulation=proxy"
 
   toxiproxy-init:
-    image: curlimages/curl:latest
+    image: curlimages/curl:8.11.1
     profiles: ["toxiproxy"]
     depends_on:
       - toxiproxy

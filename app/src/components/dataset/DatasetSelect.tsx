@@ -6,6 +6,7 @@ import {
   Flex,
   Label,
   ListBox,
+  ListBoxItem,
   Popover,
   Select,
   SelectChevronUpDownIcon,
@@ -21,7 +22,7 @@ type DatasetSelectProps = {
   onBlur?: () => void;
   validationState?: "valid" | "invalid";
   errorMessage?: string;
-  selectedKey?: string;
+  selectedKey?: string | null;
   placeholder?: string;
   size?: "S" | "M";
   label?: string;
@@ -77,22 +78,42 @@ export function DatasetSelect(props: DatasetSelectProps) {
             min-height: auto;
           `}
         >
-          {data.datasets.edges.map(({ dataset }) => (
-            <SelectItem key={dataset.id} id={dataset.id}>
-              <Flex
-                direction="row"
-                alignItems="center"
-                gap="size-200"
-                justifyContent="space-between"
-                width="100%"
+          {data.datasets.edges.map(({ dataset }) => {
+            const isDisabled = dataset.exampleCount === 0;
+            return (
+              <SelectItem
+                key={dataset.id}
+                id={dataset.id}
+                isDisabled={isDisabled}
               >
-                <Text>{dataset.name}</Text>
-                <Text color="text-700" size="XS">
-                  {dataset.exampleCount} examples
-                </Text>
-              </Flex>
-            </SelectItem>
-          ))}
+                <Flex
+                  direction="row"
+                  alignItems="center"
+                  gap="size-200"
+                  justifyContent="space-between"
+                  width="100%"
+                  css={css`
+                    opacity: ${isDisabled
+                      ? "var(--ac-global-opacity-disabled)"
+                      : 1};
+                  `}
+                >
+                  <Text>{dataset.name}</Text>
+                  <Text color="text-700" size="XS">
+                    {dataset.exampleCount} examples
+                  </Text>
+                </Flex>
+              </SelectItem>
+            );
+          })}
+          <ListBoxItem
+            href="/datasets"
+            style={{
+              textDecoration: "none",
+            }}
+          >
+            Go to Datasets
+          </ListBoxItem>
         </ListBox>
       </Popover>
     </Select>
