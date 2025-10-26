@@ -79,14 +79,14 @@ class DatasetLabelMutationMixin:
         name = input.name
         description = input.description
         color = input.color
-        dataset_rowids: list[int] = []
+        dataset_rowids: list[int] = {}  # use dictionary to de-duplicate while preserving order
         if input.dataset_ids:
             for dataset_id in input.dataset_ids:
                 try:
                     dataset_rowid = from_global_id_with_expected_type(dataset_id, Dataset.__name__)
                 except ValueError:
                     raise BadRequest(f"Invalid dataset ID: {dataset_id}")
-                dataset_rowids.append(dataset_rowid)
+                dataset_rowids[dataset_rowid] = None
 
         async with info.context.db() as session:
             dataset_label_orm = models.DatasetLabel(name=name, description=description, color=color)
@@ -103,7 +103,7 @@ class DatasetLabelMutationMixin:
                 datasets_by_id = {
                     dataset.id: dataset
                     for dataset in await session.scalars(
-                        select(models.Dataset).where(models.Dataset.id.in_(dataset_rowids))
+                        select(models.Dataset).where(models.Dataset.id.in_(dataset_rowids.keys()))
                     )
                 }
                 if len(datasets_by_id) != len(dataset_rowids):
