@@ -14,6 +14,7 @@
 * [Reference](https://arize-ai.github.io/phoenix/)
 * [@arizeai/phoenix-client](typescript/arizeai-phoenix-client.md)
 * [@arizeai/phoenix-evals](typescript/arizeai-phoenix-evals.md)
+* [@arizeai/phoenix-otel](typescript/arizeai-phoenix-otel.md)
 * [@arizeai/phoenix-mcp](typescript/mcp-server.md)
 
 ## Rest API
