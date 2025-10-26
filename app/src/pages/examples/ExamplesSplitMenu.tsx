@@ -52,6 +52,18 @@ const getInitialMode = (selectedExampleIds: string[]) => {
  * In filter mode, the user can select splits from a list.
  * In apply mode, the user can select splits to add or remove from the selected examples.
  * In create mode, the user can create a new split.
+ *
+ * You can skip "filter" mode for single example use cases by passing in an empty array for selectedSplitIds,
+ * and pre-populating the selectedExampleIds with the single example id and examplesCache with the single example.
+ * @example
+ * <ExamplesSplitMenu
+ *   onSelectionChange={() => {}}
+ *   onExampleSelectionChange={() => {}}
+ *   selectedSplitIds={[]}
+ *   selectedExampleIds={["123"]}
+ *   // ensure this comes from relay so that it updates when the example splits are updated
+ *   examplesCache={{ "123": { id: "123", datasetSplits: [{ id: "456", name: "Split 1" }] } }}
+ * />
  */
 export const ExamplesSplitMenu = ({
   onSelectionChange,
@@ -136,7 +148,7 @@ export const ExamplesSplitMenu = ({
  * In filter mode, the user can select splits from a list.
  * In apply mode, the user can select splits to add or remove from the selected examples.
  */
-export const SplitMenu = ({
+const SplitMenu = ({
   selectedSplitIds,
   selectedExampleIds,
   onSelectionChange,
