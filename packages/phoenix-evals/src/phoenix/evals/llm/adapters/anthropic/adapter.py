@@ -196,7 +196,6 @@ class AnthropicAdapter(BaseLLMAdapter):
             messages=messages,
             tools=[tool_definition],
             tool_choice={"type": "tool", "name": "extract_structured_data"},
-            max_tokens=4096,
             **kwargs,
         )
 
@@ -220,7 +219,6 @@ class AnthropicAdapter(BaseLLMAdapter):
             messages=messages,
             tools=[tool_definition],
             tool_choice={"type": "tool", "name": "extract_structured_data"},
-            max_tokens=4096,
             **kwargs,
         )
 
