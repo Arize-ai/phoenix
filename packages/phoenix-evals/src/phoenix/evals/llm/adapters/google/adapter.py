@@ -64,7 +64,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = self.client.models.generate_content(
-                model=self.model_name, contents=content, **kwargs
+                model=self.model, contents=content, **kwargs
             )
             if hasattr(response, "text"):
                 return cast(str, response.text)
@@ -85,7 +85,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = await self.client.models.generate_content(
-                model=self.model_name, contents=content, **kwargs
+                model=self.model, contents=content, **kwargs
             )
             if hasattr(response, "text"):
                 return cast(str, response.text)
@@ -116,21 +116,21 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
             if not supports_structured_output:
                 raise ValueError(
-                    f"Google GenAI model {self.model_name} does not support structured output"
+                    f"Google GenAI model {self.model} does not support structured output"
                 )
             return self._generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
             if not supports_tool_calls:
                 raise ValueError(
-                    f"Google GenAI model {self.model_name} does not support tool calls"
+                    f"Google GenAI model {self.model} does not support tool calls"
                 )
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
             if not supports_structured_output and not supports_tool_calls:
                 raise ValueError(
-                    f"Google GenAI model {self.model_name} does not support structured "
+                    f"Google GenAI model {self.model} does not support structured "
                     "output or tool calls"
                 )
             if supports_structured_output:
@@ -160,21 +160,21 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
             if not supports_structured_output:
                 raise ValueError(
-                    f"Google GenAI model {self.model_name} does not support structured output"
+                    f"Google GenAI model {self.model} does not support structured output"
                 )
             return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
             if not supports_tool_calls:
                 raise ValueError(
-                    f"Google GenAI model {self.model_name} does not support tool calls"
+                    f"Google GenAI model {self.model} does not support tool calls"
                 )
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
             if not supports_structured_output and not supports_tool_calls:
                 raise ValueError(
-                    f"Google GenAI model {self.model_name} does not support structured "
+                    f"Google GenAI model {self.model} does not support structured "
                     "output or tool calls"
                 )
             if supports_structured_output:
@@ -202,7 +202,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = self.client.models.generate_content(
-                model=self.model_name, contents=content, config=config, **kwargs
+                model=self.model, contents=content, config=config, **kwargs
             )
 
             if hasattr(response, "text"):
@@ -230,7 +230,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = await self.client.models.generate_content(
-                model=self.model_name, contents=content, config=config, **kwargs
+                model=self.model, contents=content, config=config, **kwargs
             )
 
             if hasattr(response, "text"):
@@ -262,7 +262,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = self.client.models.generate_content(
-                model=self.model_name, contents=content, config=config, **kwargs
+                model=self.model, contents=content, config=config, **kwargs
             )
 
             if hasattr(response, "candidates") and response.candidates:
@@ -298,7 +298,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = await self.client.models.generate_content(
-                model=self.model_name, contents=content, config=config, **kwargs
+                model=self.model, contents=content, config=config, **kwargs
             )
 
             if hasattr(response, "candidates") and response.candidates:
@@ -313,21 +313,14 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             self._handle_api_error(e)
             raise
 
-    @property
-    def model_name(self) -> str:
-        if hasattr(self.client, "model"):
-            return str(self.client.model)
-        else:
-            return "gemini-2.0-flash-exp"
-
     def _supports_tool_calls(self) -> bool:
-        model_name = self.model_name.lower()
+        model_name = self.model.lower()
         if "gemini-1.5" in model_name or "gemini-2" in model_name:
             return True
         return False
 
     def _supports_structured_output(self) -> bool:
-        model_name = self.model_name.lower()
+        model_name = self.model.lower()
         if "gemini-1.5" in model_name or "gemini-2" in model_name:
             return True
         return False

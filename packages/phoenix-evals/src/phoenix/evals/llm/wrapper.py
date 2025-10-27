@@ -172,8 +172,8 @@ class LLM:
 
         self._sync_client = sync_client
         self._async_client = async_client
-        self._sync_adapter = adapter_class(sync_client)
-        self._async_adapter = adapter_class(async_client)
+        self._sync_adapter = adapter_class(sync_client, model=model)
+        self._async_adapter = adapter_class(async_client, model=model)
         self._rate_limit_errors = rate_limit_errors
         rate_limit_args: Dict[str, Any] = {}
         if initial_per_second_request_rate is not None:
