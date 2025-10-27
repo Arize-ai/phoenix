@@ -65,12 +65,11 @@ class DatasetSplit(Node):
         info: Info[Context, None],
     ) -> str:
         if self.db_record:
-            val = self.db_record.color or "#ffffff"
+            val = self.db_record.color
         else:
             val = await info.context.data_loaders.dataset_split_fields.load(
                 (self.id, models.DatasetSplit.color),
             )
-            val = val or "#ffffff"
         return val
 
     @strawberry.field
