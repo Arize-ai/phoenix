@@ -34,12 +34,8 @@ export interface ComboBoxProps<T extends object>
   errorMessage?: string | ((validation: ValidationResult) => string);
   children: React.ReactNode | ((item: T) => React.ReactNode);
   /**
-   * The container to render the popover into. If not provided, the popover will be rendered in the body.
-   * @default document.body
-   */
-  container?: HTMLElement;
-  /**
    * The width of the combobox. If not provided, the combobox will be sized to fit its contents. with a minimum width of 200px.
+   * @default "100%"
    */
   width?: string;
   /**
@@ -65,7 +61,6 @@ export function ComboBox<T extends object>({
   description,
   errorMessage,
   children,
-  container,
   size = "M",
   width,
   stopPropagation,
@@ -101,7 +96,7 @@ export function ComboBox<T extends object>({
         <Text slot="description">{description}</Text>
       ) : null}
       <FieldError>{errorMessage}</FieldError>
-      <Popover css={comboBoxPopoverCSS} UNSTABLE_portalContainer={container}>
+      <Popover css={comboBoxPopoverCSS}>
         <ListBox renderEmptyState={renderEmptyState}>{children}</ListBox>
       </Popover>
     </AriaComboBox>
