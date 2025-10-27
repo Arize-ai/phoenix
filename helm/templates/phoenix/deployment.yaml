@@ -100,9 +100,9 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
-          {{- end }}
           {{- if .Values.additionalEnv }}
           {{- .Values.additionalEnv | toYaml | nindent 12 }}
+          {{- end }}
           {{- end }}
 
           volumeMounts:
