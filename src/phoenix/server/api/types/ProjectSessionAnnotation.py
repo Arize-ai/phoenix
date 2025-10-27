@@ -11,6 +11,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
+from .Annotation import Annotation
 from .AnnotationSource import AnnotationSource
 
 if TYPE_CHECKING:
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 
 
 @strawberry.type
-class ProjectSessionAnnotation(Node):
+class ProjectSessionAnnotation(Node, Annotation):
     id: NodeID[int]
     db_record: strawberry.Private[models.ProjectSessionAnnotation] = UNSET
 
