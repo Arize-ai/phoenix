@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense } from "react";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
@@ -13,11 +13,6 @@ export function ExamplesPage() {
   const loaderData = useLoaderData<typeof examplesLoader>();
   invariant(loaderData, "loaderData is required");
   const data = usePreloadedQuery(examplesLoaderGql, loaderData);
-  useEffect(() => {
-    return () => {
-      loaderData.dispose();
-    };
-  }, [loaderData]);
   return (
     <ExamplesFilterProvider>
       <ExamplesFilterBar />

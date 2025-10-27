@@ -50,6 +50,9 @@ import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import { CloneModelButton } from "./CloneModelButton";
 import { DeleteModelButton } from "./DeleteModelButton";
 
+type ModelsTableGenerativeModel =
+  ModelsTable_generativeModels$data["generativeModels"]["edges"][number]["generativeModel"];
+
 type ModelsTableProps = {
   modelsRef: ModelsTable_generativeModels$key;
   kindFilter: "ALL" | GenerativeModelKind;
@@ -73,10 +76,7 @@ function filterableDateAccessorFn(row?: string | null | undefined) {
  * @param tokenType - the token type to get the cost for
  * @returns the cost of the row for the given token type
  */
-function getRowCostNumber(
-  row: ModelsTable_generativeModels$data["generativeModels"][number],
-  tokenType: string
-) {
+function getRowCostNumber(row: ModelsTableGenerativeModel, tokenType: string) {
   const cost = row.tokenPrices?.find(
     (entry) => entry.tokenType === tokenType
   )?.costPerMillionTokens;
@@ -89,10 +89,7 @@ function getRowCostNumber(
  * @param tokenType - the token type to get the cost for
  * @returns the cost of the row for the given token type
  */
-function getRowCost(
-  row: ModelsTable_generativeModels$data["generativeModels"][number],
-  tokenType: string
-) {
+function getRowCost(row: ModelsTableGenerativeModel, tokenType: string) {
   const cost = getRowCostNumber(row, tokenType);
   return cost != null ? `${costFormatter(cost)}` : "--";
 }
@@ -107,9 +104,11 @@ function getRowCost(
  * @param columnId - the id of the column to sort by
  * @returns the difference between the costs of the two rows
  */
-const sortCostColumnFn: SortingFn<
-  ModelsTable_generativeModels$data["generativeModels"][number]
-> = (rowA, rowB, columnId) => {
+const sortCostColumnFn: SortingFn<ModelsTableGenerativeModel> = (
+  rowA,
+  rowB,
+  columnId
+) => {
   const costA = getRowCostNumber(rowA.original, columnId);
   const costB = getRowCostNumber(rowB.original, columnId);
   if (costA == null || costB == null) {
@@ -125,22 +124,32 @@ export function ModelsTable({
 }: ModelsTableProps) {
   const data = useFragment(
     graphql`
-      fragment ModelsTable_generativeModels on Query {
-        generativeModels {
-          id
-          name
-          provider
-          namePattern
-          providerKey
-          startTime
-          createdAt
-          updatedAt
-          lastUsedAt
-          kind
-          tokenPrices {
-            tokenType
-            kind
-            costPerMillionTokens
+      fragment ModelsTable_generativeModels on Query
+      @refetchable(queryName: "ModelsTableGenerativeModelsQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 1000 }
+      ) {
+        generativeModels(first: $first, after: $after)
+          @connection(key: "ModelsTable_generativeModels") {
+          edges {
+            generativeModel: node {
+              id
+              name
+              provider
+              namePattern
+              providerKey
+              startTime
+              createdAt
+              updatedAt
+              lastUsedAt
+              kind
+              tokenPrices {
+                tokenType
+                kind
+                costPerMillionTokens
+              }
+            }
           }
         }
       }
@@ -148,11 +157,13 @@ export function ModelsTable({
     modelsRef
   );
 
-  const generativeModels = data.generativeModels;
-
   const tableData = useMemo(
-    () => (generativeModels ?? []) as Mutable<typeof generativeModels>,
-    [generativeModels]
+    () =>
+      (data.generativeModels.edges.map((edge) => edge.generativeModel) ??
+        []) as Mutable<
+        (typeof data.generativeModels.edges)[number]["generativeModel"]
+      >[],
+    [data]
   );
 
   type TableRow = (typeof tableData)[number];
