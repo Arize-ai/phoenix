@@ -61,7 +61,7 @@ class PromptVersion(Node):
 
     @strawberry.field
     async def user(
-        self, info: Info[Context, None]
+        self
     ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
         if self.user_id is None:
             return None
