@@ -459,10 +459,12 @@ input CreateDatasetLabelInput {
   name: String!
   description: String
   color: String!
+  datasetIds: [ID!]
 }
 
 type CreateDatasetLabelMutationPayload {
   datasetLabel: DatasetLabel!
+  datasets: [Dataset!]!
 }
 
 input CreateDatasetSplitInput {
@@ -1568,6 +1570,24 @@ type GenerativeModel implements Node & ModelInterface {
   lastUsedAt: DateTime
 }
 
+"""A connection to a list of items."""
+type GenerativeModelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [GenerativeModelEdge!]!
+}
+
+"""An edge in a connection."""
+type GenerativeModelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: GenerativeModel!
+}
+
 input GenerativeModelInput {
   providerKey: GenerativeProviderKey!
   name: String!
@@ -1796,10 +1816,8 @@ type Mutation {
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
-  updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
-  unsetDatasetLabels(input: UnsetDatasetLabelsInput!): UnsetDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -2455,7 +2473,7 @@ type PromptVersionTagMutationPayload {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
-  generativeModels: [GenerativeModel!]!
+  generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
@@ -2574,12 +2592,13 @@ type ServerStatus {
 }
 
 input SetDatasetLabelsInput {
+  datasetId: ID!
   datasetLabelIds: [ID!]!
-  datasetIds: [ID!]!
 }
 
 type SetDatasetLabelsMutationPayload {
   query: Query!
+  dataset: Dataset!
 }
 
 input SetPromptLabelsInput {
@@ -3242,15 +3261,6 @@ type UMAPPoints {
   contextRetrievals: [Retrieval!]!
 }
 
-input UnsetDatasetLabelsInput {
-  datasetLabelIds: [ID!]!
-  datasetIds: [ID!]!
-}
-
-type UnsetDatasetLabelsMutationPayload {
-  query: Query!
-}
-
 input UnsetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
@@ -3275,17 +3285,6 @@ input UpdateAnnotationInput {
   explanation: String = null
   metadata: JSON! = {}
   source: AnnotationSource! = APP
-}
-
-input UpdateDatasetLabelInput {
-  datasetLabelId: ID!
-  name: String!
-  description: String = null
-  color: String!
-}
-
-type UpdateDatasetLabelMutationPayload {
-  datasetLabel: DatasetLabel!
 }
 
 input UpdateModelMutationInput {
