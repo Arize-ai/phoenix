@@ -75,7 +75,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         if self._is_async:
             raise ValueError("Cannot call sync method generate_text() on async Anthropic client.")
         messages = self._build_messages(prompt)
-        required_kwargs = {"max_tokens": 4096} # max_tokens is required for Anthropic
+        required_kwargs = {"max_tokens": 4096}  # max_tokens is required for Anthropic
         kwargs = {**required_kwargs, **kwargs}
 
         try:
