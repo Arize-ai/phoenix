@@ -466,7 +466,9 @@ const SplitMenuCreateContent = ({
           <Heading level={4} weight="heavy">
             Create Split
             {selectedExampleIds.length > 0
-              ? " for " + selectedExampleIds.length + " examples"
+              ? " for " +
+                selectedExampleIds.length +
+                (selectedExampleIds.length === 1 ? " example" : " examples")
               : ""}
           </Heading>
         </Flex>
