@@ -618,7 +618,6 @@ class ClassificationEvaluator(LLMEvaluator):
         ]
 
 
-@_deprecate_positional_args("create_evaluator")
 def create_evaluator(
     name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
 ) -> Callable[[Callable[..., Any]], Evaluator]:
