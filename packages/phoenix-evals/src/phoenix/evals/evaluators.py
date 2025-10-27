@@ -3,6 +3,7 @@ import copy
 import inspect
 import itertools
 import json
+import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -38,6 +39,34 @@ from .llm import LLM
 from .llm.types import ObjectGenerationMethod
 from .templating import Template
 from .utils import default_tqdm_progress_bar_formatter, remap_eval_input
+
+
+def _deprecate_positional_args(
+    func_name: str,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """
+    Decorator to issue deprecation warnings for positional argument usage.
+
+    Args:
+        func_name: Name of the function being decorated (for warning message)
+    """
+
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Issue deprecation warning if called with ANY positional arguments
+            if len(args) > 0:
+                warnings.warn(
+                    f"Positional arguments for {func_name} are deprecated and will be removed "
+                    f"in a future version. Please use keyword arguments instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
 
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
@@ -618,8 +647,9 @@ class ClassificationEvaluator(LLMEvaluator):
         ]
 
 
+@_deprecate_positional_args("create_evaluator")
 def create_evaluator(
-    *, name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
+    name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
 ) -> Callable[[Callable[..., Any]], Evaluator]:
     """
     Decorator that turns a simple function into an Evaluator instance.
@@ -897,8 +927,8 @@ def create_evaluator(
 
 
 # --- Factory functions ---
+@_deprecate_positional_args("create_classifier")
 def create_classifier(
-    *,
     name: str,
     prompt_template: str,
     llm: LLM,
@@ -986,8 +1016,8 @@ def create_classifier(
 
 
 # --- Bound Evaluator ---
+@_deprecate_positional_args("bind_evaluator")
 def bind_evaluator(
-    *,
     evaluator: Evaluator,
     input_mapping: InputMappingType,
 ) -> Evaluator:
@@ -1173,8 +1203,8 @@ def _process_results_and_add_to_dataframe(
         result_df[score_col] = score_list
 
 
+@_deprecate_positional_args("evaluate_dataframe")
 def evaluate_dataframe(
-    *,
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     tqdm_bar_format: Optional[str] = None,
@@ -1284,6 +1314,7 @@ def evaluate_dataframe(
         - Failed evaluations: If an evaluation fails, the failure details will be recorded
           in the execution_details column and the score will be None.
     """
+
     # Prepare common data structures
     result_df, eval_inputs, task_inputs = _prepare_dataframe_evaluation(dataframe, evaluators)
 
@@ -1293,7 +1324,7 @@ def evaluate_dataframe(
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
         scores = evaluator.evaluate(eval_input=eval_input)
-        return scores
+        return cast(List[Score], scores)
 
     # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
@@ -1322,8 +1353,8 @@ def evaluate_dataframe(
     return result_df
 
 
+@_deprecate_positional_args("async_evaluate_dataframe")
 async def async_evaluate_dataframe(
-    *,
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     concurrency: Optional[int] = None,
@@ -1469,7 +1500,7 @@ async def async_evaluate_dataframe(
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
         scores = await evaluator.async_evaluate(eval_input=eval_input)
-        return scores
+        return cast(List[Score], scores)
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
