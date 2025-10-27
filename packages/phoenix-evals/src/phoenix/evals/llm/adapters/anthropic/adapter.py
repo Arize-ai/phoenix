@@ -241,7 +241,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get(
-            "description", "Extract structured data according to the provided schema"
+            "description", "Respond in a format matching the provided schema"
         )
 
         tool_definition = {
