@@ -53,8 +53,8 @@ def get_openai_langchain_rate_limit_errors() -> list[Type[Exception]]:
     dependencies=["langchain", "langchain-anthropic"],
 )
 class LangChainModelAdapter(BaseLLMAdapter):
-    def __init__(self, client: Any):
-        self.client = client
+    def __init__(self, client: Any, model: str):
+        super().__init__(client, model)
         self._validate_client()
 
     @classmethod

@@ -41,8 +41,8 @@ def get_anthropic_rate_limit_errors() -> list[Type[Exception]]:
     dependencies=["anthropic"],
 )
 class AnthropicAdapter(BaseLLMAdapter):
-    def __init__(self, client: Any):
-        self.client = client
+    def __init__(self, client: Any, model: str):
+        super().__init__(client, model)
         self._validate_client()
         self._is_async = self._check_if_async_client()
 
