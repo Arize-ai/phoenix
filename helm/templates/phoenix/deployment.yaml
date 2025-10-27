@@ -77,7 +77,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-configmap
-          {{- if or .Values.auth.secret (and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers) }}
+          {{- if or .Values.auth.secret (and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers) .Values.additionalEnv }}
           env:
           {{- if .Values.auth.secret }}
           {{- range $authSecrets := .Values.auth.secret }}
@@ -104,6 +104,9 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
+          {{- end }}
+          {{- if .Values.additionalEnv }}
+          {{- .Values.additionalEnv | toYaml | nindent 12 }}
           {{- end }}
 
           volumeMounts:
