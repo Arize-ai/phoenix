@@ -3,7 +3,6 @@ import copy
 import inspect
 import itertools
 import json
-import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -38,35 +37,7 @@ from .legacy.evaluators import (
 from .llm import LLM
 from .llm.types import ObjectGenerationMethod
 from .templating import Template
-from .utils import default_tqdm_progress_bar_formatter, remap_eval_input
-
-
-def _deprecate_positional_args(
-    func_name: str,
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """
-    Decorator to issue deprecation warnings for positional argument usage.
-
-    Args:
-        func_name: Name of the function being decorated (for warning message)
-    """
-
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Issue deprecation warning if called with ANY positional arguments
-            if len(args) > 0:
-                warnings.warn(
-                    f"Positional arguments for {func_name} are deprecated and will be removed "
-                    f"in a future version. Please use keyword arguments instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
+from .utils import _deprecate_positional_args, default_tqdm_progress_bar_formatter, remap_eval_input
 
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
@@ -245,7 +216,7 @@ class Evaluator(ABC):
         Subclasses can override this for more efficient async implementations.
         """
         result = await to_thread(self._evaluate)(eval_input)
-        return cast(List[Score], result)
+        return result
 
     def evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
@@ -1324,7 +1295,7 @@ def evaluate_dataframe(
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
         scores = evaluator.evaluate(eval_input=eval_input)
-        return cast(List[Score], scores)
+        return scores
 
     # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
@@ -1500,7 +1471,7 @@ async def async_evaluate_dataframe(
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
         scores = await evaluator.async_evaluate(eval_input=eval_input)
-        return cast(List[Score], scores)
+        return scores
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
