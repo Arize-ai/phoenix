@@ -110,33 +110,27 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             )
         self._validate_schema(schema)
 
-        supports_tool_calls = self._supports_tool_calls()
-        supports_structured_output = self._supports_structured_output()
-
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            if not supports_structured_output:
-                raise ValueError(
-                    f"Google GenAI model {self.model} does not support structured output"
-                )
             return self._generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            if not supports_tool_calls:
-                raise ValueError(
-                    f"Google GenAI model {self.model} does not support tool calls"
-                )
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            if not supports_structured_output and not supports_tool_calls:
-                raise ValueError(
-                    f"Google GenAI model {self.model} does not support structured "
-                    "output or tool calls"
-                )
-            if supports_structured_output:
+            try:
                 return self._generate_with_structured_output(prompt, schema, **kwargs)
-            else:
-                return self._generate_with_tool_calling(prompt, schema, **kwargs)
+            except Exception as structured_error:
+                logger.debug(
+                    f"Structured output failed for {self.model}, falling back to tool calling: "
+                    f"{structured_error}"
+                )
+                try:
+                    return self._generate_with_tool_calling(prompt, schema, **kwargs)
+                except Exception as tool_error:
+                    raise ValueError(
+                        f"Google GenAI model {self.model} failed with both structured output "
+                        f"and tool calling. Tool calling error: {tool_error}"
+                    ) from tool_error
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -154,33 +148,27 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             )
         self._validate_schema(schema)
 
-        supports_tool_calls = self._supports_tool_calls()
-        supports_structured_output = self._supports_structured_output()
-
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            if not supports_structured_output:
-                raise ValueError(
-                    f"Google GenAI model {self.model} does not support structured output"
-                )
             return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            if not supports_tool_calls:
-                raise ValueError(
-                    f"Google GenAI model {self.model} does not support tool calls"
-                )
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            if not supports_structured_output and not supports_tool_calls:
-                raise ValueError(
-                    f"Google GenAI model {self.model} does not support structured "
-                    "output or tool calls"
-                )
-            if supports_structured_output:
+            try:
                 return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
-            else:
-                return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+            except Exception as structured_error:
+                logger.debug(
+                    f"Structured output failed for {self.model}, falling back to tool calling: "
+                    f"{structured_error}"
+                )
+                try:
+                    return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+                except Exception as tool_error:
+                    raise ValueError(
+                        f"Google GenAI model {self.model} failed with both structured output "
+                        f"and tool calling. Tool calling error: {tool_error}"
+                    ) from tool_error
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -312,18 +300,6 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         except Exception as e:
             self._handle_api_error(e)
             raise
-
-    def _supports_tool_calls(self) -> bool:
-        model_name = self.model.lower()
-        if "gemini-1.5" in model_name or "gemini-2" in model_name:
-            return True
-        return False
-
-    def _supports_structured_output(self) -> bool:
-        model_name = self.model.lower()
-        if "gemini-1.5" in model_name or "gemini-2" in model_name:
-            return True
-        return False
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Any:
         from google import genai
