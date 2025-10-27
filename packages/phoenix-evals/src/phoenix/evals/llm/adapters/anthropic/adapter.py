@@ -83,7 +83,9 @@ class AnthropicAdapter(BaseLLMAdapter):
             if hasattr(response.content[0], "text"):
                 return cast(str, response.content[0].text)
             else:
-                raise ValueError("Anthropic returned unexpected content format")
+                raise ValueError(
+                    f"Anthropic returned unexpected content format: {response.content}"
+                )
         except Exception as e:
             logger.error(f"Anthropic completion failed: {e}")
             raise
@@ -240,9 +242,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         return "claude" in model_name
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
-        description = schema.get(
-            "description", "Respond in a format matching the provided schema"
-        )
+        description = schema.get("description", "Respond in a format matching the provided schema")
 
         tool_definition = {
             "name": "extract_structured_data",
