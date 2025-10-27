@@ -33,6 +33,7 @@ import {
   ProgressBar,
   SelectChevronUpDownIcon,
   Text,
+  ToggleButton,
   Tooltip,
   TooltipTrigger,
   View,
@@ -287,6 +288,12 @@ export function ExperimentCompareDetails({
   );
 }
 
+const referenceOutputPinnedCSS = css`
+  position: sticky;
+  left: 0;
+  z-index: 1;
+`;
+
 export function ExperimentRunOutputs() {
   const {
     sortedExperimentRepetitions,
@@ -296,6 +303,7 @@ export function ExperimentRunOutputs() {
     compareExperimentIds,
     referenceOutput,
     referenceOutputSelected,
+    referenceOutputPinned,
   } = useExperimentCompareDetailsContext();
 
   const experimentIds = useMemo(
@@ -373,6 +381,18 @@ export function ExperimentRunOutputs() {
               <li
                 css={css`
                   flex: none;
+                  position: relative;
+                  background-color: var(--ac-global-background-color-dark);
+                  ${referenceOutputPinned ? referenceOutputPinnedCSS : ""}
+                  &:before {
+                    content: "";
+                    position: absolute;
+                    left: calc(var(--ac-global-dimension-static-size-200) * -1);
+                    top: 0;
+                    width: var(--ac-global-dimension-static-size-200);
+                    height: 100%;
+                    background-color: var(--ac-global-background-color-dark);
+                  }
                 `}
               >
                 <ReferenceOutputItem />
@@ -466,6 +486,8 @@ function ExperimentRunOutputsSidebar() {
     referenceOutput,
     referenceOutputSelected,
     toggleReferenceOutputSelected,
+    referenceOutputPinned,
+    toggleReferenceOutputPinned,
   } = useExperimentCompareDetailsContext();
 
   const experimentIds = useMemo(
@@ -596,14 +618,28 @@ function ExperimentRunOutputsSidebar() {
           )}
         </Flex>
         {referenceOutput && (
-          <Checkbox
-            isSelected={referenceOutputSelected}
-            onChange={toggleReferenceOutputSelected}
+          <Flex
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+            justifyContent="space-between"
           >
-            <Flex minHeight={30} alignItems="center">
-              <Text>Reference Output</Text>
-            </Flex>
-          </Checkbox>
+            <Checkbox
+              isSelected={referenceOutputSelected}
+              onChange={toggleReferenceOutputSelected}
+            >
+              <Flex minHeight={30} alignItems="center">
+                <Text>Reference Output</Text>
+              </Flex>
+            </Checkbox>
+            <ToggleButton
+              size="S"
+              isSelected={referenceOutputPinned}
+              onPress={toggleReferenceOutputPinned}
+            >
+              {referenceOutputPinned ? "unpin" : "pin"}
+            </ToggleButton>
+          </Flex>
         )}
       </View>
       {sortedExperimentRepetitions.map(

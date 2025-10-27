@@ -64,6 +64,9 @@ interface ExperimentCompareContextType {
   setSelectedAnnotation: (annotation: string | null) => void;
   sortDirection: "asc" | "desc";
   toggleSortDirection: () => void;
+  // Pinning state
+  referenceOutputPinned: boolean;
+  toggleReferenceOutputPinned: () => void;
   // Computed state
   sortedExperimentRepetitions: {
     experimentId: string;
@@ -164,6 +167,13 @@ export function ExperimentCompareDetailsProvider({
     setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
   }, []);
 
+  // Pinning state
+  const [referenceOutputPinned, setReferenceOutputPinned] =
+    useState<boolean>(false);
+  const toggleReferenceOutputPinned = useCallback(() => {
+    setReferenceOutputPinned((prev) => !prev);
+  }, []);
+
   // Computed state
   const sortedExperimentRepetitions = useMemo(() => {
     // when all experiments have a single repetition, we sort across experiments
@@ -233,6 +243,8 @@ export function ExperimentCompareDetailsProvider({
     setSelectedAnnotation,
     sortDirection,
     toggleSortDirection,
+    referenceOutputPinned,
+    toggleReferenceOutputPinned,
     sortedExperimentRepetitions,
     noRunsSelected,
   };
