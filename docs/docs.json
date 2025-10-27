@@ -197,7 +197,8 @@
                       "phoenix/datasets-and-experiments/how-to-experiments",
                       "phoenix/datasets-and-experiments/how-to-experiments/run-experiments",
                       "phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
-                      "phoenix/datasets-and-experiments/how-to-experiments/repetitions"
+                      "phoenix/datasets-and-experiments/how-to-experiments/repetitions",
+                      "phoenix/datasets-and-experiments/how-to-experiments/splits"
                     ]
                   },
                   "phoenix/datasets-and-experiments/concepts-datasets"
