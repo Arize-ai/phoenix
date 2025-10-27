@@ -78,7 +78,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         try:
             response = self.client.messages.create(
-                model=self.model_name, messages=messages, max_tokens=4096, **kwargs
+                model=self.model_name, messages=messages, **kwargs
             )
             if hasattr(response.content[0], "text"):
                 return cast(str, response.content[0].text)
@@ -97,7 +97,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         try:
             response = await self.client.messages.create(
-                model=self.model_name, messages=messages, max_tokens=4096, **kwargs
+                model=self.model_name, messages=messages, **kwargs
             )
             if hasattr(response.content[0], "text"):
                 return cast(str, response.content[0].text)
