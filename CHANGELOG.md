@@ -1,5 +1,20 @@
 # Changelog
 
+## [12.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.7.1...arize-phoenix-v12.8.0) (2025-10-27)
+
+
+### Features
+
+* Add split edit menu to single example ([#10016](https://github.com/Arize-ai/phoenix/issues/10016)) ([7baead1](https://github.com/Arize-ai/phoenix/commit/7baead1787359c692ab45ac6d3816eeed1c8e76a))
+* dataset label graphql set ([#9989](https://github.com/Arize-ai/phoenix/issues/9989)) ([55ec333](https://github.com/Arize-ai/phoenix/commit/55ec3339aacab433cfa9cdef1ef902542d8295b6))
+* Refactor settings pages to preload graphql queries while navigating ([#10006](https://github.com/Arize-ai/phoenix/issues/10006)) ([41ce837](https://github.com/Arize-ai/phoenix/commit/41ce837c5c72c50c73cd7dce5884f4b4cb087ae8))
+* Validate split name while typing ([#10015](https://github.com/Arize-ai/phoenix/issues/10015)) ([03df3b5](https://github.com/Arize-ai/phoenix/commit/03df3b50063e18bce8e6a0c82667b90e3eddeec0))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10024](https://github.com/Arize-ai/phoenix/issues/10024)) ([2bd8484](https://github.com/Arize-ai/phoenix/commit/2bd8484d428421bf534760d9a3184c8fbe0cbe73))
+
 ## [12.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.7.0...arize-phoenix-v12.7.1) (2025-10-24)
 
 
