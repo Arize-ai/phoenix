@@ -1,3 +1,4 @@
+import functools
 import inspect
 import json
 import warnings
@@ -39,6 +40,7 @@ def _deprecate_positional_args(
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Issue deprecation warning if called with ANY positional arguments
             if len(args) > 0:

@@ -216,7 +216,7 @@ class Evaluator(ABC):
         Subclasses can override this for more efficient async implementations.
         """
         result = await to_thread(self._evaluate)(eval_input)
-        return result
+        return cast(List[Score], result)
 
     def evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
