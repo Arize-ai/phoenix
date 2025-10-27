@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 1.0.8](https://img.shields.io/badge/Version-1.0.8-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.11.0](https://img.shields.io/badge/AppVersion-10.11.0-informational?style=flat-square)
+![Version: 4.0.6](https://img.shields.io/badge/Version-4.0.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.7.1](https://img.shields.io/badge/AppVersion-12.7.1-informational?style=flat-square)
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For instructions on how to deploy this Helm chart, see the [self-hosting docs](https://arize.com/docs/phoenix/self-hosting).
   - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
@@ -26,18 +26,21 @@ Phoenix is an open-source AI observability platform designed for experimentation
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://registry-1.docker.io/bitnamicharts | postgresql | 16.7.8 |
+| https://groundhog2k.github.io/helm-charts/ | postgresql(postgres) | 1.5.8 |
 
 ## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| additionalEnv | list | `[]` | Additional environment variables to add to the deployments pod spec For supported environment variables see https://arize.com/docs/phoenix/self-hosting/configuration#environment-variables Should only be used for capabilities not exposed via the helm chart directly |
 | auth.accessTokenExpiryMinutes | int | `60` | Duration in minutes before access tokens expire and require renewal (PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES) |
 | auth.allowedOrigins | list | `[]` | List of allowed CORS origins for cross-origin requests to the Phoenix API (PHOENIX_ALLOWED_ORIGINS) |
 | auth.csrfTrustedOrigins | list | `[]` | List of trusted origins for CSRF protection to prevent cross-site request forgery attacks (PHOENIX_CSRF_TRUSTED_ORIGINS) |
-| auth.defaultAdminPassword | string | `"admin"` | Default password for the admin user on initial setup, stored securely in Secret |
+| auth.defaultAdminPassword | string | `"admin"` | Default password for the admin user on initial setup (PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) |
 | auth.enableAuth | bool | `true` | Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH) |
 | auth.name | string | `"phoenix-secret"` | Name of the Kubernetes secret containing authentication credentials |
+| auth.oauth2.enabled | bool | `false` | Enable OAuth2/OIDC authentication |
+| auth.oauth2.providers | string | `nil` | List of OAuth2 identity providers to configure Each provider requires client_id, client_secret, and oidc_config_url Optional settings include display_name, allow_sign_up, and auto_login |
 | auth.passwordResetTokenExpiryMinutes | int | `60` | Duration in minutes before password reset tokens expire (PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES) |
 | auth.refreshTokenExpiryMinutes | int | `43200` | Duration in minutes before refresh tokens expire (PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES) |
 | auth.secret[0] | object | `{"key":"PHOENIX_SECRET","value":""}` | Environment variable name for the main Phoenix secret key used for encryption |
@@ -51,22 +54,45 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.secret[4] | object | `{"key":"PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD","value":""}` | Environment variable name for the default admin password |
 | auth.secret[4].value | string | `""` | Default password for the admin user on initial setup, uses defaultAdminPassword if empty |
 | auth.useSecureCookies | bool | `false` | Enable secure cookies (should be true when using HTTPS) |
-| database.allocatedStorageGiB | int | `10` | Storage allocation in GiB for the database persistent volume |
-| database.defaultRetentionPolicyDays | int | `0` | Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS). Set to 0 to disable automatic trace cleanup. When set to a positive value, traces older than this many days will be automatically removed from the database. This setting configures the default retention policy that applies to all projects unless overridden on a per-project basis through the Phoenix UI. |
+| database.allocatedStorageGiB | int | `20` | Storage allocation in GiB for the database persistent volume |
+| database.defaultRetentionPolicyDays | int | `0` | Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS) Set to 0 to disable automatic trace cleanup. When set to a positive value, traces older than this many days will be automatically removed from the database. |
 | database.postgres.db | string | `"phoenix"` | Name of the PostgreSQL database (PHOENIX_POSTGRES_DB) |
-| database.postgres.host | string | `"phoenix-postgresql"` | Postgres Host (PHOENIX_POSTGRES_HOST). Default points to the built-in PostgreSQL service when postgresql.enabled=true. Change this to your external database host when using RDS, CloudSQL, etc. |
+| database.postgres.host | string | `""` | Postgres Host (PHOENIX_POSTGRES_HOST) Default points to the groundhog2k PostgreSQL service when postgresql.enabled=true IMPORTANT: Only change this when using external PostgreSQL (postgresql.enabled=false, database.url empty) Examples: "localhost", "postgres.example.com", "your-rds-endpoint.region.rds.amazonaws.com" |
 | database.postgres.password | string | `"postgres"` | PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD) |
 | database.postgres.port | int | `5432` | Port number for PostgreSQL connections (PHOENIX_POSTGRES_PORT) |
 | database.postgres.schema | string | `""` | PostgreSQL schema to use (PHOENIX_SQL_DATABASE_SCHEMA) |
 | database.postgres.user | string | `"postgres"` | PostgreSQL username (PHOENIX_POSTGRES_USER) |
-| database.url | string | `""` | Full database connection URL (overrides postgres settings if provided). Use this for external databases like RDS. Example: postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix. When using this, ensure postgresql.enabled=false |
+| database.url | string | `""` | Full database connection URL (overrides postgres settings if provided) IMPORTANT: Only set this for external databases (Strategy 3) - When using SQLite (Strategy 1): MUST be empty - SQLite auto-uses persistent volume - When using built-in PostgreSQL (Strategy 2): MUST be empty - auto-configured - When using external database (Strategy 3): MUST be configured with full connection string  Examples for external databases: PostgreSQL: "postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix" SQLite: "sqlite:///path/to/database.db" (only for external SQLite files, not recommended)  WARNING: Setting this will override all database.postgres.* settings and disable built-in PostgreSQL validation |
+| deployment.affinity | object | `{}` |  |
+| deployment.nodeSelector | object | `{}` |  |
+| deployment.strategy | object | `{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"}` | Deployment strategy |
+| deployment.tolerations | list | `[]` | Tolerations, nodeSelector and affinity For Pod scheduling strategy on the nodes |
+| extraVolumeMounts | list | `[]` | Extra Volume Mounts |
+| extraVolumes | list | `[]` | Extra Volumes configuration |
+| healthChecks | object | `{"livenessProbe":{"failureThreshold":3,"initialDelaySeconds":0,"periodSeconds":10,"successThreshold":1,"timeoutSeconds":5},"readinessProbe":{"failureThreshold":3,"initialDelaySeconds":0,"periodSeconds":5,"successThreshold":1,"timeoutSeconds":3},"startupProbe":{"enabled":true,"failureThreshold":30,"initialDelaySeconds":1,"periodSeconds":1,"successThreshold":1,"timeoutSeconds":1}}` | Health check configuration |
+| healthChecks.livenessProbe | object | `{"failureThreshold":3,"initialDelaySeconds":0,"periodSeconds":10,"successThreshold":1,"timeoutSeconds":5}` | Liveness probe configuration |
+| healthChecks.livenessProbe.failureThreshold | int | `3` | Number of failures before container is restarted |
+| healthChecks.livenessProbe.initialDelaySeconds | int | `0` | Initial delay before liveness probe starts |
+| healthChecks.livenessProbe.periodSeconds | int | `10` | How often to perform the liveness probe |
+| healthChecks.livenessProbe.successThreshold | int | `1` | Number of consecutive successes for the probe to be considered successful |
+| healthChecks.livenessProbe.timeoutSeconds | int | `5` | Timeout for liveness probe |
+| healthChecks.readinessProbe | object | `{"failureThreshold":3,"initialDelaySeconds":0,"periodSeconds":5,"successThreshold":1,"timeoutSeconds":3}` | Readiness probe configuration |
+| healthChecks.readinessProbe.failureThreshold | int | `3` | Number of failures before pod is marked unready |
+| healthChecks.readinessProbe.initialDelaySeconds | int | `0` | Initial delay before readiness probe starts |
+| healthChecks.readinessProbe.periodSeconds | int | `5` | How often to perform the readiness probe |
+| healthChecks.readinessProbe.successThreshold | int | `1` | Number of consecutive successes for the probe to be considered successful |
+| healthChecks.readinessProbe.timeoutSeconds | int | `3` | Timeout for readiness probe |
+| healthChecks.startupProbe | object | `{"enabled":true,"failureThreshold":30,"initialDelaySeconds":1,"periodSeconds":1,"successThreshold":1,"timeoutSeconds":1}` | Startup probe configuration |
+| healthChecks.startupProbe.enabled | bool | `true` | Enable startup probe |
+| healthChecks.startupProbe.failureThreshold | int | `30` | Number of failures before container is considered failed to start |
+| healthChecks.startupProbe.initialDelaySeconds | int | `1` | Initial delay before startup probe starts |
+| healthChecks.startupProbe.periodSeconds | int | `1` | How often to perform the startup probe |
+| healthChecks.startupProbe.successThreshold | int | `1` | Number of consecutive successes for the probe to be considered successful |
+| healthChecks.startupProbe.timeoutSeconds | int | `1` | Timeout for startup probe |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
+| image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-10.11.0-nonroot"` | Docker image tag/version to deploy |
-| deployment.strategy | object | `{"type":"RollingUpdate","rollingUpdate":{"maxUnavailable":"25%","maxSurge":"25%"}}` | Deployment strategy |
-| healthChecks.livenessProbe | object | `{"initialDelaySeconds":0,"periodSeconds":10,"timeoutSeconds":5,"failureThreshold":3,"successThreshold":1}` | Liveness probe configuration |
-| healthChecks.readinessProbe | object | `{"initialDelaySeconds":0,"periodSeconds":5,"timeoutSeconds":3,"failureThreshold":3,"successThreshold":1}` | Readiness probe configuration |
-| healthChecks.startupProbe | object | `{"enabled":true,"initialDelaySeconds":1,"periodSeconds":1,"timeoutSeconds":1,"failureThreshold":30,"successThreshold":1}` | Startup probe configuration |
+| image.tag | string | `"version-12.7.1-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
@@ -79,11 +105,11 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | logging.dbLevel | string | `"warning"` | Database logging level (debug, info, warning, error) PHOENIX_DB_LOGGING_LEVEL |
 | logging.level | string | `"info"` | Application logging level (debug, info, warning, error) PHOENIX_LOGGING_LEVEL |
 | logging.logMigrations | bool | `true` | Enable logging of database migration operations (PHOENIX_LOG_MIGRATIONS) |
-| logging.mode | string | `"default"` | Logging mode configuration - PHOENIX_LOGGING_MODE (default or structured) |
+| logging.mode | string | `"default"` | Logging mode configuration - PHOENIX_LOGGING_MODE (default|structured) |
 | persistence.accessModes | list | `["ReadWriteOnce"]` | Access modes for the persistent volume |
 | persistence.annotations | object | `{}` | Annotations to add to the PVC |
-| persistence.enabled | bool | `false` | Enable persistent storage for Phoenix home directory |
-| persistence.inMemory | bool | `false` | Enable in-memory configuration of sqlite strategy | 
+| persistence.enabled | bool | `false` | Enable persistent storage for Phoenix home directory When enabled, Phoenix uses SQLite for local storage stored in the persistent volume IMPORTANT: Cannot be enabled simultaneously with postgresql.enabled=true NOTE: This setting is ignored when database.url="sqlite:///:memory:" (in-memory database) Choose one persistence strategy:   - SQLite: persistence.enabled=true, postgresql.enabled=false   - SQLite In-memory: persistence.inMemory=true , postgresql.enabled=false   - groundhog2k PostgreSQL: persistence.enabled=false, postgresql.enabled=true   - External DB: persistence.enabled=false, postgresql.enabled=false, database.url configured |
+| persistence.inMemory | bool | `false` | Enable in-memory configuration of sqlite strategy |
 | persistence.labels | object | `{}` | Labels to add to the PVC |
 | persistence.size | string | `"20Gi"` | Size of the persistent volume for Phoenix home directory |
 | persistence.storageClass | string | `""` | Kubernetes storage class for Phoenix home volume |
@@ -95,45 +121,45 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | postgres.resources.limits.memory | string | `"512Mi"` | Memory limit for PostgreSQL container (DEPRECATED for new postgresql) |
 | postgres.resources.requests.cpu | string | `"100m"` | CPU request for PostgreSQL container (DEPRECATED for new postgresql) |
 | postgres.resources.requests.memory | string | `"256Mi"` | Memory request for PostgreSQL container (DEPRECATED for new postgresql) |
-| postgresql.auth.database | string | `"phoenix"` | Name for a custom database to create |
-| postgresql.auth.existingSecret | string | `""` | Name of existing secret to use for PostgreSQL credentials. `postgresql.auth.postgresPassword`, `postgresql.auth.password`, and `postgresql.auth.replicationPassword` will be ignored and picked up from this secret. |
-| postgresql.auth.password | string | `""` | Password for the custom user to create. Ignored if `postgresql.auth.existingSecret` is provided |
-| postgresql.auth.postgresPassword | string | `"postgres"` | Password for the "postgres" admin user. Ignored if `postgresql.auth.existingSecret` is provided |
-| postgresql.auth.secretKeys.adminPasswordKey | string | `""` | Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set. |
-| postgresql.auth.secretKeys.replicationPasswordKey | string | `""` | Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set. |
-| postgresql.auth.secretKeys.userPasswordKey | string | `""` | Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set. |
-| postgresql.auth.username | string | `""` | Name for a custom user to create |
-| postgresql.enabled | bool | `true` | Enable postgres deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL). When disabled, you must configure database.url or database.postgres settings to point to your external database |
-| postgresql.primary.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data |
-| postgresql.primary.persistence.size | string | `"20Gi"` | Size of the persistent volume for PostgreSQL |
-| postgresql.primary.persistence.storageClass | string | `""` | Kubernetes storage class for PostgreSQL volume |
-| postgresql.primary.persistentVolumeClaimRetentionPolicy.enabled | bool | `false` | Set to true if you want the volume to persist helm uninstalls |
-| postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted | string | `"Retain"` | Volume retention behavior that applies when the StatefulSet is deleted |
-| postgresql.primary.persistentVolumeClaimRetentionPolicy.whenScaled | string | `"Retain"` | Volume retention behavior when the replica count of the StatefulSet is reduced |
-| postgresql.primary.service.ports.postgresql | string | `"5432"` | Port to run postgres service on |
+| postgresql.enabled | bool | `true` | Enable PostgreSQL deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL) When disabled, you must configure database.url or database.postgres settings to point to your external database IMPORTANT: Cannot be enabled simultaneously with persistence.enabled=true (for SQLite) Choose one persistence strategy:   - groundhog2k PostgreSQL: postgresql.enabled=true, persistence.enabled=false   - SQLite: postgresql.enabled=false, persistence.enabled=true   - External DB: postgresql.enabled=false, persistence.enabled=false, database.url configured |
+| postgresql.image.registry | string | `"docker.io"` |  |
+| postgresql.image.repository | string | `"postgres"` |  |
+| postgresql.image.tag | string | `"16"` |  |
+| postgresql.podSecurityContext | object | `{"fsGroup":999,"supplementalGroups":[999]}` | Security context for PostgreSQL container |
+| postgresql.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Resource limits |
+| postgresql.securityContext.allowPrivilegeEscalation | bool | `false` |  |
+| postgresql.securityContext.privileged | bool | `false` |  |
+| postgresql.securityContext.readOnlyRootFilesystem | bool | `true` |  |
+| postgresql.securityContext.runAsGroup | int | `999` |  |
+| postgresql.securityContext.runAsNonRoot | bool | `true` |  |
+| postgresql.securityContext.runAsUser | int | `999` |  |
+| postgresql.service | object | `{"port":5432,"type":"ClusterIP"}` | Service configuration |
+| postgresql.settings | object | `{"superuserPassword":{"value":"postgres"}}` | Database settings |
+| postgresql.storage | object | `{"accessModes":["ReadWriteOnce"],"requestedSize":"20Gi"}` | Storage configuration |
+| postgresql.userDatabase | object | `{"name":{"value":"phoenix"},"password":{"value":"phoenix"},"user":{"value":"phoenix"}}` | User database configuration |
 | replicaCount | int | `1` | Number of Phoenix pod replicas |
 | resources | object | `{"limits":{"cpu":"1000m","memory":"2Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}` | Resource configuration |
-| securityContext.container | object | `{"allowPrivilegeEscalation":false,"capabilities":{"add":[],"drop":["ALL"]},"enabled":true,"privileged":false,"procMount":"Default","readOnlyRootFilesystem":true,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"},"seLinuxOptions":{},"windowsOptions":{}}` | Container-level security context settings. When enabled=true, the entire object (excluding 'enabled') is rendered directly as the container securityContext |
-| securityContext.pod | object | `{"enabled":true,"fsGroup":65532,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"},"seLinuxOptions":{},"supplementalGroups":[],"sysctls":[],"windowsOptions":{}}` | Pod-level security context settings. When enabled=true, the entire object (excluding 'enabled') is rendered directly as the pod securityContext |
-| extraVolumes | list | `[]` | Additional volumes to add to the phoenix container |
-| extraVolumeMounts | list | `[]` | Additional volume mounts to add to the phoenix container |
-| serviceAccount.annotations | object | `{}` | Annotations to add to the ServiceAccount |
-| serviceAccount.create | bool | `false` | Create a ServiceAccount for Phoenix |
-| serviceAccount.imagePullSecrets | list | `[]` | List of image pull secrets for the ServiceAccount (if using private container registries) |
-| serviceAccount.name | string | `""` | Name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name. If not set and create is false, uses default ServiceAccount |
+| securityContext | object | `{"container":{"allowPrivilegeEscalation":false,"capabilities":{"add":[],"drop":["ALL"]},"enabled":false,"privileged":false,"procMount":"Default","readOnlyRootFilesystem":true,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seLinuxOptions":{},"seccompProfile":{"type":"RuntimeDefault"},"windowsOptions":{}},"pod":{"enabled":false,"fsGroup":65532,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seLinuxOptions":{},"seccompProfile":{"type":"RuntimeDefault"},"supplementalGroups":[],"sysctls":[],"windowsOptions":{}}}` | Security context configuration |
+| securityContext.container | object | `{"allowPrivilegeEscalation":false,"capabilities":{"add":[],"drop":["ALL"]},"enabled":false,"privileged":false,"procMount":"Default","readOnlyRootFilesystem":true,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seLinuxOptions":{},"seccompProfile":{"type":"RuntimeDefault"},"windowsOptions":{}}` | Container-level security context settings |
+| securityContext.pod | object | `{"enabled":false,"fsGroup":65532,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seLinuxOptions":{},"seccompProfile":{"type":"RuntimeDefault"},"supplementalGroups":[],"sysctls":[],"windowsOptions":{}}` | Pod-level security context settings |
+| server.allowExternalResources | bool | `true` | Allows calls to external resources, like Google Fonts in the web interface (PHOENIX_ALLOW_EXTERNAL_RESOURCES) Set to false in air-gapped environments to prevent external requests that can cause UI loading delays |
 | server.annotations | object | `{}` | Annotations to add to the Phoenix service |
 | server.enablePrometheus | bool | `false` | Enable Prometheus metrics endpoint on port 9090 |
 | server.grpcPort | int | `4317` | Port for OpenTelemetry gRPC collector (PHOENIX_GRPC_PORT) |
-| server.host | string | `"0.0.0.0"` | Host IP to bind Phoenix server (PHOENIX_HOST) |
+| server.host | string | `"::"` | Host IP to bind Phoenix server (PHOENIX_HOST) |
 | server.hostRootPath | string | `""` | Root path prefix for Phoenix UI and API (PHOENIX_HOST_ROOT_PATH) |
 | server.labels | object | `{}` | Labels to add to the Phoenix service |
 | server.port | int | `6006` | Port for Phoenix web UI and HTTP API (PHOENIX_PORT) |
 | server.rootUrl | string | `""` | External root URL for Phoenix (PHOENIX_ROOT_URL) |
-| server.workingDir | string | `"/data"` | The working directory for saving, loading, and exporting data (PHOENIX_WORKING_DIR) |
-| server.allowExternalResources | bool | `true` | Allows calls to external resources, like Google Fonts in the web interface (PHOENIX_ALLOW_EXTERNAL_RESOURCES) |
+| server.workingDir | string | `"/data"` | The working directory for saving, loading, and exporting data (PHOENIX_WORKING_DIR) Set to empty string to use container's $HOME directory (not recommended for persistence) Use `/data` as a default for volume mount - enables proper permissions in both strict and normal security contexts IMPORTANT: When persistence.enabled=true, this directory must be writable by the Phoenix container (UID 65532) The fsGroup setting in securityContext.pod ensures proper permissions when enabled |
 | service.annotations | object | `{}` | Annotations to add to the Phoenix service (useful for service mesh configurations) |
 | service.labels | object | `{}` | Labels to add to the Phoenix service |
-| service.type | string | `"NodePort"` | Service type for Phoenix service (ClusterIP, NodePort, LoadBalancer, or ExternalName). Use ClusterIP for service mesh deployments (Istio, Linkerd, etc.). Use NodePort for direct external access without ingress |
+| service.type | string | `"NodePort"` | Service type for Phoenix service (ClusterIP, NodePort, LoadBalancer, or ExternalName) Use ClusterIP for service mesh deployments (Istio, Linkerd, etc.) Use NodePort for direct external access without ingress |
+| serviceAccount | object | `{"annotations":{},"create":false,"imagePullSecrets":[],"name":""}` | ServiceAccount configuration |
+| serviceAccount.annotations | object | `{}` | Annotations to add to the ServiceAccount |
+| serviceAccount.create | bool | `false` | Create a ServiceAccount for Phoenix |
+| serviceAccount.imagePullSecrets | list | `[]` | List of Kubernetes secrets to use for pulling images from private registries |
+| serviceAccount.name | string | `""` | Name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name. If not set and create is false, uses default ServiceAccount |
 | smtp.hostname | string | `""` | SMTP server hostname for sending emails (PHOENIX_SMTP_HOSTNAME) |
 | smtp.mailFrom | string | `"noreply@arize.com"` | Email address to use as sender for system emails (PHOENIX_SMTP_MAIL_FROM) |
 | smtp.password | string | `""` | SMTP authentication password (PHOENIX_SMTP_PASSWORD) |

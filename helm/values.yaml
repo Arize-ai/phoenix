@@ -21,6 +21,18 @@ deployment:
   nodeSelector: {}
   affinity: {}
 
+# -- Additional environment variables to add to the deployments pod spec
+# For supported environment variables see https://arize.com/docs/phoenix/self-hosting/configuration#environment-variables
+# Should only be used for capabilities not exposed via the helm chart directly
+additionalEnv: []
+  # - name: EXAMPLE_ADDITIONAL_ENV
+  #   value: example
+  # - name: EXAMPLE_FROM_SECRET
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: mysecret
+  #       key: somekey
+
 # ADDONS
 # - Ingress
 # - Postgres
