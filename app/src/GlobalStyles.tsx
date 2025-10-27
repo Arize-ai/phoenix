@@ -1226,10 +1226,6 @@ const appGlobalStylesCSS = css`
     --ac-global-modal-width-FULLSCREEN: calc(
       100vw - var(--ac-global-dimension-static-size-1700)
     );
-
-    /* z-indexes */
-    --ac-global-z-index-popover: 100000;
-    --ac-global-z-index-modal-overlay: 100001;
   }
 
   .ac-theme--dark {
