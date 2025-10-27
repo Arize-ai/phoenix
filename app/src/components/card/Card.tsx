@@ -17,6 +17,7 @@ function Card(
     defaultOpen = true,
     scrollBody = false,
     extra,
+    onCollapse,
     ...otherProps
   }: CardProps,
   ref: Ref<HTMLElement>
@@ -57,7 +58,11 @@ function Card(
       <header id={headerId}>
         {collapsible ? (
           <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={() => {
+              const newCollapsedState = !isCollapsed;
+              setIsCollapsed(newCollapsedState);
+              onCollapse?.(newCollapsedState);
+            }}
             className="card__collapsible-button button--reset"
             id={collapseButtonId}
             aria-controls={bodyId}

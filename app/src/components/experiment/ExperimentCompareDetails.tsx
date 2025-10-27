@@ -33,7 +33,6 @@ import {
   ProgressBar,
   SelectChevronUpDownIcon,
   Text,
-  ToggleButton,
   Tooltip,
   TooltipTrigger,
   View,
@@ -89,6 +88,7 @@ export function ExperimentCompareDetails({
   defaultSelectedRepetitionNumber,
   openTraceDialog,
 }: ExperimentCompareDetailsProps) {
+  const inputPanelRef = useRef<ImperativePanelHandle>(null);
   const experimentIds = useMemo(
     () => [baseExperimentId, ...compareExperimentIds],
     [baseExperimentId, compareExperimentIds]
@@ -235,24 +235,40 @@ export function ExperimentCompareDetails({
 
   return (
     <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
-      <Panel defaultSize={35}>
+      <Panel
+        defaultSize={35}
+        ref={inputPanelRef}
+        style={{
+          minHeight: 78, // card header height (46px) + padding (2 * 16px)
+        }}
+      >
         <div
           css={css`
             height: 100%;
           `}
         >
           <View overflow="hidden" padding="size-200" height="100%">
-            <Flex direction="row" gap="size-200" flex="1 1 auto" height="100%">
-              <Card
-                title="Input"
-                extra={<CopyToClipboardButton text={JSON.stringify(input)} />}
-                height="100%"
-                flex={1}
-                scrollBody={true}
-              >
-                <FullSizeJSONBlock value={JSON.stringify(input, null, 2)} />
-              </Card>
-            </Flex>
+            <Card
+              title="Input"
+              extra={<CopyToClipboardButton text={JSON.stringify(input)} />}
+              height="100%"
+              scrollBody={true}
+              collapsible
+              onCollapse={(isCollapsed) => {
+                const panel = inputPanelRef.current;
+                if (panel) {
+                  if (isCollapsed) {
+                    // Shrink panel to minimum size when collapsed
+                    panel.resize(0);
+                  } else {
+                    // Expand panel to default size when expanded
+                    panel.resize(35);
+                  }
+                }
+              }}
+            >
+              <FullSizeJSONBlock value={JSON.stringify(input, null, 2)} />
+            </Card>
           </View>
         </div>
       </Panel>
@@ -288,12 +304,6 @@ export function ExperimentCompareDetails({
   );
 }
 
-const referenceOutputPinnedCSS = css`
-  position: sticky;
-  left: 0;
-  z-index: 1;
-`;
-
 export function ExperimentRunOutputs() {
   const {
     sortedExperimentRepetitions,
@@ -303,7 +313,6 @@ export function ExperimentRunOutputs() {
     compareExperimentIds,
     referenceOutput,
     referenceOutputSelected,
-    referenceOutputPinned,
   } = useExperimentCompareDetailsContext();
 
   const experimentIds = useMemo(
@@ -381,18 +390,6 @@ export function ExperimentRunOutputs() {
               <li
                 css={css`
                   flex: none;
-                  position: relative;
-                  background-color: var(--ac-global-background-color-dark);
-                  ${referenceOutputPinned ? referenceOutputPinnedCSS : ""}
-                  &:before {
-                    content: "";
-                    position: absolute;
-                    left: calc(var(--ac-global-dimension-static-size-200) * -1);
-                    top: 0;
-                    width: var(--ac-global-dimension-static-size-200);
-                    height: 100%;
-                    background-color: var(--ac-global-background-color-dark);
-                  }
                 `}
               >
                 <ReferenceOutputItem />
@@ -486,8 +483,6 @@ function ExperimentRunOutputsSidebar() {
     referenceOutput,
     referenceOutputSelected,
     toggleReferenceOutputSelected,
-    referenceOutputPinned,
-    toggleReferenceOutputPinned,
   } = useExperimentCompareDetailsContext();
 
   const experimentIds = useMemo(
@@ -594,7 +589,7 @@ function ExperimentRunOutputsSidebar() {
                   </Menu>
                 </Popover>
               </MenuTrigger>
-              {selectedAnnotation ? (
+              {selectedAnnotation && (
                 <IconButton
                   size="S"
                   aria-label="Change sort direction"
@@ -605,41 +600,19 @@ function ExperimentRunOutputsSidebar() {
                 >
                   <Icon svg={<Icons.ArrowUpDown />} />
                 </IconButton>
-              ) : (
-                <div // placeholder to prevent layout shift when annotation is selected
-                  css={css`
-                    width: 30px;
-                    height: 30px;
-                    flex: none;
-                  `}
-                />
               )}
             </Flex>
           )}
         </Flex>
         {referenceOutput && (
-          <Flex
-            direction="row"
-            gap="size-100"
-            alignItems="center"
-            justifyContent="space-between"
+          <Checkbox
+            isSelected={referenceOutputSelected}
+            onChange={toggleReferenceOutputSelected}
           >
-            <Checkbox
-              isSelected={referenceOutputSelected}
-              onChange={toggleReferenceOutputSelected}
-            >
-              <Flex minHeight={30} alignItems="center">
-                <Text>Reference Output</Text>
-              </Flex>
-            </Checkbox>
-            <ToggleButton
-              size="S"
-              isSelected={referenceOutputPinned}
-              onPress={toggleReferenceOutputPinned}
-            >
-              {referenceOutputPinned ? "unpin" : "pin"}
-            </ToggleButton>
-          </Flex>
+            <Flex minHeight={30} alignItems="center">
+              <Text>Reference Output</Text>
+            </Flex>
+          </Checkbox>
         )}
       </View>
       {sortedExperimentRepetitions.map(
@@ -1065,13 +1038,7 @@ function ReferenceOutputItem() {
     <div css={experimentItemCSS}>
       <Flex direction="column" height="100%">
         <ExperimentItemHeader copyText={referenceOutputStr}>
-          <Heading
-            weight="heavy"
-            level={3}
-            css={css`
-              min-width: 0;
-            `}
-          >
+          <Heading weight="heavy" level={3}>
             Reference Output
           </Heading>
         </ExperimentItemHeader>
