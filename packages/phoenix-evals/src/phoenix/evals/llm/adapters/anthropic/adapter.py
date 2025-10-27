@@ -75,11 +75,11 @@ class AnthropicAdapter(BaseLLMAdapter):
         if self._is_async:
             raise ValueError("Cannot call sync method generate_text() on async Anthropic client.")
         messages = self._build_messages(prompt)
+        required_kwargs = {"max_tokens": 4096} # max_tokens is required for Anthropic
+        kwargs = {**required_kwargs, **kwargs}
 
         try:
-            response = self.client.messages.create(
-                model=self.model_name, messages=messages, **kwargs
-            )
+            response = self.client.messages.create(model=self.model, messages=messages, **kwargs)
             if hasattr(response.content[0], "text"):
                 return cast(str, response.content[0].text)
             else:
@@ -99,7 +99,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         try:
             response = await self.client.messages.create(
-                model=self.model_name, messages=messages, **kwargs
+                model=self.model, messages=messages, **kwargs
             )
             if hasattr(response.content[0], "text"):
                 return cast(str, response.content[0].text)
@@ -122,6 +122,9 @@ class AnthropicAdapter(BaseLLMAdapter):
                 "Use async_generate_object() instead or provide a sync Anthropic client."
             )
         self._validate_schema(schema)
+
+        required_kwargs = {"max_tokens": 4096}  # max_tokens is required for Anthropic
+        kwargs = {**required_kwargs, **kwargs}
 
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
             raise ValueError(
@@ -150,28 +153,14 @@ class AnthropicAdapter(BaseLLMAdapter):
             )
         self._validate_schema(schema)
 
-        supports_tool_calls = self._supports_tool_calls()
-
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
             raise ValueError(
                 "Anthropic does not support native structured output. Use TOOL_CALLING or AUTO."
             )
-
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            if not supports_tool_calls:
-                raise ValueError(f"Anthropic model {self.model_name} does not support tool calls")
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
-
         elif method == ObjectGenerationMethod.AUTO:
-            if not supports_tool_calls:
-                raise ValueError(
-                    f"Anthropic model {self.model_name} does not support tool calls "
-                    "or structured output"
-                )
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
-
-        else:
-            raise ValueError(f"Unsupported object generation method: {method}")
 
     def _generate_with_tool_calling(
         self,
@@ -183,7 +172,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         tool_definition = self._schema_to_tool(schema)
 
         response = self.client.messages.create(
-            model=self.model_name,
+            model=self.model,
             messages=messages,
             tools=[tool_definition],
             tool_choice={"type": "tool", "name": "extract_structured_data"},
@@ -206,7 +195,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         tool_definition = self._schema_to_tool(schema)
 
         response = await self.client.messages.create(
-            model=self.model_name,
+            model=self.model,
             messages=messages,
             tools=[tool_definition],
             tool_choice={"type": "tool", "name": "extract_structured_data"},
@@ -218,13 +207,6 @@ class AnthropicAdapter(BaseLLMAdapter):
                 return cast(Dict[str, Any], content_block.input)
 
         raise ValueError("No tool use in response")
-
-    @property
-    def model_name(self) -> str:
-        if hasattr(self.client, "model"):
-            return str(self.client.model)
-        else:
-            return "claude-3-5-sonnet-20241022"
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get("description", "Respond in a format matching the provided schema")
