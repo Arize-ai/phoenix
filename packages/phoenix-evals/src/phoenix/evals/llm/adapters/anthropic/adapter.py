@@ -123,24 +123,15 @@ class AnthropicAdapter(BaseLLMAdapter):
             )
         self._validate_schema(schema)
 
-        supports_tool_calls = self._supports_tool_calls()
-
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
             raise ValueError(
                 "Anthropic does not support native structured output. Use TOOL_CALLING or AUTO."
             )
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            if not supports_tool_calls:
-                raise ValueError(f"Anthropic model {self.model_name} does not support tool calls")
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            if not supports_tool_calls:
-                raise ValueError(
-                    f"Anthropic model {self.model_name} does not support tool calls "
-                    "or structured output"
-                )
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         else:
@@ -234,10 +225,6 @@ class AnthropicAdapter(BaseLLMAdapter):
             return str(self.client.model)
         else:
             return "claude-3-5-sonnet-20241022"
-
-    def _supports_tool_calls(self) -> bool:
-        model_name = self.model_name.lower()
-        return "claude" in model_name
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get("description", "Respond in a format matching the provided schema")
