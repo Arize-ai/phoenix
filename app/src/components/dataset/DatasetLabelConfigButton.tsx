@@ -9,6 +9,7 @@ import {
 import { css } from "@emotion/react";
 
 import {
+  Alert,
   Button,
   type ButtonProps,
   ColorSwatch,
@@ -23,14 +24,16 @@ import {
   ListBox,
   ListBoxItem,
   Loading,
-  Modal,
-  ModalOverlay,
   Popover,
   PopoverArrow,
   type Selection,
   View,
 } from "@phoenix/components";
-import { NewDatasetLabelDialog } from "@phoenix/components/dataset/NewDatasetLabelDialog";
+import {
+  useDatasetLabelMutations,
+  UseDatasetLabelMutationsParams,
+} from "@phoenix/components/dataset/useDatasetLabelMutations";
+import { NewLabelForm } from "@phoenix/components/label";
 import { useNotifyError } from "@phoenix/contexts";
 import { isStringArray } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -69,7 +72,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
         <PopoverArrow />
         <Dialog>
           <Suspense fallback={<Loading />}>
-            <DatasetLabelSelectionDialogContent datasetId={datasetId} />
+            <DatasetLabelSelectionContent datasetId={datasetId} />
           </Suspense>
         </Dialog>
       </Popover>
@@ -77,7 +80,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
   );
 }
 
-function DatasetLabelSelectionDialogContent(props: { datasetId: string }) {
+export function DatasetLabelSelectionContent(props: { datasetId: string }) {
   const { datasetId } = props;
   const query = useLazyLoadQuery<DatasetLabelConfigButtonQuery>(
     graphql`
@@ -96,18 +99,6 @@ function DatasetLabelSelectionDialogContent(props: { datasetId: string }) {
   return <DatasetLabelList query={query} dataset={query.dataset} {...props} />;
 }
 
-/**
- * Exported label selection content with integrated "Create New Label" functionality
- * Styled to match PromptLabelConfigButton
- */
-export function DatasetLabelSelectionContent(props: { datasetId: string }) {
-  return (
-    <>
-      <DatasetLabelSelectionDialogContent {...props} />
-    </>
-  );
-}
-
 function DatasetLabelList({
   query,
   dataset,
@@ -115,6 +106,7 @@ function DatasetLabelList({
   dataset: DatasetLabelConfigButton_datasetLabels$key;
   query: DatasetLabelConfigButton_allLabels$key;
 }) {
+  const [mode, setMode] = useState<"apply" | "create">("apply");
   const notifyError = useNotifyError();
   const datasetData = useFragment<DatasetLabelConfigButton_datasetLabels$key>(
     graphql`
@@ -211,6 +203,7 @@ function DatasetLabelList({
         borderBottomWidth="thin"
         borderColor="dark"
         minWidth={300}
+        maxWidth={300}
       >
         <Flex direction="column" gap="size-50">
           <Flex
@@ -218,56 +211,75 @@ function DatasetLabelList({
             justifyContent="space-between"
             alignItems="center"
           >
-            <Heading level={4} weight="heavy">
-              Assign labels to this dataset
-            </Heading>
-            <DialogTrigger>
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {mode === "create" && (
+                <Button
+                  variant="quiet"
+                  size="S"
+                  leadingVisual={<Icon svg={<Icons.ChevronLeft />} />}
+                  onPress={() => setMode("apply")}
+                />
+              )}
+              <Heading level={4} weight="heavy">
+                {mode === "create"
+                  ? "Create New Label for this dataset"
+                  : "Assign labels to this dataset"}
+              </Heading>
+            </Flex>
+            {mode === "apply" && (
               <Button
                 variant="quiet"
                 size="S"
                 leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+                onPress={() => setMode("create")}
               />
-              <ModalOverlay>
-                <Modal size="S">
-                  <NewDatasetLabelDialog
-                    updateConnectionIds={[
-                      ConnectionHandler.getConnectionID(
-                        "client:root",
-                        "DatasetLabelConfigButtonAllLabels_datasetLabels"
-                      ),
-                    ]}
-                    datasetId={datasetData.id}
-                  />
-                </Modal>
-              </ModalOverlay>
-            </DialogTrigger>
+            )}
           </Flex>
-          <DebouncedSearch
-            autoFocus
-            aria-label="Search labels"
-            placeholder="Search labels..."
-            onChange={setSearch}
-          />
+          {mode === "apply" && (
+            <DebouncedSearch
+              autoFocus
+              aria-label="Search labels"
+              placeholder="Search labels..."
+              onChange={setSearch}
+            />
+          )}
         </Flex>
       </View>
-      <ListBox
-        aria-label="labels"
-        items={labels}
-        selectionMode="multiple"
-        selectedKeys={selected}
-        onSelectionChange={onSelectionChange}
-        css={css`
-          height: 300px;
-        `}
-        renderEmptyState={() => "No labels found"}
-      >
-        {(item) => <DatasetLabelListBoxItem key={item.id} item={item} />}
-      </ListBox>
-      <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
-        <LinkButton variant="quiet" size="S" to="/settings/datasets">
-          Edit Labels
-        </LinkButton>
-      </View>
+      {mode === "apply" && (
+        <>
+          <ListBox
+            aria-label="labels"
+            items={labels}
+            selectionMode="multiple"
+            selectedKeys={selected}
+            onSelectionChange={onSelectionChange}
+            css={css`
+              min-height: 300px;
+              max-height: 300px;
+            `}
+            renderEmptyState={() => "No labels found"}
+          >
+            {(item) => <DatasetLabelListBoxItem key={item.id} item={item} />}
+          </ListBox>
+          <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
+            <LinkButton variant="quiet" size="S" to="/settings/datasets">
+              Edit Labels
+            </LinkButton>
+          </View>
+        </>
+      )}
+      {mode === "create" && (
+        <CreateNewDatasetLabel
+          onCompleted={() => setMode("apply")}
+          updateConnectionIds={[
+            ConnectionHandler.getConnectionID(
+              "client:root",
+              "DatasetLabelConfigButtonAllLabels_datasetLabels"
+            ),
+          ]}
+          datasetId={datasetData.id}
+        />
+      )}
     </>
   );
 }
@@ -289,5 +301,30 @@ function DatasetLabelListBoxItem({
         </Flex>
       )}
     </ListBoxItem>
+  );
+}
+
+type CreateNewDatasetLabelProps = UseDatasetLabelMutationsParams;
+
+function CreateNewDatasetLabel({
+  onCompleted,
+  updateConnectionIds,
+  datasetId,
+}: CreateNewDatasetLabelProps) {
+  const { addLabelMutation, isSubmitting, error } = useDatasetLabelMutations({
+    onCompleted,
+    updateConnectionIds,
+    datasetId,
+  });
+
+  return (
+    <>
+      {!!error && (
+        <Alert banner variant="danger">
+          {error}
+        </Alert>
+      )}
+      <NewLabelForm onSubmit={addLabelMutation} isSubmitting={isSubmitting} />
+    </>
   );
 }
