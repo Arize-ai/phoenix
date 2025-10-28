@@ -330,11 +330,11 @@ export const PromptMenu = <T extends object>({
                       </LazyTabPanel>
                       <LazyTabPanel id="tags">
                         <Autocomplete filter={contains}>
-                          <View paddingX="size-100" marginTop="size-100">
+                          <MenuHeader>
                             <SearchField aria-label="Search" autoFocus>
                               <Input placeholder="Search prompt tags" />
                             </SearchField>
-                          </View>
+                          </MenuHeader>
                           <Menu
                             items={tags}
                             renderEmptyState={() => (
