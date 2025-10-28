@@ -91,6 +91,7 @@ export function ExampleExperimentRunsTable({
                     label
                     score
                     explanation
+                    metadata
                     annotatorKind
                     trace {
                       id

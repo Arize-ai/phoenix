@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<77b85aea29f7dcdd27119535cfbea230>>
+ * @generated SignedSource<<6603562d4cd50ef2f201437fd3bcf7df>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,6 +36,7 @@ export type ExperimentCompareTable_comparisons$data = {
                   readonly explanation: string | null;
                   readonly id: string;
                   readonly label: string | null;
+                  readonly metadata: any;
                   readonly name: string;
                   readonly score: number | null;
                   readonly trace: {
@@ -156,6 +157,13 @@ v5 = {
   "args": null,
   "kind": "ScalarField",
   "name": "name",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "metadata",
   "storageKey": null
 };
 return {
@@ -459,6 +467,7 @@ return {
                                       "name": "explanation",
                                       "storageKey": null
                                     },
+                                    (v6/*: any*/),
                                     (v2/*: any*/)
                                   ],
                                   "storageKey": null
@@ -591,13 +600,7 @@ return {
                           "name": "sequenceNumber",
                           "storageKey": null
                         },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "metadata",
-                          "storageKey": null
-                        },
+                        (v6/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -684,6 +687,6 @@ return {
 };
 })();
 
-(node as any).hash = "3cd69509141d1d148e96acdf1cd48610";
+(node as any).hash = "bef4b265b59d70ee5cfd9ed06f535497";
 
 export default node;

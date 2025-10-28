@@ -43,6 +43,7 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
           name: "qa_correctness",
           label: "correct",
           score: 0.95,
+          metadata: null,
           trace: {
             traceId: "eval-trace-111",
             projectId: "project-456",
@@ -55,6 +56,7 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
           name: "has_results",
           label: null,
           score: 1.0,
+          metadata: null,
           trace: {
             traceId: "eval-trace-222",
             projectId: "project-456",
@@ -67,6 +69,7 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
           name: "sql_syntax_valid",
           label: "valid",
           score: 1.0,
+          metadata: null,
           trace: {
             traceId: "eval-trace-333",
             projectId: "project-456",
@@ -231,6 +234,7 @@ ScoreOnly.args = {
             name: "qa_correctness",
             label: null,
             score: 0.87,
+            metadata: null,
             trace: {
               traceId: "eval-trace-score-1",
               projectId: "project-456",
@@ -243,6 +247,7 @@ ScoreOnly.args = {
             name: "has_results",
             label: null,
             score: 0.92,
+            metadata: null,
             trace: {
               traceId: "eval-trace-score-2",
               projectId: "project-456",
@@ -255,6 +260,7 @@ ScoreOnly.args = {
             name: "sql_syntax_valid",
             label: null,
             score: 1.0,
+            metadata: null,
             trace: {
               traceId: "eval-trace-score-3",
               projectId: "project-456",
@@ -281,6 +287,7 @@ LabelsOnly.args = {
             name: "qa_correctness",
             label: "correct",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-label-1",
               projectId: "project-789",
@@ -293,6 +300,7 @@ LabelsOnly.args = {
             name: "has_results",
             label: "yes",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-label-2",
               projectId: "project-789",
@@ -305,6 +313,7 @@ LabelsOnly.args = {
             name: "sql_syntax_valid",
             label: "valid",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-label-3",
               projectId: "project-789",
@@ -331,6 +340,7 @@ MixedWithMissing.args = {
             name: "qa_correctness",
             label: null,
             score: 0.75,
+            metadata: null,
             trace: {
               traceId: "eval-trace-mixed-1",
               projectId: "project-456",
@@ -344,6 +354,7 @@ MixedWithMissing.args = {
             name: "sql_syntax_valid",
             label: "good",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-mixed-2",
               projectId: "project-456",
@@ -370,6 +381,7 @@ LongAnnotationNames.args = {
             name: "qa_correctness_with_very_long_name_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
             label: "correct",
             score: 0.85,
+            metadata: null,
             trace: {
               traceId: "eval-trace-long-1",
               projectId: "project-456",
@@ -382,6 +394,7 @@ LongAnnotationNames.args = {
             name: "has_results_with_another_extremely_long_annotation_name_for_testing_truncation_behavior",
             label: null,
             score: 0.92,
+            metadata: null,
             trace: {
               traceId: "eval-trace-long-2",
               projectId: "project-456",
@@ -394,6 +407,7 @@ LongAnnotationNames.args = {
             name: "sql_syntax_valid",
             label: "good",
             score: 0.78,
+            metadata: null,
             trace: {
               traceId: "eval-trace-long-3",
               projectId: "project-456",
@@ -440,6 +454,7 @@ LongAnnotationValues.args = {
             label:
               "This is an extremely long annotation value that contains detailed feedback about the quality of the generated response and should be truncated properly in the UI to maintain good layout and readability",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-value-1",
               projectId: "project-456",
@@ -453,6 +468,7 @@ LongAnnotationValues.args = {
             label:
               "A very long error message that describes exactly what went wrong during the execution of this particular experiment run including stack traces and detailed debugging information",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-value-2",
               projectId: "project-456",
@@ -465,6 +481,7 @@ LongAnnotationValues.args = {
             name: "sql_syntax_valid",
             label: null,
             score: 0.95,
+            metadata: null,
             trace: {
               traceId: "eval-trace-value-3",
               projectId: "project-456",
@@ -492,6 +509,7 @@ NoTraces.args = {
             name: "qa_correctness",
             label: "correct",
             score: 0.95,
+            metadata: null,
             trace: null,
           },
         },
@@ -501,6 +519,7 @@ NoTraces.args = {
             name: "has_results",
             label: null,
             score: 1.0,
+            metadata: null,
             trace: null,
           },
         },
@@ -510,6 +529,7 @@ NoTraces.args = {
             name: "sql_syntax_valid",
             label: "valid",
             score: 1.0,
+            metadata: null,
             trace: null,
           },
         },
