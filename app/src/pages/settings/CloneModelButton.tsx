@@ -1,5 +1,6 @@
 import { Suspense, useState } from "react";
 import {
+  ConnectionHandler,
   graphql,
   PreloadedQuery,
   useMutation,
@@ -67,12 +68,37 @@ function CloneModelDialogContent({
     ModelQuery,
     queryReference
   );
+  const connectionId = ConnectionHandler.getConnectionID(
+    "client:root",
+    "ModelsTable_generativeModels"
+  );
   const [commitCloneModel, isCommittingCloneModel] =
     useMutation<CloneModelButtonMutation>(graphql`
-      mutation CloneModelButtonMutation($input: CreateModelMutationInput!) {
+      mutation CloneModelButtonMutation(
+        $input: CreateModelMutationInput!
+        $connectionId: ID!
+      ) {
         createModel(input: $input) {
-          query {
-            ...ModelsTable_generativeModels
+          model
+            @prependNode(
+              connections: [$connectionId]
+              edgeTypeName: "GenerativeModelEdge"
+            ) {
+            id
+            name
+            provider
+            namePattern
+            providerKey
+            startTime
+            createdAt
+            updatedAt
+            lastUsedAt
+            kind
+            tokenPrices {
+              tokenType
+              kind
+              costPerMillionTokens
+            }
           }
         }
       }
@@ -110,6 +136,7 @@ function CloneModelDialogContent({
                 })
               ),
             },
+            connectionId,
           },
           onCompleted: () => {
             onClose();

@@ -45,6 +45,7 @@ export function NewDatasetSplitForm({
       description: "",
       color: "#33c5e8",
     },
+    mode: "onChange",
   });
 
   return (

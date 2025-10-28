@@ -17,10 +17,7 @@ import {
 /**
  * A Wrapper around the RetentionPolicyForm component that is used to create a new retention policy.
  */
-export function CreateRetentionPolicy(props: {
-  onCreate: () => void;
-  queryId: string;
-}) {
+export function CreateRetentionPolicy(props: { onCreate: () => void }) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [submit, isSubmitting] = useMutation<CreateRetentionPolicyMutation>(
@@ -67,7 +64,7 @@ export function CreateRetentionPolicy(props: {
       throw new Error("Invalid retention policy rule");
     }
     const connectionId = ConnectionHandler.getConnectionID(
-      props.queryId,
+      "client:root",
       "RetentionPoliciesTable_projectTraceRetentionPolicies"
     );
     submit({

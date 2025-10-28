@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { css } from "@emotion/react";
 
 import { Flex } from "@phoenix/components";
@@ -21,7 +22,12 @@ const profilePageInnerCSS = css`
 `;
 
 export function ProfilePage() {
-  const { viewer } = useViewer();
+  const { viewer, refetchViewer } = useViewer();
+
+  useEffect(() => {
+    refetchViewer();
+  }, [refetchViewer]);
+
   if (!viewer) {
     return null;
   }

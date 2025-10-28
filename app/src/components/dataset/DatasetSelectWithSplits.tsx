@@ -13,9 +13,11 @@ import {
   Flex,
   LinkButton,
   Menu,
+  MenuContainer,
+  MenuFooter,
+  MenuHeader,
   MenuItem,
   MenuTrigger,
-  Popover,
   SearchField,
   SelectChevronUpDownIcon,
   Text,
@@ -149,18 +151,13 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
           </Text>
         )}
       </Button>
-      <Popover
-        placement="bottom end" // right align popover to end of menu trigger to prevent dynamic movement when submenu items are
-        css={css`
-          overflow: auto;
-        `}
-      >
+      <MenuContainer>
         <Autocomplete filter={contains}>
-          <View paddingX="size-100" marginTop="size-100">
+          <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
               <Input placeholder="Search datasets" />
             </SearchField>
-          </View>
+          </MenuHeader>
           <Menu
             selectionMode="single"
             selectedKeys={selectedDatasetKeys}
@@ -245,18 +242,13 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                       </Text>
                     </Flex>
                   </MenuItem>
-                  <Popover
-                    placement="right"
-                    css={css`
-                      overflow: auto;
-                    `}
-                  >
+                  <MenuContainer placement="end top">
                     <Autocomplete filter={contains}>
-                      <View paddingX="size-100" marginTop="size-100">
+                      <MenuHeader>
                         <SearchField aria-label="Search" autoFocus>
                           <Input placeholder="Search splits" />
                         </SearchField>
-                      </View>
+                      </MenuHeader>
                       <Menu
                         items={[
                           {
@@ -366,18 +358,16 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         )}
                       </Menu>
                     </Autocomplete>
-                  </Popover>
+                  </MenuContainer>
                 </SubmenuTrigger>
               );
             }}
           </Menu>
         </Autocomplete>
-        <View padding="size-150" borderTopColor="light" borderTopWidth="thin">
-          <LinkButton to="/datasets" variant="quiet" size="S">
-            Go to Datasets
-          </LinkButton>
-        </View>
-      </Popover>
+        <MenuFooter>
+          <LinkButton to="/datasets">Go to Datasets</LinkButton>
+        </MenuFooter>
+      </MenuContainer>
     </MenuTrigger>
   );
 }

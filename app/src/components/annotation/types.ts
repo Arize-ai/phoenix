@@ -13,6 +13,7 @@ export interface Annotation {
   label?: string | null;
   score?: number | null;
   explanation?: string | null;
+  metadata?: Record<string, unknown>;
   annotatorKind?: string;
   createdAt?: string;
   user?: {

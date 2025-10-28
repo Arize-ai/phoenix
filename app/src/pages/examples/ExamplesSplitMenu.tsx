@@ -1,26 +1,26 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Autocomplete,
   Button,
+  ButtonProps,
   Checkbox,
   Flex,
-  Heading,
   Icon,
   IconButton,
   Icons,
   Input,
   Loading,
   Menu,
+  MenuContainer,
+  MenuHeader,
+  MenuHeaderTitle,
   MenuItem,
   MenuTrigger,
-  Popover,
   SearchField,
   Token,
   useFilter,
-  View,
 } from "@phoenix/components";
 import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
 import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
@@ -34,6 +34,7 @@ type ExamplesSplitMenuProps = {
   selectedSplitIds: string[];
   selectedExampleIds: string[];
   examplesCache: ExamplesCache;
+  size?: ButtonProps["size"];
 };
 
 const getInitialMode = (selectedExampleIds: string[]) => {
@@ -50,6 +51,18 @@ const getInitialMode = (selectedExampleIds: string[]) => {
  * In filter mode, the user can select splits from a list.
  * In apply mode, the user can select splits to add or remove from the selected examples.
  * In create mode, the user can create a new split.
+ *
+ * You can skip "filter" mode for single example use cases by passing in an empty array for selectedSplitIds,
+ * and pre-populating the selectedExampleIds with the single example id and examplesCache with the single example.
+ * @example
+ * <ExamplesSplitMenu
+ *   onSelectionChange={() => {}}
+ *   onExampleSelectionChange={() => {}}
+ *   selectedSplitIds={[]}
+ *   selectedExampleIds={["123"]}
+ *   // ensure this comes from relay so that it updates when the example splits are updated
+ *   examplesCache={{ "123": { id: "123", datasetSplits: [{ id: "456", name: "Split 1" }] } }}
+ * />
  */
 export const ExamplesSplitMenu = ({
   onSelectionChange,
@@ -57,6 +70,7 @@ export const ExamplesSplitMenu = ({
   selectedSplitIds,
   selectedExampleIds,
   examplesCache,
+  size,
 }: ExamplesSplitMenuProps) => {
   const [mode, setMode] = useState<"filter" | "apply" | "create">(() =>
     getInitialMode(selectedExampleIds)
@@ -87,21 +101,15 @@ export const ExamplesSplitMenu = ({
         }
       }}
     >
-      <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
+      <Button
+        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        size={size}
+      >
         Splits
         {selectedSplitIds.length > 0 ? ` (${selectedSplitIds.length})` : ""}
       </Button>
-      <Popover>
-        <Suspense
-          fallback={
-            <Loading
-              css={css`
-                min-width: 300px;
-                min-height: 300px;
-              `}
-            />
-          }
-        >
+      <MenuContainer>
+        <Suspense fallback={<Loading />}>
           {(mode === "filter" || mode === "apply") && (
             <SplitMenu
               selectedSplitIds={selectedSplitIds}
@@ -119,7 +127,7 @@ export const ExamplesSplitMenu = ({
             />
           )}
         </Suspense>
-      </Popover>
+      </MenuContainer>
     </MenuTrigger>
   );
 };
@@ -232,24 +240,9 @@ const SplitMenu = ({
   }, [data]);
   return (
     <Autocomplete filter={contains}>
-      <View
-        padding="size-200"
-        paddingTop="size-100"
-        borderBottomWidth="thin"
-        borderColor="dark"
-        minWidth={300}
-      >
-        <Flex direction="column" gap="size-100">
-          <Flex
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Heading level={4} weight="heavy">
-              {selectedExampleIds.length > 0
-                ? "Apply splits to selected examples"
-                : "Filter examples by splits"}
-            </Heading>
+      <MenuHeader>
+        <MenuHeaderTitle
+          trailingContent={
             <IconButton
               size="S"
               onPress={() => {
@@ -258,12 +251,18 @@ const SplitMenu = ({
             >
               <Icon svg={<Icons.PlusOutline />} />
             </IconButton>
-          </Flex>
-          <SearchField aria-label="Search" autoFocus>
-            <Input placeholder="Search splits" />
-          </SearchField>
-        </Flex>
-      </View>
+          }
+        >
+          {selectedExampleIds.length > 0
+            ? selectedExampleIds.length === 1
+              ? "Apply splits to example"
+              : "Apply splits to selected examples"
+            : "Filter examples by splits"}
+        </MenuHeaderTitle>
+        <SearchField aria-label="Search" autoFocus>
+          <Input placeholder="Search splits" />
+        </SearchField>
+      </MenuHeader>
       {selectedExampleIds.length === 0 ? (
         <SplitMenuFilterContent
           selectedSplitIds={selectedSplitIds}
@@ -431,32 +430,27 @@ const SplitMenuCreateContent = ({
     onCompleted,
   });
   return (
-    <Flex direction="column">
-      <View
-        padding="size-100"
-        paddingTop="size-100"
-        borderBottomWidth="thin"
-        borderColor="dark"
-        minWidth={300}
-      >
-        <Flex gap="size-100" alignItems="center">
-          <IconButton onPress={() => setMode("filter")} size="S">
-            <Icon svg={<Icons.ChevronLeft />} />
-          </IconButton>
-          <Heading level={4} weight="heavy">
-            Create Split
-            {selectedExampleIds.length > 0
-              ? " for " + selectedExampleIds.length + " examples"
-              : ""}
-          </Heading>
-        </Flex>
-      </View>
-      <View maxWidth={300}>
-        <NewDatasetSplitForm
-          onSubmit={onSubmit}
-          isSubmitting={isCreatingDatasetSplit}
-        />
-      </View>
-    </Flex>
+    <>
+      <MenuHeader>
+        <MenuHeaderTitle
+          leadingContent={
+            <IconButton onPress={() => setMode("filter")} size="S">
+              <Icon svg={<Icons.ChevronLeft />} />
+            </IconButton>
+          }
+        >
+          Create Split
+          {selectedExampleIds.length > 0
+            ? " for " +
+              selectedExampleIds.length +
+              (selectedExampleIds.length === 1 ? " example" : " examples")
+            : ""}
+        </MenuHeaderTitle>
+      </MenuHeader>
+      <NewDatasetSplitForm
+        onSubmit={onSubmit}
+        isSubmitting={isCreatingDatasetSplit}
+      />
+    </>
   );
 };

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7d655499c6177cd139a15066f54cf50c>>
+ * @generated SignedSource<<ef3651f3df5ab1cd2d7c1800218c8875>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -41,6 +41,7 @@ export type ExperimentCompareDetailsQuery$data = {
               readonly annotation: {
                 readonly id: string;
                 readonly label: string | null;
+                readonly metadata: any;
                 readonly name: string;
                 readonly score: number | null;
                 readonly trace: {
@@ -277,14 +278,21 @@ v19 = {
   "name": "score",
   "storageKey": null
 },
-v20 = [
+v20 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "metadata",
+  "storageKey": null
+},
+v21 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "datasetId"
   }
 ],
-v21 = {
+v22 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -371,14 +379,14 @@ v21 = {
   "type": "Dataset",
   "abstractKey": null
 },
-v22 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v23 = {
+v24 = {
   "alias": null,
   "args": null,
   "concreteType": "Trace",
@@ -476,6 +484,7 @@ return {
                                       (v17/*: any*/),
                                       (v18/*: any*/),
                                       (v19/*: any*/),
+                                      (v20/*: any*/),
                                       (v15/*: any*/)
                                     ],
                                     "storageKey": null
@@ -504,13 +513,13 @@ return {
       },
       {
         "alias": "dataset",
-        "args": (v20/*: any*/),
+        "args": (v21/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v21/*: any*/)
+          (v22/*: any*/)
         ],
         "storageKey": null
       }
@@ -537,7 +546,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v22/*: any*/),
+          (v23/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -572,7 +581,7 @@ return {
                           (v10/*: any*/),
                           (v11/*: any*/),
                           (v12/*: any*/),
-                          (v23/*: any*/),
+                          (v24/*: any*/),
                           (v16/*: any*/),
                           {
                             "alias": null,
@@ -602,7 +611,8 @@ return {
                                       (v17/*: any*/),
                                       (v18/*: any*/),
                                       (v19/*: any*/),
-                                      (v23/*: any*/)
+                                      (v20/*: any*/),
+                                      (v24/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -631,14 +641,14 @@ return {
       },
       {
         "alias": "dataset",
-        "args": (v20/*: any*/),
+        "args": (v21/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
+          (v23/*: any*/),
           (v22/*: any*/),
-          (v21/*: any*/),
           (v7/*: any*/)
         ],
         "storageKey": null
@@ -646,16 +656,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bbe9dc9ba2c41a725b5f93acbc0d8b13",
+    "cacheID": "9dc32d9095b770a435e3b4a4d98cb772",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries {\n        annotationName\n        minScore\n        maxScore\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries {\n        annotationName\n        minScore\n        maxScore\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5c2bbde1b9562581ba847f0a4ea89170";
+(node as any).hash = "adc8627f202c5b26488d24e4282770d6";
 
 export default node;

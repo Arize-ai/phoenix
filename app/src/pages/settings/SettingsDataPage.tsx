@@ -1,3 +1,4 @@
+import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -20,12 +21,15 @@ import { CanManageRetentionPolicy } from "@phoenix/components/auth";
 
 import { CreateRetentionPolicy } from "./CreateRetentionPolicy";
 import { RetentionPoliciesTable } from "./RetentionPoliciesTable";
-import { settingsDataPageLoader } from "./settingsDataPageLoader";
+import {
+  SettingsDataLoaderType,
+  settingsDataPageLoaderGql,
+} from "./settingsDataPageLoader";
 
 export function SettingsDataPage() {
-  const loaderData = useLoaderData<typeof settingsDataPageLoader>();
+  const loaderData = useLoaderData<SettingsDataLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const queryId = loaderData.__id;
+  const data = usePreloadedQuery(settingsDataPageLoaderGql, loaderData);
   return (
     <Card
       title="Retention Policies"
@@ -50,7 +54,6 @@ export function SettingsDataPage() {
                         </DialogTitleExtra>
                       </DialogHeader>
                       <CreateRetentionPolicy
-                        queryId={queryId}
                         onCreate={() => {
                           close();
                         }}
@@ -64,7 +67,7 @@ export function SettingsDataPage() {
         </CanManageRetentionPolicy>
       }
     >
-      <RetentionPoliciesTable query={loaderData} />
+      <RetentionPoliciesTable query={data} />
     </Card>
   );
 }

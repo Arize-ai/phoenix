@@ -3,13 +3,13 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
 import { TextColorValue } from "@phoenix/components/types/style";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
+import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 export function LatencyText({
   latencyMs,
   size = "M",
   showIcon = true,
 }: {
-  latencyMs: number;
+  latencyMs: number | null;
   size?: TextProps["size"];
   /**
    * Whether to show the clock icon.
@@ -18,7 +18,9 @@ export function LatencyText({
   showIcon?: boolean;
 }) {
   const color: TextColorValue = useMemo(() => {
-    if (latencyMs < 3000) {
+    if (latencyMs == null) {
+      return "text-700";
+    } else if (latencyMs < 3000) {
       return "success";
     } else if (latencyMs < 8000) {
       return "warning";
@@ -26,12 +28,8 @@ export function LatencyText({
       return "danger";
     }
   }, [latencyMs]);
-  const latencyText = useMemo(() => {
-    if (latencyMs < 10) {
-      return formatFloat(latencyMs) + "ms";
-    }
-    return formatFloat(latencyMs / 1000) + "s";
-  }, [latencyMs]);
+
+  const latencyText = useMemo(() => latencyMsFormatter(latencyMs), [latencyMs]);
 
   return (
     <Flex
