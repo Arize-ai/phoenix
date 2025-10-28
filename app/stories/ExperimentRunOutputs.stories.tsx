@@ -17,12 +17,17 @@ type AnnotationSummaries = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
 >;
 
+type ReferenceOutput = NonNullable<
+  ExperimentCompareDetailsQuery$data["example"]["revision"]
+>["referenceOutput"];
+
 type StoryArgs = {
   baseExperimentId: string;
   compareExperimentIds: string[];
   experimentsById: Record<string, Experiment>;
   experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>;
   annotationSummaries: AnnotationSummaries;
+  referenceOutput: ReferenceOutput;
 };
 
 const mockExperiments: Record<string, Experiment> = {
@@ -332,6 +337,12 @@ const mockAnnotationSummaries: AnnotationSummaries = [
   },
 ];
 
+const mockReferenceOutput: ReferenceOutput = {
+  query:
+    "SELECT title, MAX(vote_average) AS highest_rating FROM movies WHERE credits LIKE '%Brad Pitt%' GROUP BY title ORDER BY highest_rating DESC LIMIT 1;",
+  results: [{ title: "Fight Club", highest_rating: 8.8 }],
+};
+
 const meta: Meta<StoryArgs> = {
   title: "Experiment/ExperimentRunOutputs",
   component: ExperimentRunOutputs,
@@ -341,6 +352,7 @@ const meta: Meta<StoryArgs> = {
       description: {
         component: `
 A comprehensive component for displaying and comparing experiment run outputs:
+- **Reference Output**: Shows the expected/ground truth output for comparison
 - **Collapsible Sidebar**: Shows experiment selection with checkboxes and repetition controls
 - **Horizontal Scrolling**: Displays experiment items side-by-side in a scrollable container
 - **Selection Management**: Interactive checkboxes to show/hide experiments and repetitions
@@ -374,6 +386,7 @@ const Template: Story = (args) => {
           args.experimentRepetitionsByExperimentId
         }
         annotationSummaries={args.annotationSummaries}
+        referenceOutput={args.referenceOutput}
         includeRepetitions={includeRepetitions}
         openTraceDialog={() => {}}
       >
@@ -393,6 +406,7 @@ Default.args = {
   experimentsById: mockExperiments,
   experimentRepetitionsByExperimentId: mockExperimentRepetitions,
   annotationSummaries: mockAnnotationSummaries,
+  referenceOutput: mockReferenceOutput,
 };
 
 /**
@@ -405,6 +419,7 @@ WithNoRunExperiment.args = {
   experimentsById: mockExperiments,
   experimentRepetitionsByExperimentId: mockExperimentRepetitions,
   annotationSummaries: mockAnnotationSummaries,
+  referenceOutput: mockReferenceOutput,
 };
 
 /**
@@ -419,6 +434,7 @@ SingleExperiment.args = {
     "exp-1": mockExperimentRepetitions["exp-1"],
   },
   annotationSummaries: mockAnnotationSummaries,
+  referenceOutput: mockReferenceOutput,
 };
 
 /**
@@ -431,6 +447,7 @@ WithErrors.args = {
   experimentsById: mockExperiments,
   experimentRepetitionsByExperimentId: mockExperimentRepetitions,
   annotationSummaries: mockAnnotationSummaries,
+  referenceOutput: mockReferenceOutput,
 };
 
 const mockEdgeCaseExperiments: Record<string, Experiment> = {
@@ -998,6 +1015,11 @@ const mockEdgeCaseAnnotationSummaries: AnnotationSummaries = [
   },
 ];
 
+const mockEdgeCaseReferenceOutput: ReferenceOutput = {
+  result:
+    "Expected comprehensive analysis with detailed explanations, proper formatting, and relevant examples that demonstrate thorough understanding of the topic.",
+};
+
 /**
  * Annotation edge cases with multiple repetitions - demonstrates mixed score/label types and long labels
  */
@@ -1008,6 +1030,7 @@ AnnotationEdgeCases.args = {
   experimentsById: mockEdgeCaseExperiments,
   experimentRepetitionsByExperimentId: mockEdgeCaseRepetitions,
   annotationSummaries: mockEdgeCaseAnnotationSummaries,
+  referenceOutput: mockEdgeCaseReferenceOutput,
 };
 
 /**
@@ -1020,4 +1043,18 @@ AnnotationEdgeCasesSingleRepetition.args = {
   experimentsById: mockSingleRepetitionEdgeCaseExperiments,
   experimentRepetitionsByExperimentId: mockSingleRepetitionEdgeCaseRepetitions,
   annotationSummaries: mockEdgeCaseAnnotationSummaries,
+  referenceOutput: mockEdgeCaseReferenceOutput,
+};
+
+/**
+ * Comparison without reference output - demonstrates the interface when no ground truth is available
+ */
+export const WithoutReferenceOutput = Template.bind({});
+WithoutReferenceOutput.args = {
+  baseExperimentId: "exp-1",
+  compareExperimentIds: ["exp-2", "exp-3"],
+  experimentsById: mockExperiments,
+  experimentRepetitionsByExperimentId: mockExperimentRepetitions,
+  annotationSummaries: mockAnnotationSummaries,
+  referenceOutput: null,
 };

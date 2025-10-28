@@ -274,6 +274,7 @@ const Template: Story = (args) => {
         annotationSummaries={annotationSummaries}
         includeRepetitions={includeRepetitions}
         openTraceDialog={() => {}}
+        referenceOutput=""
       >
         <ExperimentItem
           experiment={args.experiment}

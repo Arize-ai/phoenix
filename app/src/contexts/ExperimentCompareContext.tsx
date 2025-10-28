@@ -29,6 +29,10 @@ type AnnotationSummaries = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
 >;
 
+type ReferenceOutput = NonNullable<
+  ExperimentCompareDetailsQuery$data["example"]["revision"]
+>["referenceOutput"];
+
 type ExperimentRepetitionSelectionState = {
   experimentId: string;
   repetitionNumber: number;
@@ -41,10 +45,13 @@ interface ExperimentCompareContextType {
   experimentsById: Record<string, Experiment>;
   experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>;
   annotationSummaries: AnnotationSummaries;
+  referenceOutput: ReferenceOutput;
   includeRepetitions: boolean;
   openTraceDialog: (traceId: string, projectId: string, title: string) => void;
   // Selection state
   selectedExperimentRepetitions: ExperimentRepetitionSelectionState[];
+  referenceOutputSelected: boolean;
+  toggleReferenceOutputSelected: () => void;
   updateExperimentSelection: (experimentId: string, checked: boolean) => void;
   updateRepetitionSelection: (
     experimentId: string,
@@ -75,6 +82,7 @@ export function ExperimentCompareDetailsProvider({
   experimentsById,
   experimentRepetitionsByExperimentId,
   annotationSummaries,
+  referenceOutput,
   includeRepetitions,
   openTraceDialog,
   defaultSelectedRepetitionNumber,
@@ -85,6 +93,7 @@ export function ExperimentCompareDetailsProvider({
   experimentsById: Record<string, Experiment>;
   experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>;
   annotationSummaries: AnnotationSummaries;
+  referenceOutput: ReferenceOutput;
   includeRepetitions: boolean;
   openTraceDialog: (traceId: string, projectId: string, title: string) => void;
   defaultSelectedRepetitionNumber?: number;
@@ -104,6 +113,12 @@ export function ExperimentCompareDetailsProvider({
         defaultSelectedRepetitionNumber
       )
     );
+
+  const [referenceOutputSelected, setReferenceOutputSelected] =
+    useState<boolean>(true);
+  const toggleReferenceOutputSelected = useCallback(() => {
+    setReferenceOutputSelected((prev) => !prev);
+  }, []);
 
   const updateExperimentSelection = useCallback(
     (experimentId: string, checked: boolean) => {
@@ -136,6 +151,7 @@ export function ExperimentCompareDetailsProvider({
     setSelectedExperimentRepetitions((prev) =>
       prev.map((run) => ({ ...run, selected: checked }))
     );
+    setReferenceOutputSelected(checked);
   }, []);
 
   // Sorting state
@@ -191,10 +207,14 @@ export function ExperimentCompareDetailsProvider({
     sortDirection,
   ]);
 
-  const noRunsSelected = useMemo(
-    () => selectedExperimentRepetitions.every((run) => !run.selected),
-    [selectedExperimentRepetitions]
-  );
+  const noRunsSelected = useMemo(() => {
+    const noExperimentRunsSelected = selectedExperimentRepetitions.every(
+      (run) => !run.selected
+    );
+    const noReferenceOutputSelected =
+      !referenceOutput || !referenceOutputSelected;
+    return noExperimentRunsSelected && noReferenceOutputSelected;
+  }, [selectedExperimentRepetitions, referenceOutput, referenceOutputSelected]);
 
   const contextValue: ExperimentCompareContextType = {
     baseExperimentId,
@@ -202,9 +222,12 @@ export function ExperimentCompareDetailsProvider({
     experimentsById,
     experimentRepetitionsByExperimentId,
     annotationSummaries,
+    referenceOutput,
     includeRepetitions,
     openTraceDialog,
     selectedExperimentRepetitions,
+    referenceOutputSelected,
+    toggleReferenceOutputSelected,
     updateExperimentSelection,
     updateRepetitionSelection,
     toggleAllRepetitionsSelection,
