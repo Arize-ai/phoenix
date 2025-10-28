@@ -20,7 +20,7 @@ export type ThemeContextType = {
 
 export const LOCAL_STORAGE_THEME_KEY = "arize-phoenix-theme";
 const DEFAULT_THEME = "dark";
-
+const IS_DARK_SYSTEM_THEME_MEDIA_QUERY_STRING = "(prefers-color-scheme: dark)";
 export function getCurrentTheme(): ProviderTheme {
   const themeModeFromLocalStorage = localStorage.getItem(
     LOCAL_STORAGE_THEME_KEY
@@ -54,7 +54,7 @@ export function getCurrentThemeMode(): ProviderThemeMode {
 }
 
 function getSystemTheme(): ProviderTheme {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
+  return window.matchMedia(IS_DARK_SYSTEM_THEME_MEDIA_QUERY_STRING).matches
     ? "dark"
     : "light";
 }
@@ -85,13 +85,31 @@ export function ThemeProvider(
     _setThemeMode(themeMode);
   }, []);
 
+  const [systemTheme, setSystemTheme] = useState<ProviderTheme>(getSystemTheme);
+
   const theme = useMemo(() => {
     if (themeMode === "system") {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
+      return systemTheme;
     }
     return themeMode;
+  }, [themeMode, systemTheme]);
+
+  useEffect(() => {
+    if (themeMode !== "system") {
+      return;
+    }
+
+    const isDarkSystemThemeMediaQuery = window.matchMedia(
+      IS_DARK_SYSTEM_THEME_MEDIA_QUERY_STRING
+    );
+    const handleChange = () => {
+      setSystemTheme(isDarkSystemThemeMediaQuery.matches ? "dark" : "light");
+    };
+    isDarkSystemThemeMediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      isDarkSystemThemeMediaQuery.removeEventListener("change", handleChange);
+    };
   }, [themeMode]);
 
   useEffect(() => {
