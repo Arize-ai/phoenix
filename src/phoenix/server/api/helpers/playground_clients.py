@@ -53,7 +53,6 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ToolCallChunk,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
-from phoenix.server.api.utils import get_aws_full_model_name
 
 if TYPE_CHECKING:
     import httpx
@@ -685,7 +684,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         import boto3  # type: ignore[import-untyped]
 
         super().__init__(model=model, credentials=credentials)
-        self.region = model.region or "us-east-1"  # match the default region in the UI
+        self.region = model.region or "us-east-1"
         self.api = "converse"
         self.custom_headers = model.custom_headers or {}
         self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
@@ -697,7 +696,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
             "AWS_SESSION_TOKEN"
         )
-        self.model_name = get_aws_full_model_name(model.name, self.region)
+        self.model_name = model.name
         self.client = boto3.client(
             service_name="bedrock-runtime",
             region_name=self.region,
