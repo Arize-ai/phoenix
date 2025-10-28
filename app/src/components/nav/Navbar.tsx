@@ -1,4 +1,4 @@
-import { PropsWithChildren, ReactNode } from "react";
+import { PropsWithChildren, ReactNode, useMemo } from "react";
 import { Pressable } from "react-aria-components";
 import { Link, NavLink as RRNavLink } from "react-router";
 import { css } from "@emotion/react";
@@ -11,7 +11,8 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
-import { useTheme, useViewer } from "@phoenix/contexts";
+import { type ProviderThemeMode, useTheme, useViewer } from "@phoenix/contexts";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { Logo, LogoText } from "./Logo";
 
@@ -157,22 +158,50 @@ export function GitHubLink({ isExpanded }: { isExpanded: boolean }) {
 }
 
 export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
+  const { themeMode, setThemeMode } = useTheme();
+  const { nextThemeMode, currentThemeModeText, currentThemeIcon } =
+    useMemo(() => {
+      const themeModes: ProviderThemeMode[] = ["dark", "light", "system"];
+      const currentThemeModeIndex = themeModes.indexOf(themeMode);
+      const nextThemeModeIndex =
+        (currentThemeModeIndex + 1) % themeModes.length;
+      const nextThemeMode = themeModes[nextThemeModeIndex];
+      let currentThemeIcon: ReactNode;
+      switch (themeMode) {
+        case "light":
+          currentThemeIcon = <Icons.SunOutline />;
+          break;
+        case "dark":
+          currentThemeIcon = <Icons.MoonOutline />;
+          break;
+        case "system":
+          currentThemeIcon = <Icons.MonitorOutline />;
+          break;
+        default:
+          assertUnreachable(themeMode);
+      }
+      const capitalizedThemeMode =
+        themeMode.charAt(0).toUpperCase() + themeMode.slice(1);
+      return {
+        nextThemeMode,
+        currentThemeIcon,
+        currentThemeModeText: capitalizedThemeMode,
+      };
+    }, [themeMode]);
+
   return (
     <TooltipTrigger delay={0} isDisabled={isExpanded}>
       <Pressable>
         <button
           css={navLinkCSS}
-          onClick={() => setTheme(isDark ? "light" : "dark")}
+          onClick={() => setThemeMode(nextThemeMode)}
           className="button--reset"
         >
-          <Icon svg={isDark ? <Icons.MoonOutline /> : <Icons.SunOutline />} />
-          <Text>{isDark ? "Dark" : "Light"}</Text>
+          <Icon svg={currentThemeIcon} />
         </button>
       </Pressable>
       <Tooltip placement="right" offset={10}>
-        {isDark ? "Dark" : "Light"}
+        {currentThemeModeText}
       </Tooltip>
     </TooltipTrigger>
   );

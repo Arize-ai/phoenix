@@ -1770,6 +1770,18 @@ export const MinusOutline = () => (
   </svg>
 );
 
+export const MonitorOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="monitor">
+        <rect width="24" height="24" opacity="0" />
+        <path d="M21 6.5V15a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5zM5.5 6A.5.5 0 0 0 5 6.5V15a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a.5.5 0 0 0-.5-.5z" />
+        <path d="M8 21a1 1 0 0 1 0-2h8a1 1 0 0 1 0 2z" />
+      </g>
+    </g>
+  </svg>
+);
+
 export const MoonOutline = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
