@@ -267,7 +267,6 @@ export const FilterMenu = () => {
               </SearchField>
             </MenuHeader>
             <Menu
-              width={250}
               items={FILTER_OPTIONS}
               selectionMode="multiple"
               renderEmptyState={() => "No categories found"}

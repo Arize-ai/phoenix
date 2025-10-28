@@ -224,7 +224,7 @@ export const PromptMenu = <T extends object>({
           <Text color="text-300">Select a prompt</Text>
         )}
       </Button>
-      <MenuContainer maxHeight={400}>
+      <MenuContainer>
         <Autocomplete filter={contains}>
           <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
@@ -245,7 +245,6 @@ export const PromptMenu = <T extends object>({
                   <MenuItem>{name}</MenuItem>
                   <MenuContainer
                     placement="end"
-                    maxHeight={600}
                     containerPadding={8}
                     shouldFlip
                   >

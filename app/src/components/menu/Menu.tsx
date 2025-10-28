@@ -1,4 +1,4 @@
-import { CSSProperties, PropsWithChildren, ReactNode } from "react";
+import { PropsWithChildren, ReactNode } from "react";
 import {
   Menu as AriaMenu,
   MenuItem as AriaMenuItem,
@@ -25,6 +25,7 @@ const menuCss = css`
   min-width: var(--menu-min-width);
   flex: 1 1 auto;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--ac-global-dimension-static-size-50);
   &:focus-visible {
     border-radius: var(--ac-global-rounding-small);
@@ -44,16 +45,11 @@ export const MenuTrigger = AriaMenuTrigger;
 export const Menu = <T extends object>({
   className,
   ...props
-}: AriaMenuProps<T> & { width?: CSSProperties["width"] }) => {
+}: AriaMenuProps<T>) => {
   return (
     <AriaMenu
       className={classNames("react-aria-Menu", className)}
       css={menuCss}
-      style={{
-        width: props.width,
-        minWidth: props.width,
-        maxWidth: props.width,
-      }}
       {...props}
     />
   );
@@ -131,30 +127,31 @@ export const MenuItem = <T extends object>({
   );
 };
 
+const menuContainerCss = css`
+  overflow-y: hidden;
+`;
+
 export const MenuContainer = ({
   children,
-  maxHeight = 600,
-  maxWidth = 300,
   placement = "bottom end",
   ...popoverProps
-}: PropsWithChildren & { maxHeight?: number; maxWidth?: number } & Omit<
-    PopoverProps,
-    "maxHeight" | "maxWidth"
-  >) => {
+}: PropsWithChildren & Omit<PopoverProps, "maxHeight" | "maxWidth">) => {
   return (
-    <Popover shouldFlip={false} placement={placement} {...popoverProps}>
+    <Popover
+      shouldFlip={false}
+      placement={placement}
+      css={menuContainerCss}
+      {...popoverProps}
+    >
       <PopoverArrow />
       <div
-        style={{
-          maxHeight,
-          maxWidth,
-        }}
         css={css`
           min-height: 300px;
           display: flex;
           flex-direction: column;
           height: 100%;
           min-width: 300px;
+          max-height: inherit;
         `}
       >
         {children}
