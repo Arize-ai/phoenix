@@ -159,35 +159,33 @@ export function GitHubLink({ isExpanded }: { isExpanded: boolean }) {
 
 export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
   const { themeMode, setThemeMode } = useTheme();
-  const { nextThemeMode, currentThemeModeText, currentThemeIcon } =
-    useMemo(() => {
-      const themeModes: ProviderThemeMode[] = ["dark", "light", "system"];
-      const currentThemeModeIndex = themeModes.indexOf(themeMode);
-      const nextThemeModeIndex =
-        (currentThemeModeIndex + 1) % themeModes.length;
-      const nextThemeMode = themeModes[nextThemeModeIndex];
-      let currentThemeIcon: ReactNode;
-      switch (themeMode) {
-        case "light":
-          currentThemeIcon = <Icons.SunOutline />;
-          break;
-        case "dark":
-          currentThemeIcon = <Icons.MoonOutline />;
-          break;
-        case "system":
-          currentThemeIcon = <Icons.MonitorOutline />;
-          break;
-        default:
-          assertUnreachable(themeMode);
-      }
-      const capitalizedThemeMode =
-        themeMode.charAt(0).toUpperCase() + themeMode.slice(1);
-      return {
-        nextThemeMode,
-        currentThemeIcon,
-        currentThemeModeText: capitalizedThemeMode,
-      };
-    }, [themeMode]);
+  const { nextThemeMode, themeModeText, themeIcon } = useMemo(() => {
+    const themeModes: ProviderThemeMode[] = ["dark", "light", "system"];
+    const currentThemeModeIndex = themeModes.indexOf(themeMode);
+    const nextThemeModeIndex = (currentThemeModeIndex + 1) % themeModes.length;
+    const nextThemeMode = themeModes[nextThemeModeIndex];
+    let themeIcon: ReactNode;
+    switch (themeMode) {
+      case "light":
+        themeIcon = <Icons.SunOutline />;
+        break;
+      case "dark":
+        themeIcon = <Icons.MoonOutline />;
+        break;
+      case "system":
+        themeIcon = <Icons.MonitorOutline />;
+        break;
+      default:
+        assertUnreachable(themeMode);
+    }
+    const capitalizedThemeMode =
+      themeMode.charAt(0).toUpperCase() + themeMode.slice(1);
+    return {
+      nextThemeMode,
+      themeIcon,
+      themeModeText: capitalizedThemeMode,
+    };
+  }, [themeMode]);
 
   return (
     <TooltipTrigger delay={0} isDisabled={isExpanded}>
@@ -197,12 +195,12 @@ export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
           onClick={() => setThemeMode(nextThemeMode)}
           className="button--reset"
         >
-          <Icon svg={currentThemeIcon} />
-          <Text>{currentThemeModeText}</Text>
+          <Icon svg={themeIcon} />
+          <Text>{themeModeText}</Text>
         </button>
       </Pressable>
       <Tooltip placement="right" offset={10}>
-        {currentThemeModeText}
+        {themeModeText}
       </Tooltip>
     </TooltipTrigger>
   );
