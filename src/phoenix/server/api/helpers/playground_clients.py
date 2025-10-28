@@ -953,7 +953,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         }
 
         response = self.client.invoke_model_with_response_stream(
-            modelId=self.model_name,  # or another Claude model
+            modelId=self.model_name,
             contentType="application/json",
             accept="application/json",
             body=json.dumps(bedrock_params),
