@@ -12,10 +12,12 @@ import {
 } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { NewLabelForm } from "@phoenix/components/label";
 
-type NewDatasetLabelDialogProps = UseDatasetLabelMutationsParams;
+type NewDatasetLabelDialogProps = UseDatasetLabelMutationsParams & {
+  onCompleted: () => void;
+};
 
 export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
-  const { updateConnectionIds, datasetId } = props;
+  const { updateConnectionIds, datasetId, onCompleted } = props;
   const { addLabelMutation, isSubmitting, error } = useDatasetLabelMutations({
     updateConnectionIds,
     datasetId,
@@ -36,7 +38,10 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
           ) : null}
           <NewLabelForm
             onSubmit={(label) => {
-              addLabelMutation(label, () => close());
+              addLabelMutation(label, () => {
+                onCompleted();
+                close();
+              });
             }}
             isSubmitting={isSubmitting}
           />
