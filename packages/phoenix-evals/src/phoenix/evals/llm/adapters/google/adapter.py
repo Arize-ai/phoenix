@@ -6,7 +6,7 @@ from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentTy
 
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
-from .factories import create_google_genai_client
+from .factories import GoogleGenAIClientWrapper, create_google_genai_client
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,8 @@ class GoogleGenAIRateLimitError(Exception):
 
 
 def identify_google_genai_client(client: Any) -> bool:
+    if isinstance(client, GoogleGenAIClientWrapper):
+        return True
     if hasattr(client, "models") and hasattr(client, "chats"):
         return True
     return False
@@ -64,7 +66,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = self.client.models.generate_content(
-                model=self.model, contents=content, **kwargs
+                model=self.client.model, contents=content, **kwargs
             )
             if hasattr(response, "text"):
                 return cast(str, response.text)
@@ -85,7 +87,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = await self.client.models.generate_content(
-                model=self.model, contents=content, **kwargs
+                model=self.client.model, contents=content, **kwargs
             )
             if hasattr(response, "text"):
                 return cast(str, response.text)
@@ -121,14 +123,14 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 return self._generate_with_structured_output(prompt, schema, **kwargs)
             except Exception as structured_error:
                 logger.debug(
-                    f"Structured output failed for {self.model}, falling back to tool calling: "
+                    f"Structured output failed for {self.client.model}, falling back to tool calling: "
                     f"{structured_error}"
                 )
                 try:
                     return self._generate_with_tool_calling(prompt, schema, **kwargs)
                 except Exception as tool_error:
                     raise ValueError(
-                        f"Google GenAI model {self.model} failed with both structured output "
+                        f"Google GenAI model {self.client.model} failed with both structured output "
                         f"and tool calling. Tool calling error: {tool_error}"
                     ) from tool_error
 
@@ -159,14 +161,14 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
             except Exception as structured_error:
                 logger.debug(
-                    f"Structured output failed for {self.model}, falling back to tool calling: "
+                    f"Structured output failed for {self.client.model}, falling back to tool calling: "
                     f"{structured_error}"
                 )
                 try:
                     return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
                 except Exception as tool_error:
                     raise ValueError(
-                        f"Google GenAI model {self.model} failed with both structured output "
+                        f"Google GenAI model {self.client.model} failed with both structured output "
                         f"and tool calling. Tool calling error: {tool_error}"
                     ) from tool_error
 
@@ -190,7 +192,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = self.client.models.generate_content(
-                model=self.model, contents=content, config=config, **kwargs
+                model=self.client.model, contents=content, config=config, **kwargs
             )
 
             if hasattr(response, "text"):
@@ -218,7 +220,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = await self.client.models.generate_content(
-                model=self.model, contents=content, config=config, **kwargs
+                model=self.client.model, contents=content, config=config, **kwargs
             )
 
             if hasattr(response, "text"):
@@ -250,7 +252,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = self.client.models.generate_content(
-                model=self.model, contents=content, config=config, **kwargs
+                model=self.client.model, contents=content, config=config, **kwargs
             )
 
             if hasattr(response, "candidates") and response.candidates:
@@ -286,7 +288,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         try:
             response = await self.client.models.generate_content(
-                model=self.model, contents=content, config=config, **kwargs
+                model=self.client.model, contents=content, config=config, **kwargs
             )
 
             if hasattr(response, "candidates") and response.candidates:
