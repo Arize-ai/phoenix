@@ -15,8 +15,9 @@ import {
   Heading,
   Icon,
   Icons,
-  Text,
   Popover,
+  PopoverArrow,
+  Text,
 } from "@phoenix/components";
 
 const menuCss = css`
@@ -133,28 +134,27 @@ export const MenuItem = <T extends object>({
 export const MenuContainer = ({
   children,
   maxHeight = 600,
+  maxWidth = 300,
   placement = "bottom end",
   ...popoverProps
-}: PropsWithChildren & { maxHeight?: number } & Omit<
+}: PropsWithChildren & { maxHeight?: number; maxWidth?: number } & Omit<
     PopoverProps,
-    "maxHeight"
+    "maxHeight" | "maxWidth"
   >) => {
   return (
-    <Popover
-      shouldFlip={false}
-      placement={placement}
-      containerPadding={-4}
-      {...popoverProps}
-    >
+    <Popover shouldFlip={false} placement={placement} {...popoverProps}>
+      <PopoverArrow />
       <div
         style={{
           maxHeight,
+          maxWidth,
         }}
         css={css`
           min-height: 300px;
           display: flex;
           flex-direction: column;
           height: 100%;
+          min-width: 300px;
         `}
       >
         {children}
