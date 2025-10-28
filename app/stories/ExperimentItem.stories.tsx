@@ -73,6 +73,7 @@ const mockExperimentRepetition: ExperimentRepetition = {
             name: "qa_correctness",
             label: "correct",
             score: 0.95,
+            metadata: null,
             trace: {
               traceId: "eval-trace-111",
               projectId: "project-456",
@@ -85,6 +86,7 @@ const mockExperimentRepetition: ExperimentRepetition = {
             name: "has_results",
             label: null,
             score: 1.0,
+            metadata: null,
             trace: {
               traceId: "eval-trace-222",
               projectId: "project-456",
@@ -97,6 +99,7 @@ const mockExperimentRepetition: ExperimentRepetition = {
             name: "sql_syntax_valid",
             label: "valid",
             score: 1.0,
+            metadata: null,
             trace: {
               traceId: "eval-trace-333",
               projectId: "project-456",
@@ -166,6 +169,7 @@ const mockRepetitionExperimentRepetition: ExperimentRepetition = {
             name: "qa_correctness",
             label: null,
             score: 0.75,
+            metadata: null,
             trace: {
               traceId: "eval-trace-444",
               projectId: "project-789",
@@ -270,6 +274,7 @@ const Template: Story = (args) => {
         annotationSummaries={annotationSummaries}
         includeRepetitions={includeRepetitions}
         openTraceDialog={() => {}}
+        referenceOutput=""
       >
         <ExperimentItem
           experiment={args.experiment}
