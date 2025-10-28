@@ -46,7 +46,6 @@ export function GenerativeProvidersCard({
 }: {
   query: GenerativeProvidersCard_data$key;
 }) {
-  const credentials = useCredentialsContext((state) => state);
   const data = useFragment<GenerativeProvidersCard_data$key>(
     graphql`
       fragment GenerativeProvidersCard_data on Query {
@@ -101,30 +100,14 @@ export function GenerativeProvidersCard({
         header: "configuration",
         accessorKey: "credentialsSet",
         cell: ({ row }) => {
-          if (!row.original.dependenciesInstalled) {
-            return <Text color="warning">missing dependencies</Text>;
-          }
-
-          // Check if any credentials are set locally
-          const credentialRequirements = row.original.credentialRequirements;
-          if (!isModelProvider(row.original.key)) {
-            return <Text color="warning">unknown provider key</Text>;
-          }
-          const providerCredentials = credentials[row.original.key];
-          const hasLocalCredentials = credentialRequirements.every(
-            ({ envVarName, isRequired }) => {
-              const envVarSet = providerCredentials?.[envVarName] !== undefined;
-              return envVarSet || !isRequired;
-            }
+          return (
+            <ProviderCredentialsStatus
+              dependenciesInstalled={row.original.dependenciesInstalled}
+              credentialRequirements={row.original.credentialRequirements}
+              providerKey={row.original.key}
+              credentialsSet={row.original.credentialsSet}
+            />
           );
-
-          if (hasLocalCredentials) {
-            return <Text color="success">local</Text>;
-          }
-          if (row.original.credentialsSet) {
-            return <Text color="success">configured on the server</Text>;
-          }
-          return <Text color="text-700">not configured</Text>;
         },
       },
       {
@@ -154,7 +137,7 @@ export function GenerativeProvidersCard({
         },
       },
     ] satisfies ColumnDef<DataRow>[];
-  }, [credentials]);
+  }, []);
 
   const table = useReactTable<(typeof tableData)[number]>({
     columns,
@@ -209,6 +192,43 @@ export function GenerativeProvidersCard({
   );
 }
 
+function ProviderCredentialsStatus({
+  dependenciesInstalled,
+  credentialRequirements,
+  providerKey,
+  credentialsSet,
+}: {
+  dependenciesInstalled: boolean;
+  credentialRequirements: GenerativeProvidersCard_data$data["modelProviders"][number]["credentialRequirements"];
+  providerKey: GenerativeProvidersCard_data$data["modelProviders"][number]["key"];
+  credentialsSet: boolean;
+}) {
+  const credentials = useCredentialsContext((state) => state);
+  if (!dependenciesInstalled) {
+    return <Text color="warning">missing dependencies</Text>;
+  }
+
+  // Check if any credentials are set locally
+  if (!isModelProvider(providerKey)) {
+    return <Text color="warning">unknown provider key</Text>;
+  }
+  const providerCredentials = credentials[providerKey];
+  const hasLocalCredentials = credentialRequirements.every(
+    ({ envVarName, isRequired }) => {
+      const envVarSet = !!providerCredentials?.[envVarName];
+      return envVarSet || !isRequired;
+    }
+  );
+
+  if (hasLocalCredentials) {
+    return <Text color="success">local</Text>;
+  }
+  if (credentialsSet) {
+    return <Text color="success">configured on the server</Text>;
+  }
+  return <Text color="text-700">not configured</Text>;
+}
+
 function ProviderCredentialsDialog({
   provider,
 }: {
@@ -233,16 +253,6 @@ function ProviderCredentialsDialog({
           </View>
           <Form>
             <ProviderCredentials provider={provider.key} />
-            <View paddingTop="size-200">
-              <Flex direction="row" justifyContent="end" gap="size-100">
-                <Button variant="default" size="S" slot="close">
-                  Cancel
-                </Button>
-                <Button variant="primary" size="S" slot="close">
-                  Save Credentials
-                </Button>
-              </Flex>
-            </View>
           </Form>
         </View>
       </DialogContent>
@@ -268,7 +278,7 @@ function ProviderCredentials({ provider }: { provider: ModelProvider }) {
               value,
             });
           }}
-          value={credentials?.[credentialConfig.envVarName] ?? undefined}
+          value={credentials?.[credentialConfig.envVarName] ?? ""}
         >
           <Label>{credentialConfig.envVarName}</Label>
           <CredentialInput />

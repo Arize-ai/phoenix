@@ -8,6 +8,7 @@ import { RouterProvider } from "react-router/dom";
 
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
+import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -389,6 +390,7 @@ const router = createBrowserRouter(
             <Route
               path="prompts"
               element={<SettingsPromptsPage />}
+              loader={settingsPromptsPageLoader}
               handle={{
                 crumb: () => "Prompts",
               }}

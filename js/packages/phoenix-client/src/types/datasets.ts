@@ -1,17 +1,13 @@
 import { Node } from "./core";
 
+type DatasetSelectorBase = { versionId?: string; splits?: string[] };
+
 /**
  * A dataset can be identified by its datasetId, datasetName, or datasetVersionId
  */
-export type DatasetSelector = { datasetId: string } | { datasetName: string };
-
-/**
- * Parameters for selecting a specific version of a dataset
- */
-export interface DatasetVersionSelector {
-  dataset: DatasetSelector;
-  versionId?: string;
-}
+export type DatasetSelector =
+  | (DatasetSelectorBase & { datasetId: string })
+  | (DatasetSelectorBase & { datasetName: string });
 
 /**
  * Overview information about a dataset

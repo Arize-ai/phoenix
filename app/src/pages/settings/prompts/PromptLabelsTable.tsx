@@ -40,7 +40,7 @@ export function PromptLabelsTable({
   );
   const tableData = useMemo(
     () => data.promptLabels.edges.map((edge) => edge.node),
-    [data.promptLabels.edges]
+    [data]
   );
 
   const table = useReactTable<(typeof tableData)[number]>({

@@ -1240,3 +1240,63 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                 ]
             )
         )
+
+        # Create ExperimentDatasetExample snapshot entries
+        # This simulates what insert_experiment_with_examples_snapshot() does
+        await session.execute(
+            insert(models.ExperimentDatasetExample).values(
+                [
+                    # Experiment 1 (V1): examples 1 and 4
+                    {
+                        "experiment_id": experiment_ids[0],
+                        "dataset_example_id": example_ids[0],
+                        "dataset_example_revision_id": 1,  # revision 1 for example 1
+                    },
+                    {
+                        "experiment_id": experiment_ids[0],
+                        "dataset_example_id": example_ids[3],
+                        "dataset_example_revision_id": 7,  # revision 7 for example 4
+                    },
+                    # Experiment 2 (V2): examples 1 and 2
+                    {
+                        "experiment_id": experiment_ids[1],
+                        "dataset_example_id": example_ids[0],
+                        "dataset_example_revision_id": 2,  # revision 2 for example 1
+                    },
+                    {
+                        "experiment_id": experiment_ids[1],
+                        "dataset_example_id": example_ids[1],
+                        "dataset_example_revision_id": 4,  # revision 4 for example 2
+                    },
+                    # Experiment 3 (V3): examples 1 and 2
+                    {
+                        "experiment_id": experiment_ids[2],
+                        "dataset_example_id": example_ids[0],
+                        "dataset_example_revision_id": 3,  # revision 3 for example 1
+                    },
+                    {
+                        "experiment_id": experiment_ids[2],
+                        "dataset_example_id": example_ids[1],
+                        "dataset_example_revision_id": 4,  # revision 4 for example 2
+                    },
+                    # Experiment 4 (V1): examples 1, 2, and 4
+                    {
+                        "experiment_id": experiment_ids[3],
+                        "dataset_example_id": example_ids[0],
+                        "dataset_example_revision_id": 1,  # revision 1 for example 1
+                    },
+                    {
+                        "experiment_id": experiment_ids[3],
+                        "dataset_example_id": example_ids[1],
+                        "dataset_example_revision_id": 4,  # revision 4 for example 2
+                    },
+                    {
+                        "experiment_id": experiment_ids[3],
+                        "dataset_example_id": example_ids[3],
+                        "dataset_example_revision_id": 7,  # revision 7 for example 4
+                    },
+                ]
+            )
+        )
+
+        await session.commit()

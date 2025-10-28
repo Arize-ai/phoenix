@@ -76,14 +76,12 @@ describe("getDataset", () => {
     );
 
     const dataset = await getDataset({
-      dataset: { datasetId: "dataset-123" },
-      versionId: "v2",
+      dataset: { datasetId: "dataset-123", versionId: "v2" },
     });
 
     expect(getDatasetExamplesSpy).toHaveBeenCalledWith({
       client: expect.any(Object),
-      dataset: { datasetId: "dataset-123" },
-      versionId: "v2",
+      dataset: { datasetId: "dataset-123", versionId: "v2" },
     });
     expect(dataset.versionId).toBe("v2");
     expect(dataset.examples.length).toBe(1);

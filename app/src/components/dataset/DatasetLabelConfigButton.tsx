@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { ModalOverlay } from "react-aria-components";
 import {
   ConnectionHandler,
@@ -11,6 +11,7 @@ import { css } from "@emotion/react";
 
 import {
   Button,
+  type ButtonProps,
   ColorSwatch,
   DebouncedSearch,
   Dialog,
@@ -31,43 +32,34 @@ import {
 } from "@phoenix/components";
 import { NewDatasetLabelDialog } from "@phoenix/components/dataset/NewDatasetLabelDialog";
 import { useNotifyError } from "@phoenix/contexts";
+import { isStringArray } from "@phoenix/typeUtils";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetLabelConfigButton_allLabels$key } from "./__generated__/DatasetLabelConfigButton_allLabels.graphql";
 import { DatasetLabelConfigButton_datasetLabels$key } from "./__generated__/DatasetLabelConfigButton_datasetLabels.graphql";
 import { DatasetLabelConfigButtonQuery } from "./__generated__/DatasetLabelConfigButtonQuery.graphql";
 import { DatasetLabelConfigButtonSetLabelsMutation } from "./__generated__/DatasetLabelConfigButtonSetLabelsMutation.graphql";
-import { DatasetLabelConfigButtonUnsetLabelsMutation } from "./__generated__/DatasetLabelConfigButtonUnsetLabelsMutation.graphql";
 
 type DatasetLabelConfigButtonProps = {
   datasetId: string;
+  variant?: ButtonProps["variant"];
 };
 
 export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
-  const { datasetId } = props;
+  const { datasetId, variant = "default" } = props;
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Get the connection ID so new labels appear immediately
-  const connections = [
-    ConnectionHandler.getConnectionID(
-      "client:root",
-      "DatasetLabelConfigButtonAllLabels_datasetLabels"
-    ),
-  ];
-
   return (
     <>
-      <DialogTrigger
-        isOpen={isOpen && !showNewLabelDialog}
-        onOpenChange={setIsOpen}
-      >
+      <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
         <Button
-          variant="quiet"
+          variant={variant}
           size="S"
           leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
           aria-label="Configure dataset labels"
         >
-          Labels
+          Label
         </Button>
         <Popover
           placement="bottom start"
@@ -79,20 +71,14 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
         >
           <PopoverArrow />
           <Dialog>
-            <View padding="size-200">
-              <Flex direction="column" gap="size-200">
-                <Heading level={3}>Configure Dataset Labels</Heading>
-                <Suspense fallback={<Loading />}>
-                  <DatasetLabelSelectionDialogContent
-                    datasetId={datasetId}
-                    onNewLabelPress={() => {
-                      setShowNewLabelDialog(true);
-                    }}
-                    onClose={() => setIsOpen(false)}
-                  />
-                </Suspense>
-              </Flex>
-            </View>
+            <Suspense fallback={<Loading />}>
+              <DatasetLabelSelectionDialogContent
+                datasetId={datasetId}
+                onNewLabelPress={() => {
+                  setShowNewLabelDialog(true);
+                }}
+              />
+            </Suspense>
           </Dialog>
         </Popover>
       </DialogTrigger>
@@ -102,10 +88,15 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
       >
         <Modal size="S">
           <NewDatasetLabelDialog
-            connections={connections}
+            updateConnectionIds={[
+              ConnectionHandler.getConnectionID(
+                "client:root",
+                "DatasetLabelConfigButtonAllLabels_datasetLabels"
+              ),
+            ]}
+            datasetId={datasetId}
             onCompleted={() => {
               setShowNewLabelDialog(false);
-              setIsOpen(false);
             }}
           />
         </Modal>
@@ -117,7 +108,6 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
 function DatasetLabelSelectionDialogContent(props: {
   datasetId: string;
   onNewLabelPress: () => void;
-  onClose: () => void;
 }) {
   const { datasetId } = props;
   const query = useLazyLoadQuery<DatasetLabelConfigButtonQuery>(
@@ -141,19 +131,9 @@ function DatasetLabelSelectionDialogContent(props: {
  * Exported label selection content with integrated "Create New Label" functionality
  * Styled to match PromptLabelConfigButton
  */
-export function DatasetLabelSelectionContent(props: {
-  datasetId: string;
-  onClose: () => void;
-}) {
+export function DatasetLabelSelectionContent(props: { datasetId: string }) {
+  const { datasetId } = props;
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
-
-  // Get the connection ID for this specific query so new labels appear immediately
-  const connections = [
-    ConnectionHandler.getConnectionID(
-      "client:root",
-      "DatasetLabelConfigButtonAllLabels_datasetLabels"
-    ),
-  ];
 
   return (
     <>
@@ -167,7 +147,13 @@ export function DatasetLabelSelectionContent(props: {
       >
         <Modal size="S">
           <NewDatasetLabelDialog
-            connections={connections}
+            updateConnectionIds={[
+              ConnectionHandler.getConnectionID(
+                "client:root",
+                "DatasetLabelConfigButtonAllLabels_datasetLabels"
+              ),
+            ]}
+            datasetId={datasetId}
             onCompleted={() => {
               // Only close the create modal, keep the popover open
               setShowNewLabelDialog(false);
@@ -183,12 +169,10 @@ function DatasetLabelList({
   query,
   dataset,
   onNewLabelPress,
-  onClose,
 }: {
   dataset: DatasetLabelConfigButton_datasetLabels$key;
   query: DatasetLabelConfigButton_allLabels$key;
   onNewLabelPress: () => void;
-  onClose: () => void;
 }) {
   const notifyError = useNotifyError();
   const datasetData = useFragment<DatasetLabelConfigButton_datasetLabels$key>(
@@ -221,61 +205,29 @@ function DatasetLabelList({
     query
   );
 
-  const selectedLabelIds = datasetData?.labels?.map((label) => label.id) || [];
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Selection>(
-    () => new Set(selectedLabelIds)
+  const selectedLabelIds = useMemo(
+    () => datasetData?.labels?.map((label) => label.id) || [],
+    [datasetData?.labels]
   );
-  const [hasChanges, setHasChanges] = useState(false);
+  const [search, setSearch] = useState("");
+  // Derive selected state directly from Relay data - no need for separate state
+  const selected = useMemo(() => new Set(selectedLabelIds), [selectedLabelIds]);
 
   const [setDatasetLabels] =
     useMutation<DatasetLabelConfigButtonSetLabelsMutation>(graphql`
       mutation DatasetLabelConfigButtonSetLabelsMutation(
-        $datasetIds: [ID!]!
+        $datasetId: ID!
         $datasetLabelIds: [ID!]!
       ) {
         setDatasetLabels(
-          input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
+          input: { datasetId: $datasetId, datasetLabelIds: $datasetLabelIds }
         ) {
-          query {
-            datasets(first: 100) @connection(key: "DatasetsTable_datasets") {
-              edges {
-                node {
-                  id
-                  labels {
-                    id
-                    name
-                    color
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `);
-
-  const [unsetDatasetLabels] =
-    useMutation<DatasetLabelConfigButtonUnsetLabelsMutation>(graphql`
-      mutation DatasetLabelConfigButtonUnsetLabelsMutation(
-        $datasetIds: [ID!]!
-        $datasetLabelIds: [ID!]!
-      ) {
-        unsetDatasetLabels(
-          input: { datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds }
-        ) {
-          query {
-            datasets(first: 100) @connection(key: "DatasetsTable_datasets") {
-              edges {
-                node {
-                  id
-                  labels {
-                    id
-                    name
-                    color
-                  }
-                }
-              }
+          dataset {
+            id
+            labels {
+              id
+              name
+              color
             }
           }
         }
@@ -292,71 +244,27 @@ function DatasetLabelList({
     if (selection === "all") {
       return;
     }
-    setSelected(selection);
-
-    // Check if there are changes from the original selection
-    const newLabelIds = [...selection] as string[];
-    const originalSet = new Set(selectedLabelIds);
-    const newSet = new Set(newLabelIds);
-
-    const hasActualChanges =
-      originalSet.size !== newSet.size ||
-      [...originalSet].some((id) => !newSet.has(id)) ||
-      [...newSet].some((id) => !originalSet.has(id));
-
-    setHasChanges(hasActualChanges);
-  };
-
-  const handleSave = () => {
-    const newLabelIds = [...selected] as string[];
-    const labelIdsToAdd: string[] = newLabelIds.filter(
-      (id) => !selectedLabelIds.includes(id)
-    );
-    const labelIdsToRemove: string[] = selectedLabelIds.filter(
-      (id) => !newLabelIds.includes(id)
-    );
-
-    const promises = [];
-
-    if (labelIdsToAdd.length) {
-      promises.push(
-        setDatasetLabels({
-          variables: {
-            datasetIds: [datasetData.id],
-            datasetLabelIds: labelIdsToAdd,
-          },
-        })
-      );
+    const datasetLabelIds = [...selection];
+    if (!isStringArray(datasetLabelIds)) {
+      return;
     }
-    if (labelIdsToRemove.length) {
-      promises.push(
-        unsetDatasetLabels({
-          variables: {
-            datasetIds: [datasetData.id],
-            datasetLabelIds: labelIdsToRemove,
-          },
-        })
-      );
-    }
-
-    // Close modal after all mutations complete
-    Promise.all(promises)
-      .then(() => {
-        setHasChanges(false);
-        onClose();
-      })
-      .catch(() => {
-        // Keep modal open on error so user can retry
+    setDatasetLabels({
+      variables: {
+        datasetId: datasetData.id,
+        datasetLabelIds,
+      },
+      onError: (error) => {
+        const formattedError = getErrorMessagesFromRelayMutationError(error);
         notifyError({
           title: "Failed to save label changes",
-          message: "Failed to save label changes. Please try again.",
+          message: formattedError?.[0] ?? error.message,
         });
-      });
+      },
+    });
   };
 
   return (
     <>
-      {/* Header section matching PromptLabelConfigButton */}
       <View
         padding="size-100"
         borderBottomWidth="thin"
@@ -384,8 +292,6 @@ function DatasetLabelList({
           />
         </Flex>
       </View>
-
-      {/* Labels list */}
       <ListBox
         aria-label="labels"
         items={labels}
@@ -399,26 +305,10 @@ function DatasetLabelList({
       >
         {(item) => <DatasetLabelListBoxItem key={item.id} item={item} />}
       </ListBox>
-
-      {/* Footer section */}
       <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <LinkButton variant="quiet" size="S" to="/settings/datasets">
-            Manage Labels
-          </LinkButton>
-          <Button
-            variant="primary"
-            size="S"
-            onPress={handleSave}
-            isDisabled={!hasChanges}
-          >
-            Save Changes
-          </Button>
-        </Flex>
+        <LinkButton variant="quiet" size="S" to="/settings/datasets">
+          Edit Labels
+        </LinkButton>
       </View>
     </>
   );

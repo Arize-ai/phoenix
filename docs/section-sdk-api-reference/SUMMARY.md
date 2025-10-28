@@ -1,41 +1,35 @@
 # Table of contents
 
-## Rest API
-
-* [Reference](https://phoenix-demo.arize.com/apis)
-* [Annotation Configs](README.md)
-* [Annotations](rest-api/annotations.md)
-* [Datasets](rest-api/datasets.md)
-* [Experiments](rest-api/experiments.md)
-* [Spans](rest-api/spans.md)
-* [Traces](rest-api/traces.md)
-* [Prompts](rest-api/prompts.md)
-* [Projects](rest-api/projects.md)
-* [Users](rest-api/users.md)
-* [REST API Overview](rest-api/overview.md)
-* [Overview](rest-api/readme-1.md)
-
 ## Python
 
-* [Overview](python/overview.md)
+* [Overview](README.md)
 * [Reference](https://arize-phoenix.readthedocs.io/en/latest/)
-
-## Python packages
-
-* [arize-phoenix-evals](python-packages/arize-phoenix-evals.md)
-* [arize-phoenix-client](python-packages/arize-phoenix-client.md)
-* [arize-phoenix-otel](python-packages/arize-phoenix-otel.md)
+* [arize-phoenix-evals](python/arize-phoenix-evals.md)
+* [arize-phoenix-client](python/arize-phoenix-client.md)
+* [arize-phoenix-otel](python/arize-phoenix-otel.md)
 
 ## TypeScript
 
 * [Overview](typescript/overview.md)
 * [Reference](https://arize-ai.github.io/phoenix/)
+* [@arizeai/phoenix-client](typescript/arizeai-phoenix-client.md)
+* [@arizeai/phoenix-evals](typescript/arizeai-phoenix-evals.md)
+* [@arizeai/phoenix-mcp](typescript/mcp-server.md)
 
-## TypeScript Packages
+## Rest API
 
-* [@arizeai/phoenix-mcp](typescript-packages/mcp-server.md)
-* [@arizeai/phoenix-client](typescript-packages/arizeai-phoenix-client.md)
-* [@arizeai/phoenix-evals](typescript-packages/arizeai-phoenix-evals.md)
+* [REST API Overview](rest-api/overview.md)
+* [API Reference](rest-api/api-reference/README.md)
+  * [Annotation Config](rest-api/api-reference/annotationconfig.md)
+  * [Annotations](rest-api/api-reference/annotations.md)
+  * [Datasets](rest-api/api-reference/datasets.md)
+  * [Experiments](rest-api/api-reference/experiments.md)
+  * [Spans](rest-api/api-reference/spans.md)
+  * [Traces](rest-api/api-reference/traces.md)
+  * [Prompts](rest-api/api-reference/prompts.md)
+  * [Projects](rest-api/api-reference/projects.md)
+  * [Sessions](rest-api/api-reference/sessions.md)
+  * [Users](rest-api/api-reference/users.md)
 
 ## OpenInference SDK
 

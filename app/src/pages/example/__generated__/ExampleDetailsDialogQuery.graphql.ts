@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<07db05fb9c497fc120e31ee87816cbf4>>
+ * @generated SignedSource<<c2d33f42a5a5f93c3ac5ea62d32e1906>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,11 @@ export type ExampleDetailsDialogQuery$variables = {
 };
 export type ExampleDetailsDialogQuery$data = {
   readonly example: {
+    readonly datasetSplits?: ReadonlyArray<{
+      readonly color: string;
+      readonly id: string;
+      readonly name: string;
+    }>;
     readonly id?: string;
     readonly revision?: {
       readonly input: any;
@@ -109,10 +114,37 @@ v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "traceId",
+  "name": "name",
   "storageKey": null
 },
 v8 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DatasetSplit",
+  "kind": "LinkedField",
+  "name": "datasetSplits",
+  "plural": true,
+  "selections": [
+    (v3/*: any*/),
+    (v7/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "color",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "traceId",
+  "storageKey": null
+},
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "Span",
@@ -130,7 +162,7 @@ v8 = {
       "plural": false,
       "selections": [
         (v3/*: any*/),
-        (v7/*: any*/),
+        (v9/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -149,21 +181,21 @@ v8 = {
   ],
   "storageKey": null
 },
-v9 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v10 = [
+v12 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 100
   }
 ],
-v11 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "Trace",
@@ -172,7 +204,7 @@ v11 = {
   "plural": false,
   "selections": [
     (v3/*: any*/),
-    (v7/*: any*/),
+    (v9/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -206,7 +238,8 @@ return {
             "selections": [
               (v3/*: any*/),
               (v6/*: any*/),
-              (v8/*: any*/)
+              (v8/*: any*/),
+              (v10/*: any*/)
             ],
             "type": "DatasetExample",
             "abstractKey": null
@@ -240,16 +273,17 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v9/*: any*/),
+          (v11/*: any*/),
           (v3/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v6/*: any*/),
               (v8/*: any*/),
+              (v10/*: any*/),
               {
                 "alias": null,
-                "args": (v10/*: any*/),
+                "args": (v12/*: any*/),
                 "concreteType": "ExperimentRunConnection",
                 "kind": "LinkedField",
                 "name": "experimentRuns",
@@ -294,7 +328,7 @@ return {
                             "storageKey": null
                           },
                           (v4/*: any*/),
-                          (v11/*: any*/),
+                          (v13/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -320,13 +354,7 @@ return {
                                     "plural": false,
                                     "selections": [
                                       (v3/*: any*/),
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "name",
-                                        "storageKey": null
-                                      },
+                                      (v7/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -356,7 +384,7 @@ return {
                                         "name": "annotatorKind",
                                         "storageKey": null
                                       },
-                                      (v11/*: any*/)
+                                      (v13/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -384,7 +412,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v9/*: any*/),
+                          (v11/*: any*/),
                           (v3/*: any*/)
                         ],
                         "storageKey": null
@@ -422,7 +450,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v10/*: any*/),
+                "args": (v12/*: any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "ExampleExperimentRunsTable_experimentRuns",
@@ -439,16 +467,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1847c6f1b0008eb235fb447780f387ea",
+    "cacheID": "01b5d9b615ac87b02a8166174a74de39",
     "id": null,
     "metadata": {},
     "name": "ExampleDetailsDialogQuery",
     "operationKind": "query",
-    "text": "query ExampleDetailsDialogQuery(\n  $exampleId: ID!\n  $datasetVersionId: ID\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        output\n        metadata\n      }\n      span {\n        id\n        trace {\n          id\n          traceId\n          project {\n            id\n          }\n        }\n      }\n    }\n    ...ExampleExperimentRunsTableFragment\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment on DatasetExample {\n  experimentRuns(first: 100) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              metadata\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExampleDetailsDialogQuery(\n  $exampleId: ID!\n  $datasetVersionId: ID\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        output\n        metadata\n      }\n      datasetSplits {\n        id\n        name\n        color\n      }\n      span {\n        id\n        trace {\n          id\n          traceId\n          project {\n            id\n          }\n        }\n      }\n    }\n    ...ExampleExperimentRunsTableFragment\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment on DatasetExample {\n  experimentRuns(first: 100) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              metadata\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "106c07687002b0b699ae4d4bc4569d4a";
+(node as any).hash = "b25d8729689f6dada78cb41d032ca69c";
 
 export default node;

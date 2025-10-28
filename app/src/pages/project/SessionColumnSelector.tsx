@@ -3,38 +3,49 @@ import { graphql, useFragment } from "react-relay";
 import { Column } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Dropdown } from "@arizeai/components";
-
-import { Flex, Icon, Icons, View } from "@phoenix/components";
+import {
+  Button,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Popover,
+  SelectChevronUpDownIcon,
+  View,
+} from "@phoenix/components";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import { SessionColumnSelector_annotations$key } from "./__generated__/SessionColumnSelector_annotations.graphql";
 const UN_HIDABLE_COLUMN_IDS = ["sessionId"];
 
-type SessionColumnSelectorProps = {
+type SessionColumnSelectorProps<T extends object> = {
   /**
    * The columns that can be displayed in the session table
    * This could be made more generic to support other tables
    * but for now working on the session tables to figure out the right interface
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  columns: Column<any>[];
+  columns: Column<T>[];
   query: SessionColumnSelector_annotations$key;
 };
 
-export function SessionColumnSelector(props: SessionColumnSelectorProps) {
+/**
+ * @todo Convert this to a multi-select with ListBox
+ */
+export function SessionColumnSelector<T extends object>(
+  props: SessionColumnSelectorProps<T>
+) {
   return (
-    <Dropdown
-      menu={<ColumnSelectorMenu {...props} />}
-      triggerProps={{
-        placement: "bottom end",
-      }}
-    >
-      <Flex direction="row" alignItems="center" gap="size-100">
-        <Icon svg={<Icons.Column />} />
-        Columns
-      </Flex>
-    </Dropdown>
+    <DialogTrigger>
+      <Button trailingVisual={<SelectChevronUpDownIcon />}>
+        <Flex alignItems="center" gap="size-100">
+          <Icon svg={<Icons.Column />} />
+          Columns
+        </Flex>
+      </Button>
+      <Popover>
+        <ColumnSelectorMenu {...props} />
+      </Popover>
+    </DialogTrigger>
   );
 }
 
@@ -48,7 +59,12 @@ const columCheckboxItemCSS = css`
   }
 `;
 
-function ColumnSelectorMenu(props: SessionColumnSelectorProps) {
+/**
+ * @todo Convert this to a multi-select with ListBox
+ */
+function ColumnSelectorMenu<T extends object>(
+  props: SessionColumnSelectorProps<T>
+) {
   const { columns: propsColumns } = props;
 
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
@@ -95,7 +111,7 @@ function ColumnSelectorMenu(props: SessionColumnSelectorProps) {
         max-height: calc(100vh - 200px);
       `}
     >
-      <View paddingTop="size-50" paddingBottom="size-50">
+      <View padding="size-50">
         <View
           borderBottomColor="dark"
           borderBottomWidth="thin"
@@ -142,9 +158,12 @@ function ColumnSelectorMenu(props: SessionColumnSelectorProps) {
   );
 }
 
-function EvaluationColumnSelector({
+/**
+ * @todo convert this to a multi-select with ListBox
+ */
+function EvaluationColumnSelector<T extends object>({
   query,
-}: Pick<SessionColumnSelectorProps, "query">) {
+}: Pick<SessionColumnSelectorProps<T>, "query">) {
   const data = useFragment<SessionColumnSelector_annotations$key>(
     graphql`
       fragment SessionColumnSelector_annotations on Project {
@@ -182,7 +201,6 @@ function EvaluationColumnSelector({
         paddingBottom="size-50"
         borderColor="dark"
         borderTopWidth="thin"
-        borderBottomWidth="thin"
       >
         <div css={columCheckboxItemCSS}>
           <label>

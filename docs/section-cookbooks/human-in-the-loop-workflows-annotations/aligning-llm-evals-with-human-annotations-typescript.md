@@ -11,7 +11,7 @@ description: >-
 
 In this tutorial, you’ll learn how to align your evaluator so it’s tailored to your specific use case. Instead of relying only on [pre-built evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals) in Phoenix—which are tested on general benchmark datasets but may miss the nuances of your application—we’ll show you how to build your own.
 
-We’ll run a [**Mastra**](https://app.gitbook.com/s/C8re8QzKV5m48pbcFkBp/mastra) **agent**, capture its traces, and then run evaluations on those traces. Using a small set of **human-annotated examples** as our ground truth, we’ll identify where the evaluator falls short. From there, we’ll refine the evaluation prompt and repeat the cycle until the evaluator’s outputs align with the human annotations.
+We’ll run a [**Mastra**](https://app.gitbook.com/s/C8re8QzKV5m48pbcFkBp/typescript/mastra) **agent**, capture its traces, and then run evaluations on those traces. Using a small set of **human-annotated examples** as our ground truth, we’ll identify where the evaluator falls short. From there, we’ll refine the evaluation prompt and repeat the cycle until the evaluator’s outputs align with the human annotations.
 
 This iterative loop—**run agent → gather traces → evaluate → refine**—ensures your evaluator evolves to match the exact requirements of your application.&#x20;
 

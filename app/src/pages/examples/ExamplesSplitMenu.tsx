@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 import {
   Autocomplete,
   Button,
+  ButtonProps,
   Checkbox,
   Flex,
   Heading,
@@ -34,6 +35,7 @@ type ExamplesSplitMenuProps = {
   selectedSplitIds: string[];
   selectedExampleIds: string[];
   examplesCache: ExamplesCache;
+  size?: ButtonProps["size"];
 };
 
 const getInitialMode = (selectedExampleIds: string[]) => {
@@ -50,6 +52,18 @@ const getInitialMode = (selectedExampleIds: string[]) => {
  * In filter mode, the user can select splits from a list.
  * In apply mode, the user can select splits to add or remove from the selected examples.
  * In create mode, the user can create a new split.
+ *
+ * You can skip "filter" mode for single example use cases by passing in an empty array for selectedSplitIds,
+ * and pre-populating the selectedExampleIds with the single example id and examplesCache with the single example.
+ * @example
+ * <ExamplesSplitMenu
+ *   onSelectionChange={() => {}}
+ *   onExampleSelectionChange={() => {}}
+ *   selectedSplitIds={[]}
+ *   selectedExampleIds={["123"]}
+ *   // ensure this comes from relay so that it updates when the example splits are updated
+ *   examplesCache={{ "123": { id: "123", datasetSplits: [{ id: "456", name: "Split 1" }] } }}
+ * />
  */
 export const ExamplesSplitMenu = ({
   onSelectionChange,
@@ -57,6 +71,7 @@ export const ExamplesSplitMenu = ({
   selectedSplitIds,
   selectedExampleIds,
   examplesCache,
+  size,
 }: ExamplesSplitMenuProps) => {
   const [mode, setMode] = useState<"filter" | "apply" | "create">(() =>
     getInitialMode(selectedExampleIds)
@@ -87,7 +102,10 @@ export const ExamplesSplitMenu = ({
         }
       }}
     >
-      <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
+      <Button
+        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        size={size}
+      >
         Splits
         {selectedSplitIds.length > 0 ? ` (${selectedSplitIds.length})` : ""}
       </Button>
@@ -247,7 +265,9 @@ const SplitMenu = ({
           >
             <Heading level={4} weight="heavy">
               {selectedExampleIds.length > 0
-                ? "Apply splits to selected examples"
+                ? selectedExampleIds.length === 1
+                  ? "Apply splits to example"
+                  : "Apply splits to selected examples"
                 : "Filter examples by splits"}
             </Heading>
             <IconButton
@@ -446,7 +466,9 @@ const SplitMenuCreateContent = ({
           <Heading level={4} weight="heavy">
             Create Split
             {selectedExampleIds.length > 0
-              ? " for " + selectedExampleIds.length + " examples"
+              ? " for " +
+                selectedExampleIds.length +
+                (selectedExampleIds.length === 1 ? " example" : " examples")
               : ""}
           </Heading>
         </Flex>

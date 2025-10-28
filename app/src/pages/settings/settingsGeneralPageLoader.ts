@@ -1,17 +1,23 @@
-import { fetchQuery, graphql } from "react-relay";
+import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import { settingsGeneralPageLoaderQuery } from "./__generated__/settingsGeneralPageLoaderQuery.graphql";
 
-export async function settingsGeneralPageLoader() {
-  return await fetchQuery<settingsGeneralPageLoaderQuery>(
+export const settingsGeneralPageLoaderGQL = graphql`
+  query settingsGeneralPageLoaderQuery {
+    ...DBUsagePieChart_data
+  }
+`;
+
+export function settingsGeneralPageLoader() {
+  return loadQuery<settingsGeneralPageLoaderQuery>(
     RelayEnvironment,
-    graphql`
-      query settingsGeneralPageLoaderQuery {
-        ...DBUsagePieChart_data
-      }
-    `,
+    settingsGeneralPageLoaderGQL,
     {}
-  ).toPromise();
+  );
 }
+
+export type settingsGeneralPageLoaderType = ReturnType<
+  typeof settingsGeneralPageLoader
+>;

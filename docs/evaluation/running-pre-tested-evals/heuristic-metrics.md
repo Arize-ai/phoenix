@@ -2,6 +2,6 @@
 
 
 
-## [Precision Recall F-Score](heuristic-metrics.md#exact-match-https-arize-phoenix.readthedocs.io-projects-evals-en-latest-api-evals.html-exact-match)
+## [Precision Recall F-Score](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#precisionrecallfscore)
 
 ## [Exact Match](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#exact-match)

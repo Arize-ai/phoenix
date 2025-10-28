@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ConnectionHandler, graphql, useMutation } from "react-relay";
+import { type DataID, graphql, useMutation } from "react-relay";
 
 import {
   Alert,
@@ -17,20 +17,24 @@ import type { NewDatasetLabelDialogMutation } from "./__generated__/NewDatasetLa
 type NewDatasetLabelDialogProps = {
   onCompleted: () => void;
   /**
-   * Optional connection IDs to update. If not provided, defaults to DatasetLabelsTable connection.
+   * Optional Relay connection IDs to update. These must be connections of DatasetLabelEdge types.
    */
-  connections?: string[];
+  updateConnectionIds?: DataID[];
+  /**
+   * Optional dataset ID. If provided, newly created labels will be auto-applied to the dataset upon creation.
+   */
+  datasetId?: string;
 };
 export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
   const [error, setError] = useState("");
-  const { onCompleted, connections: providedConnections } = props;
+  const { onCompleted, updateConnectionIds, datasetId } = props;
   const [addLabel, isSubmitting] = useMutation<NewDatasetLabelDialogMutation>(
     graphql`
       mutation NewDatasetLabelDialogMutation(
-        $label: CreateDatasetLabelInput!
+        $input: CreateDatasetLabelInput!
         $connections: [ID!]!
       ) {
-        createDatasetLabel(input: $label) {
+        createDatasetLabel(input: $input) {
           datasetLabel
             @prependNode(
               connections: $connections
@@ -40,10 +44,19 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
             name
             color
           }
+          datasets {
+            id
+            labels {
+              id
+              name
+              color
+            }
+          }
         }
       }
     `
   );
+
   const onSubmit = (label: LabelParams) => {
     // Convert RGBA to hex format for backend
     const convertToHex = (color: string): string => {
@@ -65,21 +78,18 @@ export function NewDatasetLabelDialog(props: NewDatasetLabelDialogProps) {
       return color; // fallback to original color
     };
 
-    const connections = providedConnections || [
-      ConnectionHandler.getConnectionID(
-        "client:root",
-        "DatasetLabelsTable__datasetLabels"
-      ),
-    ];
     addLabel({
       variables: {
-        label: {
+        input: {
           ...label,
           color: convertToHex(label.color),
+          datasetIds: datasetId ? [datasetId] : undefined,
         },
-        connections,
+        connections: updateConnectionIds ?? [],
       },
-      onCompleted,
+      onCompleted: () => {
+        onCompleted();
+      },
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);
         setError(formattedError?.[0] ?? error.message);

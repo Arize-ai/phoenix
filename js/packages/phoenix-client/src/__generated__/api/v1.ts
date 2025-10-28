@@ -940,6 +940,11 @@ export interface components {
              */
             version_id?: string | null;
             /**
+             * Splits
+             * @description List of dataset split identifiers (GlobalIDs or names) to filter by
+             */
+            splits?: string[] | null;
+            /**
              * Repetitions
              * @description Number of times the experiment should be repeated for each example
              * @default 1
@@ -1397,6 +1402,8 @@ export interface components {
             dataset_id: string;
             /** Version Id */
             version_id: string;
+            /** Filtered Splits */
+            filtered_splits?: string[];
             /** Examples */
             examples: components["schemas"]["DatasetExample"][];
         };
@@ -3437,6 +3444,8 @@ export interface operations {
             query?: {
                 /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
                 version_id?: string | null;
+                /** @description List of dataset split identifiers (GlobalIDs or names) to filter by */
+                split?: string[] | null;
             };
             header?: never;
             path: {

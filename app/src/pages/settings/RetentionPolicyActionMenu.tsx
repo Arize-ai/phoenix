@@ -1,7 +1,5 @@
 import { Suspense, useState } from "react";
-import { graphql, useMutation } from "react-relay";
-
-import { ActionMenu, Item } from "@arizeai/components";
+import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import {
   Button,
@@ -16,8 +14,12 @@ import {
   Icon,
   Icons,
   Loading,
+  Menu,
+  MenuItem,
+  MenuTrigger,
   Modal,
   ModalOverlay,
+  Popover,
   Text,
   View,
 } from "@phoenix/components";
@@ -41,10 +43,6 @@ export interface RetentionPolicyActionMenuProps {
   projectNames: string[];
   onPolicyEdit: () => void;
   onPolicyDelete: () => void;
-  /**
-   * The ID of the connection to the policy.
-   */
-  connectionId: string;
 }
 
 export const RetentionPolicyActionMenu = ({
@@ -53,12 +51,14 @@ export const RetentionPolicyActionMenu = ({
   projectNames,
   onPolicyEdit,
   onPolicyDelete,
-  connectionId,
 }: RetentionPolicyActionMenuProps) => {
   const canDelete = policyName !== DEFAULT_POLICY_NAME;
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
+  const connectionId = ConnectionHandler.getConnectionID(
+    "client:root",
+    "RetentionPoliciesTable_projectTraceRetentionPolicies"
+  );
   const [deletePolicy, isDeleting] = useMutation(graphql`
     mutation RetentionPolicyActionMenuDeletePolicyMutation(
       $policyId: ID!
@@ -77,45 +77,53 @@ export const RetentionPolicyActionMenu = ({
 
   return (
     <StopPropagation>
-      <ActionMenu
-        buttonSize="compact"
-        disabledKeys={canDelete ? [] : [RetentionPolicyAction.DELETE]}
-        align="end"
-        onAction={(action) => {
-          switch (action as RetentionPolicyAction) {
-            case RetentionPolicyAction.EDIT: {
-              return setShowEditDialog(true);
-            }
-            case RetentionPolicyAction.DELETE: {
-              return setShowDeleteDialog(true);
-            }
-          }
-        }}
-      >
-        <Item key={RetentionPolicyAction.EDIT} textValue="Edit Policy">
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
+      <MenuTrigger>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+        />
+        <Popover>
+          <Menu
+            disabledKeys={canDelete ? [] : [RetentionPolicyAction.DELETE]}
+            onAction={(action) => {
+              switch (action as RetentionPolicyAction) {
+                case RetentionPolicyAction.EDIT: {
+                  return setShowEditDialog(true);
+                }
+                case RetentionPolicyAction.DELETE: {
+                  return setShowDeleteDialog(true);
+                }
+              }
+            }}
           >
-            <Icon svg={<Icons.EditOutline />} />
-            <Text>Edit</Text>
-          </Flex>
-        </Item>
-        <Item key={RetentionPolicyAction.DELETE} textValue="Delete Policy">
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.TrashOutline />} />
-            <Text>Delete</Text>
-          </Flex>
-        </Item>
-      </ActionMenu>
-
+            <MenuItem id={RetentionPolicyAction.EDIT} textValue="Edit Policy">
+              <Flex
+                direction="row"
+                gap="size-75"
+                justifyContent="start"
+                alignItems="center"
+              >
+                <Icon svg={<Icons.EditOutline />} />
+                <Text>Edit</Text>
+              </Flex>
+            </MenuItem>
+            <MenuItem
+              id={RetentionPolicyAction.DELETE}
+              textValue="Delete Policy"
+            >
+              <Flex
+                direction="row"
+                gap="size-75"
+                justifyContent="start"
+                alignItems="center"
+              >
+                <Icon svg={<Icons.TrashOutline />} />
+                <Text>Delete</Text>
+              </Flex>
+            </MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
       {/* Edit Dialog */}
       <DialogTrigger isOpen={showEditDialog} onOpenChange={setShowEditDialog}>
         <ModalOverlay>
@@ -187,7 +195,7 @@ export const RetentionPolicyActionMenu = ({
                   <Flex direction="row" justifyContent="end" gap="size-100">
                     <Button
                       variant="default"
-                      size="M"
+                      size="S"
                       slot="close"
                       isDisabled={isDeleting}
                     >

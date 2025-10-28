@@ -156,11 +156,7 @@ const removeToolNamePrefix = (toolName: string) =>
  *
  * @returns A label for the tool choice
  */
-export const ChoiceLabel = ({
-  choiceType,
-}: {
-  choiceType: string;
-}): JSX.Element => {
+export const ChoiceLabel = ({ choiceType }: { choiceType: string }) => {
   switch (choiceType) {
     case "any":
     case "required":

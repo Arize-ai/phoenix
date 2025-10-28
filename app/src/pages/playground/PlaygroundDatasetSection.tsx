@@ -3,7 +3,6 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, Icon, Icons, LinkButton, Text, View } from "@phoenix/components";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
@@ -17,7 +16,6 @@ export function PlaygroundDatasetSection({
   datasetId: string;
   splitIds?: string[];
 }) {
-  const isDatasetSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const instances = usePlaygroundContext((state) => state.instances);
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const experimentIds = useMemo(() => {
@@ -75,7 +73,7 @@ export function PlaygroundDatasetSection({
         <Flex justifyContent="space-between" alignItems="center" height="100%">
           <Flex gap="size-100" alignItems="center">
             <Text>{data.dataset.name ?? "Dataset"} results</Text>
-            {isDatasetSplitsEnabled && selectedSplits.length > 0 && (
+            {selectedSplits.length > 0 && (
               <DatasetSplits labels={selectedSplits} />
             )}
             {data.dataset.exampleCount != null ? (
