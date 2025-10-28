@@ -13,7 +13,11 @@ export default defineConfig(() => {
     // disable react's built-in 300ms suspense fallback timer
     // without this build plugin we see a 300ms delay on most UI interactions
     reactFallbackThrottlePlugin(),
-    react(),
+    react({
+      babel: {
+        plugins: [["babel-plugin-react-compiler", { panicThreshold: "none" }]],
+      },
+    }),
     relay,
     lezer(),
   ];
