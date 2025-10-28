@@ -207,12 +207,14 @@ export function ExperimentCompareDetailsProvider({
     sortDirection,
   ]);
 
-  const noRunsSelected = useMemo(
-    () =>
-      selectedExperimentRepetitions.every((run) => !run.selected) &&
-      !referenceOutputSelected,
-    [selectedExperimentRepetitions, referenceOutputSelected]
-  );
+  const noRunsSelected = useMemo(() => {
+    const noExperimentRunsSelected = selectedExperimentRepetitions.every(
+      (run) => !run.selected
+    );
+    const noReferenceOutputSelected =
+      !referenceOutput || !referenceOutputSelected;
+    return noExperimentRunsSelected && noReferenceOutputSelected;
+  }, [selectedExperimentRepetitions, referenceOutput, referenceOutputSelected]);
 
   const contextValue: ExperimentCompareContextType = {
     baseExperimentId,
