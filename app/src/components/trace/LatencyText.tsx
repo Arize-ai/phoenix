@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
 import { TextColorValue } from "@phoenix/components/types/style";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
+import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 export function LatencyText({
   latencyMs,
   size = "M",
@@ -28,14 +28,8 @@ export function LatencyText({
       return "danger";
     }
   }, [latencyMs]);
-  const latencyText = useMemo(() => {
-    if (latencyMs == null) {
-      return "--";
-    } else if (latencyMs < 10) {
-      return formatFloat(latencyMs) + "ms";
-    }
-    return formatFloat(latencyMs / 1000) + "s";
-  }, [latencyMs]);
+
+  const latencyText = useMemo(() => latencyMsFormatter(latencyMs), [latencyMs]);
 
   return (
     <Flex

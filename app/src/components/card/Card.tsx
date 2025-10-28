@@ -1,4 +1,11 @@
-import { forwardRef, Ref, useId, useState } from "react";
+import {
+  forwardRef,
+  Ref,
+  useEffect,
+  useEffectEvent,
+  useId,
+  useState,
+} from "react";
 
 import { Heading, Icon, Icons } from "@phoenix/components";
 import { useStyleProps, viewStyleProps } from "@phoenix/components/utils";
@@ -17,7 +24,7 @@ function Card(
     defaultOpen = true,
     scrollBody = false,
     extra,
-    onCollapse,
+    onCollapseChange,
     ...otherProps
   }: CardProps,
   ref: Ref<HTMLElement>
@@ -30,6 +37,14 @@ function Card(
   const headerId = useId();
   const collapseButtonId = useId();
   const bodyId = useId();
+
+  const handleCollapseChange = useEffectEvent((collapsed: boolean) => {
+    onCollapseChange?.(collapsed);
+  });
+
+  useEffect(() => {
+    handleCollapseChange(isCollapsed);
+  }, [isCollapsed]);
 
   const headingContents = (
     <div>
@@ -59,9 +74,7 @@ function Card(
         {collapsible ? (
           <button
             onClick={() => {
-              const newCollapsedState = !isCollapsed;
-              setIsCollapsed(newCollapsedState);
-              onCollapse?.(newCollapsedState);
+              setIsCollapsed(!isCollapsed);
             }}
             className="card__collapsible-button button--reset"
             id={collapseButtonId}

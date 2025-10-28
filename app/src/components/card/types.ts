@@ -42,5 +42,5 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
   /**
    * Callback fired when the card is collapsed or expanded. Only applicable if `collapsible` is `true`.
    */
-  onCollapse?: (isCollapsed: boolean) => void;
+  onCollapseChange?: (isCollapsed: boolean) => void;
 }

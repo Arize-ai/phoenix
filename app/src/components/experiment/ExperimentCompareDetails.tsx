@@ -41,6 +41,7 @@ import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
+import { ExperimentRunMetadataEmpty } from "@phoenix/components/experiment/ExperimentRunMetadataEmpty";
 import {
   compactResizeHandleCSS,
   resizeHandleCSS,
@@ -254,7 +255,7 @@ export function ExperimentCompareDetails({
               height="100%"
               scrollBody={true}
               collapsible
-              onCollapse={(isCollapsed) => {
+              onCollapseChange={(isCollapsed) => {
                 const panel = inputPanelRef.current;
                 if (panel) {
                   if (isCollapsed) {
@@ -610,7 +611,7 @@ function ExperimentRunOutputsSidebar() {
             onChange={toggleReferenceOutputSelected}
           >
             <Flex minHeight={30} alignItems="center">
-              <Text>Reference Output</Text>
+              <Text>reference output</Text>
             </Flex>
           </Checkbox>
         )}
@@ -904,7 +905,11 @@ function ExperimentItemMetadata({
           opacity: ${experimentRun ? 1 : 0.25};
         `}
       >
-        <ExperimentRunMetadata {...experimentRun} />
+        {experimentRun ? (
+          <ExperimentRunMetadata {...experimentRun} />
+        ) : (
+          <ExperimentRunMetadataEmpty />
+        )}
       </div>
     </View>
   );
