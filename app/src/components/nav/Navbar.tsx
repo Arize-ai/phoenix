@@ -198,6 +198,7 @@ export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
           className="button--reset"
         >
           <Icon svg={currentThemeIcon} />
+          <Text>{currentThemeModeText}</Text>
         </button>
       </Pressable>
       <Tooltip placement="right" offset={10}>
