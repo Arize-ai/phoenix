@@ -2140,7 +2140,7 @@ input ProjectSessionAnnoResultKey {
   attr: ProjectSessionAnnoAttr!
 }
 
-type ProjectSessionAnnotation implements Node {
+type ProjectSessionAnnotation implements Node & Annotation {
   """The Globally Unique ID of this object"""
   id: ID!
 
@@ -2166,20 +2166,26 @@ type ProjectSessionAnnotation implements Node {
   """Metadata about the annotation."""
   metadata: JSON!
 
+  """The source of the annotation."""
+  source: AnnotationSource!
+
   """The identifier of the annotation."""
   identifier: String!
 
-  """The source of the annotation."""
-  source: AnnotationSource!
+  """The date and time the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time the annotation was last updated."""
+  updatedAt: DateTime!
+
+  """The user that produced the annotation."""
+  user: User
 
   """The project session associated with the annotation."""
   projectSessionId: ID!
 
   """The project session associated with the annotation."""
   projectSession: ProjectSession!
-
-  """The user that produced the annotation."""
-  user: User
 }
 
 type ProjectSessionAnnotationMutationPayload {
