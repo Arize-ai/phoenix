@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import {
   ConnectionHandler,
   graphql,
@@ -304,18 +304,26 @@ function DatasetLabelListBoxItem({
   );
 }
 
-type CreateNewDatasetLabelProps = UseDatasetLabelMutationsParams;
+type CreateNewDatasetLabelProps = UseDatasetLabelMutationsParams & {
+  onCompleted: () => void;
+};
 
 function CreateNewDatasetLabel({
-  onCompleted,
   updateConnectionIds,
   datasetId,
+  onCompleted,
 }: CreateNewDatasetLabelProps) {
   const { addLabelMutation, isSubmitting, error } = useDatasetLabelMutations({
-    onCompleted,
     updateConnectionIds,
     datasetId,
   });
+
+  const onSubmit = useCallback(
+    (label: Parameters<typeof addLabelMutation>[0]) => {
+      addLabelMutation(label, onCompleted);
+    },
+    [addLabelMutation, onCompleted]
+  );
 
   return (
     <>
@@ -324,7 +332,7 @@ function CreateNewDatasetLabel({
           {error}
         </Alert>
       )}
-      <NewLabelForm onSubmit={addLabelMutation} isSubmitting={isSubmitting} />
+      <NewLabelForm onSubmit={onSubmit} isSubmitting={isSubmitting} />
     </>
   );
 }

@@ -7,10 +7,6 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 export type UseDatasetLabelMutationsParams = {
   /**
-   * Callback to invoke when the mutation is completed successfully.
-   */
-  onCompleted?: () => void;
-  /**
    * Optional Relay connection IDs to update. These must be connections of DatasetLabelEdge types.
    */
   updateConnectionIds?: string[];
@@ -21,7 +17,6 @@ export type UseDatasetLabelMutationsParams = {
 };
 
 export const useDatasetLabelMutations = ({
-  onCompleted,
   updateConnectionIds,
   datasetId,
 }: UseDatasetLabelMutationsParams) => {
@@ -56,7 +51,7 @@ export const useDatasetLabelMutations = ({
     `);
 
   const addLabelMutation = useCallback(
-    (label: LabelParams) => {
+    (label: LabelParams, onCompleted: () => void) => {
       // Convert RGBA to hex format for backend
       const convertToHex = (color: string): string => {
         if (color.startsWith("#")) return color;
@@ -95,7 +90,7 @@ export const useDatasetLabelMutations = ({
         },
       });
     },
-    [addLabel, onCompleted, updateConnectionIds, datasetId]
+    [addLabel, updateConnectionIds, datasetId]
   );
 
   return {
