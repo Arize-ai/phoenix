@@ -123,15 +123,15 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 return self._generate_with_structured_output(prompt, schema, **kwargs)
             except Exception as structured_error:
                 logger.debug(
-                    f"Structured output failed for {self.client.model}, falling back to tool calling: "
-                    f"{structured_error}"
+                    f"Structured output failed for {self.client.model}, falling back to tool "
+                    f"calling: {structured_error}"
                 )
                 try:
                     return self._generate_with_tool_calling(prompt, schema, **kwargs)
                 except Exception as tool_error:
                     raise ValueError(
-                        f"Google GenAI model {self.client.model} failed with both structured output "
-                        f"and tool calling. Tool calling error: {tool_error}"
+                        f"Google GenAI model {self.client.model} failed with both structured "
+                        f"output and tool calling. Tool calling error: {tool_error}"
                     ) from tool_error
 
         else:
@@ -161,15 +161,15 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
             except Exception as structured_error:
                 logger.debug(
-                    f"Structured output failed for {self.client.model}, falling back to tool calling: "
-                    f"{structured_error}"
+                    f"Structured output failed for {self.client.model}, falling back to tool "
+                    f"calling: {structured_error}"
                 )
                 try:
                     return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
                 except Exception as tool_error:
                     raise ValueError(
-                        f"Google GenAI model {self.client.model} failed with both structured output "
-                        f"and tool calling. Tool calling error: {tool_error}"
+                        f"Google GenAI model {self.client.model} failed with both structured "
+                        f"output and tool calling. Tool calling error: {tool_error}"
                     ) from tool_error
 
         else:
