@@ -60,7 +60,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
-from phoenix.server.api.types.Evaluator import LLMEvaluator
+from phoenix.server.api.types.Evaluator import Evaluator, LLMEvaluator
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -1091,6 +1091,30 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Evaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            evaluators = await session.scalars(
+                select(models.Evaluator).order_by(models.Evaluator.name.asc())
+            )
+        return connection_from_list(
+            data=[Evaluator(id=evaluator.id, db_record=evaluator) for evaluator in evaluators],
+            args=args,
+        )
 
     @strawberry.field
     async def annotation_configs(
