@@ -23,7 +23,7 @@ import {
 } from "@phoenix/components/chart";
 import { useInferences } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks";
 
 import { DimensionDriftBreakdownSegmentBarChartQuery } from "./__generated__/DimensionDriftBreakdownSegmentBarChartQuery.graphql";
 // Type interfaces to conform to
@@ -91,20 +91,22 @@ function TooltipContent({
 export function DimensionDriftBreakdownSegmentBarChart(props: {
   dimensionId: string;
 }) {
-  const { primaryInferences, referenceInferences } = useInferences();
-  const primaryName = primaryInferences.name;
-  const referenceName = referenceInferences?.name || "reference";
+  const { fullTimeFormatter } = useTimeFormatters();
   const { selectedTimestamp } = useTimeSlice();
-  const endTime = useMemo(
-    () => selectedTimestamp ?? new Date(primaryInferences.endTime),
-    [selectedTimestamp, primaryInferences.endTime]
-  );
+  useInferences();
   const timeRange = useMemo(() => {
+    if (!selectedTimestamp) {
+      return null;
+    }
     return {
-      start: subDays(endTime, 2).toISOString(),
-      end: endTime.toISOString(),
+      end: selectedTimestamp.toISOString(),
+      start: subDays(selectedTimestamp, 6).toISOString(),
     };
-  }, [endTime]);
+  }, [selectedTimestamp]);
+
+  if (!timeRange) {
+    return null;
+  }
   const data = useLazyLoadQuery<DimensionDriftBreakdownSegmentBarChartQuery>(
     graphql`
       query DimensionDriftBreakdownSegmentBarChartQuery(
@@ -156,6 +158,8 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
       data.dimension.segmentsComparison?.totalCounts?.primaryValue ?? 0;
     const referenceTotal =
       data.dimension.segmentsComparison?.totalCounts?.referenceValue ?? 0;
+    const primaryName = "Primary";
+    const referenceName = "Reference";
     return segments.map((segment) => {
       const primarySegmentCount = segment.counts?.primaryValue ?? 0;
       const referenceSegmentCount = segment.counts?.referenceValue ?? 0;
@@ -174,8 +178,6 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
     data.dimension.segmentsComparison?.segments,
     data.dimension.segmentsComparison?.totalCounts?.primaryValue,
     data.dimension.segmentsComparison?.totalCounts?.referenceValue,
-    primaryName,
-    referenceName,
   ]);
 
   const { primaryBarColor, referenceBarColor } = useColors();
