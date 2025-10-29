@@ -123,7 +123,6 @@ class EvaluatorMutationMixin:
             name=evaluator_name,
             description=input.description or None,
             kind="LLM",
-            prompt_id=prompt.id,
             output_config={},
             user_id=user_id,
             prompt=prompt,
