@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { Heading } from "@phoenix/components";
+import { Button, Flex, Heading, View } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   EvaluatorChatTemplate,
@@ -14,7 +15,8 @@ export const NewEvaluatorPage = () => {
         css={css`
           display: flex;
           flex-direction: column;
-          padding: var(--ac-global-dimension-size-400);
+          padding: var(--ac-global-dimension-size-200)
+            var(--ac-global-dimension-size-400);
           gap: var(--ac-global-dimension-size-400);
         `}
       >
@@ -24,13 +26,35 @@ export const NewEvaluatorPage = () => {
   );
 };
 
+const validateEvaluatorConfiguration = () => {
+  return false;
+};
+
 const NewEvaluatorPageContent = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _state = usePlaygroundContext((state) => state.instances);
+  const isValid = useMemo(() => validateEvaluatorConfiguration(), []);
   return (
     <>
-      <Heading level={2}>New Evaluator</Heading>
-      <hr />
+      <View
+        paddingBottom="size-100"
+        borderColor="dark"
+        borderBottomWidth="thin"
+      >
+        <Flex
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+        >
+          <Heading level={2}>New Evaluator</Heading>
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <Button size="M">Cancel</Button>
+            <Button variant="primary" size="M" isDisabled={!isValid}>
+              Save
+            </Button>
+          </Flex>
+        </Flex>
+      </View>
       <div
         css={css`
           height: 400px;
