@@ -1,5 +1,11 @@
 # @arizeai/phoenix-otel
 
+## 0.2.1
+
+### Patch Changes
+
+- 8bbff3a: readme examples
+
 ## 0.2.0
 
 ### Minor Changes
