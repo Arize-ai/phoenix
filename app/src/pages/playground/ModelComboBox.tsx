@@ -21,7 +21,6 @@ type ModelComboBoxProps = {
   onChange: (model: string) => void;
   provider: ModelProvider;
   modelName: string | null;
-  container?: HTMLElement;
 } & Omit<
   ComboBoxProps<ModelItem>,
   "children" | "onSelectionChange" | "defaultSelectedKey"
@@ -29,7 +28,6 @@ type ModelComboBoxProps = {
 
 export function ModelComboBoxLoader({
   onChange,
-  container,
   modelName,
   queryReference,
   ...comboBoxProps
@@ -94,7 +92,6 @@ export function ModelComboBoxLoader({
         }
       }}
       menuTrigger="focus"
-      container={container}
       description={"Choose a model from the list, or enter a custom model name"}
       defaultItems={items}
       {...comboBoxProps}

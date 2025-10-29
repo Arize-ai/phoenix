@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -41,7 +41,6 @@ export function SavePromptForm({
   defaultSelectedPromptId?: string;
   onClose: () => void;
 }) {
-  const flexContainer = useRef<HTMLDivElement>(null);
   const prompts = useLazyLoadQuery<SavePromptFormQuery>(
     graphql`
       query SavePromptFormQuery {
@@ -105,7 +104,7 @@ export function SavePromptForm({
   );
 
   return (
-    <Flex direction="column" gap="size-100" ref={flexContainer}>
+    <Flex direction="column" gap="size-100">
       <View paddingX="size-200" paddingTop="size-200">
         <Controller
           name="name"
@@ -130,10 +129,6 @@ export function SavePromptForm({
                 onChange(value);
                 trigger("name");
               }}
-              // this seems... not great. not sure how else to get a stable element reference that doesn't use a ref
-              // https://react-spectrum.adobe.com/react-aria/Popover.html#props
-              // eslint-disable-next-line react-compiler/react-compiler
-              container={flexContainer.current ?? undefined}
               errorMessage={fieldState.error?.message}
               allowsCustomValue
               onChange={(promptId) => {
