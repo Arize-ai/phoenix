@@ -468,7 +468,7 @@ input CreateChatPromptVersionInput {
 input CreateCodeEvaluatorInput {
   datasetId: ID!
   name: Identifier!
-  description: String = null
+  description: String
 }
 
 input CreateDatasetInput {
@@ -480,7 +480,7 @@ input CreateDatasetInput {
 input CreateDatasetLLMEvaluatorInput {
   datasetId: ID!
   name: Identifier!
-  description: String = null
+  description: String
   promptVersion: ChatPromptVersionInput!
 }
 

@@ -6,6 +6,7 @@ from fastapi import Request
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -27,7 +28,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 class CreateDatasetLLMEvaluatorInput:
     dataset_id: GlobalID
     name: Identifier
-    description: Optional[str] = None
+    description: Optional[str] = UNSET
     prompt_version: ChatPromptVersionInput
 
 
@@ -35,7 +36,7 @@ class CreateDatasetLLMEvaluatorInput:
 class CreateCodeEvaluatorInput:
     dataset_id: GlobalID
     name: Identifier
-    description: Optional[str] = None
+    description: Optional[str] = UNSET
 
 
 @strawberry.type

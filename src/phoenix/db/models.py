@@ -2108,8 +2108,10 @@ class LLMEvaluator(Evaluator):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    prompt: Mapped["Prompt"] = relationship("Prompt")
-    prompt_version_tag: Mapped[Optional["PromptVersionTag"]] = relationship("PromptVersionTag")
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="llm_evaluators")
+    prompt_version_tag: Mapped[Optional["PromptVersionTag"]] = relationship(
+        "PromptVersionTag", back_populates="llm_evaluators"
+    )
     __mapper_args__ = {
         "polymorphic_identity": "LLM",
     }
