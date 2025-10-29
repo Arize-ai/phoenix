@@ -18,6 +18,8 @@ export type ProjectSortOrder = {
   direction: "asc" | "desc";
 };
 
+export type DisplayTimezone = "local" | "UTC";
+
 export interface PreferencesProps {
   /**
    * The display mode of markdown text
@@ -68,6 +70,11 @@ export interface PreferencesProps {
    * @default true
    */
   isSideNavExpanded: boolean;
+  /**
+   * The timezone to display timestamps in
+   * @default "local"
+   */
+  displayTimezone: DisplayTimezone;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -125,6 +132,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the side nav open state
    */
   setIsSideNavExpanded: (isSideNavExpanded: boolean) => void;
+  /**
+   * Setter for the display timezone
+   */
+  setDisplayTimezone: (displayTimezone: DisplayTimezone) => void;
 }
 
 export const createPreferencesStore = (
@@ -184,6 +195,10 @@ export const createPreferencesStore = (
     isSideNavExpanded: true,
     setIsSideNavExpanded: (isSideNavExpanded) => {
       set({ isSideNavExpanded });
+    },
+    displayTimezone: "local",
+    setDisplayTimezone: (displayTimezone) => {
+      set({ displayTimezone });
     },
     ...initialProps,
   });

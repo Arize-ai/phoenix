@@ -14,6 +14,7 @@ import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsA
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
 import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
 import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
+import { SettingsDisplayPreferencesPage } from "@phoenix/pages/settings/SettingsDisplayPreferencesPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
@@ -393,6 +394,13 @@ const router = createBrowserRouter(
               loader={settingsPromptsPageLoader}
               handle={{
                 crumb: () => "Prompts",
+              }}
+            />
+            <Route
+              path="display"
+              element={<SettingsDisplayPreferencesPage />}
+              handle={{
+                crumb: () => "Display Preferences",
               }}
             />
           </Route>
