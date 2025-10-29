@@ -4,14 +4,15 @@ from typing import TYPE_CHECKING, Annotated, Optional
 
 import sqlalchemy as sa
 import strawberry
-from strawberry.relay import Node, NodeID
+from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
 
 from .Identifier import Identifier
+from .node import from_global_id_with_expected_type
 
 if TYPE_CHECKING:
     from .Prompt import Prompt
@@ -49,6 +50,27 @@ class Evaluator(Node):
     @strawberry.field
     async def updated_at(self) -> datetime:
         raise NotImplementedError
+
+    @strawberry.field
+    async def is_assigned_to_dataset(
+        self,
+        info: Info[Context, None],
+        dataset_id: GlobalID,
+    ) -> bool:
+        from phoenix.server.api.types.Dataset import Dataset
+
+        try:
+            dataset_rowid = from_global_id_with_expected_type(
+                global_id=dataset_id,
+                expected_type_name=Dataset.__name__,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset id: {dataset_id}")
+
+        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+            (dataset_rowid, self.id)
+        )
+        return dataset_evaluator is not None
 
 
 @strawberry.type
