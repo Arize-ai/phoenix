@@ -97,9 +97,6 @@ class GenerativeModel(Node, ModelInterface):
                 (self.id, models.GenerativeModel.created_at),
             )
         return val
-        return await info.context.data_loaders.generative_model_fields.load(
-            (self.id, models.GenerativeModel.created_at),
-        )
 
     @strawberry.field
     async def updated_at(self, info: Info[Context, None]) -> datetime:
