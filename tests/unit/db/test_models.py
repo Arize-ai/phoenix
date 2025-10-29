@@ -1,15 +1,25 @@
 import json
 from datetime import datetime
 from secrets import token_hex
-from typing import Any, Sequence
+from typing import Any, AsyncIterator, Sequence
 
 import pytest
 import sqlalchemy as sa
 from deepdiff.diff import DeepDiff
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.helpers.prompts.models import (
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptStringTemplate,
+    PromptTemplateFormat,
+    PromptTemplateType,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -752,6 +762,318 @@ class TestNumDocuments:
 
                 stmt = select(models.Span.num_documents).where(models.Span.id == span.id)
                 result = await session.scalar(stmt)
-                assert result == expected, (
-                    f"Case {i} ({span_kind}): expected {expected}, got {result}"
+                assert (
+                    result == expected
+                ), f"Case {i} ({span_kind}): expected {expected}, got {result}"
+
+
+class TestEvaluatorPolymorphism:
+    """Test polymorphic evaluator models with dataset relationships.
+
+    Validates table inheritance, relationships, and dataset associations.
+    """
+
+    @pytest.fixture
+    async def _evaluator_setup(
+        self, db: DbSessionFactory
+    ) -> AsyncIterator[
+        tuple[
+            models.Dataset,
+            models.LLMEvaluator,
+            models.LLMEvaluator,
+            models.Prompt,
+            models.PromptVersionTag,
+            models.Prompt,
+            models.PromptVersionTag,
+        ]
+    ]:
+        """Create evaluators with dataset relationships and return (dataset_id, eval_id)."""
+        async with db() as session:
+            dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
+            prompt = models.Prompt(
+                name=Identifier(root=f"test-prompt-{token_hex(4)}"),
+                description="Test prompt",
+                metadata_={},
+            )
+            session.add_all([dataset, prompt])
+            await session.flush()
+
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Evaluate: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(prompt_version)
+            await session.flush()
+
+            prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v1-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            session.add(prompt_tag)
+            await session.flush()
+
+            eval_1 = models.LLMEvaluator(
+                name=Identifier(root=f"eval-1-{token_hex(4)}"),
+                description="First evaluator",
+                kind="LLM",
+                output_config={},
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            eval_2 = models.LLMEvaluator(
+                name=Identifier(root=f"eval-2-{token_hex(4)}"),
+                description="Second evaluator",
+                kind="LLM",
+                output_config={},
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add_all([eval_1, eval_2])
+            await session.flush()
+
+            session.add_all(
+                [
+                    models.DatasetsEvaluators(
+                        dataset_id=dataset.id,
+                        evaluator_id=eval_1.id,
+                        input_config={},
+                    ),
+                    models.DatasetsEvaluators(
+                        dataset_id=dataset.id,
+                        evaluator_id=eval_2.id,
+                        input_config={},
+                    ),
+                ]
+            )
+
+            # Create a second prompt for testing relationship updates
+            new_prompt = models.Prompt(
+                name=Identifier(root=f"updated-prompt-{token_hex(4)}"),
+                description="Updated prompt",
+                metadata_={},
+            )
+            session.add(new_prompt)
+            await session.flush()
+
+            new_prompt_version = models.PromptVersion(
+                prompt_id=new_prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Updated: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(new_prompt_version)
+            await session.flush()
+
+            new_prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v2-{token_hex(4)}"),
+                prompt_id=new_prompt.id,
+                prompt_version_id=new_prompt_version.id,
+            )
+            session.add(new_prompt_tag)
+            await session.flush()
+
+        yield dataset, eval_1, eval_2, prompt, prompt_tag, new_prompt, new_prompt_tag
+
+    async def test_llm_evaluator_polymorphism_and_dataset_relationships(
+        self,
+        db: DbSessionFactory,
+        _evaluator_setup: tuple[
+            models.Dataset,
+            models.LLMEvaluator,
+            models.LLMEvaluator,
+            models.Prompt,
+            models.PromptVersionTag,
+            models.Prompt,
+            models.PromptVersionTag,
+        ],
+    ) -> None:
+        """Test LLM evaluator polymorphism, dataset relationships, and CRUD operations."""
+        dataset, eval_1, eval_2, prompt, prompt_tag, new_prompt, new_prompt_tag = _evaluator_setup
+        dataset_id = dataset.id
+        eval_id = eval_1.id
+        eval_1_name = eval_1.name
+        eval_2_name = eval_2.name
+        prompt_name = prompt.name
+        prompt_tag_name = prompt_tag.name
+
+        # ===== READ: Verify polymorphism and relationships =====
+        async with db() as session:
+            # Base class query returns subclass instances
+            evaluators = (await session.scalars(select(models.Evaluator))).all()
+            assert len(evaluators) == 2
+            assert all(isinstance(e, models.LLMEvaluator) and e.kind == "LLM" for e in evaluators)
+
+            # Subclass query with eager-loaded relationships
+            evaluator = await session.scalar(
+                select(models.LLMEvaluator)
+                .where(models.LLMEvaluator.id == eval_id)
+                .options(
+                    selectinload(models.LLMEvaluator.prompt),
+                    selectinload(models.LLMEvaluator.prompt_version_tag),
                 )
+            )
+            assert evaluator is not None
+            assert evaluator.name == eval_1_name
+            assert evaluator.prompt.name == prompt_name
+            assert evaluator.prompt_version_tag is not None
+            assert evaluator.prompt_version_tag.name == prompt_tag_name
+
+        async with db() as session:
+            # Table-level integrity (discriminator column and composite FK)
+            assert (
+                await session.scalar(
+                    sa.text("SELECT kind FROM evaluators WHERE id = :id").bindparams(id=eval_id)
+                )
+            ) == "LLM"
+            assert (
+                await session.scalar(
+                    sa.text("SELECT id FROM llm_evaluators WHERE id = :id").bindparams(id=eval_id)
+                )
+            ) == eval_id
+
+        async with db() as session:
+            # Dataset relationships (junction table)
+            dataset_result = await session.get(
+                models.Dataset,
+                dataset_id,
+                options=(selectinload(models.Dataset.datasets_evaluators),),
+            )
+            assert dataset_result is not None
+            dataset = dataset_result
+            assert len(dataset.datasets_evaluators) == 2
+
+            # Verify evaluators via join query
+            evaluators = (
+                await session.scalars(
+                    select(models.LLMEvaluator)
+                    .join(models.DatasetsEvaluators)
+                    .where(models.DatasetsEvaluators.dataset_id == dataset_id)
+                )
+            ).all()
+            assert len(evaluators) == 2
+            assert {e.name for e in evaluators} == {eval_1_name, eval_2_name}
+            assert all(isinstance(e, models.LLMEvaluator) for e in evaluators)
+
+        # ===== INSERT: Create a new evaluator =====
+        async with db() as session:
+            # Create new evaluator using existing prompt and tag IDs
+            new_eval = models.LLMEvaluator(
+                name=Identifier(root=f"eval-3-{token_hex(4)}"),
+                description="Third evaluator",
+                kind="LLM",
+                output_config={},
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add(new_eval)
+            await session.flush()
+            new_eval_id = new_eval.id
+            new_eval_name = new_eval.name
+
+            # Associate with dataset
+            dataset_evaluator = models.DatasetsEvaluators(
+                dataset_id=dataset_id,
+                evaluator_id=new_eval_id,
+                input_config={},
+            )
+            session.add(dataset_evaluator)
+
+        # Verify insertion
+        async with db() as session:
+            evaluators = (await session.scalars(select(models.Evaluator))).all()
+            assert len(evaluators) == 3
+            new_evaluator = await session.get(models.LLMEvaluator, new_eval_id)
+            assert new_evaluator is not None
+            assert new_evaluator.name == new_eval_name
+
+        # Verify dataset relationship
+        async with db() as session:
+            evaluators = (
+                await session.scalars(
+                    select(models.LLMEvaluator)
+                    .join(models.DatasetsEvaluators)
+                    .where(models.DatasetsEvaluators.dataset_id == dataset_id)
+                )
+            ).all()
+            assert len(evaluators) == 3
+            assert {e.name for e in evaluators} == {
+                eval_1_name,
+                eval_2_name,
+                new_eval_name,
+            }
+
+        # ===== UPDATE: Change evaluator's prompt relationship =====
+        async with db() as session:
+            # Update evaluator to use the second prompt from fixture
+            evaluator = await session.get(models.LLMEvaluator, eval_id)
+            assert evaluator is not None
+            evaluator.prompt_id = new_prompt.id
+            evaluator.prompt_version_tag_id = new_prompt_tag.id
+            await session.flush()
+
+        # Verify update with eager-loaded relationships
+        async with db() as session:
+            evaluator = await session.scalar(
+                select(models.LLMEvaluator)
+                .where(models.LLMEvaluator.id == eval_id)
+                .options(
+                    selectinload(models.LLMEvaluator.prompt),
+                    selectinload(models.LLMEvaluator.prompt_version_tag),
+                )
+            )
+            assert evaluator is not None
+            assert evaluator.prompt.name == new_prompt.name
+            assert evaluator.prompt_version_tag is not None
+            assert evaluator.prompt_version_tag.name == new_prompt_tag.name
+            assert evaluator.prompt_id == new_prompt.id
+            assert evaluator.prompt_version_tag_id == new_prompt_tag.id
+
+        # ===== DELETE: Remove an evaluator =====
+        async with db() as session:
+            # Delete the newly created evaluator
+            evaluator_to_delete = await session.get(models.LLMEvaluator, new_eval_id)
+            assert evaluator_to_delete is not None
+            await session.delete(evaluator_to_delete)
+
+        # Verify deletion
+        async with db() as session:
+            evaluators = (await session.scalars(select(models.Evaluator))).all()
+            assert len(evaluators) == 2
+
+            deleted_evaluator = await session.get(models.LLMEvaluator, new_eval_id)
+            assert deleted_evaluator is None
+
+        # Verify dataset relationship updated (junction table entry should be deleted)
+        async with db() as session:
+            evaluators = (
+                await session.scalars(
+                    select(models.LLMEvaluator)
+                    .join(models.DatasetsEvaluators)
+                    .where(models.DatasetsEvaluators.dataset_id == dataset_id)
+                )
+            ).all()
+            assert len(evaluators) == 2
+            assert {e.name for e in evaluators} == {eval_1_name, eval_2_name}
+
+        # ===== RESTRICT: Cannot delete prompt in use by evaluators =====
+        # Attempt to delete prompt that is being used by eval_1
+        with pytest.raises(Exception):
+            async with db() as session:
+                prompt_to_delete = await session.get(models.Prompt, new_prompt.id)
+                assert prompt_to_delete is not None
+                await session.delete(prompt_to_delete)
