@@ -19,6 +19,8 @@ export const NewEvaluatorPage = () => {
           flex-direction: column;
           flex: 1 1 auto;
           height: 100%;
+          // do not apply padding to the main content area
+          // it will break the nested scrolling within the panel group
         `}
       >
         <NewEvaluatorPageContent />
@@ -30,15 +32,6 @@ export const NewEvaluatorPage = () => {
 const validateEvaluatorConfiguration = () => {
   return false;
 };
-
-const panelCSS = css`
-  padding: 0 var(--ac-global-dimension-size-200);
-`;
-
-const panelStyle = {
-  height: "100%",
-  overflowY: "auto",
-} as const;
 
 const PanelContainer = ({ children }: PropsWithChildren) => {
   return (
@@ -54,6 +47,15 @@ const PanelContainer = ({ children }: PropsWithChildren) => {
     </div>
   );
 };
+
+const panelCSS = css`
+  padding: 0 var(--ac-global-dimension-size-200);
+`;
+
+const panelStyle = {
+  height: "100%",
+  overflowY: "auto",
+} as const;
 
 const NewEvaluatorPageContent = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
