@@ -71,7 +71,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid evaluator name: {error}")
         code_evaluator = models.CodeEvaluator(
             name=evaluator_name,
-            description=input.description,
+            description=input.description or None,
             kind="CODE",
             user_id=user_id,
             datasets_evaluators=[
@@ -112,7 +112,7 @@ class EvaluatorMutationMixin:
         prompt_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
         prompt = models.Prompt(
             name=prompt_name,
-            description=input.description,
+            description=input.description or None,
             prompt_versions=[prompt_version],
         )
         try:
@@ -121,7 +121,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid evaluator name: {error}")
         llm_evaluator = models.LLMEvaluator(
             name=evaluator_name,
-            description=input.description,
+            description=input.description or None,
             kind="LLM",
             prompt_id=prompt.id,
             output_config={},
