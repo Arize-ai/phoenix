@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
@@ -7,6 +7,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -238,7 +239,7 @@ function ProviderCredentialsDialog({
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Configure {provider.name} Credentials</DialogTitle>
+          <DialogTitle>Configure Local {provider.name} Credentials</DialogTitle>
           <DialogTitleExtra>
             <DialogCloseButton slot="close" />
           </DialogTitleExtra>
@@ -265,6 +266,16 @@ function ProviderCredentials({ provider }: { provider: ModelProvider }) {
   const credentialsConfig = ProviderToCredentialsConfigMap[provider];
   const credentials = useCredentialsContext((state) => state[provider]);
 
+  const clearLocalCredentials = useCallback(() => {
+    credentialsConfig.forEach((credentialConfig) => {
+      setCredential({
+        provider,
+        envVarName: credentialConfig.envVarName,
+        value: "",
+      });
+    });
+  }, [provider, credentialsConfig, setCredential]);
+
   return (
     <Flex direction="column" gap="size-100">
       {credentialsConfig.map((credentialConfig) => (
@@ -284,6 +295,15 @@ function ProviderCredentials({ provider }: { provider: ModelProvider }) {
           <CredentialInput />
         </CredentialField>
       ))}
+      <Button
+        onPress={clearLocalCredentials}
+        css={css`
+          align-self: flex-start;
+          margin-top: var(--ac-global-dimension-size-100);
+        `}
+      >
+        Clear Local Credentials
+      </Button>
     </Flex>
   );
 }

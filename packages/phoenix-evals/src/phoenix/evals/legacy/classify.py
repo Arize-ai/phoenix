@@ -430,6 +430,21 @@ def run_evals(
             "`from phoenix.evals.legacy import LLMEvaluator`"
         )
 
+    available_columns = set(dataframe.columns)
+
+    # Validate that each evaluator has all required template fields
+    for evaluator in evaluators:
+        required_fields = set(evaluator._template.variables)
+
+        missing_fields = required_fields - available_columns
+
+        if missing_fields:
+            raise ValueError(
+                f"Evaluator '{evaluator.__class__.__name__}' requires missing columns: "
+                f"{', '.join(sorted(missing_fields))}. "
+                f"Available columns: {', '.join(sorted(available_columns))}"
+            )
+
     # use the minimum default concurrency of all the models
     if concurrency is None:
         if len(evaluators) == 0:
