@@ -26,7 +26,16 @@ DatasetExampleRowId: TypeAlias = int
 class ExperimentRepeatedRunGroup(Node):
     experiment_rowid: strawberry.Private[ExperimentRowId]
     dataset_example_rowid: strawberry.Private[DatasetExampleRowId]
-    runs: list[ExperimentRun]
+    cached_runs: strawberry.Private[Optional[list[ExperimentRun]]] = None
+
+    @strawberry.field
+    async def runs(self, info: Info[Context, None]) -> list[ExperimentRun]:
+        if self.cached_runs is not None:
+            return self.cached_runs
+        runs = await info.context.data_loaders.experiment_runs_by_experiment_and_example.load(
+            (self.experiment_rowid, self.dataset_example_rowid)
+        )
+        return [ExperimentRun(id=run.id, db_record=run) for run in runs]
 
     @classmethod
     def resolve_id(

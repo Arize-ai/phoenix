@@ -103,6 +103,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentRepeatedRunGroupsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
+    ExperimentRunsByExperimentAndExampleDataLoader,
     ExperimentSequenceNumberDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
@@ -139,6 +140,7 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
     TokenCountDataLoader,
+    TokenPricesByModelDataLoader,
     TraceAnnotationsByTraceDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
@@ -712,6 +714,7 @@ def create_graphql_router(
                 ),
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
                 dataset_dataset_splits=DatasetDatasetSplitsDataLoader(db),
+                dataset_example_fields=TableFieldsDataLoader(db, models.DatasetExample),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
                 dataset_example_spans=DatasetExampleSpansDataLoader(db),
                 dataset_examples_and_versions_by_experiment_run=DatasetExamplesAndVersionsByExperimentRunDataLoader(
@@ -753,7 +756,12 @@ def create_graphql_router(
                 ),
                 experiment_run_annotations=ExperimentRunAnnotations(db),
                 experiment_run_counts=ExperimentRunCountsDataLoader(db),
+                experiment_run_fields=TableFieldsDataLoader(db, models.ExperimentRun),
+                experiment_runs_by_experiment_and_example=ExperimentRunsByExperimentAndExampleDataLoader(
+                    db
+                ),
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
+                generative_model_fields=TableFieldsDataLoader(db, models.GenerativeModel),
                 last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(
                     db
                 ),
@@ -837,6 +845,7 @@ def create_graphql_router(
                     db,
                     cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
                 ),
+                token_prices_by_model=TokenPricesByModelDataLoader(db),
                 trace_annotation_fields=TableFieldsDataLoader(db, models.TraceAnnotation),
                 trace_annotations_by_trace=TraceAnnotationsByTraceDataLoader(db),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),

@@ -317,9 +317,9 @@ class Dataset(Node):
         async with info.context.db() as session:
             dataset_examples = [
                 DatasetExample(
-                    id_attr=example.id,
+                    id=example.id,
+                    db_record=example,
                     version_id=version_id,
-                    created_at=example.created_at,
                 )
                 async for example in await session.stream_scalars(query)
             ]

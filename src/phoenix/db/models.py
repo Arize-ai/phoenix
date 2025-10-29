@@ -1330,6 +1330,10 @@ class Experiment(HasId):
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
         "ExperimentTag", back_populates="experiment"
     )
+    experiment_runs: Mapped[list["ExperimentRun"]] = relationship(
+        "ExperimentRun",
+        back_populates="experiment",
+    )
 
 
 class ExperimentDatasetSplit(Base):
@@ -1412,7 +1416,10 @@ class ExperimentRun(HasId):
     def _latency_expression(cls) -> ColumnElement[float]:
         return LatencyMs(cls.start_time, cls.end_time)
 
-    trace: Mapped["Trace"] = relationship(
+    experiment: Mapped["Experiment"] = relationship(
+        back_populates="experiment_runs",
+    )
+    trace: Mapped[Optional["Trace"]] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="experiment_runs",
     )

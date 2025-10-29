@@ -35,6 +35,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentRepeatedRunGroupsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
+    ExperimentRunsByExperimentAndExampleDataLoader,
     ExperimentSequenceNumberDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
@@ -71,6 +72,7 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
     TokenCountDataLoader,
+    TokenPricesByModelDataLoader,
     TraceAnnotationsByTraceDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
@@ -100,6 +102,7 @@ class DataLoaders:
         AverageExperimentRepeatedRunGroupLatencyDataLoader
     )
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
+    dataset_example_fields: TableFieldsDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     dataset_labels: DatasetLabelsDataLoader
@@ -127,7 +130,10 @@ class DataLoaders:
     experiment_run_annotation_fields: TableFieldsDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
     experiment_run_counts: ExperimentRunCountsDataLoader
+    experiment_run_fields: TableFieldsDataLoader
+    experiment_runs_by_experiment_and_example: ExperimentRunsByExperimentAndExampleDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
+    generative_model_fields: TableFieldsDataLoader
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
@@ -180,6 +186,7 @@ class DataLoaders:
     span_fields: TableFieldsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
+    token_prices_by_model: TokenPricesByModelDataLoader
     trace_annotation_fields: TableFieldsDataLoader
     trace_annotations_by_trace: TraceAnnotationsByTraceDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader

@@ -1,7 +1,7 @@
 import json
 import re
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
@@ -31,6 +31,33 @@ from phoenix.trace.attributes import flatten, get_attribute_value
 from tests.unit._helpers import verify_experiment_examples_junction_table
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR
+
+
+def _assert_spans_equal(span: Mapping[str, Any], subscription_span: Mapping[str, Any]) -> None:
+    """
+    Compare two span dictionaries with relaxed floating-point comparison for latencyMs.
+    SQLite's floating-point arithmetic produces slightly different results than Python.
+    """
+    # Check that both have the same keys
+    assert span.keys() == subscription_span.keys(), (
+        f"Span keys don't match: {span.keys()} vs {subscription_span.keys()}"
+    )
+
+    # Compare each field
+    for key in span.keys():
+        if key == "latencyMs":
+            # Use relaxed comparison for latencyMs due to SQLite precision
+            span_latency = span[key]
+            subscription_latency = subscription_span[key]
+            if span_latency is not None and subscription_latency is not None:
+                assert abs(span_latency - subscription_latency) <= 2.0, (
+                    f"latencyMs difference too large: {span_latency} vs {subscription_latency}"
+                )
+            else:
+                assert span_latency == subscription_latency
+        else:
+            # Strict equality for all other fields
+            assert span[key] == subscription_span[key], f"Mismatch in field '{key}'"
 
 
 class TestChatCompletionSubscription:
@@ -161,7 +188,7 @@ class TestChatCompletionSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        assert span == subscription_span
+        _assert_spans_equal(span, subscription_span)
 
         # check attributes
         assert span.pop("id") == span_id
@@ -296,7 +323,7 @@ class TestChatCompletionSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        assert span == subscription_span
+        _assert_spans_equal(span, subscription_span)
 
         # check attributes
         assert span.pop("id") == span_id
@@ -440,7 +467,7 @@ class TestChatCompletionSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        assert span == subscription_span
+        _assert_spans_equal(span, subscription_span)
 
         # check attributes
         assert span.pop("id") == span_id
@@ -596,7 +623,7 @@ class TestChatCompletionSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        assert span == subscription_span
+        _assert_spans_equal(span, subscription_span)
 
         # check attributes
         assert span.pop("id") == span_id
@@ -750,7 +777,7 @@ class TestChatCompletionSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        assert span == subscription_span
+        _assert_spans_equal(span, subscription_span)
 
         # check attributes
         assert span.pop("id") == span_id
@@ -1065,7 +1092,7 @@ class TestChatCompletionOverDatasetSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        assert span == subscription_span
+        _assert_spans_equal(span, subscription_span)
 
         # check example 1 span attributes
         assert span.pop("id") == span_id
@@ -1154,7 +1181,7 @@ class TestChatCompletionOverDatasetSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        assert span == subscription_span
+        _assert_spans_equal(span, subscription_span)
 
         # check example 2 span attributes
         assert span.pop("id") == span_id

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
 from sqlalchemy import func, select
-from sqlalchemy.orm import joinedload
 from strawberry import UNSET, Private
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
@@ -21,7 +20,7 @@ from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
+from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -180,7 +179,6 @@ class Experiment(Node):
         experiment_runs_query = (
             select(models.ExperimentRun)
             .where(models.ExperimentRun.experiment_id == self.id)
-            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
             .limit(page_size + 1)
         )
 
@@ -212,7 +210,7 @@ class Experiment(Node):
         for result in results:
             run = result[0]
             annotation_score = result[1] if len(result) > 1 else None
-            gql_run = to_gql_experiment_run(run)
+            gql_run = ExperimentRun(id=run.id, db_record=run)
             cursor = get_experiment_run_cursor(
                 run=run, annotation_score=annotation_score, sort=sort
             )

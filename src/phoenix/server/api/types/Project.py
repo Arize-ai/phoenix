@@ -30,7 +30,7 @@ from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_a
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
-from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
+from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -1419,7 +1419,7 @@ class Project(Node):
                     start=time_range.start,
                     end=time_range.end,
                 )
-                gql_model = to_gql_generative_model(model)
+                gql_model = GenerativeModel(id=model.id, db_record=model)
                 gql_model.add_cached_cost_summary(self.id, cache_time_range, cost_summary)
                 results.append(gql_model)
             return results
@@ -1479,7 +1479,7 @@ class Project(Node):
                     start=time_range.start,
                     end=time_range.end,
                 )
-                gql_model = to_gql_generative_model(model)
+                gql_model = GenerativeModel(id=model.id, db_record=model)
                 gql_model.add_cached_cost_summary(self.id, cache_time_range, cost_summary)
                 results.append(gql_model)
             return results
