@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { PropsWithChildren, useMemo, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
@@ -15,12 +15,10 @@ export const NewEvaluatorPage = () => {
     <EvaluatorChatTemplateProvider>
       <main
         css={css`
-          padding: var(--ac-global-dimension-size-200)
-            var(--ac-global-dimension-size-400);
           display: flex;
           flex-direction: column;
           flex: 1 1 auto;
-          gap: var(--ac-global-dimension-size-200);
+          height: 100%;
         `}
       >
         <NewEvaluatorPageContent />
@@ -31,6 +29,30 @@ export const NewEvaluatorPage = () => {
 
 const validateEvaluatorConfiguration = () => {
   return false;
+};
+
+const panelCSS = css`
+  padding: 0 var(--ac-global-dimension-size-200);
+`;
+
+const panelStyle = {
+  height: "100%",
+  overflowY: "auto",
+} as const;
+
+const PanelContainer = ({ children }: PropsWithChildren) => {
+  return (
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-size-200);
+        padding: var(--ac-global-dimension-size-100) 0;
+      `}
+    >
+      {children}
+    </div>
+  );
 };
 
 const NewEvaluatorPageContent = () => {
@@ -44,9 +66,12 @@ const NewEvaluatorPageContent = () => {
   return (
     <>
       <View
-        paddingBottom="size-100"
         borderColor="dark"
         borderBottomWidth="thin"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        paddingTop="size-100"
+        paddingBottom="size-100"
       >
         <Flex
           direction="row"
@@ -63,57 +88,50 @@ const NewEvaluatorPageContent = () => {
         </Flex>
       </View>
       <PanelGroup direction="horizontal">
-        <Panel
-          defaultSize={65}
-          css={css`
-            display: flex;
-            flex-direction: column;
-            gap: var(--ac-global-dimension-size-400);
-          `}
-        >
-          <Flex direction="column" gap="size-100">
-            <Heading level={3}>Eval</Heading>
-            <Text color="text-500">
-              Define the eval annotation returned by your evaluator.
-            </Text>
-            <div
-              css={css`
-                height: 400px;
-                border: 1px solid var(--ac-global-border-color-default);
-                border-style: dashed;
-                border-radius: var(--ac-global-rounding-small);
-              `}
-            ></div>
-          </Flex>
-
-          <Flex direction="column" gap="size-100">
-            <Heading level={3}>Prompt</Heading>
-            <Alert showIcon={false} variant="success">
-              Tip: Your eval categories are visible to the LLM, so don’t
-              redefine them in your prompt. This needs to be phrased better, but
-              generally we should explain what not to do for this.
-            </Alert>
-            <EvaluatorChatTemplate />
-          </Flex>
+        <Panel defaultSize={65} css={panelCSS} style={panelStyle}>
+          <PanelContainer>
+            <Flex direction="column" gap="size-100">
+              <Heading level={3}>Eval</Heading>
+              <Text color="text-500">
+                Define the eval annotation returned by your evaluator.
+              </Text>
+              <div
+                css={css`
+                  height: 400px;
+                  border: 1px solid var(--ac-global-border-color-default);
+                  border-style: dashed;
+                  border-radius: var(--ac-global-rounding-small);
+                `}
+              ></div>
+            </Flex>
+            <Flex direction="column" gap="size-100">
+              <Heading level={3}>Prompt</Heading>
+              <Alert showIcon={false} variant="success">
+                Tip: Your eval categories are visible to the LLM, so don’t
+                redefine them in your prompt. This needs to be phrased better,
+                but generally we should explain what not to do for this.
+              </Alert>
+              <EvaluatorChatTemplate />
+            </Flex>
+          </PanelContainer>
         </Panel>
-        <PanelResizeHandle
-          disabled
-          css={css(`margin: 0 var(--ac-global-dimension-size-200)`)}
-        />
-        <Panel defaultSize={35}>
-          <Flex direction="column" gap="size-100">
-            <Heading level={3}>Example dataset</Heading>
-            <Text color="text-500">
-              Use examples from an existing dataset as a reference, or create
-              new examples from scratch.
-            </Text>
-            <EvaluatorExampleDataset
-              selectedDatasetId={selectedDatasetId}
-              onSelectDataset={setSelectedDatasetId}
-              selectedSplitIds={selectedSplitIds}
-              onSelectSplits={setSelectedSplitIds}
-            />
-          </Flex>
+        <PanelResizeHandle disabled />
+        <Panel defaultSize={35} css={panelCSS} style={panelStyle}>
+          <PanelContainer>
+            <Flex direction="column" gap="size-100">
+              <Heading level={3}>Example dataset</Heading>
+              <Text color="text-500">
+                Use examples from an existing dataset as a reference, or create
+                new examples from scratch.
+              </Text>
+              <EvaluatorExampleDataset
+                selectedDatasetId={selectedDatasetId}
+                onSelectDataset={setSelectedDatasetId}
+                selectedSplitIds={selectedSplitIds}
+                onSelectSplits={setSelectedSplitIds}
+              />
+            </Flex>
+          </PanelContainer>
         </Panel>
       </PanelGroup>
     </>
