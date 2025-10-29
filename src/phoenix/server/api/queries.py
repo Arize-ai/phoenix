@@ -954,11 +954,9 @@ class Query:
         elif type_name == GenerativeModel.__name__:
             return GenerativeModel(id=node_id)
         elif type_name == LLMEvaluator.__name__:
-            async with info.context.db() as session:
-                llm_evaluator = await session.get(models.LLMEvaluator, node_id)
-                if not llm_evaluator:
-                    raise NotFound(f"Unknown evaluator: {id}")
-            return LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator)
+            return LLMEvaluator(id=node_id)
+        elif type_name == CodeEvaluator.__name__:
+            return CodeEvaluator(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
