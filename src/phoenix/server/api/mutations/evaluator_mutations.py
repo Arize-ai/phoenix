@@ -10,9 +10,11 @@ from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -26,12 +28,12 @@ from phoenix.server.api.types.node import from_global_id, from_global_id_with_ex
 from phoenix.server.bearer_auth import PhoenixUser
 
 
-def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, str]:
+def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
     """
     Parse evaluator ID accepting both LLMEvaluator and CodeEvaluator types.
 
     Returns:
-        tuple of (evaluator_rowid, evaluator_type_name)
+        tuple of (evaluator_rowid, evaluator_kind)
     """
     type_name, evaluator_rowid = from_global_id(global_id)
     if type_name not in (LLMEvaluator.__name__, CodeEvaluator.__name__):
@@ -39,7 +41,9 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, str]:
             f"Invalid evaluator type: {type_name}. "
             f"Expected {LLMEvaluator.__name__} or {CodeEvaluator.__name__}"
         )
-    return evaluator_rowid, type_name
+    # Convert class name to EvaluatorKind literal
+    evaluator_kind: EvaluatorKind = "LLM" if type_name == LLMEvaluator.__name__ else "CODE"
+    return evaluator_rowid, evaluator_kind
 
 
 @strawberry.input
@@ -196,7 +200,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
         try:
-            evaluator_rowid, evaluator_type_name = _parse_evaluator_id(input.evaluator_id)
+            evaluator_rowid, evaluator_kind = _parse_evaluator_id(input.evaluator_id)
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
@@ -229,10 +233,12 @@ class EvaluatorMutationMixin:
 
         # Return the appropriate evaluator type based on what was provided
         evaluator_instance: Evaluator
-        if evaluator_type_name == LLMEvaluator.__name__:
+        if evaluator_kind == "LLM":
             evaluator_instance = LLMEvaluator(id=evaluator_rowid)
-        else:  # CodeEvaluator
+        elif evaluator_kind == "CODE":
             evaluator_instance = CodeEvaluator(id=evaluator_rowid)
+        else:
+            assert_never(evaluator_kind)
 
         return EvaluatorMutationPayload(
             evaluator=evaluator_instance,
@@ -252,24 +258,25 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
         try:
-            evaluator_rowid, evaluator_type_name = _parse_evaluator_id(input.evaluator_id)
+            evaluator_rowid, evaluator_kind = _parse_evaluator_id(input.evaluator_id)
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
+        stmt = delete(models.DatasetsEvaluators).where(
+            models.DatasetsEvaluators.dataset_id == dataset_rowid,
+            models.DatasetsEvaluators.evaluator_id == evaluator_rowid,
+        )
         async with info.context.db() as session:
-            await session.execute(
-                delete(models.DatasetsEvaluators).where(
-                    models.DatasetsEvaluators.dataset_id == dataset_rowid,
-                    models.DatasetsEvaluators.evaluator_id == evaluator_rowid,
-                )
-            )
+            await session.execute(stmt)
 
         # Return the appropriate evaluator type based on what was provided
         evaluator_instance: Evaluator
-        if evaluator_type_name == LLMEvaluator.__name__:
+        if evaluator_kind == "LLM":
             evaluator_instance = LLMEvaluator(id=evaluator_rowid)
-        else:  # CodeEvaluator
+        elif evaluator_kind == "CODE":
             evaluator_instance = CodeEvaluator(id=evaluator_rowid)
+        else:
+            assert_never(evaluator_kind)
 
         return EvaluatorMutationPayload(
             evaluator=evaluator_instance,
