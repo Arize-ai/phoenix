@@ -21,7 +21,7 @@ from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
+from phoenix.server.api.types.SpanAnnotation import SpanAnnotation
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationDeleteEvent, SpanAnnotationInsertEvent
 
@@ -138,7 +138,7 @@ class SpanAnnotationMutationMixin:
 
             # Convert the fully loaded annotations to GQL types
             returned_annotations = [
-                to_gql_span_annotation(anno) for anno in ordered_final_annotations
+                SpanAnnotation(id=anno.id, db_record=anno) for anno in ordered_final_annotations
             ]
 
             await session.commit()
@@ -184,7 +184,9 @@ class SpanAnnotationMutationMixin:
             processed_annotation = result.one()
 
             info.context.event_queue.put(SpanAnnotationInsertEvent((processed_annotation.id,)))
-            returned_annotation = to_gql_span_annotation(processed_annotation)
+            returned_annotation = SpanAnnotation(
+                id=processed_annotation.id, db_record=processed_annotation
+            )
             await session.commit()
         return SpanAnnotationMutationPayload(
             span_annotations=[returned_annotation],
@@ -256,7 +258,7 @@ class SpanAnnotationMutationMixin:
                 session.add(span_annotation)
 
             patched_annotations = [
-                to_gql_span_annotation(span_annotation)
+                SpanAnnotation(id=span_annotation.id, db_record=span_annotation)
                 for span_annotation in span_annotations_by_id.values()
             ]
 
@@ -320,7 +322,10 @@ class SpanAnnotationMutationMixin:
                 )
 
         deleted_annotations_gql = [
-            to_gql_span_annotation(deleted_annotations_by_id[id]) for id in span_annotation_ids
+            SpanAnnotation(
+                id=deleted_annotations_by_id[id].id, db_record=deleted_annotations_by_id[id]
+            )
+            for id in span_annotation_ids
         ]
         info.context.event_queue.put(
             SpanAnnotationDeleteEvent(tuple(deleted_annotations_by_id.keys()))

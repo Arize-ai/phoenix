@@ -15,8 +15,8 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.DatasetExample import DatasetExample, to_gql_dataset_example
-from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
+from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -116,7 +116,8 @@ class DatasetSplitMutationMixin:
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A dataset split named '{input.name}' already exists.")
         return DatasetSplitMutationPayload(
-            dataset_split=to_gql_dataset_split(dataset_split_orm), query=Query()
+            dataset_split=DatasetSplit(id=dataset_split_orm.id, db_record=dataset_split_orm),
+            query=Query(),
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -141,7 +142,7 @@ class DatasetSplitMutationMixin:
             if isinstance(input.metadata, dict):
                 dataset_split_orm.metadata_ = input.metadata
 
-            gql_dataset_split = to_gql_dataset_split(dataset_split_orm)
+            gql_dataset_split = DatasetSplit(id=dataset_split_orm.id, db_record=dataset_split_orm)
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
@@ -185,7 +186,10 @@ class DatasetSplitMutationMixin:
 
         return DeleteDatasetSplitsMutationPayload(
             dataset_splits=[
-                to_gql_dataset_split(deleted_splits_by_id[dataset_split_rowid])
+                DatasetSplit(
+                    id=deleted_splits_by_id[dataset_split_rowid].id,
+                    db_record=deleted_splits_by_id[dataset_split_rowid],
+                )
                 for dataset_split_rowid in dataset_split_rowids
             ],
             query=Query(),
@@ -281,7 +285,7 @@ class DatasetSplitMutationMixin:
             ).all()
         return AddDatasetExamplesToDatasetSplitsMutationPayload(
             query=Query(),
-            examples=[to_gql_dataset_example(example) for example in examples],
+            examples=[DatasetExample(id=example.id, db_record=example) for example in examples],
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
@@ -342,7 +346,7 @@ class DatasetSplitMutationMixin:
 
         return RemoveDatasetExamplesFromDatasetSplitsMutationPayload(
             query=Query(),
-            examples=[to_gql_dataset_example(example) for example in examples],
+            examples=[DatasetExample(id=example.id, db_record=example) for example in examples],
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -410,9 +414,9 @@ class DatasetSplitMutationMixin:
             ).all()
 
         return DatasetSplitMutationPayloadWithExamples(
-            dataset_split=to_gql_dataset_split(dataset_split_orm),
+            dataset_split=DatasetSplit(id=dataset_split_orm.id, db_record=dataset_split_orm),
             query=Query(),
-            examples=[to_gql_dataset_example(example) for example in examples],
+            examples=[DatasetExample(id=example.id, db_record=example) for example in examples],
         )
 
 
