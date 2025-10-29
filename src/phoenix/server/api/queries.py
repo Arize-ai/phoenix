@@ -60,6 +60,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
+from phoenix.server.api.types.Evaluator import CodeEvaluator, Evaluator, LLMEvaluator
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -952,6 +953,10 @@ class Query:
             return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
             return GenerativeModel(id=node_id)
+        elif type_name == LLMEvaluator.__name__:
+            return LLMEvaluator(id=node_id)
+        elif type_name == CodeEvaluator.__name__:
+            return CodeEvaluator(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -1084,6 +1089,35 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Evaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            evaluators = await session.scalars(
+                select(models.Evaluator).order_by(models.Evaluator.name.asc())
+            )
+        data: list[Evaluator] = []
+        for evaluator in evaluators:
+            if isinstance(evaluator, models.LLMEvaluator):
+                data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
+            elif isinstance(evaluator, models.CodeEvaluator):
+                data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
+            else:
+                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     async def annotation_configs(
