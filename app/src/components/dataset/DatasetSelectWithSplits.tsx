@@ -131,25 +131,27 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         trailingVisual={<SelectChevronUpDownIcon />}
         size={props.size ?? "S"}
       >
-        {selectedDataset ? (
-          <Flex alignItems="center">
-            <Text>{selectedDataset.name}</Text>
-            {selectedSplits.length > 0 ? (
-              <Text color="text-300">
-                &nbsp;/{" "}
-                {selectedSplits.length === 1
-                  ? selectedSplits[0].name
-                  : `${selectedSplits.length} splits`}
-              </Text>
-            ) : (
-              <Text color="text-300">&nbsp;/ All Examples</Text>
-            )}
-          </Flex>
-        ) : (
-          <Text color="text-300">
-            {props.placeholder ?? "Select a dataset"}
-          </Text>
-        )}
+        <Flex alignItems="center" width="100%">
+          {selectedDataset ? (
+            <>
+              <Text>{selectedDataset.name}</Text>
+              {selectedSplits.length > 0 ? (
+                <Text color="text-300">
+                  &nbsp;/{" "}
+                  {selectedSplits.length === 1
+                    ? selectedSplits[0].name
+                    : `${selectedSplits.length} splits`}
+                </Text>
+              ) : (
+                <Text color="text-300">&nbsp;/ All Examples</Text>
+              )}
+            </>
+          ) : (
+            <Text color="text-300">
+              {props.placeholder ?? "Select a dataset"}
+            </Text>
+          )}
+        </Flex>
       </Button>
       <MenuContainer>
         <Autocomplete filter={contains}>

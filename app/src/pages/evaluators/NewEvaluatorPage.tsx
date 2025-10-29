@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
@@ -8,6 +8,7 @@ import {
   EvaluatorChatTemplate,
   EvaluatorChatTemplateProvider,
 } from "@phoenix/pages/evaluators/EvaluatorChatTemplate";
+import { EvaluatorExampleDataset } from "@phoenix/pages/evaluators/EvaluatorExampleDataset";
 
 export const NewEvaluatorPage = () => {
   return (
@@ -35,6 +36,10 @@ const validateEvaluatorConfiguration = () => {
 const NewEvaluatorPageContent = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _state = usePlaygroundContext((state) => state.instances);
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(
+    null
+  );
+  const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
   const isValid = useMemo(() => validateEvaluatorConfiguration(), []);
   return (
     <>
@@ -102,14 +107,12 @@ const NewEvaluatorPageContent = () => {
               Use examples from an existing dataset as a reference, or create
               new examples from scratch.
             </Text>
-            <div
-              css={css`
-                height: 400px;
-                border: 1px solid var(--ac-global-border-color-default);
-                border-style: dashed;
-                border-radius: var(--ac-global-rounding-small);
-              `}
-            ></div>
+            <EvaluatorExampleDataset
+              selectedDatasetId={selectedDatasetId}
+              onSelectDataset={setSelectedDatasetId}
+              selectedSplitIds={selectedSplitIds}
+              onSelectSplits={setSelectedSplitIds}
+            />
           </Flex>
         </Panel>
       </PanelGroup>
