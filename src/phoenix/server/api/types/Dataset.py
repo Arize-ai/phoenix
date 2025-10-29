@@ -34,7 +34,7 @@ from phoenix.server.api.types.SortDir import SortDir
 @strawberry.type
 class Dataset(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.Dataset] = UNSET
+    db_record: strawberry.Private[Optional[models.Dataset]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

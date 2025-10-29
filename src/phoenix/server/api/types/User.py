@@ -3,7 +3,6 @@ from typing import Optional
 
 import strawberry
 from sqlalchemy import select
-from strawberry import UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
@@ -20,7 +19,7 @@ from .UserRole import UserRole, to_gql_user_role
 @strawberry.type
 class User(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.User] = UNSET
+    db_record: strawberry.Private[Optional[models.User]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

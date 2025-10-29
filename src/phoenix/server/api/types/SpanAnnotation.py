@@ -3,7 +3,6 @@ from math import isfinite
 from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
-from strawberry import UNSET
 from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
 @strawberry.type
 class SpanAnnotation(Node, Annotation):
     id: NodeID[int]
-    db_record: strawberry.Private[models.SpanAnnotation] = UNSET
+    db_record: strawberry.Private[Optional[models.SpanAnnotation]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

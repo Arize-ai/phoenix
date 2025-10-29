@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from strawberry import UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
@@ -15,7 +14,7 @@ from .ApiKey import ApiKey
 @strawberry.type
 class SystemApiKey(ApiKey, Node):
     id: NodeID[int]
-    db_record: strawberry.Private[OrmApiKey] = UNSET
+    db_record: strawberry.Private[Optional[OrmApiKey]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

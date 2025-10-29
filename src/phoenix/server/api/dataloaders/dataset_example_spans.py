@@ -1,6 +1,7 @@
 from typing import Optional
 
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -27,6 +28,11 @@ class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
                     .select_from(models.DatasetExample)
                     .join(models.Span, models.DatasetExample.span_rowid == models.Span.id)
                     .where(models.DatasetExample.id.in_(example_ids))
+                    .options(
+                        joinedload(models.Span.trace, innerjoin=True).load_only(
+                            models.Trace.trace_id
+                        )
+                    )
                 )
             }
         return [spans.get(example_id) for example_id in keys]

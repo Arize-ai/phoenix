@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Optional
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues
-from strawberry import Private
 from strawberry.relay import Node, NodeID
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -38,8 +37,10 @@ CachedCostSummaryKey: TypeAlias = tuple[Optional[ProjectId], TimeRangeKey]
 @strawberry.type
 class GenerativeModel(Node, ModelInterface):
     id: NodeID[int]
-    db_record: Private[models.GenerativeModel] = UNSET
-    cached_cost_summary: Private[Optional[dict[CachedCostSummaryKey, SpanCostSummary]]] = None
+    db_record: strawberry.Private[Optional[models.GenerativeModel]] = None
+    cached_cost_summary: strawberry.Private[
+        Optional[dict[CachedCostSummaryKey, SpanCostSummary]]
+    ] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

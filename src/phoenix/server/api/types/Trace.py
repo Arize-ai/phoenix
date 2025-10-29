@@ -9,7 +9,7 @@ import pandas as pd
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, select
-from strawberry import ID, UNSET, Private, lazy
+from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import TypeAlias
@@ -42,7 +42,7 @@ TraceRowId: TypeAlias = int
 @strawberry.type
 class Trace(Node):
     id: NodeID[TraceRowId]
-    db_record: Private[models.Trace] = UNSET
+    db_record: strawberry.Private[Optional[models.Trace]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

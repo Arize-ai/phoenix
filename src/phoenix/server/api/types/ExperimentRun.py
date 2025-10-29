@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 import strawberry
 from sqlalchemy import func, select
 from sqlalchemy.sql.functions import coalesce
-from strawberry import UNSET, Private
+from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 @strawberry.type
 class ExperimentRun(Node):
     id: NodeID[int]
-    db_record: Private[models.ExperimentRun] = UNSET
+    db_record: strawberry.Private[Optional[models.ExperimentRun]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

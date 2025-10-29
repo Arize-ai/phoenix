@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 @strawberry.type
 class ProjectSession(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.ProjectSession] = UNSET
+    db_record: strawberry.Private[Optional[models.ProjectSession]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

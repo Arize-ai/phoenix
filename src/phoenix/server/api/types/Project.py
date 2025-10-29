@@ -9,7 +9,7 @@ from sqlalchemy import and_, case, desc, distinct, exists, func, or_, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
-from strawberry import ID, UNSET, Private, lazy
+from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, Edge, Node, NodeID, PageInfo
 from strawberry.types import Info
 from typing_extensions import assert_never
@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 @strawberry.type
 class Project(Node):
     id: NodeID[int]
-    db_record: Private[models.Project] = UNSET
+    db_record: strawberry.Private[Optional[models.Project]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

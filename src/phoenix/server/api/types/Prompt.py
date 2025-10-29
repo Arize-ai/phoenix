@@ -31,7 +31,7 @@ from .PromptVersionTag import PromptVersionTag
 @strawberry.type
 class Prompt(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.Prompt] = UNSET
+    db_record: strawberry.Private[Optional[models.Prompt]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

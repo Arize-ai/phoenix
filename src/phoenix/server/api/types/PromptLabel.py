@@ -1,7 +1,6 @@
 from typing import Optional
 
 import strawberry
-from strawberry import UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
@@ -13,7 +12,7 @@ from phoenix.server.api.types.Identifier import Identifier
 @strawberry.type
 class PromptLabel(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.PromptLabel] = UNSET
+    db_record: strawberry.Private[Optional[models.PromptLabel]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

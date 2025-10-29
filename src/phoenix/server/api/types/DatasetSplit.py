@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from strawberry import UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
@@ -14,7 +13,7 @@ from phoenix.server.api.context import Context
 @strawberry.type
 class DatasetSplit(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.DatasetSplit] = UNSET
+    db_record: strawberry.Private[Optional[models.DatasetSplit]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

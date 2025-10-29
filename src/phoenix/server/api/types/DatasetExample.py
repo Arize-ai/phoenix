@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
 from sqlalchemy import select
-from strawberry import UNSET, Private
+from strawberry import UNSET
 from strawberry.relay.types import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 
@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 @strawberry.type
 class DatasetExample(Node):
     id: NodeID[int]
-    db_record: Private[models.DatasetExample] = UNSET
-    version_id: Private[Optional[int]] = None
+    db_record: strawberry.Private[Optional[models.DatasetExample]] = None
+    version_id: strawberry.Private[Optional[int]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

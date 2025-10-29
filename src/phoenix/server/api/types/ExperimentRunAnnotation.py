@@ -3,7 +3,7 @@ from math import isfinite
 from typing import Optional
 
 import strawberry
-from strawberry import UNSET, Info
+from strawberry import Info
 from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 
@@ -16,7 +16,7 @@ from phoenix.server.api.types.Trace import Trace
 @strawberry.type
 class ExperimentRunAnnotation(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.ExperimentRunAnnotation] = UNSET
+    db_record: strawberry.Private[Optional[models.ExperimentRunAnnotation]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

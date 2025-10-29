@@ -19,6 +19,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
 from opentelemetry.trace import StatusCode
 from sqlalchemy import insert, select
+from strawberry import Private
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import assert_never
@@ -101,7 +102,7 @@ class ChatCompletionToolCall:
 
 @strawberry.type
 class ChatCompletionMutationPayload:
-    db_span: strawberry.Private[models.Span]
+    db_span: Private[models.Span]
     content: Optional[str]
     tool_calls: List[ChatCompletionToolCall]
     span: Span

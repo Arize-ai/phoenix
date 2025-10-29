@@ -124,7 +124,7 @@ SpanRowId: TypeAlias = int
 @strawberry.type
 class Span(Node):
     id: NodeID[SpanRowId]
-    db_record: strawberry.Private[models.Span] = UNSET
+    db_record: strawberry.Private[Optional[models.Span]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:

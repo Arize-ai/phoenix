@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 @strawberry.type
 class Experiment(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.Experiment] = UNSET
+    db_record: strawberry.Private[Optional[models.Experiment]] = None
     cached_sequence_number: Private[Optional[int]] = None
 
     def __post_init__(self) -> None:

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
-from strawberry import UNSET, Info
+from strawberry import Info
 from strawberry.relay import GlobalID, Node, NodeID
 
 from phoenix.db import models
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 @strawberry.type
 class PromptVersionTag(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.PromptVersionTag] = UNSET
+    db_record: strawberry.Private[Optional[models.PromptVersionTag]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
