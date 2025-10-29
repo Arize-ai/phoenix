@@ -12,6 +12,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -199,24 +200,31 @@ class EvaluatorMutationMixin:
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
-        async with info.context.db() as session:
-            dataset = await session.get(models.Dataset, dataset_rowid)
-            if dataset is None:
-                raise NotFound(f"Dataset with id {input.dataset_id} not found")
-            evaluator = await session.get(models.Evaluator, evaluator_rowid)
-            if evaluator is None:
-                raise NotFound(f"Evaluator with id {input.evaluator_id} not found")
-
-            dataset_evaluator = models.DatasetsEvaluators(
-                dataset_id=dataset_rowid,
-                evaluator_id=evaluator_rowid,
-                input_config={},
-            )
-            session.add(dataset_evaluator)
-            try:
-                await session.commit()
-            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                pass  # evaluator is already assigned to the dataset
+        # Use upsert for idempotent assignment
+        # Foreign key constraints will ensure dataset and evaluator exist
+        try:
+            async with info.context.db() as session:
+                await session.execute(
+                    insert_on_conflict(
+                        {
+                            "dataset_id": dataset_rowid,
+                            "evaluator_id": evaluator_rowid,
+                            "input_config": {},
+                        },
+                        dialect=info.context.db.dialect,
+                        table=models.DatasetsEvaluators,
+                        unique_by=("dataset_id", "evaluator_id"),
+                        on_conflict=OnConflict.DO_UPDATE,
+                    )
+                )
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            # Foreign key constraint violation
+            if "foreign" in str(e).lower():
+                raise NotFound(
+                    f"Dataset with id {input.dataset_id} or "
+                    f"evaluator with id {input.evaluator_id} not found"
+                )
+            raise
 
         # Return the appropriate evaluator type based on what was provided
         evaluator_instance: Evaluator
