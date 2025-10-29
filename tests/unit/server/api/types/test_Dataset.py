@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from datetime import datetime, timezone
+from secrets import token_hex
 from typing import Any
 
 import pytest
@@ -7,6 +8,15 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.helpers.prompts.models import (
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptStringTemplate,
+    PromptTemplateFormat,
+    PromptTemplateType,
+)
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -860,6 +870,120 @@ async def test_experiments_without_filter(
     data = response.data
     # experiments_for_filtering fixture creates 4 experiments for dataset 1
     assert len(data["node"]["experiments"]["edges"]) == 4
+
+
+class TestDatasetsEvaluatorsResolver:
+    async def test_returns_associated_evaluators(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_evaluators: Any,
+    ) -> None:
+        """Test that evaluators associated with a dataset are returned."""
+        query = """
+          query ($datasetId: ID!) {
+            node(id: $datasetId) {
+              ... on Dataset {
+                evaluators {
+                  edges {
+                    node {
+                      id
+                      name
+                      kind
+                      description
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+
+        # Should return 2 evaluators in descending ID order
+        edges = response.data["node"]["evaluators"]["edges"]
+        assert len(edges) == 2
+        assert edges[0]["node"]["name"] == "evaluator-2"
+        assert edges[0]["node"]["kind"] == "LLM"
+        assert edges[1]["node"]["name"] == "evaluator-1"
+        assert edges[1]["node"]["kind"] == "LLM"
+
+
+@pytest.fixture
+async def dataset_with_evaluators(db: DbSessionFactory) -> None:
+    """
+    Creates a dataset with two evaluators associated via the datasets_evaluators junction table.
+    """
+    async with db() as session:
+        # Create dataset
+        dataset = models.Dataset(
+            id=1,
+            name="test-dataset",
+            description="Dataset for testing evaluators",
+            metadata_={},
+        )
+        session.add(dataset)
+        await session.flush()
+
+        # Create a prompt for the evaluators
+        prompt = models.Prompt(name=Identifier(token_hex(4)))
+        session.add(prompt)
+        await session.flush()
+
+        # Create a prompt version
+        prompt_version = models.PromptVersion(
+            prompt_id=prompt.id,
+            template_type=PromptTemplateType.STRING,
+            template_format=PromptTemplateFormat.F_STRING,
+            template=PromptStringTemplate(type="string", template="Test template: {input}"),
+            invocation_parameters=PromptOpenAIInvocationParameters(
+                type="openai", openai=PromptOpenAIInvocationParametersContent()
+            ),
+            tools=None,
+            response_format=None,
+            model_provider=ModelProvider.OPENAI,
+            model_name="gpt-4",
+            metadata_={},
+        )
+        session.add(prompt_version)
+        await session.flush()
+
+        # Create two evaluators
+        evaluator_1 = models.LLMEvaluator(
+            id=1,
+            name=Identifier("evaluator-1"),
+            description="First evaluator",
+            prompt_id=prompt.id,
+            output_config={},
+        )
+        evaluator_2 = models.LLMEvaluator(
+            id=2,
+            name=Identifier("evaluator-2"),
+            description="Second evaluator",
+            prompt_id=prompt.id,
+            output_config={},
+        )
+        session.add_all([evaluator_1, evaluator_2])
+        await session.flush()
+
+        # Associate evaluators with dataset via junction table
+        dataset_evaluator_1 = models.DatasetsEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=evaluator_1.id,
+            input_config={},
+        )
+        dataset_evaluator_2 = models.DatasetsEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=evaluator_2.id,
+            input_config={},
+        )
+        session.add_all([dataset_evaluator_1, dataset_evaluator_2])
 
 
 @pytest.fixture

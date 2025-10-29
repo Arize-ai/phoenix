@@ -378,6 +378,22 @@ input ClusterInput {
   id: ID
 }
 
+type CodeEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  user: User
+}
+
+type CodeEvaluatorMutationPayload {
+  evaluator: CodeEvaluator!
+  query: Query!
+}
+
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
@@ -441,10 +457,23 @@ input CreateChatPromptVersionInput {
   tags: [SetPromptVersionTagInput!] = null
 }
 
+input CreateCodeEvaluatorInput {
+  datasetId: ID!
+  name: Identifier!
+  description: String
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
+}
+
+input CreateDatasetLLMEvaluatorInput {
+  datasetId: ID!
+  name: Identifier!
+  description: String
+  promptVersion: ChatPromptVersionInput!
 }
 
 input CreateDatasetLabelInput {
@@ -625,6 +654,7 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
+  evaluators(first: Int = 50, last: Int, after: String, before: String): EvaluatorConnection!
   lastUpdatedAt: DateTime
 }
 
@@ -1232,6 +1262,39 @@ input EvalResultKey {
   attr: EvalAttr!
 }
 
+interface Evaluator implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type EvaluatorConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [EvaluatorEdge!]!
+}
+
+"""An edge in a connection."""
+type EvaluatorEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Evaluator!
+}
+
+enum EvaluatorKind {
+  LLM
+  CODE
+}
+
 type Event {
   id: ID!
   eventMetadata: EventMetadata!
@@ -1764,6 +1827,25 @@ type JSONInvocationParameter implements InvocationParameterBase {
   defaultValue: JSON
 }
 
+type LLMEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  prompt: Prompt!
+  promptVersionTag: PromptVersionTag
+  user: User
+  promptVersion: PromptVersion!
+}
+
+type LLMEvaluatorMutationPayload {
+  evaluator: LLMEvaluator!
+  query: Query!
+}
+
 type LabelFraction {
   label: String!
   fraction: Float!
@@ -1826,6 +1908,8 @@ type Mutation {
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
   setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+  createDatasetCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
+  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -2498,6 +2582,7 @@ type Query {
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
   datasetLabels(first: Int = 50, last: Int, after: String, before: String): DatasetLabelConnection!
   datasetSplits(first: Int = 50, last: Int, after: String, before: String): DatasetSplitConnection!
+  evaluators(first: Int = 50, last: Int, after: String, before: String): EvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(

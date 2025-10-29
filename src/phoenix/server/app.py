@@ -731,6 +731,7 @@ def create_graphql_router(
                     db
                 ),
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
+                code_evaluator_fields=TableFieldsDataLoader(db, models.CodeEvaluator),
                 dataset_dataset_splits=DatasetDatasetSplitsDataLoader(db),
                 dataset_example_fields=TableFieldsDataLoader(db, models.DatasetExample),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
@@ -789,6 +790,7 @@ def create_graphql_router(
                         cache_for_dataloaders.latency_ms_quantile if cache_for_dataloaders else None
                     ),
                 ),
+                llm_evaluator_fields=TableFieldsDataLoader(db, models.LLMEvaluator),
                 min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
                     db,
                     cache_map=(
