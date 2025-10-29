@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Panel, PanelGroup } from "react-resizable-panels";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
 import { Alert, Button, Flex, Heading, Text, View } from "@phoenix/components";
@@ -59,6 +59,7 @@ const NewEvaluatorPageContent = () => {
       </View>
       <PanelGroup direction="horizontal">
         <Panel
+          defaultSize={65}
           css={css`
             display: flex;
             flex-direction: column;
@@ -67,7 +68,9 @@ const NewEvaluatorPageContent = () => {
         >
           <Flex direction="column" gap="size-100">
             <Heading level={3}>Eval</Heading>
-            <Text>Define the eval annotation returned by your evaluator.</Text>
+            <Text color="text-500">
+              Define the eval annotation returned by your evaluator.
+            </Text>
             <div
               css={css`
                 height: 400px;
@@ -80,7 +83,7 @@ const NewEvaluatorPageContent = () => {
 
           <Flex direction="column" gap="size-100">
             <Heading level={3}>Prompt</Heading>
-            <Alert variant="success">
+            <Alert showIcon={false} variant="success">
               Tip: Your eval categories are visible to the LLM, so don’t
               redefine them in your prompt. This needs to be phrased better, but
               generally we should explain what not to do for this.
@@ -88,7 +91,27 @@ const NewEvaluatorPageContent = () => {
             <EvaluatorChatTemplate />
           </Flex>
         </Panel>
-        <Panel>dataset stuff</Panel>
+        <PanelResizeHandle
+          disabled
+          css={css(`margin: 0 var(--ac-global-dimension-size-200)`)}
+        />
+        <Panel defaultSize={35}>
+          <Flex direction="column" gap="size-100">
+            <Heading level={3}>Example dataset</Heading>
+            <Text color="text-500">
+              Use examples from an existing dataset as a reference, or create
+              new examples from scratch.
+            </Text>
+            <div
+              css={css`
+                height: 400px;
+                border: 1px solid var(--ac-global-border-color-default);
+                border-style: dashed;
+                border-radius: var(--ac-global-rounding-small);
+              `}
+            ></div>
+          </Flex>
+        </Panel>
       </PanelGroup>
     </>
   );
