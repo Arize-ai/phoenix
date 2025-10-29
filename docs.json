@@ -1228,7 +1228,7 @@
     },
     {
       "source": "/docs/phoenix/self-hosting/deploying-phoenix",
-      "destination": "/docs/phoenix/self-hosting/readme"
+      "destination": "/docs/phoenix/self-hosting"
     },
     {
       "source": "/docs/phoenix/datasets-experiments/how-to-datasets/exporting-datasets",
@@ -1308,7 +1308,7 @@
     },
     {
       "source": "/docs/phoenix/api/session",
-      "destination": "/docs/phoenix/sdk-api-reference/python/overview"
+      "destination": "/docs/phoenix/sdk-api-reference"
     },
     {
       "source": "/docs/phoenix/deployment/kubernetes",
@@ -1608,7 +1608,7 @@
     },
     {
       "source": "/docs/phoenix/learn",
-      "destination": "/docs/phoenix/cookbook/readme"
+      "destination": "/docs/phoenix/cookbook"
     },
     {
       "source": "/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint",
