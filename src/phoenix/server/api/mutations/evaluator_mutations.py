@@ -215,6 +215,7 @@ class EvaluatorMutationMixin:
                         table=models.DatasetsEvaluators,
                         unique_by=("dataset_id", "evaluator_id"),
                         on_conflict=OnConflict.DO_UPDATE,
+                        constraint_name="pk_datasets_evaluators",
                     )
                 )
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
