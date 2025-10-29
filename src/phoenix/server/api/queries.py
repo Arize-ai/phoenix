@@ -1107,7 +1107,7 @@ class Query:
         )
         async with info.context.db() as session:
             evaluators = await session.scalars(
-                select(models.Evaluator).order_by(models.Evaluator.name.asc())
+                select(models.Evaluator).order_by(models.Evaluator.id.desc())
             )
         data: list[Evaluator] = []
         for evaluator in evaluators:
