@@ -147,6 +147,11 @@ interface ApiKey {
   expiresAt: DateTime
 }
 
+input AssignEvaluatorToDatasetInput {
+  datasetId: ID!
+  evaluatorId: ID!
+}
+
 enum AuthMethod {
   LOCAL
   OAUTH2
@@ -385,6 +390,7 @@ type CodeEvaluator implements Evaluator & Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
+  isAssignedToDataset(datasetId: ID!): Boolean!
   user: User
 }
 
@@ -1269,6 +1275,7 @@ interface Evaluator implements Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
+  isAssignedToDataset(datasetId: ID!): Boolean!
 }
 
 """A connection to a list of items."""
@@ -1292,6 +1299,11 @@ type EvaluatorEdge {
 enum EvaluatorKind {
   LLM
   CODE
+}
+
+type EvaluatorMutationPayload {
+  evaluator: Evaluator!
+  query: Query!
 }
 
 type Event {
@@ -1834,6 +1846,7 @@ type LLMEvaluator implements Evaluator & Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
+  isAssignedToDataset(datasetId: ID!): Boolean!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   user: User
@@ -1909,6 +1922,8 @@ type Mutation {
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createDatasetCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
+  assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
+  unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -3346,6 +3361,11 @@ type UMAPPoints {
   clusters: [Cluster!]!
   corpusData: [UMAPPoint!]!
   contextRetrievals: [Retrieval!]!
+}
+
+input UnassignEvaluatorFromDatasetInput {
+  datasetId: ID!
+  evaluatorId: ID!
 }
 
 input UnsetPromptLabelsInput {
