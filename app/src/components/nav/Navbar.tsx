@@ -173,7 +173,7 @@ export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
         themeIcon = <Icons.MoonOutline />;
         break;
       case "system":
-        themeIcon = <Icons.MonitorOutline />;
+        themeIcon = <Icons.HalfMoonHallSunOutline />;
         break;
       default:
         assertUnreachable(themeMode);
