@@ -193,10 +193,10 @@ class TestEvaluator:
             ),
             pytest.param(
                 "test_evaluator",
-                "heuristic",
+                "code",
                 "maximize",
                 "test_evaluator",
-                "heuristic",
+                "code",
                 "maximize",
                 id="Evaluator initialization with maximize direction",
             ),
@@ -489,7 +489,7 @@ class TestCreateEvaluatorAsync:
 
     @pytest.mark.asyncio
     async def test_create_evaluator_with_async_function(self):
-        @create_evaluator(name="async_test", source="heuristic")
+        @create_evaluator(name="async_test", source="code")
         async def async_eval(output: str) -> float:
             return len(output) * 2
 
@@ -499,11 +499,11 @@ class TestCreateEvaluatorAsync:
         score = result[0]
         assert score.name == "async_test"
         assert score.score == 10
-        assert score.source == "heuristic"
+        assert score.source == "code"
 
     @pytest.mark.asyncio
     async def test_async_evaluator_call_returns_awaitable(self):
-        @create_evaluator(name="async_call_test", source="heuristic")
+        @create_evaluator(name="async_call_test", source="code")
         async def async_eval(output: str) -> float:
             return len(output)
 
@@ -512,7 +512,7 @@ class TestCreateEvaluatorAsync:
 
     @pytest.mark.asyncio
     async def test_async_evaluator_preserves_original_function_behavior(self):
-        @create_evaluator(name="async_preserve_test", source="heuristic")
+        @create_evaluator(name="async_preserve_test", source="code")
         async def async_eval(text: str, multiplier: int = 2) -> float:
             return len(text) * multiplier
 
@@ -523,7 +523,7 @@ class TestCreateEvaluatorAsync:
         assert result_default == 8
 
     def test_async_evaluator_sync_evaluate_raises_error(self):
-        @create_evaluator(name="async_error_test", source="heuristic")
+        @create_evaluator(name="async_error_test", source="code")
         async def async_eval(output: str) -> float:
             return len(output)
 
@@ -549,7 +549,7 @@ class TestCreateEvaluatorAsync:
 
     @pytest.mark.asyncio
     async def test_async_evaluator_with_tuple_return(self):
-        @create_evaluator(name="async_tuple_test", source="heuristic")
+        @create_evaluator(name="async_tuple_test", source="code")
         async def async_eval(output: str) -> tuple:
             return (0.8, "good", "This is an async evaluation result")
 
@@ -566,7 +566,7 @@ class TestCreateEvaluatorDecorator:
     """Test the enhanced create_evaluator decorator with various return types."""
 
     def test_sync_evaluator_call_preserves_original_function(self):
-        @create_evaluator(name="sync_call_test", source="heuristic")
+        @create_evaluator(name="sync_call_test", source="code")
         def sync_eval(text: str, multiplier: int = 2) -> float:
             return len(text) * multiplier
 
@@ -579,7 +579,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_score_object(self):
         """Test create_evaluator with Score object return."""
 
-        @create_evaluator(name="test_evaluator", source="heuristic", direction="maximize")
+        @create_evaluator(name="test_evaluator", source="code", direction="maximize")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8, label="good", explanation="test explanation")
 
@@ -591,13 +591,13 @@ class TestCreateEvaluatorDecorator:
         assert score.score == 0.8
         assert score.label == "good"
         assert score.explanation == "test explanation"
-        assert score.source == "heuristic"
+        assert score.source == "code"
         assert score.direction == "maximize"
 
     def test_create_evaluator_with_number_return(self):
         """Test create_evaluator with number return."""
 
-        @create_evaluator(name="number_evaluator", source="heuristic")
+        @create_evaluator(name="number_evaluator", source="code")
         def test_func(input_text: str) -> float:
             return 0.75
 
@@ -613,7 +613,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_boolean_return(self):
         """Test create_evaluator with boolean return."""
 
-        @create_evaluator(name="boolean_evaluator", source="heuristic")
+        @create_evaluator(name="boolean_evaluator", source="code")
         def test_func(input_text: str) -> bool:
             return True
 
@@ -629,7 +629,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_short_string_return(self):
         """Test create_evaluator with short string return (≤3 words)."""
 
-        @create_evaluator(name="short_string_evaluator", source="heuristic")
+        @create_evaluator(name="short_string_evaluator", source="code")
         def test_func(input_text: str) -> str:
             return "good"
 
@@ -645,7 +645,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_long_string_return(self):
         """Test create_evaluator with long string return (≥4 words)."""
 
-        @create_evaluator(name="long_string_evaluator", source="heuristic")
+        @create_evaluator(name="long_string_evaluator", source="code")
         def test_func(input_text: str) -> str:
             return "This is a much longer explanation that should go into the explanation field"
 
@@ -664,7 +664,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_dictionary_return(self):
         """Test create_evaluator with dictionary return."""
 
-        @create_evaluator(name="dict_evaluator", source="heuristic")
+        @create_evaluator(name="dict_evaluator", source="code")
         def test_func(input_text: str) -> dict:
             return {
                 "score": 0.9,
@@ -684,7 +684,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_tuple_return(self):
         """Test create_evaluator with tuple return."""
 
-        @create_evaluator(name="tuple_evaluator", source="heuristic")
+        @create_evaluator(name="tuple_evaluator", source="code")
         def test_func(input_text: str) -> tuple:
             return (0.85, "very good", "This is a comprehensive evaluation")
 
@@ -700,7 +700,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_mixed_tuple_return(self):
         """Test create_evaluator with mixed tuple including nested dict."""
 
-        @create_evaluator(name="mixed_tuple_evaluator", source="heuristic")
+        @create_evaluator(name="mixed_tuple_evaluator", source="code")
         def test_func(input_text: str) -> tuple:
             return (0.7, {"score": 0.8, "label": "mixed"}, "This is a final explanation")
 
@@ -710,7 +710,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_unsupported_type_raises_error(self):
         """Test create_evaluator raises error for unsupported return types."""
 
-        @create_evaluator(name="unsupported_evaluator", source="heuristic")
+        @create_evaluator(name="unsupported_evaluator", source="code")
         def test_func(input_text: str) -> list:
             return [1, 2, 3]
 
@@ -720,7 +720,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_unsupported_type_error_message(self):
         """Test create_evaluator provides informative error message for unsupported types."""
 
-        @create_evaluator(name="error_test_evaluator", source="heuristic")
+        @create_evaluator(name="error_test_evaluator", source="code")
         def test_func(input_text: str) -> set:
             return {1, 2, 3}
 
@@ -734,7 +734,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_input_mapping(self):
         """Test create_evaluator with input mapping."""
 
-        @create_evaluator(name="mapping_evaluator", source="heuristic")
+        @create_evaluator(name="mapping_evaluator", source="code")
         def test_func(input_text: str) -> float:
             return 0.8
 
@@ -767,7 +767,7 @@ class TestCreateEvaluatorDecorator:
     ):
         """Test create_evaluator with various return types using parametrization."""
 
-        @create_evaluator(name="param_test_evaluator", source="heuristic")
+        @create_evaluator(name="param_test_evaluator", source="code")
         def test_func(input_text: str):
             return return_value
 
@@ -783,7 +783,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_preserves_metadata(self):
         """Test that create_evaluator preserves metadata when Score object is returned."""
 
-        @create_evaluator(name="metadata_evaluator", source="heuristic")
+        @create_evaluator(name="metadata_evaluator", source="code")
         def test_func(input_text: str) -> Score:
             return Score(
                 score=0.8, label="good", explanation="test", metadata={"custom_key": "custom_value"}
@@ -871,7 +871,7 @@ class TestEvaluatorRequiredFieldsAndBinding:
             return [Score(name=self.name, score=1.0, source=self.source)]
 
     def test_required_fields_from_mapping_when_no_schema(self):
-        e = self.MinimalEvaluator(name="min", source="heuristic")
+        e = self.MinimalEvaluator(name="min", source="code")
         payload = {"in": {"msg": "hi"}}
         mapping = {"text": lambda row: row["in"]["msg"].upper()}
 
@@ -912,7 +912,7 @@ class TestEvaluateDataframe:
 
             # Create a simple input schema that accepts any fields
             InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-            super().__init__(name=name, source="heuristic", input_schema=InputModel)
+            super().__init__(name=name, source="code", input_schema=InputModel)
             self.score_value = score_value
 
         def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
@@ -1149,7 +1149,7 @@ class TestEvaluateDataframe:
                 from pydantic import create_model
 
                 InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                super().__init__(name=name, source="code", input_schema=InputModel)
 
             def _evaluate(self, eval_input):
                 # Return a score that includes the text content to verify ordering
@@ -1217,7 +1217,7 @@ class TestEvaluateDataframe:
                 from pydantic import create_model
 
                 InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                super().__init__(name=name, source="code", input_schema=InputModel)
 
             def _evaluate(self, eval_input):
                 return [Score(name=self.name, score=0.8, explanation="Test")]
@@ -1273,7 +1273,7 @@ class TestEvaluateDataframe:
                 from pydantic import create_model
 
                 InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                super().__init__(name=name, source="code", input_schema=InputModel)
 
             def _evaluate(self, eval_input):
                 # Return a score that includes the text content to verify ordering
@@ -1345,7 +1345,7 @@ class TestEvaluateDataframe:
                 from pydantic import create_model
 
                 InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                super().__init__(name=name, source="code", input_schema=InputModel)
                 self.fail_on_text = fail_on_text
 
             def _evaluate(self, eval_input):
@@ -1392,7 +1392,7 @@ class TestEvaluateDataframe:
                 from pydantic import create_model
 
                 InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                super().__init__(name=name, source="code", input_schema=InputModel)
                 self.fail_on_text = fail_on_text
 
             def _evaluate(self, eval_input):

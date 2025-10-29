@@ -303,7 +303,7 @@ def _format_score_data(
         first_score = None if no_na.empty else no_na.iloc[0]
         if first_score and isinstance(first_score, dict) and "source" in first_score:
             source = first_score["source"]
-            if source == "heuristic":
+            if source in ["heuristic", "code"]:
                 annotator_kind = "CODE"
             elif source == "llm":
                 annotator_kind = "LLM"

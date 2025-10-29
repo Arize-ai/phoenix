@@ -42,7 +42,7 @@ from .utils import _deprecate_positional_args, default_tqdm_progress_bar_formatt
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
 ToolSchema = Optional[Dict[str, Any]]
-SourceType = Literal["human", "llm", "heuristic"]
+SourceType = Literal["human", "llm", "heuristic", "code"]
 DirectionType = Literal["maximize", "minimize"]
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 

@@ -65,7 +65,7 @@ class _ClassCounts:
 
 class PrecisionRecallFScore(Evaluator):
     """
-    Heuristic evaluator that computes precision, recall, and F-beta score given lists of expected
+    Code evaluator that computes precision, recall, and F-beta score given lists of expected
     and output labels.
 
     Parameters:
@@ -131,7 +131,7 @@ class PrecisionRecallFScore(Evaluator):
     ) -> None:
         super().__init__(
             name="precision_recall_fscore",
-            source="heuristic",
+            source="code",
             input_schema=self.InputSchema,
             direction="maximize",
         )

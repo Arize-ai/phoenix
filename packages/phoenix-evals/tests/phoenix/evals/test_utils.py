@@ -690,10 +690,10 @@ class TestFormatAsAnnotationDataframe:
                 id="llm_source",
             ),
             pytest.param(
-                {"score": 1.0, "source": "heuristic"},
+                {"score": 1.0, "source": "code"},
                 "test",
                 "CODE",
-                id="heuristic_source",
+                id="code_source",
             ),
             pytest.param(
                 {"score": 0.8, "source": "human"},
@@ -885,14 +885,14 @@ class TestFormatAsAnnotationDataframe:
             {
                 "span_id": ["span_1", "span_2", "span_3"],
                 "mixed_score": [
-                    json.dumps({"score": 0.8, "source": "heuristic"}),  # First non-null
+                    json.dumps({"score": 0.8, "source": "code"}),  # First non-null
                     json.dumps({"score": 0.9, "source": "llm"}),
                     json.dumps({"score": 0.7, "source": "human"}),
                 ],
             }
         )
         result = to_annotation_dataframe(dataframe=df, score_names=["mixed"])
-        # Should use "heuristic" from first non-null score
+        # Should use "code" from first non-null score
         assert all(result["annotator_kind"] == "CODE")
 
     def test_all_none_scores_default_to_llm_annotator_kind(self):
@@ -1224,7 +1224,7 @@ class TestFormatAsAnnotationDataframe:
             {
                 "span_id": ["span_1", "span_2"],
                 "precision_score": [json.dumps({"score": 0.8, "source": "llm"}), None],
-                "hallucination_score": [None, json.dumps({"score": 0.9, "source": "heuristic"})],
+                "hallucination_score": [None, json.dumps({"score": 0.9, "source": "code"})],
                 "invalid_score": ["not json", "also not json"],
             }
         )
