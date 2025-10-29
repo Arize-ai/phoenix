@@ -2139,13 +2139,11 @@ def _validate_iam_auth_config() -> None:
         )
 
     try:
-        import boto3  # pyright: ignore
-
         client = boto3.client("sts")  # pyright: ignore
         client.get_caller_identity()  # pyright: ignore
         logger.info("✓ AWS credentials validated for RDS IAM authentication")
     except Exception as e:
-        logger.warning(
+        raise ValueError(
             f"Failed to validate AWS credentials for RDS IAM authentication: {e}. "
             "Ensure AWS credentials are configured via environment variables, "
             "~/.aws/credentials, or IAM role."

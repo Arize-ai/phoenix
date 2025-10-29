@@ -230,7 +230,6 @@ def aio_postgresql_engine(
 
     if use_iam_auth:
         assert iam_config is not None
-        _iam_config = iam_config
 
         def iam_sync_creator() -> Any:
             import psycopg
@@ -238,17 +237,17 @@ def aio_postgresql_engine(
             from phoenix.db.iam_auth import generate_aws_rds_token
 
             token = generate_aws_rds_token(
-                host=_iam_config["host"],
-                port=_iam_config["port"],
-                user=_iam_config["user"],
+                host=iam_config["host"],
+                port=iam_config["port"],
+                user=iam_config["user"],
             )
 
             conn_kwargs = {
-                "host": _iam_config["host"],
-                "port": _iam_config["port"],
-                "user": _iam_config["user"],
+                "host": iam_config["host"],
+                "port": iam_config["port"],
+                "user": iam_config["user"],
                 "password": token,
-                "dbname": _iam_config["database"],
+                "dbname": iam_config["database"],
             }
 
             if psycopg_args:
