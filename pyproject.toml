@@ -120,6 +120,9 @@ pg = [
   "asyncpg",
   "psycopg[binary,pool]",
 ]
+aws = [
+  "boto3",
+]
 container = [
   "anthropic>=0.49.0",
   "google-genai",
