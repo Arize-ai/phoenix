@@ -49,6 +49,7 @@ jobs:
           commit: "chore(js): update versions"
           title: "chore(js): update versions"
           publish: pnpm ci:publish
+          createGithubReleases: true
           cwd: "./js"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
