@@ -1,7 +1,8 @@
 import { useMemo } from "react";
+import { Panel, PanelGroup } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Heading, View } from "@phoenix/components";
+import { Alert, Button, Flex, Heading, Text, View } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   EvaluatorChatTemplate,
@@ -13,11 +14,12 @@ export const NewEvaluatorPage = () => {
     <EvaluatorChatTemplateProvider>
       <main
         css={css`
-          display: flex;
-          flex-direction: column;
           padding: var(--ac-global-dimension-size-200)
             var(--ac-global-dimension-size-400);
-          gap: var(--ac-global-dimension-size-400);
+          display: flex;
+          flex-direction: column;
+          flex: 1 1 auto;
+          gap: var(--ac-global-dimension-size-200);
         `}
       >
         <NewEvaluatorPageContent />
@@ -55,15 +57,39 @@ const NewEvaluatorPageContent = () => {
           </Flex>
         </Flex>
       </View>
-      <div
-        css={css`
-          height: 400px;
-          border: 1px solid var(--ac-global-border-color-default);
-          border-style: dashed;
-          border-radius: var(--ac-global-rounding-small);
-        `}
-      ></div>
-      <EvaluatorChatTemplate />
+      <PanelGroup direction="horizontal">
+        <Panel
+          css={css`
+            display: flex;
+            flex-direction: column;
+            gap: var(--ac-global-dimension-size-400);
+          `}
+        >
+          <Flex direction="column" gap="size-100">
+            <Heading level={3}>Eval</Heading>
+            <Text>Define the eval annotation returned by your evaluator.</Text>
+            <div
+              css={css`
+                height: 400px;
+                border: 1px solid var(--ac-global-border-color-default);
+                border-style: dashed;
+                border-radius: var(--ac-global-rounding-small);
+              `}
+            ></div>
+          </Flex>
+
+          <Flex direction="column" gap="size-100">
+            <Heading level={3}>Prompt</Heading>
+            <Alert variant="success">
+              Tip: Your eval categories are visible to the LLM, so don’t
+              redefine them in your prompt. This needs to be phrased better, but
+              generally we should explain what not to do for this.
+            </Alert>
+            <EvaluatorChatTemplate />
+          </Flex>
+        </Panel>
+        <Panel>dataset stuff</Panel>
+      </PanelGroup>
     </>
   );
 };
