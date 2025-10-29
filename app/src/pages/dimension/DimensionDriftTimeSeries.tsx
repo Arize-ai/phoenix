@@ -29,8 +29,8 @@ import {
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import { useTimeFormatters } from "@phoenix/hooks";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import {
   calculateGranularity,
   calculateGranularityWithRollingAverage,
@@ -50,8 +50,9 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipContentProps<number, string>) {
-  const { color } = useColors();
+}: TooltipContentProps<number | number[], string>) {
+  const { fullTimeFormatter } = useTimeFormatters();
+  const { color, barColor } = useColors();
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
 
@@ -68,26 +69,13 @@ function TooltipContent({
           value={floatFormatter(euclideanDistance)}
         />
         <ChartTooltipDivider />
-        <div
-          css={css`
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            color: var(--ac-global-color-primary);
-            gap: var(--ac-global-dimension-static-size-50);
-
-            margin-top: var(--ac-global-dimension-static-size-50);
-          `}
-        >
-          <Icon svg={<Icons.InfoOutline />} />
-          <span>Click to view details</span>
-        </div>
       </ChartTooltip>
     );
   }
 
   return null;
 }
+
 export function DimensionDriftTimeSeries({
   dimensionId,
 }: {

@@ -1,25 +1,50 @@
-import { timeFormat } from "d3-time-format";
+import { timeFormat, utcFormat } from "d3-time-format";
 
 /**
  * Formats time to be displayed in full
  * e.x. in a tooltip
  */
 export const fullTimeFormatter = timeFormat("%x %H:%M:%S %p");
+export const fullTimeFormatterUTC = utcFormat("%x %H:%M:%S %p");
 
 /**
  * Formats time to be displayed in short (no year or date)
  * e.x. in a tooltip
  */
 export const shortTimeFormatter = timeFormat("%H:%M %p");
+export const shortTimeFormatterUTC = utcFormat("%H:%M %p");
 
 export const shortDateTimeFormatter = timeFormat("%x %H:%M %p");
-export const timeRangeFormatter = (timeRange: OpenTimeRange) => {
+export const shortDateTimeFormatterUTC = utcFormat("%x %H:%M %p");
+
+/**
+ * Get the appropriate time formatter based on timezone preference
+ */
+export function getFullTimeFormatter(timezone: "local" | "UTC") {
+  return timezone === "UTC" ? fullTimeFormatterUTC : fullTimeFormatter;
+}
+
+export function getShortTimeFormatter(timezone: "local" | "UTC") {
+  return timezone === "UTC" ? shortTimeFormatterUTC : shortTimeFormatter;
+}
+
+export function getShortDateTimeFormatter(timezone: "local" | "UTC") {
+  return timezone === "UTC"
+    ? shortDateTimeFormatterUTC
+    : shortDateTimeFormatter;
+}
+
+export const timeRangeFormatter = (
+  timeRange: OpenTimeRange,
+  timezone: "local" | "UTC" = "local"
+) => {
+  const formatter = getFullTimeFormatter(timezone);
   if (timeRange.start && timeRange.end) {
-    return `${fullTimeFormatter(timeRange.start)} - ${fullTimeFormatter(timeRange.end)}`;
+    return `${formatter(timeRange.start)} - ${formatter(timeRange.end)}`;
   } else if (timeRange.start) {
-    return `From ${fullTimeFormatter(timeRange.start)}`;
+    return `From ${formatter(timeRange.start)}`;
   } else if (timeRange.end) {
-    return `Until ${fullTimeFormatter(timeRange.end)}`;
+    return `Until ${formatter(timeRange.end)}`;
   } else {
     return "All Time";
   }

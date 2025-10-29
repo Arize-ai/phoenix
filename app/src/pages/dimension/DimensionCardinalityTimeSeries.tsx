@@ -20,7 +20,7 @@ import {
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionCardinalityTimeSeriesQuery } from "./__generated__/DimensionCardinalityTimeSeriesQuery.graphql";
@@ -42,6 +42,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
+  const { fullTimeFormatter } = useTimeFormatters();
   const { color } = useColors();
   if (active && payload && payload.length) {
     const cardinality = payload[0]?.value ?? null;
