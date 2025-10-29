@@ -101,7 +101,7 @@ class Score:
                 score=1.0,
                 label="true",
                 explanation="Found 3 citations in the text",
-                source="heuristic",
+                source="code",
                 direction="maximize"
             )
     """
@@ -162,7 +162,7 @@ class Evaluator(ABC):
 
     Args:
         name: The name of this evaluator, used for identification and Score naming.
-        source: The source of this evaluator (human, llm, or heuristic).
+        source: The source of this evaluator (human, llm, or code).
         input_schema: Optional Pydantic BaseModel for input typing and validation. If None,
             subclasses infer fields from prompts or function signatures and may construct a
             model dynamically.
@@ -619,7 +619,7 @@ class ClassificationEvaluator(LLMEvaluator):
 
 
 def create_evaluator(
-    name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
+    name: str, source: SourceType = "code", direction: DirectionType = "maximize"
 ) -> Callable[[Callable[..., Any]], Evaluator]:
     """
     Decorator that turns a simple function into an Evaluator instance.
@@ -630,8 +630,8 @@ def create_evaluator(
 
     Args:
         name: Identifier for the evaluator and the name used in produced Scores.
-        source: The source of this evaluator ("human", "llm", or "heuristic"). Defaults to
-            "heuristic".
+        source: The source of this evaluator ("human", "llm", or "code"). Defaults to
+            "code".
         direction: The score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
 
