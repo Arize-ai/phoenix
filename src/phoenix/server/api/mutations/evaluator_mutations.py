@@ -19,10 +19,26 @@ from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset
-from phoenix.server.api.types.Evaluator import CodeEvaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import CodeEvaluator, Evaluator, LLMEvaluator
 from phoenix.server.api.types.Identifier import Identifier
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.bearer_auth import PhoenixUser
+
+
+def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, str]:
+    """
+    Parse evaluator ID accepting both LLMEvaluator and CodeEvaluator types.
+
+    Returns:
+        tuple of (evaluator_rowid, evaluator_type_name)
+    """
+    type_name, evaluator_rowid = from_global_id(global_id)
+    if type_name not in (LLMEvaluator.__name__, CodeEvaluator.__name__):
+        raise ValueError(
+            f"Invalid evaluator type: {type_name}. "
+            f"Expected {LLMEvaluator.__name__} or {CodeEvaluator.__name__}"
+        )
+    return evaluator_rowid, type_name
 
 
 @strawberry.input
@@ -49,6 +65,14 @@ class LLMEvaluatorMutationPayload:
 @strawberry.type
 class CodeEvaluatorMutationPayload:
     evaluator: CodeEvaluator
+    query: Query
+
+
+@strawberry.type
+class EvaluatorMutationPayload:
+    """Payload that can handle both LLM and Code evaluators."""
+
+    evaluator: Evaluator
     query: Query
 
 
@@ -161,7 +185,7 @@ class EvaluatorMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def assign_evaluator_to_dataset(
         self, info: Info[Context, None], input: AssignEvaluatorToDatasetInput
-    ) -> LLMEvaluatorMutationPayload:
+    ) -> EvaluatorMutationPayload:
         try:
             dataset_rowid = from_global_id_with_expected_type(
                 global_id=input.dataset_id,
@@ -171,12 +195,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
         try:
-            evaluator_rowid = from_global_id_with_expected_type(
-                global_id=input.evaluator_id,
-                expected_type_name=LLMEvaluator.__name__,
-            )
-        except ValueError:
-            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}")
+            evaluator_rowid, evaluator_type_name = _parse_evaluator_id(input.evaluator_id)
+        except ValueError as e:
+            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
         async with info.context.db() as session:
             dataset = await session.get(models.Dataset, dataset_rowid)
@@ -197,15 +218,22 @@ class EvaluatorMutationMixin:
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 pass  # evaluator is already assigned to the dataset
 
-        return LLMEvaluatorMutationPayload(
-            evaluator=LLMEvaluator(id=evaluator_rowid),
+        # Return the appropriate evaluator type based on what was provided
+        evaluator_instance: Evaluator
+        if evaluator_type_name == LLMEvaluator.__name__:
+            evaluator_instance = LLMEvaluator(id=evaluator_rowid)
+        else:  # CodeEvaluator
+            evaluator_instance = CodeEvaluator(id=evaluator_rowid)
+
+        return EvaluatorMutationPayload(
+            evaluator=evaluator_instance,
             query=Query(),
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def unassign_evaluator_from_dataset(
         self, info: Info[Context, None], input: UnassignEvaluatorFromDatasetInput
-    ) -> LLMEvaluatorMutationPayload:
+    ) -> EvaluatorMutationPayload:
         try:
             dataset_rowid = from_global_id_with_expected_type(
                 global_id=input.dataset_id,
@@ -215,12 +243,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
         try:
-            evaluator_rowid = from_global_id_with_expected_type(
-                global_id=input.evaluator_id,
-                expected_type_name=LLMEvaluator.__name__,
-            )
-        except ValueError:
-            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}")
+            evaluator_rowid, evaluator_type_name = _parse_evaluator_id(input.evaluator_id)
+        except ValueError as e:
+            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
         async with info.context.db() as session:
             await session.execute(
@@ -229,7 +254,15 @@ class EvaluatorMutationMixin:
                     models.DatasetsEvaluators.evaluator_id == evaluator_rowid,
                 )
             )
-        return LLMEvaluatorMutationPayload(
-            evaluator=LLMEvaluator(id=evaluator_rowid),
+
+        # Return the appropriate evaluator type based on what was provided
+        evaluator_instance: Evaluator
+        if evaluator_type_name == LLMEvaluator.__name__:
+            evaluator_instance = LLMEvaluator(id=evaluator_rowid)
+        else:  # CodeEvaluator
+            evaluator_instance = CodeEvaluator(id=evaluator_rowid)
+
+        return EvaluatorMutationPayload(
+            evaluator=evaluator_instance,
             query=Query(),
         )
