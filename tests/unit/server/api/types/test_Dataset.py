@@ -873,7 +873,7 @@ async def test_experiments_without_filter(
     assert len(data["node"]["experiments"]["edges"]) == 4
 
 
-class TestDatasetEvaluatorsResolver:
+class TestDatasetsEvaluatorsResolver:
     async def test_returns_associated_evaluators(
         self,
         gql_client: AsyncGraphQLClient,
@@ -919,7 +919,7 @@ class TestDatasetEvaluatorsResolver:
 @pytest.fixture
 async def dataset_with_evaluators(db: DbSessionFactory) -> None:
     """
-    Creates a dataset with two evaluators associated via the dataset_evaluators junction table.
+    Creates a dataset with two evaluators associated via the datasets_evaluators junction table.
     """
     async with db() as session:
         # Create dataset
@@ -974,12 +974,12 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
         await session.flush()
 
         # Associate evaluators with dataset via junction table
-        dataset_evaluator_1 = models.DatasetEvaluator(
+        dataset_evaluator_1 = models.DatasetsEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_1.id,
             input_config={},
         )
-        dataset_evaluator_2 = models.DatasetEvaluator(
+        dataset_evaluator_2 = models.DatasetsEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_2.id,
             input_config={},

@@ -738,12 +738,12 @@ class TestEvaluatorPolymorphism:
 
             session.add_all(
                 [
-                    models.DatasetEvaluator(
+                    models.DatasetsEvaluators(
                         dataset_id=dataset.id,
                         evaluator_id=eval_1.id,
                         input_config={},
                     ),
-                    models.DatasetEvaluator(
+                    models.DatasetsEvaluators(
                         dataset_id=dataset.id,
                         evaluator_id=eval_2.id,
                         input_config={},
@@ -847,18 +847,18 @@ class TestEvaluatorPolymorphism:
             dataset_result = await session.get(
                 models.Dataset,
                 dataset_id,
-                options=(selectinload(models.Dataset.dataset_evaluators),),
+                options=(selectinload(models.Dataset.datasets_evaluators),),
             )
             assert dataset_result is not None
             dataset = dataset_result
-            assert len(dataset.dataset_evaluators) == 2
+            assert len(dataset.datasets_evaluators) == 2
 
             # Verify evaluators via join query
             evaluators = (
                 await session.scalars(
                     select(models.LLMEvaluator)
-                    .join(models.DatasetEvaluator)
-                    .where(models.DatasetEvaluator.dataset_id == dataset_id)
+                    .join(models.DatasetsEvaluators)
+                    .where(models.DatasetsEvaluators.dataset_id == dataset_id)
                 )
             ).all()
             assert len(evaluators) == 2
@@ -882,7 +882,7 @@ class TestEvaluatorPolymorphism:
             new_eval_name = new_eval.name
 
             # Associate with dataset
-            dataset_evaluator = models.DatasetEvaluator(
+            dataset_evaluator = models.DatasetsEvaluators(
                 dataset_id=dataset_id,
                 evaluator_id=new_eval_id,
                 input_config={},
@@ -902,8 +902,8 @@ class TestEvaluatorPolymorphism:
             evaluators = (
                 await session.scalars(
                     select(models.LLMEvaluator)
-                    .join(models.DatasetEvaluator)
-                    .where(models.DatasetEvaluator.dataset_id == dataset_id)
+                    .join(models.DatasetsEvaluators)
+                    .where(models.DatasetsEvaluators.dataset_id == dataset_id)
                 )
             ).all()
             assert len(evaluators) == 3
@@ -959,9 +959,17 @@ class TestEvaluatorPolymorphism:
             evaluators = (
                 await session.scalars(
                     select(models.LLMEvaluator)
-                    .join(models.DatasetEvaluator)
-                    .where(models.DatasetEvaluator.dataset_id == dataset_id)
+                    .join(models.DatasetsEvaluators)
+                    .where(models.DatasetsEvaluators.dataset_id == dataset_id)
                 )
             ).all()
             assert len(evaluators) == 2
             assert {e.name for e in evaluators} == {eval_1_name, eval_2_name}
+
+        # ===== RESTRICT: Cannot delete prompt in use by evaluators =====
+        # Attempt to delete prompt that is being used by eval_1
+        with pytest.raises(Exception):
+            async with db() as session:
+                prompt_to_delete = await session.get(models.Prompt, new_prompt.id)
+                assert prompt_to_delete is not None
+                await session.delete(prompt_to_delete)

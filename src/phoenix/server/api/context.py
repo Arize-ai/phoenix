@@ -102,6 +102,7 @@ class DataLoaders:
         AverageExperimentRepeatedRunGroupLatencyDataLoader
     )
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
+    code_evaluator_fields: TableFieldsDataLoader
     dataset_example_fields: TableFieldsDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader

@@ -85,9 +85,9 @@ class TestDatasetLLMEvaluatorMutations:
             llm_evaluator = await session.get(models.LLMEvaluator, evaluator_id)
             assert llm_evaluator and llm_evaluator.kind == "LLM"
             dataset_evaluator = await session.scalar(
-                select(models.DatasetEvaluator).where(
-                    models.DatasetEvaluator.dataset_id == empty_dataset.id,
-                    models.DatasetEvaluator.evaluator_id == evaluator_id,
+                select(models.DatasetsEvaluators).where(
+                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetsEvaluators.evaluator_id == evaluator_id,
                 )
             )
             assert dataset_evaluator and dataset_evaluator.input_config == {}
@@ -136,8 +136,8 @@ class TestDatasetLLMEvaluatorMutations:
         )
         async with db() as session:
             evaluators = await session.scalars(
-                select(models.DatasetEvaluator).where(
-                    models.DatasetEvaluator.dataset_id == empty_dataset.id
+                select(models.DatasetsEvaluators).where(
+                    models.DatasetsEvaluators.dataset_id == empty_dataset.id
                 )
             )
             assert len(evaluators.all()) >= 2

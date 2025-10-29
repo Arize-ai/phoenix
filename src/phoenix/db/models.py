@@ -158,7 +158,7 @@ def render_values_w_union(
 
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
-EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "REMOTE"]
+EvaluatorKind: TypeAlias = Literal["LLM", "CODE"]
 
 
 class JSONB(JSON):
@@ -1094,8 +1094,8 @@ class Dataset(HasId):
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
         "DatasetsDatasetLabel", back_populates="dataset"
     )
-    dataset_evaluators: Mapped[list["DatasetEvaluator"]] = relationship(
-        "DatasetEvaluator", back_populates="dataset", cascade="all, delete-orphan", uselist=True
+    datasets_evaluators: Mapped[list["DatasetsEvaluators"]] = relationship(
+        "DatasetsEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
     )
 
     @hybrid_property
@@ -1790,7 +1790,6 @@ class Prompt(HasId):
     llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
         "LLMEvaluator",
         back_populates="prompt",
-        cascade="all, delete-orphan",
         uselist=True,
     )
 
@@ -2059,7 +2058,7 @@ class SpanCostDetail(HasId):
 class Evaluator(HasId):
     __tablename__ = "evaluators"
     kind: Mapped[EvaluatorKind] = mapped_column(
-        CheckConstraint("kind IN ('LLM', 'CODE', 'REMOTE')", name="valid_evaluator_kind"),
+        CheckConstraint("kind IN ('LLM', 'CODE')", name="valid_evaluator_kind"),
         nullable=False,
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False, unique=True)
@@ -2072,8 +2071,8 @@ class Evaluator(HasId):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     user: Mapped[Optional["User"]] = relationship("User")
-    dataset_evaluators: Mapped[list["DatasetEvaluator"]] = relationship(
-        "DatasetEvaluator",
+    datasets_evaluators: Mapped[list["DatasetsEvaluators"]] = relationship(
+        "DatasetsEvaluators",
         back_populates="evaluator",
         cascade="all, delete-orphan",
         uselist=True,
@@ -2096,7 +2095,7 @@ class LLMEvaluator(Evaluator):
         nullable=False,
     )
     prompt_id: Mapped[int] = mapped_column(
-        ForeignKey("prompts.id", ondelete="CASCADE"),
+        ForeignKey("prompts.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
@@ -2123,8 +2122,31 @@ class LLMEvaluator(Evaluator):
     )
 
 
-class DatasetEvaluator(Base):
-    __tablename__ = "dataset_evaluators"
+class CodeEvaluator(Evaluator):
+    __tablename__ = "code_evaluators"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[Literal["CODE"]] = mapped_column(
+        CheckConstraint("kind = 'CODE'", name="valid_evaluator_kind"),
+        server_default="CODE",
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    __mapper_args__ = {
+        "polymorphic_identity": "CODE",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["kind", "id"],
+            ["evaluators.kind", "evaluators.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class DatasetsEvaluators(Base):
+    __tablename__ = "datasets_evaluators"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
     )
@@ -2133,8 +2155,8 @@ class DatasetEvaluator(Base):
         index=True,
     )
     input_config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
-    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="dataset_evaluators")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator", back_populates="dataset_evaluators")
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_evaluators")
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator", back_populates="datasets_evaluators")
 
     __table_args__ = (
         PrimaryKeyConstraint(

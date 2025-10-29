@@ -666,8 +666,7 @@ CREATE TABLE public.evaluators (
         UNIQUE (name),
     CHECK (((kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
-            'CODE'::character varying,
-            'REMOTE'::character varying
+            'CODE'::character varying
         ])::text[]))),
     CONSTRAINT fk_evaluators_user_id_users FOREIGN KEY
         (user_id)
@@ -679,24 +678,39 @@ CREATE INDEX ix_evaluators_user_id ON public.evaluators
     USING btree (user_id);
 
 
--- Table: dataset_evaluators
--- -------------------------
-CREATE TABLE public.dataset_evaluators (
+-- Table: code_evaluators
+-- ----------------------
+CREATE TABLE public.code_evaluators (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_code_evaluators PRIMARY KEY (id),
+    CHECK (((kind)::text = 'CODE'::text)),
+    CONSTRAINT fk_code_evaluators_kind_evaluators FOREIGN KEY
+        (kind, id)
+        REFERENCES public.evaluators (kind, id)
+        ON DELETE CASCADE
+);
+
+
+-- Table: datasets_evaluators
+-- --------------------------
+CREATE TABLE public.datasets_evaluators (
     dataset_id BIGINT NOT NULL,
     evaluator_id BIGINT NOT NULL,
     input_config JSONB NOT NULL,
-    CONSTRAINT pk_dataset_evaluators PRIMARY KEY (dataset_id, evaluator_id),
-    CONSTRAINT fk_dataset_evaluators_dataset_id_datasets FOREIGN KEY
+    CONSTRAINT pk_datasets_evaluators PRIMARY KEY (dataset_id, evaluator_id),
+    CONSTRAINT fk_datasets_evaluators_dataset_id_datasets FOREIGN KEY
         (dataset_id)
         REFERENCES public.datasets (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators FOREIGN KEY
+    CONSTRAINT fk_datasets_evaluators_evaluator_id_evaluators FOREIGN KEY
         (evaluator_id)
         REFERENCES public.evaluators (id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
+CREATE INDEX ix_datasets_evaluators_evaluator_id ON public.datasets_evaluators
     USING btree (evaluator_id);
 
 
@@ -1044,7 +1058,7 @@ CREATE TABLE public.llm_evaluators (
     CONSTRAINT fk_llm_evaluators_prompt_id_prompts FOREIGN KEY
         (prompt_id)
         REFERENCES public.prompts (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_llm_evaluators_prompt_version_tag_id_prompt_version_tags
         FOREIGN KEY
         (prompt_version_tag_id)

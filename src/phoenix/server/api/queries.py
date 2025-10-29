@@ -60,7 +60,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
-from phoenix.server.api.types.Evaluator import Evaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import CodeEvaluator, Evaluator, LLMEvaluator
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -1111,10 +1111,15 @@ class Query:
             evaluators = await session.scalars(
                 select(models.Evaluator).order_by(models.Evaluator.name.asc())
             )
-        return connection_from_list(
-            data=[Evaluator(id=evaluator.id, db_record=evaluator) for evaluator in evaluators],
-            args=args,
-        )
+        data: list[Evaluator] = []
+        for evaluator in evaluators:
+            if isinstance(evaluator, models.LLMEvaluator):
+                data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
+            elif isinstance(evaluator, models.CodeEvaluator):
+                data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
+            else:
+                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     async def annotation_configs(

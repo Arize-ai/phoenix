@@ -59,7 +59,7 @@ def upgrade() -> None:
         sa.Column(
             "kind",
             sa.String,
-            sa.CheckConstraint("kind IN ('LLM', 'CODE', 'REMOTE')", name="valid_evaluator_kind"),
+            sa.CheckConstraint("kind IN ('LLM', 'CODE')", name="valid_evaluator_kind"),
             nullable=False,
         ),
         sa.Column(
@@ -90,7 +90,7 @@ def upgrade() -> None:
         sa.Column(
             "prompt_id",
             _Integer,
-            sa.ForeignKey("prompts.id", ondelete="CASCADE"),
+            sa.ForeignKey("prompts.id", ondelete="RESTRICT"),
             nullable=False,
             index=True,
         ),
@@ -115,7 +115,31 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "dataset_evaluators",
+        # TODO: This is a stub for development purposes; remove before product release
+        "code_evaluators",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "kind",
+            sa.String,
+            sa.CheckConstraint("kind = 'CODE'", name="valid_evaluator_kind"),
+            server_default="CODE",
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+        sa.ForeignKeyConstraint(
+            ["kind", "id"],
+            ["evaluators.kind", "evaluators.id"],
+            ondelete="CASCADE",
+        ),
+    )
+    op.create_table(
+        "datasets_evaluators",
         sa.Column(
             "dataset_id",
             _Integer,
@@ -138,6 +162,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("dataset_evaluators")
+    op.drop_table("datasets_evaluators")
+    op.drop_table("code_evaluators")
     op.drop_table("llm_evaluators")
     op.drop_table("evaluators")

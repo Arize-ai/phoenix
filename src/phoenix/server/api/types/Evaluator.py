@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING, Annotated, Optional
 
 import sqlalchemy as sa
 import strawberry
-from strawberry import UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.types.Identifier import Identifier
+
+from .Identifier import Identifier
 
 if TYPE_CHECKING:
     from .Prompt import Prompt
@@ -24,7 +24,6 @@ if TYPE_CHECKING:
 class EvaluatorKind(Enum):
     LLM = "LLM"
     CODE = "CODE"
-    REMOTE = "REMOTE"
 
 
 @strawberry.interface
@@ -32,45 +31,116 @@ class Evaluator(Node):
     id: NodeID[int]
 
     @strawberry.field
+    async def name(self) -> Identifier:
+        raise NotImplementedError
+
+    @strawberry.field
+    async def description(self) -> Optional[str]:
+        raise NotImplementedError
+
+    @strawberry.field
+    async def kind(self) -> EvaluatorKind:
+        raise NotImplementedError
+
+    @strawberry.field
+    async def created_at(self) -> datetime:
+        raise NotImplementedError
+
+    @strawberry.field
+    async def updated_at(self) -> datetime:
+        raise NotImplementedError
+
+
+@strawberry.type
+class CodeEvaluator(Evaluator, Node):
+    # TODO: This is a stub for development purposes; remove before product release
+    id: NodeID[int]
+    db_record: strawberry.Private[Optional[models.CodeEvaluator]] = None
+
+    def __post_init__(self) -> None:
+        if self.db_record and self.id != self.db_record.id:
+            raise ValueError("Evaluator ID mismatch")
+
+    @strawberry.field
     async def name(
         self,
         info: Info[Context, None],
     ) -> Identifier:
-        raise NotImplementedError("Subclasses must implement this method")
+        if self.db_record:
+            val = self.db_record.name
+        else:
+            val = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.name),
+            )
+        return val.root if val else ""
 
     @strawberry.field
     async def description(
         self,
         info: Info[Context, None],
     ) -> Optional[str]:
-        raise NotImplementedError("Subclasses must implement this method")
+        if self.db_record:
+            val = self.db_record.description
+        else:
+            val = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.description),
+            )
+        return val
 
     @strawberry.field
     async def kind(
         self,
         info: Info[Context, None],
     ) -> EvaluatorKind:
-        raise NotImplementedError("Subclasses must implement this method")
+        return EvaluatorKind.CODE
 
     @strawberry.field
     async def created_at(
         self,
         info: Info[Context, None],
     ) -> datetime:
-        raise NotImplementedError("Subclasses must implement this method")
+        if self.db_record:
+            val = self.db_record.created_at
+        else:
+            val = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.created_at),
+            )
+        return val
 
     @strawberry.field
     async def updated_at(
         self,
         info: Info[Context, None],
     ) -> datetime:
-        raise NotImplementedError("Subclasses must implement this method")
+        if self.db_record:
+            val = self.db_record.updated_at
+        else:
+            val = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.updated_at),
+            )
+        return val
+
+    @strawberry.field
+    async def user(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        if self.db_record:
+            user_id = self.db_record.user_id
+        else:
+            user_id = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.Evaluator.user_id),
+            )
+        if user_id is None:
+            return None
+        from .User import User
+
+        return User(id=user_id)
 
 
 @strawberry.type
 class LLMEvaluator(Evaluator, Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.LLMEvaluator] = UNSET
+    db_record: strawberry.Private[Optional[models.LLMEvaluator]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
@@ -87,7 +157,7 @@ class LLMEvaluator(Evaluator, Node):
             val = await info.context.data_loaders.llm_evaluator_fields.load(
                 (self.id, models.LLMEvaluator.name),
             )
-        return Identifier(val.root)
+        return val.root if val else ""
 
     @strawberry.field
     async def description(

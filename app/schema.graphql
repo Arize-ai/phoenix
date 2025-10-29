@@ -387,6 +387,22 @@ input ClusterInput {
   id: ID
 }
 
+type CodeEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  user: User
+}
+
+type CodeEvaluatorMutationPayload {
+  evaluator: CodeEvaluator!
+  query: Query!
+}
+
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
@@ -447,6 +463,12 @@ input CreateChatPromptVersionInput {
   promptId: ID!
   promptVersion: ChatPromptVersionInput!
   tags: [SetPromptVersionTagInput!] = null
+}
+
+input CreateCodeEvaluatorInput {
+  datasetId: ID!
+  name: Identifier!
+  description: String = null
 }
 
 input CreateDatasetInput {
@@ -1275,7 +1297,6 @@ type EvaluatorEdge {
 enum EvaluatorKind {
   LLM
   CODE
-  REMOTE
 }
 
 type Event {
@@ -1892,6 +1913,7 @@ type Mutation {
   addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
   removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+  createDatasetCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
