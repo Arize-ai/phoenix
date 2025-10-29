@@ -1306,6 +1306,11 @@ enum EvaluatorKind {
   CODE
 }
 
+type EvaluatorMutationPayload {
+  evaluator: Evaluator!
+  query: Query!
+}
+
 type Event {
   id: ID!
   eventMetadata: EventMetadata!
@@ -1923,8 +1928,8 @@ type Mutation {
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createDatasetCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
-  assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): LLMEvaluatorMutationPayload!
-  unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): LLMEvaluatorMutationPayload!
+  assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
+  unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
