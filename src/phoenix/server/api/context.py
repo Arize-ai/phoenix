@@ -102,6 +102,7 @@ class DataLoaders:
         AverageExperimentRepeatedRunGroupLatencyDataLoader
     )
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
+    code_evaluator_fields: TableFieldsDataLoader
     dataset_example_fields: TableFieldsDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
@@ -137,6 +138,7 @@ class DataLoaders:
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
+    llm_evaluator_fields: TableFieldsDataLoader
     num_child_spans: NumChildSpansDataLoader
     num_spans_per_trace: NumSpansPerTraceDataLoader
     project_by_name: ProjectByNameDataLoader
