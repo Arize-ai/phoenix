@@ -773,7 +773,8 @@ class TestIncompleteRuns:
         5. No duplicates - verify pagination doesn't return duplicate examples
         6. Invalid experiment ID - returns 404 error
         7. Invalid cursor - returns 422 error
-        8. All runs complete - edge case where no incomplete runs exist (empty result)
+        8. Repetitions=1 optimization - test incomplete runs with repetitions=1
+        9. All runs complete - edge case where no incomplete runs exist (empty result)
         """
         experiment_gid = GlobalID(
             "Experiment", str(experiments_with_incomplete_runs.experiment_v1_mixed.id)
@@ -858,35 +859,91 @@ class TestIncompleteRuns:
         )
         assert invalid_cursor_result["status_code"] == 422, "Invalid cursor should return 422"
 
-        # ===== Test 8: Experiment with all runs complete (should return empty list) =====
-        # Create a new experiment and complete all runs
-        complete_experiment = (
+        # ===== Test 8: Experiment with repetitions=1 (optimization path) =====
+        # Create experiment with repetitions=1 to test the optimization case where
+        # there can be no "partially complete" examples
+        rep1_experiment = (
             await httpx_client.post(
                 f"v1/datasets/{dataset_gid}/experiments",
                 json={"version_id": None, "repetitions": 1},
             )
         ).json()["data"]
 
-        # Get the examples for this experiment
+        # Get the examples for this experiment to understand what we're working with
         examples_response = await httpx_client.get(
             f"v1/datasets/{dataset_gid}/examples",
-            params={"version_id": str(complete_experiment["dataset_version_id"])},
+            params={"version_id": str(rep1_experiment["dataset_version_id"])},
         )
         examples = examples_response.json()["data"]["examples"]
 
-        # Add successful runs for ALL examples (all repetitions)
-        for example in examples:
-            await self._create_run(
-                httpx_client,
-                complete_experiment["id"],
-                example["id"],
-                1,
-                f"complete-trace-{example['id']}",
-                "success",
-            )
+        # Pick 3 examples to test with
+        assert len(examples) >= 3, f"Need at least 3 examples, got {len(examples)}"
 
-        # Verify that no incomplete runs are returned
-        complete_data = await self._get_incomplete_runs(httpx_client, complete_experiment["id"])
+        # Pick the first 3 examples we can find
+        test_examples = examples[:3]
+        complete_example_id = test_examples[0]["id"]
+        missing_example_id = test_examples[1]["id"]
+        failed_example_id = test_examples[2]["id"]
+
+        # Setup: example[0]=complete, example[1]=missing (no run), example[2]=failed
+        await self._create_run(
+            httpx_client,
+            rep1_experiment["id"],
+            complete_example_id,
+            1,
+            f"trace-complete-{complete_example_id}",
+            "success",
+            error=None,
+        )
+        # example[1] has no runs (missing) - don't create any run
+        await self._create_run(
+            httpx_client,
+            rep1_experiment["id"],
+            failed_example_id,
+            1,
+            f"trace-failed-{failed_example_id}",
+            "",
+            error="Task failed",
+        )
+
+        # Fetch incomplete runs to verify repetitions=1 optimization
+        result = await self._get_incomplete_runs(httpx_client, rep1_experiment["id"])
+        assert result["status_code"] == 200
+
+        incomplete = {
+            run["dataset_example"]["id"]: run["repetition_numbers"] for run in result["data"]
+        }
+
+        # Assertions for repetitions=1 behavior:
+        # 1. Complete example should NOT be in incomplete results
+        assert complete_example_id not in incomplete, (
+            "Complete example should not be in incomplete runs"
+        )
+
+        # 2. Failed example SHOULD be in incomplete results with [1]
+        assert failed_example_id in incomplete, "Failed example should be in incomplete runs"
+        assert incomplete[failed_example_id] == [1], "Failed example should need repetition [1]"
+
+        # 3. Missing example SHOULD be in incomplete results with [1]
+        assert missing_example_id in incomplete, "Missing example should be in incomplete runs"
+        assert incomplete[missing_example_id] == [1], "Missing example should need repetition [1]"
+
+        # ===== Test 9: All runs complete - edge case (empty result) =====
+        # Now complete ALL runs in the repetitions=1 experiment
+        for example in examples:
+            # Create or update to successful
+            if example["id"] != complete_example_id:  # Skip already complete example
+                await self._create_run(
+                    httpx_client,
+                    rep1_experiment["id"],
+                    example["id"],
+                    1,
+                    f"complete-trace-{example['id']}",
+                    "success",
+                )
+
+        # Verify that no incomplete runs are returned after all are complete
+        complete_data = await self._get_incomplete_runs(httpx_client, rep1_experiment["id"])
         assert complete_data["status_code"] == 200
         assert len(complete_data["data"]) == 0, (
             "Experiment with all runs complete should have no incomplete runs"
