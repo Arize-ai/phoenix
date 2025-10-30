@@ -1,8 +1,9 @@
 /* eslint-disable no-console */
 import { createClient } from "../src";
 import { getPrompt, toSDK } from "../src/prompts";
-import OpenAI from "openai";
 import { PromptSelector } from "../src/types/prompts";
+
+import OpenAI from "openai";
 
 const PROMPT_NAME = process.env.PROMPT_NAME!;
 const PROMPT_TAG = process.env.PROMPT_TAG!;

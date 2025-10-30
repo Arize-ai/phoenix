@@ -1,19 +1,20 @@
-import type {
-  ChatCompletionCreateParams,
-  ChatCompletionMessageParam,
-  ResponseFormatJSONSchema,
-} from "openai/resources";
-import type { Variables, toSDKParamsBase } from "./types";
-
-import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import {
   safelyConvertMessageToProvider,
   safelyConvertToolChoiceToProvider,
   safelyConvertToolDefinitionToProvider,
 } from "../../schemas/llm/converters";
-import invariant from "tiny-invariant";
 import { OpenaiToolChoice } from "../../schemas/llm/openai/toolChoiceSchemas";
 import { phoenixResponseFormatToOpenAI } from "../../schemas/llm/phoenixPrompt/converters";
+import { formatPromptMessages } from "../../utils/formatPromptMessages";
+
+import type { toSDKParamsBase,Variables } from "./types";
+
+import type {
+  ChatCompletionCreateParams,
+  ChatCompletionMessageParam,
+  ResponseFormatJSONSchema,
+} from "openai/resources";
+import invariant from "tiny-invariant";
 
 // We must re-export these types so that they are included in the phoenix-client distribution
 export type {

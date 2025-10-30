@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getSpans } from "../../src/spans/getSpans";
+
+import { beforeEach,describe, expect, it, vi } from "vitest";
 
 // Mock the fetch module
 vi.mock("openapi-fetch", () => ({

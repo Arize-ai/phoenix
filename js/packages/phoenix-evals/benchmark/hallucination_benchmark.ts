@@ -1,11 +1,13 @@
-import { createHallucinationEvaluator } from "../src/llm";
-import { openai } from "@ai-sdk/openai";
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {
   asEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 import { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+
+import { createHallucinationEvaluator } from "../src/llm";
+
+import { openai } from "@ai-sdk/openai";
 const hallucinationEvaluator = createHallucinationEvaluator({
   model: openai("gpt-4o-mini"),
 });

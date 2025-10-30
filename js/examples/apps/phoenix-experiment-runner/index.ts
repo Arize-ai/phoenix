@@ -11,7 +11,8 @@ import {
   runExperiment,
   type RunExperimentParams,
 } from "@arizeai/phoenix-client/experiments";
-import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
+
+import { confirm,intro, log, outro, select, spinner } from "@clack/prompts";
 import { Factuality } from "autoevals";
 import dotenv from "dotenv";
 import OpenAI from "openai";

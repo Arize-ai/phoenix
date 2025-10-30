@@ -1,5 +1,6 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
+
 import { DocumentAnnotation, toDocumentAnnotationData } from "./types";
 
 /**

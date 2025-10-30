@@ -1,19 +1,21 @@
-import {
-  describe,
-  it,
-  assertType,
-  expect,
-  beforeEach,
-  afterEach,
-  vi,
-} from "vitest";
+import { type PartialAIParams,toAI } from "../../../src/prompts/sdks/toAI";
 import { toSDK } from "../../../src/prompts/sdks/toSDK";
 import { PromptVersion } from "../../../src/types/prompts";
-import invariant from "tiny-invariant";
-import { toAI, type PartialAIParams } from "../../../src/prompts/sdks/toAI";
+
 import { BASE_MOCK_PROMPT_VERSION } from "./data";
-import { generateText, streamText } from "ai";
+
 import { openai } from "@ai-sdk/openai";
+import { generateText, streamText } from "ai";
+import invariant from "tiny-invariant";
+import {
+  afterEach,
+  assertType,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 describe("toAI type compatibility", () => {
   beforeEach(() => {

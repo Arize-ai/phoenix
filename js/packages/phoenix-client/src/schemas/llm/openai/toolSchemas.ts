@@ -1,5 +1,6 @@
-import z from "zod";
 import { jsonSchemaZodSchema } from "../../jsonSchema";
+
+import z from "zod";
 
 /**
  * The schema for an OpenAI tool definition
