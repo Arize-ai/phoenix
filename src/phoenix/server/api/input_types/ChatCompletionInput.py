@@ -14,6 +14,7 @@ from phoenix.server.api.types.Identifier import Identifier
 from .ChatCompletionMessageInput import ChatCompletionMessageInput
 from .GenerativeModelInput import GenerativeModelInput
 from .InvocationParameters import InvocationParameterInput
+from .PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from .PromptTemplateOptions import PromptTemplateOptions
 
 
@@ -27,6 +28,9 @@ class ChatCompletionInput:
     template: Optional[PromptTemplateOptions] = UNSET
     prompt_name: Optional[Identifier] = None
     repetitions: int
+    evaluators: Optional[list[PlaygroundEvaluatorInput]] = strawberry.field(
+        default_factory=list
+    )
 
 
 @strawberry.input
@@ -45,3 +49,6 @@ class ChatCompletionOverDatasetInput:
     experiment_description: Optional[str] = None
     experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)
     prompt_name: Optional[Identifier] = None
+    evaluators: Optional[list[PlaygroundEvaluatorInput]] = strawberry.field(
+        default_factory=list
+    )
