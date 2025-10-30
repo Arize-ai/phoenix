@@ -17,6 +17,7 @@ import {
   SearchIcon,
   Text,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 
 type EvaluatorItem = {
   id: string;
@@ -59,6 +60,9 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
                 No evaluators found
               </Text>
             )}
+            css={css`
+              max-width: 300px;
+            `}
           >
             {(evaluator) => (
               <EvaluatorMenuItem
@@ -128,10 +132,19 @@ function EvaluatorMenuItem({
           color: var(--ac-global-color-grey-800);
           font-size: var(--ac-global-font-size-s);
           opacity: ${alreadyAdded ? "0.25" : 1};
+          overflow: hidden;
         `}
       >
         {icon}
-        {showAlreadyAddedState ? "Already added" : name}
+        <Text
+          css={css`
+            overflow: hidden;
+          `}
+        >
+          <Truncate maxWidth="100%">
+            {showAlreadyAddedState ? "Already added" : name}
+          </Truncate>
+        </Text>
       </Flex>
     </MenuItem>
   );
