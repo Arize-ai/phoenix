@@ -1,10 +1,13 @@
 import { PropsWithChildren, useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
+import { graphql, useMutation } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
 import { Alert, Button, Flex, Heading, Text, View } from "@phoenix/components";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import { NewEvaluatorPageContentMutation } from "@phoenix/pages/evaluators/__generated__/NewEvaluatorPageContentMutation.graphql";
 import {
   EvaluatorChatTemplate,
   EvaluatorChatTemplateProvider,
@@ -19,6 +22,7 @@ import {
   EvaluatorLLMChoice,
 } from "@phoenix/pages/evaluators/EvaluatorLLMChoice";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export const NewEvaluatorPage = () => {
   return (
@@ -96,7 +100,6 @@ const createEvaluatorPayload = ({
 };
 
 const NewEvaluatorPageContent = () => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const store = usePlaygroundStore();
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(
     null
@@ -119,21 +122,71 @@ const NewEvaluatorPageContent = () => {
     useForm<InputMapping>({
       defaultValues: {},
     });
+  const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
+  const [createEvaluator, isCreatingEvaluator] =
+    useMutation<NewEvaluatorPageContentMutation>(graphql`
+      mutation NewEvaluatorPageContentMutation(
+        $input: CreateLLMEvaluatorInput!
+      ) {
+        createLlmEvaluator(input: $input) {
+          evaluator {
+            id
+            name
+          }
+        }
+      }
+    `);
   const handleSave = useCallback(() => {
     const choiceConfig = getChoiceConfigValues();
     const inputMapping = getInputMappingValues();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _payload = createEvaluatorPayload({
+    const instance = store.getState().instances[0];
+    if (!instance) {
+      notifyError({
+        title: "Could not create evaluator",
+        message:
+          "Ensure that your prompt has messages, or restart the page and try again.",
+      });
+      return;
+    }
+    const payload = createEvaluatorPayload({
       store,
-      instanceId: 0,
-      name: "Evaluator",
+      instanceId: instance.id,
+      name: `${choiceConfig.name}_evaluator`,
       choiceConfig,
       inputMapping,
     });
-    // TODO: call createEvaluator mutation
-    // notifyError if anything does not validate correctly
-    // redirect somewhere else after successful creation
-  }, [getChoiceConfigValues, getInputMappingValues, store]);
+    createEvaluator({
+      variables: {
+        input: {
+          name: payload.name,
+          promptVersion: payload.promptVersion,
+        },
+      },
+      onCompleted: (response) => {
+        // TODO: navigate to evaluator list page or evaluator detail page when implemented
+        notifySuccess({
+          title: "Evaluator created",
+          message: `Evaluator (${response.createLlmEvaluator.evaluator.id}) "${response.createLlmEvaluator.evaluator.name}" created successfully`,
+        });
+      },
+      onError: (error) => {
+        const errorMessages = getErrorMessagesFromRelayMutationError(error);
+        notifyError({
+          title: "Failed to create evaluator",
+          message: errorMessages?.join("\n") ?? undefined,
+        });
+      },
+    });
+  }, [
+    createEvaluator,
+    getChoiceConfigValues,
+    getInputMappingValues,
+    notifyError,
+    notifySuccess,
+    store,
+  ]);
+
   return (
     <>
       <View
@@ -152,8 +205,13 @@ const NewEvaluatorPageContent = () => {
           <Heading level={2}>New Evaluator</Heading>
           <Flex direction="row" alignItems="center" gap="size-100">
             <Button size="M">Cancel</Button>
-            <Button variant="primary" size="M" onClick={handleSave}>
-              Save
+            <Button
+              variant="primary"
+              size="M"
+              onClick={handleSave}
+              isPending={isCreatingEvaluator}
+            >
+              {isCreatingEvaluator ? "Creating..." : "Save"}
             </Button>
           </Flex>
         </Flex>
