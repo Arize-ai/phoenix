@@ -52,7 +52,7 @@ export type ResumeEvaluationParams = ClientFn & {
   readonly logger?: Logger;
   /**
    * The number of concurrent evaluation executions
-   * @default 3
+   * @default 5
    */
   readonly concurrency?: number;
   /**
@@ -313,7 +313,7 @@ export async function resumeEvaluation({
   evaluators: _evaluators,
   evaluationNames,
   logger = console,
-  concurrency = 3,
+  concurrency = 5,
   pageSize = DEFAULT_PAGE_SIZE,
   setGlobalTracerProvider = true,
   useBatchSpanProcessor = true,
