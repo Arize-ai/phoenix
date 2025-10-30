@@ -1,10 +1,10 @@
-import { PropsWithChildren, useMemo, useState } from "react";
+import { PropsWithChildren, useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
 import { Alert, Button, Flex, Heading, Text, View } from "@phoenix/components";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import {
   EvaluatorChatTemplate,
   EvaluatorChatTemplateProvider,
@@ -18,6 +18,7 @@ import {
   ChoiceConfig,
   EvaluatorLLMChoice,
 } from "@phoenix/pages/evaluators/EvaluatorLLMChoice";
+import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 
 export const NewEvaluatorPage = () => {
   return (
@@ -36,10 +37,6 @@ export const NewEvaluatorPage = () => {
       </main>
     </EvaluatorChatTemplateProvider>
   );
-};
-
-const validateEvaluatorConfiguration = () => {
-  return false;
 };
 
 const PanelContainer = ({ children }: PropsWithChildren) => {
@@ -66,9 +63,41 @@ const panelStyle = {
   overflowY: "auto",
 } as const;
 
+const createEvaluatorPayload = ({
+  store,
+  instanceId,
+  name,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  choiceConfig,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  inputMapping,
+}: {
+  store: ReturnType<typeof usePlaygroundStore>;
+  instanceId: number;
+  name: string;
+  choiceConfig: ChoiceConfig;
+  inputMapping: InputMapping;
+}) => {
+  const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
+    instanceId,
+    store
+  );
+
+  return {
+    name,
+    // TODO: add description
+    // TODO: add choice config
+    // TODO: add input mapping
+    promptVersion: {
+      templateFormat,
+      ...promptInput,
+    },
+  };
+};
+
 const NewEvaluatorPageContent = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _state = usePlaygroundContext((state) => state.instances);
+  const store = usePlaygroundStore();
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(
     null
   );
@@ -76,19 +105,35 @@ const NewEvaluatorPageContent = () => {
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     null
   );
-  const { control: choiceConfigControl } = useForm<ChoiceConfig>({
-    defaultValues: {
-      name: "correctness",
-      choices: [
-        { label: "Incorrect", score: 0 },
-        { label: "Correct", score: 1 },
-      ],
-    },
-  });
-  const { control: inputMappingControl } = useForm<InputMapping>({
-    defaultValues: {},
-  });
-  const isValid = useMemo(() => validateEvaluatorConfiguration(), []);
+  const { control: choiceConfigControl, getValues: getChoiceConfigValues } =
+    useForm<ChoiceConfig>({
+      defaultValues: {
+        name: "correctness",
+        choices: [
+          { label: "Incorrect", score: 0 },
+          { label: "Correct", score: 1 },
+        ],
+      },
+    });
+  const { control: inputMappingControl, getValues: getInputMappingValues } =
+    useForm<InputMapping>({
+      defaultValues: {},
+    });
+  const handleSave = useCallback(() => {
+    const choiceConfig = getChoiceConfigValues();
+    const inputMapping = getInputMappingValues();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _payload = createEvaluatorPayload({
+      store,
+      instanceId: 0,
+      name: "Evaluator",
+      choiceConfig,
+      inputMapping,
+    });
+    // TODO: call createEvaluator mutation
+    // notifyError if anything does not validate correctly
+    // redirect somewhere else after successful creation
+  }, [getChoiceConfigValues, getInputMappingValues, store]);
   return (
     <>
       <View
@@ -107,7 +152,7 @@ const NewEvaluatorPageContent = () => {
           <Heading level={2}>New Evaluator</Heading>
           <Flex direction="row" alignItems="center" gap="size-100">
             <Button size="M">Cancel</Button>
-            <Button variant="primary" size="M" isDisabled={!isValid}>
+            <Button variant="primary" size="M" onClick={handleSave}>
               Save
             </Button>
           </Flex>
