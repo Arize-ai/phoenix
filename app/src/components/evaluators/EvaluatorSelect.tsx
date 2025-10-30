@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Autocomplete, Input, useFilter } from "react-aria-components";
+import { css } from "@emotion/react";
 
 import {
   Button,
+  Flex,
   Icon,
   Icons,
   Menu,
@@ -10,14 +13,15 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
+  SearchIcon,
   Text,
 } from "@phoenix/components";
 
 type EvaluatorItem = {
   id: string;
   name: string;
-  kind: string;
-  alreadyAdded: boolean;
+  kind: "CODE" | "LLM";
+  alreadyAdded?: boolean;
 };
 
 type EvaluatorSelectProps = {
@@ -39,6 +43,7 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
         <Autocomplete filter={contains}>
           <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
+              <SearchIcon />
               <Input placeholder="Search evaluators" />
             </SearchField>
           </MenuHeader>
@@ -52,19 +57,73 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
               </Text>
             )}
           >
-            {({ id, name, kind }) => (
-              <MenuItem
-                textValue={name}
-                onAction={() => {
-                  onSelectionChange(id);
-                }}
-              >
-                {kind}: {name}
-              </MenuItem>
+            {(evaluator) => (
+              <EvaluatorMenuItem
+                evaluator={evaluator}
+                onSelectionChange={() => onSelectionChange(evaluator.id)}
+                isSelected={selectedIds.includes(evaluator.id)}
+              />
             )}
           </Menu>
         </Autocomplete>
       </MenuContainer>
     </MenuTrigger>
+  );
+}
+
+type EvaluatorMenuItemProps = {
+  evaluator: EvaluatorItem;
+  onSelectionChange: () => void;
+  isSelected: boolean;
+};
+
+function EvaluatorMenuItem({
+  evaluator,
+  onSelectionChange,
+  isSelected,
+}: EvaluatorMenuItemProps) {
+  const { name, kind, alreadyAdded } = evaluator;
+
+  const [isHovered, setIsHovered] = useState(false);
+  const showAlreadyAddedState = alreadyAdded && isHovered && !isSelected;
+
+  const onMouseEnter = () => {
+    setIsHovered(true);
+  };
+  const onMouseLeave = () => {
+    setIsHovered(false);
+  };
+
+  let icon =
+    kind === "CODE" ? (
+      <Icon svg={<Icons.Code />} />
+    ) : (
+      <Icon svg={<Icons.Robot />} />
+    );
+  if (showAlreadyAddedState) {
+    icon = <Icon svg={<Icons.Checkmark />} />;
+  }
+
+  return (
+    <MenuItem
+      id={evaluator.id}
+      textValue={name}
+      onAction={onSelectionChange}
+      isDisabled={alreadyAdded}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <Flex
+        alignItems="center"
+        gap="size-100"
+        css={css`
+          color: var(--ac-global-color-grey-800);
+          opacity: ${alreadyAdded ? "0.25" : 1};
+        `}
+      >
+        {icon}
+        {showAlreadyAddedState ? "Already added" : name}
+      </Flex>
+    </MenuItem>
   );
 }

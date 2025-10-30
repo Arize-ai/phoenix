@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { ComponentProps, useState } from "react";
 import type { Meta } from "@storybook/react";
 
 import { EvaluatorSelect } from "@phoenix/components/evaluators/EvaluatorSelect";
@@ -33,48 +33,41 @@ const meta = {
 
 export default meta;
 
-const sampleEvaluators = [
+const sampleEvaluators: ComponentProps<typeof EvaluatorSelect>["evaluators"] = [
   {
     id: "1",
     name: "Correctness Evaluator",
     kind: "CODE",
-    alreadyAdded: false,
   },
   {
     id: "2",
     name: "Creativity Evaluator",
     kind: "LLM",
-    alreadyAdded: false,
   },
   {
     id: "3",
     name: "Relevance Evaluator",
     kind: "CODE",
-    alreadyAdded: false,
   },
   {
     id: "4",
-    name: "An evaluator that has a really really really really long name",
+    name: "An evaluator that has a really really really really really really really really long name",
     kind: "LLM",
-    alreadyAdded: false,
   },
   {
     id: "5",
     name: "Accuracy Evaluator",
     kind: "CODE",
-    alreadyAdded: false,
   },
   {
     id: "6",
     name: "Hallucination Evaluator",
     kind: "LLM",
-    alreadyAdded: false,
   },
   {
     id: "7",
     name: "Jaccard Similarity Evaluator",
     kind: "CODE",
-    alreadyAdded: false,
   },
 ];
 
