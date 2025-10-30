@@ -79,7 +79,7 @@ hallucination.bind({"input": "query", "output": "response", "context": "referenc
 # let's test on one example
 scores = hallucination.evaluate(df.iloc[0].to_dict())
 print(scores[0])
->>> Score(name='hallucination', score=1.0, label='factual', explanation='The response correctly identifies the location of the Eiffel Tower as stated in the context.', metadata={'model': 'gpt-4o'}, source='llm', direction='maximize')
+>>> Score(name='hallucination', score=1.0, label='factual', explanation='The response correctly identifies the location of the Eiffel Tower as stated in the context.', metadata={'model': 'gpt-4o'}, kind='llm', direction='maximize')
 ```
 
 For our custom LLM evaluator, we write a prompt template and define label choices. Most LLM-as-a-judge evaluations can be framed as a classification task where the output is one of two or more categorical labels. For our completeness metric, we define three labels: complete, partially complete, or incomplete. Each label then gets mapped to a numeric score.&#x20;
@@ -113,7 +113,7 @@ completeness = ClassificationEvaluator(
 # test on one example
 scores = completeness.evaluate(df.iloc[0].to_dict())
 print(scores[0])
->>> Score(name='completeness', score=1.0, label='complete', explanation='The response directly answers the query by specifying the location of the Eiffel Tower, which was the information requested.', metadata={'model': 'gpt-4o'}, source='llm', direction='maximize')
+>>> Score(name='completeness', score=1.0, label='complete', explanation='The response directly answers the query by specifying the location of the Eiffel Tower, which was the information requested.', metadata={'model': 'gpt-4o'}, kind='llm', direction='maximize')
 ```
 
 Now that we have defined and tested our two evaluators, we can run them on our whole dataset.&#x20;
