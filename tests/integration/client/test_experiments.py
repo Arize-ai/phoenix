@@ -2352,7 +2352,7 @@ class TestResumeOperations:
         await _await_or_return(
             client.experiments.resume_evaluation(
                 experiment_id=exp["id"],
-                evaluators={"multi_metrics": multi_metrics_evaluator},  # pyright: ignore[reportUnknownLambdaType,reportUnknownArgumentType]
+                evaluators={"multi_metrics": multi_metrics_evaluator},  # type: ignore  # pyright: ignore[reportArgumentType]
                 evaluation_names=[
                     "relevance",
                     "helpfulness",
@@ -2418,7 +2418,7 @@ class TestResumeOperations:
         await _await_or_return(
             client.experiments.resume_evaluation(
                 experiment_id=exp["id"],
-                evaluators={"llm_judge": failing_llm_judge},  # pyright: ignore[reportUnknownLambdaType,reportUnknownArgumentType]
+                evaluators={"llm_judge": failing_llm_judge},  # type: ignore  # pyright: ignore[reportArgumentType]
                 evaluation_names=[
                     "relevance",
                     "coherence",

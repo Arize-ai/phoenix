@@ -6,6 +6,59 @@ import { createClient } from "../../src/client";
 import type { EvaluatorParams } from "../../src/types/experiments";
 
 vi.mock("../../src/client");
+vi.mock("@arizeai/phoenix-otel", () => ({
+  register: vi.fn(() => ({
+    getTracer: vi.fn(() => ({
+      startSpan: vi.fn(() => ({
+        end: vi.fn(),
+        setStatus: vi.fn(),
+        setAttribute: vi.fn(),
+        recordException: vi.fn(),
+      })),
+      startActiveSpan: vi.fn((name, fn) => {
+        // Execute the callback synchronously with a mock span
+        return fn({
+          end: vi.fn(),
+          setStatus: vi.fn(),
+          setAttribute: vi.fn(),
+          setAttributes: vi.fn(),
+          recordException: vi.fn(),
+          spanContext: vi.fn(() => ({
+            traceId: "mock-trace-id",
+            spanId: "mock-span-id",
+          })),
+        });
+      }),
+    })),
+    forceFlush: vi.fn(() => Promise.resolve()),
+  })),
+  trace: {
+    getTracer: vi.fn(() => ({
+      startSpan: vi.fn(() => ({
+        end: vi.fn(),
+        setStatus: vi.fn(),
+        setAttribute: vi.fn(),
+        recordException: vi.fn(),
+      })),
+      startActiveSpan: vi.fn((name, fn) => {
+        return fn({
+          end: vi.fn(),
+          setStatus: vi.fn(),
+          setAttribute: vi.fn(),
+          recordException: vi.fn(),
+        });
+      }),
+    })),
+  },
+  SpanStatusCode: {
+    OK: 1,
+    ERROR: 2,
+  },
+  objectAsAttributes: vi.fn((obj) => obj),
+  createNoOpProvider: vi.fn(),
+  NodeTracerProvider: vi.fn(),
+  Tracer: vi.fn(),
+}));
 
 const mockExperimentInfo = {
   id: "exp-1",
