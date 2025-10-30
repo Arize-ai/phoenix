@@ -34,14 +34,23 @@ async function main() {
     ],
   });
 
+  // Define the task function once
+  const textGenerationTask = async (example: {
+    input: Record<string, unknown>;
+  }) => {
+    // Simulate a text generation task with varied outputs
+    const prompt = example.input.prompt as string;
+    const randomId = Math.floor(Math.random() * 1000);
+    return {
+      text: `Response to: ${prompt} [ID:${randomId}]`,
+    };
+  };
+
   console.log("\nStep 2: Run experiment with basic task (no evaluators yet)");
   const experiment = await runExperiment({
     dataset: { datasetId },
-    task: async (example) => {
-      // Simulate a text generation task
-      const prompt = example.input.prompt as string;
-      return { text: `Response to: ${prompt}` };
-    },
+    repetitions: 10,
+    task: textGenerationTask,
     // No evaluators - we'll add them later using resumeEvaluation
     evaluators: [],
   });
@@ -57,49 +66,53 @@ async function main() {
   await resumeEvaluation({
     experimentId: experiment.id,
     evaluators: [
-      // Single-output evaluator: checks if output contains expected keywords
+      // Single-output evaluator: simulates response quality check with variation
       asEvaluator({
         name: "contains-response",
         kind: "CODE",
         evaluate: async ({ output }) => {
           const text = (output as { text?: string })?.text || "";
           const hasResponse = text.toLowerCase().includes("response");
+          // Generate varied scores to make them visible in UI
+          const score = hasResponse
+            ? 0.6 + Math.random() * 0.4
+            : Math.random() * 0.3;
           return {
-            score: hasResponse ? 1 : 0,
+            score,
             label: hasResponse ? "contains 'response'" : "missing 'response'",
           };
         },
       }),
 
-      // Multi-output evaluator: produces multiple metrics from a single evaluation
+      // Multi-output evaluator: produces multiple metrics with visible variation
       asEvaluator({
         name: "text-quality-metrics",
         kind: "CODE",
         evaluate: async ({ output }) => {
           const text = (output as { text?: string })?.text || "";
 
-          // Return an array of evaluations - each with its own name
+          // Generate varied scores to demonstrate different quality aspects
           return [
             {
               name: "length-score",
-              score: Math.min(text.length / 50, 1), // Normalized length score
+              score: 0.5 + Math.random() * 0.5, // 0.5 to 1.0
               metadata: { length: text.length },
             },
             {
               name: "punctuation-score",
-              score: /[.!?]$/.test(text) ? 1 : 0,
+              score: 0.3 + Math.random() * 0.7, // 0.3 to 1.0
               label: /[.!?]$/.test(text) ? "has punctuation" : "no punctuation",
             },
             {
               name: "word-count-score",
-              score: text.split(/\s+/).length / 20, // Normalized word count
+              score: 0.4 + Math.random() * 0.6, // 0.4 to 1.0
               metadata: { wordCount: text.split(/\s+/).length },
             },
           ];
         },
       }),
 
-      // Another single-output evaluator
+      // Another single-output evaluator: simulates subjective politeness assessment
       asEvaluator({
         name: "politeness-check",
         kind: "CODE",
@@ -108,16 +121,23 @@ async function main() {
           const politeWords = ["please", "thank", "hello", "goodbye", "help"];
           const hasPoliteWord = politeWords.some((word) => text.includes(word));
 
+          // Generate varied scores to simulate subjective assessment
+          const score = hasPoliteWord
+            ? 0.7 + Math.random() * 0.3
+            : 0.2 + Math.random() * 0.5;
+
           return {
-            score: hasPoliteWord ? 1 : 0,
+            score,
             label: hasPoliteWord ? "polite" : "neutral",
             explanation: hasPoliteWord
               ? "Contains polite language"
-              : "No polite language detected",
+              : "Subjective politeness assessment",
           };
         },
       }),
     ],
+    pageSize: 2, // Fetch incomplete evaluations in smaller batches
+    concurrency: 2, // Run 2 evaluations in parallel
   });
 
   console.log("\n✅ Evaluations completed!");

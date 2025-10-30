@@ -25,26 +25,43 @@ async function main() {
     ],
   });
 
+  // Define the task function once
+  const mathTask = async (
+    example: { input: Record<string, unknown> },
+    options?: { simulateFailure?: boolean }
+  ) => {
+    const question = example.input.question as string;
+    if (options?.simulateFailure && Math.random() < 0.7) {
+      // 70% failure rate to simulate incomplete runs
+      throw new Error("Simulated task failure");
+    }
+    // Add random number to make outputs distinguishable in UI
+    const randomValue = Math.floor(Math.random() * 100);
+    return { answer: `${question.split("+").length} (run #${randomValue})` };
+  };
+
   console.log("\nStep 2: Run initial experiment with 2 repetitions");
   const initialExperiment = await runExperiment({
     dataset: { datasetId },
     repetitions: 10,
-    task: async (example) => {
-      // Simulate a task that might fail occasionally
-      const question = example.input.question as string;
-      if (Math.random() < 0.7) {
-        // 70% failure rate to simulate incomplete runs
-        throw new Error("Simulated task failure");
-      }
-      return { answer: question.split("+").length.toString() };
-    },
+    task: async (example) => mathTask(example, { simulateFailure: true }),
     evaluators: [
       asEvaluator({
-        name: "exact-match",
+        name: "accuracy-score",
         kind: "CODE",
-        evaluate: async ({ output, expected }) => ({
-          score: output === expected?.answer ? 1 : 0,
-        }),
+        evaluate: async ({ output, expected }) => {
+          // Simulate varied accuracy scores for visibility in UI
+          const outputStr = String(output?.answer || "");
+          const expectedStr = String(expected?.answer || "");
+          const hasCorrectNumber = outputStr.includes(expectedStr);
+
+          // Generate varied scores to make differences visible
+          const score = hasCorrectNumber
+            ? 0.7 + Math.random() * 0.3 // 0.7 to 1.0 for correct
+            : 0.2 + Math.random() * 0.4; // 0.2 to 0.6 for incorrect
+
+          return { score };
+        },
       }),
     ],
   });
@@ -67,20 +84,28 @@ async function main() {
 
     await resumeExperiment({
       experimentId: initialExperiment.id,
-      task: async (example) => {
-        // This time, let's make the task more reliable
-        const question = example.input.question as string;
-        return { answer: question.split("+").length.toString() };
-      },
+      task: mathTask, // Reuse the same task function, this time without failures
       evaluators: [
         asEvaluator({
-          name: "exact-match",
+          name: "accuracy-score",
           kind: "CODE",
-          evaluate: async ({ output, expected }) => ({
-            score: output === expected?.answer ? 1 : 0,
-          }),
+          evaluate: async ({ output, expected }) => {
+            // Simulate varied accuracy scores for visibility in UI
+            const outputStr = String(output?.answer || "");
+            const expectedStr = String(expected?.answer || "");
+            const hasCorrectNumber = outputStr.includes(expectedStr);
+
+            // Generate varied scores to make differences visible
+            const score = hasCorrectNumber
+              ? 0.7 + Math.random() * 0.3 // 0.7 to 1.0 for correct
+              : 0.2 + Math.random() * 0.4; // 0.2 to 0.6 for incorrect
+
+            return { score };
+          },
         }),
       ],
+      pageSize: 5, // Fetch incomplete runs in smaller batches
+      concurrency: 2, // Run 2 tasks in parallel
     });
 
     console.log("\n✅ Experiment resumed and completed!");
