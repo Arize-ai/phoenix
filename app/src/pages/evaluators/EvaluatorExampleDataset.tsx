@@ -7,6 +7,7 @@ type EvaluatorExampleDatasetProps = {
   onSelectDataset: (datasetId: string | null) => void;
   selectedSplitIds: string[];
   onSelectSplits: (splitIds: string[]) => void;
+  onSelectExampleId: (exampleId: string | null) => void;
 };
 
 export const EvaluatorExampleDataset = ({
@@ -14,6 +15,7 @@ export const EvaluatorExampleDataset = ({
   onSelectDataset,
   selectedSplitIds,
   onSelectSplits,
+  onSelectExampleId,
 }: EvaluatorExampleDatasetProps) => {
   return (
     <Flex direction="column" gap="size-100">
@@ -27,6 +29,7 @@ export const EvaluatorExampleDataset = ({
       <EvaluatorDatasetExamplePreview
         datasetId={selectedDatasetId}
         splitIds={selectedSplitIds}
+        onSelectExampleId={onSelectExampleId}
       />
     </Flex>
   );

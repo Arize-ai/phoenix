@@ -11,6 +11,10 @@ import {
 } from "@phoenix/pages/evaluators/EvaluatorChatTemplate";
 import { EvaluatorExampleDataset } from "@phoenix/pages/evaluators/EvaluatorExampleDataset";
 import {
+  EvaluatorInputMapping,
+  InputMapping,
+} from "@phoenix/pages/evaluators/EvaluatorInputMapping";
+import {
   ChoiceConfig,
   EvaluatorLLMChoice,
 } from "@phoenix/pages/evaluators/EvaluatorLLMChoice";
@@ -69,7 +73,10 @@ const NewEvaluatorPageContent = () => {
     null
   );
   const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
-  const { control } = useForm<ChoiceConfig>({
+  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
+    null
+  );
+  const { control: choiceConfigControl } = useForm<ChoiceConfig>({
     defaultValues: {
       name: "correctness",
       choices: [
@@ -77,6 +84,9 @@ const NewEvaluatorPageContent = () => {
         { label: "Correct", score: 1 },
       ],
     },
+  });
+  const { control: inputMappingControl } = useForm<InputMapping>({
+    defaultValues: {},
   });
   const isValid = useMemo(() => validateEvaluatorConfiguration(), []);
   return (
@@ -111,7 +121,7 @@ const NewEvaluatorPageContent = () => {
               <Text color="text-500">
                 Define the eval annotation returned by your evaluator.
               </Text>
-              <EvaluatorLLMChoice control={control} />
+              <EvaluatorLLMChoice control={choiceConfigControl} />
             </Flex>
             <Flex direction="column" gap="size-100">
               <Heading level={3}>Prompt</Heading>
@@ -131,7 +141,7 @@ const NewEvaluatorPageContent = () => {
               css={css`
                 display: flex;
                 flex-direction: column;
-                gap: var(--ac-global-dimension-static-size-100);
+                gap: var(--ac-global-dimension-static-size-200);
                 background-color: var(--ac-global-background-color-dark);
                 border-radius: var(--ac-global-rounding-medium);
                 padding: var(--ac-global-dimension-static-size-200);
@@ -139,16 +149,23 @@ const NewEvaluatorPageContent = () => {
                 margin-top: var(--ac-global-dimension-static-size-900);
               `}
             >
-              <Heading level={3}>Test your evaluator</Heading>
-              <Text color="text-500">
-                Use examples from an existing dataset as a reference, or create
-                new examples from scratch.
-              </Text>
-              <EvaluatorExampleDataset
-                selectedDatasetId={selectedDatasetId}
-                onSelectDataset={setSelectedDatasetId}
-                selectedSplitIds={selectedSplitIds}
-                onSelectSplits={setSelectedSplitIds}
+              <Flex direction="column" gap="size-100">
+                <Heading level={3}>Test your evaluator</Heading>
+                <Text color="text-500">
+                  Use examples from an existing dataset as a reference, or
+                  create new examples from scratch.
+                </Text>
+                <EvaluatorExampleDataset
+                  selectedDatasetId={selectedDatasetId}
+                  onSelectDataset={setSelectedDatasetId}
+                  selectedSplitIds={selectedSplitIds}
+                  onSelectSplits={setSelectedSplitIds}
+                  onSelectExampleId={setSelectedExampleId}
+                />
+              </Flex>
+              <EvaluatorInputMapping
+                exampleId={selectedExampleId ?? undefined}
+                control={inputMappingControl}
               />
             </div>
           </PanelContainer>
