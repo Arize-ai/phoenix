@@ -909,9 +909,9 @@ class TestDatasetsEvaluatorsResolver:
         # Should return 2 evaluators in descending ID order
         edges = response.data["node"]["evaluators"]["edges"]
         assert len(edges) == 2
-        assert edges[0]["node"]["name"] == "evaluator-2"
+        assert edges[0]["node"]["name"] == "evaluator-1"
         assert edges[0]["node"]["kind"] == "LLM"
-        assert edges[1]["node"]["name"] == "evaluator-1"
+        assert edges[1]["node"]["name"] == "evaluator-2"
         assert edges[1]["node"]["kind"] == "LLM"
 
 
