@@ -247,7 +247,10 @@ const main = async () => {
       }))
       .map((r) => ({
         ...r,
-        explanation: r?.explanation?.slice(0, 100).concat("..."),
+        explanation:
+          "explanation" in r && r.explanation
+            ? r.explanation.slice(0, 100).concat("...")
+            : undefined,
         metadata: "...Stripped for brevity...",
       }))
   );
