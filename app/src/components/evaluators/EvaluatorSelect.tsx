@@ -7,6 +7,7 @@ import {
   Flex,
   Icon,
   Icons,
+  LinkButton,
   Menu,
   MenuContainer,
   MenuFooter,
@@ -30,11 +31,11 @@ type EvaluatorSelectProps = {
   evaluators: EvaluatorItem[];
   selectedIds: string[];
   onSelectionChange: (id: string) => void;
-  onNewEvaluatorPress: () => void;
+  addNewEvaluatorLink: string;
 };
 
 export function EvaluatorSelect(props: EvaluatorSelectProps) {
-  const { evaluators, selectedIds, onSelectionChange, onNewEvaluatorPress } =
+  const { evaluators, selectedIds, onSelectionChange, addNewEvaluatorLink } =
     props;
   const { contains } = useFilter({ sensitivity: "base" });
 
@@ -74,9 +75,9 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
           </Menu>
         </Autocomplete>
         <MenuFooter>
-          <Button variant="quiet" onPress={onNewEvaluatorPress}>
+          <LinkButton variant="quiet" to={addNewEvaluatorLink}>
             New evaluator
-          </Button>
+          </LinkButton>
         </MenuFooter>
       </MenuContainer>
     </MenuTrigger>

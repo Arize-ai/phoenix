@@ -28,6 +28,10 @@ const meta = {
       description:
         "Callback fired when an individual evaluator is selected/deselected",
     },
+    addNewEvaluatorLink: {
+      control: "text",
+      description: "Link to the new evaluator page",
+    },
   },
 } satisfies Meta<typeof EvaluatorSelect>;
 
@@ -87,7 +91,7 @@ const DefaultComponent = () => {
       evaluators={sampleEvaluators}
       selectedIds={selectedIds}
       onSelectionChange={handleSelectionChange}
-      onNewEvaluatorPress={() => {}}
+      addNewEvaluatorLink=""
     />
   );
 };
@@ -108,7 +112,7 @@ const NoEvaluatorsComponent = () => {
       evaluators={[]}
       selectedIds={selectedIds}
       onSelectionChange={handleSelectionChange}
-      onNewEvaluatorPress={() => {}}
+      addNewEvaluatorLink=""
     />
   );
 };
@@ -134,7 +138,7 @@ const WithAlreadyAddedEvaluatorsComponent = () => {
       evaluators={evaluatorsWithSomeAdded}
       selectedIds={selectedIds}
       onSelectionChange={handleSelectionChange}
-      onNewEvaluatorPress={() => {}}
+      addNewEvaluatorLink=""
     />
   );
 };
