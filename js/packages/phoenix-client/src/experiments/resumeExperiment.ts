@@ -1,29 +1,32 @@
-import invariant from "tiny-invariant";
-import { createClient, type PhoenixClient } from "../client";
-import { ClientFn } from "../types/core";
-import type { Evaluator, ExperimentTask } from "../types/experiments";
-import { type Logger } from "../types/logger";
-import { getExperimentInfo } from "./getExperimentInfo.js";
-import { components } from "../__generated__/api/v1";
-import { ExampleWithId } from "../types/datasets";
-import {
-  type DiagLogLevel,
-  SpanStatusCode,
-  Tracer,
-  NodeTracerProvider,
-  objectAsAttributes,
-  register,
-} from "@arizeai/phoenix-otel";
 import {
   MimeType,
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
-import { ensureString } from "../utils/ensureString";
-import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
-import { toObjectHeaders } from "../utils/toObjectHeaders";
+import {
+  type DiagLogLevel,
+  NodeTracerProvider,
+  objectAsAttributes,
+  register,
+  SpanStatusCode,
+  Tracer,
+} from "@arizeai/phoenix-otel";
+
+import { components } from "../__generated__/api/v1";
+import { createClient, type PhoenixClient } from "../client";
+import { ClientFn } from "../types/core";
+import { ExampleWithId } from "../types/datasets";
+import type { Evaluator, ExperimentTask } from "../types/experiments";
+import { type Logger } from "../types/logger";
 import { Channel } from "../utils/channel";
+import { ensureString } from "../utils/ensureString";
+import { toObjectHeaders } from "../utils/toObjectHeaders";
+import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
+
+import { getExperimentInfo } from "./getExperimentInfo.js";
 import { resumeEvaluation } from "./resumeEvaluation";
+
+import invariant from "tiny-invariant";
 
 export type ResumeExperimentParams = ClientFn & {
   /**

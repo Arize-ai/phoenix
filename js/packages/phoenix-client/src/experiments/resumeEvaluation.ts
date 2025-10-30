@@ -1,31 +1,34 @@
-import invariant from "tiny-invariant";
-import { createClient, type PhoenixClient } from "../client";
-import { ClientFn } from "../types/core";
-import type {
-  Evaluator,
-  IncompleteEvaluation,
-  TaskOutput,
-  SingleEvaluationResult,
-} from "../types/experiments";
-import { type Logger } from "../types/logger";
-import { getExperimentInfo } from "./getExperimentInfo.js";
-import { components } from "../__generated__/api/v1";
-import { Channel } from "../utils/channel";
-import {
-  type DiagLogLevel,
-  SpanStatusCode,
-  Tracer,
-  NodeTracerProvider,
-  objectAsAttributes,
-  register,
-} from "@arizeai/phoenix-otel";
 import {
   MimeType,
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
+import {
+  type DiagLogLevel,
+  NodeTracerProvider,
+  objectAsAttributes,
+  register,
+  SpanStatusCode,
+  Tracer,
+} from "@arizeai/phoenix-otel";
+
+import { components } from "../__generated__/api/v1";
+import { createClient, type PhoenixClient } from "../client";
+import { ClientFn } from "../types/core";
+import type {
+  Evaluator,
+  IncompleteEvaluation,
+  SingleEvaluationResult,
+  TaskOutput,
+} from "../types/experiments";
+import { type Logger } from "../types/logger";
+import { Channel } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
+
+import { getExperimentInfo } from "./getExperimentInfo.js";
+
+import invariant from "tiny-invariant";
 
 export type ResumeEvaluationParams = ClientFn & {
   /**

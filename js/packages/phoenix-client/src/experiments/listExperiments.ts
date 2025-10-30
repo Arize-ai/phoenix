@@ -1,8 +1,9 @@
-import invariant from "tiny-invariant";
+import { components } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
 import { ExperimentInfo } from "../types/experiments";
-import { components } from "../__generated__/api/v1";
+
+import invariant from "tiny-invariant";
 
 export type ListExperimentsParams = ClientFn & {
   /**
