@@ -1818,15 +1818,20 @@ class Experiments:
             exp_run["error"] = repr(error)
 
         if not dry_run:
-            resp = self._client.post(
-                f"v1/experiments/{experiment['id']}/runs",
-                json=exp_run,
-                timeout=timeout,
-            )
-            resp.raise_for_status()
-            exp_run = {**exp_run, "id": resp.json()["data"]["id"]}
-            if error is None:
-                task_result_cache[cache_key] = output
+            try:
+                resp = self._client.post(
+                    f"v1/experiments/{experiment['id']}/runs",
+                    json=exp_run,
+                    timeout=timeout,
+                )
+                resp.raise_for_status()
+                exp_run = {**exp_run, "id": resp.json()["data"]["id"]}
+                if error is None:
+                    task_result_cache[cache_key] = output
+            except HTTPStatusError as e:
+                if e.response.status_code == 409:
+                    return None
+                raise
 
         return exp_run
 
@@ -3516,16 +3521,17 @@ class AsyncExperiments:
         start_time = datetime.now(timezone.utc)
         end_time = start_time
         trace_id = None
+
         status = Status(StatusCode.OK)
 
         with ExitStack() as stack:
+            stack.enter_context(capture_spans(resource))
             span = cast(
                 Span,
                 stack.enter_context(
                     tracer.start_as_current_span(root_span_name, context=Context())
                 ),
             )
-            stack.enter_context(capture_spans(resource))
             try:
                 bound_task_args = _bind_task_signature(task_signature, example)
                 _output = task(*bound_task_args.args, **bound_task_args.kwargs)
@@ -3583,15 +3589,20 @@ class AsyncExperiments:
             exp_run["error"] = repr(error)
 
         if not dry_run:
-            resp = await self._client.post(
-                f"v1/experiments/{experiment['id']}/runs",
-                json=exp_run,
-                timeout=timeout,
-            )
-            resp.raise_for_status()
-            exp_run = {**exp_run, "id": resp.json()["data"]["id"]}
-            if error is None:
-                task_result_cache[cache_key] = output
+            try:
+                resp = await self._client.post(
+                    f"v1/experiments/{experiment['id']}/runs",
+                    json=exp_run,
+                    timeout=timeout,
+                )
+                resp.raise_for_status()
+                exp_run = {**exp_run, "id": resp.json()["data"]["id"]}
+                if error is None:
+                    task_result_cache[cache_key] = output
+            except HTTPStatusError as e:
+                if e.response.status_code == 409:
+                    return None
+                raise
 
         return exp_run
 
@@ -3688,13 +3699,13 @@ class AsyncExperiments:
         status = Status(StatusCode.OK)
 
         with ExitStack() as stack:
+            stack.enter_context(capture_spans(resource))
             span = cast(
                 Span,
                 stack.enter_context(
                     tracer.start_as_current_span(root_span_name, context=Context())
                 ),
             )
-            stack.enter_context(capture_spans(resource))
             try:
                 result = await evaluator.async_evaluate(
                     output=experiment_run["output"],
