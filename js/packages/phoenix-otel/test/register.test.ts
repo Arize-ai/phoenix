@@ -1,5 +1,6 @@
-import { test, expect, describe } from "vitest";
-import { register, ensureCollectorEndpoint } from "../src/register";
+import { ensureCollectorEndpoint, register } from "../src/register";
+
+import { describe, expect, test } from "vitest";
 
 describe("register", () => {
   test("should register a provider", () => {

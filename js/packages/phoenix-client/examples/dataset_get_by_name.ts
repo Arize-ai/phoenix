@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
 import { createClient } from "../src";
-import { Example } from "../src/types/datasets";
 import { createDataset } from "../src/datasets/createDataset";
 import { getDataset } from "../src/datasets/getDataset";
+import { Example } from "../src/types/datasets";
 
 // Initialize Phoenix client
 const client = createClient();

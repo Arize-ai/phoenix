@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  runExperiment,
-  asEvaluator,
-} from "../../src/experiments/runExperiment";
 import * as getDatasetModule from "../../src/datasets/getDataset";
+import {
+  asEvaluator,
+  runExperiment,
+} from "../../src/experiments/runExperiment";
 import type { Example } from "../../src/types/datasets";
 import type { EvaluatorParams } from "../../src/types/experiments";
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDataset = {
   id: "dataset-1",

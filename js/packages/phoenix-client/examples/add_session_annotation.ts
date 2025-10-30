@@ -1,5 +1,5 @@
-import { addSessionAnnotation, logSessionAnnotations } from "../src/sessions";
 import { createClient } from "../src/client";
+import { addSessionAnnotation, logSessionAnnotations } from "../src/sessions";
 
 /**
  * Example of how to log session annotations
