@@ -1105,13 +1105,16 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        # The resolvers on the various evaluator GraphQL types read from the ORM, so we need to
+        # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
+        # base `evaluators` table.
+        PolymorphicEvaluator = with_polymorphic(
+            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+        )  # eagerly join sub-classed evaluator tables
+        query = select(PolymorphicEvaluator).order_by(PolymorphicEvaluator.name.asc())
+
         async with info.context.db() as session:
-            PolymorphicEvaluator = with_polymorphic(
-                models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
-            )
-            evaluators = await session.scalars(
-                select(PolymorphicEvaluator).order_by(PolymorphicEvaluator.name.asc())
-            )
+            evaluators = await session.scalars(query)
         data: list[Evaluator] = []
         for evaluator in evaluators:
             if isinstance(evaluator, models.LLMEvaluator):
