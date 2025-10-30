@@ -705,7 +705,7 @@ class ClassificationEvaluator(LLMEvaluator):
 
 def create_evaluator(
     name: str,
-    source: SourceType = "code",
+    source: Optional[SourceType] = None,
     direction: DirectionType = "maximize",
     kind: KindType = "code",
 ) -> Callable[[Callable[..., Any]], Evaluator]:
