@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { resumeEvaluation } from "../../src/experiments/resumeEvaluation";
 import { asEvaluator } from "../../src/experiments/runExperiment";
 import * as getExperimentInfoModule from "../../src/experiments/getExperimentInfo";
-import { createClient } from "../../src/client";
+import { createClient, type PhoenixClient } from "../../src/client";
 import type { EvaluatorParams } from "../../src/types/experiments";
 
 vi.mock("../../src/client");
@@ -119,7 +119,7 @@ const mockIncompleteEvaluations = [
 ];
 
 describe("resumeEvaluation", () => {
-  let mockClient: any;
+  let mockClient: PhoenixClient;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -302,29 +302,31 @@ describe("resumeEvaluation", () => {
     });
 
     // Mock pagination: first call returns cursor, second returns no cursor
-    mockClient.GET.mockImplementation((url: string, options: any) => {
-      if (url.includes("incomplete-evaluations")) {
-        const cursor = options?.params?.query?.cursor;
-        if (!cursor) {
-          // First page
-          return Promise.resolve({
-            data: {
-              data: [mockIncompleteEvaluations[0]],
-              next_cursor: "cursor-1",
-            },
-          });
-        } else {
-          // Second page
-          return Promise.resolve({
-            data: {
-              data: [mockIncompleteEvaluations[1]],
-              next_cursor: null,
-            },
-          });
+    mockClient.GET.mockImplementation(
+      (url: string, options?: { params?: { query?: { cursor?: string } } }) => {
+        if (url.includes("incomplete-evaluations")) {
+          const cursor = options?.params?.query?.cursor;
+          if (!cursor) {
+            // First page
+            return Promise.resolve({
+              data: {
+                data: [mockIncompleteEvaluations[0]],
+                next_cursor: "cursor-1",
+              },
+            });
+          } else {
+            // Second page
+            return Promise.resolve({
+              data: {
+                data: [mockIncompleteEvaluations[1]],
+                next_cursor: null,
+              },
+            });
+          }
         }
+        return Promise.resolve({ data: {} });
       }
-      return Promise.resolve({ data: {} });
-    });
+    );
 
     await resumeEvaluation({
       experimentId: "exp-1",
@@ -333,8 +335,9 @@ describe("resumeEvaluation", () => {
     });
 
     // Should fetch incomplete evaluations twice (pagination)
-    const incompleteEvalsCalls = mockClient.GET.mock.calls.filter((call: any) =>
-      call[0].includes("incomplete-evaluations")
+    const incompleteEvalsCalls = mockClient.GET.mock.calls.filter(
+      (call: unknown[]) =>
+        (call[0] as string).includes("incomplete-evaluations")
     );
     expect(incompleteEvalsCalls).toHaveLength(2);
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { resumeExperiment } from "../../src/experiments/resumeExperiment";
 import * as getExperimentInfoModule from "../../src/experiments/getExperimentInfo";
-import { createClient } from "../../src/client";
+import { createClient, type PhoenixClient } from "../../src/client";
 import type { Example } from "../../src/types/datasets";
 
 vi.mock("../../src/client");
@@ -96,7 +96,7 @@ const mockIncompleteRuns = [
 ];
 
 describe("resumeExperiment", () => {
-  let mockClient: any;
+  let mockClient: PhoenixClient;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -188,29 +188,31 @@ describe("resumeExperiment", () => {
     );
 
     // Mock pagination: first call returns cursor, second returns no cursor
-    mockClient.GET.mockImplementation((url: string, options: any) => {
-      if (url.includes("incomplete-runs")) {
-        const cursor = options?.params?.query?.cursor;
-        if (!cursor) {
-          // First page
-          return Promise.resolve({
-            data: {
-              data: [mockIncompleteRuns[0]],
-              next_cursor: "cursor-1",
-            },
-          });
-        } else {
-          // Second page
-          return Promise.resolve({
-            data: {
-              data: [mockIncompleteRuns[1]],
-              next_cursor: null,
-            },
-          });
+    mockClient.GET.mockImplementation(
+      (url: string, options?: { params?: { query?: { cursor?: string } } }) => {
+        if (url.includes("incomplete-runs")) {
+          const cursor = options?.params?.query?.cursor;
+          if (!cursor) {
+            // First page
+            return Promise.resolve({
+              data: {
+                data: [mockIncompleteRuns[0]],
+                next_cursor: "cursor-1",
+              },
+            });
+          } else {
+            // Second page
+            return Promise.resolve({
+              data: {
+                data: [mockIncompleteRuns[1]],
+                next_cursor: null,
+              },
+            });
+          }
         }
+        return Promise.resolve({ data: {} });
       }
-      return Promise.resolve({ data: {} });
-    });
+    );
 
     await resumeExperiment({
       experimentId: "exp-1",
@@ -222,8 +224,8 @@ describe("resumeExperiment", () => {
     expect(taskFn).toHaveBeenCalledTimes(3);
 
     // Should fetch incomplete runs twice (pagination)
-    const incompleteRunsCalls = mockClient.GET.mock.calls.filter((call: any) =>
-      call[0].includes("incomplete-runs")
+    const incompleteRunsCalls = mockClient.GET.mock.calls.filter(
+      (call: unknown[]) => (call[0] as string).includes("incomplete-runs")
     );
     expect(incompleteRunsCalls).toHaveLength(2);
 
@@ -418,13 +420,15 @@ describe("resumeExperiment", () => {
 
     // Should fetch incomplete evaluations (confirms resumeEvaluation was called)
     const incompleteEvaluationsCalls = mockClient.GET.mock.calls.filter(
-      (call: any) => call[0].includes("incomplete-evaluations")
+      (call: unknown[]) =>
+        (call[0] as string).includes("incomplete-evaluations")
     );
     expect(incompleteEvaluationsCalls).toHaveLength(1);
 
     // Should post the evaluation result for the 1 incomplete evaluation
-    const evaluationPosts = mockClient.POST.mock.calls.filter((call: any) =>
-      call[0].includes("experiment_evaluations")
+    const evaluationPosts = mockClient.POST.mock.calls.filter(
+      (call: unknown[]) =>
+        (call[0] as string).includes("experiment_evaluations")
     );
     expect(evaluationPosts).toHaveLength(1);
   });

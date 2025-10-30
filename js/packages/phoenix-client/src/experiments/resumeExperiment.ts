@@ -1,11 +1,7 @@
 import invariant from "tiny-invariant";
 import { createClient, type PhoenixClient } from "../client";
 import { ClientFn } from "../types/core";
-import type {
-  Evaluator,
-  ExperimentTask,
-  IncompleteRun,
-} from "../types/experiments";
+import type { Evaluator, ExperimentTask } from "../types/experiments";
 import { type Logger } from "../types/logger";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { components } from "../__generated__/api/v1";
@@ -14,7 +10,6 @@ import {
   type DiagLogLevel,
   SpanStatusCode,
   Tracer,
-  trace,
   NodeTracerProvider,
   objectAsAttributes,
   register,
@@ -25,13 +20,9 @@ import {
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
 import { ensureString } from "../utils/ensureString";
-import {
-  getDatasetUrl,
-  getDatasetExperimentsUrl,
-  getExperimentUrl,
-} from "../utils/urlUtils";
+import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
-import { Channel, CLOSED } from "../utils/channel";
+import { Channel } from "../utils/channel";
 import { resumeEvaluation } from "./resumeEvaluation";
 
 export type ResumeExperimentParams = ClientFn & {
