@@ -13,16 +13,21 @@ import {
   Text,
 } from "@phoenix/components";
 
+type EvaluatorItem = {
+  id: string;
+  name: string;
+  kind: string;
+  alreadyAdded: boolean;
+};
+
 type EvaluatorSelectProps = {
-  evaluators: {
-    id: string;
-    name: string;
-    kind: string;
-  }[];
+  evaluators: EvaluatorItem[];
+  selectedIds: string[];
+  onSelectionChange: (id: string) => void;
 };
 
 export function EvaluatorSelect(props: EvaluatorSelectProps) {
-  const { evaluators } = props;
+  const { evaluators, selectedIds, onSelectionChange } = props;
   const { contains } = useFilter({ sensitivity: "base" });
 
   return (
@@ -39,21 +44,19 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
           </MenuHeader>
           <Menu
             selectionMode="multiple"
-            selectedKeys={[]} // TODO
+            selectedKeys={selectedIds}
             items={evaluators}
             renderEmptyState={() => (
-              //   <View padding="size-100">
               <Text color="grey-300" size="S">
                 No evaluators found
               </Text>
-              //   </View>
             )}
           >
-            {({ name, kind }) => (
+            {({ id, name, kind }) => (
               <MenuItem
                 textValue={name}
                 onAction={() => {
-                  // TODO
+                  onSelectionChange(id);
                 }}
               >
                 {kind}: {name}

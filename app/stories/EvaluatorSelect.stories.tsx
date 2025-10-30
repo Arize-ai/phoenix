@@ -1,4 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import { useState } from "react";
+import type { Meta } from "@storybook/react";
 
 import { EvaluatorSelect } from "@phoenix/components/evaluators/EvaluatorSelect";
 
@@ -18,49 +19,147 @@ const meta = {
       control: "object",
       description: "Array of evaluator options to display",
     },
+    selectedIds: {
+      control: "object",
+      description: "Array of selected evaluator IDs",
+    },
+    onSelectionChange: {
+      action: "selectionChanged",
+      description:
+        "Callback fired when an individual evaluator is selected/deselected",
+    },
   },
 } satisfies Meta<typeof EvaluatorSelect>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
 
 const sampleEvaluators = [
   {
     id: "1",
-    name: "Code Quality Evaluator",
+    name: "Correctness Evaluator",
     kind: "CODE",
+    alreadyAdded: false,
   },
   {
     id: "2",
-    name: "GPT-4 Response Evaluator",
+    name: "Creativity Evaluator",
     kind: "LLM",
+    alreadyAdded: false,
   },
   {
     id: "3",
-    name: "Syntax Checker",
+    name: "Relevance Evaluator",
     kind: "CODE",
+    alreadyAdded: false,
   },
   {
     id: "4",
     name: "An evaluator that has a really really really really long name",
     kind: "LLM",
+    alreadyAdded: false,
+  },
+  {
+    id: "5",
+    name: "Accuracy Evaluator",
+    kind: "CODE",
+    alreadyAdded: false,
+  },
+  {
+    id: "6",
+    name: "Hallucination Evaluator",
+    kind: "LLM",
+    alreadyAdded: false,
+  },
+  {
+    id: "7",
+    name: "Jaccard Similarity Evaluator",
+    kind: "CODE",
+    alreadyAdded: false,
   },
 ];
+
+const DefaultComponent = () => {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const handleSelectionChange = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((selectedId) => selectedId !== id)
+        : [...prev, id]
+    );
+  };
+
+  return (
+    <EvaluatorSelect
+      evaluators={sampleEvaluators}
+      selectedIds={selectedIds}
+      onSelectionChange={handleSelectionChange}
+    />
+  );
+};
+
+const NoEvaluatorsComponent = () => {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const handleSelectionChange = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((selectedId) => selectedId !== id)
+        : [...prev, id]
+    );
+  };
+
+  return (
+    <EvaluatorSelect
+      evaluators={[]}
+      selectedIds={selectedIds}
+      onSelectionChange={handleSelectionChange}
+    />
+  );
+};
+
+const WithAlreadyAddedEvaluatorsComponent = () => {
+  const [selectedIds, setSelectedIds] = useState<string[]>(["1", "3"]);
+
+  const handleSelectionChange = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((selectedId) => selectedId !== id)
+        : [...prev, id]
+    );
+  };
+
+  const evaluatorsWithSomeAdded = sampleEvaluators.map((evaluator) => ({
+    ...evaluator,
+    alreadyAdded: evaluator.id === "2" || evaluator.id === "5",
+  }));
+
+  return (
+    <EvaluatorSelect
+      evaluators={evaluatorsWithSomeAdded}
+      selectedIds={selectedIds}
+      onSelectionChange={handleSelectionChange}
+    />
+  );
+};
 
 /**
  * Default story with multiple evaluator options including both LLM and CODE types
  */
-export const Default: Story = {
-  args: {
-    evaluators: sampleEvaluators,
-  },
+export const Default = {
+  render: () => <DefaultComponent />,
 };
 
 /**
  * Story showing the empty state when no evaluators are available
  */
-export const NoEvaluators: Story = {
-  args: {
-    evaluators: [],
-  },
+export const NoEvaluators = {
+  render: () => <NoEvaluatorsComponent />,
+};
+
+/**
+ * Story showing evaluators with some already selected
+ */
+export const WithAlreadyAddedEvaluators = {
+  render: () => <WithAlreadyAddedEvaluatorsComponent />,
 };
