@@ -4193,6 +4193,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description Experiment run already exists with a successful result and cannot be updated */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
