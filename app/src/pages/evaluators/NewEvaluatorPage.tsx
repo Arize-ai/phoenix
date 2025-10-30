@@ -116,7 +116,7 @@ const NewEvaluatorPageContent = () => {
             <Flex direction="column" gap="size-100">
               <Heading level={3}>Prompt</Heading>
               <Alert showIcon={false} variant="success">
-                Tip: Your eval categories are visible to the LLM, so don’t
+                Tip: Your eval categories are visible to the LLM, so don&apos;t
                 redefine them in your prompt. This needs to be phrased better,
                 but generally we should explain what not to do for this.
               </Alert>
@@ -127,8 +127,19 @@ const NewEvaluatorPageContent = () => {
         <PanelResizeHandle disabled />
         <Panel defaultSize={35} css={panelCSS} style={panelStyle}>
           <PanelContainer>
-            <Flex direction="column" gap="size-100" marginTop="size-100">
-              <Heading level={3}>Example dataset</Heading>
+            <div
+              css={css`
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-static-size-100);
+                background-color: var(--ac-global-background-color-dark);
+                border-radius: var(--ac-global-rounding-medium);
+                padding: var(--ac-global-dimension-static-size-200);
+                border: 1px solid var(--ac-global-border-color-default);
+                margin-top: var(--ac-global-dimension-static-size-900);
+              `}
+            >
+              <Heading level={3}>Test your evaluator</Heading>
               <Text color="text-500">
                 Use examples from an existing dataset as a reference, or create
                 new examples from scratch.
@@ -139,7 +150,7 @@ const NewEvaluatorPageContent = () => {
                 selectedSplitIds={selectedSplitIds}
                 onSelectSplits={setSelectedSplitIds}
               />
-            </Flex>
+            </div>
           </PanelContainer>
         </Panel>
       </PanelGroup>

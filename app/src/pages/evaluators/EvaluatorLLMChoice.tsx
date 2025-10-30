@@ -42,6 +42,7 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
         background-color: var(--ac-global-background-color-dark);
         border-radius: var(--ac-global-rounding-medium);
         padding: var(--ac-global-dimension-static-size-200);
+        margin-top: var(--ac-global-dimension-static-size-50);
         border: 1px solid var(--ac-global-border-color-default);
       `}
     >
