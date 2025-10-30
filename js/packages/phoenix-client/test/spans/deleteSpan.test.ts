@@ -1,6 +1,6 @@
 import { deleteSpan } from "../../src/spans/deleteSpan";
 
-import { beforeEach,describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the fetch module
 const mockDelete = vi.fn();

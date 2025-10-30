@@ -1,4 +1,4 @@
-import { type PartialAIParams,toAI } from "../../../src/prompts/sdks/toAI";
+import { type PartialAIParams, toAI } from "../../../src/prompts/sdks/toAI";
 import { toSDK } from "../../../src/prompts/sdks/toSDK";
 import { PromptVersion } from "../../../src/types/prompts";
 

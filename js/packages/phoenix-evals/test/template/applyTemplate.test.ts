@@ -1,6 +1,6 @@
 import { formatTemplate } from "../../src/template/applyTemplate";
 
-import { describe, expect,it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 describe("formatTemplate", () => {
   it("should render template with multiple variables", () => {

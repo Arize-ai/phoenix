@@ -10,7 +10,7 @@ import {
 
 import type { MessageCreateParams } from "@anthropic-ai/sdk/resources/index";
 import invariant from "tiny-invariant";
-import { assertType, describe, expect,it } from "vitest";
+import { assertType, describe, expect, it } from "vitest";
 
 describe("toAnthropic type compatibility", () => {
   it("toAnthropic output should be assignable to Anthropic message params", () => {

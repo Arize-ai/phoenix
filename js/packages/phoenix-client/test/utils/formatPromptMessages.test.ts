@@ -2,7 +2,7 @@ import { TextPart } from "../../src/schemas/llm/phoenixPrompt/messagePartSchemas
 import { PromptChatMessage } from "../../src/types/prompts";
 import { formatPromptMessages } from "../../src/utils/formatPromptMessages";
 
-import { describe, expect,it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 describe("formatPromptMessages", () => {
   it("should only format TextPart content", () => {

@@ -1,7 +1,7 @@
 import { getMergedOptions } from "../src";
 import { defaultGetEnvironmentOptions } from "../src/config";
 
-import { beforeEach,describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 describe("Phoenix client configuration", () => {
   beforeEach(() => {

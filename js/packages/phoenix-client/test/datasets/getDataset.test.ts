@@ -2,7 +2,7 @@ import { getDataset } from "../../src/datasets/getDataset";
 import * as getDatasetExamplesModule from "../../src/datasets/getDatasetExamples";
 import * as getDatasetInfoModule from "../../src/datasets/getDatasetInfo";
 
-import { beforeEach,describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDatasetInfo = {
   id: "dataset-123",

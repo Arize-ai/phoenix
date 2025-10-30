@@ -1,6 +1,6 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
-import { DatasetInfo,DatasetSelector } from "../types/datasets";
+import { DatasetInfo, DatasetSelector } from "../types/datasets";
 
 import { getDatasetInfoByName } from "./getDatasetInfoByName";
 

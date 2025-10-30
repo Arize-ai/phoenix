@@ -1,6 +1,6 @@
 import { logSpanAnnotations } from "../../src/spans/logSpanAnnotations";
 
-import { beforeEach,describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Create mock POST function
 const mockPOST = vi.fn();

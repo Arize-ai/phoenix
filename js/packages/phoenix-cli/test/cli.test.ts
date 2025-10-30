@@ -1,6 +1,6 @@
 import { main } from "../src/cli";
 
-import { describe, expect,it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 describe("Phoenix CLI", () => {
   it("should have a main function", () => {

@@ -10,7 +10,7 @@ import {
 
 import type OpenAI from "openai";
 import invariant from "tiny-invariant";
-import { assertType, describe, expect,it } from "vitest";
+import { assertType, describe, expect, it } from "vitest";
 
 type ChatCompletionCreateParams = Parameters<
   typeof OpenAI.prototype.chat.completions.create

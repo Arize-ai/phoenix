@@ -7,7 +7,7 @@ import { OpenaiToolChoice } from "../../schemas/llm/openai/toolChoiceSchemas";
 import { phoenixResponseFormatToOpenAI } from "../../schemas/llm/phoenixPrompt/converters";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 
-import type { toSDKParamsBase,Variables } from "./types";
+import type { toSDKParamsBase, Variables } from "./types";
 
 import type {
   ChatCompletionCreateParams,
