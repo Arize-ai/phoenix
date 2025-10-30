@@ -20,6 +20,7 @@ export const EvaluatorExampleDataset = ({
   return (
     <Flex direction="column" gap="size-100">
       <DatasetSelectWithSplits
+        shouldFlip
         value={{ datasetId: selectedDatasetId, splitIds: selectedSplitIds }}
         onSelectionChange={({ datasetId, splitIds }) => {
           onSelectDataset(datasetId);

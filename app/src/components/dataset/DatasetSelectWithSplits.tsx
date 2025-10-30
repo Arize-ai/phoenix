@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { ComponentProps, useMemo } from "react";
 import {
   Autocomplete,
   Input,
@@ -42,6 +42,8 @@ type DatasetSelectWithSplitsProps = {
   size?: "S" | "M";
   label?: string;
   isRequired?: boolean;
+  placement?: ComponentProps<typeof MenuContainer>["placement"];
+  shouldFlip?: ComponentProps<typeof MenuContainer>["shouldFlip"];
 };
 
 type SplitItem = {
@@ -153,7 +155,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
           )}
         </Flex>
       </Button>
-      <MenuContainer>
+      <MenuContainer placement={props.placement} shouldFlip={props.shouldFlip}>
         <Autocomplete filter={contains}>
           <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
@@ -244,7 +246,10 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                       </Text>
                     </Flex>
                   </MenuItem>
-                  <MenuContainer placement="end top">
+                  <MenuContainer
+                    placement="end top"
+                    shouldFlip={props.shouldFlip}
+                  >
                     <Autocomplete filter={contains}>
                       <MenuHeader>
                         <SearchField aria-label="Search" autoFocus>
