@@ -25,8 +25,6 @@ export default defineConfig([
           groups: [
             // Arize packages.
             ["^(@arizeai)(/.*|$)"],
-            // internal packages.
-            ["^(@phoenix)(/.*|$)"],
             // Side effect imports.
             ["^\\u0000"],
             // Parent imports. Put `..` last.
