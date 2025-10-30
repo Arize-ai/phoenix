@@ -391,14 +391,14 @@ export interface paths {
          *
          *     Args:
          *         experiment_id: The ID of the experiment
-         *         evaluator_name: List of evaluator names to check (required, at least one)
+         *         evaluation_name: List of evaluation names to check (required, at least one)
          *         cursor: Cursor for pagination
          *         limit: Maximum number of results to return
          *
          *     Returns:
          *         Paginated list of runs with incomplete evaluations
          */
-        get: operations["getIncompleteEvaluations"];
+        get: operations["getIncompleteExperimentEvaluations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1406,7 +1406,7 @@ export interface components {
         /** GetIncompleteEvaluationsResponseBody */
         GetIncompleteEvaluationsResponseBody: {
             /** Data */
-            data: components["schemas"]["IncompleteEvaluation"][];
+            data: components["schemas"]["IncompleteExperimentEvaluation"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -1468,24 +1468,19 @@ export interface components {
         /** Identifier */
         Identifier: string;
         /**
-         * IncompleteEvaluation
+         * IncompleteExperimentEvaluation
          * @description Information about an experiment run with incomplete evaluations
          */
-        IncompleteEvaluation: {
+        IncompleteExperimentEvaluation: {
             /** @description The experiment run */
             experiment_run: components["schemas"]["ExperimentRun"];
             /** @description The dataset example */
             dataset_example: components["schemas"]["DatasetExample"];
             /**
-             * Missing Evaluator Names
-             * @description List of evaluator names that have not been run for this run
+             * Evaluation Names
+             * @description List of evaluation names that are incomplete (either missing or failed)
              */
-            missing_evaluator_names: string[];
-            /**
-             * Failed Evaluator Names
-             * @description List of evaluator names that failed (have errors) for this run
-             */
-            failed_evaluator_names: string[];
+            evaluation_names: string[];
         };
         /**
          * IncompleteRun
@@ -4209,11 +4204,11 @@ export interface operations {
             };
         };
     };
-    getIncompleteEvaluations: {
+    getIncompleteExperimentEvaluations: {
         parameters: {
             query?: {
-                /** @description Evaluator names to check (can be repeated) */
-                evaluator_name?: string[];
+                /** @description Evaluation names to check (can be repeated) */
+                evaluation_name?: string[];
                 /** @description Cursor for pagination */
                 cursor?: string | null;
                 /** @description Maximum number of runs with incomplete evaluations to return */

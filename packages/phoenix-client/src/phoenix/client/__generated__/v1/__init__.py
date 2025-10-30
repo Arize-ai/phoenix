@@ -141,11 +141,10 @@ class GetExperimentResponseBody(TypedDict):
     data: Experiment
 
 
-class IncompleteEvaluation(TypedDict):
+class IncompleteExperimentEvaluation(TypedDict):
     experiment_run: ExperimentRun
     dataset_example: DatasetExample
-    missing_evaluator_names: Sequence[str]
-    failed_evaluator_names: Sequence[str]
+    evaluation_names: Sequence[str]
 
 
 class IncompleteRun(TypedDict):
@@ -643,7 +642,7 @@ class GetAnnotationConfigsResponseBody(TypedDict):
 
 
 class GetIncompleteEvaluationsResponseBody(TypedDict):
-    data: Sequence[IncompleteEvaluation]
+    data: Sequence[IncompleteExperimentEvaluation]
     next_cursor: Optional[str]
 
 

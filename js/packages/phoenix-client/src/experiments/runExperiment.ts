@@ -45,6 +45,7 @@ import {
 } from "../utils/urlUtils";
 import assert from "assert";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
+import { getExperimentInfo } from "./getExperimentInfo";
 
 /**
  * Validate that a repetition is valid
@@ -198,14 +199,23 @@ export async function runExperiment({
   let taskTracer: Tracer;
   let experiment: ExperimentInfo;
   if (isDryRun) {
+    const now = new Date().toISOString();
+    const totalExamples = nExamples;
     experiment = {
       id: localId(),
       datasetId: dataset.id,
       datasetVersionId: dataset.versionId,
       // @todo: the dataset should return splits in response body
       datasetSplits: datasetSelector?.splits ?? [],
-      projectName,
+      repetitions,
       metadata: experimentMetadata,
+      projectName,
+      createdAt: now,
+      updatedAt: now,
+      exampleCount: totalExamples,
+      successfulRunCount: 0,
+      failedRunCount: 0,
+      missingRunCount: totalExamples * repetitions,
     };
     taskTracer = createNoOpProvider().getTracer("no-op");
   } else {
@@ -238,8 +248,15 @@ export async function runExperiment({
       datasetVersionId: experimentResponse.dataset_version_id,
       // @todo: the dataset should return splits in response body
       datasetSplits: datasetSelector?.splits ?? [],
+      repetitions: experimentResponse.repetitions,
+      metadata: experimentResponse.metadata || {},
       projectName,
-      metadata: experimentResponse.metadata,
+      createdAt: experimentResponse.created_at,
+      updatedAt: experimentResponse.updated_at,
+      exampleCount: experimentResponse.example_count,
+      successfulRunCount: experimentResponse.successful_run_count,
+      failedRunCount: experimentResponse.failed_run_count,
+      missingRunCount: experimentResponse.missing_run_count,
     };
     // Initialize the tracer, now that we have a project name
     const baseUrl = client.config.baseUrl;
@@ -331,6 +348,16 @@ export async function runExperiment({
   ranExperiment.evaluationRuns = evaluationRuns;
 
   logger.info(`✅ Experiment ${experiment.id} completed`);
+
+  // Refresh experiment info from server to get updated counts (non-dry-run only)
+  if (!isDryRun) {
+    const updatedExperiment = await getExperimentInfo({
+      client,
+      experimentId: experiment.id,
+    });
+    // Update the experiment info with the latest from the server
+    Object.assign(ranExperiment, updatedExperiment);
+  }
 
   if (!isDryRun && client.config.baseUrl) {
     const experimentUrl = getExperimentUrl({
@@ -663,27 +690,67 @@ export async function evaluateExperiment({
           } else {
             span.setStatus({ code: SpanStatusCode.OK });
           }
+          // Handle both single and multi-output evaluators
           if (evalResult.result) {
-            span.setAttributes(objectAsAttributes(evalResult.result));
+            const results = Array.isArray(evalResult.result)
+              ? evalResult.result
+              : [evalResult.result];
+            // Set attributes only from the first result for span metadata
+            if (results[0]) {
+              span.setAttributes(objectAsAttributes(results[0]));
+            }
           }
           evalResult.traceId = span.spanContext().traceId;
           if (!isDryRun) {
-            // Log the evaluation to the server
-            // We log this without awaiting (e.g. best effort)
-            client.POST("/v1/experiment_evaluations", {
-              body: {
-                experiment_run_id: evaluatorAndRun.run.id,
-                name: evaluatorAndRun.evaluator.name,
-                annotator_kind: evaluatorAndRun.evaluator.kind,
-                start_time: evalResult.startTime.toISOString(),
-                end_time: evalResult.endTime.toISOString(),
-                result: {
-                  ...evalResult.result,
+            // Handle multi-output evaluators: normalize to array and record each evaluation
+            if (evalResult.error) {
+              // If evaluator failed, record one error with the evaluator's name
+              // Note: For multi-output evaluators, we don't know what evaluation names
+              // it was supposed to produce (since it failed), so we can only record
+              // one error with the evaluator name
+              client.POST("/v1/experiment_evaluations", {
+                body: {
+                  experiment_run_id: evaluatorAndRun.run.id,
+                  name: evaluatorAndRun.evaluator.name,
+                  annotator_kind: evaluatorAndRun.evaluator.kind,
+                  start_time: evalResult.startTime.toISOString(),
+                  end_time: evalResult.endTime.toISOString(),
+                  result: null,
+                  error: evalResult.error,
+                  trace_id: evalResult.traceId,
                 },
-                error: evalResult.error,
-                trace_id: evalResult.traceId,
-              },
-            });
+              });
+            } else if (evalResult.result) {
+              // Success case: record each evaluation result
+              const results = Array.isArray(evalResult.result)
+                ? evalResult.result
+                : [evalResult.result];
+
+              for (const singleResult of results) {
+                // Use the result's name if provided, otherwise fall back to evaluator's name
+                const evaluationName =
+                  singleResult.name ?? evaluatorAndRun.evaluator.name;
+
+                // Log the evaluation to the server (best effort)
+                client.POST("/v1/experiment_evaluations", {
+                  body: {
+                    experiment_run_id: evaluatorAndRun.run.id,
+                    name: evaluationName,
+                    annotator_kind: evaluatorAndRun.evaluator.kind,
+                    start_time: evalResult.startTime.toISOString(),
+                    end_time: evalResult.endTime.toISOString(),
+                    result: {
+                      score: singleResult.score ?? null,
+                      label: singleResult.label ?? null,
+                      explanation: singleResult.explanation ?? null,
+                      metadata: singleResult.metadata ?? {},
+                    },
+                    error: null,
+                    trace_id: evalResult.traceId,
+                  },
+                });
+              }
+            }
           }
           span.end();
           return evalResult;

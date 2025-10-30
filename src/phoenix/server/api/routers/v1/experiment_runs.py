@@ -129,22 +129,19 @@ class ListExperimentRunsResponseBody(PaginatedResponseBody[ExperimentRun]):
     pass
 
 
-class IncompleteEvaluation(V1RoutesBaseModel):
+class IncompleteExperimentEvaluation(V1RoutesBaseModel):
     """
     Information about an experiment run with incomplete evaluations
     """
 
     experiment_run: ExperimentRun = Field(description="The experiment run")
     dataset_example: DatasetExample = Field(description="The dataset example")
-    missing_evaluator_names: list[str] = Field(
-        description="List of evaluator names that have not been run for this run"
-    )
-    failed_evaluator_names: list[str] = Field(
-        description="List of evaluator names that failed (have errors) for this run"
+    evaluation_names: list[str] = Field(
+        description="List of evaluation names that are incomplete (either missing or failed)"
     )
 
 
-class GetIncompleteEvaluationsResponseBody(PaginatedResponseBody[IncompleteEvaluation]):
+class GetIncompleteEvaluationsResponseBody(PaginatedResponseBody[IncompleteExperimentEvaluation]):
     pass
 
 
@@ -246,7 +243,7 @@ async def list_experiment_runs(
 
 @router.get(
     "/experiments/{experiment_id}/incomplete-evaluations",
-    operation_id="getIncompleteEvaluations",
+    operation_id="getIncompleteExperimentEvaluations",
     summary="Get incomplete evaluations for an experiment",
     responses=add_errors_to_responses(
         [
@@ -260,8 +257,8 @@ async def list_experiment_runs(
 async def get_incomplete_evaluations(
     request: Request,
     experiment_id: str,
-    evaluator_name: list[str] = Query(
-        default=[], description="Evaluator names to check (can be repeated)"
+    evaluation_name: list[str] = Query(
+        default=[], description="Evaluation names to check (can be repeated)"
     ),
     cursor: Optional[str] = Query(default=None, description="Cursor for pagination"),
     limit: int = Query(
@@ -277,7 +274,7 @@ async def get_incomplete_evaluations(
 
     Args:
         experiment_id: The ID of the experiment
-        evaluator_name: List of evaluator names to check (required, at least one)
+        evaluation_name: List of evaluation names to check (required, at least one)
         cursor: Cursor for pagination
         limit: Maximum number of results to return
 
@@ -311,10 +308,10 @@ async def get_incomplete_evaluations(
                 status_code=422,
             )
 
-    # Require at least one evaluator name
-    if not evaluator_name:
+    # Require at least one evaluation name
+    if not evaluation_name:
         raise HTTPException(
-            detail="At least one evaluator_name must be provided",
+            detail="At least one evaluation_name must be provided",
             status_code=400,
         )
 
@@ -389,12 +386,12 @@ async def get_incomplete_evaluations(
                 models.ExperimentRunAnnotation.error,
             )
             .where(models.ExperimentRunAnnotation.experiment_run_id.in_(run_ids))
-            .where(models.ExperimentRunAnnotation.name.in_(evaluator_name))
+            .where(models.ExperimentRunAnnotation.name.in_(evaluation_name))
         )
         annotations_result = await session.execute(annotations_query)
         annotations = annotations_result.all()
 
-        # Build a map: run_id -> {evaluator_name: has_error}
+        # Build a map: run_id -> {evaluation_name: has_error}
         run_annotations: dict[int, dict[str, bool]] = {}
         for annotation in annotations:
             if annotation.experiment_run_id not in run_annotations:
@@ -412,15 +409,22 @@ async def get_incomplete_evaluations(
         revisions_by_id = {rev.id: rev for rev in revisions_result.scalars()}
 
         # Build response
-        incomplete_evaluations_list: list[IncompleteEvaluation] = []
+        incomplete_evaluations_list: list[IncompleteExperimentEvaluation] = []
         for run, revision_id in runs_to_process:
             run_annots = run_annotations.get(run.id, {})
 
-            missing_evaluator_names = [name for name in evaluator_name if name not in run_annots]
-            failed_evaluator_names = [name for name, has_error in run_annots.items() if has_error]
+            # Combine missing evaluations (not run) and failed evaluations (has errors)
+            incomplete_evaluation_names = sorted(
+                set(
+                    # Missing: evaluation names not in annotations
+                    [name for name in evaluation_name if name not in run_annots]
+                    # Failed: evaluation names with errors
+                    + [name for name, has_error in run_annots.items() if has_error]
+                )
+            )
 
             # Only include runs with incomplete evaluations
-            if not missing_evaluator_names and not failed_evaluator_names:
+            if not incomplete_evaluation_names:
                 continue
 
             revision = revisions_by_id.get(revision_id)
@@ -431,7 +435,7 @@ async def get_incomplete_evaluations(
             example_globalid = GlobalID("DatasetExample", str(run.dataset_example_id))
 
             incomplete_evaluations_list.append(
-                IncompleteEvaluation(
+                IncompleteExperimentEvaluation(
                     experiment_run=ExperimentRun(
                         id=str(run_globalid),
                         experiment_id=str(experiment_globalid),
@@ -450,8 +454,7 @@ async def get_incomplete_evaluations(
                         metadata=revision.metadata_,
                         updated_at=revision.created_at,
                     ),
-                    missing_evaluator_names=sorted(missing_evaluator_names),
-                    failed_evaluator_names=sorted(failed_evaluator_names),
+                    evaluation_names=incomplete_evaluation_names,
                 )
             )
 

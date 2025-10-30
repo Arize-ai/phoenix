@@ -911,7 +911,7 @@ class TestIncompleteEvaluations:
         """Helper to fetch incomplete evaluations."""
         params: dict[str, Any] = {}
         if evaluator_names is not None:
-            params["evaluator_name"] = evaluator_names
+            params["evaluation_name"] = evaluator_names
         if limit is not None:
             params["limit"] = limit
         if cursor is not None:
@@ -1024,8 +1024,8 @@ class TestIncompleteEvaluations:
         incomplete_eval = result["data"][0]
         assert "experiment_run" in incomplete_eval
         assert "dataset_example" in incomplete_eval
-        assert "missing_evaluator_names" in incomplete_eval
-        assert "failed_evaluator_names" in incomplete_eval
+        assert "evaluation_names" in incomplete_eval
+        assert isinstance(incomplete_eval["evaluation_names"], list)
         assert "id" in incomplete_eval["experiment_run"]
         assert "output" in incomplete_eval["experiment_run"]
         assert "dataset_example_id" in incomplete_eval["experiment_run"]
@@ -1037,13 +1037,12 @@ class TestIncompleteEvaluations:
         assert toxicity_result["status_code"] == 200
         assert len(toxicity_result["data"]) > 0, "Should find runs missing toxicity evaluator"
         for incomplete_eval in toxicity_result["data"]:
-            assert "toxicity" in incomplete_eval["missing_evaluator_names"]
-            assert len(incomplete_eval["failed_evaluator_names"]) == 0
+            assert "toxicity" in incomplete_eval["evaluation_names"]
 
         # ===== Test 4: No evaluator names specified returns 400 =====
         no_evaluator_result = await self._get_incomplete_evaluations(httpx_client, exp_gid)
         assert no_evaluator_result["status_code"] == 400
-        assert "evaluator_name" in no_evaluator_result["text"].lower()
+        assert "evaluation_name" in no_evaluator_result["text"].lower()
 
         # ===== Test 5: Invalid experiment ID returns 404 =====
         fake_exp_gid = GlobalID("Experiment", "999999")

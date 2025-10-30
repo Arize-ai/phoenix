@@ -2,3 +2,7 @@ export * from "./getExperimentInfo";
 export * from "./getExperiment";
 export * from "./getExperimentRuns";
 export * from "./runExperiment";
+export * from "./listExperiments";
+export * from "./deleteExperiment";
+export * from "./resumeExperiment";
+export * from "./resumeEvaluation";

@@ -2202,8 +2202,8 @@
           "experiments"
         ],
         "summary": "Get incomplete evaluations for an experiment",
-        "description": "Get experiment runs that have incomplete evaluations.\n\nReturns runs with:\n- Missing evaluations (evaluator has not been run)\n- Failed evaluations (evaluator ran but has errors)\n\nArgs:\n    experiment_id: The ID of the experiment\n    evaluator_name: List of evaluator names to check (required, at least one)\n    cursor: Cursor for pagination\n    limit: Maximum number of results to return\n\nReturns:\n    Paginated list of runs with incomplete evaluations",
-        "operationId": "getIncompleteEvaluations",
+        "description": "Get experiment runs that have incomplete evaluations.\n\nReturns runs with:\n- Missing evaluations (evaluator has not been run)\n- Failed evaluations (evaluator ran but has errors)\n\nArgs:\n    experiment_id: The ID of the experiment\n    evaluation_name: List of evaluation names to check (required, at least one)\n    cursor: Cursor for pagination\n    limit: Maximum number of results to return\n\nReturns:\n    Paginated list of runs with incomplete evaluations",
+        "operationId": "getIncompleteExperimentEvaluations",
         "parameters": [
           {
             "name": "experiment_id",
@@ -2215,7 +2215,7 @@
             }
           },
           {
-            "name": "evaluator_name",
+            "name": "evaluation_name",
             "in": "query",
             "required": false,
             "schema": {
@@ -2223,11 +2223,11 @@
               "items": {
                 "type": "string"
               },
-              "description": "Evaluator names to check (can be repeated)",
+              "description": "Evaluation names to check (can be repeated)",
               "default": [],
-              "title": "Evaluator Name"
+              "title": "Evaluation Name"
             },
-            "description": "Evaluator names to check (can be repeated)"
+            "description": "Evaluation names to check (can be repeated)"
           },
           {
             "name": "cursor",
@@ -5809,7 +5809,7 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/IncompleteEvaluation"
+              "$ref": "#/components/schemas/IncompleteExperimentEvaluation"
             },
             "type": "array",
             "title": "Data"
@@ -6057,7 +6057,7 @@
         "pattern": "^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$",
         "title": "Identifier"
       },
-      "IncompleteEvaluation": {
+      "IncompleteExperimentEvaluation": {
         "properties": {
           "experiment_run": {
             "$ref": "#/components/schemas/ExperimentRun",
@@ -6067,31 +6067,22 @@
             "$ref": "#/components/schemas/DatasetExample",
             "description": "The dataset example"
           },
-          "missing_evaluator_names": {
+          "evaluation_names": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Missing Evaluator Names",
-            "description": "List of evaluator names that have not been run for this run"
-          },
-          "failed_evaluator_names": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Failed Evaluator Names",
-            "description": "List of evaluator names that failed (have errors) for this run"
+            "title": "Evaluation Names",
+            "description": "List of evaluation names that are incomplete (either missing or failed)"
           }
         },
         "type": "object",
         "required": [
           "experiment_run",
           "dataset_example",
-          "missing_evaluator_names",
-          "failed_evaluator_names"
+          "evaluation_names"
         ],
-        "title": "IncompleteEvaluation",
+        "title": "IncompleteExperimentEvaluation",
         "description": "Information about an experiment run with incomplete evaluations"
       },
       "IncompleteRun": {
