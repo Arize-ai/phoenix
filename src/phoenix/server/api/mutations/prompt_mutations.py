@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union, cast
+from typing import Optional
 
 import strawberry
 from fastapi import Request
@@ -12,18 +12,11 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier as IdentifierModel
-from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.prompts.models import (
-    normalize_response_format,
-    normalize_tools,
-    validate_invocation_parameters,
-)
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
-    to_pydantic_prompt_chat_template_v1,
 )
 from phoenix.server.api.mutations.prompt_version_tag_mutations import (
     SetPromptVersionTagInput,
@@ -32,7 +25,7 @@ from phoenix.server.api.mutations.prompt_version_tag_mutations import (
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
+from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.bearer_auth import PhoenixUser
 
 
@@ -84,63 +77,23 @@ class PromptMutationMixin:
         if "user" in request.scope:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
-
-        input_prompt_version = input.prompt_version
-        tool_definitions = [tool.definition for tool in input_prompt_version.tools]
-        tool_choice = cast(
-            Optional[Union[str, dict[str, Any]]],
-            cast(dict[str, Any], input.prompt_version.invocation_parameters).pop(
-                "tool_choice", None
-            ),
-        )
-        model_provider = ModelProvider(input_prompt_version.model_provider)
         try:
-            tools = (
-                normalize_tools(tool_definitions, model_provider, tool_choice)
-                if tool_definitions
-                else None
-            )
-            template = to_pydantic_prompt_chat_template_v1(input_prompt_version.template)
-            response_format = (
-                normalize_response_format(
-                    input_prompt_version.response_format.definition,
-                    model_provider,
-                )
-                if input_prompt_version.response_format
-                else None
-            )
-            invocation_parameters = validate_invocation_parameters(
-                input_prompt_version.invocation_parameters,
-                model_provider,
-            )
+            prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
         except ValidationError as error:
             raise BadRequest(str(error))
-
+        name = IdentifierModel.model_validate(str(input.name))
+        prompt = models.Prompt(
+            name=name,
+            description=input.description,
+            prompt_versions=[prompt_version],
+        )
         async with info.context.db() as session:
-            prompt_version = models.PromptVersion(
-                description=input_prompt_version.description,
-                user_id=user_id,
-                template_type="CHAT",
-                template_format=input_prompt_version.template_format,
-                template=template,
-                invocation_parameters=invocation_parameters,
-                tools=tools,
-                response_format=response_format,
-                model_provider=input_prompt_version.model_provider,
-                model_name=input_prompt_version.model_name,
-            )
-            name = IdentifierModel.model_validate(str(input.name))
-            prompt = models.Prompt(
-                name=name,
-                description=input.description,
-                prompt_versions=[prompt_version],
-            )
             session.add(prompt)
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A prompt named '{input.name}' already exists")
-        return to_gql_prompt_from_orm(prompt)
+        return Prompt(id=prompt.id, db_record=prompt)
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_chat_prompt_version(
@@ -153,72 +106,26 @@ class PromptMutationMixin:
         if "user" in request.scope:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
-
-        input_prompt_version = input.prompt_version
-        tool_definitions = [tool.definition for tool in input.prompt_version.tools]
-        tool_choice = cast(
-            Optional[Union[str, dict[str, Any]]],
-            cast(dict[str, Any], input.prompt_version.invocation_parameters).pop(
-                "tool_choice", None
-            ),
-        )
-        model_provider = ModelProvider(input_prompt_version.model_provider)
         try:
-            tools = (
-                normalize_tools(tool_definitions, model_provider, tool_choice)
-                if tool_definitions
-                else None
-            )
-            template = to_pydantic_prompt_chat_template_v1(input_prompt_version.template)
-            response_format = (
-                normalize_response_format(
-                    input_prompt_version.response_format.definition,
-                    model_provider,
-                )
-                if input_prompt_version.response_format
-                else None
-            )
-            invocation_parameters = validate_invocation_parameters(
-                input_prompt_version.invocation_parameters,
-                model_provider,
-            )
+            prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
         except ValidationError as error:
             raise BadRequest(str(error))
-
         prompt_id = from_global_id_with_expected_type(
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
+        prompt_version.prompt_id = prompt_id
         async with info.context.db() as session:
-            prompt = await session.get(models.Prompt, prompt_id)
-            if not prompt:
-                raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
-
-            prompt_version = models.PromptVersion(
-                prompt_id=prompt_id,
-                description=input.prompt_version.description,
-                user_id=user_id,
-                template_type="CHAT",
-                template_format=input.prompt_version.template_format,
-                template=template,
-                invocation_parameters=invocation_parameters,
-                tools=tools,
-                response_format=response_format,
-                model_provider=input.prompt_version.model_provider,
-                model_name=input.prompt_version.model_name,
-            )
             session.add(prompt_version)
-
-        # ensure prompt_version is flushed to the database before creating tags against the
-        # prompt_version id
-        await session.flush()
-
-        if input.tags:
-            for tag in input.tags:
-                await upsert_prompt_version_tag(
-                    session, prompt_id, prompt_version.id, tag.name, tag.description
-                )
-
-        return to_gql_prompt_from_orm(prompt)
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
+            if input.tags:
+                for tag in input.tags:
+                    await upsert_prompt_version_tag(
+                        session, prompt_id, prompt_version.id, tag.name, tag.description
+                    )
+        return Prompt(id=prompt_id)
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_prompt(
@@ -288,7 +195,7 @@ class PromptMutationMixin:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A prompt named '{input.name}' already exists")
-        return to_gql_prompt_from_orm(new_prompt)
+        return Prompt(id=new_prompt.id, db_record=new_prompt)
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def patch_prompt(self, info: Info[Context, None], input: PatchPromptInput) -> Prompt:
@@ -310,4 +217,4 @@ class PromptMutationMixin:
             if prompt is None:
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
 
-        return to_gql_prompt_from_orm(prompt)
+        return Prompt(id=prompt.id, db_record=prompt)

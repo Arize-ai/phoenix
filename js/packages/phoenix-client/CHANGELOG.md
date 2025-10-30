@@ -1,5 +1,18 @@
 # @arizeai/phoenix-client
 
+## 5.2.0
+
+### Minor Changes
+
+- f9d8b06: switch licensing to apache 2
+
+## 5.1.1
+
+### Patch Changes
+
+- Updated dependencies [8bbff3a]
+  - @arizeai/phoenix-otel@0.2.1
+
 ## 5.1.0
 
 ### Minor Changes

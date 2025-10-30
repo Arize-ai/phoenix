@@ -3,7 +3,6 @@ from typing import Optional
 
 import strawberry
 from sqlalchemy import select
-from strawberry import Private
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
@@ -12,59 +11,130 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AuthMethod import AuthMethod
-from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
+from phoenix.server.api.types.UserApiKey import UserApiKey
 
 from .UserRole import UserRole, to_gql_user_role
 
 
 @strawberry.type
 class User(Node):
-    id_attr: NodeID[int]
-    password_needs_reset: bool
-    email: str
-    username: str
-    profile_picture_url: Optional[str]
-    created_at: datetime
-    user_role_id: Private[int]
-    auth_method: AuthMethod
+    id: NodeID[int]
+    db_record: strawberry.Private[Optional[models.User]] = None
+
+    def __post_init__(self) -> None:
+        if self.db_record and self.id != self.db_record.id:
+            raise ValueError("User ID mismatch")
+
+    @strawberry.field
+    async def password_needs_reset(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        if self.db_record:
+            val = self.db_record.reset_password
+        else:
+            val = await info.context.data_loaders.user_fields.load(
+                (self.id, models.User.reset_password),
+            )
+        return val
+
+    @strawberry.field
+    async def email(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        if self.db_record:
+            val = self.db_record.email
+        else:
+            val = await info.context.data_loaders.user_fields.load(
+                (self.id, models.User.email),
+            )
+        return val
+
+    @strawberry.field
+    async def username(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        if self.db_record:
+            val = self.db_record.username
+        else:
+            val = await info.context.data_loaders.user_fields.load(
+                (self.id, models.User.username),
+            )
+        return val
+
+    @strawberry.field
+    async def profile_picture_url(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        if self.db_record:
+            val = self.db_record.profile_picture_url
+        else:
+            val = await info.context.data_loaders.user_fields.load(
+                (self.id, models.User.profile_picture_url),
+            )
+        return val
+
+    @strawberry.field
+    async def created_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_record:
+            val = self.db_record.created_at
+        else:
+            val = await info.context.data_loaders.user_fields.load(
+                (self.id, models.User.created_at),
+            )
+        return val
+
+    @strawberry.field
+    async def auth_method(
+        self,
+        info: Info[Context, None],
+    ) -> AuthMethod:
+        if self.db_record:
+            val = self.db_record.auth_method
+        else:
+            val = await info.context.data_loaders.user_fields.load(
+                (self.id, models.User.auth_method),
+            )
+        return AuthMethod(val)
 
     @strawberry.field
     async def role(self, info: Info[Context, None]) -> UserRole:
-        role = await info.context.data_loaders.user_roles.load(self.user_role_id)
+        if self.db_record:
+            user_role_id = self.db_record.user_role_id
+        else:
+            user_role_id = await info.context.data_loaders.user_fields.load(
+                (self.id, models.User.user_role_id),
+            )
+        role = await info.context.data_loaders.user_roles.load(user_role_id)
         if role is None:
-            raise NotFound(f"User role with id {self.user_role_id} not found")
+            raise NotFound(f"User role with id {user_role_id} not found")
         return to_gql_user_role(role)
 
     @strawberry.field
     async def api_keys(self, info: Info[Context, None]) -> list[UserApiKey]:
         async with info.context.db() as session:
             api_keys = await session.scalars(
-                select(models.ApiKey).where(models.ApiKey.user_id == self.id_attr)
+                select(models.ApiKey).where(models.ApiKey.user_id == self.id)
             )
-        return [to_gql_api_key(api_key) for api_key in api_keys]
+        return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
 
     @strawberry.field
-    async def is_management_user(self) -> bool:
+    async def is_management_user(self, info: Info[Context, None]) -> bool:
         initial_admins = get_env_admins()
         # this field is only visible to initial admins as they are the ones likely to have access to
         # a management interface / the phoenix environment.
-        if self.email in initial_admins or self.email == "admin@localhost":
+        if self.db_record:
+            email = self.db_record.email
+        else:
+            email = await info.context.data_loaders.user_fields.load(
+                (self.id, models.User.email),
+            )
+        if email in initial_admins or email == "admin@localhost":
             return True
         return False
-
-
-def to_gql_user(user: models.User, api_keys: Optional[list[models.ApiKey]] = None) -> User:
-    """
-    Converts an ORM user to a GraphQL user.
-    """
-    assert user.auth_method is not None
-    return User(
-        id_attr=user.id,
-        password_needs_reset=user.reset_password,
-        username=user.username,
-        email=user.email,
-        profile_picture_url=user.profile_picture_url,
-        created_at=user.created_at,
-        user_role_id=user.user_role_id,
-        auth_method=AuthMethod(user.auth_method),
-    )

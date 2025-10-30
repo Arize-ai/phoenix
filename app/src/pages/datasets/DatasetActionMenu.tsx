@@ -4,7 +4,6 @@ import { css } from "@emotion/react";
 
 import {
   Button,
-  Dialog,
   Flex,
   Icon,
   Icons,
@@ -95,22 +94,26 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                   <Text>Label</Text>
                 </Flex>
               </MenuItem>
-              <Popover placement="start top">
+              <Popover
+                placement="start top"
+                css={css`
+                  min-width: 300px;
+                  width: 300px;
+                `}
+              >
                 <PopoverArrow />
-                <Dialog>
-                  <Suspense
-                    fallback={
-                      <Loading
-                        css={css`
-                          min-width: 300px;
-                          min-height: 100px;
-                        `}
-                      />
-                    }
-                  >
-                    <DatasetLabelSelectionContent datasetId={datasetId} />
-                  </Suspense>
-                </Dialog>
+                <Suspense
+                  fallback={
+                    <Loading
+                      css={css`
+                        min-width: 300px;
+                        min-height: 100px;
+                      `}
+                    />
+                  }
+                >
+                  <DatasetLabelSelectionContent datasetId={datasetId} />
+                </Suspense>
               </Popover>
             </SubmenuTrigger>
             <MenuItem id={DatasetAction.DELETE}>

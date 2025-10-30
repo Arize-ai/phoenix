@@ -16,8 +16,8 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
-from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
+from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -111,9 +111,12 @@ class DatasetLabelMutationMixin:
                 await session.commit()
 
         return CreateDatasetLabelMutationPayload(
-            dataset_label=to_gql_dataset_label(dataset_label_orm),
+            dataset_label=DatasetLabel(id=dataset_label_orm.id, db_record=dataset_label_orm),
             datasets=[
-                to_gql_dataset(datasets_by_id[dataset_rowid]) for dataset_rowid in dataset_rowids
+                Dataset(
+                    id=datasets_by_id[dataset_rowid].id, db_record=datasets_by_id[dataset_rowid]
+                )
+                for dataset_rowid in dataset_rowids
             ],
         )
 
@@ -145,7 +148,10 @@ class DatasetLabelMutationMixin:
         }
         return DeleteDatasetLabelsMutationPayload(
             dataset_labels=[
-                to_gql_dataset_label(deleted_dataset_labels_by_id[dataset_label_row_id])
+                DatasetLabel(
+                    id=deleted_dataset_labels_by_id[dataset_label_row_id].id,
+                    db_record=deleted_dataset_labels_by_id[dataset_label_row_id],
+                )
                 for dataset_label_row_id in dataset_label_row_ids
             ]
         )
@@ -232,6 +238,6 @@ class DatasetLabelMutationMixin:
                 )
 
         return SetDatasetLabelsMutationPayload(
-            dataset=to_gql_dataset(dataset),
+            dataset=Dataset(id=dataset.id, db_record=dataset),
             query=Query(),
         )

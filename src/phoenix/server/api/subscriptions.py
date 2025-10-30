@@ -64,7 +64,7 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
-from phoenix.server.api.types.ExperimentRun import to_gql_experiment_run
+from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
@@ -194,7 +194,7 @@ class Subscription:
                 session.add(span_cost)
 
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
-        yield ChatCompletionSubscriptionResult(span=Span(span_rowid=db_span.id, db_span=db_span))
+        yield ChatCompletionSubscriptionResult(span=Span(id=db_span.id, db_record=db_span))
 
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def chat_completion_over_dataset(
@@ -528,8 +528,8 @@ async def _chat_completion_result_payloads(
         await session.flush()
     for example_id, span, run in results:
         yield ChatCompletionSubscriptionResult(
-            span=Span(span_rowid=span.id, db_span=span) if span else None,
-            experiment_run=to_gql_experiment_run(run),
+            span=Span(id=span.id, db_record=span) if span else None,
+            experiment_run=ExperimentRun(id=run.id, db_record=run),
             dataset_example_id=example_id,
             repetition_number=run.repetition_number,
         )

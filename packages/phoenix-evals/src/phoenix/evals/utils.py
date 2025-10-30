@@ -1,5 +1,7 @@
+import functools
 import inspect
 import json
+import warnings
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Union
 
 import pandas as pd
@@ -25,6 +27,34 @@ from phoenix.evals.legacy.utils import (
 )
 
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
+
+
+def _deprecate_positional_args(
+    func_name: str,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """
+    Decorator to issue deprecation warnings for positional argument usage.
+
+    Args:
+        func_name: Name of the function being decorated (for warning message)
+    """
+
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Issue deprecation warning if called with ANY positional arguments
+            if len(args) > 0:
+                warnings.warn(
+                    f"Positional arguments for {func_name} are deprecated and will be removed "
+                    f"in a future version. Please use keyword arguments instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 # --- Input Map/Transform Helpers ---
@@ -68,6 +98,7 @@ def _bind_mapping_function(
     return mapping_function(**bound.arguments)
 
 
+@_deprecate_positional_args("remap_eval_input")
 def remap_eval_input(
     eval_input: Mapping[str, Any],
     required_fields: Set[str],
@@ -297,6 +328,7 @@ def _format_score_data(
     return eval_df
 
 
+@_deprecate_positional_args("to_annotation_dataframe")
 def to_annotation_dataframe(
     dataframe: pd.DataFrame,
     score_names: Optional[List[str]] = None,
