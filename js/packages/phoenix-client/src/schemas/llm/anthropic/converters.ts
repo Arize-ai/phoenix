@@ -1,27 +1,29 @@
-import invariant from "tiny-invariant";
 import { assertUnreachable } from "../../../utils/assertUnreachable";
+import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
 import {
   OpenAIChatPart,
-  OpenAIChatPartText,
   OpenAIChatPartImage,
+  OpenAIChatPartText,
 } from "../openai/messagePartSchemas";
 import {
   OpenAIMessage,
   openAIMessageRoleSchema,
 } from "../openai/messageSchemas";
+import { OpenAIToolCall } from "../openai/toolCallSchemas";
+import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
+import { OpenAIToolDefinition } from "../openai/toolSchemas";
+
 import {
   AnthropicMessagePart,
-  AnthropicToolUseBlock,
   anthropicMessagePartSchema,
+  AnthropicToolUseBlock,
 } from "./messagePartSchemas";
 import { anthropicMessageSchema } from "./messageSchemas";
 import { anthropicToolCallSchema } from "./toolCallSchemas";
-import { OpenAIToolCall } from "../openai/toolCallSchemas";
-import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
 import { anthropicToolChoiceSchema } from "./toolChoiceSchemas";
-import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
-import { OpenAIToolDefinition } from "../openai/toolSchemas";
 import { anthropicToolDefinitionSchema } from "./toolSchemas";
+
+import invariant from "tiny-invariant";
 
 /*
  * Conversion Functions

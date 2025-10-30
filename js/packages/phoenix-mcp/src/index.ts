@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createClient } from "@arizeai/phoenix-client";
-import minimist from "minimist";
+
 import { initializeDatasetTools } from "./datasetTools.js";
 import { initializeExperimentTools } from "./experimentTools.js";
-import { initializePromptTools } from "./promptTools.js";
 import { initializeProjectTools } from "./projectTools.js";
-import { initializeSpanTools } from "./spanTools.js";
+import { initializePromptTools } from "./promptTools.js";
 import { initializeReadmeResources } from "./readmeResource.js";
+import { initializeSpanTools } from "./spanTools.js";
 import { initializeSupportTools } from "./supportTools.js";
+
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import minimist from "minimist";
 
 const argv = minimist(process.argv.slice(2));
 

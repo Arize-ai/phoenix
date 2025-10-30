@@ -1,11 +1,12 @@
+import { getTemplateVariables } from "../template";
 import {
   CreateClassificationEvaluatorArgs,
   EvaluatorFn,
   Template,
 } from "../types";
+
 import { createClassifierFn } from "./createClassifierFn";
 import { LLMEvaluator } from "./LLMEvaluator";
-import { getTemplateVariables } from "../template";
 
 /**
  * An LLM evaluator that performs evaluation via classification

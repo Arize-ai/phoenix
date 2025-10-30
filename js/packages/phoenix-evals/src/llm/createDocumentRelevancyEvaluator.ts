@@ -1,8 +1,9 @@
-import { CreateClassificationEvaluatorArgs, Evaluator } from "../types/evals";
 import {
-  DOCUMENT_RELEVANCY_TEMPLATE,
   DOCUMENT_RELEVANCY_CHOICES,
+  DOCUMENT_RELEVANCY_TEMPLATE,
 } from "../default_templates/DOCUMENT_RELEVANCY_TEMPLATE";
+import { CreateClassificationEvaluatorArgs, Evaluator } from "../types/evals";
+
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
 export interface DocumentRelevancyEvaluatorArgs

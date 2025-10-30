@@ -1,8 +1,8 @@
 import js from "@eslint/js";
-import globals from "globals";
-import tseslint from "typescript-eslint";
 import { defineConfig } from "eslint/config";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import globals from "globals";
+import tseslint from "typescript-eslint";
 
 export default defineConfig([
   { ignores: ["**/*.{js,jsx,cjs,mjs}", "**/dist/**"] },
@@ -25,8 +25,6 @@ export default defineConfig([
           groups: [
             // Arize packages.
             ["^(@arizeai)(/.*|$)"],
-            // internal packages.
-            ["^(@phoenix)(/.*|$)"],
             // Side effect imports.
             ["^\\u0000"],
             // Parent imports. Put `..` last.
