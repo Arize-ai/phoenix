@@ -276,7 +276,7 @@ def _format_score_data(
     eval_df = dataframe[span_id_cols + [score_column]].copy()
 
     # Parse JSON score data
-    cols = ["score", "label", "explanation", "source"]
+    cols = ["score", "label", "explanation", "kind"]
 
     def _safe_json_load(x: Any) -> Any:
         if isinstance(x, str):
@@ -296,18 +296,23 @@ def _format_score_data(
         lambda d: _merge_metadata_with_direction(d) if d else None
     )
 
-    # Infer annotator_kind from score.source in first non-null score
+    # Infer annotator_kind from score.kind (preferred) or score.source in first non-null score
+    # TODO: Update this once we deprecate the source attribute
     annotator_kind = "LLM"  # default
     if not parsed_score_col.isna().all():
         no_na = parsed_score_col.dropna()
         first_score = None if no_na.empty else no_na.iloc[0]
-        if first_score and isinstance(first_score, dict) and "source" in first_score:
-            source = first_score["source"]
-            if source in ["heuristic", "code"]:
+        if first_score and isinstance(first_score, dict):
+            source_or_kind = None
+            if "kind" in first_score:
+                source_or_kind = first_score["kind"]
+            elif "source" in first_score:
+                source_or_kind = first_score["source"]
+            if source_or_kind in ["heuristic", "code"]:
                 annotator_kind = "CODE"
-            elif source == "llm":
+            elif source_or_kind == "llm":
                 annotator_kind = "LLM"
-            elif source == "human":
+            elif source_or_kind == "human":
                 annotator_kind = "HUMAN"
 
     # Add annotation name and kind columns

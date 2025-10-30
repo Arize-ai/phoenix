@@ -449,7 +449,7 @@ class TestFormatAsAnnotationDataframe:
                     "label": "good",
                     "explanation": "The response is accurate and helpful",
                     "metadata": {"model": "gpt-4"},
-                    "source": "llm",
+                    "kind": "llm",
                     "direction": "maximize",
                 },
                 "hallucination",
@@ -476,19 +476,19 @@ class TestFormatAsAnnotationDataframe:
         "score_data,score_name,expected_score",
         [
             pytest.param(
-                {"score": 0.85, "source": "llm"},
+                {"score": 0.85, "kind": "llm"},
                 "test",
                 0.85,
                 id="numeric_score",
             ),
             pytest.param(
-                {"score": 1.0, "source": "llm"},
+                {"score": 1.0, "kind": "llm"},
                 "test",
                 1.0,
                 id="perfect_score",
             ),
             pytest.param(
-                {"score": 0, "source": "llm"},
+                {"score": 0, "kind": "llm"},
                 "test",
                 0,
                 id="zero_score",
@@ -505,13 +505,13 @@ class TestFormatAsAnnotationDataframe:
         "score_data,score_name,expected_label",
         [
             pytest.param(
-                {"score": 0.85, "label": "good", "source": "llm"},
+                {"score": 0.85, "label": "good", "kind": "llm"},
                 "test",
                 "good",
                 id="string_label",
             ),
             pytest.param(
-                {"score": 0.85, "label": "excellent", "source": "llm"},
+                {"score": 0.85, "label": "excellent", "kind": "llm"},
                 "test",
                 "excellent",
                 id="different_label",
@@ -528,7 +528,7 @@ class TestFormatAsAnnotationDataframe:
         "score_data,score_name,expected_explanation",
         [
             pytest.param(
-                {"score": 0.85, "explanation": "The response is accurate", "source": "llm"},
+                {"score": 0.85, "explanation": "The response is accurate", "kind": "llm"},
                 "test",
                 "The response is accurate",
                 id="string_explanation",
@@ -537,7 +537,7 @@ class TestFormatAsAnnotationDataframe:
                 {
                     "score": 0.85,
                     "explanation": "Long detailed explanation with multiple words",
-                    "source": "llm",
+                    "kind": "llm",
                 },
                 "test",
                 "Long detailed explanation with multiple words",
@@ -555,7 +555,7 @@ class TestFormatAsAnnotationDataframe:
         "score_data,score_name,expected_metadata",
         [
             pytest.param(
-                {"score": 0.85, "metadata": {"model": "gpt-4"}, "source": "llm"},
+                {"score": 0.85, "metadata": {"model": "gpt-4"}, "kind": "llm"},
                 "test",
                 {"model": "gpt-4"},
                 id="simple_metadata",
@@ -569,7 +569,7 @@ class TestFormatAsAnnotationDataframe:
                         "tokens": {"input": 100, "output": 50},
                         "nested": {"key": "value"},
                     },
-                    "source": "llm",
+                    "kind": "llm",
                 },
                 "test",
                 {
@@ -585,7 +585,7 @@ class TestFormatAsAnnotationDataframe:
                     "score": 0.85,
                     "metadata": {"model": "gpt-4"},
                     "direction": "maximize",
-                    "source": "llm",
+                    "kind": "llm",
                 },
                 "test",
                 {"model": "gpt-4", "direction": "maximize"},
@@ -595,7 +595,7 @@ class TestFormatAsAnnotationDataframe:
                 {
                     "score": 0.85,
                     "direction": "minimize",
-                    "source": "llm",
+                    "kind": "llm",
                 },
                 "test",
                 {"direction": "minimize"},
@@ -605,7 +605,7 @@ class TestFormatAsAnnotationDataframe:
                 {
                     "score": 0.85,
                     "metadata": {},
-                    "source": "llm",
+                    "kind": "llm",
                 },
                 "test",
                 None,
@@ -616,7 +616,7 @@ class TestFormatAsAnnotationDataframe:
                     "score": 0.85,
                     "metadata": {},
                     "direction": "maximize",
-                    "source": "llm",
+                    "kind": "llm",
                 },
                 "test",
                 {"direction": "maximize"},
@@ -626,7 +626,7 @@ class TestFormatAsAnnotationDataframe:
                 {
                     "score": 0.85,
                     "metadata": None,
-                    "source": "llm",
+                    "kind": "llm",
                 },
                 "test",
                 None,
@@ -637,7 +637,7 @@ class TestFormatAsAnnotationDataframe:
                     "score": 0.85,
                     "metadata": None,
                     "direction": "minimize",
-                    "source": "llm",
+                    "kind": "llm",
                 },
                 "test",
                 {"direction": "minimize"},
@@ -655,19 +655,19 @@ class TestFormatAsAnnotationDataframe:
         "score_data,score_name,expected_annotation_name",
         [
             pytest.param(
-                {"score": 0.85, "source": "llm"},
+                {"score": 0.85, "kind": "llm"},
                 "precision",
                 "precision",
                 id="precision_score_name",
             ),
             pytest.param(
-                {"score": 0.85, "source": "llm"},
+                {"score": 0.85, "kind": "llm"},
                 "hallucination",
                 "hallucination",
                 id="hallucination_score_name",
             ),
             pytest.param(
-                {"score": 0.85, "source": "llm"},
+                {"score": 0.85, "kind": "llm"},
                 "relevance",
                 "relevance",
                 id="relevance_score_name",
@@ -684,33 +684,33 @@ class TestFormatAsAnnotationDataframe:
         "score_data,score_name,expected_annotator_kind",
         [
             pytest.param(
-                {"score": 0.85, "source": "llm"},
+                {"score": 0.85, "kind": "llm"},
                 "test",
                 "LLM",
-                id="llm_source",
+                id="llm_kind",
             ),
             pytest.param(
-                {"score": 1.0, "source": "code"},
+                {"score": 1.0, "kind": "code"},
                 "test",
                 "CODE",
-                id="code_source",
+                id="code_kind",
             ),
             pytest.param(
-                {"score": 0.8, "source": "human"},
+                {"score": 0.8, "kind": "human"},
                 "test",
                 "HUMAN",
-                id="human_source",
+                id="human_kind",
             ),
             pytest.param(
-                {"score": 0.6, "source": "unknown_source"},
+                {"score": 0.6, "kind": "unknown_kind"},
                 "test",
                 "LLM",
-                id="unknown_source_defaults_to_llm",
+                id="unknown_kind_defaults_to_llm",
             ),
         ],
     )
     def test_annotator_kind_inference(self, score_data, score_name, expected_annotator_kind):
-        """Test that annotator kind is inferred correctly from source."""
+        """Test that annotator kind is inferred correctly from kind."""
         df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
         result = to_annotation_dataframe(dataframe=df, score_names=[score_name])
         assert result["annotator_kind"].iloc[0] == expected_annotator_kind
@@ -719,13 +719,13 @@ class TestFormatAsAnnotationDataframe:
         "score_data,score_name,expected_span_id",
         [
             pytest.param(
-                {"score": 0.85, "source": "llm"},
+                {"score": 0.85, "kind": "llm"},
                 "test",
                 "span_1",
                 id="basic_span_id",
             ),
             pytest.param(
-                {"score": 0.85, "source": "llm"},
+                {"score": 0.85, "kind": "llm"},
                 "test",
                 "custom_span_123",
                 id="custom_span_id",
@@ -745,31 +745,31 @@ class TestFormatAsAnnotationDataframe:
         [
             pytest.param(
                 "span_id",
-                {"score": 0.9, "source": "llm"},
+                {"score": 0.9, "kind": "llm"},
                 "test",
                 id="lowercase_span_id",
             ),
             pytest.param(
                 "context.span_id",
-                {"score": 0.9, "source": "llm"},
+                {"score": 0.9, "kind": "llm"},
                 "test",
                 id="context.span_id",
             ),
             pytest.param(
                 "Span_Id",
-                {"score": 0.9, "source": "llm"},
+                {"score": 0.9, "kind": "llm"},
                 "test",
                 id="mixed_case_span_id",
             ),
             pytest.param(
                 "trace_span_id",
-                {"score": 0.9, "source": "llm"},
+                {"score": 0.9, "kind": "llm"},
                 "test",
                 id="prefixed_span_id",
             ),
             pytest.param(
                 "my_span_id_column",
-                {"score": 0.9, "source": "llm"},
+                {"score": 0.9, "kind": "llm"},
                 "test",
                 id="long_span_id_name",
             ),
@@ -785,7 +785,7 @@ class TestFormatAsAnnotationDataframe:
 
     def test_multiple_span_id_columns_preserved(self):
         """Test that multiple span_id columns are preserved in the output."""
-        score_data = {"score": 0.85, "source": "llm"}
+        score_data = {"score": 0.85, "kind": "llm"}
         df = pd.DataFrame(
             {
                 "span_id": ["span_1"],
@@ -822,19 +822,19 @@ class TestFormatAsAnnotationDataframe:
         "score_data,score_name,expected_value",
         [
             pytest.param(
-                {"score": 0.5, "source": "llm"},
+                {"score": 0.5, "kind": "llm"},
                 "test",
                 None,
                 id="missing_label",
             ),
             pytest.param(
-                {"score": 0.5, "source": "llm"},
+                {"score": 0.5, "kind": "llm"},
                 "test",
                 None,
                 id="missing_explanation",
             ),
             pytest.param(
-                {"score": 0.5, "source": "llm"},
+                {"score": 0.5, "kind": "llm"},
                 "test",
                 None,
                 id="missing_metadata",
@@ -866,7 +866,7 @@ class TestFormatAsAnnotationDataframe:
                 id="empty_string_score",
             ),
             pytest.param(
-                json.dumps({"score": None, "source": "llm"}),
+                json.dumps({"score": None, "kind": "llm"}),
                 "test",
                 None,
                 id="none_score_in_json",
@@ -879,15 +879,15 @@ class TestFormatAsAnnotationDataframe:
         result = to_annotation_dataframe(dataframe=df, score_names=[score_name])
         assert pd.isna(result["score"].iloc[0]) or result["score"].iloc[0] is None
 
-    def test_multiple_scores_use_first_source_for_annotator_kind(self):
-        """Test that annotator kind uses source from first non-null score."""
+    def test_multiple_scores_use_first_kind_for_annotator_kind(self):
+        """Test that annotator kind uses kind from first non-null score."""
         df = pd.DataFrame(
             {
                 "span_id": ["span_1", "span_2", "span_3"],
                 "mixed_score": [
-                    json.dumps({"score": 0.8, "source": "code"}),  # First non-null
-                    json.dumps({"score": 0.9, "source": "llm"}),
-                    json.dumps({"score": 0.7, "source": "human"}),
+                    json.dumps({"score": 0.8, "kind": "code"}),  # First non-null
+                    json.dumps({"score": 0.9, "kind": "llm"}),
+                    json.dumps({"score": 0.7, "kind": "human"}),
                 ],
             }
         )
@@ -899,12 +899,12 @@ class TestFormatAsAnnotationDataframe:
         """Test that all None scores default to LLM annotator kind."""
         df = pd.DataFrame({"span_id": ["span_1", "span_2"], "none_score": [None, None]})
         result = to_annotation_dataframe(dataframe=df, score_names=["none"])
-        # Should default to LLM when no source can be determined
+        # Should default to LLM when no kind can be determined
         assert all(result["annotator_kind"] == "LLM")
 
     def test_original_dataframe_preservation(self):
         """Test that original dataframe is not modified."""
-        original_score = json.dumps({"score": 0.8, "source": "llm"})
+        original_score = json.dumps({"score": 0.8, "kind": "llm"})
         df = pd.DataFrame({"span_id": ["span_1"], "preserve_score": [original_score]})
         original_df = df.copy()
         to_annotation_dataframe(dataframe=df, score_names=["preserve"])
@@ -919,7 +919,7 @@ class TestFormatAsAnnotationDataframe:
             "label": "good",
             "explanation": "Standard response",
             "metadata": {"model": "gpt-3.5"},
-            "source": "llm",
+            "kind": "llm",
         }
         df = pd.DataFrame(
             {
@@ -941,7 +941,7 @@ class TestFormatAsAnnotationDataframe:
     )
     def test_score_column_naming(self, score_name, expected_score_column):
         """Test that score column names are constructed correctly."""
-        score_data = {"score": 0.8, "source": "llm"}
+        score_data = {"score": 0.8, "kind": "llm"}
         df = pd.DataFrame({"span_id": ["span_1"], expected_score_column: [json.dumps(score_data)]})
         result = to_annotation_dataframe(dataframe=df, score_names=[score_name])
         # Should work without error
@@ -1008,7 +1008,7 @@ class TestFormatAsAnnotationDataframe:
     )
     def test_multiple_score_names(self, score_names, expected_rows, expected_annotation_names):
         """Test basic functionality with multiple score names."""
-        score_data = {"score": 0.8, "source": "llm"}
+        score_data = {"score": 0.8, "kind": "llm"}
 
         # Create DataFrame with all possible score columns
         df_data = {"span_id": ["span_1", "span_2"]}
@@ -1035,7 +1035,7 @@ class TestFormatAsAnnotationDataframe:
         self, index_name, index_values, expected_span_id_cols, should_raise
     ):
         """Test handling of span_id in DataFrame index."""
-        score_data = {"score": 0.8, "source": "llm"}
+        score_data = {"score": 0.8, "kind": "llm"}
 
         df = pd.DataFrame(
             {"precision_score": [json.dumps(score_data), json.dumps(score_data)]},
@@ -1055,7 +1055,7 @@ class TestFormatAsAnnotationDataframe:
 
     def test_mixed_span_id_sources(self):
         """Test with multiple span_id columns and index."""
-        score_data = {"score": 0.8, "source": "llm"}
+        score_data = {"score": 0.8, "kind": "llm"}
 
         df = pd.DataFrame(
             {
@@ -1084,7 +1084,7 @@ class TestFormatAsAnnotationDataframe:
     )
     def test_missing_score_columns(self, score_columns, score_names, should_raise):
         """Test error handling for missing score columns."""
-        score_data = {"score": 0.8, "source": "llm"}
+        score_data = {"score": 0.8, "kind": "llm"}
 
         df_data = {"span_id": ["span_1"]}
         for col in score_columns:
@@ -1101,7 +1101,7 @@ class TestFormatAsAnnotationDataframe:
 
     def test_none_scores_and_index_reset(self):
         """Test handling of None scores and index reset."""
-        score_data = {"score": 0.8, "source": "llm"}
+        score_data = {"score": 0.8, "kind": "llm"}
 
         df = pd.DataFrame(
             {
@@ -1152,7 +1152,7 @@ class TestFormatAsAnnotationDataframe:
     )
     def test_auto_detect_score_columns(self, score_columns, expected_score_names, expected_rows):
         """Test auto-detection of score columns when score_names is None."""
-        score_data = {"score": 0.8, "source": "llm"}
+        score_data = {"score": 0.8, "kind": "llm"}
 
         # Create DataFrame with specified score columns
         df_data = {"span_id": ["span_1", "span_2"]}
@@ -1170,7 +1170,7 @@ class TestFormatAsAnnotationDataframe:
         "score_column_data,expected_behavior",
         [
             pytest.param(
-                {"precision_score": [json.dumps({"score": 0.8, "source": "llm"})]},
+                {"precision_score": [json.dumps({"score": 0.8, "kind": "llm"})]},
                 "success",
                 id="valid_score_data",
             ),
@@ -1223,8 +1223,8 @@ class TestFormatAsAnnotationDataframe:
         df = pd.DataFrame(
             {
                 "span_id": ["span_1", "span_2"],
-                "precision_score": [json.dumps({"score": 0.8, "source": "llm"}), None],
-                "hallucination_score": [None, json.dumps({"score": 0.9, "source": "code"})],
+                "precision_score": [json.dumps({"score": 0.8, "kind": "llm"}), None],
+                "hallucination_score": [None, json.dumps({"score": 0.9, "kind": "code"})],
                 "invalid_score": ["not json", "also not json"],
             }
         )
@@ -1235,7 +1235,7 @@ class TestFormatAsAnnotationDataframe:
 
     def test_auto_detect_vs_explicit_score_names(self):
         """Test that auto-detection produces same results as explicit score names."""
-        score_data = {"score": 0.8, "source": "llm"}
+        score_data = {"score": 0.8, "kind": "llm"}
 
         df = pd.DataFrame(
             {
@@ -1259,7 +1259,7 @@ class TestFormatAsAnnotationDataframe:
 
     def test_auto_detect_with_partial_explicit_override(self):
         """Test that explicit score_names overrides auto-detection."""
-        score_data = {"score": 0.8, "source": "llm"}
+        score_data = {"score": 0.8, "kind": "llm"}
 
         df = pd.DataFrame(
             {

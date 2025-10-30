@@ -45,7 +45,7 @@ class MatchesRegex(Evaluator):
             #        label=None,
             #        explanation='There are 1 matches for the regex: https?://[^\\s]+',
             #        metadata={},
-            #        source='code',
+            #        kind='code',
             #        direction='maximize')]
     """
 
@@ -72,7 +72,7 @@ class MatchesRegex(Evaluator):
 
         super().__init__(
             name=eval_name,
-            source="code",
+            kind="code",
             input_schema=self.InputSchema,
             direction="maximize",
         )
@@ -96,7 +96,7 @@ class MatchesRegex(Evaluator):
                 score=float(bool(matches)),
                 name=self.name,
                 explanation=explanation if self.include_explanation else None,
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
             )
         ]

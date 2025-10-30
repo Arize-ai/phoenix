@@ -61,7 +61,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
         print(scores)
         [Score(name='hallucination', score=1.0, label='factual',
             explanation='Information is supported by context', metadata={'model': 'gpt-4o-mini'},
-            source="llm", direction="maximize")]
+            kind="llm", direction="maximize")]
 
     """
 

@@ -1,7 +1,7 @@
 from ..evaluators import Score, create_evaluator
 
 
-@create_evaluator(name="exact_match", source="code")
+@create_evaluator(name="exact_match", kind="code")
 def exact_match(output: str, expected: str) -> Score:
     """Return exact_match score: 1.0 if output == expected else 0.0.
 
@@ -22,7 +22,7 @@ def exact_match(output: str, expected: str) -> Score:
             scores_direct = exact_match(eval_input_direct)
             print("Without field_mapping:", scores_direct)
             [Score(score=0.0, name='exact_match', label=False, explanation=None,
-             direction='maximize', source='code', metadata={})]
+             direction='maximize', kind='code', metadata={})]
 
         2. Field mapping needed to map input keys to those expected by the evaluator::
 
@@ -31,7 +31,7 @@ def exact_match(output: str, expected: str) -> Score:
             scores = exact_match(eval_input, field_mapping=field_mapping)
             print("With field_mapping:", scores)
             [Score(score=1.0, name='exact_match',label=True, explanation=None, direction='maximize',
-             source='code', metadata={})]
+             kind='code', metadata={})]
     """
     correct = output == expected
     return Score(score=float(correct))

@@ -131,7 +131,7 @@ class PrecisionRecallFScore(Evaluator):
     ) -> None:
         super().__init__(
             name="precision_recall_fscore",
-            source="code",
+            kind="code",
             input_schema=self.InputSchema,
             direction="maximize",
         )
@@ -197,7 +197,7 @@ class PrecisionRecallFScore(Evaluator):
             Score(
                 name=f"precision{suffix}",
                 score=precision,
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
                 metadata={
                     "beta": self.beta,
@@ -209,7 +209,7 @@ class PrecisionRecallFScore(Evaluator):
             Score(
                 name=f"recall{suffix}",
                 score=recall,
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
                 metadata={
                     "beta": self.beta,
@@ -221,7 +221,7 @@ class PrecisionRecallFScore(Evaluator):
             Score(
                 name=f"{beta_name}{suffix}",
                 score=f_score,
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
                 metadata={
                     "beta": self.beta,
