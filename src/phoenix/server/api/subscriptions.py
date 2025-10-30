@@ -59,13 +59,15 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionExperiment,
     ChatCompletionSubscriptionPayload,
     ChatCompletionSubscriptionResult,
+    EvaluationChunk,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
@@ -195,6 +197,23 @@ class Subscription:
 
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
         yield ChatCompletionSubscriptionResult(span=Span(id=db_span.id, db_record=db_span))
+
+        async with info.context.db() as session:
+            if input.evaluators:
+                for ii, evaluator in enumerate(input.evaluators):
+                    _, db_id = from_global_id(evaluator.id)
+                    evaluator = await session.get(models.Evaluator, db_id)
+                    evaluator_name = evaluator.name if evaluator else ""
+                    dummy_annotation = ExperimentRunAnnotation.from_dict(
+                        {
+                            "name": evaluator_name,
+                            "label": f"dummy {ii}",
+                            "score": 0.5,
+                            "explanation": "dummy evaluation",
+                            "metadata": {},
+                        }
+                    )
+                    yield EvaluationChunk(evaluation=dummy_annotation)
 
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def chat_completion_over_dataset(
