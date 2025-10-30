@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { ComponentProps, useMemo } from "react";
 import {
   Autocomplete,
   Input,
@@ -42,6 +42,8 @@ type DatasetSelectWithSplitsProps = {
   size?: "S" | "M";
   label?: string;
   isRequired?: boolean;
+  placement?: ComponentProps<typeof MenuContainer>["placement"];
+  shouldFlip?: ComponentProps<typeof MenuContainer>["shouldFlip"];
 };
 
 type SplitItem = {
@@ -131,27 +133,29 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         trailingVisual={<SelectChevronUpDownIcon />}
         size={props.size ?? "S"}
       >
-        {selectedDataset ? (
-          <Flex alignItems="center">
-            <Text>{selectedDataset.name}</Text>
-            {selectedSplits.length > 0 ? (
-              <Text color="text-300">
-                &nbsp;/{" "}
-                {selectedSplits.length === 1
-                  ? selectedSplits[0].name
-                  : `${selectedSplits.length} splits`}
-              </Text>
-            ) : (
-              <Text color="text-300">&nbsp;/ All Examples</Text>
-            )}
-          </Flex>
-        ) : (
-          <Text color="text-300">
-            {props.placeholder ?? "Select a dataset"}
-          </Text>
-        )}
+        <Flex alignItems="center" width="100%">
+          {selectedDataset ? (
+            <>
+              <Text>{selectedDataset.name}</Text>
+              {selectedSplits.length > 0 ? (
+                <Text color="text-300">
+                  &nbsp;/{" "}
+                  {selectedSplits.length === 1
+                    ? selectedSplits[0].name
+                    : `${selectedSplits.length} splits`}
+                </Text>
+              ) : (
+                <Text color="text-300">&nbsp;/ All Examples</Text>
+              )}
+            </>
+          ) : (
+            <Text color="text-300">
+              {props.placeholder ?? "Select a dataset"}
+            </Text>
+          )}
+        </Flex>
       </Button>
-      <MenuContainer>
+      <MenuContainer placement={props.placement} shouldFlip={props.shouldFlip}>
         <Autocomplete filter={contains}>
           <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
@@ -242,7 +246,10 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                       </Text>
                     </Flex>
                   </MenuItem>
-                  <MenuContainer placement="end top">
+                  <MenuContainer
+                    placement="end top"
+                    shouldFlip={props.shouldFlip}
+                  >
                     <Autocomplete filter={contains}>
                       <MenuHeader>
                         <SearchField aria-label="Search" autoFocus>
