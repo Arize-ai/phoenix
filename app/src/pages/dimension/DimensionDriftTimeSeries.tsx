@@ -14,9 +14,8 @@ import {
   YAxis,
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/types";
-import { css } from "@emotion/react";
 
-import { Icon, Icons, Text } from "@phoenix/components";
+import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipDivider,
@@ -52,7 +51,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number | number[], string>) {
   const { fullTimeFormatter } = useTimeFormatters();
-  const { color, barColor } = useColors();
+  const { color } = useColors();
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
 
