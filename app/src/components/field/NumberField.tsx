@@ -17,6 +17,7 @@ export interface NumberFieldProps extends AriaNumberFieldProps, SizingProps {}
 const numberFieldCSS = css`
   .react-aria-Input {
     text-align: right;
+    font-feature-settings: "tnum" 1;
   }
 `;
 

@@ -1,4 +1,5 @@
 import { PropsWithChildren, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
@@ -9,6 +10,10 @@ import {
   EvaluatorChatTemplateProvider,
 } from "@phoenix/pages/evaluators/EvaluatorChatTemplate";
 import { EvaluatorExampleDataset } from "@phoenix/pages/evaluators/EvaluatorExampleDataset";
+import {
+  ChoiceConfig,
+  EvaluatorLLMChoice,
+} from "@phoenix/pages/evaluators/EvaluatorLLMChoice";
 
 export const NewEvaluatorPage = () => {
   return (
@@ -64,6 +69,15 @@ const NewEvaluatorPageContent = () => {
     null
   );
   const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
+  const { control } = useForm<ChoiceConfig>({
+    defaultValues: {
+      name: "correctness",
+      choices: [
+        { label: "Incorrect", score: 0 },
+        { label: "Correct", score: 1 },
+      ],
+    },
+  });
   const isValid = useMemo(() => validateEvaluatorConfiguration(), []);
   return (
     <>
@@ -97,14 +111,7 @@ const NewEvaluatorPageContent = () => {
               <Text color="text-500">
                 Define the eval annotation returned by your evaluator.
               </Text>
-              <div
-                css={css`
-                  height: 400px;
-                  border: 1px solid var(--ac-global-border-color-default);
-                  border-style: dashed;
-                  border-radius: var(--ac-global-rounding-small);
-                `}
-              ></div>
+              <EvaluatorLLMChoice control={control} />
             </Flex>
             <Flex direction="column" gap="size-100">
               <Heading level={3}>Prompt</Heading>
