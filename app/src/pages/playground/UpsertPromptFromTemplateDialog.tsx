@@ -14,8 +14,7 @@ import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import { UpsertPromptFromTemplateDialogUpdateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogUpdateMutation.graphql";
-import { instanceToPromptVersion } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
-import { denormalizePlaygroundInstance } from "@phoenix/pages/playground/playgroundUtils";
+import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import {
   SavePromptForm,
   SavePromptFormParams,
@@ -25,33 +24,6 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 type UpsertPromptFromTemplateProps = {
   instanceId: number;
   selectedPromptId?: string;
-};
-
-const getInstancePromptParamsFromStore = (
-  instanceId: number,
-  store: ReturnType<typeof usePlaygroundStore>
-) => {
-  const state = store.getState();
-  const allInstanceMessages = state.allInstanceMessages;
-  const instance = state.instances.find(
-    (instance) => instance.id === instanceId
-  );
-  if (!instance) {
-    throw new Error(`Instance ${instanceId} not found`);
-  }
-  const enrichedInstance = denormalizePlaygroundInstance(
-    instance,
-    allInstanceMessages
-  );
-  const promptInput = instanceToPromptVersion(enrichedInstance);
-  if (!promptInput) {
-    throw new Error(`Could not convert instance ${instanceId} to prompt`);
-  }
-  const templateFormat = state.templateFormat;
-  return {
-    promptInput,
-    templateFormat,
-  };
 };
 
 export const UpsertPromptFromTemplateDialog = ({

@@ -133,6 +133,14 @@ function SideNav() {
               isExpanded={isSideNavExpanded}
             />
           </li>
+          <li key="evaluators">
+            <NavLink
+              to="/evaluators"
+              text="Evaluators"
+              leadingVisual={<Icon svg={<Icons.Scale />} />}
+              isExpanded={isSideNavExpanded}
+            />
+          </li>
           <li key="prompts">
             <NavLink
               to="/prompts"

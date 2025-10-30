@@ -60,7 +60,7 @@ export function safelyStringifyJSON(
 /**
  * Flattens an object into a single-level object.
  */
-function flattenObject(
+export function flattenObject(
   obj: object,
   parentKey: string = "",
   separator: string = "."
