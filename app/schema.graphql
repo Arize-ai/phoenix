@@ -474,7 +474,7 @@ input CreateChatPromptVersionInput {
 }
 
 input CreateCodeEvaluatorInput {
-  datasetId: ID!
+  datasetId: ID
   name: Identifier!
   description: String
 }
@@ -483,13 +483,6 @@ input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
-}
-
-input CreateDatasetLLMEvaluatorInput {
-  datasetId: ID!
-  name: Identifier!
-  description: String
-  promptVersion: ChatPromptVersionInput!
 }
 
 input CreateDatasetLabelInput {
@@ -517,6 +510,13 @@ input CreateDatasetSplitWithExamplesInput {
   color: String!
   metadata: JSON
   exampleIds: [ID!]!
+}
+
+input CreateLLMEvaluatorInput {
+  datasetId: ID
+  name: Identifier!
+  description: String
+  promptVersion: ChatPromptVersionInput!
 }
 
 input CreateModelMutationInput {
@@ -1928,8 +1928,8 @@ type Mutation {
   addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
   removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
-  createDatasetCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
-  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
+  createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
+  createLlmEvaluator(input: CreateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
   assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
   unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
