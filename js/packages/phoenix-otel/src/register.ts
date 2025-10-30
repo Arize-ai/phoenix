@@ -54,6 +54,11 @@ export type RegisterParams = {
    */
   instrumentations?: Instrumentation[];
   /**
+   * A list of span processors to add to the tracer provider
+   * Note: this will override the default span processor
+   */
+  spanProcessors?: SpanProcessor[];
+  /**
    * Whether to set the tracer as a global provider.
    * @default true
    */
@@ -90,19 +95,46 @@ export type RegisterParams = {
  * });
  * ```
  */
-export function register({
-  url: paramsUrl,
-  apiKey: paramsApiKey,
-  headers: paramsHeaders = {},
-  projectName = "default",
-  instrumentations,
-  batch = true,
-  global = true,
-  diagLogLevel,
-}: RegisterParams): NodeTracerProvider {
+export function register(params: RegisterParams): NodeTracerProvider {
+  const {
+    projectName = "default",
+    instrumentations,
+    global = true,
+    diagLogLevel,
+    spanProcessors,
+  } = params;
+
   if (diagLogLevel) {
     diag.setLogger(new DiagConsoleLogger(), diagLogLevel);
   }
+  const provider = new NodeTracerProvider({
+    resource: resourceFromAttributes({
+      [SEMRESATTRS_PROJECT_NAME]: projectName,
+    }),
+    spanProcessors: spanProcessors || [getDefaultSpanProcessor(params)],
+  });
+
+  if (instrumentations) {
+    registerInstrumentations({
+      instrumentations,
+      tracerProvider: provider,
+    });
+  }
+  if (global) {
+    provider.register();
+  }
+  return provider;
+}
+
+function getDefaultSpanProcessor({
+  url: paramsUrl,
+  apiKey: paramsApiKey,
+  headers: paramsHeaders = {},
+  batch = true,
+}: Pick<
+  RegisterParams,
+  "url" | "apiKey" | "batch" | "headers"
+>): SpanProcessor {
   const url = ensureCollectorEndpoint(
     paramsUrl || getEnvCollectorURL() || "http://localhost:6006"
   );
@@ -124,25 +156,8 @@ export function register({
   } else {
     spanProcessor = new OpenInferenceSimpleSpanProcessor({ exporter });
   }
-  const provider = new NodeTracerProvider({
-    resource: resourceFromAttributes({
-      [SEMRESATTRS_PROJECT_NAME]: projectName,
-    }),
-    spanProcessors: [spanProcessor],
-  });
-
-  if (instrumentations) {
-    registerInstrumentations({
-      instrumentations,
-      tracerProvider: provider,
-    });
-  }
-  if (global) {
-    provider.register();
-  }
-  return provider;
+  return spanProcessor;
 }
-
 /**
  * A utility method to normalize the URL to be HTTP compatible.
  * Assumes we are using HTTP over gRPC and ensures the URL ends with the correct traces endpoint.
