@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import uuid
 from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any, Callable, Dict, Iterator, Optional, Sequence, Union, cast
@@ -16,14 +15,10 @@ from phoenix.client import AsyncClient
 from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
-from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import (  # pyright: ignore[reportPrivateUsage]
-    _ADMIN,
-    _MEMBER,
     _AppInfo,
     _await_or_return,
-    _GetUser,
     _gql,
     _httpx_client,
 )
@@ -360,7 +355,7 @@ def _setup_experiment_test(_app: _AppInfo) -> Iterator[_SetupExperimentTest]:
 
     def _setup(is_async: bool) -> tuple[Union[AsyncClient, SyncClient], _ExperimentTestHelper]:
         Client = AsyncClient if is_async else SyncClient
-        client = Client(base_url=_app.base_url, api_key=str(_app.admin_secret))
+        client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
         helper = _ExperimentTestHelper(_app)
         helpers.append(helper)
         return client, helper
@@ -398,26 +393,20 @@ class CapturingSpanExporter(SpanExporter):
 
 class TestExperimentsIntegration:
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_run_experiment_basic(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_experiment_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_experiment_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"question": "What is 2+2?"},
@@ -447,10 +436,10 @@ class TestExperimentsIntegration:
                 return "I don't know"
 
         result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
-                experiment_name=f"test_experiment_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_experiment_{token_hex(4)}",
                 experiment_description="A simple test experiment",
                 print_summary=False,
             )
@@ -468,23 +457,19 @@ class TestExperimentsIntegration:
     async def test_run_experiment_creates_proper_spans(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that experiments create proper OpenTelemetry spans with correct attributes."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_span_creation_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_span_creation_{token_hex(4)}"
 
         # Create a small dataset for testing
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"text": "Hello world"},
@@ -538,11 +523,13 @@ class TestExperimentsIntegration:
 
         with patch(f"{experiments_module}._get_tracer", side_effect=mock_get_tracer):
             result = await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+                Client(
+                    base_url=_app.base_url, api_key=_app.admin_secret
+                ).experiments.run_experiment(
                     dataset=dataset,
                     task=classification_task,
                     evaluators={"accuracy_evaluator": accuracy_evaluator},
-                    experiment_name=f"test_span_experiment_{uuid.uuid4().hex[:8]}",
+                    experiment_name=f"test_span_experiment_{token_hex(4)}",
                     print_summary=False,
                 )
             )
@@ -596,26 +583,20 @@ class TestExperimentsIntegration:
                 assert span_context.trace_id != 0, "Span should have a valid trace ID"
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_run_experiment_with_evaluators(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_experiment_eval_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_experiment_eval_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"text": "Hello world"},
@@ -644,11 +625,11 @@ class TestExperimentsIntegration:
             return {"score": len(output) / 10.0, "label": "length_score"}
 
         result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=classification_task,
                 evaluators=[accuracy_evaluator, length_evaluator],
-                experiment_name=f"test_eval_experiment_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_eval_experiment_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -660,21 +641,17 @@ class TestExperimentsIntegration:
     async def test_run_experiment_with_different_task_signatures(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_signatures_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_signatures_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"prompt": "Test prompt"}],
                 outputs=[{"response": "Test response"}],
@@ -691,10 +668,10 @@ class TestExperimentsIntegration:
             return f"Input: {input}, Expected: {expected}, Meta: {metadata}"
 
         result1 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=task_with_input_only,
-                experiment_name=f"test_input_only_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_input_only_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -702,10 +679,10 @@ class TestExperimentsIntegration:
         assert len(result1["task_runs"]) == 1
 
         result2 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=task_with_multiple_params,
-                experiment_name=f"test_multi_params_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_multi_params_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -716,21 +693,17 @@ class TestExperimentsIntegration:
     async def test_run_experiment_dry_run(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_dry_run_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_dry_run_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"text": "Sample 1"},
@@ -749,7 +722,7 @@ class TestExperimentsIntegration:
             return f"Processed: {input.get('text', '')}"
 
         result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
                 experiment_name="dry_run_test",
@@ -762,7 +735,7 @@ class TestExperimentsIntegration:
         assert len(result["task_runs"]) == 1
 
         result_sized = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
                 experiment_name="dry_run_sized_test",
@@ -777,21 +750,17 @@ class TestExperimentsIntegration:
     async def test_run_experiment_with_metadata(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_metadata_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_metadata_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"question": "Test question"}],
                 outputs=[{"answer": "Test answer"}],
@@ -808,10 +777,10 @@ class TestExperimentsIntegration:
         }
 
         result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
-                experiment_name=f"test_with_metadata_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_with_metadata_{token_hex(4)}",
                 experiment_description="Experiment with metadata",
                 experiment_metadata=experiment_metadata,
                 print_summary=False,
@@ -824,22 +793,18 @@ class TestExperimentsIntegration:
     async def test_task_and_evaluator_parameter_isolation(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
         from phoenix.client.resources.experiments.types import ExampleProxy
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_copying_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_copying_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "Hello"}],
                 outputs=[{"expected": "greeting"}],
@@ -904,11 +869,11 @@ class TestExperimentsIntegration:
             return 1.0
 
         result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=mutating_task,
                 evaluators=[evaluator_one, evaluator_two],
-                experiment_name=f"test_copying_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_copying_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -938,22 +903,18 @@ class TestExperimentsIntegration:
     async def test_example_proxy_properties(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
         from phoenix.client.resources.experiments.types import ExampleProxy
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_example_proxy_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_example_proxy_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"question": "What is 2+2?"}],
                 outputs=[{"answer": "4"}],
@@ -990,10 +951,10 @@ class TestExperimentsIntegration:
             return "ok"
 
         result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=example_inspector,
-                experiment_name=f"test_proxy_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_proxy_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -1023,21 +984,17 @@ class TestExperimentsIntegration:
     async def test_run_experiment_evaluator_types(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_eval_types_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_eval_types_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "Hello world"}],
                 outputs=[{"expected": "greeting"}],
@@ -1060,7 +1017,7 @@ class TestExperimentsIntegration:
             return {"score": 0.8, "label": "good"}
 
         result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
                 evaluators={
@@ -1069,7 +1026,7 @@ class TestExperimentsIntegration:
                     "tuple_eval": tuple_evaluator,
                     "dict_eval": dict_evaluator,
                 },
-                experiment_name=f"test_eval_types_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_eval_types_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -1081,21 +1038,17 @@ class TestExperimentsIntegration:
     async def test_run_async_task(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         if not is_async:
             pytest.skip("Async tasks only supported with AsyncClient")
 
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
 
-        unique_name = f"test_async_task_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_async_task_{token_hex(4)}"
 
         dataset: Dataset = await _await_or_return(
-            AsyncClient(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            AsyncClient(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "Async test"}],
                 outputs=[{"expected": "async_result"}],
@@ -1107,11 +1060,11 @@ class TestExperimentsIntegration:
             return f"async_processed_{input.get('text', '')}"
 
         result = await AsyncClient(
-            base_url=_app.base_url, api_key=api_key
+            base_url=_app.base_url, api_key=_app.admin_secret
         ).experiments.run_experiment(
             dataset=dataset,
             task=async_task,
-            experiment_name=f"test_async_{uuid.uuid4().hex[:8]}",
+            experiment_name=f"test_async_{token_hex(4)}",
             print_summary=False,
         )
 
@@ -1122,21 +1075,17 @@ class TestExperimentsIntegration:
     async def test_error_handling(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_error_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_error_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "test"}],
                 outputs=[{"expected": "result"}],
@@ -1147,10 +1096,10 @@ class TestExperimentsIntegration:
             raise ValueError("Task failed intentionally")
 
         result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=failing_task,
-                experiment_name=f"test_error_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_error_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -1162,21 +1111,17 @@ class TestExperimentsIntegration:
     async def test_experiment_with_empty_dataset(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_empty_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_empty_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"placeholder": "temp"}],
                 outputs=[{"placeholder": "temp"}],
@@ -1198,7 +1143,9 @@ class TestExperimentsIntegration:
 
         with pytest.raises(ValueError, match="Dataset has no examples"):
             await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+                Client(
+                    base_url=_app.base_url, api_key=_app.admin_secret
+                ).experiments.run_experiment(
                     dataset=dataset,  # pyright: ignore[reportArgumentType]
                     task=simple_task,
                     experiment_name="test_empty",
@@ -1210,21 +1157,17 @@ class TestExperimentsIntegration:
     async def test_evaluator_dynamic_parameter_binding(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_eval_params_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_eval_params_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"text": "What is 2+2?", "context": "math"},
@@ -1320,7 +1263,7 @@ class TestExperimentsIntegration:
             }
 
         result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=question_answering_task,
                 evaluators={
@@ -1331,7 +1274,7 @@ class TestExperimentsIntegration:
                     "metadata": metadata_evaluator,
                     "example": example_evaluator,
                 },
-                experiment_name=f"test_param_binding_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_param_binding_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -1386,21 +1329,17 @@ class TestExperimentsIntegration:
     async def test_task_dynamic_parameter_binding(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_task_params_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_task_params_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"question": "What is 2+2?", "type": "math"},
@@ -1472,10 +1411,10 @@ class TestExperimentsIntegration:
             }
 
         result1 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=input_only_task,
-                experiment_name=f"test_input_only_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_input_only_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -1485,10 +1424,10 @@ class TestExperimentsIntegration:
             assert "Processing:" in task_run["output"]
 
         result2 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=input_expected_task,
-                experiment_name=f"test_input_expected_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_input_expected_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -1499,10 +1438,10 @@ class TestExperimentsIntegration:
             assert "Expected:" in task_run["output"]
 
         result3 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=reference_task,
-                experiment_name=f"test_reference_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_reference_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -1513,10 +1452,10 @@ class TestExperimentsIntegration:
             assert "Ref:" in task_run["output"]
 
         result4 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=metadata_task,
-                experiment_name=f"test_metadata_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_metadata_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -1527,10 +1466,10 @@ class TestExperimentsIntegration:
             assert "Category:" in task_run["output"]
 
         result5 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=comprehensive_task,
-                experiment_name=f"test_comprehensive_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_comprehensive_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -1854,6 +1793,79 @@ class TestExperimentsIntegration:
             },
         )
         assert response.status_code == 409
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_experiment(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _setup_experiment_test: _SetupExperimentTest,
+    ) -> None:
+        """Test creating an experiment without running it."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        from .._helpers import _gql
+
+        Client = AsyncClient if is_async else SyncClient
+        client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
+
+        unique_name = f"test_create_{token_hex(4)}"
+
+        # Create dataset with 4 examples
+        dataset = await _await_or_return(
+            client.datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"q": f"test{i}"} for i in range(4)],
+                outputs=[{"a": f"answer{i}"} for i in range(4)],
+            )
+        )
+
+        example_ids = [example["id"] for example in dataset.examples]
+
+        # Create a split with first 2 examples
+        split_mutation = """
+            mutation($input: CreateDatasetSplitWithExamplesInput!) {
+                createDatasetSplitWithExamples(input: $input) {
+                    datasetSplit {
+                        id
+                        name
+                    }
+                }
+            }
+        """
+
+        split_name = f"{unique_name}_train"
+        _gql(
+            _app,
+            _app.admin_secret,
+            query=split_mutation,
+            variables={
+                "input": {
+                    "name": split_name,
+                    "color": "#FF0000",
+                    "exampleIds": [example_ids[0], example_ids[1]],
+                }
+            },
+        )
+
+        # Create experiment with metadata and splits
+        experiment = await _await_or_return(
+            client.experiments.create(
+                dataset_id=dataset.id,
+                experiment_name=f"Test Create {token_hex(4)}",
+                experiment_description="Test description",
+                experiment_metadata={"model": "test"},
+                splits=[split_name],
+                repetitions=3,
+            )
+        )
+
+        assert experiment["id"] is not None
+        assert experiment["dataset_id"] == dataset.id
+        assert experiment["missing_run_count"] == 6  # 2 examples * 3 repetitions
+        assert experiment["example_count"] == 2  # Only 2 examples in the split
+        assert experiment["metadata"] == {"model": "test"}
 
 
 class TestResumeOperations:
@@ -2572,28 +2584,22 @@ class TestEvaluateExperiment:
     """Test the run_experiment -> evaluate_experiment pattern from legacy implementation."""
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_run_experiment_then_evaluate_experiment_pattern(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test running experiment without evaluators, then adding evaluations separately."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_evaluate_pattern_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_evaluate_pattern_{token_hex(4)}"
 
         # Create test dataset
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"question": "What is 2+2?"},
@@ -2633,10 +2639,10 @@ class TestEvaluateExperiment:
 
         # Step 1: Run experiment WITHOUT evaluators (task execution only)
         initial_result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
-                experiment_name=f"test_initial_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_initial_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -2653,7 +2659,9 @@ class TestEvaluateExperiment:
         # Step 2: Add evaluations to the completed experiment
         # This will test the new evaluate_experiment method
         eval_result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).experiments.evaluate_experiment(
+            Client(
+                base_url=_app.base_url, api_key=_app.admin_secret
+            ).experiments.evaluate_experiment(
                 experiment=initial_result,
                 evaluators=[accuracy_evaluator, length_evaluator],
                 print_summary=False,
@@ -2678,24 +2686,20 @@ class TestEvaluateExperiment:
     async def test_evaluation_consistency_when_implemented(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that run_experiment with evaluators produces same results as separate evaluation."""
         # Test is now enabled since evaluate_experiment is implemented
-
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_consistency_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_consistency_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "Hello world"}, {"text": "Python is great"}],
                 outputs=[{"expected": "greeting"}, {"expected": "programming"}],
@@ -2714,7 +2718,7 @@ class TestEvaluateExperiment:
         def accuracy_evaluator(output: str, expected: Dict[str, Any]) -> float:
             return 1.0 if output == expected.get("expected") else 0.0
 
-        client = Client(base_url=_app.base_url, api_key=api_key)
+        client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
 
         # Method 1: Run experiment with evaluators included
         result_with_evals = await _await_or_return(
@@ -2722,7 +2726,7 @@ class TestEvaluateExperiment:
                 dataset=dataset,
                 task=simple_task,
                 evaluators=[accuracy_evaluator],
-                experiment_name=f"test_with_evals_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_with_evals_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -2732,7 +2736,7 @@ class TestEvaluateExperiment:
             client.experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
-                experiment_name=f"test_without_evals_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_without_evals_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -2757,26 +2761,20 @@ class TestEvaluateExperiment:
             assert eval1.result == eval2.result
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_get_experiment_and_evaluate(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_get_experiment_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_get_experiment_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"question": "What is 2+2?"},
@@ -2809,14 +2807,14 @@ class TestEvaluateExperiment:
         def length_evaluator(output: str) -> Dict[str, Any]:
             return {"score": len(output) / 20.0, "label": "length_score"}
 
-        client = Client(base_url=_app.base_url, api_key=api_key)
+        client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
 
         initial_result = await _await_or_return(
             client.experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
                 evaluators=[accuracy_evaluator],  # Start with one evaluator
-                experiment_name=f"test_get_exp_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_get_exp_{token_hex(4)}",
                 print_summary=False,
             )
         )
@@ -2900,26 +2898,20 @@ class TestEvaluateExperiment:
             assert eval_run.result.get("label") == "length_score"
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_dry_run_with_evaluate_experiment(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_dry_run_eval_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_dry_run_eval_{token_hex(4)}"
 
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"text": "Hello world"},
@@ -2944,13 +2936,13 @@ class TestEvaluateExperiment:
         def accuracy_evaluator(output: str, expected: Dict[str, Any]) -> float:
             return 1.0 if output == expected.get("expected") else 0.0
 
-        client = Client(base_url=_app.base_url, api_key=api_key)
+        client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
 
         dry_run_result = await _await_or_return(
             client.experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
-                experiment_name=f"test_dry_run_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_dry_run_{token_hex(4)}",
                 dry_run=True,
                 print_summary=False,
             )
@@ -2974,12 +2966,9 @@ class TestEvaluateExperiment:
         assert len(eval_result["evaluation_runs"]) == 1
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_experiment_with_dataset_splits(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that experiments correctly record split_ids and populate the experiments_dataset_splits junction table."""
@@ -2988,17 +2977,13 @@ class TestEvaluateExperiment:
 
         from .._helpers import _gql
 
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = user.create_api_key(_app)
-        api_key_str = str(api_key)
-
         Client = AsyncClient if is_async else SyncClient
 
-        unique_name = f"test_exp_splits_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_exp_splits_{token_hex(4)}"
 
         # Create dataset with examples
         dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key_str).datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"question": "What is 2+2?"},
@@ -3039,7 +3024,7 @@ class TestEvaluateExperiment:
 
         train_split_result, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=split_mutation,
             variables={
                 "input": {
@@ -3059,7 +3044,7 @@ class TestEvaluateExperiment:
         # Split 2: Test set (last 2 examples)
         test_split_result, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=split_mutation,
             variables={
                 "input": {
@@ -3078,7 +3063,7 @@ class TestEvaluateExperiment:
 
         # First, verify that getting dataset with no splits filter returns ALL examples
         full_dataset_no_filter = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key_str).datasets.get_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.get_dataset(
                 dataset=dataset.id
             )
         )
@@ -3130,10 +3115,10 @@ class TestEvaluateExperiment:
 
         # Run an experiment on the full dataset (no split filter) to verify it processes all examples
         full_dataset_experiment = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key_str).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=full_dataset_no_filter,
                 task=simple_task,
-                experiment_name=f"test_no_split_experiment_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_no_split_experiment_{token_hex(4)}",
                 experiment_description="Test experiment with no split filter",
                 print_summary=False,
             )
@@ -3147,7 +3132,7 @@ class TestEvaluateExperiment:
         no_split_exp_id = full_dataset_experiment["experiment_id"]
         no_split_verification, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=verify_splits_query,
             variables={"experimentId": no_split_exp_id},
         )
@@ -3159,7 +3144,7 @@ class TestEvaluateExperiment:
 
         # Get dataset filtered by train split only
         train_dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key_str).datasets.get_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.get_dataset(
                 dataset=dataset.id,
                 splits=[train_split_name],
             )
@@ -3174,10 +3159,10 @@ class TestEvaluateExperiment:
 
         # Run experiment on the filtered train dataset
         result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key_str).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=train_dataset,
                 task=simple_task,
-                experiment_name=f"test_split_experiment_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_split_experiment_{token_hex(4)}",
                 experiment_description="Test experiment with dataset splits",
                 print_summary=False,
             )
@@ -3197,7 +3182,7 @@ class TestEvaluateExperiment:
         # Query the database to verify the experiments_dataset_splits junction table is populated
         splits_verification, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=verify_splits_query,
             variables={"experimentId": experiment_id},
         )
@@ -3221,7 +3206,7 @@ class TestEvaluateExperiment:
 
         # Test retrieving the experiment and verifying it contains split information
         retrieved_experiment = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key_str).experiments.get_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.get_experiment(
                 experiment_id=experiment_id
             )
         )
@@ -3232,7 +3217,7 @@ class TestEvaluateExperiment:
 
         # Now test running an experiment on multiple splits
         both_splits_dataset = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key_str).datasets.get_dataset(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.get_dataset(
                 dataset=dataset.id,
                 splits=[train_split_name, test_split_name],
             )
@@ -3246,10 +3231,10 @@ class TestEvaluateExperiment:
 
         # Run experiment on dataset with both splits
         multi_split_result = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key_str).experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).experiments.run_experiment(
                 dataset=both_splits_dataset,
                 task=simple_task,
-                experiment_name=f"test_multi_split_experiment_{uuid.uuid4().hex[:8]}",
+                experiment_name=f"test_multi_split_experiment_{token_hex(4)}",
                 experiment_description="Test experiment with multiple dataset splits",
                 print_summary=False,
             )
@@ -3264,7 +3249,7 @@ class TestEvaluateExperiment:
         # Verify both splits are associated with the experiment
         multi_splits_verification, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=verify_splits_query,
             variables={"experimentId": multi_split_exp_id},
         )

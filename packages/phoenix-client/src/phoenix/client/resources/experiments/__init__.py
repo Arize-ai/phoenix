@@ -543,6 +543,93 @@ class Experiments:
             f"datasets/{dataset_id}/compare?experimentId={experiment_id}",
         )
 
+    def create(
+        self,
+        *,
+        dataset_id: str,
+        dataset_version_id: Optional[str] = None,
+        experiment_name: Optional[str] = None,
+        experiment_description: Optional[str] = None,
+        experiment_metadata: Optional[Mapping[str, Any]] = None,
+        splits: Optional[Sequence[str]] = None,
+        repetitions: int = 1,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> Experiment:
+        """Create a new experiment without running it.
+
+        This method creates an experiment record in the Phoenix database but does not
+        execute any tasks. Use `resume_experiment` to run tasks on the created experiment.
+
+        Args:
+            dataset_id (str): The ID of the dataset on which the experiment will be run.
+            dataset_version_id (Optional[str]): The ID of the dataset version to use. If not
+                provided, the latest version will be used. Defaults to None.
+            experiment_name (Optional[str]): The name of the experiment. Defaults to None.
+            experiment_description (Optional[str]): A description of the experiment. Defaults to
+                None.
+            experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
+                experiment. Defaults to None.
+            splits (Optional[Sequence[str]]): List of dataset split identifiers (IDs or names)
+                to filter by. Defaults to None.
+            repetitions (int): The number of times the task will be run on each example.
+                Defaults to 1.
+            timeout (Optional[int]): The timeout for the request in seconds. Defaults to 60.
+
+        Returns:
+            Experiment: The newly created experiment.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            experiment = client.experiments.create(
+                dataset_id="dataset_123",
+                experiment_name="my-experiment",
+                experiment_description="Testing my task",
+                repetitions=3,
+            )
+            print(f"Created experiment with ID: {experiment['id']}")
+
+            # Later, run the experiment
+            client.experiments.resume_experiment(
+                experiment_id=experiment["id"],
+                task=my_task,
+            )
+        """
+        _validate_repetitions(repetitions)
+
+        payload: dict[str, Any] = {
+            "repetitions": repetitions,
+        }
+
+        if experiment_name and experiment_name.strip():
+            payload["name"] = experiment_name.strip()
+
+        if experiment_description and experiment_description.strip():
+            payload["description"] = experiment_description.strip()
+
+        if experiment_metadata:
+            payload["metadata"] = experiment_metadata
+
+        if dataset_version_id and dataset_version_id.strip():
+            payload["version_id"] = dataset_version_id.strip()
+
+        if splits:
+            payload["splits"] = list(splits)
+
+        experiment_response = self._client.post(
+            f"v1/datasets/{dataset_id}/experiments",
+            json=payload,
+            timeout=timeout,
+        )
+        experiment_response.raise_for_status()
+        exp_json = experiment_response.json()["data"]
+        return cast(Experiment, exp_json)
+
     def run_experiment(
         self,
         *,
@@ -639,38 +726,17 @@ class Experiments:
 
         _validate_repetitions(repetitions)
 
-        payload = {
-            "version_id": dataset.version_id,
-            "splits": dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
-            "name": experiment_name,
-            "description": experiment_description,
-            "metadata": experiment_metadata,
-            "repetitions": repetitions,
-        }
-
         if not dry_run:
-            experiment_response = self._client.post(
-                f"v1/datasets/{dataset.id}/experiments",
-                json=payload,
+            experiment = self.create(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset.version_id,
+                experiment_name=experiment_name,
+                experiment_description=experiment_description,
+                experiment_metadata=experiment_metadata,
+                splits=dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
+                repetitions=repetitions,
                 timeout=timeout,
             )
-            experiment_response.raise_for_status()
-            exp_json = experiment_response.json()["data"]
-            project_name = exp_json.get("project_name")
-            experiment: Experiment = {
-                "id": exp_json["id"],
-                "dataset_id": dataset.id,
-                "dataset_version_id": dataset.version_id,
-                "repetitions": repetitions,
-                "metadata": exp_json.get("metadata", {}),
-                "project_name": project_name,
-                "created_at": exp_json["created_at"],
-                "updated_at": exp_json["updated_at"],
-                "example_count": exp_json["example_count"],
-                "successful_run_count": exp_json["successful_run_count"],
-                "failed_run_count": exp_json["failed_run_count"],
-                "missing_run_count": exp_json["missing_run_count"],
-            }
         else:
             experiment = {
                 "id": DRY_RUN,
@@ -1008,6 +1074,7 @@ class Experiments:
         experiment_id: str,
         task: ExperimentTask,
         evaluators: Optional[ExperimentEvaluators] = None,
+        evaluation_names: Sequence[str] = (),
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         rate_limit_errors: Optional[RateLimitErrors] = None,
@@ -1027,6 +1094,12 @@ class Experiments:
             evaluators (Optional[ExperimentEvaluators]): Optional evaluators to run on completed
                 task runs. Evaluators can be provided as a dict mapping names to functions, or as
                 a list of functions (names will be auto-generated). Defaults to None.
+            evaluation_names (Sequence[str]): List of evaluation names to check for incomplete
+                evaluations. Use this when a single evaluator produces multiple evaluations whose
+                names are determined at runtime. When specified, only one evaluator is allowed,
+                and it will run for any experiment run missing any of the specified evaluations.
+                If not provided, evaluation names are matched to evaluator dict keys. Defaults to
+                empty tuple.
             print_summary (bool): Whether to print a summary of the results. Defaults to True.
             timeout (Optional[int]): The timeout for task execution in seconds. Defaults to 60.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
@@ -1058,6 +1131,15 @@ class Experiments:
         """
         task_signature = inspect.signature(task)
         _validate_task_signature(task_signature)
+
+        # Validate evaluation_names: if specified, only allow one evaluator
+        if evaluation_names and evaluators is not None:
+            evaluators_by_name = _evaluators_by_name(evaluators)
+            if len(evaluators_by_name) > 1:
+                raise ValueError(
+                    "When evaluation_names is specified, only one evaluator is allowed. "
+                    "The evaluator should produce multiple evaluations with the specified names."
+                )
 
         # Get the experiment metadata
         experiment = self.get(experiment_id=experiment_id)
@@ -1209,6 +1291,7 @@ class Experiments:
             self.resume_evaluation(
                 experiment_id=experiment_id,
                 evaluators=evaluators,
+                evaluation_names=evaluation_names,
                 print_summary=False,  # We'll print our own summary
                 timeout=timeout,
                 rate_limit_errors=rate_limit_errors,
@@ -2217,6 +2300,93 @@ class AsyncExperiments:
             f"datasets/{dataset_id}/compare?experimentId={experiment_id}",
         )
 
+    async def create(
+        self,
+        *,
+        dataset_id: str,
+        dataset_version_id: Optional[str] = None,
+        experiment_name: Optional[str] = None,
+        experiment_description: Optional[str] = None,
+        experiment_metadata: Optional[Mapping[str, Any]] = None,
+        splits: Optional[Sequence[str]] = None,
+        repetitions: int = 1,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> Experiment:
+        """Create a new experiment without running it (async version).
+
+        This method creates an experiment record in the Phoenix database but does not
+        execute any tasks. Use `resume_experiment` to run tasks on the created experiment.
+
+        Args:
+            dataset_id (str): The ID of the dataset on which the experiment will be run.
+            dataset_version_id (Optional[str]): The ID of the dataset version to use. If not
+                provided, the latest version will be used. Defaults to None.
+            experiment_name (Optional[str]): The name of the experiment. Defaults to None.
+            experiment_description (Optional[str]): A description of the experiment. Defaults to
+                None.
+            experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
+                experiment. Defaults to None.
+            splits (Optional[Sequence[str]]): List of dataset split identifiers (IDs or names)
+                to filter by. Defaults to None.
+            repetitions (int): The number of times the task will be run on each example.
+                Defaults to 1.
+            timeout (Optional[int]): The timeout for the request in seconds. Defaults to 60.
+
+        Returns:
+            Experiment: The newly created experiment.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            experiment = await async_client.experiments.create(
+                dataset_id="dataset_123",
+                experiment_name="my-experiment",
+                experiment_description="Testing my task",
+                repetitions=3,
+            )
+            print(f"Created experiment with ID: {experiment['id']}")
+
+            # Later, run the experiment
+            await async_client.experiments.resume_experiment(
+                experiment_id=experiment["id"],
+                task=my_task,
+            )
+        """
+        _validate_repetitions(repetitions)
+
+        payload: dict[str, Any] = {
+            "repetitions": repetitions,
+        }
+
+        if experiment_name and experiment_name.strip():
+            payload["name"] = experiment_name.strip()
+
+        if experiment_description and experiment_description.strip():
+            payload["description"] = experiment_description.strip()
+
+        if experiment_metadata:
+            payload["metadata"] = experiment_metadata
+
+        if dataset_version_id and dataset_version_id.strip():
+            payload["version_id"] = dataset_version_id.strip()
+
+        if splits:
+            payload["splits"] = list(splits)
+
+        experiment_response = await self._client.post(
+            f"v1/datasets/{dataset_id}/experiments",
+            json=payload,
+            timeout=timeout,
+        )
+        experiment_response.raise_for_status()
+        exp_json = experiment_response.json()["data"]
+        return cast(Experiment, exp_json)
+
     async def run_experiment(
         self,
         *,
@@ -2314,38 +2484,17 @@ class AsyncExperiments:
 
         _validate_repetitions(repetitions)
 
-        payload = {
-            "version_id": dataset.version_id,
-            "splits": dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
-            "name": experiment_name,
-            "description": experiment_description,
-            "metadata": experiment_metadata,
-            "repetitions": repetitions,
-        }
-
         if not dry_run:
-            experiment_response = await self._client.post(
-                f"v1/datasets/{dataset.id}/experiments",
-                json=payload,
+            experiment = await self.create(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset.version_id,
+                experiment_name=experiment_name,
+                experiment_description=experiment_description,
+                experiment_metadata=experiment_metadata,
+                splits=dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
+                repetitions=repetitions,
                 timeout=timeout,
             )
-            experiment_response.raise_for_status()
-            exp_json = experiment_response.json()["data"]
-            project_name = exp_json["project_name"]
-            experiment: Experiment = {
-                "id": exp_json["id"],
-                "dataset_id": dataset.id,
-                "dataset_version_id": dataset.version_id,
-                "repetitions": repetitions,
-                "metadata": exp_json.get("metadata", {}),
-                "project_name": project_name,
-                "created_at": exp_json["created_at"],
-                "updated_at": exp_json["updated_at"],
-                "example_count": exp_json["example_count"],
-                "successful_run_count": exp_json["successful_run_count"],
-                "failed_run_count": exp_json["failed_run_count"],
-                "missing_run_count": exp_json["missing_run_count"],
-            }
         else:
             experiment = {
                 "id": DRY_RUN,
@@ -2684,6 +2833,7 @@ class AsyncExperiments:
         experiment_id: str,
         task: ExperimentTask,
         evaluators: Optional[ExperimentEvaluators] = None,
+        evaluation_names: Sequence[str] = (),
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
@@ -2704,6 +2854,12 @@ class AsyncExperiments:
             evaluators (Optional[ExperimentEvaluators]): Optional evaluators to run on completed
                 task runs. Evaluators can be provided as a dict mapping names to functions, or as
                 a list of functions (names will be auto-generated). Defaults to None.
+            evaluation_names (Sequence[str]): List of evaluation names to check for incomplete
+                evaluations. Use this when a single evaluator produces multiple evaluations whose
+                names are determined at runtime. When specified, only one evaluator is allowed,
+                and it will run for any experiment run missing any of the specified evaluations.
+                If not provided, evaluation names are matched to evaluator dict keys. Defaults to
+                empty tuple.
             print_summary (bool): Whether to print a summary of the results. Defaults to True.
             timeout (Optional[int]): The timeout for task execution in seconds. Defaults to 60.
             concurrency (int): The number of concurrent tasks to run. Defaults to 3.
@@ -2736,6 +2892,15 @@ class AsyncExperiments:
         """
         task_signature = inspect.signature(task)
         _validate_task_signature(task_signature)
+
+        # Validate evaluation_names: if specified, only allow one evaluator
+        if evaluation_names and evaluators is not None:
+            evaluators_by_name = _evaluators_by_name(evaluators)
+            if len(evaluators_by_name) > 1:
+                raise ValueError(
+                    "When evaluation_names is specified, only one evaluator is allowed. "
+                    "The evaluator should produce multiple evaluations with the specified names."
+                )
 
         # Get the experiment metadata
         experiment = await self.get(experiment_id=experiment_id)
@@ -2888,6 +3053,7 @@ class AsyncExperiments:
             await self.resume_evaluation(
                 experiment_id=experiment_id,
                 evaluators=evaluators,
+                evaluation_names=evaluation_names,
                 print_summary=False,  # We'll print our own summary
                 timeout=timeout,
                 concurrency=concurrency,

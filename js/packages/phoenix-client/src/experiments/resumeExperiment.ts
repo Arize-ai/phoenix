@@ -40,6 +40,15 @@ export type ResumeExperimentParams = ClientFn & {
    */
   readonly evaluators?: readonly Evaluator[];
   /**
+   * List of evaluation names to check for incomplete evaluations.
+   * Use this when a single evaluator produces multiple evaluations whose names
+   * are determined at runtime. When specified, only one evaluator is allowed,
+   * and it will run for any experiment run missing any of the specified evaluations.
+   * If not provided, evaluation names are matched to evaluator names.
+   * @default undefined
+   */
+  readonly evaluationNames?: readonly string[];
+  /**
    * The logger to use
    * @default console
    */
@@ -228,6 +237,7 @@ export async function resumeExperiment({
   experimentId,
   task,
   evaluators,
+  evaluationNames,
   logger = console,
   concurrency = 5,
   setGlobalTracerProvider = true,
@@ -242,6 +252,14 @@ export async function resumeExperiment({
     Number.isInteger(pageSize) && pageSize > 0,
     "pageSize must be a positive integer greater than 0"
   );
+
+  // Validate evaluationNames: if specified, only allow one evaluator
+  if (evaluationNames && evaluators && evaluators.length > 1) {
+    throw new Error(
+      "When evaluationNames is specified, only one evaluator is allowed. " +
+        "The evaluator should produce multiple evaluations with the specified names."
+    );
+  }
 
   // Get experiment info
   logger.info(`🔍 Fetching experiment info...`);
@@ -410,6 +428,7 @@ export async function resumeExperiment({
     await resumeEvaluation({
       experimentId,
       evaluators: [...evaluators],
+      evaluationNames,
       client,
       logger,
       concurrency,
