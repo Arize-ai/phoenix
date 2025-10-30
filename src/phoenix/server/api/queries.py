@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -1106,8 +1106,11 @@ class Query:
             before=before if isinstance(before, CursorString) else None,
         )
         async with info.context.db() as session:
+            PolymorphicEvaluator = with_polymorphic(
+                models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+            )
             evaluators = await session.scalars(
-                select(models.Evaluator).order_by(models.Evaluator.id.desc())
+                select(PolymorphicEvaluator).order_by(PolymorphicEvaluator.name.asc())
             )
         data: list[Evaluator] = []
         for evaluator in evaluators:
