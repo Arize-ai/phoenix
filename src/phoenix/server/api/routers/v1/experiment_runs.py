@@ -62,6 +62,12 @@ class CreateExperimentRunResponseBody(ResponseBody[CreateExperimentRunResponseBo
                 "status_code": 404,
                 "description": "Experiment or dataset example not found",
             },
+            {
+                "status_code": 409,
+                "description": (
+                    "Experiment run already exists with a successful result and cannot be updated"
+                ),
+            },
         ]
     ),
 )
@@ -93,24 +99,42 @@ async def create_experiment_run(
     end_time = request_body.end_time
     error = request_body.error
 
-    stmt = insert_on_conflict(
-        {
-            "experiment_id": experiment_rowid,
-            "dataset_example_id": dataset_example_id,
-            "trace_id": trace_id,
-            "output": ExperimentRunOutput(task_output=task_output),
-            "repetition_number": repetition_number,
-            "start_time": start_time,
-            "end_time": end_time,
-            "error": error,
-        },
-        table=models.ExperimentRun,
-        dialect=request.app.state.db.dialect,
-        unique_by=["experiment_id", "dataset_example_id", "repetition_number"],
-        on_conflict=OnConflict.DO_UPDATE,
-    ).returning(models.ExperimentRun.id)
-
     async with request.app.state.db() as session:
+        # Check if a record already exists
+        existing_run = await session.scalar(
+            select(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == experiment_rowid)
+            .where(models.ExperimentRun.dataset_example_id == dataset_example_id)
+            .where(models.ExperimentRun.repetition_number == repetition_number)
+        )
+
+        if existing_run is not None and existing_run.error is None:
+            # Record exists and has no error - reject the update
+            run_gid = GlobalID("ExperimentRun", str(existing_run.id))
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Experiment run {run_gid} already exists with a successful result "
+                    "and cannot be updated"
+                ),
+            )
+        # Either no record exists, or existing record has an error - proceed with upsert
+        stmt = insert_on_conflict(
+            {
+                "experiment_id": experiment_rowid,
+                "dataset_example_id": dataset_example_id,
+                "trace_id": trace_id,
+                "output": ExperimentRunOutput(task_output=task_output),
+                "repetition_number": repetition_number,
+                "start_time": start_time,
+                "end_time": end_time,
+                "error": error,
+            },
+            table=models.ExperimentRun,
+            dialect=request.app.state.db.dialect,
+            unique_by=["experiment_id", "dataset_example_id", "repetition_number"],
+            on_conflict=OnConflict.DO_UPDATE,
+        ).returning(models.ExperimentRun.id)
         id_ = await session.scalar(stmt)
 
     request.state.event_queue.put(ExperimentRunInsertEvent((id_,)))

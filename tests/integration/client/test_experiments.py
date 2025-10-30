@@ -4,7 +4,7 @@ import asyncio
 import uuid
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Union, cast
+from typing import Any, Callable, Dict, Iterator, Optional, Sequence, Union, cast
 from unittest.mock import patch
 
 import pytest
@@ -42,24 +42,24 @@ class _ExperimentTestHelper:
         self.now = datetime.now(timezone.utc).isoformat()
         self._created_datasets: list[str] = []
 
-    def _post_json(self, url: str, **kwargs: Any) -> dict[str, Any]:
+    def post_json(self, url: str, **kwargs: Any) -> Any:
         """Helper to POST and return parsed JSON response data."""
         response = self.http_client.post(url, **kwargs)
         response.raise_for_status()
-        return cast(dict[str, Any], response.json()["data"])
+        return response.json()["data"]
 
-    def _get_json(self, url: str) -> dict[str, Any]:
+    def get_data(self, url: str) -> Any:
         """Helper to GET and return parsed JSON response data."""
         response = self.http_client.get(url)
         response.raise_for_status()
-        return cast(dict[str, Any], response.json()["data"])
+        return response.json()["data"]
 
     def create_dataset(
         self, inputs: list[dict[str, Any]], outputs: list[dict[str, Any]]
     ) -> tuple[str, list[v1.DatasetExample]]:
         """Create a dataset with a randomly generated name and return (dataset_id, examples)."""
         name = f"test_dataset_{token_hex(4)}"
-        upload_result = self._post_json(
+        upload_result = self.post_json(
             "v1/datasets/upload?sync=true",
             json={
                 "action": "create",
@@ -73,7 +73,7 @@ class _ExperimentTestHelper:
         self._created_datasets.append(dataset_id)
 
         # Get examples
-        examples_data = self._get_json(f"v1/datasets/{dataset_id}/examples")
+        examples_data = self.get_data(f"v1/datasets/{dataset_id}/examples")
         examples = cast(list[v1.DatasetExample], examples_data["examples"])
         return dataset_id, examples
 
@@ -81,7 +81,7 @@ class _ExperimentTestHelper:
         """Create an experiment and return the experiment object."""
         return cast(
             v1.Experiment,
-            self._post_json(
+            self.post_json(
                 f"v1/datasets/{dataset_id}/experiments", json={"repetitions": repetitions}
             ),
         )
@@ -89,10 +89,10 @@ class _ExperimentTestHelper:
     def create_runs(
         self,
         exp_id: str,
-        runs: List[tuple[str, int, Optional[str], Optional[str]]],
+        runs: list[tuple[str, int, Optional[str], Optional[str]]],
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[v1.CreateExperimentRunResponseBodyData]:
         """
         Create experiment runs.
 
@@ -102,9 +102,9 @@ class _ExperimentTestHelper:
             start_time: Optional start time (defaults to self.now)
             end_time: Optional end time (defaults to self.now)
         """
-        created_runs: list[dict[str, Any]] = []
+        created_runs: list[v1.CreateExperimentRunResponseBodyData] = []
         for example_id, rep, output, error in runs:
-            run_data = self._post_json(
+            run_data = self.post_json(
                 f"v1/experiments/{exp_id}/runs",
                 json={
                     "dataset_example_id": example_id,
@@ -115,8 +115,12 @@ class _ExperimentTestHelper:
                     "end_time": end_time or self.now,
                 },
             )
-            created_runs.append(run_data)
+            created_runs.append(cast(v1.CreateExperimentRunResponseBodyData, run_data))
         return created_runs
+
+    def get_runs(self, experiment_id: str) -> list[v1.ExperimentRun]:
+        """Get all runs for an experiment."""
+        return cast(list[v1.ExperimentRun], self.get_data(f"v1/experiments/{experiment_id}/runs"))
 
     def create_evaluation(
         self,
@@ -126,7 +130,7 @@ class _ExperimentTestHelper:
         error: Optional[str] = None,
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
-    ) -> dict[str, Any]:
+    ) -> v1.UpsertExperimentEvaluationResponseBodyData:
         """
         Create a single evaluation annotation.
 
@@ -153,7 +157,10 @@ class _ExperimentTestHelper:
         else:
             payload["result"] = {"score": 1.0}  # Default success
 
-        return self._post_json("v1/experiment_evaluations", json=payload)
+        return cast(
+            v1.UpsertExperimentEvaluationResponseBodyData,
+            self.post_json("v1/experiment_evaluations", json=payload),
+        )
 
     def create_evaluations(
         self,
@@ -171,12 +178,11 @@ class _ExperimentTestHelper:
             failed_evaluator_names: List of evaluator names to create with errors
             score: Score to use for successful evaluations (default: 1.0)
         """
-        runs_data = self._get_json(f"v1/experiments/{exp_id}/runs")
-        runs = cast(list[dict[str, Any]], runs_data)
+        runs = self.get_runs(exp_id)
         failed_evaluator_names = failed_evaluator_names or []
 
         for run in runs:
-            run_id = cast(str, run["id"])
+            run_id = run["id"]
 
             for eval_name in success_evaluators:
                 self.create_evaluation(run_id, eval_name, score=score)
@@ -291,11 +297,10 @@ class _ExperimentTestHelper:
                      None values in the list skip validation for that repetition.
             examples: List of dataset examples to get IDs from
         """
-        runs_data = self._get_json(f"v1/experiments/{experiment_id}/runs")
-        runs = cast(list[dict[str, Any]], runs_data)
+        runs = self.get_runs(experiment_id)
 
         # Group successful runs by example ID
-        runs_by_example: dict[str, list[dict[str, Any]]] = {}
+        runs_by_example: dict[str, list[v1.ExperimentRun]] = {}
         for run in runs:
             if not run.get("error"):
                 example_id = run["dataset_example_id"]
@@ -371,7 +376,7 @@ class SpanCapture:
     """Helper class to capture OpenTelemetry spans during testing."""
 
     def __init__(self) -> None:
-        self.spans: List[ReadableSpan] = []
+        self.spans: list[ReadableSpan] = []
 
     def clear(self) -> None:
         self.spans.clear()
@@ -547,8 +552,8 @@ class TestExperimentsIntegration:
 
         assert len(span_capture.spans) > 0, "No spans were captured"
 
-        task_spans: List[ReadableSpan] = []
-        eval_spans: List[ReadableSpan] = []
+        task_spans: list[ReadableSpan] = []
+        eval_spans: list[ReadableSpan] = []
 
         for span in span_capture.spans:
             if span.attributes is not None:
@@ -1606,7 +1611,7 @@ class TestExperimentsIntegration:
         for i in range(3):
             exp = helper.create_experiment(dataset_id, repetitions=1)
             # Create runs for all examples in one call
-            runs: List[tuple[str, int, Optional[str], Optional[str]]] = [
+            runs: list[tuple[str, int, Optional[str], Optional[str]]] = [
                 (ex["id"], 1, f"response_{i}", None) for ex in examples
             ]
             helper.create_runs(exp["id"], runs)
@@ -1752,6 +1757,103 @@ class TestExperimentsIntegration:
 
         with pytest.raises(ValueError, match="Experiment not found"):
             await _await_or_return(client.experiments.delete(experiment_id=fake_id))
+
+    async def test_experiment_run_upsert_protection(
+        self,
+        _app: _AppInfo,
+        _setup_experiment_test: _SetupExperimentTest,
+    ) -> None:
+        """
+        Test that experiment runs with successful results cannot be overwritten.
+
+        Verifies:
+        1. Successful runs (error=None) return 409 Conflict when update is attempted
+        2. Failed runs (error not None) can be updated with new errors
+        3. Failed runs can be updated to successful runs
+        4. Once updated to successful, runs become protected from further updates
+        """
+        _, helper = _setup_experiment_test(False)
+
+        # Create dataset and experiment
+        dataset_id, examples = helper.create_dataset(
+            inputs=[{"q": "test1"}, {"q": "test2"}],
+            outputs=[{"a": "answer1"}, {"a": "answer2"}],
+        )
+        exp = helper.create_experiment(dataset_id, repetitions=1)
+
+        # Test 1: Create a successful run (error=None)
+        successful_run = helper.create_runs(
+            exp["id"], [(examples[0]["id"], 1, "original_output", None)]
+        )[0]
+        assert successful_run["id"] is not None
+
+        # Test 2: Attempt to update the successful run - should return 409
+        response = helper.http_client.post(
+            f"v1/experiments/{exp['id']}/runs",
+            json={
+                "dataset_example_id": examples[0]["id"],
+                "repetition_number": 1,
+                "output": "updated_output",
+                "error": None,
+                "start_time": helper.now,
+                "end_time": helper.now,
+            },
+        )
+        assert response.status_code == 409
+        assert "already exists with a successful result" in response.text
+
+        # Test 3: Create a failed run (error not None)
+        failed_run = helper.create_runs(
+            exp["id"], [(examples[1]["id"], 1, "failed_output", "Some error")]
+        )[0]
+        assert failed_run["id"] is not None
+
+        # Verify the failed run was created with the error
+        runs = helper.get_runs(exp["id"])
+        example1_runs = [r for r in runs if r["dataset_example_id"] == examples[1]["id"]]
+        assert len(example1_runs) == 1
+        assert example1_runs[0]["output"] == "failed_output"
+        assert example1_runs[0].get("error") == "Some error"
+
+        # Test 4: Update the failed run with a new error - should succeed
+        updated_run = helper.create_runs(
+            exp["id"], [(examples[1]["id"], 1, "retried_output", "New error message")]
+        )[0]
+        assert updated_run["id"] is not None
+
+        # Verify the error was updated
+        runs = helper.get_runs(exp["id"])
+        example1_runs = [r for r in runs if r["dataset_example_id"] == examples[1]["id"]]
+        assert len(example1_runs) == 1
+        assert example1_runs[0]["output"] == "retried_output"
+        assert example1_runs[0].get("error") == "New error message"
+
+        # Test 5: Update the failed run to successful - should succeed
+        successful_retry = helper.create_runs(
+            exp["id"], [(examples[1]["id"], 1, "final_output", None)]
+        )[0]
+        assert successful_retry["id"] is not None
+
+        # Verify the run is now successful (error is None)
+        runs = helper.get_runs(exp["id"])
+        example1_runs = [r for r in runs if r["dataset_example_id"] == examples[1]["id"]]
+        assert len(example1_runs) == 1
+        assert example1_runs[0]["output"] == "final_output"
+        assert example1_runs[0].get("error") is None
+
+        # Test 6: Now the previously-failed run is successful, it should be protected
+        response = helper.http_client.post(
+            f"v1/experiments/{exp['id']}/runs",
+            json={
+                "dataset_example_id": examples[1]["id"],
+                "repetition_number": 1,
+                "output": "another_attempt",
+                "error": None,
+                "start_time": helper.now,
+                "end_time": helper.now,
+            },
+        )
+        assert response.status_code == 409
 
 
 class TestResumeOperations:
@@ -2016,8 +2118,7 @@ class TestResumeOperations:
         )
 
         # Verify NEW errors are recorded in the runs (not the original errors)
-        runs_data = helper._get_json(f"v1/experiments/{exp['id']}/runs")
-        runs = cast(list[dict[str, Any]], runs_data)
+        runs = helper.get_runs(exp["id"])
         assert len([r for r in runs if r.get("error")]) == 3, "All runs should still have errors"
         for run in runs:
             error_msg = run.get("error", "")
@@ -2319,9 +2420,8 @@ class TestResumeOperations:
         )
 
         # Get the run IDs - note that API returns them in descending order
-        runs_data = helper._get_json(f"v1/experiments/{exp['id']}/runs")
-        runs = cast(List[dict[str, Any]], runs_data)
-        run_ids = [cast(str, run["id"]) for run in runs]
+        runs = helper.get_runs(exp["id"])
+        run_ids = [run["id"] for run in runs]
         # runs are returned as [run2, run1, run0] due to descending order
 
         # Simulate scenario: A multi-output evaluator produced evaluations with names
@@ -2337,7 +2437,7 @@ class TestResumeOperations:
         # We need to specify evaluation_names explicitly since the names are generated dynamically
         call_count = [0]
 
-        def multi_metrics_evaluator(output: Any, input: Any, expected: Any) -> List[dict[str, Any]]:
+        def multi_metrics_evaluator(output: Any, input: Any, expected: Any) -> list[dict[str, Any]]:
             """Evaluator that produces multiple metrics with names not known upfront."""
             call_count[0] += 1
             # Return multiple evaluations as a list of dicts with 'name' and 'score'
@@ -2409,7 +2509,7 @@ class TestResumeOperations:
         )
 
         # Define a multi-output LLM-as-a-judge evaluator that always fails
-        def failing_llm_judge(output: Any, input: Any, expected: Any) -> List[dict[str, Any]]:
+        def failing_llm_judge(output: Any, input: Any, expected: Any) -> list[dict[str, Any]]:
             """Multi-output LLM-as-a-judge evaluator that always raises an exception."""
             raise ValueError("LLM judge evaluator intentionally failed")
 
