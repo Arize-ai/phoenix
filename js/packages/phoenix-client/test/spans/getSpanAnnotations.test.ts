@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getSpanAnnotations } from "../../src/spans/getSpanAnnotations";
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the fetch module
 const mockGet = vi.fn();

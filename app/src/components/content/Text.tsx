@@ -95,11 +95,12 @@ function Text(props: TextProps, ref: Ref<HTMLElement>) {
     ...rest
   } = props;
   const { styleProps, otherProps } = useStyleProps(rest);
+  const { className, ...restProps } = otherProps;
 
   return (
     <AriaText
-      className={classNames("ac-text", `font-${fontFamily}`)}
-      {...otherProps}
+      className={classNames("ac-text", `font-${fontFamily}`, className)}
+      {...restProps}
       {...styleProps}
       css={css`
         ${textCSS(color)};

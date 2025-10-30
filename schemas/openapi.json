@@ -1261,6 +1261,27 @@
               "title": "Version Id"
             },
             "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
+          },
+          {
+            "name": "split",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "List of dataset split identifiers (GlobalIDs or names) to filter by",
+              "title": "Split"
+            },
+            "description": "List of dataset split identifiers (GlobalIDs or names) to filter by"
           }
         ],
         "responses": {
@@ -4622,6 +4643,21 @@
             "title": "Version Id",
             "description": "ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)"
           },
+          "splits": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Splits",
+            "description": "List of dataset split identifiers (GlobalIDs or names) to filter by"
+          },
           "repetitions": {
             "type": "integer",
             "title": "Repetitions",
@@ -5718,6 +5754,13 @@
           "version_id": {
             "type": "string",
             "title": "Version Id"
+          },
+          "filtered_splits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Filtered Splits"
           },
           "examples": {
             "items": {

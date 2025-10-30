@@ -1,9 +1,9 @@
 import { Suspense, useState } from "react";
 import { SubmenuTrigger } from "react-aria-components";
+import { css } from "@emotion/react";
 
 import {
   Button,
-  Dialog,
   Flex,
   Icon,
   Icons,
@@ -17,7 +17,6 @@ import {
 } from "@phoenix/components";
 import { DatasetLabelSelectionContent } from "@phoenix/components/dataset/DatasetLabelConfigButton";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
 import { EditDatasetDialog } from "./EditDatasetDialog";
@@ -39,7 +38,6 @@ enum DatasetAction {
 }
 
 export function DatasetActionMenu(props: DatasetActionMenuProps) {
-  const datasetSplitsEnabled = useFeatureFlag("datasetLabel");
   const {
     datasetId,
     datasetName,
@@ -52,6 +50,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
   } = props;
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
   return (
     <StopPropagation>
       <MenuTrigger>
@@ -69,9 +68,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                 case DatasetAction.EDIT:
                   setIsEditOpen(true);
                   break;
-                case DatasetAction.LABELS:
-                  // no-op, submenu trigger will open the popover
-                  break;
               }
             }}
           >
@@ -86,34 +82,40 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                 <Text>Edit</Text>
               </Flex>
             </MenuItem>
-            {datasetSplitsEnabled && (
-              <SubmenuTrigger>
-                <MenuItem id={DatasetAction.LABELS}>
-                  <Flex
-                    direction={"row"}
-                    gap="size-75"
-                    justifyContent={"start"}
-                    alignItems={"center"}
-                  >
-                    <Icon svg={<Icons.PriceTagsOutline />} />
-                    <Text>Label</Text>
-                  </Flex>
-                </MenuItem>
-                <Popover placement="left">
-                  <PopoverArrow />
-                  <Dialog>
-                    {({ close }) => (
-                      <Suspense fallback={<Loading />}>
-                        <DatasetLabelSelectionContent
-                          datasetId={datasetId}
-                          onClose={() => close()}
-                        />
-                      </Suspense>
-                    )}
-                  </Dialog>
-                </Popover>
-              </SubmenuTrigger>
-            )}
+            <SubmenuTrigger>
+              <MenuItem id={DatasetAction.LABELS}>
+                <Flex
+                  direction={"row"}
+                  gap="size-75"
+                  justifyContent={"start"}
+                  alignItems={"center"}
+                >
+                  <Icon svg={<Icons.PriceTagsOutline />} />
+                  <Text>Label</Text>
+                </Flex>
+              </MenuItem>
+              <Popover
+                placement="start top"
+                css={css`
+                  min-width: 300px;
+                  width: 300px;
+                `}
+              >
+                <PopoverArrow />
+                <Suspense
+                  fallback={
+                    <Loading
+                      css={css`
+                        min-width: 300px;
+                        min-height: 100px;
+                      `}
+                    />
+                  }
+                >
+                  <DatasetLabelSelectionContent datasetId={datasetId} />
+                </Suspense>
+              </Popover>
+            </SubmenuTrigger>
             <MenuItem id={DatasetAction.DELETE}>
               <Flex
                 direction={"row"}

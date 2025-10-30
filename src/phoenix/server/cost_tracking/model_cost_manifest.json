@@ -342,6 +342,60 @@
       ]
     },
     {
+      "name": "claude-haiku-4-5",
+      "name_pattern": "claude-haiku-4-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "claude-haiku-4-5-20251001",
+      "name_pattern": "claude-haiku-4-5-20251001",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "claude-opus-4-1",
       "name_pattern": "claude-opus-4-1",
       "source": "litellm",
@@ -730,7 +784,34 @@
           "token_type": "output"
         },
         {
-          "base_rate": 7.5e-8,
+          "base_rate": 3e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini-2.5-flash-image",
+      "name_pattern": "gemini-2\\.5-flash-image",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         },
@@ -946,7 +1027,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3.125e-7,
+          "base_rate": 1.25e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         }

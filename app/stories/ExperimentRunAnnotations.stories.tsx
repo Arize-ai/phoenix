@@ -3,6 +3,7 @@ import { Meta, StoryFn } from "@storybook/react";
 import { View } from "@phoenix/components";
 import { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExperimentRunAnnotations } from "@phoenix/components/experiment/ExperimentCompareDetails";
+import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
 
 type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
@@ -11,6 +12,11 @@ type ExperimentRun = NonNullable<
 type AnnotationSummaries = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
 >;
+
+type StoryArgs = {
+  experimentRun: ExperimentRun;
+  annotationSummaries?: AnnotationSummaries;
+};
 
 const mockExperimentRunWithAnnotations: ExperimentRun = {
   id: "run-1",
@@ -37,6 +43,7 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
           name: "qa_correctness",
           label: "correct",
           score: 0.95,
+          metadata: null,
           trace: {
             traceId: "eval-trace-111",
             projectId: "project-456",
@@ -49,6 +56,7 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
           name: "has_results",
           label: null,
           score: 1.0,
+          metadata: null,
           trace: {
             traceId: "eval-trace-222",
             projectId: "project-456",
@@ -61,6 +69,7 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
           name: "sql_syntax_valid",
           label: "valid",
           score: 1.0,
+          metadata: null,
           trace: {
             traceId: "eval-trace-333",
             projectId: "project-456",
@@ -111,7 +120,7 @@ const mockAnnotationSummaries: AnnotationSummaries = [
   },
 ];
 
-const meta: Meta<typeof ExperimentRunAnnotations> = {
+const meta: Meta<StoryArgs> = {
   title: "Experiment/ExperimentRunAnnotations",
   component: ExperimentRunAnnotations,
   parameters: {
@@ -139,25 +148,61 @@ This component is used within ExperimentItem to display evaluation results and m
     annotationSummaries: {
       control: false,
       description:
-        "Summary statistics for annotations to calculate percentiles",
+        "Optional custom annotation summaries. If not provided, uses mockAnnotationSummaries",
     },
   },
 };
 
 export default meta;
-type Story = StoryFn<typeof ExperimentRunAnnotations>;
+type Story = StoryFn<StoryArgs>;
 
-const Template: Story = (args) => (
-  <View
-    width="600px"
-    borderColor="light"
-    borderWidth="thin"
-    borderRadius="medium"
-    overflow="hidden"
-  >
-    <ExperimentRunAnnotations {...args} openTraceDialog={() => {}} />
-  </View>
-);
+const Template: Story = (args) => {
+  const mockExperimentsById = {
+    "exp-1": {
+      id: "exp-1",
+      name: "Mock Experiment",
+      repetitions: 1,
+    },
+  };
+
+  const mockExperimentRepetitionsByExperimentId = {
+    "exp-1": [
+      {
+        experimentId: "exp-1",
+        repetitionNumber: 1,
+        experimentRun: args.experimentRun,
+      },
+    ],
+  };
+
+  const annotationSummaries =
+    args.annotationSummaries || mockAnnotationSummaries;
+
+  return (
+    <View
+      width="600px"
+      borderColor="light"
+      borderWidth="thin"
+      borderRadius="medium"
+      overflow="hidden"
+    >
+      <ExperimentCompareDetailsProvider
+        baseExperimentId="exp-1"
+        compareExperimentIds={[]}
+        experimentsById={mockExperimentsById}
+        experimentRepetitionsByExperimentId={
+          mockExperimentRepetitionsByExperimentId
+        }
+        annotationSummaries={annotationSummaries}
+        includeRepetitions={false}
+        openTraceDialog={() => {}}
+        referenceOutput=""
+      >
+        <ExperimentRunAnnotations experimentRun={args.experimentRun} />
+      </ExperimentCompareDetailsProvider>
+    </View>
+  );
+};
 
 /**
  * Default annotation stack with multiple annotations including scores and labels
@@ -165,7 +210,6 @@ const Template: Story = (args) => (
 export const Default = Template.bind({});
 Default.args = {
   experimentRun: mockExperimentRunWithAnnotations,
-  annotationSummaries: mockAnnotationSummaries,
 };
 
 /**
@@ -174,7 +218,6 @@ Default.args = {
 export const NoAnnotations = Template.bind({});
 NoAnnotations.args = {
   experimentRun: mockExperimentRunNoAnnotations,
-  annotationSummaries: mockAnnotationSummaries,
 };
 
 /**
@@ -189,9 +232,10 @@ ScoreOnly.args = {
         {
           annotation: {
             id: "ann-1",
-            name: "accuracy",
+            name: "qa_correctness",
             label: null,
             score: 0.87,
+            metadata: null,
             trace: {
               traceId: "eval-trace-score-1",
               projectId: "project-456",
@@ -201,11 +245,25 @@ ScoreOnly.args = {
         {
           annotation: {
             id: "ann-2",
-            name: "precision",
+            name: "has_results",
             label: null,
             score: 0.92,
+            metadata: null,
             trace: {
               traceId: "eval-trace-score-2",
+              projectId: "project-456",
+            },
+          },
+        },
+        {
+          annotation: {
+            id: "ann-3",
+            name: "sql_syntax_valid",
+            label: null,
+            score: 1.0,
+            metadata: null,
+            trace: {
+              traceId: "eval-trace-score-3",
               projectId: "project-456",
             },
           },
@@ -213,18 +271,6 @@ ScoreOnly.args = {
       ],
     },
   },
-  annotationSummaries: [
-    {
-      annotationName: "accuracy",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-    {
-      annotationName: "precision",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-  ],
 };
 
 /**
@@ -239,9 +285,10 @@ LabelsOnly.args = {
         {
           annotation: {
             id: "ann-1",
-            name: "sentiment",
-            label: "positive",
+            name: "qa_correctness",
+            label: "correct",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-label-1",
               projectId: "project-789",
@@ -251,11 +298,25 @@ LabelsOnly.args = {
         {
           annotation: {
             id: "ann-2",
-            name: "category",
-            label: "technical",
+            name: "has_results",
+            label: "yes",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-label-2",
+              projectId: "project-789",
+            },
+          },
+        },
+        {
+          annotation: {
+            id: "ann-3",
+            name: "sql_syntax_valid",
+            label: "valid",
+            score: null,
+            metadata: null,
+            trace: {
+              traceId: "eval-trace-label-3",
               projectId: "project-789",
             },
           },
@@ -263,18 +324,6 @@ LabelsOnly.args = {
       ],
     },
   },
-  annotationSummaries: [
-    {
-      annotationName: "sentiment",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-    {
-      annotationName: "category",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-  ],
 };
 
 /**
@@ -292,6 +341,7 @@ MixedWithMissing.args = {
             name: "qa_correctness",
             label: null,
             score: 0.75,
+            metadata: null,
             trace: {
               traceId: "eval-trace-mixed-1",
               projectId: "project-456",
@@ -302,9 +352,10 @@ MixedWithMissing.args = {
         {
           annotation: {
             id: "ann-3",
-            name: "readability",
+            name: "sql_syntax_valid",
             label: "good",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-mixed-2",
               projectId: "project-456",
@@ -314,23 +365,6 @@ MixedWithMissing.args = {
       ],
     },
   },
-  annotationSummaries: [
-    {
-      annotationName: "qa_correctness",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-    {
-      annotationName: "has_results",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-    {
-      annotationName: "readability",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-  ],
 };
 
 /**
@@ -345,9 +379,10 @@ LongAnnotationNames.args = {
         {
           annotation: {
             id: "ann-1",
-            name: "very_long_annotation_name_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
+            name: "qa_correctness_with_very_long_name_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
             label: "correct",
             score: 0.85,
+            metadata: null,
             trace: {
               traceId: "eval-trace-long-1",
               projectId: "project-456",
@@ -357,9 +392,10 @@ LongAnnotationNames.args = {
         {
           annotation: {
             id: "ann-2",
-            name: "another_extremely_long_annotation_name_for_testing_truncation_behavior",
+            name: "has_results_with_another_extremely_long_annotation_name_for_testing_truncation_behavior",
             label: null,
             score: 0.92,
+            metadata: null,
             trace: {
               traceId: "eval-trace-long-2",
               projectId: "project-456",
@@ -369,9 +405,10 @@ LongAnnotationNames.args = {
         {
           annotation: {
             id: "ann-3",
-            name: "short_name",
+            name: "sql_syntax_valid",
             label: "good",
             score: 0.78,
+            metadata: null,
             trace: {
               traceId: "eval-trace-long-3",
               projectId: "project-456",
@@ -384,18 +421,18 @@ LongAnnotationNames.args = {
   annotationSummaries: [
     {
       annotationName:
-        "very_long_annotation_name_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
+        "qa_correctness_with_very_long_name_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
       minScore: 0.0,
       maxScore: 1.0,
     },
     {
       annotationName:
-        "another_extremely_long_annotation_name_for_testing_truncation_behavior",
+        "has_results_with_another_extremely_long_annotation_name_for_testing_truncation_behavior",
       minScore: 0.0,
       maxScore: 1.0,
     },
     {
-      annotationName: "short_name",
+      annotationName: "sql_syntax_valid",
       minScore: 0.0,
       maxScore: 1.0,
     },
@@ -414,10 +451,11 @@ LongAnnotationValues.args = {
         {
           annotation: {
             id: "ann-1",
-            name: "detailed_feedback_label_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
+            name: "qa_correctness",
             label:
               "This is an extremely long annotation value that contains detailed feedback about the quality of the generated response and should be truncated properly in the UI to maintain good layout and readability",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-value-1",
               projectId: "project-456",
@@ -427,10 +465,11 @@ LongAnnotationValues.args = {
         {
           annotation: {
             id: "ann-2",
-            name: "error_message",
+            name: "has_results",
             label:
               "A very long error message that describes exactly what went wrong during the execution of this particular experiment run including stack traces and detailed debugging information",
             score: null,
+            metadata: null,
             trace: {
               traceId: "eval-trace-value-2",
               projectId: "project-456",
@@ -440,9 +479,10 @@ LongAnnotationValues.args = {
         {
           annotation: {
             id: "ann-3",
-            name: "accuracy",
+            name: "sql_syntax_valid",
             label: null,
             score: 0.95,
+            metadata: null,
             trace: {
               traceId: "eval-trace-value-3",
               projectId: "project-456",
@@ -452,24 +492,6 @@ LongAnnotationValues.args = {
       ],
     },
   },
-  annotationSummaries: [
-    {
-      annotationName:
-        "detailed_feedback_label_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-    {
-      annotationName: "error_message",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-    {
-      annotationName: "accuracy",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-  ],
 };
 
 /**
@@ -488,6 +510,7 @@ NoTraces.args = {
             name: "qa_correctness",
             label: "correct",
             score: 0.95,
+            metadata: null,
             trace: null,
           },
         },
@@ -497,6 +520,7 @@ NoTraces.args = {
             name: "has_results",
             label: null,
             score: 1.0,
+            metadata: null,
             trace: null,
           },
         },
@@ -506,11 +530,11 @@ NoTraces.args = {
             name: "sql_syntax_valid",
             label: "valid",
             score: 1.0,
+            metadata: null,
             trace: null,
           },
         },
       ],
     },
   },
-  annotationSummaries: mockAnnotationSummaries,
 };

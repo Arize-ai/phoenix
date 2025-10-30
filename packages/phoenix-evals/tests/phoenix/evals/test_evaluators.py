@@ -13,7 +13,6 @@ from phoenix.evals.evaluators import (
     create_classifier,
     create_evaluator,
     evaluate_dataframe,
-    list_evaluators,
     to_thread,
 )
 from phoenix.evals.llm import LLM
@@ -268,7 +267,9 @@ class TestEvaluator:
             source="llm",
         )
 
-        result = evaluator.evaluate({"user_input": "test"}, input_mapping={"input": "user_input"})
+        result = evaluator.evaluate(
+            eval_input={"user_input": "test"}, input_mapping={"input": "user_input"}
+        )
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
@@ -317,7 +318,7 @@ class TestEvaluator:
             input_schema=InputModel,
         )
 
-        result = await evaluator.async_evaluate({"input": "test"})
+        result = await evaluator.async_evaluate(eval_input={"input": "test"})
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
@@ -483,43 +484,12 @@ class TestClassificationEvaluator:
         assert result[0].name == "test_evaluator"
 
 
-class TestRegistryAndDecorator:
-    """Test registry and decorator functionality."""
-
-    def test_list_evaluators_empty(self):
-        """Test list_evaluators with empty registry."""
-        # Clear registry for this test
-        from phoenix.evals.evaluators import _registry
-
-        original_registry = _registry.copy()
-        _registry.clear()
-
-        try:
-            result = list_evaluators()
-            assert result == []
-        finally:
-            # Restore original registry
-            _registry.clear()
-            _registry.update(original_registry)
-
-    def test_create_evaluator_registration(self):
-        """Test that create_evaluator registers the function."""
-
-        @create_evaluator("registered_evaluator", "heuristic")
-        def test_func(input_text: str) -> Score:
-            return Score(score=0.8)
-
-        # Check if it's registered
-        evaluators = list_evaluators()
-        assert "registered_evaluator" in evaluators
-
-
 class TestCreateEvaluatorAsync:
     """Test async support in create_evaluator decorator."""
 
     @pytest.mark.asyncio
     async def test_create_evaluator_with_async_function(self):
-        @create_evaluator("async_test", "heuristic")
+        @create_evaluator(name="async_test", source="heuristic")
         async def async_eval(output: str) -> float:
             return len(output) * 2
 
@@ -533,7 +503,7 @@ class TestCreateEvaluatorAsync:
 
     @pytest.mark.asyncio
     async def test_async_evaluator_call_returns_awaitable(self):
-        @create_evaluator("async_call_test", "heuristic")
+        @create_evaluator(name="async_call_test", source="heuristic")
         async def async_eval(output: str) -> float:
             return len(output)
 
@@ -542,7 +512,7 @@ class TestCreateEvaluatorAsync:
 
     @pytest.mark.asyncio
     async def test_async_evaluator_preserves_original_function_behavior(self):
-        @create_evaluator("async_preserve_test", "heuristic")
+        @create_evaluator(name="async_preserve_test", source="heuristic")
         async def async_eval(text: str, multiplier: int = 2) -> float:
             return len(text) * multiplier
 
@@ -553,7 +523,7 @@ class TestCreateEvaluatorAsync:
         assert result_default == 8
 
     def test_async_evaluator_sync_evaluate_raises_error(self):
-        @create_evaluator("async_error_test", "heuristic")
+        @create_evaluator(name="async_error_test", source="heuristic")
         async def async_eval(output: str) -> float:
             return len(output)
 
@@ -562,7 +532,7 @@ class TestCreateEvaluatorAsync:
 
     @pytest.mark.asyncio
     async def test_async_evaluator_with_score_object(self):
-        @create_evaluator("async_score_test", "llm", "minimize")
+        @create_evaluator(name="async_score_test", source="llm", direction="minimize")
         async def async_eval(input_text: str) -> Score:
             return Score(score=0.5, label="test", explanation="async result")
 
@@ -579,7 +549,7 @@ class TestCreateEvaluatorAsync:
 
     @pytest.mark.asyncio
     async def test_async_evaluator_with_tuple_return(self):
-        @create_evaluator("async_tuple_test", "heuristic")
+        @create_evaluator(name="async_tuple_test", source="heuristic")
         async def async_eval(output: str) -> tuple:
             return (0.8, "good", "This is an async evaluation result")
 
@@ -596,7 +566,7 @@ class TestCreateEvaluatorDecorator:
     """Test the enhanced create_evaluator decorator with various return types."""
 
     def test_sync_evaluator_call_preserves_original_function(self):
-        @create_evaluator("sync_call_test", "heuristic")
+        @create_evaluator(name="sync_call_test", source="heuristic")
         def sync_eval(text: str, multiplier: int = 2) -> float:
             return len(text) * multiplier
 
@@ -609,7 +579,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_score_object(self):
         """Test create_evaluator with Score object return."""
 
-        @create_evaluator("test_evaluator", "heuristic", "maximize")
+        @create_evaluator(name="test_evaluator", source="heuristic", direction="maximize")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8, label="good", explanation="test explanation")
 
@@ -627,7 +597,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_number_return(self):
         """Test create_evaluator with number return."""
 
-        @create_evaluator("number_evaluator", "heuristic")
+        @create_evaluator(name="number_evaluator", source="heuristic")
         def test_func(input_text: str) -> float:
             return 0.75
 
@@ -643,7 +613,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_boolean_return(self):
         """Test create_evaluator with boolean return."""
 
-        @create_evaluator("boolean_evaluator", "heuristic")
+        @create_evaluator(name="boolean_evaluator", source="heuristic")
         def test_func(input_text: str) -> bool:
             return True
 
@@ -659,7 +629,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_short_string_return(self):
         """Test create_evaluator with short string return (≤3 words)."""
 
-        @create_evaluator("short_string_evaluator", "heuristic")
+        @create_evaluator(name="short_string_evaluator", source="heuristic")
         def test_func(input_text: str) -> str:
             return "good"
 
@@ -675,7 +645,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_long_string_return(self):
         """Test create_evaluator with long string return (≥4 words)."""
 
-        @create_evaluator("long_string_evaluator", "heuristic")
+        @create_evaluator(name="long_string_evaluator", source="heuristic")
         def test_func(input_text: str) -> str:
             return "This is a much longer explanation that should go into the explanation field"
 
@@ -694,7 +664,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_dictionary_return(self):
         """Test create_evaluator with dictionary return."""
 
-        @create_evaluator("dict_evaluator", "heuristic")
+        @create_evaluator(name="dict_evaluator", source="heuristic")
         def test_func(input_text: str) -> dict:
             return {
                 "score": 0.9,
@@ -714,7 +684,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_tuple_return(self):
         """Test create_evaluator with tuple return."""
 
-        @create_evaluator("tuple_evaluator", "heuristic")
+        @create_evaluator(name="tuple_evaluator", source="heuristic")
         def test_func(input_text: str) -> tuple:
             return (0.85, "very good", "This is a comprehensive evaluation")
 
@@ -730,7 +700,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_mixed_tuple_return(self):
         """Test create_evaluator with mixed tuple including nested dict."""
 
-        @create_evaluator("mixed_tuple_evaluator", "heuristic")
+        @create_evaluator(name="mixed_tuple_evaluator", source="heuristic")
         def test_func(input_text: str) -> tuple:
             return (0.7, {"score": 0.8, "label": "mixed"}, "This is a final explanation")
 
@@ -740,7 +710,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_unsupported_type_raises_error(self):
         """Test create_evaluator raises error for unsupported return types."""
 
-        @create_evaluator("unsupported_evaluator", "heuristic")
+        @create_evaluator(name="unsupported_evaluator", source="heuristic")
         def test_func(input_text: str) -> list:
             return [1, 2, 3]
 
@@ -750,7 +720,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_unsupported_type_error_message(self):
         """Test create_evaluator provides informative error message for unsupported types."""
 
-        @create_evaluator("error_test_evaluator", "heuristic")
+        @create_evaluator(name="error_test_evaluator", source="heuristic")
         def test_func(input_text: str) -> set:
             return {1, 2, 3}
 
@@ -764,7 +734,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_input_mapping(self):
         """Test create_evaluator with input mapping."""
 
-        @create_evaluator("mapping_evaluator", "heuristic")
+        @create_evaluator(name="mapping_evaluator", source="heuristic")
         def test_func(input_text: str) -> float:
             return 0.8
 
@@ -797,7 +767,7 @@ class TestCreateEvaluatorDecorator:
     ):
         """Test create_evaluator with various return types using parametrization."""
 
-        @create_evaluator("param_test_evaluator", "heuristic")
+        @create_evaluator(name="param_test_evaluator", source="heuristic")
         def test_func(input_text: str):
             return return_value
 
@@ -813,7 +783,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_preserves_metadata(self):
         """Test that create_evaluator preserves metadata when Score object is returned."""
 
-        @create_evaluator("metadata_evaluator", "heuristic")
+        @create_evaluator(name="metadata_evaluator", source="heuristic")
         def test_func(input_text: str) -> Score:
             return Score(
                 score=0.8, label="good", explanation="test", metadata={"custom_key": "custom_value"}
@@ -828,7 +798,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_custom_source_and_direction(self):
         """Test create_evaluator with custom source and direction."""
 
-        @create_evaluator("custom_evaluator", "llm", "minimize")
+        @create_evaluator(name="custom_evaluator", source="llm", direction="minimize")
         def test_func(input_text: str) -> float:
             return 0.3
 
@@ -871,7 +841,7 @@ class TestIntrospectionAndSchema:
     """Tests for describe() based on input_schema inference."""
 
     def test_describe_for_simple_decorator(self):
-        @create_evaluator("simple_eval")
+        @create_evaluator(name="simple_eval")
         def simple_eval(output: str, expected: str) -> Score:
             return Score(score=1.0)
 
@@ -882,7 +852,7 @@ class TestIntrospectionAndSchema:
         assert schema["input_schema"]["properties"]["expected"]["type"] == "string"
 
     def test_describe_optional_and_defaults(self):
-        @create_evaluator("opt_eval")
+        @create_evaluator(name="opt_eval")
         def opt_eval(a: str, b: str or None = None, k: int = 1) -> Score:
             return Score(score=1.0)
 
@@ -914,7 +884,7 @@ class TestEvaluatorRequiredFieldsAndBinding:
         assert len(scores) == 1 and scores[0].score == 1.0
 
     def test_bound_evaluator_evaluate_and_describe(self):
-        @create_evaluator("emph")
+        @create_evaluator(name="emph")
         def emph(text: str) -> Score:
             return Score(score=float(len(text) > 0))
 
@@ -923,7 +893,7 @@ class TestEvaluatorRequiredFieldsAndBinding:
 
         from phoenix.evals.evaluators import bind_evaluator
 
-        be = bind_evaluator(emph, mapping)
+        be = bind_evaluator(evaluator=emph, input_mapping=mapping)
         # Evaluate through bound mapping
         scores = be.evaluate(payload)
         assert len(scores) == 1 and scores[0].score == 1.0
@@ -966,7 +936,7 @@ class TestEvaluateDataframe:
 
     def test_evaluate_dataframe_continuous_numeric_index(self, sample_dataframe, mock_evaluator):
         """Test evaluate_dataframe with continuous numeric index (baseline test)."""
-        result_df = evaluate_dataframe(sample_dataframe, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=sample_dataframe, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == [0, 1, 2]
@@ -992,7 +962,7 @@ class TestEvaluateDataframe:
             index=[10, 20, 30],
         )  # Non-continuous indices
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == [10, 20, 30]
@@ -1011,7 +981,7 @@ class TestEvaluateDataframe:
             index=["row_a", "row_b", "row_c"],
         )  # String indices
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == ["row_a", "row_b", "row_c"]
@@ -1030,7 +1000,7 @@ class TestEvaluateDataframe:
             index=[1, "b", 3.0],
         )  # Mixed types
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == [1, "b", 3.0]
@@ -1045,7 +1015,7 @@ class TestEvaluateDataframe:
             {"text": ["Single test."], "reference": ["Single test."]}, index=[42]
         )  # Single row with non-zero index
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == [42]
@@ -1058,7 +1028,7 @@ class TestEvaluateDataframe:
         """Test evaluate_dataframe with empty DataFrame."""
         df = pd.DataFrame({"text": [], "reference": []}, index=pd.Index([], dtype="int64"))
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved (empty)
         assert len(result_df.index) == 0
@@ -1073,7 +1043,9 @@ class TestEvaluateDataframe:
         evaluator1 = self.MockEvaluator("evaluator1", 0.8)
         evaluator2 = self.MockEvaluator("evaluator2", 0.9)
 
-        result_df = evaluate_dataframe(sample_dataframe, [evaluator1, evaluator2])
+        result_df = evaluate_dataframe(
+            dataframe=sample_dataframe, evaluators=[evaluator1, evaluator2]
+        )
 
         # Verify original index is preserved
         assert list(result_df.index) == [0, 1, 2]
@@ -1090,7 +1062,7 @@ class TestEvaluateDataframe:
 
     def test_evaluate_dataframe_execution_details_preserved(self, sample_dataframe, mock_evaluator):
         """Test that execution details are properly recorded."""
-        result_df = evaluate_dataframe(sample_dataframe, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=sample_dataframe, evaluators=[mock_evaluator])
 
         # Verify execution details column exists
         assert "mock_evaluator_execution_details" in result_df.columns
@@ -1099,9 +1071,8 @@ class TestEvaluateDataframe:
         assert result_df["mock_evaluator_execution_details"].notna().all()
 
         # Verify execution details contain expected fields
-        import json
 
-        details = json.loads(result_df["mock_evaluator_execution_details"].iloc[0])
+        details = result_df["mock_evaluator_execution_details"].iloc[0]
         assert "status" in details
         assert "exceptions" in details
         assert "execution_seconds" in details
@@ -1111,7 +1082,7 @@ class TestEvaluateDataframe:
         original_text = sample_dataframe["text"].tolist()
         original_reference = sample_dataframe["reference"].tolist()
 
-        result_df = evaluate_dataframe(sample_dataframe, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=sample_dataframe, evaluators=[mock_evaluator])
 
         # Verify original data is unchanged
         assert result_df["text"].tolist() == original_text
@@ -1120,8 +1091,8 @@ class TestEvaluateDataframe:
     def test_evaluate_dataframe_with_custom_parameters(self, sample_dataframe, mock_evaluator):
         """Test evaluate_dataframe with custom tqdm_bar_format and other parameters."""
         result_df = evaluate_dataframe(
-            sample_dataframe,
-            [mock_evaluator],
+            dataframe=sample_dataframe,
+            evaluators=[mock_evaluator],
             tqdm_bar_format="Testing: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt}",
             exit_on_error=False,
             max_retries=5,
@@ -1141,7 +1112,7 @@ class TestEvaluateDataframe:
         }
         df = pd.DataFrame(data, index=list(range(100, 200)))  # Indices 100-199
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == list(range(100, 200))
@@ -1160,7 +1131,7 @@ class TestEvaluateDataframe:
             index=[1, 1, 2],
         )  # Duplicate indices
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved (including duplicates)
         assert list(result_df.index) == [1, 1, 2]
@@ -1197,7 +1168,7 @@ class TestEvaluateDataframe:
             index=[5, 5, 10],  # Duplicate indices with different content
         )
 
-        result_df = evaluate_dataframe(df, [evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[evaluator])
 
         # Verify original index is preserved exactly
         assert list(result_df.index) == [
@@ -1215,24 +1186,17 @@ class TestEvaluateDataframe:
         assert len(scores) == 3, f"Expected 3 scores, got {len(scores)}"
         assert all(score is not None for score in scores), "Some scores are None"
 
-        # Parse scores to verify they match the expected content
-        import json
-
-        parsed_scores = [json.loads(score) for score in scores]
-
         # Verify each score corresponds to the correct row
-        assert "Evaluated: Short" in parsed_scores[0]["explanation"], (
-            "First score doesn't match first row"
-        )
-        assert "Evaluated: Medium length" in parsed_scores[1]["explanation"], (
+        assert "Evaluated: Short" in scores[0]["explanation"], "First score doesn't match first row"
+        assert "Evaluated: Medium length" in scores[1]["explanation"], (
             "Second score doesn't match second row"
         )
-        assert "Evaluated: Very long text here" in parsed_scores[2]["explanation"], (
+        assert "Evaluated: Very long text here" in scores[2]["explanation"], (
             "Third score doesn't match third row"
         )
 
         # Verify score values are different (based on text length)
-        score_values = [score["score"] for score in parsed_scores]
+        score_values = [score["score"] for score in scores]
         assert score_values[0] != score_values[1] != score_values[2], (
             "Score values should be different"
         )
@@ -1280,7 +1244,7 @@ class TestEvaluateDataframe:
                 index=index,
             )
 
-            result_df = evaluate_dataframe(df, [evaluator])
+            result_df = evaluate_dataframe(dataframe=df, evaluators=[evaluator])
 
             # Verify exact structure
             assert list(result_df.index) == expected_index, (
@@ -1330,7 +1294,7 @@ class TestEvaluateDataframe:
             index=[5, 5, 10],  # Duplicate indices with different content
         )
 
-        result_df = await async_evaluate_dataframe(df, [evaluator])
+        result_df = await async_evaluate_dataframe(dataframe=df, evaluators=[evaluator])
 
         # Verify original index is preserved exactly
         assert list(result_df.index) == [
@@ -1348,24 +1312,19 @@ class TestEvaluateDataframe:
         assert len(scores) == 3, f"Expected 3 scores, got {len(scores)}"
         assert all(score is not None for score in scores), "Some scores are None"
 
-        # Parse scores to verify they match the expected content
-        import json
-
-        parsed_scores = [json.loads(score) for score in scores]
-
         # Verify each score corresponds to the correct row
-        assert "Async evaluated: Short" in parsed_scores[0]["explanation"], (
+        assert "Async evaluated: Short" in scores[0]["explanation"], (
             "First score doesn't match first row"
         )
-        assert "Async evaluated: Medium length" in parsed_scores[1]["explanation"], (
+        assert "Async evaluated: Medium length" in scores[1]["explanation"], (
             "Second score doesn't match second row"
         )
-        assert "Async evaluated: Very long text here" in parsed_scores[2]["explanation"], (
+        assert "Async evaluated: Very long text here" in scores[2]["explanation"], (
             "Third score doesn't match third row"
         )
 
         # Verify score values are different (based on text length)
-        score_values = [score["score"] for score in parsed_scores]
+        score_values = [score["score"] for score in scores]
         assert score_values[0] != score_values[1] != score_values[2], (
             "Score values should be different"
         )
@@ -1402,7 +1361,9 @@ class TestEvaluateDataframe:
         )
 
         # Should not crash even with failures
-        result_df = evaluate_dataframe(df, [evaluator], exit_on_error=False, max_retries=0)
+        result_df = evaluate_dataframe(
+            dataframe=df, evaluators=[evaluator], exit_on_error=False, max_retries=0
+        )
 
         # Verify structure is preserved
         assert list(result_df.index) == [1, 2]
@@ -1415,11 +1376,8 @@ class TestEvaluateDataframe:
         assert scores[1] is None  # Failure
 
         # Check execution details: failure should have FAILED status
-        import json
+        exec_details = result_df["failing_eval_execution_details"].tolist()
 
-        exec_details = [
-            json.loads(detail) for detail in result_df["failing_eval_execution_details"]
-        ]
         assert exec_details[0]["status"] == "COMPLETED"
         assert exec_details[1]["status"] == "FAILED"
         assert len(exec_details[1]["exceptions"]) > 0
@@ -1457,7 +1415,7 @@ class TestEvaluateDataframe:
 
         # Should not crash even with failures
         result_df = await async_evaluate_dataframe(
-            df, [evaluator], exit_on_error=False, max_retries=0
+            dataframe=df, evaluators=[evaluator], exit_on_error=False, max_retries=0
         )
 
         # Verify structure is preserved
@@ -1471,11 +1429,8 @@ class TestEvaluateDataframe:
         assert scores[1] is None  # Failure
 
         # Check execution details: failure should have FAILED status
-        import json
+        exec_details = result_df["async_failing_eval_execution_details"].tolist()
 
-        exec_details = [
-            json.loads(detail) for detail in result_df["async_failing_eval_execution_details"]
-        ]
         assert exec_details[0]["status"] == "COMPLETED"
         assert exec_details[1]["status"] == "FAILED"
         assert len(exec_details[1]["exceptions"]) > 0

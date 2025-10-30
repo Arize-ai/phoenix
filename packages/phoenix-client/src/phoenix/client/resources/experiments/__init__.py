@@ -525,6 +525,7 @@ class Experiments:
 
         payload = {
             "version_id": dataset.version_id,
+            "splits": dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
             "name": experiment_name,
             "description": experiment_description,
             "metadata": experiment_metadata,
@@ -1562,6 +1563,7 @@ class AsyncExperiments:
 
         payload = {
             "version_id": dataset.version_id,
+            "splits": dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
             "name": experiment_name,
             "description": experiment_description,
             "metadata": experiment_metadata,

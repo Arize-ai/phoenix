@@ -1,4 +1,5 @@
 import { Suspense, useCallback, useMemo } from "react";
+import { graphql, usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
@@ -19,8 +20,11 @@ import {
   TabList,
   Tabs,
   Text,
+  Token,
   View,
 } from "@phoenix/components";
+import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   DatasetProvider,
@@ -31,29 +35,67 @@ import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
+import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeButton } from "./DatasetCodeButton";
 import { RunExperimentButton } from "./RunExperimentButton";
 
+export const DatasetPageQueryNode = graphql`
+  query DatasetPageQuery($id: ID!) {
+    dataset: node(id: $id) {
+      id
+      ... on Dataset {
+        id
+        name
+        description
+        exampleCount
+        experimentCount
+        labels {
+          id
+          name
+          color
+        }
+        latestVersions: versions(
+          first: 1
+          sort: { col: createdAt, dir: desc }
+        ) {
+          edges {
+            version: node {
+              id
+              description
+              createdAt
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 export function DatasetPage() {
   const loaderData = useLoaderData<typeof datasetLoader>();
   invariant(loaderData, "loaderData is required");
+  const data = usePreloadedQuery<DatasetPageQuery>(
+    DatasetPageQueryNode,
+    loaderData.queryRef
+  );
+
   const latestVersion = useMemo(() => {
-    const versions = loaderData.dataset.latestVersions;
+    const versions = data.dataset.latestVersions;
     if (versions?.edges && versions.edges.length) {
       return versions.edges[0].version;
     }
     return null;
-  }, [loaderData]);
+  }, [data]);
 
   return (
     <DatasetProvider
-      datasetId={loaderData.dataset.id}
-      datasetName={loaderData.dataset.name as string}
+      datasetId={data.dataset.id}
+      datasetName={data.dataset.name as string}
       latestVersion={latestVersion}
     >
       <Suspense fallback={<Loading />}>
-        <DatasetPageContent dataset={loaderData["dataset"]} />
+        <DatasetPageContent dataset={data.dataset} />
       </Suspense>
     </DatasetProvider>
   );
@@ -155,11 +197,33 @@ function DatasetPageContent({
             <Flex direction="row" gap="size-200" alignItems="center">
               {/* TODO(datasets): Add an icon here to make the UI cohesive */}
               {/* <Icon svg={<Icons.DatabaseOutline />} /> */}
-              <Flex direction="column">
+              <Flex direction="column" gap="size-50">
                 <Text elementType="h1" size="L" weight="heavy">
                   {dataset.name}
                 </Text>
                 <Text color="text-700">{dataset.description || "--"}</Text>
+                {dataset.labels && dataset.labels.length > 0 && (
+                  <ul
+                    css={css`
+                      display: flex;
+                      flex-direction: row;
+                      gap: var(--ac-global-dimension-size-100);
+                      min-width: 0;
+                      flex-wrap: wrap;
+                      padding-top: var(--ac-global-dimension-size-50);
+                    `}
+                  >
+                    {dataset.labels.map((label) => (
+                      <li key={label.id}>
+                        <Token color={label.color}>
+                          <Truncate maxWidth={200} title={label.name}>
+                            {label.name}
+                          </Truncate>
+                        </Token>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </Flex>
             </Flex>
           </Flex>
@@ -222,6 +286,7 @@ function DatasetPageContent({
                 refreshLatestVersion();
               }}
             />
+            <DatasetLabelConfigButton datasetId={dataset.id} />
             <Button
               size="S"
               variant="primary"

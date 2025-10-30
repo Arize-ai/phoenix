@@ -75,8 +75,12 @@ def run_experiment(
     - `example`: The dataset `Example` object with all associated fields
 
     Args:
-        dataset (Dataset): The dataset on which to run the experiment. task
-        (ExperimentTask): The task to run on each example in the dataset.
+        dataset (Dataset): The dataset on which to run the experiment. If the dataset
+            was retrieved with split filtering (e.g.,
+            client.datasets.get_dataset(splits=["train"])),
+            the experiment will only run on examples in those splits. The split names can be
+            accessed via dataset.split_names.
+        task (ExperimentTask): The task to run on each example in the dataset.
         evaluators (Optional[ExperimentEvaluators]): A single evaluator or
         sequence of evaluators used to
             evaluate the results of the experiment. Defaults to None.
@@ -151,6 +155,19 @@ def run_experiment(
             experiment = run_experiment(
                 dataset=dataset, task=my_task, evaluators=[accuracy_evaluator],
                 experiment_name="evaluated-experiment"
+            )
+
+        With dataset splits::
+
+            # Get only the training split
+            train_dataset = client.datasets.get_dataset(
+                dataset="my-dataset", splits=["train"]
+            )
+            print(f"Running on splits: {train_dataset.split_names}")
+
+            experiment = run_experiment(
+                dataset=train_dataset, task=my_task,
+                experiment_name="train-split-experiment"
             )
 
         Using dynamic binding for tasks::
@@ -266,8 +283,12 @@ async def async_run_experiment(
     - `example`: The dataset `Example` object with all associated fields
 
     Args:
-        dataset (Dataset): The dataset on which to run the experiment. task
-        (ExperimentTask): The task to run on each example in the dataset.
+        dataset (Dataset): The dataset on which to run the experiment. If the dataset
+            was retrieved with split filtering (e.g.,
+            await client.datasets.get_dataset(splits=["train"])),
+            the experiment will only run on examples in those splits. The split names can be
+            accessed via dataset.split_names.
+        task (ExperimentTask): The task to run on each example in the dataset.
         evaluators (Optional[ExperimentEvaluators]): A single evaluator or
         sequence of evaluators used to
             evaluate the results of the experiment. Defaults to None.
@@ -343,6 +364,19 @@ async def async_run_experiment(
             experiment = await async_run_experiment(
                 dataset=dataset, task=my_task, evaluators=[accuracy_evaluator],
                 experiment_name="evaluated-experiment"
+            )
+
+        With dataset splits::
+
+            # Get only the training split
+            train_dataset = await client.datasets.get_dataset(
+                dataset="my-dataset", splits=["train"]
+            )
+            print(f"Running on splits: {train_dataset.split_names}")
+
+            experiment = await async_run_experiment(
+                dataset=train_dataset, task=my_task,
+                experiment_name="train-split-experiment"
             )
 
         Using dynamic binding for tasks::

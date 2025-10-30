@@ -1,13 +1,9 @@
----
-hidden: true
----
-
-# Overview
+# REST API Overview
 
 The Phoenix REST API allows you to access and interact with observability data programmatically. You can use it to retrieve project information, query traces and spans, access prompts, and automate analysis workflows directly from your environment.
 
 {% hint style="success" %}
-For an up-to-date OpenAPI text file that contains descriptions of all the REST API endpoints, see here: [https://app.phoenix.arize.com/openapi.json](https://app.phoenix.arize.com/openapi.json)
+Reference: [https://phoenix-demo.arize.com/apis](https://phoenix-demo.arize.com/apis)
 {% endhint %}
 
 ### Example Request

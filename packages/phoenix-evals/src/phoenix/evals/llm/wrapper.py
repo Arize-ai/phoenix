@@ -115,7 +115,7 @@ class LLM:
 
         Example::
 
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import LLM
             llm = LLM(
                 provider="azure",
                 model="gpt-5o",
@@ -170,10 +170,11 @@ class LLM:
             # This should never happen due to the initial validation
             raise ValueError("Internal error: cannot initialize LLM wrapper.")
 
+        assert model is not None, "The model needs to be specified along with the provider."
         self._sync_client = sync_client
         self._async_client = async_client
-        self._sync_adapter = adapter_class(sync_client)
-        self._async_adapter = adapter_class(async_client)
+        self._sync_adapter = adapter_class(sync_client, model=model)
+        self._async_adapter = adapter_class(async_client, model=model)
         self._rate_limit_errors = rate_limit_errors
         rate_limit_args: Dict[str, Any] = {}
         if initial_per_second_request_rate is not None:
@@ -269,7 +270,7 @@ class LLM:
 
         Examples::
 
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import LLM
             llm = LLM(provider="openai", model="gpt-4o", client="openai")
             llm.generate_classification(
                 prompt="Hello, world!",

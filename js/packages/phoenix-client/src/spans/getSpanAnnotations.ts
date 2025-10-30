@@ -1,6 +1,6 @@
+import { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
-import { operations } from "../__generated__/api/v1";
 import { ProjectSelector } from "../types/projects";
 
 /**

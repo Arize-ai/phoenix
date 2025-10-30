@@ -26,9 +26,10 @@ class BaseLLMAdapter(ABC):
     tool calling, structured output, and fallback mechanisms internally.
     """
 
-    def __init__(self, client: Any) -> None:
+    def __init__(self, client: Any, model: str) -> None:
         """Initialize the adapter with a client."""
         self.client = client
+        self.model = model  # store the model name since the client might not store it
 
     @classmethod
     @abstractmethod

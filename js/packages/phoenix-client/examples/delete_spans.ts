@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
-import { getSpans } from "../src/spans/getSpans";
-import { deleteSpan } from "../src/spans/deleteSpan";
 import { createClient } from "../src/client";
+import { deleteSpan } from "../src/spans/deleteSpan";
+import { getSpans } from "../src/spans/getSpans";
 
 /**
  * Example: Delete spans from a project

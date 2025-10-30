@@ -1,14 +1,15 @@
-import type { MessageCreateParams } from "@anthropic-ai/sdk/resources/messages/messages";
-import type { Variables, toSDKParamsBase } from "./types";
-import { formatPromptMessages } from "../../utils/formatPromptMessages";
-
-import invariant from "tiny-invariant";
+import { AnthropicToolChoice } from "../../schemas/llm/anthropic/toolChoiceSchemas";
 import {
   safelyConvertMessageToProvider,
   safelyConvertToolChoiceToProvider,
   safelyConvertToolDefinitionToProvider,
 } from "../../schemas/llm/converters";
-import { AnthropicToolChoice } from "../../schemas/llm/anthropic/toolChoiceSchemas";
+import { formatPromptMessages } from "../../utils/formatPromptMessages";
+
+import type { toSDKParamsBase, Variables } from "./types";
+
+import type { MessageCreateParams } from "@anthropic-ai/sdk/resources/messages/messages";
+import invariant from "tiny-invariant";
 
 // We must re-export these types so that they are included in the phoenix-client distribution
 export type { MessageCreateParams };

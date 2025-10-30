@@ -1,4 +1,5 @@
 import { Template } from "../types/templating";
+
 import Mustache from "mustache";
 
 /**

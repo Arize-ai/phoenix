@@ -6,6 +6,7 @@ import {
   Flex,
   Label,
   ListBox,
+  ListBoxItem,
   Popover,
   Select,
   SelectChevronUpDownIcon,
@@ -23,7 +24,7 @@ type DatasetSelectProps = {
   onBlur?: () => void;
   validationState?: "valid" | "invalid";
   errorMessage?: string;
-  selectedKey?: string;
+  selectedKey?: string | null;
   placeholder?: string;
   size?: "S" | "M";
   label?: string;
@@ -84,45 +85,65 @@ export function DatasetSelect(props: DatasetSelectProps) {
             min-height: auto;
           `}
         >
-          {data.datasets.edges.map(({ dataset }) => (
-            <SelectItem key={dataset.id} id={dataset.id}>
-              <Flex direction="column" gap="size-100" width="100%">
-                <Flex
-                  direction="row"
-                  alignItems="center"
-                  gap="size-200"
-                  justifyContent="space-between"
-                  width="100%"
-                >
-                  <Text>{dataset.name}</Text>
-                  <Text color="text-700" size="XS">
-                    {dataset.exampleCount} examples
-                  </Text>
-                </Flex>
-                {dataset.labels.length > 0 && (
-                  <ul
+          {data.datasets.edges.map(({ dataset }) => {
+            const isDisabled = dataset.exampleCount === 0;
+            return (
+              <SelectItem
+                key={dataset.id}
+                id={dataset.id}
+                isDisabled={isDisabled}
+              >
+                <Flex direction="column" gap="size-100" width="100%">
+                  <Flex
+                    direction="row"
+                    alignItems="center"
+                    gap="size-200"
+                    justifyContent="space-between"
+                    width="100%"
                     css={css`
-                      display: flex;
-                      flex-direction: row;
-                      gap: var(--ac-global-dimension-size-50);
-                      min-width: 0;
-                      flex-wrap: wrap;
+                      opacity: ${isDisabled
+                        ? "var(--ac-global-opacity-disabled)"
+                        : 1};
                     `}
                   >
-                    {dataset.labels.map((label) => (
-                      <li key={label.id}>
-                        <Token color={label.color}>
-                          <Truncate maxWidth={150} title={label.name}>
-                            {label.name}
-                          </Truncate>
-                        </Token>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Flex>
-            </SelectItem>
-          ))}
+                    <Text>{dataset.name}</Text>
+                    <Text color="text-700" size="XS">
+                      {dataset.exampleCount} examples
+                    </Text>
+                  </Flex>
+                  {dataset.labels.length > 0 && (
+                    <ul
+                      css={css`
+                        display: flex;
+                        flex-direction: row;
+                        gap: var(--ac-global-dimension-size-50);
+                        min-width: 0;
+                        flex-wrap: wrap;
+                      `}
+                    >
+                      {dataset.labels.map((label) => (
+                        <li key={label.id}>
+                          <Token color={label.color}>
+                            <Truncate maxWidth={150} title={label.name}>
+                              {label.name}
+                            </Truncate>
+                          </Token>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Flex>
+              </SelectItem>
+            );
+          })}
+          <ListBoxItem
+            href="/datasets"
+            style={{
+              textDecoration: "none",
+            }}
+          >
+            Go to Datasets
+          </ListBoxItem>
         </ListBox>
       </Popover>
     </Select>

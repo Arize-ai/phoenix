@@ -56,9 +56,15 @@ response_body = json.loads(response.get("body").read())
 print(response_body["completion"])
 ```
 
+{% hint style="warning" %}
+⚠️ **Warning: Use `converse` instead of `invoke_model` for Meta models on Amazon Bedrock.**\
+Outputs from Meta models (such as **Llama 3**) are not currently traced when using the `invoke_model` API.\
+This issue is known, and a fix is actively in progress.
+{% endhint %}
+
 ## Observe
 
-Now that you have tracing setup, all calls to invoke\_model will be streamed to your running Phoenix for observability and evaluation.
+Now that you have tracing setup, all calls to `invoke_model` will be streamed to your running Phoenix for observability and evaluation.
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/bedrock_tracing_eval_medium.gif" %}
 

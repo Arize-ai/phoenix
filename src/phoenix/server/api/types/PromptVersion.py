@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
 from sqlalchemy import select
@@ -18,7 +18,7 @@ from phoenix.server.api.helpers.prompts.models import (
     denormalize_tools,
     get_raw_invocation_parameters,
 )
-from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
+from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
     to_gql_template_from_orm,
@@ -26,7 +26,9 @@ from phoenix.server.api.types.PromptVersionTemplate import (
 
 from .ResponseFormat import ResponseFormat
 from .ToolDefinition import ToolDefinition
-from .User import User, to_gql_user
+
+if TYPE_CHECKING:
+    from .User import User
 
 
 @strawberry.type
@@ -53,16 +55,17 @@ class PromptVersion(Node):
                 models.PromptVersionTag.prompt_version_id == self.id_attr
             )
             return [
-                to_gql_prompt_version_tag(tag) async for tag in await session.stream_scalars(stmt)
+                PromptVersionTag(id=tag.id, db_record=tag)
+                async for tag in await session.stream_scalars(stmt)
             ]
 
     @strawberry.field
-    async def user(self, info: Info[Context, None]) -> Optional[User]:
+    async def user(self) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
         if self.user_id is None:
             return None
-        async with info.context.db() as session:
-            user = await session.get(models.User, self.user_id)
-        return to_gql_user(user) if user is not None else None
+        from .User import User
+
+        return User(id=self.user_id)
 
     @strawberry.field
     async def previous_version(self, info: Info[Context, None]) -> Optional["PromptVersion"]:

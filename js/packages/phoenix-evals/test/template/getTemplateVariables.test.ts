@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
 import { getTemplateVariables } from "../../src/template/getTemplateVariables";
+
+import { describe, expect, it } from "vitest";
 
 describe("getTemplateVariables", () => {
   it("should parse out the variables of a template", () => {

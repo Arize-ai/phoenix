@@ -8,6 +8,8 @@ import { Example } from "./datasets";
 export interface ExperimentInfo extends Node {
   datasetId: string;
   datasetVersionId: string;
+  // @todo: mark this as required when experiment API returns it
+  datasetSplits?: string[];
   /**
    * The project under which the experiment task traces are recorded
    */

@@ -1188,3 +1188,390 @@ class TestClient:
         assert tags[0]["name"] == tag_name
         assert "description" in tags[0]
         assert tags[0]["description"] == tag_description2
+
+
+class TestPromptFiltering:
+    """Test filtering prompts by name, labels, and combinations."""
+
+    def _create_prompt_via_gql(
+        self,
+        u: _LoggedInUser,
+        app: _AppInfo,
+        name: str,
+    ) -> str:
+        """Create a prompt via GraphQL mutation and return its ID."""
+        create_prompt_mutation = """
+        mutation($input: CreateChatPromptInput!) {
+            createChatPrompt(input: $input) {
+                id
+            }
+        }
+        """
+
+        # Create a simple prompt version
+        version = ChatPromptVersionInput(
+            templateFormat="NONE",
+            template=PromptChatTemplateInput(
+                messages=[
+                    PromptMessageInput(
+                        role="USER",
+                        content=[ContentPartInput(text=TextContentValueInput(text="hello {x}"))],
+                    )
+                ]
+            ),
+            invocationParameters={},
+            modelProvider="OPENAI",
+            modelName=token_hex(8),
+            tools=[],
+            responseFormat=None,
+        )
+
+        variables = {
+            "input": CreateChatPromptInput(
+                name=name,
+                promptVersion=version,
+            ).model_dump(exclude_unset=True)
+        }
+
+        response, _ = u.gql(app, query=create_prompt_mutation, variables=variables)
+        resp_id = response["data"]["createChatPrompt"]["id"]
+        assert resp_id is not None
+        assert isinstance(resp_id, str)
+        return resp_id
+
+    def test_filter_prompts_by_name(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test filtering prompts by name using GraphQL query."""
+        u = _get_user(_app, _MEMBER).log_in(_app)
+
+        # Create prompts with specific names for testing
+        prompt1_name = f"test-prompt-{token_hex(4)}"
+        prompt2_name = f"another-prompt-{token_hex(4)}"
+        prompt3_name = f"test-another-{token_hex(4)}"
+
+        # Create the test prompts via GraphQL
+        self._create_prompt_via_gql(u, _app, prompt1_name)
+        self._create_prompt_via_gql(u, _app, prompt2_name)
+        self._create_prompt_via_gql(u, _app, prompt3_name)
+
+        # Test filtering by name containing "test"
+        query = """
+        query($filter: PromptFilter, $labelIds: [ID!]) {
+            prompts(first: 10, filter: $filter, labelIds: $labelIds) {
+                edges {
+                    node {
+                        id
+                        name
+                    }
+                }
+            }
+        }
+        """
+
+        # Filter by name containing "test"
+        response, _ = u.gql(
+            _app,
+            query=query,
+            variables={"filter": {"col": "name", "value": "test"}, "labelIds": None},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_names = [edge["node"]["name"] for edge in results]
+
+        # Should return prompts with "test" in the name
+        assert prompt1_name in result_names
+        assert prompt3_name in result_names
+        assert prompt2_name not in result_names
+
+        # Test filtering by name containing "another"
+        response, _ = u.gql(
+            _app,
+            query=query,
+            variables={"filter": {"col": "name", "value": "another"}, "labelIds": None},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_names = [edge["node"]["name"] for edge in results]
+
+        # Should return prompts with "another" in the name
+        assert prompt2_name in result_names
+        assert prompt3_name in result_names
+        assert prompt1_name not in result_names
+
+    def test_filter_prompts_by_labels(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test filtering prompts by labels using GraphQL query."""
+        u = _get_user(_app, _MEMBER).log_in(_app)
+
+        # Create prompts
+        prompt1_name = f"prompt-1-{token_hex(4)}"
+        prompt2_name = f"prompt-2-{token_hex(4)}"
+        prompt3_name = f"prompt-3-{token_hex(4)}"
+
+        # Create prompts via GraphQL
+        prompt1_id = self._create_prompt_via_gql(u, _app, prompt1_name)
+        prompt2_id = self._create_prompt_via_gql(u, _app, prompt2_name)
+        prompt3_id = self._create_prompt_via_gql(u, _app, prompt3_name)
+
+        # Create labels
+        label1_name = f"label-1-{token_hex(4)}"
+        label2_name = f"label-2-{token_hex(4)}"
+
+        # Create labels using GraphQL mutation
+        create_label_mutation = """
+        mutation($input: CreatePromptLabelInput!) {
+            createPromptLabel(input: $input) {
+                promptLabels {
+                    id
+                    name
+                }
+            }
+        }
+        """
+
+        # Create first label
+        response, _ = u.gql(
+            _app,
+            query=create_label_mutation,
+            variables={
+                "input": {"name": label1_name, "description": "Test label 1", "color": "#FF0000"}
+            },
+        )
+        label1_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
+
+        # Create second label
+        response, _ = u.gql(
+            _app,
+            query=create_label_mutation,
+            variables={
+                "input": {"name": label2_name, "description": "Test label 2", "color": "#00FF00"}
+            },
+        )
+        label2_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
+
+        # Assign labels to prompts using GraphQL mutation
+        set_labels_mutation = """
+        mutation($input: SetPromptLabelsInput!) {
+            setPromptLabels(input: $input) {
+                query {
+                    __typename
+                }
+            }
+        }
+        """
+
+        # Assign label1 to prompt1
+        u.gql(
+            _app,
+            query=set_labels_mutation,
+            variables={"input": {"promptId": prompt1_id, "promptLabelIds": [label1_id]}},
+        )
+
+        # Assign both label1 and label2 to prompt2
+        u.gql(
+            _app,
+            query=set_labels_mutation,
+            variables={"input": {"promptId": prompt2_id, "promptLabelIds": [label1_id, label2_id]}},
+        )
+
+        # Assign label2 to prompt3
+        u.gql(
+            _app,
+            query=set_labels_mutation,
+            variables={"input": {"promptId": prompt3_id, "promptLabelIds": [label2_id]}},
+        )
+
+        # Test filtering by label1
+        query = """
+        query($filter: PromptFilter, $labelIds: [ID!]) {
+            prompts(first: 10, filter: $filter, labelIds: $labelIds) {
+                edges {
+                    node {
+                        id
+                        name
+                        labels {
+                            id
+                            name
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        response, _ = u.gql(_app, query=query, variables={"filter": None, "labelIds": [label1_id]})
+
+        results = response["data"]["prompts"]["edges"]
+        result_ids = [edge["node"]["id"] for edge in results]
+
+        # Should return prompts with label1
+        assert prompt1_id in result_ids
+        assert prompt2_id in result_ids
+        assert prompt3_id not in result_ids
+
+        # Test filtering by label2
+        response, _ = u.gql(_app, query=query, variables={"filter": None, "labelIds": [label2_id]})
+
+        results = response["data"]["prompts"]["edges"]
+        result_ids = [edge["node"]["id"] for edge in results]
+
+        # Should return prompts with label2
+        assert prompt2_id in result_ids
+        assert prompt3_id in result_ids
+        assert prompt1_id not in result_ids
+
+        # Test filtering by both labels
+        response, _ = u.gql(
+            _app, query=query, variables={"filter": None, "labelIds": [label1_id, label2_id]}
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_ids = [edge["node"]["id"] for edge in results]
+
+        # Should return prompts with either label1 or label2
+        assert prompt1_id in result_ids
+        assert prompt2_id in result_ids
+        assert prompt3_id in result_ids
+
+    def test_filter_prompts_by_name_and_labels(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test filtering prompts by both name and labels using GraphQL query."""
+        u = _get_user(_app, _MEMBER).log_in(_app)
+
+        # Create prompts with specific names
+        test_prompt_name = f"test-prompt-{token_hex(4)}"
+        another_prompt_name = f"another-prompt-{token_hex(4)}"
+        test_another_name = f"test-another-{token_hex(4)}"
+
+        # Create prompts via GraphQL
+        test_prompt_id = self._create_prompt_via_gql(u, _app, test_prompt_name)
+        another_prompt_id = self._create_prompt_via_gql(u, _app, another_prompt_name)
+        test_another_id = self._create_prompt_via_gql(u, _app, test_another_name)
+
+        # Create labels
+        test_label_name = f"test-label-{token_hex(4)}"
+        other_label_name = f"other-label-{token_hex(4)}"
+
+        create_label_mutation = """
+        mutation($input: CreatePromptLabelInput!) {
+            createPromptLabel(input: $input) {
+                promptLabels {
+                    id
+                    name
+                }
+            }
+        }
+        """
+
+        # Create test label
+        response, _ = u.gql(
+            _app,
+            query=create_label_mutation,
+            variables={
+                "input": {"name": test_label_name, "description": "Test label", "color": "#FF0000"}
+            },
+        )
+        test_label_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
+
+        # Create other label
+        response, _ = u.gql(
+            _app,
+            query=create_label_mutation,
+            variables={
+                "input": {
+                    "name": other_label_name,
+                    "description": "Other label",
+                    "color": "#00FF00",
+                }
+            },
+        )
+        other_label_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
+
+        # Assign labels to prompts
+        set_labels_mutation = """
+        mutation($input: SetPromptLabelsInput!) {
+            setPromptLabels(input: $input) {
+                query {
+                    __typename
+                }
+            }
+        }
+        """
+
+        # Assign test label to test_prompt and test_another
+        u.gql(
+            _app,
+            query=set_labels_mutation,
+            variables={"input": {"promptId": test_prompt_id, "promptLabelIds": [test_label_id]}},
+        )
+
+        u.gql(
+            _app,
+            query=set_labels_mutation,
+            variables={"input": {"promptId": test_another_id, "promptLabelIds": [test_label_id]}},
+        )
+
+        # Assign other label to another_prompt
+        u.gql(
+            _app,
+            query=set_labels_mutation,
+            variables={
+                "input": {"promptId": another_prompt_id, "promptLabelIds": [other_label_id]}
+            },
+        )
+
+        # Test filtering by name "test" AND label "test-label"
+        query = """
+        query($filter: PromptFilter, $labelIds: [ID!]) {
+            prompts(first: 10, filter: $filter, labelIds: $labelIds) {
+                edges {
+                    node {
+                        id
+                        name
+                        labels {
+                            id
+                            name
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        response, _ = u.gql(
+            _app,
+            query=query,
+            variables={"filter": {"col": "name", "value": "test"}, "labelIds": [test_label_id]},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_ids = [edge["node"]["id"] for edge in results]
+
+        # Should return prompts that have "test" in name AND have the test label
+        assert test_prompt_id in result_ids
+        assert test_another_id in result_ids
+        assert another_prompt_id not in result_ids
+
+        # Test filtering by name "another" AND label "other-label"
+        response, _ = u.gql(
+            _app,
+            query=query,
+            variables={"filter": {"col": "name", "value": "another"}, "labelIds": [other_label_id]},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_ids = [edge["node"]["id"] for edge in results]
+
+        # Should return prompts that have "another" in name AND have the other label
+        assert another_prompt_id in result_ids
+        assert test_prompt_id not in result_ids
+        assert test_another_id not in result_ids

@@ -1,5 +1,7 @@
+import functools
 import inspect
 import json
+import warnings
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Union
 
 import pandas as pd
@@ -25,6 +27,34 @@ from phoenix.evals.legacy.utils import (
 )
 
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
+
+
+def _deprecate_positional_args(
+    func_name: str,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """
+    Decorator to issue deprecation warnings for positional argument usage.
+
+    Args:
+        func_name: Name of the function being decorated (for warning message)
+    """
+
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Issue deprecation warning if called with ANY positional arguments
+            if len(args) > 0:
+                warnings.warn(
+                    f"Positional arguments for {func_name} are deprecated and will be removed "
+                    f"in a future version. Please use keyword arguments instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 # --- Input Map/Transform Helpers ---
@@ -68,6 +98,7 @@ def _bind_mapping_function(
     return mapping_function(**bound.arguments)
 
 
+@_deprecate_positional_args("remap_eval_input")
 def remap_eval_input(
     eval_input: Mapping[str, Any],
     required_fields: Set[str],
@@ -246,9 +277,19 @@ def _format_score_data(
 
     # Parse JSON score data
     cols = ["score", "label", "explanation", "source"]
-    parsed_score_col = eval_df[score_column].apply(
-        lambda x: json.loads(x) if isinstance(x, str) and x else None
-    )
+
+    def _safe_json_load(x: Any) -> Any:
+        if isinstance(x, str):
+            if not x.strip():  # empty string
+                return None
+            return json.loads(x)  # JSON string
+        elif isinstance(x, dict):
+            return x  # already parsed
+        else:
+            return None
+
+    parsed_score_col = eval_df[score_column].apply(_safe_json_load)
+
     eval_df[cols] = parsed_score_col.apply(lambda d: pd.Series([(d or {}).get(k) for k in cols]))
 
     eval_df["metadata"] = parsed_score_col.apply(
@@ -287,6 +328,7 @@ def _format_score_data(
     return eval_df
 
 
+@_deprecate_positional_args("to_annotation_dataframe")
 def to_annotation_dataframe(
     dataframe: pd.DataFrame,
     score_names: Optional[List[str]] = None,
@@ -370,6 +412,21 @@ def to_annotation_dataframe(
     return result_df
 
 
+def default_tqdm_progress_bar_formatter(title: str) -> str:
+    """Returns a progress bar formatter for use with tqdm.
+
+    Args:
+        title (str): The title of the progress bar, displayed as a prefix.
+
+    Returns:
+        str: A formatter to be passed to the bar_format argument of tqdm.
+    """
+    return (
+        title + " |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
+        "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}"
+    )
+
+
 __all__ = [
     # evals 1.0
     "NOT_PARSABLE",
@@ -392,4 +449,5 @@ __all__ = [
     "remap_eval_input",
     "extract_with_jsonpath",
     "to_annotation_dataframe",
+    "default_tqdm_progress_bar_formatter",
 ]

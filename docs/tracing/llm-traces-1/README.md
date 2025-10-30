@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Quickstart: Tracing
 
 Phoenix supports three main options to collect traces:

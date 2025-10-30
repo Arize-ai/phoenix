@@ -1,30 +1,34 @@
 import { startTransition, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
-import { css } from "@emotion/react";
+import { usePreloadedQuery } from "react-relay";
+import { useLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 
 import {
   Button,
   Card,
+  DebouncedSearch,
   Flex,
-  Input,
   ListBox,
   Popover,
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
+  SelectValue,
   Text,
-  TextField,
 } from "@phoenix/components";
 import { GenerativeModelKind } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
-import { SettingsModelsPageQuery } from "@phoenix/pages/settings/__generated__/SettingsModelsPageQuery.graphql";
+import {
+  settingsModelsLoaderGql,
+  SettingsModelsLoaderType,
+} from "@phoenix/pages/settings/settingsModelsLoader";
 
 import { ModelsTable } from "./ModelsTable";
 import { NewModelButton } from "./NewModelButton";
 
 const ModelKindFilterOptions = [
-  { label: "All", value: "ALL" },
-  { label: "Custom", value: "CUSTOM" },
-  { label: "Built-in", value: "BUILT_IN" },
+  { label: "All", id: "ALL" },
+  { label: "Custom", id: "CUSTOM" },
+  { label: "Built-in", id: "BUILT_IN" },
 ];
 
 export function SettingsModelsPage() {
@@ -32,58 +36,42 @@ export function SettingsModelsPage() {
     "ALL"
   );
   const [search, setSearch] = useState("");
-  const data = useLazyLoadQuery<SettingsModelsPageQuery>(
-    graphql`
-      query SettingsModelsPageQuery {
-        ...ModelsTable_generativeModels
-      }
-    `,
-    {}
-  );
+  const loaderData = useLoaderData<SettingsModelsLoaderType>();
+  invariant(loaderData, "loaderData is required");
+  const data = usePreloadedQuery(settingsModelsLoaderGql, loaderData);
 
   return (
     <Flex direction="column" gap="size-200">
       <Flex gap="size-200" alignItems="center" justifyContent="space-between">
-        <TextField
+        <DebouncedSearch
           aria-label="Search models"
-          defaultValue={search}
+          placeholder="Search models"
           onChange={(value) => {
-            startTransition(() => {
-              setSearch(value);
-            });
+            setSearch(value);
           }}
-        >
-          <Input placeholder="Search models" />
-        </TextField>
+          defaultValue={search}
+        />
         <Select
-          selectedKey={kindFilter}
-          onSelectionChange={(value) => {
+          aria-label="Model kind filter"
+          value={kindFilter}
+          onChange={(value) => {
             startTransition(() => {
               setKindFilter(value as typeof kindFilter);
             });
           }}
+          selectionMode="single"
         >
           <Button>
-            <span
-              css={css`
-                text-transform: capitalize;
-              `}
-            >
-              {
-                ModelKindFilterOptions.find(
-                  (option) => option.value === kindFilter
-                )?.label
-              }
-            </span>
+            <SelectValue />
             <SelectChevronUpDownIcon />
           </Button>
           <Popover>
-            <ListBox>
-              {ModelKindFilterOptions.map((option) => (
-                <SelectItem key={option.value} id={option.value}>
-                  {option.label}
+            <ListBox items={ModelKindFilterOptions}>
+              {(item) => (
+                <SelectItem id={item.id} textValue={item.id}>
+                  {item.label}
                 </SelectItem>
-              ))}
+              )}
             </ListBox>
           </Popover>
         </Select>

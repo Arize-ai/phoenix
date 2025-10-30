@@ -1,6 +1,6 @@
 # Prompt Playground
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/playground_overview.gif" alt=""><figcaption></figcaption></figure>
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/prompt_playground_overview.gif" %}
 
 Phoenix's Prompt Playground makes the process of iterating and testing prompts quick and easy. Phoenix's playground supports [various AI providers](../how-to-prompts/configure-ai-providers.md) (OpenAI, Anthropic, Gemini, Azure) as well as custom model endpoints, making it the ideal prompt IDE for you to build experiment and evaluate prompts and models for your task.
 

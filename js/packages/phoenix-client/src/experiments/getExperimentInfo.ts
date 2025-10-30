@@ -1,7 +1,8 @@
-import invariant from "tiny-invariant";
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
 import { type ExperimentInfo } from "../types/experiments";
+
+import invariant from "tiny-invariant";
 
 export type GetExperimentParams = ClientFn & {
   /**
@@ -18,16 +19,14 @@ export async function getExperimentInfo({
   experimentId: experiment_id,
 }: GetExperimentParams): Promise<ExperimentInfo> {
   const client = _client || createClient();
-  const { data: { data: experimentData } = {} } = await client.GET(
-    "/v1/experiments/{experiment_id}",
-    {
+  const { data: { data: experimentData } = { data: undefined } } =
+    await client.GET("/v1/experiments/{experiment_id}", {
       params: {
         path: {
           experiment_id,
         },
       },
-    }
-  );
+    });
   invariant(experimentData, "Failed to get experiment");
   return {
     id: experimentData.id,

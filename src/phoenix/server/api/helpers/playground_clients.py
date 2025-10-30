@@ -699,7 +699,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         self.model_name = model.name
         self.client = boto3.client(
             service_name="bedrock-runtime",
-            region_name="us-east-1",  # match the default region in the UI
+            region_name=self.region,
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
             aws_session_token=self.aws_session_token,
@@ -805,7 +805,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
 
         # Build the request parameters for Converse API
         converse_params: dict[str, Any] = {
-            "modelId": f"us.{self.model_name}",
+            "modelId": self.model_name,
             "messages": converse_messages,
             "inferenceConfig": {
                 "maxTokens": invocation_parameters["max_tokens"],
@@ -953,7 +953,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         }
 
         response = self.client.invoke_model_with_response_stream(
-            modelId=f"us.{self.model_name}",  # or another Claude model
+            modelId=self.model_name,
             contentType="application/json",
             accept="application/json",
             body=json.dumps(bedrock_params),

@@ -92,13 +92,7 @@ class ApiKeyMutationMixin:
         token, token_id = await token_store.create_api_key(claims)
         return CreateSystemApiKeyMutationPayload(
             jwt=token,
-            api_key=SystemApiKey(
-                id_attr=int(token_id),
-                name=input.name,
-                description=input.description or None,
-                created_at=issued_at,
-                expires_at=input.expires_at or None,
-            ),
+            api_key=SystemApiKey(id=int(token_id)),
             query=Query(),
         )
 
@@ -134,14 +128,7 @@ class ApiKeyMutationMixin:
         token, token_id = await token_store.create_api_key(claims)
         return CreateUserApiKeyMutationPayload(
             jwt=token,
-            api_key=UserApiKey(
-                id_attr=int(token_id),
-                name=input.name,
-                description=input.description or None,
-                created_at=issued_at,
-                expires_at=input.expires_at or None,
-                user_id=int(user.identity),
-            ),
+            api_key=UserApiKey(id=int(token_id)),
             query=Query(),
         )
 

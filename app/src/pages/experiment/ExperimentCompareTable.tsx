@@ -206,6 +206,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                           label
                           annotatorKind
                           explanation
+                          metadata
                           trace {
                             traceId
                             projectId

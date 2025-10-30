@@ -38,24 +38,39 @@ interface Annotation {
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """Value of the annotation in the form of a numeric score."""
-  score: Float
+  """The kind of annotator that produced the annotation."""
+  annotatorKind: AnnotatorKind!
 
   """
   Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
   """
   label: String
 
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
   """
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
 
-  """The date and time when the annotation was created."""
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """The source of the annotation."""
+  source: AnnotationSource!
+
+  """The identifier of the annotation."""
+  identifier: String!
+
+  """The date and time the annotation was created."""
   createdAt: DateTime!
 
-  """The date and time when the annotation was last updated."""
+  """The date and time the annotation was last updated."""
   updatedAt: DateTime!
+
+  """The user that produced the annotation."""
+  user: User
 }
 
 union AnnotationConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
@@ -444,10 +459,12 @@ input CreateDatasetLabelInput {
   name: String!
   description: String
   color: String!
+  datasetIds: [ID!]
 }
 
 type CreateDatasetLabelMutationPayload {
   datasetLabel: DatasetLabel!
+  datasets: [Dataset!]!
 }
 
 input CreateDatasetSplitInput {
@@ -1035,31 +1052,45 @@ type DocumentAnnotation implements Node & Annotation {
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """Value of the annotation in the form of a numeric score."""
-  score: Float
+  """The kind of annotator that produced the annotation."""
+  annotatorKind: AnnotatorKind!
 
   """
   Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
   """
   label: String
 
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
   """
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
+
+  """The metadata associated with the annotation."""
+  metadata: JSON!
+
+  """The source of the annotation."""
+  source: AnnotationSource!
+
+  """The identifier of the annotation."""
+  identifier: String!
 
   """The date and time when the annotation was created."""
   createdAt: DateTime!
 
   """The date and time when the annotation was last updated."""
   updatedAt: DateTime!
-  annotatorKind: AnnotatorKind!
-  metadata: JSON!
-  documentPosition: Int!
-  identifier: String!
-  source: AnnotationSource!
-  span: Span!
+
+  """The user that produced the annotation."""
   user: User
+
+  """The position of the annotation in the document."""
+  documentPosition: Int!
+
+  """The span associated with the annotation."""
+  span: Span!
 }
 
 """
@@ -1254,6 +1285,7 @@ type Experiment implements Node {
   lastUpdatedAt: DateTime
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  datasetSplits: DatasetSplitConnection!
 }
 
 type ExperimentAnnotationSummary {
@@ -1349,16 +1381,42 @@ type ExperimentRun implements Node {
 type ExperimentRunAnnotation implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
+
+  """The kind of annotator that produced the annotation."""
   annotatorKind: ExperimentRunAnnotatorKind!
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
   label: String
+
+  """Value of the annotation in the form of a numeric score."""
   score: Float
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
   explanation: String
+
+  """Error message if the annotation failed to produce a result."""
   error: String
+
+  """Metadata about the annotation."""
   metadata: JSON!
+
+  """The date and time when the annotation was created."""
   startTime: DateTime!
+
+  """The date and time when the annotation was last updated."""
   endTime: DateTime!
-  traceId: String
+
+  """The identifier of the trace associated with the annotation."""
+  traceId: ID
+
+  """The trace associated with the annotation."""
   trace: Trace
 }
 
@@ -1510,6 +1568,24 @@ type GenerativeModel implements Node & ModelInterface {
   costSummary(projectId: ID, timeRange: TimeRange): SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   lastUsedAt: DateTime
+}
+
+"""A connection to a list of items."""
+type GenerativeModelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [GenerativeModelEdge!]!
+}
+
+"""An edge in a connection."""
+type GenerativeModelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: GenerativeModel!
 }
 
 input GenerativeModelInput {
@@ -1740,10 +1816,8 @@ type Mutation {
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
-  updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
-  unsetDatasetLabels(input: UnsetDatasetLabelsInput!): UnsetDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -2066,19 +2140,52 @@ input ProjectSessionAnnoResultKey {
   attr: ProjectSessionAnnoAttr!
 }
 
-type ProjectSessionAnnotation implements Node {
+type ProjectSessionAnnotation implements Node & Annotation {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
+
+  """The kind of annotator that produced the annotation."""
   annotatorKind: AnnotatorKind!
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
   label: String
+
+  """Value of the annotation in the form of a numeric score."""
   score: Float
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
   explanation: String
+
+  """Metadata about the annotation."""
   metadata: JSON!
-  identifier: String!
+
+  """The source of the annotation."""
   source: AnnotationSource!
-  projectSessionId: ID!
+
+  """The identifier of the annotation."""
+  identifier: String!
+
+  """The date and time the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time the annotation was last updated."""
+  updatedAt: DateTime!
+
+  """The user that produced the annotation."""
   user: User
+
+  """The project session associated with the annotation."""
+  projectSessionId: ID!
+
+  """The project session associated with the annotation."""
+  projectSession: ProjectSession!
 }
 
 type ProjectSessionAnnotationMutationPayload {
@@ -2372,7 +2479,7 @@ type PromptVersionTagMutationPayload {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
-  generativeModels: [GenerativeModel!]!
+  generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
@@ -2390,7 +2497,7 @@ type Query {
   model: InferenceModel!
   node(id: ID!): Node!
   viewer: User
-  prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter): PromptConnection!
+  prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
   datasetLabels(first: Int = 50, last: Int, after: String, before: String): DatasetLabelConnection!
   datasetSplits(first: Int = 50, last: Int, after: String, before: String): DatasetSplitConnection!
@@ -2491,12 +2598,13 @@ type ServerStatus {
 }
 
 input SetDatasetLabelsInput {
+  datasetId: ID!
   datasetLabelIds: [ID!]!
-  datasetIds: [ID!]!
 }
 
 type SetDatasetLabelsMutationPayload {
   query: Query!
+  dataset: Dataset!
 }
 
 input SetPromptLabelsInput {
@@ -2622,30 +2730,43 @@ type SpanAnnotation implements Node & Annotation {
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """Value of the annotation in the form of a numeric score."""
-  score: Float
+  """The kind of annotator that produced the annotation."""
+  annotatorKind: AnnotatorKind!
 
   """
   Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
   """
   label: String
 
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
   """
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """The source of the annotation."""
+  source: AnnotationSource!
+
+  """The identifier of the annotation."""
+  identifier: String!
 
   """The date and time when the annotation was created."""
   createdAt: DateTime!
 
   """The date and time when the annotation was last updated."""
   updatedAt: DateTime!
-  annotatorKind: AnnotatorKind!
-  metadata: JSON!
-  source: AnnotationSource!
-  identifier: String!
-  spanId: ID!
+
+  """The user that produced the annotation."""
   user: User
+  spanId: ID!
+
+  """The span associated with the annotation."""
+  span: Span!
 }
 
 enum SpanAnnotationColumn {
@@ -2991,15 +3112,39 @@ type Trace implements Node {
 type TraceAnnotation implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
+
+  """The kind of annotator that produced the annotation."""
   annotatorKind: AnnotatorKind!
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
   label: String
+
+  """Value of the annotation in the form of a numeric score."""
   score: Float
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
   explanation: String
+
+  """Metadata about the annotation."""
   metadata: JSON!
+
+  """The identifier of the annotation."""
   identifier: String!
+
+  """The source of the annotation."""
   source: AnnotationSource!
+
+  """The trace associated with the annotation."""
   trace: Trace!
+
+  """The user that produced the annotation."""
   user: User
 }
 
@@ -3122,15 +3267,6 @@ type UMAPPoints {
   contextRetrievals: [Retrieval!]!
 }
 
-input UnsetDatasetLabelsInput {
-  datasetLabelIds: [ID!]!
-  datasetIds: [ID!]!
-}
-
-type UnsetDatasetLabelsMutationPayload {
-  query: Query!
-}
-
 input UnsetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
@@ -3155,17 +3291,6 @@ input UpdateAnnotationInput {
   explanation: String = null
   metadata: JSON! = {}
   source: AnnotationSource! = APP
-}
-
-input UpdateDatasetLabelInput {
-  datasetLabelId: ID!
-  name: String!
-  description: String = null
-  color: String!
-}
-
-type UpdateDatasetLabelMutationPayload {
-  datasetLabel: DatasetLabel!
 }
 
 input UpdateModelMutationInput {

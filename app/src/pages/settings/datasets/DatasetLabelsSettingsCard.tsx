@@ -1,4 +1,4 @@
-import { graphql, useFragment } from "react-relay";
+import { ConnectionHandler, graphql, useFragment } from "react-relay";
 
 import { Card } from "@phoenix/components";
 import { NewDatasetLabelButton } from "@phoenix/components/dataset/NewDatasetLabelButton";
@@ -19,9 +19,20 @@ export function DatasetLabelsSettingsCard({
     `,
     query
   );
-
   return (
-    <Card title="Dataset Labels" extra={<NewDatasetLabelButton />}>
+    <Card
+      title="Dataset Labels"
+      extra={
+        <NewDatasetLabelButton
+          updateConnectionIds={[
+            ConnectionHandler.getConnectionID(
+              "client:root",
+              "DatasetLabelsTable__datasetLabels"
+            ),
+          ]}
+        />
+      }
+    >
       <DatasetLabelsTable query={data} />
     </Card>
   );

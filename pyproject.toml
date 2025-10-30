@@ -33,7 +33,7 @@ dependencies = [
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
-  "wrapt>=1.17.2",
+  "wrapt>=1.17.2,<2",
   "protobuf>=4.25.8",
   "grpcio",
   "grpc-interceptor",
@@ -119,6 +119,9 @@ experimental = []
 pg = [
   "asyncpg",
   "psycopg[binary,pool]",
+]
+aws = [
+  "boto3",
 ]
 container = [
   "anthropic>=0.49.0",
