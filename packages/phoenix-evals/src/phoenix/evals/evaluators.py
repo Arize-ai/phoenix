@@ -707,7 +707,7 @@ def create_evaluator(
     name: str,
     source: Optional[SourceType] = None,
     direction: DirectionType = "maximize",
-    kind: KindType = "code",
+    kind: Optional[KindType] = None,
 ) -> Callable[[Callable[..., Any]], Evaluator]:
     """
     Decorator that turns a simple function into an Evaluator instance.
@@ -808,7 +808,11 @@ def create_evaluator(
     # Resolve kind/source and deprecations once at decoration time
     if kind is not None and source is not None and kind != source:
         raise ValueError("Provide only one of 'kind' or 'source' (they differ). Use 'kind'.")
-    resolved_kind: KindType = kind if kind is not None else source
+    # Resolve final kind with backward compatibility for deprecated `source`
+    # If neither is provided, default to "code".
+    resolved_kind: KindType = (
+        kind if kind is not None else (source if source is not None else "code")
+    )
     if kind is None and source is not None:
         warnings.warn(
             "create_evaluator 'source' is deprecated; use 'kind' instead.",
