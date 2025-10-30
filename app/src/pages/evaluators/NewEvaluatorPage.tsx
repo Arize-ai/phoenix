@@ -92,7 +92,7 @@ const NewEvaluatorPageContent = () => {
       <PanelGroup direction="horizontal">
         <Panel defaultSize={65} css={panelCSS} style={panelStyle}>
           <PanelContainer>
-            <Flex direction="column" gap="size-100">
+            <Flex direction="column" gap="size-100" marginTop="size-100">
               <Heading level={3}>Eval</Heading>
               <Text color="text-500">
                 Define the eval annotation returned by your evaluator.
@@ -120,7 +120,7 @@ const NewEvaluatorPageContent = () => {
         <PanelResizeHandle disabled />
         <Panel defaultSize={35} css={panelCSS} style={panelStyle}>
           <PanelContainer>
-            <Flex direction="column" gap="size-100">
+            <Flex direction="column" gap="size-100" marginTop="size-100">
               <Heading level={3}>Example dataset</Heading>
               <Text color="text-500">
                 Use examples from an existing dataset as a reference, or create
