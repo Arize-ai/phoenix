@@ -12,3 +12,4 @@ anthropic==0.49.0
 openai==1.62.0
 boto3
 azure-identity
+mirakuru<3  # 3.0 breaks Python 3.9
