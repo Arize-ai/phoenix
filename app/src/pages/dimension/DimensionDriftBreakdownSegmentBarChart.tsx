@@ -94,6 +94,8 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
   const { fullTimeFormatter } = useTimeFormatters();
   const { selectedTimestamp } = useTimeSlice();
   useInferences();
+  const { primaryBarColor, referenceBarColor } = useColors();
+
   const timeRange = useMemo(() => {
     if (!selectedTimestamp) {
       return null;
@@ -104,9 +106,6 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
     };
   }, [selectedTimestamp]);
 
-  if (!timeRange) {
-    return null;
-  }
   const data = useLazyLoadQuery<DimensionDriftBreakdownSegmentBarChartQuery>(
     graphql`
       query DimensionDriftBreakdownSegmentBarChartQuery(
@@ -149,15 +148,22 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
         }
       }
     `,
-    { dimensionId: props.dimensionId, timeRange: timeRange }
+    {
+      dimensionId: props.dimensionId,
+      timeRange: timeRange ?? { start: "", end: "" },
+    },
+    { fetchPolicy: timeRange ? "store-or-network" : "store-only" }
   );
 
   const chartData = useMemo<BarChartItem[]>(() => {
-    const segments = data.dimension.segmentsComparison?.segments ?? [];
+    if (!data.dimension.segmentsComparison) {
+      return [];
+    }
+    const segments = data.dimension.segmentsComparison.segments ?? [];
     const primaryTotal =
-      data.dimension.segmentsComparison?.totalCounts?.primaryValue ?? 0;
+      data.dimension.segmentsComparison.totalCounts?.primaryValue ?? 0;
     const referenceTotal =
-      data.dimension.segmentsComparison?.totalCounts?.referenceValue ?? 0;
+      data.dimension.segmentsComparison.totalCounts?.referenceValue ?? 0;
     const primaryName = "Primary";
     const referenceName = "Reference";
     return segments.map((segment) => {
@@ -174,13 +180,11 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
         referencePercent,
       };
     });
-  }, [
-    data.dimension.segmentsComparison?.segments,
-    data.dimension.segmentsComparison?.totalCounts?.primaryValue,
-    data.dimension.segmentsComparison?.totalCounts?.referenceValue,
-  ]);
+  }, [data.dimension.segmentsComparison]);
 
-  const { primaryBarColor, referenceBarColor } = useColors();
+  if (!timeRange) {
+    return null;
+  }
   return (
     <Flex direction="column" height="100%">
       <View flex="none" paddingTop="size-100" paddingStart="size-200">
