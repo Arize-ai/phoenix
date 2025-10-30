@@ -738,20 +738,20 @@ class Experiments:
                 timeout=timeout,
             )
         else:
-            experiment = {
-                "id": DRY_RUN,
-                "dataset_id": dataset.id,
-                "dataset_version_id": dataset.version_id,
-                "repetitions": repetitions,
-                "metadata": {},
-                "project_name": None,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-                "example_count": 0,
-                "successful_run_count": 0,
-                "failed_run_count": 0,
-                "missing_run_count": 0,
-            }
+            experiment = Experiment(
+                id=DRY_RUN,
+                dataset_id=dataset.id,
+                dataset_version_id=dataset.version_id,
+                repetitions=repetitions,
+                metadata={},
+                project_name=None,
+                created_at=datetime.now(timezone.utc).isoformat(),
+                updated_at=datetime.now(timezone.utc).isoformat(),
+                example_count=0,
+                successful_run_count=0,
+                failed_run_count=0,
+                missing_run_count=0,
+            )
 
         tracer, resource = _get_tracer(
             experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
@@ -2496,20 +2496,20 @@ class AsyncExperiments:
                 timeout=timeout,
             )
         else:
-            experiment = {
-                "id": DRY_RUN,
-                "dataset_id": dataset.id,
-                "dataset_version_id": dataset.version_id,
-                "repetitions": repetitions,
-                "metadata": {},
-                "project_name": "",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-                "example_count": 0,
-                "successful_run_count": 0,
-                "failed_run_count": 0,
-                "missing_run_count": 0,
-            }
+            experiment = Experiment(
+                id=DRY_RUN,
+                dataset_id=dataset.id,
+                dataset_version_id=dataset.version_id,
+                repetitions=repetitions,
+                metadata={},
+                project_name=None,
+                created_at=datetime.now(timezone.utc).isoformat(),
+                updated_at=datetime.now(timezone.utc).isoformat(),
+                example_count=0,
+                successful_run_count=0,
+                failed_run_count=0,
+                missing_run_count=0,
+            )
 
         tracer, resource = _get_tracer(
             experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
