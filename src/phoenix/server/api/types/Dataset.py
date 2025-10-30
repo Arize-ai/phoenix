@@ -4,6 +4,7 @@ from typing import Optional, cast
 
 import strawberry
 from sqlalchemy import Text, and_, func, or_, select
+from sqlalchemy.orm import with_polymorphic
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -471,11 +472,17 @@ class Dataset(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        # The resolvers on the various evaluator GraphQL types read from the ORM, so we need to
+        # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
+        # base `evaluators` table.
+        PolymorphicEvaluator = with_polymorphic(
+            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+        )
         stmt = (
-            select(models.Evaluator)
+            select(PolymorphicEvaluator)
             .join(models.DatasetsEvaluators)
             .where(models.DatasetsEvaluators.dataset_id == self.id)
-            .order_by(models.Evaluator.id.desc())
+            .order_by(PolymorphicEvaluator.name.asc())
         )
         async with info.context.db() as session:
             evaluators = await session.scalars(stmt)
