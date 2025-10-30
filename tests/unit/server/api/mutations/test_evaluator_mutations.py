@@ -22,8 +22,8 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 class TestDatasetLLMEvaluatorMutations:
     _MUTATION = """
-      mutation($input: CreateDatasetLLMEvaluatorInput!) {
-        createDatasetLlmEvaluator(input: $input) {
+      mutation($input: CreateLLMEvaluatorInput!) {
+        createLlmEvaluator(input: $input) {
           evaluator { id name description kind prompt { id } promptVersion { id } }
           query { __typename } } }
     """
@@ -82,7 +82,7 @@ class TestDatasetLLMEvaluatorMutations:
             ),
         )
         assert result.data and not result.errors
-        evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+        evaluator = result.data["createLlmEvaluator"]["evaluator"]
         assert evaluator["name"] == "test-evaluator" and evaluator["kind"] == "LLM"
         await self._verify_prompt_version_messages(
             gql_client, evaluator["promptVersion"]["id"], "Eval {{input}}"
@@ -117,7 +117,7 @@ class TestDatasetLLMEvaluatorMutations:
             ),
         )
         assert result.data and not result.errors
-        evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+        evaluator = result.data["createLlmEvaluator"]["evaluator"]
         await self._verify_prompt_version_messages(
             gql_client, evaluator["promptVersion"]["id"], "Rate"
         )
@@ -139,7 +139,7 @@ class TestDatasetLLMEvaluatorMutations:
             ),
         )
         assert result.data and not result.errors
-        evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+        evaluator = result.data["createLlmEvaluator"]["evaluator"]
         await self._verify_prompt_version_messages(
             gql_client, evaluator["promptVersion"]["id"], "Second"
         )
@@ -180,6 +180,64 @@ class TestDatasetLLMEvaluatorMutations:
             ),
         )
         assert result.errors
+
+
+class TestCreateEvaluatorsWithoutDataset:
+    _CREATE_LLM_EVALUATOR_MUTATION = """
+      mutation($input: CreateLLMEvaluatorInput!) {
+        createLlmEvaluator(input: $input) {
+          evaluator { id name kind prompt { id } promptVersion { id } }
+          query { __typename }
+        }
+      }
+    """
+
+    _CREATE_CODE_EVALUATOR_MUTATION = """
+      mutation($input: CreateCodeEvaluatorInput!) {
+        createCodeEvaluator(input: $input) {
+          evaluator { id name kind }
+          query { __typename }
+        }
+      }
+    """
+
+    async def test_create_llm_evaluator_without_dataset_relation(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            self._CREATE_LLM_EVALUATOR_MUTATION,
+            {
+                "input": dict(
+                    name="llm-no-dataset",
+                    description="llm eval without dataset relation",
+                    promptVersion=dict(
+                        description="pv",
+                        templateFormat="MUSTACHE",
+                        template=dict(
+                            messages=[dict(role="USER", content=[dict(text=dict(text="Hello"))])]
+                        ),
+                        invocationParameters=dict(temperature=0.0),
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
+                    ),
+                )
+            },
+        )
+        assert result.data and not result.errors
+        evaluator = result.data["createLlmEvaluator"]["evaluator"]
+        assert evaluator["kind"] == "LLM"
+
+        evaluator_id = int(GlobalID.from_id(evaluator["id"]).node_id)
+        async with db() as session:
+            # Ensure no dataset-evaluator relation was created
+            count = await session.scalar(
+                select(sa.func.count())
+                .select_from(models.DatasetsEvaluators)
+                .where(models.DatasetsEvaluators.evaluator_id == evaluator_id)
+            )
+            assert count == 0
 
 
 class TestAssignUnassignEvaluatorMutations:
