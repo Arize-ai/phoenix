@@ -9,6 +9,7 @@ import {
   Icons,
   Menu,
   MenuContainer,
+  MenuFooter,
   MenuHeader,
   MenuItem,
   MenuTrigger,
@@ -28,10 +29,12 @@ type EvaluatorSelectProps = {
   evaluators: EvaluatorItem[];
   selectedIds: string[];
   onSelectionChange: (id: string) => void;
+  onNewEvaluatorPress: () => void;
 };
 
 export function EvaluatorSelect(props: EvaluatorSelectProps) {
-  const { evaluators, selectedIds, onSelectionChange } = props;
+  const { evaluators, selectedIds, onSelectionChange, onNewEvaluatorPress } =
+    props;
   const { contains } = useFilter({ sensitivity: "base" });
 
   return (
@@ -66,6 +69,11 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
             )}
           </Menu>
         </Autocomplete>
+        <MenuFooter>
+          <Button variant="quiet" onPress={onNewEvaluatorPress}>
+            New evaluator
+          </Button>
+        </MenuFooter>
       </MenuContainer>
     </MenuTrigger>
   );
@@ -118,6 +126,7 @@ function EvaluatorMenuItem({
         gap="size-100"
         css={css`
           color: var(--ac-global-color-grey-800);
+          font-size: var(--ac-global-font-size-s);
           opacity: ${alreadyAdded ? "0.25" : 1};
         `}
       >

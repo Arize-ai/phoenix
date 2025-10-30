@@ -87,6 +87,7 @@ const DefaultComponent = () => {
       evaluators={sampleEvaluators}
       selectedIds={selectedIds}
       onSelectionChange={handleSelectionChange}
+      onNewEvaluatorPress={() => {}}
     />
   );
 };
@@ -107,6 +108,7 @@ const NoEvaluatorsComponent = () => {
       evaluators={[]}
       selectedIds={selectedIds}
       onSelectionChange={handleSelectionChange}
+      onNewEvaluatorPress={() => {}}
     />
   );
 };
@@ -132,6 +134,7 @@ const WithAlreadyAddedEvaluatorsComponent = () => {
       evaluators={evaluatorsWithSomeAdded}
       selectedIds={selectedIds}
       onSelectionChange={handleSelectionChange}
+      onNewEvaluatorPress={() => {}}
     />
   );
 };
