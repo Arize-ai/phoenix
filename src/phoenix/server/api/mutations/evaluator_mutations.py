@@ -47,8 +47,8 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
 
 
 @strawberry.input
-class CreateDatasetLLMEvaluatorInput:
-    dataset_id: GlobalID
+class CreateLLMEvaluatorInput:
+    dataset_id: Optional[GlobalID] = UNSET
     name: Identifier
     description: Optional[str] = UNSET
     prompt_version: ChatPromptVersionInput
@@ -56,7 +56,7 @@ class CreateDatasetLLMEvaluatorInput:
 
 @strawberry.input
 class CreateCodeEvaluatorInput:
-    dataset_id: GlobalID
+    dataset_id: Optional[GlobalID] = UNSET
     name: Identifier
     description: Optional[str] = UNSET
 
@@ -96,12 +96,14 @@ class UnassignEvaluatorFromDatasetInput:
 @strawberry.type
 class EvaluatorMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def create_dataset_code_evaluator(
+    async def create_code_evaluator(
         self, info: Info[Context, None], input: CreateCodeEvaluatorInput
     ) -> CodeEvaluatorMutationPayload:
-        dataset_id = from_global_id_with_expected_type(
-            global_id=input.dataset_id, expected_type_name=Dataset.__name__
-        )
+        dataset_id: Optional[int] = None
+        if input.dataset_id is not UNSET and input.dataset_id is not None:
+            dataset_id = from_global_id_with_expected_type(
+                global_id=input.dataset_id, expected_type_name=Dataset.__name__
+            )
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
         if "user" in request.scope:
@@ -121,7 +123,10 @@ class EvaluatorMutationMixin:
                     dataset_id=dataset_id,
                     input_config={},
                 )
-            ],
+            ]
+            # only add dataset relationship if dataset_id is provided
+            if dataset_id is not None
+            else [],
         )
         try:
             async with info.context.db() as session:
@@ -136,12 +141,14 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def create_dataset_llm_evaluator(
-        self, info: Info[Context, None], input: CreateDatasetLLMEvaluatorInput
+    async def create_llm_evaluator(
+        self, info: Info[Context, None], input: CreateLLMEvaluatorInput
     ) -> LLMEvaluatorMutationPayload:
-        dataset_id = from_global_id_with_expected_type(
-            global_id=input.dataset_id, expected_type_name=Dataset.__name__
-        )
+        dataset_id: Optional[int] = None
+        if input.dataset_id is not UNSET and input.dataset_id is not None:
+            dataset_id = from_global_id_with_expected_type(
+                global_id=input.dataset_id, expected_type_name=Dataset.__name__
+            )
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
         if "user" in request.scope:
@@ -173,7 +180,10 @@ class EvaluatorMutationMixin:
                     dataset_id=dataset_id,
                     input_config={},
                 )
-            ],
+            ]
+            # only add dataset relationship if dataset_id is provided
+            if dataset_id is not None
+            else [],
         )
         try:
             async with info.context.db() as session:
