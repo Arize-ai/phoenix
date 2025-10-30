@@ -136,6 +136,7 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
           ))}
           <Button
             type="button"
+            size="S"
             variant="quiet"
             css={css`
               width: fit-content;
