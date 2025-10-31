@@ -38,14 +38,17 @@ from .legacy.evaluators import (
 from .llm import LLM
 from .llm.types import ObjectGenerationMethod
 from .templating import Template
-from .utils import _deprecate_positional_args, default_tqdm_progress_bar_formatter, remap_eval_input
+from .utils import (
+    _deprecate_positional_args,
+    _deprecate_source_and_heuristic,
+    default_tqdm_progress_bar_formatter,
+    remap_eval_input,
+)
 
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
 ToolSchema = Optional[Dict[str, Any]]
 KindType = Literal["human", "llm", "heuristic", "code"]
-# Back-compat type alias; keep for one deprecation cycle
-SourceType = KindType
 DirectionType = Literal["maximize", "minimize"]
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
@@ -117,49 +120,30 @@ class Score:
     kind: Optional[KindType] = None
     direction: DirectionType = "maximize"
 
+    @_deprecate_source_and_heuristic
     def __init__(
         self,
+        *,
         name: Optional[str] = None,
         score: Optional[Union[float, int]] = None,
         label: Optional[str] = None,
         explanation: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        source: Optional[SourceType] = None,
         direction: DirectionType = "maximize",
-        *,
         kind: Optional[KindType] = None,
     ) -> None:
-        # Accept both 'kind' (preferred) and 'source' (deprecated)
-        if kind is not None and source is not None and kind != source:
-            raise ValueError("Provide only one of 'kind' or 'source' (they differ). Use 'kind'.")
-        resolved_kind: Optional[KindType] = kind if kind is not None else source
-        if source is not None and kind is None:
-            warnings.warn(
-                "Score 'source' is deprecated; next time, use 'kind' instead. This time, we'll \
-                automatically convert it for you.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        # Heuristic deprecation
-        if resolved_kind == "heuristic":
-            warnings.warn(
-                "kind='heuristic' is deprecated; next time, use kind='code' instead. This time, \
-                we'll automatically convert it for you.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            resolved_kind = "code"
-
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "score", score)
         object.__setattr__(self, "label", label)
         object.__setattr__(self, "explanation", explanation)
         object.__setattr__(self, "metadata", {} if metadata is None else metadata)
-        object.__setattr__(self, "kind", resolved_kind)
+        object.__setattr__(self, "kind", kind)
         object.__setattr__(self, "direction", direction)
 
     @property
-    def source(self) -> Optional[SourceType]:
+    def source(self) -> Optional[KindType]:
+        """The source of this score (deprecated)."""
+        # TODO: Remove this once we deprecate the source attribute
         warnings.warn(
             "Score.source is deprecated; use Score.kind instead.",
             DeprecationWarning,
@@ -177,8 +161,7 @@ class Score:
         result: Dict[str, Any] = {}
 
         for field_name, field_value in self.__dict__.items():
-            # TODO: Remove this once we deprecate the source attribute
-            if field_value is not None and field_name != "source":
+            if field_value is not None:
                 result[field_name] = field_value
         return result
 
@@ -223,42 +206,17 @@ class Evaluator(ABC):
             to "maximize".
     """
 
+    @_deprecate_source_and_heuristic
     def __init__(
         self,
         *,
         name: str,
-        source: Optional[SourceType] = None,
+        kind: KindType,
         direction: DirectionType = "maximize",
         input_schema: Optional[type[BaseModel]] = None,
-        kind: Optional[KindType] = None,
     ):
-        # Accept both 'kind' (preferred) and 'source' (deprecated)
-        if kind is not None and source is not None and kind != source:
-            raise ValueError("Provide only one of 'kind' or 'source' (they differ). Use 'kind'.")
-        resolved_kind: Optional[KindType] = kind if kind is not None else source
-        if source is not None and kind is None:
-            warnings.warn(
-                "Evaluator 'source' is deprecated; next time, use 'kind' instead. This time, we'll \
-                    automatically convert it for you.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if resolved_kind is None:
-            raise ValueError("Evaluator requires 'kind'.")
-        # Heuristic deprecation and auto-migration
-        if resolved_kind == "heuristic":
-            warnings.warn(
-                "kind='heuristic' is deprecated; next time, use kind='code' instead. This time, \
-                we'll automatically convert it for you.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            resolved_kind = "code"
-
         self._name = name
-        self._kind = resolved_kind
-        # TODO: Remove this once we deprecate the source attribute
-        self._source = resolved_kind
+        self._kind = kind
         self._direction = direction
         self._input_schema: Optional[type[BaseModel]] = input_schema
         self._input_mapping: Optional[InputMappingType] = None
@@ -269,7 +227,8 @@ class Evaluator(ABC):
         return self._name
 
     @property
-    def source(self) -> SourceType:
+    def source(self) -> KindType:
+        # TODO: Remove this once we deprecate the source attribute
         """The source of this evaluator (deprecated)."""
         warnings.warn(
             "Evaluator.source is deprecated; use Evaluator.kind instead.",
@@ -709,7 +668,7 @@ class ClassificationEvaluator(LLMEvaluator):
 
 def create_evaluator(
     name: str,
-    source: Optional[SourceType] = None,
+    source: Optional[KindType] = None,
     direction: DirectionType = "maximize",
     kind: Optional[KindType] = None,
 ) -> Callable[[Callable[..., Any]], Evaluator]:
@@ -808,18 +767,16 @@ def create_evaluator(
 
         The decorator automatically handles conversion to a valid Score object.
     """
-
-    # Resolve kind/source and deprecations once at decoration time
+    # TODO: Remove this once we deprecate the source attribute
     if kind is not None and source is not None and kind != source:
         raise ValueError("Provide only one of 'kind' or 'source' (they differ). Use 'kind'.")
-    # Resolve final kind with backward compatibility for deprecated `source`
     # If neither is provided, default to "code".
     resolved_kind: KindType = (
         kind if kind is not None else (source if source is not None else "code")
     )
     if kind is None and source is not None:
         warnings.warn(
-            "create_evaluator 'source' is deprecated; next time, use 'kind' instead. This time, \
+            "'source' is deprecated; next time, use 'kind' instead. This time, \
             we'll automatically convert it for you.",
             DeprecationWarning,
             stacklevel=2,
