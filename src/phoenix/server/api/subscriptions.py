@@ -202,8 +202,8 @@ class Subscription:
             if input.evaluators:
                 for ii, evaluator in enumerate(input.evaluators):
                     _, db_id = from_global_id(evaluator.id)
-                    evaluator = await session.get(models.Evaluator, db_id)
-                    evaluator_name = evaluator.name if evaluator else ""
+                    evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
+                    evaluator_name = evaluator_record.name if evaluator_record else ""  # pyright: ignore
                     dummy_annotation = ExperimentRunAnnotation.from_dict(
                         {
                             "name": evaluator_name,
@@ -429,6 +429,23 @@ class Subscription:
                 span_cost_calculator=info.context.span_cost_calculator,
             ):
                 yield result_payload
+
+        async with info.context.db() as session:
+            if input.evaluators:
+                for ii, evaluator in enumerate(input.evaluators):
+                    _, db_id = from_global_id(evaluator.id)
+                    evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
+                    evaluator_name = evaluator_record.name if evaluator_record else ""  # pyright: ignore
+                    dummy_annotation = ExperimentRunAnnotation.from_dict(
+                        {
+                            "name": evaluator_name,
+                            "label": f"dummy {ii}",
+                            "score": 0.5,
+                            "explanation": "dummy evaluation",
+                            "metadata": {},
+                        }
+                    )
+                    yield EvaluationChunk(evaluation=dummy_annotation)
 
 
 async def _stream_chat_completion_over_dataset_example(
