@@ -4,7 +4,6 @@ import { css } from "@emotion/react";
 import { Flex } from "@phoenix/components";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
-import { TimezonePreferencesCard } from "./TimezonePreferencesCard";
 import { ViewerAPIKeys } from "./ViewerAPIKeys";
 import { ViewerProfileCard } from "./ViewerProfileCard";
 
@@ -38,7 +37,6 @@ export function ProfilePage() {
       <div css={profilePageInnerCSS}>
         <Flex direction="column" gap="size-200">
           <ViewerProfileCard />
-          <TimezonePreferencesCard />
           <ViewerAPIKeys viewer={viewer} />
         </Flex>
       </div>
