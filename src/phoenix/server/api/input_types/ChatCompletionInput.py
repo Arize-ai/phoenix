@@ -28,9 +28,7 @@ class ChatCompletionInput:
     template: Optional[PromptTemplateOptions] = UNSET
     prompt_name: Optional[Identifier] = None
     repetitions: int
-    evaluators: Optional[list[PlaygroundEvaluatorInput]] = strawberry.field(
-        default_factory=list
-    )
+    evaluators: Optional[list[PlaygroundEvaluatorInput]] = strawberry.field(default_factory=list)
 
 
 @strawberry.input
@@ -49,6 +47,4 @@ class ChatCompletionOverDatasetInput:
     experiment_description: Optional[str] = None
     experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)
     prompt_name: Optional[Identifier] = None
-    evaluators: Optional[list[PlaygroundEvaluatorInput]] = strawberry.field(
-        default_factory=list
-    )
+    evaluators: Optional[list[PlaygroundEvaluatorInput]] = strawberry.field(default_factory=list)
