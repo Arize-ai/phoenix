@@ -12,6 +12,7 @@
 * [Phoenix Demo](https://phoenix-demo.arize.com/projects)
 * [End to End Phoenix Features Notebook ](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llm_ops_overview.ipynb)
 * [Production Guide](production-guide.md)
+* [Integrations](section-integrations/README.md)
 
 ## Tracing
 
