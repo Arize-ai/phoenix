@@ -80,6 +80,11 @@ export type ResumeExperimentParams = ClientFn & {
    * @default 50
    */
   readonly pageSize?: number;
+  /**
+   * Stop processing and exit as soon as any task fails.
+   * @default false
+   */
+  readonly stopOnFirstError?: boolean;
 };
 
 const DEFAULT_PAGE_SIZE = 50 as const;
@@ -233,6 +238,13 @@ function printExperimentSummary({
  *   task: myTask,
  *   evaluators: [correctnessEvaluator, relevanceEvaluator],
  * });
+ *
+ * // Stop on first error (useful for debugging)
+ * await resumeExperiment({
+ *   experimentId: "exp_123",
+ *   task: myTask,
+ *   stopOnFirstError: true, // Exit immediately on first task failure
+ * });
  * ```
  */
 export async function resumeExperiment({
@@ -247,6 +259,7 @@ export async function resumeExperiment({
   useBatchSpanProcessor = true,
   diagLogLevel,
   pageSize = DEFAULT_PAGE_SIZE,
+  stopOnFirstError = false,
 }: ResumeExperimentParams): Promise<void> {
   const client = _client ?? createClient();
 
@@ -322,6 +335,10 @@ export async function resumeExperiment({
     pageSize * CHANNEL_CAPACITY_MULTIPLIER
   );
 
+  // Abort controller for stopOnFirstError coordination
+  const abortController = new AbortController();
+  const { signal } = abortController;
+
   let totalProcessed = 0;
   let totalCompleted = 0;
   let totalFailed = 0;
@@ -332,6 +349,12 @@ export async function resumeExperiment({
 
     try {
       do {
+        // Stop fetching if abort signal received
+        if (signal.aborted) {
+          logger.info("🛑 Stopping fetch due to error in task");
+          break;
+        }
+
         let res: {
           data?: components["schemas"]["GetIncompleteRunsResponseBody"];
         };
@@ -367,10 +390,20 @@ export async function resumeExperiment({
         // Send tasks to channel (blocks if channel is full - natural backpressure!)
         let batchCount = 0;
         for (const incomplete of batchIncomplete) {
+          // Stop sending items if abort signal received
+          if (signal.aborted) {
+            break;
+          }
+
           const example = buildExampleFromApiResponse(
             incomplete.dataset_example
           );
           for (const repNum of incomplete.repetition_numbers) {
+            // Stop sending items if abort signal received
+            if (signal.aborted) {
+              break;
+            }
+
             await taskChannel.send({ example, repetitionNumber: repNum });
             batchCount++;
             totalProcessed++;
@@ -380,7 +413,7 @@ export async function resumeExperiment({
         logger.info(
           `Fetched batch of ${batchCount} incomplete runs (channel buffer: ${taskChannel.length})`
         );
-      } while (cursor !== null);
+      } while (cursor !== null && !signal.aborted);
     } finally {
       taskChannel.close(); // Signal workers we're done
     }
@@ -389,6 +422,11 @@ export async function resumeExperiment({
   // Worker: Process tasks from channel
   async function processTasksFromChannel(): Promise<void> {
     for await (const item of taskChannel) {
+      // Stop processing if abort signal received
+      if (signal.aborted) {
+        break;
+      }
+
       try {
         await runSingleTask({
           client,
@@ -404,6 +442,13 @@ export async function resumeExperiment({
         logger.error(
           `Failed to run task for example ${item.example.id}, repetition ${item.repetitionNumber}: ${error}`
         );
+
+        // If stopOnFirstError is enabled, abort and re-throw
+        if (stopOnFirstError) {
+          logger.error("🛑 Stopping on first error");
+          abortController.abort();
+          throw error;
+        }
       }
     }
   }
@@ -415,18 +460,31 @@ export async function resumeExperiment({
   );
 
   // Wait for producer and all workers to finish
-  await Promise.all([producerTask, ...workerTasks]);
+  let executionError: Error | null = null;
+  try {
+    await Promise.all([producerTask, ...workerTasks]);
+  } catch (error) {
+    if (stopOnFirstError) {
+      executionError =
+        error instanceof Error ? error : new Error(String(error));
+    }
+    // If not stopOnFirstError, errors were already logged by workers
+  }
 
-  logger.info(`✅ Task runs completed.`);
+  // Only show completion message if we didn't stop on error
+  if (!executionError) {
+    logger.info(`✅ Task runs completed.`);
+  }
 
-  if (totalFailed > 0) {
+  if (totalFailed > 0 && !executionError) {
     logger.info(
       `⚠️  Warning: ${totalFailed} out of ${totalProcessed} runs failed.`
     );
   }
 
   // Run evaluators if provided (only on runs missing evaluations)
-  if (evaluators && evaluators.length > 0) {
+  // Skip evaluators if we stopped on error
+  if (evaluators && evaluators.length > 0 && !executionError) {
     logger.info(`\n🔬 Running evaluators...`);
     await resumeEvaluation({
       experimentId,
@@ -438,6 +496,7 @@ export async function resumeExperiment({
       setGlobalTracerProvider,
       useBatchSpanProcessor,
       diagLogLevel,
+      stopOnFirstError,
     });
   }
 
@@ -452,6 +511,11 @@ export async function resumeExperiment({
   // Flush spans (if tracer was initialized)
   if (provider) {
     await provider.forceFlush();
+  }
+
+  // Re-throw error if stopOnFirstError was triggered
+  if (executionError) {
+    throw executionError;
   }
 }
 

@@ -433,4 +433,197 @@ describe("resumeExperiment", () => {
     );
     expect(evaluationPosts).toHaveLength(1);
   });
+
+  describe("stopOnFirstError", () => {
+    // Test helper: creates a task that fails for Alice
+    const createFailingTask = () => {
+      return vi.fn(async (example: Example) => {
+        if (example.input.name === "Alice") {
+          throw new Error("Task failed for Alice");
+        }
+        return `Hello, ${example.input.name}!`;
+      });
+    };
+
+    it("should stop on first error when stopOnFirstError is true", async () => {
+      const taskFn = createFailingTask();
+
+      await expect(
+        resumeExperiment({
+          experimentId: "exp-1",
+          task: taskFn,
+          stopOnFirstError: true,
+          client: mockClient,
+        })
+      ).rejects.toThrow("Task failed for Alice");
+
+      expect(taskFn).toHaveBeenCalled();
+    });
+
+    it("should continue processing when stopOnFirstError is false (default)", async () => {
+      const taskFn = createFailingTask();
+
+      await resumeExperiment({
+        experimentId: "exp-1",
+        task: taskFn,
+        stopOnFirstError: false,
+        client: mockClient,
+      });
+
+      expect(taskFn).toHaveBeenCalledTimes(3);
+    });
+
+    it("should stop fetching new pages when stopOnFirstError is triggered", async () => {
+      // Create more data to ensure pagination
+      const largeDataset = Array.from({ length: 100 }, (_, i) => ({
+        dataset_example: {
+          id: `ex-${i}`,
+          input: { name: i === 0 ? "Alice" : "Bob" },
+          output: { text: `Hello, ${i === 0 ? "Alice" : "Bob"}!` },
+          metadata: {},
+          updated_at: new Date().toISOString(),
+        },
+        repetition_numbers: [1],
+      }));
+
+      // Mock pagination with multiple pages
+      let pageCount = 0;
+      mockClient.GET.mockImplementation(
+        (
+          url: string,
+          options?: { params?: { query?: { cursor?: string; limit?: number } } }
+        ) => {
+          if (url.includes("incomplete-runs")) {
+            pageCount++;
+            const limit = options?.params?.query?.limit ?? 50;
+            const cursor = options?.params?.query?.cursor;
+            const startIdx = cursor ? parseInt(cursor) : 0;
+            const endIdx = Math.min(startIdx + limit, largeDataset.length);
+
+            return Promise.resolve({
+              data: {
+                data: largeDataset.slice(startIdx, endIdx),
+                next_cursor:
+                  endIdx < largeDataset.length ? String(endIdx) : null,
+              },
+            });
+          }
+          return Promise.resolve({ data: {} });
+        }
+      );
+
+      const taskFn = createFailingTask();
+
+      await expect(
+        resumeExperiment({
+          experimentId: "exp-1",
+          task: taskFn,
+          stopOnFirstError: true,
+          client: mockClient,
+        })
+      ).rejects.toThrow("Task failed for Alice");
+
+      expect(pageCount).toBeLessThan(3);
+    });
+
+    it("should record failed tasks even when stopping early", async () => {
+      const taskFn = createFailingTask();
+
+      await expect(
+        resumeExperiment({
+          experimentId: "exp-1",
+          task: taskFn,
+          stopOnFirstError: true,
+          client: mockClient,
+        })
+      ).rejects.toThrow();
+
+      expect(mockClient.POST).toHaveBeenCalledWith(
+        "/v1/experiments/{experiment_id}/runs",
+        expect.objectContaining({
+          body: expect.objectContaining({
+            error: "Task failed for Alice",
+          }),
+        })
+      );
+    });
+
+    it("should stop all concurrent workers when one fails", async () => {
+      const taskOrder: string[] = [];
+
+      const taskFn = vi.fn(async (example: Example) => {
+        taskOrder.push(example.id);
+
+        // Add slight delay to ensure concurrency
+        await new Promise((resolve) => setTimeout(resolve, 5));
+
+        if (example.input.name === "Alice") {
+          throw new Error("Task failed for Alice");
+        }
+        return `Hello, ${example.input.name}!`;
+      });
+
+      try {
+        await resumeExperiment({
+          experimentId: "exp-1",
+          task: taskFn,
+          stopOnFirstError: true,
+          concurrency: 5,
+          client: mockClient,
+        });
+      } catch {
+        // Expected to throw
+      }
+
+      // Should not process all tasks
+      expect(taskOrder.length).toBeLessThanOrEqual(3);
+    });
+
+    it("should skip evaluators when stopOnFirstError is triggered", async () => {
+      const taskFn = vi.fn(async (example: Example) => {
+        if (example.input.name === "Alice") {
+          throw new Error("Task failed for Alice");
+        }
+        return { text: `Hello, ${example.input.name}!` };
+      });
+
+      const evaluatorFn = vi.fn(async () => ({ score: 1, label: "correct" }));
+
+      await expect(
+        resumeExperiment({
+          experimentId: "exp-1",
+          task: taskFn,
+          evaluators: [
+            {
+              name: "correctness",
+              kind: "CODE" as const,
+              evaluate: evaluatorFn,
+            },
+          ],
+          stopOnFirstError: true,
+          client: mockClient,
+        })
+      ).rejects.toThrow();
+
+      expect(evaluatorFn).not.toHaveBeenCalled();
+
+      const incompleteEvaluationsCalls = mockClient.GET.mock.calls.filter(
+        (call: unknown[]) =>
+          (call[0] as string).includes("incomplete-evaluations")
+      );
+      expect(incompleteEvaluationsCalls).toHaveLength(0);
+    });
+
+    it("should default to stopOnFirstError = false", async () => {
+      const taskFn = createFailingTask();
+
+      await resumeExperiment({
+        experimentId: "exp-1",
+        task: taskFn,
+        client: mockClient,
+      });
+
+      expect(taskFn).toHaveBeenCalledTimes(3);
+    });
+  });
 });

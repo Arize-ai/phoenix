@@ -77,6 +77,11 @@ export type ResumeEvaluationParams = ClientFn & {
    * Log level to set for the default DiagConsoleLogger when tracing.
    */
   readonly diagLogLevel?: DiagLogLevel;
+  /**
+   * Stop processing and exit as soon as any evaluation fails.
+   * @default false
+   */
+  readonly stopOnFirstError?: boolean;
 };
 
 const DEFAULT_PAGE_SIZE = 50 as const;
@@ -290,6 +295,13 @@ function printEvaluationSummary({
  *   }],
  * });
  *
+ * // Stop on first error (useful for debugging)
+ * await resumeEvaluation({
+ *   experimentId: "exp_123",
+ *   evaluators: [myEvaluator],
+ *   stopOnFirstError: true, // Exit immediately on first failure
+ * });
+ *
  * // Multi-output evaluator with runtime-generated names
  * await resumeEvaluation({
  *   experimentId: "exp_123",
@@ -321,6 +333,7 @@ export async function resumeEvaluation({
   setGlobalTracerProvider = true,
   useBatchSpanProcessor = true,
   diagLogLevel,
+  stopOnFirstError = false,
 }: ResumeEvaluationParams): Promise<void> {
   const client = _client ?? createClient();
 
@@ -378,6 +391,10 @@ export async function resumeEvaluation({
     pageSize * CHANNEL_CAPACITY_MULTIPLIER
   );
 
+  // Abort controller for stopOnFirstError coordination
+  const abortController = new AbortController();
+  const { signal } = abortController;
+
   let totalProcessed = 0;
   let totalCompleted = 0;
   let totalFailed = 0;
@@ -388,6 +405,12 @@ export async function resumeEvaluation({
 
     try {
       do {
+        // Stop fetching if abort signal received
+        if (signal.aborted) {
+          logger.info("🛑 Stopping fetch due to error in evaluation");
+          break;
+        }
+
         let res: {
           data?: components["schemas"]["GetIncompleteEvaluationsResponseBody"];
           error?: unknown;
@@ -441,6 +464,11 @@ export async function resumeEvaluation({
         // Build evaluation tasks and send to channel
         let batchCount = 0;
         for (const incomplete of batchIncomplete) {
+          // Stop sending items if abort signal received
+          if (signal.aborted) {
+            break;
+          }
+
           const incompleteEval = buildIncompleteEvaluation(incomplete);
 
           const evaluatorsToRun = evaluators.filter((evaluator) =>
@@ -449,6 +477,11 @@ export async function resumeEvaluation({
 
           // Flatten: Send one channel item per evaluator
           for (const evaluator of evaluatorsToRun) {
+            // Stop sending items if abort signal received
+            if (signal.aborted) {
+              break;
+            }
+
             await evalChannel.send({ incompleteEval, evaluator });
             batchCount++;
             totalProcessed++;
@@ -458,7 +491,7 @@ export async function resumeEvaluation({
         logger.info(
           `Fetched batch of ${batchCount} evaluation tasks (channel buffer: ${evalChannel.length})`
         );
-      } while (cursor !== null);
+      } while (cursor !== null && !signal.aborted);
     } finally {
       evalChannel.close(); // Signal workers we're done
     }
@@ -467,6 +500,11 @@ export async function resumeEvaluation({
   // Worker: Process evaluations from channel
   async function processEvaluationsFromChannel(): Promise<void> {
     for await (const item of evalChannel) {
+      // Stop processing if abort signal received
+      if (signal.aborted) {
+        break;
+      }
+
       const expectedEvaluationNames = getExpectedEvaluationNames(
         item.evaluator,
         item.incompleteEval,
@@ -489,6 +527,13 @@ export async function resumeEvaluation({
         logger.error(
           `Failed to run evaluator "${item.evaluator.name}" for run ${item.incompleteEval.experimentRun.id}: ${error}`
         );
+
+        // If stopOnFirstError is enabled, abort and re-throw
+        if (stopOnFirstError) {
+          logger.error("🛑 Stopping on first error");
+          abortController.abort();
+          throw error;
+        }
       }
     }
   }
@@ -500,11 +545,23 @@ export async function resumeEvaluation({
   );
 
   // Wait for producer and all workers to finish
-  await Promise.all([producerTask, ...workerTasks]);
+  let executionError: Error | null = null;
+  try {
+    await Promise.all([producerTask, ...workerTasks]);
+  } catch (error) {
+    if (stopOnFirstError) {
+      executionError =
+        error instanceof Error ? error : new Error(String(error));
+    }
+    // If not stopOnFirstError, errors were already logged by workers
+  }
 
-  logger.info(`✅ Evaluations completed.`);
+  // Only show completion message if we didn't stop on error
+  if (!executionError) {
+    logger.info(`✅ Evaluations completed.`);
+  }
 
-  if (totalFailed > 0) {
+  if (totalFailed > 0 && !executionError) {
     logger.info(
       `⚠️  Warning: ${totalFailed} out of ${totalProcessed} evaluations failed.`
     );
@@ -521,6 +578,11 @@ export async function resumeEvaluation({
   // Flush spans (if tracer was initialized)
   if (provider) {
     await provider.forceFlush();
+  }
+
+  // Re-throw error if stopOnFirstError was triggered
+  if (executionError) {
+    throw executionError;
   }
 }
 

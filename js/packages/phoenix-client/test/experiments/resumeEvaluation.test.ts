@@ -498,4 +498,231 @@ describe("resumeEvaluation", () => {
     // This is a rough test, but should generally hold
     expect(endTime - startTime).toBeLessThan(100);
   });
+
+  describe("stopOnFirstError", () => {
+    // Test helper: creates an evaluator that fails for Alice
+    const createFailingEvaluator = (name = "correctness") => {
+      const evaluateFn = vi.fn(async ({ output }: EvaluatorParams) => {
+        const outputText = (output as { text?: string })?.text ?? "";
+        if (outputText.includes("Alice")) {
+          throw new Error("Evaluator failed for Alice");
+        }
+        return { score: 1, label: "correct" };
+      });
+
+      return {
+        evaluator: asEvaluator({
+          name,
+          kind: "CODE" as const,
+          evaluate: evaluateFn,
+        }),
+        evaluateFn,
+      };
+    };
+
+    it("should stop on first error when stopOnFirstError is true", async () => {
+      const { evaluator, evaluateFn } = createFailingEvaluator();
+
+      await expect(
+        resumeEvaluation({
+          experimentId: "exp-1",
+          evaluators: [evaluator],
+          stopOnFirstError: true,
+          client: mockClient,
+        })
+      ).rejects.toThrow("Evaluator failed for Alice");
+
+      expect(evaluateFn).toHaveBeenCalled();
+    });
+
+    it("should continue processing when stopOnFirstError is false (default)", async () => {
+      const { evaluator, evaluateFn } = createFailingEvaluator();
+
+      await resumeEvaluation({
+        experimentId: "exp-1",
+        evaluators: [evaluator],
+        stopOnFirstError: false,
+        client: mockClient,
+      });
+
+      expect(evaluateFn).toHaveBeenCalledTimes(2);
+    });
+
+    it("should stop fetching new pages when stopOnFirstError is triggered", async () => {
+      // Create more data to ensure pagination
+      const largeDataset = Array.from({ length: 100 }, (_, i) => ({
+        experiment_run: {
+          id: `run-${i}`,
+          experiment_id: "exp-1",
+          dataset_example_id: `ex-${i}`,
+          repetition_number: 1,
+          output: { text: i === 0 ? "Hello, Alice!" : "Hello, Bob!" },
+          start_time: new Date().toISOString(),
+          end_time: new Date().toISOString(),
+          error: null,
+          trace_id: null,
+        },
+        dataset_example: {
+          id: `ex-${i}`,
+          input: { name: i === 0 ? "Alice" : "Bob" },
+          output: { text: `Hello, ${i === 0 ? "Alice" : "Bob"}!` },
+          metadata: {},
+          updated_at: new Date().toISOString(),
+        },
+        evaluation_names: ["correctness"],
+      }));
+
+      // Mock pagination with multiple pages
+      let pageCount = 0;
+      mockClient.GET.mockImplementation(
+        (
+          url: string,
+          options?: { params?: { query?: { cursor?: string; limit?: number } } }
+        ) => {
+          if (url.includes("incomplete-evaluations")) {
+            pageCount++;
+            const limit = options?.params?.query?.limit ?? 50;
+            const cursor = options?.params?.query?.cursor;
+            const startIdx = cursor ? parseInt(cursor) : 0;
+            const endIdx = Math.min(startIdx + limit, largeDataset.length);
+
+            return Promise.resolve({
+              data: {
+                data: largeDataset.slice(startIdx, endIdx),
+                next_cursor:
+                  endIdx < largeDataset.length ? String(endIdx) : null,
+              },
+            });
+          }
+          return Promise.resolve({ data: {} });
+        }
+      );
+
+      const { evaluator } = createFailingEvaluator();
+
+      await expect(
+        resumeEvaluation({
+          experimentId: "exp-1",
+          evaluators: [evaluator],
+          stopOnFirstError: true,
+          client: mockClient,
+        })
+      ).rejects.toThrow("Evaluator failed for Alice");
+
+      expect(pageCount).toBeLessThan(3);
+    });
+
+    it("should record failed evaluations even when stopping early", async () => {
+      const { evaluator } = createFailingEvaluator();
+
+      await expect(
+        resumeEvaluation({
+          experimentId: "exp-1",
+          evaluators: [evaluator],
+          stopOnFirstError: true,
+          client: mockClient,
+        })
+      ).rejects.toThrow();
+
+      expect(mockClient.POST).toHaveBeenCalledWith(
+        "/v1/experiment_evaluations",
+        expect.objectContaining({
+          body: expect.objectContaining({
+            error: "Evaluator failed for Alice",
+          }),
+        })
+      );
+    });
+
+    it("should stop all concurrent workers when one fails", async () => {
+      const evaluationOrder: string[] = [];
+
+      const failingFn = vi.fn(async ({ output }: EvaluatorParams) => {
+        const outputText = (output as { text?: string })?.text ?? "";
+        const runId = outputText.includes("Alice") ? "run-1" : "run-2";
+        evaluationOrder.push(runId);
+
+        // Add slight delay to ensure concurrency
+        await new Promise((resolve) => setTimeout(resolve, 5));
+
+        if (outputText.includes("Alice")) {
+          throw new Error("Evaluator failed for Alice");
+        }
+        return { score: 1, label: "correct" };
+      });
+
+      const failingEvaluator = asEvaluator({
+        name: "correctness",
+        kind: "CODE",
+        evaluate: failingFn,
+      });
+
+      try {
+        await resumeEvaluation({
+          experimentId: "exp-1",
+          evaluators: [failingEvaluator],
+          stopOnFirstError: true,
+          concurrency: 5,
+          client: mockClient,
+        });
+      } catch {
+        // Expected to throw
+      }
+
+      // Should not process all runs
+      expect(evaluationOrder.length).toBeLessThanOrEqual(2);
+    });
+
+    it("should handle stopOnFirstError with multi-output evaluators", async () => {
+      const multiMetricsFn = vi.fn(async ({ output }: EvaluatorParams) => {
+        const outputText = (output as { text?: string })?.text ?? "";
+        if (outputText.includes("Alice")) {
+          throw new Error("Multi-output evaluator failed for Alice");
+        }
+        return [
+          { name: "coherence", score: 0.95 },
+          { name: "relevance", score: 0.85 },
+        ];
+      });
+
+      const multiMetricsEvaluator = asEvaluator({
+        name: "llm-judge",
+        kind: "LLM",
+        evaluate: multiMetricsFn,
+      });
+
+      await expect(
+        resumeEvaluation({
+          experimentId: "exp-1",
+          evaluators: [multiMetricsEvaluator],
+          evaluationNames: ["coherence", "relevance"],
+          stopOnFirstError: true,
+          client: mockClient,
+        })
+      ).rejects.toThrow("Multi-output evaluator failed for Alice");
+
+      // Should record the error for the expected evaluation names
+      const errorCalls = mockClient.POST.mock.calls.filter(
+        (call: unknown[]) => {
+          const body = (call[1] as { body?: { error?: string } })?.body;
+          return body?.error === "Multi-output evaluator failed for Alice";
+        }
+      );
+
+      // Should record error for expected evaluations (at least one)
+      expect(errorCalls.length).toBeGreaterThan(0);
+    });
+
+    it("should default to stopOnFirstError = false", async () => {
+      const { evaluator, evaluateFn } = createFailingEvaluator();
+
+      await resumeEvaluation({
+        experimentId: "exp-1",
+        evaluators: [evaluator],
+        client: mockClient,
+      });
+
+      expect(evaluateFn).toHaveBeenCalledTimes(2);
+    });
+  });
 });
