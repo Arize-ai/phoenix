@@ -4,8 +4,8 @@
 
 * [Overview](README.md)
 * [Reference](https://arize-phoenix.readthedocs.io/en/latest/)
-* [arize-phoenix-evals](python/arize-phoenix-evals.md)
 * [arize-phoenix-client](python/arize-phoenix-client.md)
+* [arize-phoenix-evals](python/arize-phoenix-evals.md)
 * [arize-phoenix-otel](python/arize-phoenix-otel.md)
 
 ## TypeScript

@@ -2,15 +2,16 @@
 
 ## Features
 
-* [**API**](https://arize-phoenix.readthedocs.io/en/latest/) - Interact with Phoenix's OpenAPI REST interface
-  * [Session](https://arize-phoenix.readthedocs.io/en/latest/api/session.html) - Methods for loading, inspecting, and interacting with tracing and evaluation sessions
-  * [Client](https://arize-phoenix.readthedocs.io/en/latest/api/client.html) - Upload and download data to and from Phoenix
-  * [Evals](https://arize-phoenix.readthedocs.io/en/latest/api/evals.html) - Define and run evaluations across models, traces, or datasets
-  * [Experiments](https://arize-phoenix.readthedocs.io/en/latest/api/experiments.html) - Track, evaluate, and compare multiple runs under different conditions
-  * [Otel](https://arize-phoenix.readthedocs.io/en/latest/api/otel.html) - Integrate tracing and metrics using OpenTelemetry for automatic or manual instrumentation
-  * [Inferences / Schema](https://arize-phoenix.readthedocs.io/en/latest/api/inferences_schema.html) - Transform spans and evaluations into datasets, define structures for features and predictions, and manage embedding columns
-* [**Prompt Management** ](./#prompt-management)- Pull, push, and invoke prompts stored in Phoenix
-* [**Project Management**](./#project-management) - Create, read, update, and delete projects in Phoenix
+* [**Phoenix Client**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/) - Lightweight client for interacting with the Phoenix server via its OpenAPI REST interface
+  * [**Datasets**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/datasets.html) - Create and manage datasets for experimentation
+  * [**Experiments**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/experiments.html) - Run experiments and evaluate model performance
+  * [**Prompts**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/prompts.html) - Manage prompt templates and versions
+  * [**Spans**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/spans.html) - Access and analyze traces and spans
+  * [**Annotations**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/annotations.html) - Add annotations, evals, and feedback to spans
+  * [**Sessions**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/sessions.html) - Add session annotations to multi-turn conversations and threads
+  * [**Projects**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/projects.html) - Organize your work with project management
+* [**Phoenix Evals**](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/) - Tooling to evaluate LLM applications including RAG relevance, answer relevance, and more
+* [**Phoenix OTEL**](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/) - Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults&#x20;
 
 ## Installation
 
