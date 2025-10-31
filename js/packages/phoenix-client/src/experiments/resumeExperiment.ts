@@ -543,22 +543,31 @@ async function recordTaskResult({
   readonly endTime: Date;
   readonly traceId?: string | null;
 }): Promise<void> {
-  await client.POST("/v1/experiments/{experiment_id}/runs", {
-    params: {
-      path: {
-        experiment_id: experimentId,
+  try {
+    await client.POST("/v1/experiments/{experiment_id}/runs", {
+      params: {
+        path: {
+          experiment_id: experimentId,
+        },
       },
-    },
-    body: {
-      dataset_example_id: example.id,
-      repetition_number: repetitionNumber,
-      output: output as Record<string, unknown>,
-      start_time: startTime.toISOString(),
-      end_time: endTime.toISOString(),
-      error: error ? ensureString(error) : undefined,
-      trace_id: traceId,
-    },
-  });
+      body: {
+        dataset_example_id: example.id,
+        repetition_number: repetitionNumber,
+        output: output as Record<string, unknown>,
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        error: error ? ensureString(error) : undefined,
+        trace_id: traceId,
+      },
+    });
+  } catch (err: unknown) {
+    // Ignore 409 Conflict - result already exists
+    const error = err as { response?: { status?: number } };
+    if (error.response?.status === 409) {
+      return; // Silently ignore - result already recorded
+    }
+    throw err; // Re-throw other errors
+  }
 }
 
 /**

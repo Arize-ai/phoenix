@@ -615,39 +615,57 @@ async function recordEvaluationResults({
     for (const singleResult of results) {
       const evaluationName = singleResult.name ?? evaluator.name;
 
-      await client.POST("/v1/experiment_evaluations", {
-        body: {
-          experiment_run_id: experimentRun.id,
-          name: evaluationName,
-          annotator_kind: evaluator.kind,
-          result: {
-            score: singleResult.score ?? null,
-            label: singleResult.label ?? null,
-            explanation: singleResult.explanation ?? null,
-            metadata: singleResult.metadata ?? {},
+      try {
+        await client.POST("/v1/experiment_evaluations", {
+          body: {
+            experiment_run_id: experimentRun.id,
+            name: evaluationName,
+            annotator_kind: evaluator.kind,
+            result: {
+              score: singleResult.score ?? null,
+              label: singleResult.label ?? null,
+              explanation: singleResult.explanation ?? null,
+              metadata: singleResult.metadata ?? {},
+            },
+            start_time: startTime.toISOString(),
+            end_time: endTime.toISOString(),
+            error: null,
+            trace_id: traceId,
           },
-          start_time: startTime.toISOString(),
-          end_time: endTime.toISOString(),
-          error: null,
-          trace_id: traceId,
-        },
-      });
+        });
+      } catch (err: unknown) {
+        // Ignore 409 Conflict - evaluation already exists
+        const error = err as { response?: { status?: number } };
+        if (error.response?.status === 409) {
+          continue; // Silently ignore - evaluation already recorded
+        }
+        throw err; // Re-throw other errors
+      }
     }
   } else if (error) {
     // Error case: record failed evaluation for EACH expected evaluation name
     for (const evaluationName of expectedEvaluationNames) {
-      await client.POST("/v1/experiment_evaluations", {
-        body: {
-          experiment_run_id: experimentRun.id,
-          name: evaluationName,
-          annotator_kind: evaluator.kind,
-          result: null,
-          start_time: startTime.toISOString(),
-          end_time: endTime.toISOString(),
-          error,
-          trace_id: traceId,
-        },
-      });
+      try {
+        await client.POST("/v1/experiment_evaluations", {
+          body: {
+            experiment_run_id: experimentRun.id,
+            name: evaluationName,
+            annotator_kind: evaluator.kind,
+            result: null,
+            start_time: startTime.toISOString(),
+            end_time: endTime.toISOString(),
+            error,
+            trace_id: traceId,
+          },
+        });
+      } catch (err: unknown) {
+        // Ignore 409 Conflict - evaluation already exists (e.g., from previous partial run)
+        const error = err as { response?: { status?: number } };
+        if (error.response?.status === 409) {
+          continue; // Silently ignore - evaluation already recorded
+        }
+        throw err; // Re-throw other errors
+      }
     }
   }
 }
