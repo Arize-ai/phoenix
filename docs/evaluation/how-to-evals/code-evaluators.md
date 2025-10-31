@@ -1,8 +1,8 @@
-# Heuristic Evaluators
+# Code Evaluators
 
 Evaluations do not all require LLMs, and often it's useful to create Evaluators that perform basic checks or calculations on datasets that, in concert with LLM evaluations, can help provide useful signal to improve an application.
 
-These evaluations that don't use an LLM are indicated by a `source="heuristic"` flag on the scores.
+These evaluations that don't use an LLM are indicated by a `kind="code"` flag on the scores.
 
 ### Using `create_evaluator`
 
@@ -14,7 +14,7 @@ In the following examples, our decorated evaluation function and coroutine retur
 from phoenix.evals import create_evaluator
 
 @create_evaluator(
-    name="exact-match", source="heuristic", direction="maximize"
+    name="exact-match", kind="code", direction="maximize"
 )
 def exact_match(input: str, output: str) -> bool:
     return input == output
@@ -27,13 +27,13 @@ exact_match.evaluate({"input": "hello world", "output": "hello world"})
 #         label=None,
 #         explanation=None,
 #         metadata={},
-#         source='heuristic',
+#         kind='code',
 #         direction='maximize'
 #     )
 # ]
 
 @create_evaluator(
-    name="contains-link", source="heuristic", direction="maximize"
+    name="contains-link", kind="code", direction="maximize"
 )
 async def contains_link(output: str) -> Score:
     link = "https://arize-phoenix.readthedocs.io/projects/evals"
@@ -60,7 +60,7 @@ from phoenix.evals import create_evaluator, Score
 from textdistance import levenshtein
 
 @create_evaluator(
-    name="levenshtein-distance", source="heuristic", direction="minimize"
+    name="levenshtein-distance", kind="code", direction="minimize"
 )
 def levenshtein(output: str, expected: str) -> Score:
     distance = levenshtein(output, expected)
@@ -68,7 +68,7 @@ def levenshtein(output: str, expected: str) -> Score:
         name="levenshtein-distance",
         score=distance,
         explanation="Levenshtein distance between {output} and {expected}",
-        source="heuristic",
+        kind="code",
         direction="minimize",
     )
 ```

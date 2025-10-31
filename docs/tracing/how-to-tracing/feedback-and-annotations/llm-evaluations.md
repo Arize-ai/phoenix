@@ -7,7 +7,7 @@ description: >-
 # Log Evaluation Results
 
 Evaluations, which can be considered a form of automated annotation, are logged as annotations inside of Phoenix. 
-Instead of coming from a "HUMAN" source, they are either "CODE" (aka heuristic) or "LLM" types. 
+Instead of coming from a "HUMAN" source, they are either "CODE" (aka heuristic) or "LLM" kinds. 
 An evaluation must have a name (e.g. "Q\&A Correctness") and its DataFrame must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. An optional `metadata` column can also be provided.
 
 ## Connect to Phoenix
@@ -33,7 +33,7 @@ A dataframe of span evaluations would look similar to the table below. It must c
 
 The evaluations dataframe can be sent to Phoenix as follows. 
 
-Note that the name and source of the evaluation can be supplied through the `annotation_name` `annotator_kind` parameters, or as columns with the same names in the dataframe.
+Note that the name and kind of the evaluation can be supplied through the `annotation_name` `annotator_kind` parameters, or as columns with the same names in the dataframe.
 
 ```python
 from phoenix.client import Client()

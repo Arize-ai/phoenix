@@ -113,7 +113,7 @@ spelling_classifier = ClassificationEvaluator(
     direction="minimize" # lower scores = better, so direction = minimize 
 )
 spelling_classifier.evaluate({"context": "This is a test. There are is some typo in this sentence."})
->>> [Score(name='spelling', score=2, label="2", explanation="There is one grammatical error ('There are is') and one typo ('typo' instead of 'typos'), which roughly represents 20% of the 10 words in the document.", metadata={'model': 'gpt-4o-mini'}, source='llm', direction='minimize')]
+>>> [Score(name='spelling', score=2, label="2", explanation="There is one grammatical error ('There are is') and one typo ('typo' instead of 'typos'), which roughly represents 20% of the 10 words in the document.", metadata={'model': 'gpt-4o-mini'}, kind='llm', direction='minimize')]
 ```
 
 ### Alternative: Fully Custom LLM Evaluator
@@ -179,7 +179,7 @@ class SpellingEvaluator(LLMEvaluator):
                 name=self.name,
                 explanation=explanation,
                 metadata={"model": self.llm.model},  # could add more metadata here if you want
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
             )
         ]
@@ -192,7 +192,7 @@ spelling_evaluator = SpellingEvaluator(llm=LLM(provider="openai", model="gpt-4o-
 spelling_evaluator.evaluate(
     eval_input={"context": "This is a test. There are is some typo in this sentence."}
 )
->>> [Score(name='spelling_evaluator', score=2, label=None, explanation="There is one grammatical error ('There are is') and one typo ('typo' instead of 'typos'), which roughly represents 20% of the 10 words in the document.", metadata={'model': 'gpt-4o-mini'}, source='llm', direction='minimize')]
+>>> [Score(name='spelling_evaluator', score=2, label=None, explanation="There is one grammatical error ('There are is') and one typo ('typo' instead of 'typos'), which roughly represents 20% of the 10 words in the document.", metadata={'model': 'gpt-4o-mini'}, kind='llm', direction='minimize')]
 ```
 
 #### Improving your Custom Evals

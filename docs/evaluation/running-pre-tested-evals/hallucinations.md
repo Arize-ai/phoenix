@@ -61,7 +61,7 @@ hallucination = HallucinationEvaluator(llm=llm)
 # use the .describe() method to inspect the input_schema of any evaluator
 print(hallucination_evaluator.describe())
 >>> {'name': 'hallucination',
- 'source': 'llm',
+ 'kind': 'llm',
  'direction': 'maximize',
  'input_schema': {'properties': {
    'input': {'description': 'The input query.',
@@ -86,7 +86,7 @@ eval_input = {
           
 scores = hallucination.evaluate(eval_input=eval_input)
 print(scores[0])
->>> Score(name='hallucination', score=1.0, label='factual', explanation='The response correctly identifies the location of the Eiffel Tower as stated in the context.', metadata={'model': 'gpt-4o'}, source='llm', direction='maximize')
+>>> Score(name='hallucination', score=1.0, label='factual', explanation='The response correctly identifies the location of the Eiffel Tower as stated in the context.', metadata={'model': 'gpt-4o'}, kind='llm', direction='maximize')
 ```
 
 ## Benchmark Results

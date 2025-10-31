@@ -73,7 +73,7 @@ Score
 ~~~~~~
 .. autoclass:: phoenix.evals.Score
    :members:
-   :exclude-members: name, score, label, explanation, metadata, source, direction
+   :exclude-members: name, score, label, explanation, metadata, kind, direction
    :show-inheritance:
 
 

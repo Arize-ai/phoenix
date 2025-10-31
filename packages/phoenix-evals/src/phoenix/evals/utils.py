@@ -57,6 +57,80 @@ def _deprecate_positional_args(
     return decorator
 
 
+def _deprecate_heuristic_kind(func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorator to deprecate the 'heuristic' kind in favor of 'code'.
+
+    Args:
+        func (Callable[..., Any]): Function to be decorated that may receive
+            a deprecated 'heuristic' kind.
+
+    Returns:
+        Callable[..., Any]: Wrapper function that converts 'heuristic' kind
+            to 'code' and issues deprecation warning.
+    """
+
+    # TODO:Remove this once the `heuristic` kind in Scores/Evaluators is no longer supported
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        signature = inspect.signature(func)
+
+        if "source" in kwargs:
+            warnings.warn(
+                "`'source' is deprecated; next time, use 'kind' instead. This time, we'll \
+                automatically convert it for you.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["kind"] = kwargs.pop("source")
+        bound_args = signature.bind_partial(*args, **kwargs)
+        bound_args.apply_defaults()
+        return func(*bound_args.args, **bound_args.kwargs)
+
+    return wrapper
+
+
+def _deprecate_source_and_heuristic(func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorator to deprecate the 'source' argument in favor of 'kind'.
+
+    Args:
+        func (Callable[..., Any]): Function to be decorated that may receive
+            a deprecated 'source' argument.
+
+    Returns:
+        Callable[..., Any]: Wrapper function that converts 'source' argument
+            to 'kind' and issues deprecation warning.
+    """
+    # TODO:Remove this once the `source` arg in Scores/Evaluators is no longer supported
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        signature = inspect.signature(func)
+
+        if "source" in kwargs:
+            warnings.warn(
+                "'source' is deprecated; next time, use 'kind' instead. This time, we'll \
+                automatically convert it for you.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["kind"] = kwargs.pop("source")
+        if kwargs.get("kind") == "heuristic":
+            warnings.warn(
+                "Kind 'heuristic' is deprecated; next time, use 'code' instead. This time, we'll \
+                automatically convert it for you.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["kind"] = "code"
+        bound_args = signature.bind_partial(*args, **kwargs)
+        bound_args.apply_defaults()
+        return func(*bound_args.args, **bound_args.kwargs)
+
+    return wrapper
+
+
 # --- Input Map/Transform Helpers ---
 def _bind_mapping_function(
     mapping_function: Callable[..., Any],
@@ -276,7 +350,7 @@ def _format_score_data(
     eval_df = dataframe[span_id_cols + [score_column]].copy()
 
     # Parse JSON score data
-    cols = ["score", "label", "explanation", "source"]
+    cols = ["score", "label", "explanation", "kind"]
 
     def _safe_json_load(x: Any) -> Any:
         if isinstance(x, str):
@@ -296,18 +370,24 @@ def _format_score_data(
         lambda d: _merge_metadata_with_direction(d) if d else None
     )
 
-    # Infer annotator_kind from score.source in first non-null score
+    # Infer annotator_kind from score.kind (preferred) or score.source in first non-null score
+    # TODO: Update this once we deprecate the source attribute
     annotator_kind = "LLM"  # default
     if not parsed_score_col.isna().all():
         no_na = parsed_score_col.dropna()
         first_score = None if no_na.empty else no_na.iloc[0]
-        if first_score and isinstance(first_score, dict) and "source" in first_score:
-            source = first_score["source"]
-            if source == "heuristic":
+        if first_score and isinstance(first_score, dict):
+            source_or_kind = None
+            if "kind" in first_score:
+                source_or_kind = first_score["kind"]
+            elif "source" in first_score:
+                source_or_kind = first_score["source"]
+            # TODO: Remove this once we deprecate heuristic kind
+            if source_or_kind in ["heuristic", "code"]:
                 annotator_kind = "CODE"
-            elif source == "llm":
+            elif source_or_kind == "llm":
                 annotator_kind = "LLM"
-            elif source == "human":
+            elif source_or_kind == "human":
                 annotator_kind = "HUMAN"
 
     # Add annotation name and kind columns

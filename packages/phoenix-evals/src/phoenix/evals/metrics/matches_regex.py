@@ -14,7 +14,7 @@ from ..evaluators import EvalInput, Evaluator, Score
 class MatchesRegex(Evaluator):
     """Evaluates whether text output matches a specified regular expression pattern.
 
-    This heuristic evaluator checks if the output contains one or more substrings that
+    This code evaluator checks if the output contains one or more substrings that
     match a given regex pattern. It returns a binary score (1.0 for match, 0.0 for no match)
     along with an explanation of which substrings matched or that no match was found.
 
@@ -45,7 +45,7 @@ class MatchesRegex(Evaluator):
             #        label=None,
             #        explanation='There are 1 matches for the regex: https?://[^\\s]+',
             #        metadata={},
-            #        source='heuristic',
+            #        kind='code',
             #        direction='maximize')]
     """
 
@@ -72,7 +72,7 @@ class MatchesRegex(Evaluator):
 
         super().__init__(
             name=eval_name,
-            source="heuristic",
+            kind="code",
             input_schema=self.InputSchema,
             direction="maximize",
         )
@@ -96,7 +96,7 @@ class MatchesRegex(Evaluator):
                 score=float(bool(matches)),
                 name=self.name,
                 explanation=explanation if self.include_explanation else None,
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
             )
         ]
