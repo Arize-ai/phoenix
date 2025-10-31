@@ -149,10 +149,10 @@ const NewEvaluatorPageContent = () => {
     formState: { isValid: isChoiceConfigValid },
   } = useForm<ChoiceConfig>({
     defaultValues: {
-      name: "correctness",
+      name: "",
       choices: [
-        { label: "Incorrect", score: 0 },
-        { label: "Correct", score: 1 },
+        { label: "", score: undefined },
+        { label: "", score: undefined },
       ],
     },
   });
