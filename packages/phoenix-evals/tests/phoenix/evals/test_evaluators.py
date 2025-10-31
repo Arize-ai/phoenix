@@ -1,4 +1,5 @@
 # type: ignore
+import warnings
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
@@ -1434,3 +1435,140 @@ class TestEvaluateDataframe:
         assert exec_details[0]["status"] == "COMPLETED"
         assert exec_details[1]["status"] == "FAILED"
         assert len(exec_details[1]["exceptions"]) > 0
+
+
+# TODO: Remove this once the deprecated 'source' argument and 'heuristic' KindType are removed.
+class TestDeprecatedSourceAndHeuristic:
+    """Tests for deprecated 'source' argument and 'heuristic' KindType support."""
+
+    @pytest.mark.parametrize(
+        "kwargs,expected_kind,warning_regex",
+        [
+            pytest.param(
+                {"source": "llm"},
+                "llm",
+                r"'source'\s+is\s+deprecated",
+                id="score-source-deprecated",
+            ),
+            pytest.param(
+                {"source": "heuristic"},
+                "code",
+                r"deprecated",
+                id="score-both-deprecated",
+            ),
+            pytest.param(
+                {"kind": "heuristic"},
+                "code",
+                r"heuristic.*deprecated",
+                id="score-heuristic-deprecated",
+            ),
+            pytest.param({"kind": "code"}, "code", None, id="score-both-new"),
+        ],
+    )
+    def test_score_supports_deprecated_and_new_kinds(self, kwargs, expected_kind, warning_regex):
+        """Score should accept deprecated 'source' and convert 'heuristic' to 'code'."""
+
+        if warning_regex:
+            with pytest.warns(DeprecationWarning, match=warning_regex):
+                s = Score(**kwargs)
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", DeprecationWarning)
+                s = Score(**kwargs)
+
+        assert s.kind == expected_kind
+
+    @pytest.mark.parametrize(
+        "kwargs,expected_kind,warning_regex",
+        [
+            pytest.param(
+                {"source": "human"},
+                "human",
+                r"'source'\s+is\s+deprecated",
+                id="evaluator-source-deprecated",
+            ),
+            pytest.param(
+                {"source": "heuristic"},
+                "code",
+                r"deprecated",
+                id="evaluator-both-deprecated",
+            ),
+            pytest.param(
+                {"kind": "heuristic"},
+                "code",
+                r"heuristic.*deprecated",
+                id="evaluator-heuristic-deprecated",
+            ),
+            pytest.param(
+                {"source": "heuristic"},
+                "code",
+                r"deprecated",
+                id="evaluator-both-deprecated",
+            ),
+            pytest.param({"kind": "llm"}, "llm", None, id="evaluator-both-new"),
+        ],
+    )
+    def test_evaluator_supports_deprecated_and_new_kinds(
+        self, kwargs, expected_kind, warning_regex
+    ):
+        """Evaluator should accept deprecated 'source' and convert 'heuristic' to 'code'."""
+
+        class _MinimalEvaluator(Evaluator):
+            def _evaluate(self, eval_input):
+                return [Score(name=self.name, score=1.0, kind=self.kind)]
+
+        evaluator_kwargs = dict(name="min")
+        evaluator_kwargs.update(kwargs)
+
+        if warning_regex:
+            with pytest.warns(DeprecationWarning, match=warning_regex):
+                ev = _MinimalEvaluator(**evaluator_kwargs)
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", DeprecationWarning)
+                ev = _MinimalEvaluator(**evaluator_kwargs)
+
+        assert ev.kind == expected_kind
+
+    @pytest.mark.parametrize(
+        "kwargs,expected_kind,warning_regex",
+        [
+            pytest.param(
+                {"source": "code"},
+                "code",
+                r"'source'\s+is\s+deprecated",
+                id="create-evaluator-source-deprecated",
+            ),
+            pytest.param(
+                {"source": "heuristic"},
+                "code",
+                r"deprecated",
+                id="create-evaluator-both-deprecated",
+            ),
+            pytest.param(
+                {"kind": "heuristic"},
+                "code",
+                r"heuristic.*deprecated",
+                id="create-evaluator-heuristic-deprecated",
+            ),
+            pytest.param({"kind": "human"}, "human", None, id="create-evaluator-kind-new"),
+        ],
+    )
+    def test_create_evaluator_supports_deprecated_and_new_kinds(
+        self, kwargs, expected_kind, warning_regex
+    ):
+        """create_evaluator should support 'source' and convert 'heuristic' to 'code'."""
+
+        def _fn(text: str) -> float:
+            return 1.0
+
+        if warning_regex:
+            with pytest.warns(DeprecationWarning, match=warning_regex):
+                deco = create_evaluator(name="depr", **kwargs)
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", DeprecationWarning)
+                deco = create_evaluator(name="depr", **kwargs)
+
+        ev = deco(_fn)
+        assert ev.kind == expected_kind
