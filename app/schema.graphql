@@ -506,6 +506,7 @@ input CreateLLMEvaluatorInput {
   name: Identifier!
   description: String
   promptVersion: ChatPromptVersionInput!
+  outputConfig: CategoricalAnnotationConfigInput!
 }
 
 input CreateModelMutationInput {
@@ -1847,6 +1848,7 @@ type LLMEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isAssignedToDataset(datasetId: ID!): Boolean!
+  outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   user: User
