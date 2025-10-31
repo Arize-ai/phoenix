@@ -11,6 +11,11 @@ from sqlalchemy.orm import selectinload
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -825,7 +830,16 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-1-{token_hex(4)}"),
                 description="First evaluator",
                 kind="LLM",
-                output_config={},
+                annotation_name="goodness",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="goodness description",
+                    values=[
+                        CategoricalAnnotationValue(label="good", score=1.0),
+                        CategoricalAnnotationValue(label="bad", score=0.0),
+                    ],
+                ),
                 prompt_id=prompt.id,
                 prompt_version_tag_id=prompt_tag.id,
             )
@@ -833,7 +847,16 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-2-{token_hex(4)}"),
                 description="Second evaluator",
                 kind="LLM",
-                output_config={},
+                annotation_name="correctness",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness description",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                ),
                 prompt_id=prompt.id,
                 prompt_version_tag_id=prompt_tag.id,
             )
@@ -976,7 +999,16 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-3-{token_hex(4)}"),
                 description="Third evaluator",
                 kind="LLM",
-                output_config={},
+                annotation_name="hallucination",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="thirdness description",
+                    values=[
+                        CategoricalAnnotationValue(label="hallucinated", score=1.0),
+                        CategoricalAnnotationValue(label="not_hallucinated", score=0.0),
+                    ],
+                ),
                 prompt_id=prompt.id,
                 prompt_version_tag_id=prompt_tag.id,
             )

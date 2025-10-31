@@ -7,6 +7,11 @@ from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -80,6 +85,15 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
+            ),
         )
         assert result.data and not result.errors
         evaluator = result.data["createLlmEvaluator"]["evaluator"]
@@ -115,6 +129,15 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="ANTHROPIC",
                 modelName="claude-3-opus-20240229",
             ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
+            ),
         )
         assert result.data and not result.errors
         evaluator = result.data["createLlmEvaluator"]["evaluator"]
@@ -136,6 +159,15 @@ class TestDatasetLLMEvaluatorMutations:
                 invocationParameters=dict(temperature=0.5, max_tokens=100),
                 modelProvider="ANTHROPIC",
                 modelName="claude-3-opus-20240229",
+            ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
             ),
         )
         assert result.data and not result.errors
@@ -163,6 +195,15 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
+            ),
         )
         assert result.errors and "Dataset with id 999 not found" in result.errors[0].message
 
@@ -177,6 +218,15 @@ class TestDatasetLLMEvaluatorMutations:
                 invocationParameters=dict(temperature=0.5),
                 modelProvider="OPENAI",
                 modelName="gpt-4",
+            ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
             ),
         )
         assert result.errors
@@ -221,6 +271,15 @@ class TestCreateEvaluatorsWithoutDataset:
                         invocationParameters=dict(temperature=0.0),
                         modelProvider="OPENAI",
                         modelName="gpt-4",
+                    ),
+                    outputConfig=dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
                     ),
                 )
             },
@@ -467,7 +526,16 @@ async def llm_evaluator(
         name=IdentifierModel.model_validate(f"test-llm-evaluator-{token_hex(4)}"),
         description="test llm evaluator",
         kind="LLM",
-        output_config={},
+        annotation_name="correctness",
+        output_config=CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            description="correctness description",
+            values=[
+                CategoricalAnnotationValue(label="correct", score=1.0),
+                CategoricalAnnotationValue(label="incorrect", score=0.0),
+            ],
+        ),
         prompt=prompt,
         datasets_evaluators=[
             models.DatasetsEvaluators(
