@@ -226,13 +226,13 @@ class LLMEvaluator(Evaluator, Node):
             config = self.db_record.output_config
             annotation_name = self.db_record.name.root
         else:
-            (
-                config,
-                annotation_name,
-            ) = await info.context.data_loaders.llm_evaluator_fields.load_many(
-                (self.id, models.LLMEvaluator.output_config),
-                (self.id, models.LLMEvaluator.name),
+            results = await info.context.data_loaders.llm_evaluator_fields.load_many(
+                [
+                    (self.id, models.LLMEvaluator.output_config),
+                    (self.id, models.LLMEvaluator.name),
+                ]
             )
+            config, annotation_name = results
         return _to_gql_categorical_annotation_config(config=config, annotation_name=annotation_name)
 
     @strawberry.field
