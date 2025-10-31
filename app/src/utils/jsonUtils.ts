@@ -60,18 +60,35 @@ export function safelyStringifyJSON(
 /**
  * Flattens an object into a single-level object.
  */
-export function flattenObject(
-  obj: object,
-  parentKey: string = "",
-  separator: string = "."
-): Record<string, string | boolean | number> {
+export function flattenObject({
+  obj,
+  parentKey = "",
+  separator = ".",
+  keepNonTerminalValues = false,
+}: {
+  obj: object;
+  parentKey?: string;
+  separator?: string;
+  keepNonTerminalValues?: boolean;
+}) {
   const result: Record<string, string | boolean | number> = {};
 
   for (const [key, value] of Object.entries(obj)) {
     const newKey = parentKey ? `${parentKey}${separator}${key}` : key;
 
     if (value && typeof value === "object") {
-      Object.assign(result, flattenObject(value, newKey, separator));
+      if (keepNonTerminalValues) {
+        result[newKey] = value;
+      }
+      Object.assign(
+        result,
+        flattenObject({
+          obj: value,
+          parentKey: newKey,
+          separator,
+          keepNonTerminalValues,
+        })
+      );
     } else {
       result[newKey] = value;
     }
@@ -94,7 +111,7 @@ export function jsonStringToFlatObject(
       return {};
     }
     // Flatten the parsed object
-    return flattenObject(parsedObj, "", separator);
+    return flattenObject({ obj: parsedObj, separator });
   } catch {
     // The parsing failed, do nothing
   }
