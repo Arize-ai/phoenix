@@ -14,8 +14,9 @@ import {
   YAxis,
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/types";
+import { css } from "@emotion/react";
 
-import { Text } from "@phoenix/components";
+import { Icon, Icons, Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipDivider,
@@ -68,6 +69,19 @@ function TooltipContent({
           value={floatFormatter(euclideanDistance)}
         />
         <ChartTooltipDivider />
+        <div
+          css={css`
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            color: var(--ac-global-color-primary);
+            gap: var(--ac-global-dimension-static-size-50);
+            margin-top: var(--ac-global-dimension-static-size-50);
+          `}
+        >
+          <Icon svg={<Icons.InfoOutline />} />
+          <span>Click to view details</span>
+        </div>
       </ChartTooltip>
     );
   }
