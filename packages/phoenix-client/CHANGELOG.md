@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.21.0...arize-phoenix-client-v1.22.0) (2025-10-31)
+
+
+### Features
+
+* Bind example to evaluators ([#9036](https://github.com/Arize-ai/phoenix/issues/9036)) ([04d2708](https://github.com/Arize-ai/phoenix/commit/04d270843a0e1c35aa8c55e78ee5d3adb6baabc8))
+* query examples by splits ([#9762](https://github.com/Arize-ai/phoenix/issues/9762)) ([e698c9f](https://github.com/Arize-ai/phoenix/commit/e698c9f573e8022eff28c4cc4591c65ab5b39109))
+
+
+### Bug Fixes
+
+* Clear error message for non-existent prompts instead of HTTP 404 ([#9931](https://github.com/Arize-ai/phoenix/issues/9931)) ([b31be10](https://github.com/Arize-ai/phoenix/commit/b31be10220d02dc63dfd0027efdd627f30178812))
+* **client:** soften input type to create_dataset method ([#9995](https://github.com/Arize-ai/phoenix/issues/9995)) ([02dc536](https://github.com/Arize-ai/phoenix/commit/02dc53652eb7463be47728fb983e4aee8c5215c1))
+
+
+### Documentation
+
+* **client:** fix docstring for get_datast ([#9728](https://github.com/Arize-ai/phoenix/issues/9728)) ([2d330f1](https://github.com/Arize-ai/phoenix/commit/2d330f1ff8ca45f0c462c9050723bbae6e792fd7))
+* migrate to client.spans.log_ ([#9757](https://github.com/Arize-ai/phoenix/issues/9757)) ([aecb5fb](https://github.com/Arize-ai/phoenix/commit/aecb5fbbfb1ae6938b8d91ac0a1ff6f3a51113a9))
+* sync main to docs ([65a68f4](https://github.com/Arize-ai/phoenix/commit/65a68f4c05635e76068b2c85b2929b4d13ca2668))
+
 ## [1.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.20.0...arize-phoenix-client-v1.21.0) (2025-09-29)
 
 
