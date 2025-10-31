@@ -1304,6 +1304,7 @@ class _OIDCServer:
         port: int,
         use_pkce: bool = False,
         groups: Optional[list[str]] = None,
+        role: Optional[str] = None,
     ):
         """
         Initialize a new OIDC server instance.
@@ -1312,6 +1313,7 @@ class _OIDCServer:
             port: The port number on which the server will listen.
             use_pkce: Enable PKCE (Proof Key for Code Exchange) support.
             groups: List of groups to include in ID token claims (for group-based access control testing).
+            role: Role to include in ID token claims (for role mapping testing).
         """
         self._name: str = f"oidc_server_{token_hex(8)}"
         self._client_id: str = f"client_id_{token_hex(8)}"
@@ -1321,6 +1323,7 @@ class _OIDCServer:
         self._port: int = port
         self._use_pkce: bool = use_pkce
         self._groups: list[str] = groups or []
+        self._role: Optional[str] = role
         self._app = FastAPI()
         self._nonce: Optional[str] = None
         self._user_id: Optional[str] = None
@@ -1537,6 +1540,10 @@ class _OIDCServer:
                 "nonce": self._nonce,
             }
 
+            # Add role if configured
+            if self._role:
+                id_token_claims["role"] = self._role
+
             # NOTE: Groups are intentionally NOT included in ID token to simulate
             # real-world IDPs (AWS Cognito, Azure AD) that keep ID tokens small.
             # Groups must be fetched from the /userinfo endpoint instead.
@@ -1601,6 +1608,12 @@ class _OIDCServer:
                 assert isinstance(token_auth_methods, list)
                 token_auth_methods.append("none")
 
+            # Add role claim if configured
+            if self._role:
+                claims_supported = config["claims_supported"]
+                assert isinstance(claims_supported, list)
+                claims_supported.append("role")
+
             # Add groups claim if configured
             if self._groups:
                 claims_supported = config["claims_supported"]
@@ -1624,6 +1637,10 @@ class _OIDCServer:
                 "email": self._user_email,
                 "picture": "https://example.com/picture.jpg",
             }
+
+            # Add role if configured
+            if self._role:
+                user_info["role"] = self._role
 
             # Add groups if configured
             if self._groups:
@@ -1721,6 +1738,11 @@ class _OIDCServer:
     def groups(self) -> list[str]:
         """Get the configured groups for this OIDC server."""
         return self._groups
+
+    @property
+    def role(self) -> Optional[str]:
+        """Get the configured role for this OIDC server."""
+        return self._role
 
     @property
     def use_pkce(self) -> bool:

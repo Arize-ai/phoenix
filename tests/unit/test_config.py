@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, get_args
 from unittest.mock import MagicMock
 from urllib.parse import quote
 
@@ -11,6 +11,7 @@ from phoenix.config import (
     ENV_PHOENIX_ADMINS,
     ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
     OAuth2ClientConfig,
+    OAuth2UserRoleName,
     ensure_working_dir_if_needed,
     get_env_admins,
     get_env_auth_settings,
@@ -20,6 +21,7 @@ from phoenix.config import (
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
 )
+from phoenix.db.models import UserRoleName
 
 
 class TestPostgresConnectionString:
@@ -1235,3 +1237,250 @@ class TestOAuth2ClientConfigFromEnv:
         assert config.client_secret is None
         assert config.token_endpoint_auth_method == "none"
         assert config.use_pkce is True
+
+    def test_role_mapping_single(self, monkeypatch: MonkeyPatch) -> None:
+        """Test single role mapping configuration."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "roles")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_attribute_path == "roles"
+        assert config.role_mapping == {"Owner": "ADMIN"}
+        assert config.role_attribute_strict is False
+
+    def test_role_mapping_multiple(self, monkeypatch: MonkeyPatch) -> None:
+        """Test multiple role mappings configuration."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "roles")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN,Developer:MEMBER,Reader:VIEWER"
+        )
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_mapping == {
+            "Owner": "ADMIN",
+            "Developer": "MEMBER",
+            "Reader": "VIEWER",
+        }
+
+    def test_role_mapping_case_insensitive(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that Phoenix roles in mapping are case-insensitive."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "role")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "owner:admin,dev:member,view:viewer")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_mapping == {"owner": "ADMIN", "dev": "MEMBER", "view": "VIEWER"}
+
+    def test_role_mapping_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that whitespace around role mappings is handled correctly."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "role")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "  Owner : ADMIN , Developer : MEMBER  "
+        )
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_mapping == {"Owner": "ADMIN", "Developer": "MEMBER"}
+
+    def test_role_mapping_missing_colon_fails(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that role mapping without colon separator fails."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "OwnerADMIN")
+
+        with pytest.raises(ValueError, match="Invalid ROLE_MAPPING format.*Expected format"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_empty_idp_role_fails(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that empty IDP role in mapping fails."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", ":ADMIN")
+
+        with pytest.raises(ValueError, match="IDP role cannot be empty"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_system_role_fails(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that SYSTEM role cannot be assigned via OAuth2 role mapping."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "SuperAdmin:SYSTEM")
+
+        with pytest.raises(
+            ValueError, match="SYSTEM role cannot be assigned via OAuth2.*internal-only"
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_invalid_phoenix_role_fails(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that invalid Phoenix role in mapping fails."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:SUPERUSER")
+
+        with pytest.raises(ValueError, match="not a valid Phoenix role.*Valid roles are"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_empty_string_ignored(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that empty role mapping string results in empty dict."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_mapping == {}
+
+    def test_role_mapping_trailing_commas_ignored(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that trailing commas and empty segments are ignored."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "role")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN,,Developer:MEMBER,")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_mapping == {"Owner": "ADMIN", "Developer": "MEMBER"}
+
+    def test_role_attribute_strict_mode(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that role_attribute_strict mode can be enabled."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "roles")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_STRICT", "true")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_attribute_strict is True
+
+    def test_role_attribute_path_without_mapping_allowed(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that role_attribute_path can be set without role_mapping (uses defaults)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "roles")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_attribute_path == "roles"
+        assert config.role_mapping == {}
+
+    def test_role_mapping_without_attribute_path_fails(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that role_mapping requires role_attribute_path."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN")
+
+        with pytest.raises(
+            ValueError, match="ROLE_MAPPING is set but ROLE_ATTRIBUTE_PATH is not configured"
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_attribute_strict_without_attribute_path_fails(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """Test that role_attribute_strict requires role_attribute_path."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_STRICT", "true")
+
+        with pytest.raises(
+            ValueError,
+            match="ROLE_ATTRIBUTE_STRICT is set to true but ROLE_ATTRIBUTE_PATH is not configured",
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_defaults(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that role mapping fields default to empty/None when not configured."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_attribute_path is None
+        assert config.role_mapping == {}
+        assert config.role_attribute_strict is False
+
+
+def test_oauth2_role_names_are_subset_of_user_role_names() -> None:
+    """Test that OAuth2 valid roles are a proper subset of UserRoleName from models.py.
+
+    This ensures that:
+    1. All OAuth2 roles are valid Phoenix user roles
+    2. SYSTEM role is explicitly excluded from OAuth2 (security requirement)
+    """
+    # Get all valid roles from both type aliases
+    all_user_roles = set(get_args(UserRoleName))
+    oauth2_roles = set(get_args(OAuth2UserRoleName))
+
+    # Verify OAuth2 roles are a proper subset (not equal, must exclude SYSTEM)
+    assert oauth2_roles < all_user_roles, "OAuth2 roles must be a proper subset of all user roles"
+
+    # Verify SYSTEM is in UserRoleName but NOT in OAuth2UserRoleName
+    assert "SYSTEM" in all_user_roles, "SYSTEM role must exist in UserRoleName"
+    assert "SYSTEM" not in oauth2_roles, "SYSTEM role must NOT be allowed for OAuth2"
+
+    # Verify expected OAuth2 roles are present
+    assert oauth2_roles == {"ADMIN", "MEMBER", "VIEWER"}, (
+        "OAuth2 should only allow ADMIN, MEMBER, VIEWER"
+    )
