@@ -33,6 +33,21 @@ data:
   {{- if hasKey $provider_config "auto_login" }}
   PHOENIX_OAUTH2_{{ $provider_upper }}_AUTO_LOGIN: {{ $provider_config.auto_login | quote }}
   {{- end }}
+  {{- if hasKey $provider_config "use_pkce" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_USE_PKCE: {{ $provider_config.use_pkce | quote }}
+  {{- end }}
+  {{- if $provider_config.token_endpoint_auth_method }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_TOKEN_ENDPOINT_AUTH_METHOD: {{ $provider_config.token_endpoint_auth_method | quote }}
+  {{- end }}
+  {{- if $provider_config.scopes }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_SCOPES: {{ $provider_config.scopes | quote }}
+  {{- end }}
+  {{- if $provider_config.groups_attribute_path }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_GROUPS_ATTRIBUTE_PATH: {{ $provider_config.groups_attribute_path | quote }}
+  {{- end }}
+  {{- if $provider_config.allowed_groups }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ALLOWED_GROUPS: {{ join "," $provider_config.allowed_groups | quote }}
+  {{- end }}
   {{- end }}
   {{- end }}
   
