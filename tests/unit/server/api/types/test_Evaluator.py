@@ -84,13 +84,13 @@ class TestEvaluatorFields:
                 prompt_id=prompt.id,
                 prompt_version_tag_id=tag.id,
                 annotation_name="correctness",
-                output_config=dict(
-                    name="correctness",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
                     description="correctness description",
                     optimization_direction="MAXIMIZE",
                     values=[
-                        dict(label="correct", score=1.0),
-                        dict(label="incorrect", score=0.0),
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
                     ],
                 ),
             )

@@ -128,6 +128,15 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="ANTHROPIC",
                 modelName="claude-3-opus-20240229",
             ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
+            ),
         )
         assert result.data and not result.errors
         evaluator = result.data["createLlmEvaluator"]["evaluator"]
@@ -149,6 +158,15 @@ class TestDatasetLLMEvaluatorMutations:
                 invocationParameters=dict(temperature=0.5, max_tokens=100),
                 modelProvider="ANTHROPIC",
                 modelName="claude-3-opus-20240229",
+            ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
             ),
         )
         assert result.data and not result.errors
@@ -176,6 +194,15 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
+            ),
         )
         assert result.errors and "Dataset with id 999 not found" in result.errors[0].message
 
@@ -190,6 +217,15 @@ class TestDatasetLLMEvaluatorMutations:
                 invocationParameters=dict(temperature=0.5),
                 modelProvider="OPENAI",
                 modelName="gpt-4",
+            ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
             ),
         )
         assert result.errors
