@@ -8,6 +8,11 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -960,14 +965,32 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             name=Identifier("evaluator-1"),
             description="First evaluator",
             prompt_id=prompt.id,
-            output_config={},
+            annotation_name="goodness",
+            output_config=CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                description="goodness description",
+                values=[
+                    CategoricalAnnotationValue(label="good", score=1.0),
+                    CategoricalAnnotationValue(label="bad", score=0.0),
+                ],
+            ),
         )
         evaluator_2 = models.LLMEvaluator(
             id=2,
             name=Identifier("evaluator-2"),
             description="Second evaluator",
             prompt_id=prompt.id,
-            output_config={},
+            annotation_name="correctness",
+            output_config=CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                description="correctness description",
+                values=[
+                    CategoricalAnnotationValue(label="correct", score=1.0),
+                    CategoricalAnnotationValue(label="incorrect", score=0.0),
+                ],
+            ),
         )
         session.add_all([evaluator_1, evaluator_2])
         await session.flush()

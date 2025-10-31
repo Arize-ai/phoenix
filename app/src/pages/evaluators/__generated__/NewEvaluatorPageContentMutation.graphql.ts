@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d56abc06fcf805863c4dcb7796af6505>>
+ * @generated SignedSource<<d53783c1678cc6466fd23305373ecf07>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,11 +10,13 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type CreateLLMEvaluatorInput = {
   datasetId?: string | null;
   description?: string | null;
   name: string;
+  outputConfig: CategoricalAnnotationConfigInput;
   promptVersion: ChatPromptVersionInput;
 };
 export type ChatPromptVersionInput = {
@@ -60,6 +62,16 @@ export type ToolDefinitionInput = {
 };
 export type ResponseFormatInput = {
   definition: any;
+};
+export type CategoricalAnnotationConfigInput = {
+  description?: string | null;
+  name: string;
+  optimizationDirection: OptimizationDirection;
+  values: ReadonlyArray<CategoricalAnnotationConfigValueInput>;
+};
+export type CategoricalAnnotationConfigValueInput = {
+  label: string;
+  score?: number | null;
 };
 export type NewEvaluatorPageContentMutation$variables = {
   input: CreateLLMEvaluatorInput;
