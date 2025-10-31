@@ -1,0 +1,50 @@
+name: Helm CI
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - "helm/**"
+      - "scripts/ci/test_helm.py"
+      - ".github/workflows/helm-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "helm/**"
+  workflow_dispatch:
+
+concurrency:
+  group: helm-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  helm-tests:
+    name: Helm Chart Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install tox
+        run: pip install tox-uv
+
+      - name: Run Helm chart tests
+        run: tox r -e helm_tests
+
