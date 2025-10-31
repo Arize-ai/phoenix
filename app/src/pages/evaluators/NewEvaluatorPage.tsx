@@ -161,6 +161,14 @@ const NewEvaluatorPageContent = () => {
         input: {
           name: payload.name,
           promptVersion: payload.promptVersion,
+          outputConfig: {
+            name: choiceConfig.name,
+            optimizationDirection: "MAXIMIZE",
+            values: choiceConfig.choices.map((choice) => ({
+              label: choice.label,
+              score: choice.score,
+            })),
+          },
         },
       },
       onCompleted: (response) => {
