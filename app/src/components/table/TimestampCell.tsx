@@ -1,5 +1,6 @@
 import { CellContext } from "@tanstack/react-table";
 
+import { usePreferencesContext } from "@phoenix/contexts";
 import { isStringOrNullOrUndefined } from "@phoenix/typeUtils";
 
 export const DEFAULT_FORMAT: Intl.DateTimeFormatOptions = {
@@ -17,13 +18,21 @@ export function TimestampCell<TData extends object, TValue>({
   getValue,
   format = DEFAULT_FORMAT,
 }: CellContext<TData, TValue> & { format?: Intl.DateTimeFormatOptions }) {
+  const displayTimezone = usePreferencesContext(
+    (state) => state.displayTimezone
+  );
+
   const value = getValue();
   if (!isStringOrNullOrUndefined(value)) {
     throw new Error(
       "TimestampCell only supports string, null, or undefined values."
     );
   }
+
+  const formatOptions =
+    displayTimezone === "UTC" ? { ...format, timeZone: "UTC" } : format;
+
   const timestamp =
-    value != null ? new Date(value).toLocaleString([], format) : "--";
+    value != null ? new Date(value).toLocaleString([], formatOptions) : "--";
   return <time title={value != null ? String(value) : ""}>{timestamp}</time>;
 }

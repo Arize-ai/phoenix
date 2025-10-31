@@ -1950,6 +1950,9 @@ function EmptyIndicator({ text }: { text: string }) {
   );
 }
 function SpanEventsList({ events }: { events: Span["events"] }) {
+  const displayTimezone = usePreferencesContext(
+    (state) => state.displayTimezone
+  );
   if (events.length === 0) {
     return <EmptyIndicator text="No events" />;
   }
@@ -1993,7 +1996,15 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
               </Flex>
               <View>
                 <Text color="text-700">
-                  {new Date(event.timestamp).toLocaleString()}
+                  {new Date(event.timestamp).toLocaleString([], {
+                    year: "numeric",
+                    month: "numeric",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    timeZone: displayTimezone === "UTC" ? "UTC" : undefined,
+                  })}
                 </Text>
               </View>
             </Flex>

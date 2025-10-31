@@ -23,6 +23,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   SessionDetailsTraceList_traces$data,
@@ -32,7 +33,6 @@ import { MimeType } from "@phoenix/pages/trace/__generated__/SpanDetailsQuery.gr
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 
@@ -106,6 +106,7 @@ function RootSpanDetails({
   rootSpan,
   index,
 }: RootSpanProps & { traceId: string; index: number }) {
+  const { fullTimeFormatter } = useTimeFormatters();
   const startDate = useMemo(() => {
     return new Date(rootSpan.startTime);
   }, [rootSpan.startTime]);

@@ -29,12 +29,12 @@ import {
   View,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import { useTimeFormatters } from "@phoenix/hooks";
 import {
   PromptMenuQuery,
   PromptMenuQuery$data,
 } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 type PromptItem = {
   type: "prompt" | "version" | "tag";
@@ -115,6 +115,7 @@ export const PromptMenu = <T extends object>({
   onChange,
   ...props
 }: PromptMenuProps<T>) => {
+  const { fullTimeFormatter } = useTimeFormatters();
   const { promptId, promptVersionId, promptTagName } = value || {};
   const fetchKey = promptVersionId
     ? `PromptMenu:${promptId}:${promptVersionId}`

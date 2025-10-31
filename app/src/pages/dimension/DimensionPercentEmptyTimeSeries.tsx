@@ -19,7 +19,7 @@ import {
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionPercentEmptyTimeSeriesQuery } from "./__generated__/DimensionPercentEmptyTimeSeriesQuery.graphql";
@@ -41,6 +41,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
+  const { fullTimeFormatter } = useTimeFormatters();
   const { color } = useColors();
   if (active && payload && payload.length) {
     const percentEmpty = payload[0]?.value ?? null;

@@ -28,6 +28,7 @@ const tabs: { id: string; label: string }[] = [
   { id: "annotations", label: "Annotations" },
   { id: "prompts", label: "Prompts" },
   { id: "data", label: "Data Retention" },
+  { id: "display", label: "Display Preferences" },
 ];
 
 export function SettingsPage() {
