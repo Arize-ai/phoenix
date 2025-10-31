@@ -91,10 +91,8 @@ function providerSupportsOpenAIConfig(provider: ModelProvider) {
 
 function OpenAiModelConfigFormField({
   instance,
-  container,
 }: {
   instance: PlaygroundNormalizedInstance;
-  container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateModelConfig = useCallback(
@@ -146,7 +144,6 @@ function OpenAiModelConfigFormField({
         onChange={(value) => {
           debouncedUpdateModelName(value);
         }}
-        container={container ?? undefined}
       />
       <TextField
         key="base-url"
@@ -164,10 +161,8 @@ function OpenAiModelConfigFormField({
 
 function AzureOpenAiModelConfigFormField({
   instance,
-  container,
 }: {
   instance: PlaygroundNormalizedInstance;
-  container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateModelConfig = useCallback(
@@ -234,7 +229,6 @@ function AzureOpenAiModelConfigFormField({
         <Input placeholder="e.x. https://my.openai.azure.com" />
       </TextField>
       <ComboBox
-        container={container ?? undefined}
         size="L"
         label="API Version"
         data-testid="azure-api-version-combobox"
@@ -270,10 +264,8 @@ function AzureOpenAiModelConfigFormField({
 
 function AwsModelConfigFormField({
   instance,
-  container,
 }: {
   instance: PlaygroundNormalizedInstance;
-  container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateModelConfig = useCallback(
@@ -298,7 +290,6 @@ function AwsModelConfigFormField({
   return (
     <>
       <ComboBox
-        container={container ?? undefined}
         size="L"
         label="Region"
         data-testid="bedrock-region-combobox"
@@ -407,7 +398,6 @@ function AwsModelConfigFormField({
         </ComboBoxItem>
       </ComboBox>
       <ComboBox
-        container={container ?? undefined}
         size="L"
         label="API"
         data-testid="bedrock-api-combobox"
@@ -441,11 +431,9 @@ const formatHeadersForEditor = (
 
 function CustomHeadersModelConfigFormField({
   instance,
-  container: _container,
   onErrorChange,
 }: {
   instance: PlaygroundNormalizedInstance;
-  container: HTMLElement | null;
   onErrorChange?: (hasError: boolean) => void;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
@@ -709,8 +697,6 @@ function ModelConfigDialogContent(
     [playgroundInstanceId, updateModel]
   );
 
-  const [container, setContainer] = useState<HTMLElement | null>();
-
   return (
     <form css={modelConfigFormCSS}>
       {!requiredInvocationParametersConfigured ? (
@@ -733,28 +719,18 @@ function ModelConfigDialogContent(
         }}
       />
       {providerSupportsOpenAIConfig(instance.model.provider) ? (
-        <OpenAiModelConfigFormField
-          instance={instance}
-          container={container ?? null}
-        />
+        <OpenAiModelConfigFormField instance={instance} />
       ) : instance.model.provider === "AZURE_OPENAI" ? (
-        <AzureOpenAiModelConfigFormField
-          instance={instance}
-          container={container ?? null}
-        />
+        <AzureOpenAiModelConfigFormField instance={instance} />
       ) : (
         <ModelComboBox
           modelName={instance.model.modelName}
           provider={instance.model.provider}
           onChange={onModelNameChange}
-          container={container ?? undefined}
         />
       )}
       {instance.model.provider === "AWS" ? (
-        <AwsModelConfigFormField
-          instance={instance}
-          container={container ?? null}
-        />
+        <AwsModelConfigFormField instance={instance} />
       ) : null}
       <Suspense>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />
@@ -764,12 +740,9 @@ function ModelConfigDialogContent(
         <CustomHeadersModelConfigFormField
           key={instance.model.provider}
           instance={instance}
-          container={container ?? null}
           onErrorChange={onCustomHeadersErrorChange}
         />
       )}
-
-      <div ref={setContainer} />
     </form>
   );
 }

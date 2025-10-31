@@ -49,10 +49,10 @@ from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSor
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
-from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
+from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
-from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
+from phoenix.server.api.types.DatasetLabel import DatasetLabel
+from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -61,7 +61,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
     to_gql_embedding_dimension,
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
-from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
     ExperimentComparison,
 )
@@ -69,9 +69,9 @@ from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
     ExperimentRepeatedRunGroup,
     parse_experiment_repeated_run_group_node_id,
 )
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
+from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.Functionality import Functionality
-from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
+from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
@@ -89,21 +89,21 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
+from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
-from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
-from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
+from phoenix.server.api.types.Prompt import Prompt
+from phoenix.server.api.types.PromptLabel import PromptLabel
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
-from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
+from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
-from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
+from phoenix.server.api.types.SpanAnnotation import SpanAnnotation
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import Trace
-from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
-from phoenix.server.api.types.User import User, to_gql_user
-from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
+from phoenix.server.api.types.TraceAnnotation import TraceAnnotation
+from phoenix.server.api.types.User import User
+from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
 
@@ -188,7 +188,17 @@ class Query:
     async def generative_models(
         self,
         info: Info[Context, None],
-    ) -> list[GenerativeModel]:
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[GenerativeModel]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
         async with info.context.db() as session:
             result = await session.scalars(
                 select(models.GenerativeModel)
@@ -198,17 +208,16 @@ class Query:
                     models.GenerativeModel.provider.nullslast(),
                     models.GenerativeModel.name,
                 )
-                .options(joinedload(models.GenerativeModel.token_prices))
             )
-
-        return [to_gql_generative_model(model) for model in result.unique()]
+            data = [GenerativeModel(id=model.id, db_record=model) for model in result.unique()]
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
         if input is not None and input.provider_key is not None:
             supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
             supported_models = [
-                PlaygroundModel(name=model_name, provider_key=input.provider_key)
+                PlaygroundModel(name_value=model_name, provider_key_value=input.provider_key)
                 for model_name in supported_model_names
             ]
             return supported_models
@@ -217,7 +226,9 @@ class Query:
         all_models: list[PlaygroundModel] = []
         for provider_key, model_name in registered_models:
             if model_name is not None and provider_key is not None:
-                all_models.append(PlaygroundModel(name=model_name, provider_key=provider_key))
+                all_models.append(
+                    PlaygroundModel(name_value=model_name, provider_key_value=provider_key)
+                )
         return all_models
 
     @strawberry.field
@@ -261,7 +272,7 @@ class Query:
         )
         async with info.context.db() as session:
             users = await session.stream_scalars(stmt)
-            data = [to_gql_user(user) async for user in users]
+            data = [User(id=user.id, db_record=user) async for user in users]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
@@ -291,7 +302,7 @@ class Query:
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
-        return [to_gql_api_key(api_key) for api_key in api_keys]
+        return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:
@@ -303,16 +314,7 @@ class Query:
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
-        return [
-            SystemApiKey(
-                id_attr=api_key.id,
-                name=api_key.name,
-                description=api_key.description,
-                created_at=api_key.created_at,
-                expires_at=api_key.expires_at,
-            )
-            for api_key in api_keys
-        ]
+        return [SystemApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
 
     @strawberry.field
     async def projects(
@@ -353,13 +355,7 @@ class Query:
         stmt = exclude_experiment_projects(stmt)
         async with info.context.db() as session:
             projects = await session.stream_scalars(stmt)
-            data = [
-                Project(
-                    project_rowid=project.id,
-                    db_project=project,
-                )
-                async for project in projects
-            ]
+            data = [Project(id=project.id, db_record=project) async for project in projects]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
@@ -420,7 +416,7 @@ class Query:
         async with info.context.db() as session:
             datasets = await session.scalars(stmt)
         return connection_from_list(
-            data=[to_gql_dataset(dataset) for dataset in datasets], args=args
+            data=[Dataset(id=dataset.id, db_record=dataset) for dataset in datasets], args=args
         )
 
     @strawberry.field
@@ -545,10 +541,11 @@ class Query:
                     ExperimentRepeatedRunGroup(
                         experiment_rowid=experiment_id,
                         dataset_example_rowid=example.id,
-                        runs=[
-                            to_gql_experiment_run(run)
+                        cached_runs=[
+                            ExperimentRun(id=run.id, db_record=run)
                             for run in sorted(
-                                runs[example.id][experiment_id], key=lambda run: run.id
+                                runs[example.id][experiment_id],
+                                key=lambda run: run.repetition_number,
                             )
                         ],
                     )
@@ -556,8 +553,8 @@ class Query:
             experiment_comparison = ExperimentComparison(
                 id_attr=example.id,
                 example=DatasetExample(
-                    id_attr=example.id,
-                    created_at=example.created_at,
+                    id=example.id,
+                    db_record=example,
                     version_id=base_experiment.dataset_version_id,
                 ),
                 repeated_run_groups=repeated_run_groups,
@@ -898,25 +895,9 @@ class Query:
                 )
             except Exception:
                 raise NotFound(f"Unknown node: {id}")
-
-            async with info.context.db() as session:
-                runs = (
-                    await session.scalars(
-                        select(models.ExperimentRun)
-                        .where(models.ExperimentRun.experiment_id == experiment_rowid)
-                        .where(models.ExperimentRun.dataset_example_id == dataset_example_rowid)
-                        .order_by(models.ExperimentRun.repetition_number.asc())
-                        .options(
-                            joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
-                        )
-                    )
-                ).all()
-            if not runs:
-                raise NotFound(f"Unknown experiment or dataset example: {id}")
             return ExperimentRepeatedRunGroup(
                 experiment_rowid=experiment_rowid,
                 dataset_example_rowid=dataset_example_rowid,
-                runs=[to_gql_experiment_run(run) for run in runs],
             )
 
         global_id = GlobalID.from_id(id)
@@ -927,111 +908,30 @@ class Query:
         elif type_name == "EmbeddingDimension":
             embedding_dimension = info.context.model.embedding_dimensions[node_id]
             return to_gql_embedding_dimension(node_id, embedding_dimension)
-        elif type_name == "Project":
-            project_stmt = select(models.Project).filter_by(id=node_id)
-            async with info.context.db() as session:
-                project = await session.scalar(project_stmt)
-            if project is None:
-                raise NotFound(f"Unknown project: {id}")
-            return Project(
-                project_rowid=project.id,
-                db_project=project,
-            )
-        elif type_name == "Trace":
-            trace_stmt = select(models.Trace).filter_by(id=node_id)
-            async with info.context.db() as session:
-                trace = await session.scalar(trace_stmt)
-            if trace is None:
-                raise NotFound(f"Unknown trace: {id}")
-            return Trace(trace_rowid=trace.id, db_trace=trace)
+        elif type_name == Project.__name__:
+            return Project(id=node_id)
+        elif type_name == Trace.__name__:
+            return Trace(id=node_id)
         elif type_name == Span.__name__:
-            span_stmt = (
-                select(models.Span)
-                .options(
-                    joinedload(models.Span.trace, innerjoin=True).load_only(models.Trace.trace_id)
-                )
-                .where(models.Span.id == node_id)
-            )
-            async with info.context.db() as session:
-                span = await session.scalar(span_stmt)
-            if span is None:
-                raise NotFound(f"Unknown span: {id}")
-            return Span(span_rowid=span.id, db_span=span)
+            return Span(id=node_id)
         elif type_name == Dataset.__name__:
-            dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
-            async with info.context.db() as session:
-                if (dataset := await session.scalar(dataset_stmt)) is None:
-                    raise NotFound(f"Unknown dataset: {id}")
-            return to_gql_dataset(dataset)
+            return Dataset(id=node_id)
         elif type_name == DatasetExample.__name__:
-            example_id = node_id
-            async with info.context.db() as session:
-                example = await session.scalar(
-                    select(models.DatasetExample).where(models.DatasetExample.id == example_id)
-                )
-            if not example:
-                raise NotFound(f"Unknown dataset example: {id}")
-            return DatasetExample(
-                id_attr=example.id,
-                created_at=example.created_at,
-            )
+            return DatasetExample(id=node_id)
         elif type_name == DatasetSplit.__name__:
-            async with info.context.db() as session:
-                dataset_split = await session.scalar(
-                    select(models.DatasetSplit).where(models.DatasetSplit.id == node_id)
-                )
-            if not dataset_split:
-                raise NotFound(f"Unknown dataset split: {id}")
-            return to_gql_dataset_split(dataset_split)
+            return DatasetSplit(id=node_id)
         elif type_name == Experiment.__name__:
-            async with info.context.db() as session:
-                experiment = await session.scalar(
-                    select(models.Experiment).where(models.Experiment.id == node_id)
-                )
-            if not experiment:
-                raise NotFound(f"Unknown experiment: {id}")
-            return to_gql_experiment(experiment)
+            return Experiment(id=node_id)
         elif type_name == ExperimentRun.__name__:
-            async with info.context.db() as session:
-                if not (
-                    run := await session.scalar(
-                        select(models.ExperimentRun)
-                        .where(models.ExperimentRun.id == node_id)
-                        .options(
-                            joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
-                        )
-                    )
-                ):
-                    raise NotFound(f"Unknown experiment run: {id}")
-            return to_gql_experiment_run(run)
+            return ExperimentRun(id=node_id)
         elif type_name == User.__name__:
             if int((user := info.context.user).identity) != node_id and not user.is_admin:
                 raise Unauthorized(MSG_ADMIN_ONLY)
-            async with info.context.db() as session:
-                if not (
-                    user := await session.scalar(
-                        select(models.User).where(models.User.id == node_id)
-                    )
-                ):
-                    raise NotFound(f"Unknown user: {id}")
-            return to_gql_user(user)
+            return User(id=node_id)
         elif type_name == ProjectSession.__name__:
-            async with info.context.db() as session:
-                if not (
-                    project_session := await session.scalar(
-                        select(models.ProjectSession).filter_by(id=node_id)
-                    )
-                ):
-                    raise NotFound(f"Unknown user: {id}")
-            return to_gql_project_session(project_session)
+            return ProjectSession(id=node_id)
         elif type_name == Prompt.__name__:
-            async with info.context.db() as session:
-                if orm_prompt := await session.scalar(
-                    select(models.Prompt).where(models.Prompt.id == node_id)
-                ):
-                    return to_gql_prompt_from_orm(orm_prompt)
-                else:
-                    raise NotFound(f"Unknown prompt: {id}")
+            return Prompt(id=node_id)
         elif type_name == PromptVersion.__name__:
             async with info.context.db() as session:
                 if orm_prompt_version := await session.scalar(
@@ -1041,51 +941,17 @@ class Query:
                 else:
                     raise NotFound(f"Unknown prompt version: {id}")
         elif type_name == PromptLabel.__name__:
-            async with info.context.db() as session:
-                if not (
-                    prompt_label := await session.scalar(
-                        select(models.PromptLabel).where(models.PromptLabel.id == node_id)
-                    )
-                ):
-                    raise NotFound(f"Unknown prompt label: {id}")
-            return to_gql_prompt_label(prompt_label)
+            return PromptLabel(id=node_id)
         elif type_name == PromptVersionTag.__name__:
-            async with info.context.db() as session:
-                if not (prompt_version_tag := await session.get(models.PromptVersionTag, node_id)):
-                    raise NotFound(f"Unknown prompt version tag: {id}")
-            return to_gql_prompt_version_tag(prompt_version_tag)
+            return PromptVersionTag(id=node_id)
         elif type_name == ProjectTraceRetentionPolicy.__name__:
-            async with info.context.db() as session:
-                db_policy = await session.scalar(
-                    select(models.ProjectTraceRetentionPolicy).filter_by(id=node_id)
-                )
-                if not db_policy:
-                    raise NotFound(f"Unknown project trace retention policy: {id}")
-            return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
+            return ProjectTraceRetentionPolicy(id=node_id)
         elif type_name == SpanAnnotation.__name__:
-            async with info.context.db() as session:
-                span_annotation = await session.get(models.SpanAnnotation, node_id)
-                if not span_annotation:
-                    raise NotFound(f"Unknown span annotation: {id}")
-            return to_gql_span_annotation(span_annotation)
+            return SpanAnnotation(id=node_id)
         elif type_name == TraceAnnotation.__name__:
-            async with info.context.db() as session:
-                trace_annotation = await session.get(models.TraceAnnotation, node_id)
-                if not trace_annotation:
-                    raise NotFound(f"Unknown trace annotation: {id}")
-            return to_gql_trace_annotation(trace_annotation)
+            return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
-            async with info.context.db() as session:
-                stmt = (
-                    select(models.GenerativeModel)
-                    .where(models.GenerativeModel.deleted_at.is_(None))
-                    .where(models.GenerativeModel.id == node_id)
-                    .options(joinedload(models.GenerativeModel.token_prices))
-                )
-                model = await session.scalar(stmt)
-                if not model:
-                    raise NotFound(f"Unknown model: {id}")
-            return to_gql_generative_model(model)
+            return GenerativeModel(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -1097,16 +963,7 @@ class Query:
             return None
         if isinstance(user, UnauthenticatedUser):
             return None
-        async with info.context.db() as session:
-            if (
-                user := await session.scalar(
-                    select(models.User)
-                    .where(models.User.id == int(user.identity))
-                    .options(joinedload(models.User.role))
-                )
-            ) is None:
-                return None
-        return to_gql_user(user)
+        return User(id=int(user.identity))
 
     @strawberry.field
     async def prompts(
@@ -1146,7 +1003,9 @@ class Query:
             stmt = stmt.distinct()
         async with info.context.db() as session:
             orm_prompts = await session.stream_scalars(stmt)
-            data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]
+            data = [
+                Prompt(id=orm_prompt.id, db_record=orm_prompt) async for orm_prompt in orm_prompts
+            ]
             return connection_from_list(
                 data=data,
                 args=args,
@@ -1169,7 +1028,10 @@ class Query:
         )
         async with info.context.db() as session:
             prompt_labels = await session.stream_scalars(select(models.PromptLabel))
-            data = [to_gql_prompt_label(prompt_label) async for prompt_label in prompt_labels]
+            data = [
+                PromptLabel(id=prompt_label.id, db_record=prompt_label)
+                async for prompt_label in prompt_labels
+            ]
             return connection_from_list(
                 data=data,
                 args=args,
@@ -1194,7 +1056,10 @@ class Query:
             dataset_labels = await session.scalars(
                 select(models.DatasetLabel).order_by(models.DatasetLabel.name.asc())
             )
-        data = [to_gql_dataset_label(dataset_label) for dataset_label in dataset_labels]
+        data = [
+            DatasetLabel(id=dataset_label.id, db_record=dataset_label)
+            for dataset_label in dataset_labels
+        ]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
@@ -1214,7 +1079,7 @@ class Query:
         )
         async with info.context.db() as session:
             splits = await session.stream_scalars(select(models.DatasetSplit))
-            data = [to_gql_dataset_split(split) async for split in splits]
+            data = [DatasetSplit(id=split.id, db_record=split) async for split in splits]
             return connection_from_list(
                 data=data,
                 args=args,
@@ -1485,7 +1350,7 @@ class Query:
         async with info.context.db() as session:
             span_rowid = await session.scalar(stmt)
         if span_rowid:
-            return Span(span_rowid=span_rowid)
+            return Span(id=span_rowid)
         return None
 
     @strawberry.field
@@ -1498,7 +1363,7 @@ class Query:
         async with info.context.db() as session:
             trace_rowid = await session.scalar(stmt)
         if trace_rowid:
-            return Trace(trace_rowid=trace_rowid)
+            return Trace(id=trace_rowid)
         return None
 
     @strawberry.field
@@ -1511,7 +1376,7 @@ class Query:
         async with info.context.db() as session:
             session_row = await session.scalar(stmt)
         if session_row:
-            return to_gql_project_session(session_row)
+            return ProjectSession(id=session_row.id, db_record=session_row)
         return None
 
 

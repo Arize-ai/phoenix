@@ -1,5 +1,6 @@
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
+
 import OpenAI from "openai";
 
 export function instrument({

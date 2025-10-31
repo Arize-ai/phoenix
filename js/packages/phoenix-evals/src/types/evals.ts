@@ -1,5 +1,6 @@
-import { LanguageModel } from "ai";
 import { WithTelemetry } from "./otel";
+
+import { LanguageModel } from "ai";
 
 /**
  * A specific AI example that is under evaluation

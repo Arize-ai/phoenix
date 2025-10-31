@@ -1,16 +1,17 @@
-import createOpenApiClient, {
-  type Middleware,
-  type ClientOptions,
-} from "openapi-fetch";
 import type {
-  paths as oapiPathsV1,
   components as oapiComponentsV1,
   operations as oapiOperationsV1,
+  paths as oapiPathsV1,
 } from "./__generated__/api/v1.d.ts";
 import {
   defaultGetEnvironmentOptions,
   makeDefaultClientOptions,
 } from "./config";
+
+import createOpenApiClient, {
+  type ClientOptions,
+  type Middleware,
+} from "openapi-fetch";
 
 export type pathsV1 = oapiPathsV1;
 export type componentsV1 = oapiComponentsV1;

@@ -1,7 +1,8 @@
-import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { createHallucinationEvaluator } from "../../src/llm/createHallucinationEvaluator";
-import { openai } from "@ai-sdk/openai";
 import * as generateClassificationModule from "../../src/llm/generateClassification";
+
+import { openai } from "@ai-sdk/openai";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("createHallucinationEvaluator", () => {
   beforeEach(() => {

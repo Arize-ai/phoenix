@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7bc9dd3cf023264ef40499a5183e8861>>
+ * @generated SignedSource<<707594cdfd4d14039665205b1c9f0013>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,11 +15,11 @@ export type CreateDatasetLabelInput = {
   description?: string | null;
   name: string;
 };
-export type NewDatasetLabelDialogMutation$variables = {
+export type useDatasetLabelMutationsAddLabelMutation$variables = {
   connections: ReadonlyArray<string>;
   input: CreateDatasetLabelInput;
 };
-export type NewDatasetLabelDialogMutation$data = {
+export type useDatasetLabelMutationsAddLabelMutation$data = {
   readonly createDatasetLabel: {
     readonly datasetLabel: {
       readonly color: string;
@@ -36,9 +36,9 @@ export type NewDatasetLabelDialogMutation$data = {
     }>;
   };
 };
-export type NewDatasetLabelDialogMutation = {
-  response: NewDatasetLabelDialogMutation$data;
-  variables: NewDatasetLabelDialogMutation$variables;
+export type useDatasetLabelMutationsAddLabelMutation = {
+  response: useDatasetLabelMutationsAddLabelMutation$data;
+  variables: useDatasetLabelMutationsAddLabelMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -123,7 +123,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "NewDatasetLabelDialogMutation",
+    "name": "useDatasetLabelMutationsAddLabelMutation",
     "selections": [
       {
         "alias": null,
@@ -149,7 +149,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "NewDatasetLabelDialogMutation",
+    "name": "useDatasetLabelMutationsAddLabelMutation",
     "selections": [
       {
         "alias": null,
@@ -188,16 +188,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "71e0ce667206a2ec7bf0e9184d5e5adb",
+    "cacheID": "2ef998561a150eeacbaffdebc07bc94a",
     "id": null,
     "metadata": {},
-    "name": "NewDatasetLabelDialogMutation",
+    "name": "useDatasetLabelMutationsAddLabelMutation",
     "operationKind": "mutation",
-    "text": "mutation NewDatasetLabelDialogMutation(\n  $input: CreateDatasetLabelInput!\n) {\n  createDatasetLabel(input: $input) {\n    datasetLabel {\n      id\n      name\n      color\n    }\n    datasets {\n      id\n      labels {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "mutation useDatasetLabelMutationsAddLabelMutation(\n  $input: CreateDatasetLabelInput!\n) {\n  createDatasetLabel(input: $input) {\n    datasetLabel {\n      id\n      name\n      color\n    }\n    datasets {\n      id\n      labels {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "aaf5691d872d021a6b76463b3999355c";
+(node as any).hash = "0ea9c100ed6c060e7fc59b9c9f4e9db1";
 
 export default node;

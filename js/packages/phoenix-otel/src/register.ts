@@ -3,18 +3,20 @@ import {
   OpenInferenceBatchSpanProcessor,
   OpenInferenceSimpleSpanProcessor,
 } from "@arizeai/openinference-vercel";
+
+import { getEnvApiKey, getEnvCollectorURL } from "./config";
+
+import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+import {
+  Instrumentation,
+  registerInstrumentations,
+} from "@opentelemetry/instrumentation";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import {
   NodeTracerProvider,
   SpanProcessor,
 } from "@opentelemetry/sdk-trace-node";
-import { getEnvApiKey, getEnvCollectorURL } from "./config";
-import {
-  Instrumentation,
-  registerInstrumentations,
-} from "@opentelemetry/instrumentation";
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 
 export type Headers = Record<string, string>;
 

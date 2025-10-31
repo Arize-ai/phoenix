@@ -18,7 +18,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { DeletePromptLabelButtonMutation } from "./__generated__/DeletePromptLabelButtonMutation.graphql";
 
@@ -30,6 +30,7 @@ export function DeletePromptLabelButton(props: DeletePromptLabelButtonProps) {
   const { promptLabelId } = props;
   const [isOpen, setIsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
   const [deleteLabel, isDeleting] =
     useMutation<DeletePromptLabelButtonMutation>(graphql`
       mutation DeletePromptLabelButtonMutation(
@@ -94,11 +95,11 @@ export function DeletePromptLabelButton(props: DeletePromptLabelButtonProps) {
                               setIsOpen(false);
                             },
                             onError: () => {
-                              alert(
-                                "Failed to delete prompt label. Please try again"
-                              );
+                              notifyError({
+                                title: "Failed to delete prompt label",
+                                message: "Please try again",
+                              });
                             },
-                            // Intentionally omitting error until we have migrated to toast
                           });
                         }}
                       >

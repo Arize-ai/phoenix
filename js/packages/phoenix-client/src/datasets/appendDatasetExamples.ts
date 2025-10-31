@@ -1,8 +1,10 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
-import { Example, DatasetSelector } from "../types/datasets";
-import invariant from "tiny-invariant";
+import { DatasetSelector, Example } from "../types/datasets";
+
 import { getDatasetInfo } from "./getDatasetInfo";
+
+import invariant from "tiny-invariant";
 
 export type AppendDatasetExamplesParams = ClientFn & {
   /**
