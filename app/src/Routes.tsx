@@ -6,6 +6,7 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
 import { NewEvaluatorPage } from "@phoenix/pages/evaluators/NewEvaluatorPage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
@@ -218,7 +219,11 @@ const router = createBrowserRouter(
                   element={<DatasetVersionsPage />}
                   loader={datasetVersionsLoader}
                 />
-                <Route path="evaluators" element={<DatasetEvaluatorsPage />} />
+                <Route
+                  path="evaluators"
+                  element={<DatasetEvaluatorsPage />}
+                  loader={datasetEvaluatorsLoader}
+                />
               </Route>
               <Route
                 path="compare"
