@@ -118,7 +118,7 @@ class Prompts:
             prompt_response.raise_for_status()
         except HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise ValueError(f"Prompt not found: {prompt_identifier or prompt_version_id}")
+                raise ValueError(f"Prompt not found: {prompt_version_id or prompt_identifier}")
             raise
         return PromptVersion._loads(cast(v1.GetPromptResponseBody, prompt_response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
@@ -389,7 +389,7 @@ class AsyncPrompts:
             prompt_response.raise_for_status()
         except HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise ValueError(f"Prompt not found: {prompt_identifier or prompt_version_id}")
+                raise ValueError(f"Prompt not found: {prompt_version_id or prompt_identifier}")
             raise
         return PromptVersion._loads(cast(v1.GetPromptResponseBody, prompt_response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
