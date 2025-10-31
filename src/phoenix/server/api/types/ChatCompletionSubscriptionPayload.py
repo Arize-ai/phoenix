@@ -47,6 +47,7 @@ class ChatCompletionSubscriptionError(ChatCompletionSubscriptionPayload):
 class ChatCompletionSubscriptionExperiment(ChatCompletionSubscriptionPayload):
     experiment: Experiment
 
+
 @strawberry.type
 class EvaluationChunk(ChatCompletionSubscriptionPayload):
     evaluation: ExperimentRunAnnotation
