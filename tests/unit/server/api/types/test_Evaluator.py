@@ -72,7 +72,7 @@ class TestEvaluatorFields:
                 annotation_name="goodness",
                 output_config=CategoricalAnnotationConfig(
                     type="CATEGORICAL",
-                    optimization_direction="MAXIMIZE",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
                     description="goodness description",
                     values=[
                         CategoricalAnnotationValue(label="good", score=1.0),
