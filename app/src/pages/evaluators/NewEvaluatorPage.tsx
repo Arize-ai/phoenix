@@ -102,15 +102,18 @@ const createEvaluatorPayload = ({
     store
   );
 
+  const prunedPromptInput = {
+    ...promptInput,
+    templateFormat,
+    tools: undefined,
+    responseFormat: undefined,
+  };
+
   return {
     name,
     // TODO: add description
-    // TODO: add choice config
     // TODO: add input mapping
-    promptVersion: {
-      templateFormat,
-      ...promptInput,
-    },
+    promptVersion: prunedPromptInput,
     outputConfig: {
       name: choiceConfig.name,
       optimizationDirection: "MAXIMIZE",
