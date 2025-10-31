@@ -20,6 +20,10 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
+from phoenix.server.api.mutations.annotation_config_mutations import (
+    CategoricalAnnotationConfigInput,
+    _to_pydantic_categorical_annotation_config,
+)
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Evaluator import CodeEvaluator, Evaluator, LLMEvaluator
@@ -52,6 +56,7 @@ class CreateLLMEvaluatorInput:
     name: Identifier
     description: Optional[str] = UNSET
     prompt_version: ChatPromptVersionInput
+    output_config: CategoricalAnnotationConfigInput
 
 
 @strawberry.input
@@ -164,6 +169,7 @@ class EvaluatorMutationMixin:
             description=input.description or None,
             prompt_versions=[prompt_version],
         )
+        config = _to_pydantic_categorical_annotation_config(input.output_config)
         try:
             evaluator_name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
@@ -172,7 +178,8 @@ class EvaluatorMutationMixin:
             name=evaluator_name,
             description=input.description or None,
             kind="LLM",
-            output_config={},
+            annotation_name=input.output_config.name,
+            output_config=config,
             user_id=user_id,
             prompt=prompt,
             datasets_evaluators=[
