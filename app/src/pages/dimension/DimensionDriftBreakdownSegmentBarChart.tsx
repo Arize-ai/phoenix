@@ -92,20 +92,20 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
   dimensionId: string;
 }) {
   const { fullTimeFormatter } = useTimeFormatters();
+  const { primaryInferences, referenceInferences } = useInferences();
+  const primaryName = primaryInferences.name;
+  const referenceName = referenceInferences?.name || "reference";
   const { selectedTimestamp } = useTimeSlice();
-  useInferences();
-  const { primaryBarColor, referenceBarColor } = useColors();
-
+  const endTime = useMemo(
+    () => selectedTimestamp ?? new Date(primaryInferences.endTime),
+    [selectedTimestamp, primaryInferences.endTime]
+  );
   const timeRange = useMemo(() => {
-    if (!selectedTimestamp) {
-      return null;
-    }
     return {
-      end: selectedTimestamp.toISOString(),
-      start: subDays(selectedTimestamp, 6).toISOString(),
+      start: subDays(endTime, 2).toISOString(),
+      end: endTime.toISOString(),
     };
-  }, [selectedTimestamp]);
-
+  }, [endTime]);
   const data = useLazyLoadQuery<DimensionDriftBreakdownSegmentBarChartQuery>(
     graphql`
       query DimensionDriftBreakdownSegmentBarChartQuery(
@@ -148,24 +148,15 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
         }
       }
     `,
-    {
-      dimensionId: props.dimensionId,
-      timeRange: timeRange ?? { start: "", end: "" },
-    },
-    { fetchPolicy: timeRange ? "store-or-network" : "store-only" }
+    { dimensionId: props.dimensionId, timeRange: timeRange }
   );
 
   const chartData = useMemo<BarChartItem[]>(() => {
-    if (!data.dimension.segmentsComparison) {
-      return [];
-    }
-    const segments = data.dimension.segmentsComparison.segments ?? [];
+    const segments = data.dimension.segmentsComparison?.segments ?? [];
     const primaryTotal =
-      data.dimension.segmentsComparison.totalCounts?.primaryValue ?? 0;
+      data.dimension.segmentsComparison?.totalCounts?.primaryValue ?? 0;
     const referenceTotal =
-      data.dimension.segmentsComparison.totalCounts?.referenceValue ?? 0;
-    const primaryName = "Primary";
-    const referenceName = "Reference";
+      data.dimension.segmentsComparison?.totalCounts?.referenceValue ?? 0;
     return segments.map((segment) => {
       const primarySegmentCount = segment.counts?.primaryValue ?? 0;
       const referenceSegmentCount = segment.counts?.referenceValue ?? 0;
@@ -180,11 +171,15 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
         referencePercent,
       };
     });
-  }, [data.dimension.segmentsComparison]);
+  }, [
+    data.dimension.segmentsComparison?.segments,
+    data.dimension.segmentsComparison?.totalCounts?.primaryValue,
+    data.dimension.segmentsComparison?.totalCounts?.referenceValue,
+    primaryName,
+    referenceName,
+  ]);
 
-  if (!timeRange) {
-    return null;
-  }
+  const { primaryBarColor, referenceBarColor } = useColors();
   return (
     <Flex direction="column" height="100%">
       <View flex="none" paddingTop="size-100" paddingStart="size-200">
