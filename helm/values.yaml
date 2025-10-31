@@ -182,6 +182,11 @@ server:
   # Set to false in air-gapped environments to prevent external requests that can cause UI loading delays
   allowExternalResources: true
 
+  # -- Maximum number of spans to hold in the processing queue before rejecting new requests (PHOENIX_MAX_SPANS_QUEUE_SIZE)
+  # This is a heuristic to prevent memory issues when spans accumulate faster than they can be written to the database.
+  # Memory usage: ~50KiB per span means 20,000 spans = ~1GiB. Adjust based on available memory and database throughput.
+  maxSpansQueueSize: 20000
+
 # Service configuration
 service:
   # -- Service type for Phoenix service (ClusterIP, NodePort, LoadBalancer, or ExternalName)
@@ -289,6 +294,17 @@ database:
     # -- PostgreSQL username (PHOENIX_POSTGRES_USER)
     user: "postgres"
 
+    # -- Enable AWS RDS IAM authentication for PostgreSQL (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH)
+    # When enabled, Phoenix will use AWS IAM credentials to generate short-lived authentication tokens
+    # instead of using a static password. Requires boto3 to be installed: pip install 'arize-phoenix[aws]'
+    # IMPORTANT: When enabled, do not set database.postgres.password
+    useAwsIamAuth: false
+
+    # -- Token lifetime in seconds for AWS RDS IAM authentication pool recycling (PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS)
+    # AWS RDS IAM tokens are valid for 15 minutes (900 seconds). Set slightly lower to ensure tokens
+    # are refreshed before expiration. Only used when useAwsIamAuth is true.
+    awsIamTokenLifetimeSeconds: 840
+
   # -- Full database connection URL (overrides postgres settings if provided)
   # IMPORTANT: Only set this for external databases (Strategy 3)
   # - When using SQLite (Strategy 1): MUST be empty - SQLite auto-uses persistent volume
@@ -318,6 +334,19 @@ auth:
 
   # -- Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH)
   enableAuth: true
+
+  # -- Disable password-based authentication (PHOENIX_DISABLE_BASIC_AUTH)
+  # When true, users can only authenticate via OAuth2/OIDC. Useful for SSO-only deployments.
+  disableBasicAuth: false
+
+  # -- Cookie path for authentication cookies (PHOENIX_COOKIES_PATH)
+  # Set this when Phoenix is hosted under a sub-path
+  cookiesPath: "/"
+
+  # -- Semicolon-separated list of username and email pairs to create as admin users on startup (PHOENIX_ADMINS)
+  # Format: "username=email;username2=email2" (e.g., "John Doe=john@example.com;Jane Doe=jane@example.com")
+  # These users will be created with random passwords that must be reset on first login
+  admins: ""
 
   # -- Name of the Kubernetes secret containing authentication credentials
   name: "phoenix-secret"
@@ -369,12 +398,11 @@ auth:
     enabled: false
 
     # -- List of OAuth2 identity providers to configure
-    # Each provider requires client_id, client_secret, and oidc_config_url
-    # Optional settings include display_name, allow_sign_up, and auto_login
+    # Each provider requires client_id, client_secret (unless token_endpoint_auth_method="none"), and oidc_config_url
     # You can also define corresponding ENVs via auth.secrets[].valueFrom to use existing secrets
     # ENVs: PHOENIX_OAUTH2_{{ $provider_upper }}_{{ setting }}, e.g. PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET
     providers:
-      # Example Google configuration:
+      # Example Google configuration with basic settings:
       # google:
       #   client_id: "your-google-client-id"
       #   client_secret: "your-google-client-secret"
@@ -383,7 +411,7 @@ auth:
       #   allow_sign_up: true     # Optional, defaults to true
       #   auto_login: false       # Optional, defaults to false
       
-      # Example AWS Cognito configuration:
+      # Example AWS Cognito with group-based access control:
       # aws_cognito:
       #   client_id: "your-aws-cognito-client-id"
       #   client_secret: "your-aws-cognito-client-secret"
@@ -391,8 +419,11 @@ auth:
       #   display_name: "AWS Cognito"
       #   allow_sign_up: true
       #   auto_login: false
+      #   # Advanced: Group-based access control (requires cognito:groups in ID token)
+      #   groups_attribute_path: "cognito:groups"  # JMESPath to extract groups (use quotes for special chars)
+      #   allowed_groups: ["Admins", "PowerUsers"]  # Only these groups can sign in
       
-      # Example Microsoft Entra ID configuration:
+      # Example Microsoft Entra ID with custom scopes:
       # microsoft_entra_id:
       #   client_id: "your-microsoft-entra-id-client-id"
       #   client_secret: "your-microsoft-entra-id-client-secret"
@@ -400,8 +431,10 @@ auth:
       #   display_name: "Microsoft Entra ID"
       #   allow_sign_up: true
       #   auto_login: false
+      #   # Advanced: Request additional scopes beyond "openid email profile"
+      #   scopes: "offline_access User.Read"  # Space-separated additional scopes
       
-      # Example Keycloak configuration:
+      # Example Keycloak with nested group path:
       # keycloak:
       #   client_id: "phoenix"
       #   client_secret: "your-keycloak-client-secret"
@@ -409,6 +442,33 @@ auth:
       #   display_name: "Keycloak"
       #   allow_sign_up: true
       #   auto_login: false
+      #   # Advanced: Extract roles from nested Keycloak structure
+      #   groups_attribute_path: "resource_access.phoenix.roles"
+      #   allowed_groups: ["admin", "developer", "viewer"]
+      #   # Advanced: Role mapping - map IDP roles to Phoenix roles (ADMIN, MEMBER, VIEWER)
+      #   role_attribute_path: "resource_access.phoenix.role"  # JMESPath to extract role
+      #   role_mapping: "admin:ADMIN,user:MEMBER"  # Map IDP roles to Phoenix roles
+      #   role_attribute_strict: false  # If true, deny access when role cannot be determined
+      
+      # Example public client with PKCE (no client secret):
+      # mobile_app:
+      #   client_id: "mobile-app-client-id"
+      #   # No client_secret for public clients
+      #   oidc_config_url: "https://auth.example.com/.well-known/openid-configuration"
+      #   display_name: "Mobile App"
+      #   allow_sign_up: true
+      #   auto_login: false
+      #   # Advanced: Public client configuration
+      #   use_pkce: true  # Enable PKCE for enhanced security (RFC 7636)
+      #   token_endpoint_auth_method: "none"  # No client authentication for public clients
+      
+      # Example with client_secret_post authentication:
+      # custom_idp:
+      #   client_id: "custom-client-id"
+      #   client_secret: "custom-client-secret"
+      #   oidc_config_url: "https://auth.example.com/.well-known/openid-configuration"
+      #   # Advanced: Some IDPs require credentials in POST body instead of Basic Auth
+      #   token_endpoint_auth_method: "client_secret_post"
 
 # SMTP (email) settings
 smtp:

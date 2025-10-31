@@ -11,12 +11,17 @@ metadata:
 data:
   # Authentication configuration
   PHOENIX_ENABLE_AUTH: {{ .Values.auth.enableAuth | quote }}
+  PHOENIX_DISABLE_BASIC_AUTH: {{ .Values.auth.disableBasicAuth | default false | quote }}
   PHOENIX_USE_SECURE_COOKIES: {{ .Values.auth.useSecureCookies | quote }}
+  PHOENIX_COOKIES_PATH: {{ .Values.auth.cookiesPath | default "/" | quote }}
   PHOENIX_CSRF_TRUSTED_ORIGINS: {{ join "," .Values.auth.csrfTrustedOrigins | quote }}
   PHOENIX_ALLOWED_ORIGINS: {{ join "," .Values.auth.allowedOrigins | quote }}
   PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.accessTokenExpiryMinutes | quote }}
   PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.passwordResetTokenExpiryMinutes | quote }}
   PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.refreshTokenExpiryMinutes | quote }}
+  {{- if .Values.auth.admins }}
+  PHOENIX_ADMINS: {{ .Values.auth.admins | quote }}
+  {{- end }}
   
   # OAuth2/OIDC Identity Provider Configuration
   {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
@@ -33,6 +38,30 @@ data:
   {{- if hasKey $provider_config "auto_login" }}
   PHOENIX_OAUTH2_{{ $provider_upper }}_AUTO_LOGIN: {{ $provider_config.auto_login | quote }}
   {{- end }}
+  {{- if hasKey $provider_config "use_pkce" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_USE_PKCE: {{ $provider_config.use_pkce | quote }}
+  {{- end }}
+  {{- if $provider_config.token_endpoint_auth_method }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_TOKEN_ENDPOINT_AUTH_METHOD: {{ $provider_config.token_endpoint_auth_method | quote }}
+  {{- end }}
+  {{- if $provider_config.scopes }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_SCOPES: {{ $provider_config.scopes | quote }}
+  {{- end }}
+  {{- if $provider_config.groups_attribute_path }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_GROUPS_ATTRIBUTE_PATH: {{ $provider_config.groups_attribute_path | quote }}
+  {{- end }}
+  {{- if $provider_config.allowed_groups }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ALLOWED_GROUPS: {{ join "," $provider_config.allowed_groups | quote }}
+  {{- end }}
+  {{- if $provider_config.role_attribute_path }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ROLE_ATTRIBUTE_PATH: {{ $provider_config.role_attribute_path | quote }}
+  {{- end }}
+  {{- if $provider_config.role_mapping }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ROLE_MAPPING: {{ $provider_config.role_mapping | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "role_attribute_strict" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ROLE_ATTRIBUTE_STRICT: {{ $provider_config.role_attribute_strict | quote }}
+  {{- end }}
   {{- end }}
   {{- end }}
   
@@ -45,6 +74,7 @@ data:
   PHOENIX_ROOT_URL: {{ .Values.server.rootUrl | quote }}
   PHOENIX_ENABLE_PROMETHEUS: {{ .Values.server.enablePrometheus | quote }}
   PHOENIX_ALLOW_EXTERNAL_RESOURCES: {{ .Values.server.allowExternalResources | quote }}
+  PHOENIX_MAX_SPANS_QUEUE_SIZE: {{ .Values.server.maxSpansQueueSize | default 20000 | quote }}
 
   # Database configuration
   {{- if .Values.database.url }}
@@ -54,6 +84,12 @@ data:
   PHOENIX_POSTGRES_PORT: {{ .Values.database.postgres.port | quote }}
   PHOENIX_POSTGRES_USER: {{ .Values.database.postgres.user | quote }}
   PHOENIX_POSTGRES_DB: {{ .Values.database.postgres.db | quote }}
+  {{- if .Values.database.postgres.useAwsIamAuth }}
+  PHOENIX_POSTGRES_USE_AWS_IAM_AUTH: {{ .Values.database.postgres.useAwsIamAuth | quote }}
+  {{- end }}
+  {{- if .Values.database.postgres.awsIamTokenLifetimeSeconds }}
+  PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS: {{ .Values.database.postgres.awsIamTokenLifetimeSeconds | quote }}
+  {{- end }}
   {{- end }}
   PHOENIX_SQL_DATABASE_SCHEMA: {{ .Values.database.postgres.schema | quote }}
   PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES: {{ .Values.database.allocatedStorageGiB | quote }}
