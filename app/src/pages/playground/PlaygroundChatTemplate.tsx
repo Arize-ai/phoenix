@@ -110,6 +110,8 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
     })
   );
 
+  const { disableResponseFormat, disableTools } = props;
+
   return (
     <DndContext
       sensors={sensors}
@@ -169,6 +171,8 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         <PlaygroundChatTemplateFooter
           instanceId={id}
           hasResponseFormat={hasResponseFormat}
+          disableResponseFormat={disableResponseFormat}
+          disableTools={disableTools}
         />
       </View>
       {hasTools || hasResponseFormat ? (
