@@ -135,14 +135,16 @@ class Score:
         resolved_kind: Optional[KindType] = kind if kind is not None else source
         if source is not None and kind is None:
             warnings.warn(
-                "Score 'source' is deprecated; use 'kind' instead.",
+                "Score 'source' is deprecated; next time, use 'kind' instead. This time, we'll \
+                automatically convert it for you.",
                 DeprecationWarning,
                 stacklevel=2,
             )
         # Heuristic deprecation
         if resolved_kind == "heuristic":
             warnings.warn(
-                "kind='heuristic' is deprecated; use kind='code' instead.",
+                "kind='heuristic' is deprecated; next time, use kind='code' instead. This time, \
+                we'll automatically convert it for you.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -236,7 +238,8 @@ class Evaluator(ABC):
         resolved_kind: Optional[KindType] = kind if kind is not None else source
         if source is not None and kind is None:
             warnings.warn(
-                "Evaluator 'source' is deprecated; use 'kind' instead.",
+                "Evaluator 'source' is deprecated; next time, use 'kind' instead. This time, we'll \
+                    automatically convert it for you.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -245,7 +248,8 @@ class Evaluator(ABC):
         # Heuristic deprecation and auto-migration
         if resolved_kind == "heuristic":
             warnings.warn(
-                "kind='heuristic' is deprecated; use kind='code' instead.",
+                "kind='heuristic' is deprecated; next time, use kind='code' instead. This time, \
+                we'll automatically convert it for you.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -815,13 +819,15 @@ def create_evaluator(
     )
     if kind is None and source is not None:
         warnings.warn(
-            "create_evaluator 'source' is deprecated; use 'kind' instead.",
+            "create_evaluator 'source' is deprecated; next time, use 'kind' instead. This time, \
+            we'll automatically convert it for you.",
             DeprecationWarning,
             stacklevel=2,
         )
     if resolved_kind == "heuristic":
         warnings.warn(
-            "kind='heuristic' is deprecated; use kind='code' instead.",
+            "kind='heuristic' is deprecated; next time, use kind='code' instead. This time, we'll \
+                automatically convert it for you.",
             DeprecationWarning,
             stacklevel=2,
         )
