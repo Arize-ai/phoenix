@@ -1,5 +1,13 @@
 # Changelog
 
+## [12.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.9.0...arize-phoenix-v12.10.0) (2025-10-31)
+
+
+### Features
+
+* add valueFrom option to auth.secret ([#9932](https://github.com/Arize-ai/phoenix/issues/9932)) ([0c6a3e8](https://github.com/Arize-ai/phoenix/commit/0c6a3e86cd418e6e9b4f24c102a89e2edc1f76c3))
+* **ui:** playground dataset label ([#9902](https://github.com/Arize-ai/phoenix/issues/9902)) ([12d6855](https://github.com/Arize-ai/phoenix/commit/12d685551248948ea88272c20fa020d0956288c3))
+
 ## [12.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.8.0...arize-phoenix-v12.9.0) (2025-10-29)
 
 
