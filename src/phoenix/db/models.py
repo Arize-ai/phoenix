@@ -2103,7 +2103,8 @@ class LLMEvaluator(Evaluator):
         ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
         index=True,
     )
-    output_config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    annotation_name: Mapped[str] = mapped_column(String, nullable=False)
+    output_config: Mapped[AnnotationConfigType] = mapped_column(_AnnotationConfig, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )

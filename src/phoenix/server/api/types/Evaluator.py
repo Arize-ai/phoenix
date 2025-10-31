@@ -8,8 +8,15 @@ from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
+)
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.types.AnnotationConfig import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+)
 
 from .Identifier import Identifier
 from .node import from_global_id_with_expected_type
@@ -208,6 +215,26 @@ class LLMEvaluator(Evaluator, Node):
         return EvaluatorKind(val)
 
     @strawberry.field
+    async def output_config(
+        self,
+        info: Info[Context, None],
+    ) -> CategoricalAnnotationConfig:
+        config: CategoricalAnnotationConfigModel
+        annotation_name: str
+        if self.db_record:
+            assert isinstance(self.db_record.output_config, CategoricalAnnotationConfigModel)
+            config = self.db_record.output_config
+            annotation_name = self.db_record.name.root
+        else:
+            config = await info.context.data_loaders.llm_evaluator_fields.load(
+                (self.id, models.LLMEvaluator.output_config),
+            )
+            annotation_name = await info.context.data_loaders.llm_evaluator_fields.load(
+                (self.id, models.LLMEvaluator.name),
+            )
+        return _to_gql_categorical_annotation_config(config=config, annotation_name=annotation_name)
+
+    @strawberry.field
     async def created_at(
         self,
         info: Info[Context, None],
@@ -318,3 +345,24 @@ class LLMEvaluator(Evaluator, Node):
         from .PromptVersion import to_gql_prompt_version
 
         return to_gql_prompt_version(prompt_version)
+
+
+def _to_gql_categorical_annotation_config(
+    config: CategoricalAnnotationConfigModel,
+    annotation_name: str,
+) -> CategoricalAnnotationConfig:
+    values = [
+        CategoricalAnnotationValue(
+            label=val.label,
+            score=val.score,
+        )
+        for val in config.values
+    ]
+    return CategoricalAnnotationConfig(
+        id_attr=1,  # this id is fake for now
+        name=annotation_name,
+        annotation_type=config.type,
+        optimization_direction=config.optimization_direction,
+        description=config.description,
+        values=values,
+    )
