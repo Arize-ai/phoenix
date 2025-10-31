@@ -3,14 +3,14 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
-from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from sqlalchemy import and_, select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.models import ExperimentRunOutput
+from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import ExperimentRunInsertEvent
@@ -21,7 +21,7 @@ from .utils import PaginatedResponseBody, ResponseBody, add_errors_to_responses
 router = APIRouter(tags=["experiments"], include_in_schema=True)
 
 
-class ExperimentRun(V1RoutesBaseModel):
+class ExperimentRunData(V1RoutesBaseModel):
     dataset_example_id: str = Field(
         description="The ID of the dataset example used in the experiment run"
     )
@@ -38,7 +38,7 @@ class ExperimentRun(V1RoutesBaseModel):
     )
 
 
-class CreateExperimentRunRequestBody(ExperimentRun):
+class CreateExperimentRunRequestBody(ExperimentRunData):
     pass
 
 
@@ -64,7 +64,9 @@ class CreateExperimentRunResponseBody(ResponseBody[CreateExperimentRunResponseBo
             },
             {
                 "status_code": 409,
-                "description": "This experiment run has already been submitted",
+                "description": (
+                    "Experiment run already exists with a successful result and cannot be updated"
+                ),
             },
         ]
     ),
@@ -98,37 +100,72 @@ async def create_experiment_run(
     error = request_body.error
 
     async with request.app.state.db() as session:
-        exp_run = models.ExperimentRun(
-            experiment_id=experiment_rowid,
-            dataset_example_id=dataset_example_id,
-            trace_id=trace_id,
-            output=ExperimentRunOutput(task_output=task_output),
-            repetition_number=repetition_number,
-            start_time=start_time,
-            end_time=end_time,
-            error=error,
+        # Check if a record already exists
+        existing_run = await session.scalar(
+            select(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == experiment_rowid)
+            .where(models.ExperimentRun.dataset_example_id == dataset_example_id)
+            .where(models.ExperimentRun.repetition_number == repetition_number)
         )
-        try:
-            session.add(exp_run)
-            await session.flush()
-        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+
+        if existing_run is not None and existing_run.error is None:
+            # Record exists and has no error - reject the update
+            run_gid = GlobalID("ExperimentRun", str(existing_run.id))
             raise HTTPException(
-                detail="This experiment run has already been submitted",
                 status_code=409,
+                detail=(
+                    f"Experiment run {run_gid} already exists with a successful result "
+                    "and cannot be updated"
+                ),
             )
-    request.state.event_queue.put(ExperimentRunInsertEvent((exp_run.id,)))
-    run_gid = GlobalID("ExperimentRun", str(exp_run.id))
+        # Either no record exists, or existing record has an error - proceed with upsert
+        stmt = insert_on_conflict(
+            {
+                "experiment_id": experiment_rowid,
+                "dataset_example_id": dataset_example_id,
+                "trace_id": trace_id,
+                "output": ExperimentRunOutput(task_output=task_output),
+                "repetition_number": repetition_number,
+                "start_time": start_time,
+                "end_time": end_time,
+                "error": error,
+            },
+            table=models.ExperimentRun,
+            dialect=request.app.state.db.dialect,
+            unique_by=["experiment_id", "dataset_example_id", "repetition_number"],
+            on_conflict=OnConflict.DO_UPDATE,
+        ).returning(models.ExperimentRun.id)
+        id_ = await session.scalar(stmt)
+
+    request.state.event_queue.put(ExperimentRunInsertEvent((id_,)))
+    run_gid = GlobalID("ExperimentRun", str(id_))
     return CreateExperimentRunResponseBody(
         data=CreateExperimentRunResponseBodyData(id=str(run_gid))
     )
 
 
-class ExperimentRunResponse(ExperimentRun):
+class ExperimentRun(ExperimentRunData):
     id: str = Field(description="The ID of the experiment run")
     experiment_id: str = Field(description="The ID of the experiment")
 
 
-class ListExperimentRunsResponseBody(PaginatedResponseBody[ExperimentRunResponse]):
+class ListExperimentRunsResponseBody(PaginatedResponseBody[ExperimentRun]):
+    pass
+
+
+class IncompleteExperimentEvaluation(V1RoutesBaseModel):
+    """
+    Information about an experiment run with incomplete evaluations
+    """
+
+    experiment_run: ExperimentRun = Field(description="The experiment run")
+    dataset_example: DatasetExample = Field(description="The dataset example")
+    evaluation_names: list[str] = Field(
+        description="List of evaluation names that are incomplete (either missing or failed)"
+    )
+
+
+class GetIncompleteEvaluationsResponseBody(PaginatedResponseBody[IncompleteExperimentEvaluation]):
     pass
 
 
@@ -213,7 +250,7 @@ async def list_experiment_runs(
         experiment_gid = GlobalID("Experiment", str(exp_run.experiment_id))
         example_gid = GlobalID("DatasetExample", str(exp_run.dataset_example_id))
         runs.append(
-            ExperimentRunResponse(
+            ExperimentRun(
                 start_time=exp_run.start_time,
                 end_time=exp_run.end_time,
                 experiment_id=str(experiment_gid),
@@ -226,3 +263,233 @@ async def list_experiment_runs(
             )
         )
     return ListExperimentRunsResponseBody(data=runs, next_cursor=next_cursor)
+
+
+@router.get(
+    "/experiments/{experiment_id}/incomplete-evaluations",
+    operation_id="getIncompleteExperimentEvaluations",
+    summary="Get incomplete evaluations for an experiment",
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 400, "description": "No evaluator names provided"},
+            {"status_code": 404, "description": "Experiment not found"},
+            {"status_code": 422, "description": "Invalid cursor format"},
+        ]
+    ),
+    response_description="Incomplete evaluations retrieved successfully",
+)
+async def get_incomplete_evaluations(
+    request: Request,
+    experiment_id: str,
+    evaluation_name: list[str] = Query(
+        default=[], description="Evaluation names to check (can be repeated)"
+    ),
+    cursor: Optional[str] = Query(default=None, description="Cursor for pagination"),
+    limit: int = Query(
+        default=50, description="Maximum number of runs with incomplete evaluations to return", gt=0
+    ),
+) -> GetIncompleteEvaluationsResponseBody:
+    """
+    Get experiment runs that have incomplete evaluations.
+
+    Returns runs with:
+    - Missing evaluations (evaluator has not been run)
+    - Failed evaluations (evaluator ran but has errors)
+
+    Args:
+        experiment_id: The ID of the experiment
+        evaluation_name: List of evaluation names to check (required, at least one)
+        cursor: Cursor for pagination
+        limit: Maximum number of results to return
+
+    Returns:
+        Paginated list of runs with incomplete evaluations
+    """
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
+    try:
+        experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
+    except ValueError:
+        raise HTTPException(
+            detail=f"Experiment with ID {experiment_globalid} does not exist",
+            status_code=404,
+        )
+
+    # Parse cursor if provided
+    cursor_run_rowid: Optional[int] = None
+    if cursor:
+        try:
+            cursor_gid = GlobalID.from_id(cursor)
+            cursor_run_rowid = from_global_id_with_expected_type(cursor_gid, "ExperimentRun")
+        except (ValueError, AttributeError):
+            raise HTTPException(
+                detail=f"Invalid cursor format: {cursor}",
+                status_code=422,
+            )
+
+    # Require at least one evaluation name
+    if not evaluation_name:
+        raise HTTPException(
+            detail="At least one evaluation_name must be provided",
+            status_code=400,
+        )
+
+    async with request.app.state.db() as session:
+        # Verify experiment exists
+        experiment_result = await session.execute(
+            select(models.Experiment).filter_by(id=experiment_rowid)
+        )
+        experiment = experiment_result.scalar()
+        if not experiment:
+            raise HTTPException(
+                detail=f"Experiment with ID {experiment_globalid} does not exist",
+                status_code=404,
+            )
+
+        # Query for runs with incomplete evaluations
+        # A run has incomplete evaluations if:
+        # 1. It's missing an annotation for any of the requested evaluators
+        # 2. It has a failed annotation (error IS NOT NULL) for any evaluator
+
+        # Get all successful runs (error IS NULL) for this experiment
+        runs_query = (
+            select(
+                models.ExperimentRun,
+                models.ExperimentDatasetExample.dataset_example_revision_id,
+            )
+            .join(
+                models.ExperimentDatasetExample,
+                and_(
+                    models.ExperimentDatasetExample.experiment_id == experiment_rowid,
+                    models.ExperimentDatasetExample.dataset_example_id
+                    == models.ExperimentRun.dataset_example_id,
+                ),
+            )
+            .where(
+                and_(
+                    models.ExperimentRun.experiment_id == experiment_rowid,
+                    models.ExperimentRun.error.is_(None),  # Only successful task runs
+                )
+            )
+            .order_by(models.ExperimentRun.id.asc())
+        )
+
+        if cursor_run_rowid:
+            runs_query = runs_query.where(models.ExperimentRun.id >= cursor_run_rowid)
+
+        # Overfetch by 1 for pagination
+        runs_query = runs_query.limit(limit + 1)
+
+        runs_result = await session.execute(runs_query)
+        runs_with_revisions = runs_result.all()
+
+        if not runs_with_revisions:
+            return GetIncompleteEvaluationsResponseBody(data=[], next_cursor=None)
+
+        # Check if we have more results than requested (for pagination)
+        has_more = len(runs_with_revisions) == limit + 1
+        if has_more:
+            # Remove the extra run, don't include in results
+            runs_to_process = runs_with_revisions[:-1]
+        else:
+            runs_to_process = runs_with_revisions
+
+        # For each run, determine which evaluators are missing or failed
+        run_ids = [run.id for run, _ in runs_to_process]
+
+        # Get all annotations for these runs
+        annotations_query = (
+            select(
+                models.ExperimentRunAnnotation.experiment_run_id,
+                models.ExperimentRunAnnotation.name,
+                models.ExperimentRunAnnotation.error,
+            )
+            .where(models.ExperimentRunAnnotation.experiment_run_id.in_(run_ids))
+            .where(models.ExperimentRunAnnotation.name.in_(evaluation_name))
+        )
+        annotations_result = await session.execute(annotations_query)
+        annotations = annotations_result.all()
+
+        # Build a map: run_id -> {evaluation_name: has_error}
+        run_annotations: dict[int, dict[str, bool]] = {}
+        for annotation in annotations:
+            if annotation.experiment_run_id not in run_annotations:
+                run_annotations[annotation.experiment_run_id] = {}
+            run_annotations[annotation.experiment_run_id][annotation.name] = (
+                annotation.error is not None
+            )
+
+        # Fetch dataset example revisions for the runs
+        revision_ids = [revision_id for _, revision_id in runs_with_revisions]
+        revisions_query = select(models.DatasetExampleRevision).where(
+            models.DatasetExampleRevision.id.in_(revision_ids)
+        )
+        revisions_result = await session.execute(revisions_query)
+        revisions_by_id = {rev.id: rev for rev in revisions_result.scalars()}
+
+        # Build response
+        incomplete_evaluations_list: list[IncompleteExperimentEvaluation] = []
+        for run, revision_id in runs_to_process:
+            run_annots = run_annotations.get(run.id, {})
+
+            # Combine missing evaluations (not run) and failed evaluations (has errors)
+            incomplete_evaluation_names = sorted(
+                set(
+                    # Missing: evaluation names not in annotations
+                    [name for name in evaluation_name if name not in run_annots]
+                    # Failed: evaluation names with errors
+                    + [name for name, has_error in run_annots.items() if has_error]
+                )
+            )
+
+            # Only include runs with incomplete evaluations
+            if not incomplete_evaluation_names:
+                continue
+
+            revision = revisions_by_id.get(revision_id)
+            if not revision:
+                continue
+
+            run_globalid = GlobalID("ExperimentRun", str(run.id))
+            example_globalid = GlobalID("DatasetExample", str(run.dataset_example_id))
+
+            incomplete_evaluations_list.append(
+                IncompleteExperimentEvaluation(
+                    experiment_run=ExperimentRun(
+                        id=str(run_globalid),
+                        experiment_id=str(experiment_globalid),
+                        dataset_example_id=str(example_globalid),
+                        output=run.output,
+                        repetition_number=run.repetition_number,
+                        start_time=run.start_time,
+                        end_time=run.end_time,
+                        trace_id=run.trace_id,
+                        error=run.error,
+                    ),
+                    dataset_example=DatasetExample(
+                        id=str(example_globalid),
+                        input=revision.input,
+                        output=revision.output,
+                        metadata=revision.metadata_,
+                        updated_at=revision.created_at,
+                    ),
+                    evaluation_names=incomplete_evaluation_names,
+                )
+            )
+
+        # Set next cursor if we have more results
+        next_cursor = None
+        if has_more:
+            # Cursor is the ID of the next item to fetch
+            # (the extra item we fetched but didn't process)
+            next_run, _ = runs_with_revisions[-1]
+            next_cursor = str(GlobalID("ExperimentRun", str(next_run.id)))
+
+        return GetIncompleteEvaluationsResponseBody(
+            data=incomplete_evaluations_list, next_cursor=next_cursor
+        )
