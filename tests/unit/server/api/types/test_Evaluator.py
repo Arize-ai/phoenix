@@ -5,6 +5,10 @@ import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+)
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -62,13 +66,33 @@ class TestEvaluatorFields:
             await session.flush()
 
             untagged = models.LLMEvaluator(
-                name=Identifier(token_hex(4)), prompt_id=prompt.id, output_config={}
+                name=Identifier(token_hex(4)),
+                prompt_id=prompt.id,
+                annotation_name="goodness",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    optimization_direction="MAXIMIZE",
+                    description="goodness description",
+                    values=[
+                        CategoricalAnnotationValue(label="good", score=1.0),
+                        CategoricalAnnotationValue(label="bad", score=0.0),
+                    ],
+                ),
             )
             tagged = models.LLMEvaluator(
                 name=Identifier(token_hex(4)),
                 prompt_id=prompt.id,
                 prompt_version_tag_id=tag.id,
-                output_config={},
+                annotation_name="correctness",
+                output_config=dict(
+                    name="correctness",
+                    description="correctness description",
+                    optimization_direction="MAXIMIZE",
+                    values=[
+                        dict(label="correct", score=1.0),
+                        dict(label="incorrect", score=0.0),
+                    ],
+                ),
             )
             session.add_all([untagged, tagged])
 
