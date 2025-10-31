@@ -114,7 +114,10 @@ const EvaluatorInputMappingControls = ({
     if (!data.example?.revision) {
       return [];
     }
-    const flat = flattenObject(data.example.revision);
+    const flat = flattenObject({
+      obj: data.example.revision,
+      keepNonTerminalValues: true,
+    });
     return [
       ...Object.keys(flat).map((key) => ({
         id: key,
