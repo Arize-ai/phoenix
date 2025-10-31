@@ -1,13 +1,27 @@
 import { PropsWithChildren, useCallback, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Alert, Button, Flex, Heading, Text, View } from "@phoenix/components";
+import {
+  Alert,
+  Button,
+  FieldError,
+  Flex,
+  Heading,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { NewEvaluatorPageContentMutation } from "@phoenix/pages/evaluators/__generated__/NewEvaluatorPageContentMutation.graphql";
+import {
+  CreateLLMEvaluatorInput,
+  NewEvaluatorPageContentMutation,
+} from "@phoenix/pages/evaluators/__generated__/NewEvaluatorPageContentMutation.graphql";
 import {
   EvaluatorChatTemplate,
   EvaluatorChatTemplateProvider,
@@ -23,6 +37,7 @@ import {
 } from "@phoenix/pages/evaluators/EvaluatorLLMChoice";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { identifierPattern } from "@phoenix/utils/identifierUtils";
 
 export const NewEvaluatorPage = () => {
   return (
@@ -81,7 +96,7 @@ const createEvaluatorPayload = ({
   name: string;
   choiceConfig: ChoiceConfig;
   inputMapping: InputMapping;
-}) => {
+}): CreateLLMEvaluatorInput => {
   const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
     instanceId,
     store
@@ -96,6 +111,14 @@ const createEvaluatorPayload = ({
       templateFormat,
       ...promptInput,
     },
+    outputConfig: {
+      name: choiceConfig.name,
+      optimizationDirection: "MAXIMIZE",
+      values: choiceConfig.choices.map((choice) => ({
+        label: choice.label,
+        score: choice.score,
+      })),
+    },
   };
 };
 
@@ -108,20 +131,40 @@ const NewEvaluatorPageContent = () => {
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     null
   );
-  const { control: choiceConfigControl, getValues: getChoiceConfigValues } =
-    useForm<ChoiceConfig>({
-      defaultValues: {
-        name: "correctness",
-        choices: [
-          { label: "Incorrect", score: 0 },
-          { label: "Correct", score: 1 },
-        ],
-      },
-    });
-  const { control: inputMappingControl, getValues: getInputMappingValues } =
-    useForm<InputMapping>({
-      defaultValues: {},
-    });
+  const {
+    control: nameControl,
+    getValues: getNameValues,
+    formState: { isValid: isNameValid },
+  } = useForm<{
+    name: string;
+  }>({
+    defaultValues: {
+      name: "",
+    },
+    mode: "onChange",
+  });
+  const {
+    control: choiceConfigControl,
+    getValues: getChoiceConfigValues,
+    formState: { isValid: isChoiceConfigValid },
+  } = useForm<ChoiceConfig>({
+    defaultValues: {
+      name: "correctness",
+      choices: [
+        { label: "Incorrect", score: 0 },
+        { label: "Correct", score: 1 },
+      ],
+    },
+  });
+  const {
+    control: inputMappingControl,
+    getValues: getInputMappingValues,
+    formState: { isValid: isInputMappingValid },
+  } = useForm<InputMapping>({
+    defaultValues: {},
+  });
+  const areFormsValid =
+    isNameValid && isChoiceConfigValid && isInputMappingValid;
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [createEvaluator, isCreatingEvaluator] =
@@ -138,6 +181,10 @@ const NewEvaluatorPageContent = () => {
       }
     `);
   const handleSave = useCallback(() => {
+    if (!areFormsValid) {
+      return;
+    }
+    const evaluatorName = getNameValues().name;
     const choiceConfig = getChoiceConfigValues();
     const inputMapping = getInputMappingValues();
     const instance = store.getState().instances[0];
@@ -149,27 +196,16 @@ const NewEvaluatorPageContent = () => {
       });
       return;
     }
-    const payload = createEvaluatorPayload({
+    const input = createEvaluatorPayload({
       store,
       instanceId: instance.id,
-      name: `${choiceConfig.name}_evaluator`,
+      name: evaluatorName,
       choiceConfig,
       inputMapping,
     });
     createEvaluator({
       variables: {
-        input: {
-          name: payload.name,
-          promptVersion: payload.promptVersion,
-          outputConfig: {
-            name: choiceConfig.name,
-            optimizationDirection: "MAXIMIZE",
-            values: choiceConfig.choices.map((choice) => ({
-              label: choice.label,
-              score: choice.score,
-            })),
-          },
-        },
+        input,
       },
       onCompleted: (response) => {
         // TODO: navigate to evaluator list page or evaluator detail page when implemented
@@ -187,7 +223,9 @@ const NewEvaluatorPageContent = () => {
       },
     });
   }, [
+    areFormsValid,
     createEvaluator,
+    getNameValues,
     getChoiceConfigValues,
     getInputMappingValues,
     notifyError,
@@ -218,6 +256,7 @@ const NewEvaluatorPageContent = () => {
               size="M"
               onClick={handleSave}
               isPending={isCreatingEvaluator}
+              isDisabled={!areFormsValid}
             >
               {isCreatingEvaluator ? "Creating..." : "Save"}
             </Button>
@@ -228,6 +267,29 @@ const NewEvaluatorPageContent = () => {
         <Panel defaultSize={65} css={panelCSS} style={panelStyle}>
           <PanelContainer>
             <Flex direction="column" gap="size-100" marginTop="size-100">
+              <Controller
+                name="name"
+                control={nameControl}
+                rules={{
+                  required: "Name is required",
+                  pattern: {
+                    value: identifierPattern.value,
+                    message: identifierPattern.message.replace(
+                      "identifier",
+                      "evaluator name"
+                    ),
+                  },
+                }}
+                render={({ field, fieldState: { error } }) => (
+                  <TextField {...field} autoComplete="off" isInvalid={!!error}>
+                    <Label>Name</Label>
+                    <Input placeholder="e.g. correctness_evaluator" autoFocus />
+                    <FieldError>{error?.message}</FieldError>
+                  </TextField>
+                )}
+              />
+            </Flex>
+            <Flex direction="column" gap="size-100">
               <Heading level={3}>Eval</Heading>
               <Text color="text-500">
                 Define the eval annotation returned by your evaluator.
@@ -257,7 +319,7 @@ const NewEvaluatorPageContent = () => {
                 border-radius: var(--ac-global-rounding-medium);
                 padding: var(--ac-global-dimension-static-size-200);
                 border: 1px solid var(--ac-global-border-color-default);
-                margin-top: var(--ac-global-dimension-static-size-900);
+                margin-top: var(--ac-global-dimension-static-size-400);
               `}
             >
               <Flex direction="column" gap="size-100">
