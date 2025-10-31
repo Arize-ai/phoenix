@@ -4,6 +4,7 @@ from typing import Optional, cast
 
 import strawberry
 from sqlalchemy import Text, and_, func, or_, select
+from sqlalchemy.orm import with_polymorphic
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -21,6 +22,7 @@ from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Evaluator import CodeEvaluator, Evaluator, LLMEvaluator
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -453,6 +455,46 @@ class Dataset(Node):
             DatasetLabel(id=label.id, db_record=label)
             for label in await info.context.data_loaders.dataset_labels.load(self.id)
         ]
+
+    @strawberry.field
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Evaluator]:
+        """Returns all evaluators associated with this dataset."""
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        # The resolvers on the various evaluator GraphQL types read from the ORM, so we need to
+        # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
+        # base `evaluators` table.
+        PolymorphicEvaluator = with_polymorphic(
+            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+        )
+        stmt = (
+            select(PolymorphicEvaluator)
+            .join(models.DatasetsEvaluators)
+            .where(models.DatasetsEvaluators.dataset_id == self.id)
+            .order_by(PolymorphicEvaluator.name.asc())
+        )
+        async with info.context.db() as session:
+            evaluators = await session.scalars(stmt)
+        data: list[Evaluator] = []
+        for evaluator in evaluators:
+            if isinstance(evaluator, models.LLMEvaluator):
+                data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
+            elif isinstance(evaluator, models.CodeEvaluator):
+                data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
+            else:
+                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:

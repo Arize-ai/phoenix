@@ -7,6 +7,7 @@ import {
 import { RouterProvider } from "react-router/dom";
 
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
+import { NewEvaluatorPage } from "@phoenix/pages/evaluators/NewEvaluatorPage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
@@ -245,6 +246,14 @@ const router = createBrowserRouter(
                   return "span unknown";
                 },
               }}
+            />
+          </Route>
+          <Route path="/evaluators" handle={{ crumb: () => "Evaluators" }}>
+            <Route index element={<Navigate to="new" replace />} />
+            <Route
+              path="new"
+              element={<NewEvaluatorPage />}
+              handle={{ crumb: () => "New evaluator" }}
             />
           </Route>
           <Route

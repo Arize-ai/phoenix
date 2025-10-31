@@ -16,7 +16,6 @@ import {
   Icon,
   Icons,
   Popover,
-  PopoverArrow,
   Text,
 } from "@phoenix/components";
 
@@ -197,7 +196,6 @@ export const MenuContainer = ({
       css={menuContainerCss}
       {...popoverProps}
     >
-      <PopoverArrow />
       <div
         css={css`
           min-height: 300px;
