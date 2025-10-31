@@ -52,8 +52,8 @@ def get_openai_rate_limit_errors() -> list[Type[Exception]]:
     dependencies=["openai"],
 )
 class OpenAIAdapter(BaseLLMAdapter):
-    def __init__(self, client: Any):
-        self.client = client
+    def __init__(self, client: Any, model: str):
+        super().__init__(client, model)
         self._validate_client()
         self._is_async = self._check_if_async_client()
 

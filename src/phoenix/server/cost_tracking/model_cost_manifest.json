@@ -784,7 +784,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 7.5e-8,
+          "base_rate": 3e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         },
@@ -1027,7 +1027,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3.125e-7,
+          "base_rate": 1.25e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         }

@@ -1,6 +1,22 @@
-import { queue } from "async";
-import invariant from "tiny-invariant";
+import {
+  MimeType,
+  OpenInferenceSpanKind,
+  SemanticConventions,
+} from "@arizeai/openinference-semantic-conventions";
+import {
+  createNoOpProvider,
+  type DiagLogLevel,
+  NodeTracerProvider,
+  objectAsAttributes,
+  register,
+  SpanStatusCode,
+  trace,
+  Tracer,
+} from "@arizeai/phoenix-otel";
+
 import { createClient, type PhoenixClient } from "../client";
+import { getDataset } from "../datasets/getDataset";
+import { AnnotatorKind } from "../types/annotations";
 import { ClientFn } from "../types/core";
 import {
   Dataset,
@@ -10,41 +26,27 @@ import {
 } from "../types/datasets";
 import type {
   Evaluator,
-  ExperimentInfo,
   ExperimentEvaluationRun,
+  ExperimentInfo,
   ExperimentRun,
   ExperimentRunID,
   ExperimentTask,
   RanExperiment,
 } from "../types/experiments";
 import { type Logger } from "../types/logger";
-import { getDataset } from "../datasets/getDataset";
+import { ensureString } from "../utils/ensureString";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
-import { AnnotatorKind } from "../types/annotations";
+import { toObjectHeaders } from "../utils/toObjectHeaders";
 import {
-  type DiagLogLevel,
-  SpanStatusCode,
-  Tracer,
-  trace,
-  NodeTracerProvider,
-  objectAsAttributes,
-  createNoOpProvider,
-  register,
-} from "@arizeai/phoenix-otel";
-import {
-  MimeType,
-  OpenInferenceSpanKind,
-  SemanticConventions,
-} from "@arizeai/openinference-semantic-conventions";
-import { ensureString } from "../utils/ensureString";
-import {
-  getDatasetUrl,
   getDatasetExperimentsUrl,
+  getDatasetUrl,
   getExperimentUrl,
 } from "../utils/urlUtils";
+
 import assert from "assert";
-import { toObjectHeaders } from "../utils/toObjectHeaders";
+import { queue } from "async";
+import invariant from "tiny-invariant";
 
 /**
  * Validate that a repetition is valid

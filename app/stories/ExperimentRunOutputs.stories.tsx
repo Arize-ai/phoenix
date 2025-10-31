@@ -17,12 +17,17 @@ type AnnotationSummaries = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
 >;
 
+type ReferenceOutput = NonNullable<
+  ExperimentCompareDetailsQuery$data["example"]["revision"]
+>["referenceOutput"];
+
 type StoryArgs = {
   baseExperimentId: string;
   compareExperimentIds: string[];
   experimentsById: Record<string, Experiment>;
   experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>;
   annotationSummaries: AnnotationSummaries;
+  referenceOutput: ReferenceOutput;
 };
 
 const mockExperiments: Record<string, Experiment> = {
@@ -88,6 +93,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "qa_correctness",
                 label: "correct",
                 score: 0.95,
+                metadata: null,
                 trace: {
                   traceId: "eval-trace-exp1-1",
                   projectId: "project-456",
@@ -100,6 +106,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "has_results",
                 label: null,
                 score: 1.0,
+                metadata: null,
                 trace: {
                   traceId: "eval-trace-exp1-2",
                   projectId: "project-456",
@@ -144,6 +151,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "qa_correctness",
                 label: null,
                 score: 0.87,
+                metadata: null,
                 trace: {
                   traceId: "eval-trace-exp2-1",
                   projectId: "project-789",
@@ -156,6 +164,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "has_results",
                 label: null,
                 score: 1.0,
+                metadata: null,
                 trace: {
                   traceId: "eval-trace-exp2-2",
                   projectId: "project-789",
@@ -200,6 +209,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "qa_correctness",
                 label: null,
                 score: 0.65,
+                metadata: null,
                 trace: {
                   traceId: "eval-trace-exp3-1",
                   projectId: "project-123",
@@ -212,6 +222,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "has_results",
                 label: null,
                 score: 0.0,
+                metadata: null,
                 trace: {
                   traceId: "eval-trace-exp3-2",
                   projectId: "project-123",
@@ -254,6 +265,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "qa_correctness",
                 label: null,
                 score: 0.78,
+                metadata: null,
                 trace: {
                   traceId: "eval-trace-exp3-3",
                   projectId: "project-123",
@@ -266,6 +278,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "has_results",
                 label: null,
                 score: 1.0,
+                metadata: null,
                 trace: {
                   traceId: "eval-trace-exp3-4",
                   projectId: "project-123",
@@ -324,6 +337,12 @@ const mockAnnotationSummaries: AnnotationSummaries = [
   },
 ];
 
+const mockReferenceOutput: ReferenceOutput = {
+  query:
+    "SELECT title, MAX(vote_average) AS highest_rating FROM movies WHERE credits LIKE '%Brad Pitt%' GROUP BY title ORDER BY highest_rating DESC LIMIT 1;",
+  results: [{ title: "Fight Club", highest_rating: 8.8 }],
+};
+
 const meta: Meta<StoryArgs> = {
   title: "Experiment/ExperimentRunOutputs",
   component: ExperimentRunOutputs,
@@ -333,6 +352,7 @@ const meta: Meta<StoryArgs> = {
       description: {
         component: `
 A comprehensive component for displaying and comparing experiment run outputs:
+- **Reference Output**: Shows the expected/ground truth output for comparison
 - **Collapsible Sidebar**: Shows experiment selection with checkboxes and repetition controls
 - **Horizontal Scrolling**: Displays experiment items side-by-side in a scrollable container
 - **Selection Management**: Interactive checkboxes to show/hide experiments and repetitions
@@ -366,6 +386,7 @@ const Template: Story = (args) => {
           args.experimentRepetitionsByExperimentId
         }
         annotationSummaries={args.annotationSummaries}
+        referenceOutput={args.referenceOutput}
         includeRepetitions={includeRepetitions}
         openTraceDialog={() => {}}
       >
@@ -385,6 +406,7 @@ Default.args = {
   experimentsById: mockExperiments,
   experimentRepetitionsByExperimentId: mockExperimentRepetitions,
   annotationSummaries: mockAnnotationSummaries,
+  referenceOutput: mockReferenceOutput,
 };
 
 /**
@@ -397,6 +419,7 @@ WithNoRunExperiment.args = {
   experimentsById: mockExperiments,
   experimentRepetitionsByExperimentId: mockExperimentRepetitions,
   annotationSummaries: mockAnnotationSummaries,
+  referenceOutput: mockReferenceOutput,
 };
 
 /**
@@ -411,6 +434,7 @@ SingleExperiment.args = {
     "exp-1": mockExperimentRepetitions["exp-1"],
   },
   annotationSummaries: mockAnnotationSummaries,
+  referenceOutput: mockReferenceOutput,
 };
 
 /**
@@ -423,6 +447,7 @@ WithErrors.args = {
   experimentsById: mockExperiments,
   experimentRepetitionsByExperimentId: mockExperimentRepetitions,
   annotationSummaries: mockAnnotationSummaries,
+  referenceOutput: mockReferenceOutput,
 };
 
 const mockEdgeCaseExperiments: Record<string, Experiment> = {
@@ -475,6 +500,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "mixed_evaluation",
                 label: "excellent_performance_with_detailed_analysis",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-1",
                   projectId: "project-edge",
@@ -488,6 +514,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 label:
                   "This response demonstrates exceptional quality with comprehensive coverage of all requested topics, thorough analysis of edge cases, and clear explanations that would be easily understood by both technical and non-technical stakeholders. The formatting is professional and the examples provided are highly relevant.",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-2",
                   projectId: "project-edge",
@@ -528,6 +555,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "mixed_evaluation",
                 label: null,
                 score: 0.87,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-3",
                   projectId: "project-edge",
@@ -541,6 +569,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 label:
                   "The response quality is good but could benefit from more specific examples and clearer structure in the presentation of complex concepts.",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-4",
                   projectId: "project-edge",
@@ -581,6 +610,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "mixed_evaluation",
                 label: null,
                 score: 0.92,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-5",
                   projectId: "project-edge",
@@ -593,6 +623,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label: null,
                 score: 0.85,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-6",
                   projectId: "project-edge",
@@ -636,6 +667,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 label:
                   "needs_significant_improvement_across_multiple_dimensions",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-7",
                   projectId: "project-edge",
@@ -649,6 +681,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 label:
                   "While the response attempts to address the core requirements, it falls short in several critical areas including lack of specific examples, insufficient depth of analysis, unclear explanations that may confuse readers, and formatting issues that detract from the overall presentation quality and professional appearance.",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-8",
                   projectId: "project-edge",
@@ -689,6 +722,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "mixed_evaluation",
                 label: null,
                 score: 0.65,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-9",
                   projectId: "project-edge",
@@ -702,6 +736,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 label:
                   "The response demonstrates moderate quality with some good insights but requires refinement in organization, clarity of technical explanations, and inclusion of more comprehensive examples to fully meet the specified requirements and expectations for this type of analysis.",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-10",
                   projectId: "project-edge",
@@ -744,6 +779,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "mixed_evaluation",
                 label: "outstanding_with_exceptional_detail",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-11",
                   projectId: "project-edge",
@@ -756,6 +792,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label: null,
                 score: 0.95,
+                metadata: null,
                 trace: {
                   traceId: "edge-eval-12",
                   projectId: "project-edge",
@@ -823,6 +860,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
                 name: "mixed_evaluation",
                 label: "satisfactory_with_room_for_improvement",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "single-edge-eval-1",
                   projectId: "project-single-edge",
@@ -836,6 +874,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
                 label:
                   "The analysis provides a solid foundation but would benefit from deeper exploration of edge cases, more comprehensive examples, and clearer articulation of the methodology used to arrive at the conclusions presented in this evaluation.",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "single-edge-eval-2",
                   projectId: "project-single-edge",
@@ -878,6 +917,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
                 name: "mixed_evaluation",
                 label: null,
                 score: 0.78,
+                metadata: null,
                 trace: {
                   traceId: "single-edge-eval-3",
                   projectId: "project-single-edge",
@@ -891,6 +931,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
                 label:
                   "This response demonstrates competent handling of the basic requirements but lacks the sophistication and thoroughness expected for this level of analysis, particularly in areas of technical depth, contextual understanding, and practical application examples that would make the content more valuable to end users.",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "single-edge-eval-4",
                   projectId: "project-single-edge",
@@ -933,6 +974,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
                 name: "mixed_evaluation",
                 label: "exceptional_quality_exceeds_expectations",
                 score: null,
+                metadata: null,
                 trace: {
                   traceId: "single-edge-eval-5",
                   projectId: "project-single-edge",
@@ -945,6 +987,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label: null,
                 score: 0.96,
+                metadata: null,
                 trace: {
                   traceId: "single-edge-eval-6",
                   projectId: "project-single-edge",
@@ -972,6 +1015,11 @@ const mockEdgeCaseAnnotationSummaries: AnnotationSummaries = [
   },
 ];
 
+const mockEdgeCaseReferenceOutput: ReferenceOutput = {
+  result:
+    "Expected comprehensive analysis with detailed explanations, proper formatting, and relevant examples that demonstrate thorough understanding of the topic.",
+};
+
 /**
  * Annotation edge cases with multiple repetitions - demonstrates mixed score/label types and long labels
  */
@@ -982,6 +1030,7 @@ AnnotationEdgeCases.args = {
   experimentsById: mockEdgeCaseExperiments,
   experimentRepetitionsByExperimentId: mockEdgeCaseRepetitions,
   annotationSummaries: mockEdgeCaseAnnotationSummaries,
+  referenceOutput: mockEdgeCaseReferenceOutput,
 };
 
 /**
@@ -994,4 +1043,18 @@ AnnotationEdgeCasesSingleRepetition.args = {
   experimentsById: mockSingleRepetitionEdgeCaseExperiments,
   experimentRepetitionsByExperimentId: mockSingleRepetitionEdgeCaseRepetitions,
   annotationSummaries: mockEdgeCaseAnnotationSummaries,
+  referenceOutput: mockEdgeCaseReferenceOutput,
+};
+
+/**
+ * Comparison without reference output - demonstrates the interface when no ground truth is available
+ */
+export const WithoutReferenceOutput = Template.bind({});
+WithoutReferenceOutput.args = {
+  baseExperimentId: "exp-1",
+  compareExperimentIds: ["exp-2", "exp-3"],
+  experimentsById: mockExperiments,
+  experimentRepetitionsByExperimentId: mockExperimentRepetitions,
+  annotationSummaries: mockAnnotationSummaries,
+  referenceOutput: null,
 };

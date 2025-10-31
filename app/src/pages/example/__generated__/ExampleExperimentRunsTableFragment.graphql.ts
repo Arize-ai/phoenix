@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<abb2b573ea9e5678bed5984d0f47bebb>>
+ * @generated SignedSource<<c0472ddfea17714aeaaca2b3feaca020>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,6 +22,7 @@ export type ExampleExperimentRunsTableFragment$data = {
               readonly explanation: string | null;
               readonly id: string;
               readonly label: string | null;
+              readonly metadata: any;
               readonly name: string;
               readonly score: number | null;
               readonly trace: {
@@ -247,6 +248,13 @@ return {
                               "alias": null,
                               "args": null,
                               "kind": "ScalarField",
+                              "name": "metadata",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
                               "name": "annotatorKind",
                               "storageKey": null
                             },
@@ -326,6 +334,6 @@ return {
 };
 })();
 
-(node as any).hash = "73457524533365ed047cb575ee6c93ab";
+(node as any).hash = "5bb250cda11776bbac63021b8284fbca";
 
 export default node;

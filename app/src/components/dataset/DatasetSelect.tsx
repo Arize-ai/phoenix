@@ -13,7 +13,9 @@ import {
   SelectItem,
   SelectValue,
   Text,
+  Token,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 
 import { DatasetSelectQuery } from "./__generated__/DatasetSelectQuery.graphql";
 
@@ -40,6 +42,11 @@ export function DatasetSelect(props: DatasetSelectProps) {
               id
               name
               exampleCount
+              labels {
+                id
+                name
+                color
+              }
             }
           }
         }
@@ -86,22 +93,45 @@ export function DatasetSelect(props: DatasetSelectProps) {
                 id={dataset.id}
                 isDisabled={isDisabled}
               >
-                <Flex
-                  direction="row"
-                  alignItems="center"
-                  gap="size-200"
-                  justifyContent="space-between"
-                  width="100%"
-                  css={css`
-                    opacity: ${isDisabled
-                      ? "var(--ac-global-opacity-disabled)"
-                      : 1};
-                  `}
-                >
-                  <Text>{dataset.name}</Text>
-                  <Text color="text-700" size="XS">
-                    {dataset.exampleCount} examples
-                  </Text>
+                <Flex direction="column" gap="size-100" width="100%">
+                  <Flex
+                    direction="row"
+                    alignItems="center"
+                    gap="size-200"
+                    justifyContent="space-between"
+                    width="100%"
+                    css={css`
+                      opacity: ${isDisabled
+                        ? "var(--ac-global-opacity-disabled)"
+                        : 1};
+                    `}
+                  >
+                    <Text>{dataset.name}</Text>
+                    <Text color="text-700" size="XS">
+                      {dataset.exampleCount} examples
+                    </Text>
+                  </Flex>
+                  {dataset.labels.length > 0 && (
+                    <ul
+                      css={css`
+                        display: flex;
+                        flex-direction: row;
+                        gap: var(--ac-global-dimension-size-50);
+                        min-width: 0;
+                        flex-wrap: wrap;
+                      `}
+                    >
+                      {dataset.labels.map((label) => (
+                        <li key={label.id}>
+                          <Token color={label.color}>
+                            <Truncate maxWidth={150} title={label.name}>
+                              {label.name}
+                            </Truncate>
+                          </Token>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </Flex>
               </SelectItem>
             );

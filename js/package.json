@@ -31,6 +31,7 @@
     "@changesets/cli": "^2.28.1",
     "@eslint/js": "^9.34.0",
     "eslint": "^9.34.0",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
     "globals": "^16.3.0",
     "jiti": "^2.5.1",
     "pkg-pr-new": "^0.0.39",

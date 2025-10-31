@@ -1,5 +1,36 @@
 # Changelog
 
+## [12.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.8.0...arize-phoenix-v12.9.0) (2025-10-29)
+
+
+### Features
+
+* Create more menu abstractions ([#9877](https://github.com/Arize-ai/phoenix/issues/9877)) ([0c0ccde](https://github.com/Arize-ai/phoenix/commit/0c0ccde671313803b08bd85abb0a2d115484a895))
+* display metadata for experiment run annotations ([#9904](https://github.com/Arize-ai/phoenix/issues/9904)) ([0e9cba3](https://github.com/Arize-ai/phoenix/commit/0e9cba30a93ae17d11bc7926032c1e29d82bcf00))
+* Enable AWS IAM auth for DB configuration ([#9936](https://github.com/Arize-ai/phoenix/issues/9936)) ([465015d](https://github.com/Arize-ai/phoenix/commit/465015d1e89bcf19e21741cc3eefe08869ebd2b1))
+* **experiments:** move reference output to bottom pane of compare slideover ([#10027](https://github.com/Arize-ai/phoenix/issues/10027)) ([14dc381](https://github.com/Arize-ai/phoenix/commit/14dc3815ee9a881ab86b0445930b659e79e57e54))
+* Merge dataset label application with new label creation ([#10014](https://github.com/Arize-ai/phoenix/issues/10014)) ([c6cb7da](https://github.com/Arize-ai/phoenix/commit/c6cb7da809841ec6e9c60b95474725cad4e726f8))
+
+
+### Bug Fixes
+
+* **bedrock:** remove hardcoded `us.` prefix from model IDs ([#9914](https://github.com/Arize-ai/phoenix/issues/9914)) ([35a89d6](https://github.com/Arize-ai/phoenix/commit/35a89d66ab5f237295ac0a22a66d1fd0705e6e2e))
+
+## [12.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.7.1...arize-phoenix-v12.8.0) (2025-10-27)
+
+
+### Features
+
+* Add split edit menu to single example ([#10016](https://github.com/Arize-ai/phoenix/issues/10016)) ([7baead1](https://github.com/Arize-ai/phoenix/commit/7baead1787359c692ab45ac6d3816eeed1c8e76a))
+* dataset label graphql set ([#9989](https://github.com/Arize-ai/phoenix/issues/9989)) ([55ec333](https://github.com/Arize-ai/phoenix/commit/55ec3339aacab433cfa9cdef1ef902542d8295b6))
+* Refactor settings pages to preload graphql queries while navigating ([#10006](https://github.com/Arize-ai/phoenix/issues/10006)) ([41ce837](https://github.com/Arize-ai/phoenix/commit/41ce837c5c72c50c73cd7dce5884f4b4cb087ae8))
+* Validate split name while typing ([#10015](https://github.com/Arize-ai/phoenix/issues/10015)) ([03df3b5](https://github.com/Arize-ai/phoenix/commit/03df3b50063e18bce8e6a0c82667b90e3eddeec0))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10024](https://github.com/Arize-ai/phoenix/issues/10024)) ([2bd8484](https://github.com/Arize-ai/phoenix/commit/2bd8484d428421bf534760d9a3184c8fbe0cbe73))
+
 ## [12.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.7.0...arize-phoenix-v12.7.1) (2025-10-24)
 
 

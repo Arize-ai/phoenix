@@ -16,7 +16,7 @@ from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
+from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TokenPrice import TokenKind
 
@@ -110,7 +110,7 @@ class ModelMutationMixin:
                 raise Conflict(f"Model with name '{input.name}' already exists")
 
         return CreateModelMutationPayload(
-            model=to_gql_generative_model(model),
+            model=GenerativeModel(id=model.id, db_record=model),
             query=Query(),
         )
 
@@ -163,7 +163,7 @@ class ModelMutationMixin:
             await session.refresh(model)
 
         return UpdateModelMutationPayload(
-            model=to_gql_generative_model(model),
+            model=GenerativeModel(id=model.id, db_record=model),
             query=Query(),
         )
 
@@ -192,7 +192,7 @@ class ModelMutationMixin:
                 await session.rollback()
                 raise BadRequest("Cannot delete built-in model")
         return DeleteModelMutationPayload(
-            model=to_gql_generative_model(model),
+            model=GenerativeModel(id=model.id, db_record=model),
             query=Query(),
         )
 

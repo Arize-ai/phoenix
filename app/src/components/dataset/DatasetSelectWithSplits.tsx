@@ -13,14 +13,18 @@ import {
   Flex,
   LinkButton,
   Menu,
+  MenuContainer,
+  MenuFooter,
+  MenuHeader,
   MenuItem,
   MenuTrigger,
-  Popover,
   SearchField,
   SelectChevronUpDownIcon,
   Text,
+  Token,
   View,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 
 import { DatasetSelectWithSplitsQuery } from "./__generated__/DatasetSelectWithSplitsQuery.graphql";
 
@@ -47,11 +51,18 @@ type SplitItem = {
   name: string;
 };
 
+type LabelItem = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 type DatasetItem = {
   id: string;
   name: string;
   exampleCount: number;
   splits: SplitItem[];
+  labels: LabelItem[];
   isSelected: boolean;
   selectedSplitIds: string[];
 };
@@ -71,6 +82,11 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               splits {
                 id
                 name
+              }
+              labels {
+                id
+                name
+                color
               }
             }
           }
@@ -92,6 +108,11 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         splits: dataset.splits.map((split) => ({
           id: split.id,
           name: split.name,
+        })),
+        labels: dataset.labels.map((label) => ({
+          id: label.id,
+          name: label.name,
+          color: label.color,
         })),
         isSelected: dataset.id === datasetId,
         selectedSplitIds: dataset.id === datasetId ? splitIds : [],
@@ -149,18 +170,13 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
           </Text>
         )}
       </Button>
-      <Popover
-        placement="bottom end" // right align popover to end of menu trigger to prevent dynamic movement when submenu items are
-        css={css`
-          overflow: auto;
-        `}
-      >
+      <MenuContainer>
         <Autocomplete filter={contains}>
-          <View paddingX="size-100" marginTop="size-100">
+          <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
               <Input placeholder="Search datasets" />
             </SearchField>
-          </View>
+          </MenuHeader>
           <Menu
             selectionMode="single"
             selectedKeys={selectedDatasetKeys}
@@ -178,6 +194,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               name,
               exampleCount,
               splits,
+              labels,
               isSelected,
               selectedSplitIds,
             }) => {
@@ -197,26 +214,49 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                       });
                     }}
                   >
-                    <Flex
-                      direction="row"
-                      alignItems="center"
-                      gap="size-200"
-                      justifyContent="space-between"
-                      width="100%"
-                      css={css`
-                        opacity: ${isDisabled
-                          ? "var(--ac-global-opacity-disabled)"
-                          : 1};
-                        padding-right: ${atLeastOneDatasetHasSplits
-                          ? "28px"
-                          : undefined}; // right align the examples text if a submenu chevron is present
-                      `}
-                    >
-                      <Text>{name}</Text>
-                      <Text color="text-700" size="XS">
-                        {exampleCount}{" "}
-                        {exampleCount === 1 ? "example" : "examples"}
-                      </Text>
+                    <Flex direction="column" gap="size-100" width="100%">
+                      <Flex
+                        direction="row"
+                        alignItems="center"
+                        gap="size-200"
+                        justifyContent="space-between"
+                        width="100%"
+                        css={css`
+                          opacity: ${isDisabled
+                            ? "var(--ac-global-opacity-disabled)"
+                            : 1};
+                          padding-right: ${atLeastOneDatasetHasSplits
+                            ? "28px"
+                            : undefined}; // right align the examples text if a submenu chevron is present
+                        `}
+                      >
+                        <Text>{name}</Text>
+                        <Text color="text-700" size="XS">
+                          {exampleCount}{" "}
+                          {exampleCount === 1 ? "example" : "examples"}
+                        </Text>
+                      </Flex>
+                      {labels.length > 0 && (
+                        <ul
+                          css={css`
+                            display: flex;
+                            flex-direction: row;
+                            gap: var(--ac-global-dimension-size-50);
+                            min-width: 0;
+                            flex-wrap: wrap;
+                          `}
+                        >
+                          {labels.map((label) => (
+                            <li key={label.id}>
+                              <Token color={label.color}>
+                                <Truncate maxWidth={150} title={label.name}>
+                                  {label.name}
+                                </Truncate>
+                              </Token>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </Flex>
                   </MenuItem>
                 );
@@ -226,37 +266,55 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               return (
                 <SubmenuTrigger>
                   <MenuItem textValue={name} isDisabled={isDisabled}>
-                    <Flex
-                      direction="row"
-                      alignItems="center"
-                      gap="size-200"
-                      justifyContent="space-between"
-                      width="100%"
-                      css={css`
-                        opacity: ${isDisabled
-                          ? "var(--ac-global-opacity-disabled)"
-                          : 1};
-                      `}
-                    >
-                      <Text>{name}</Text>
-                      <Text color="text-700" size="XS">
-                        {exampleCount}{" "}
-                        {exampleCount === 1 ? "example" : "examples"}
-                      </Text>
+                    <Flex direction="column" gap="size-100" width="100%">
+                      <Flex
+                        direction="row"
+                        alignItems="center"
+                        gap="size-200"
+                        justifyContent="space-between"
+                        width="100%"
+                        css={css`
+                          opacity: ${isDisabled
+                            ? "var(--ac-global-opacity-disabled)"
+                            : 1};
+                        `}
+                      >
+                        <Text>{name}</Text>
+                        <Text color="text-700" size="XS">
+                          {exampleCount}{" "}
+                          {exampleCount === 1 ? "example" : "examples"}
+                        </Text>
+                      </Flex>
+                      {labels.length > 0 && (
+                        <ul
+                          css={css`
+                            display: flex;
+                            flex-direction: row;
+                            gap: var(--ac-global-dimension-size-50);
+                            min-width: 0;
+                            flex-wrap: wrap;
+                          `}
+                        >
+                          {labels.map((label) => (
+                            <li key={label.id}>
+                              <Token color={label.color}>
+                                <Truncate maxWidth={150} title={label.name}>
+                                  {label.name}
+                                </Truncate>
+                              </Token>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </Flex>
                   </MenuItem>
-                  <Popover
-                    placement="right"
-                    css={css`
-                      overflow: auto;
-                    `}
-                  >
+                  <MenuContainer placement="end top">
                     <Autocomplete filter={contains}>
-                      <View paddingX="size-100" marginTop="size-100">
+                      <MenuHeader>
                         <SearchField aria-label="Search" autoFocus>
                           <Input placeholder="Search splits" />
                         </SearchField>
-                      </View>
+                      </MenuHeader>
                       <Menu
                         items={[
                           {
@@ -366,18 +424,16 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         )}
                       </Menu>
                     </Autocomplete>
-                  </Popover>
+                  </MenuContainer>
                 </SubmenuTrigger>
               );
             }}
           </Menu>
         </Autocomplete>
-        <View padding="size-150" borderTopColor="light" borderTopWidth="thin">
-          <LinkButton to="/datasets" variant="quiet" size="S">
-            Go to Datasets
-          </LinkButton>
-        </View>
-      </Popover>
+        <MenuFooter>
+          <LinkButton to="/datasets">Go to Datasets</LinkButton>
+        </MenuFooter>
+      </MenuContainer>
     </MenuTrigger>
   );
 }

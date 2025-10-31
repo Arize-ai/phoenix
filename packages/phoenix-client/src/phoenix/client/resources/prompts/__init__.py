@@ -4,6 +4,7 @@ import logging
 from typing import Optional, cast
 
 import httpx
+from httpx import HTTPStatusError
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.types.prompts import PromptVersion
@@ -90,6 +91,7 @@ class Prompts:
             PromptVersion: The retrieved prompt version data.
 
         Raises:
+            ValueError: If prompt identifier or prompt version id is not found.
             httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
 
         Example::
@@ -111,9 +113,14 @@ class Prompts:
             )
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
-        response = self._client.get(url)
-        response.raise_for_status()
-        return PromptVersion._loads(cast(v1.GetPromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+        try:
+            prompt_response = self._client.get(url)
+            prompt_response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_version_id or prompt_identifier}")
+            raise
+        return PromptVersion._loads(cast(v1.GetPromptResponseBody, prompt_response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
     def create(
         self,
@@ -355,6 +362,7 @@ class AsyncPrompts:
             PromptVersion: The retrieved prompt version data.
 
         Raises:
+            ValueError: If prompt identifier or prompt version id is not found.
             httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
 
         Example::
@@ -376,9 +384,14 @@ class AsyncPrompts:
             )
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
-        response = await self._client.get(url)
-        response.raise_for_status()
-        return PromptVersion._loads(cast(v1.GetPromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+        try:
+            prompt_response = await self._client.get(url)
+            prompt_response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_version_id or prompt_identifier}")
+            raise
+        return PromptVersion._loads(cast(v1.GetPromptResponseBody, prompt_response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
     async def create(
         self,

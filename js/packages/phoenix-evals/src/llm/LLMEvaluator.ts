@@ -1,8 +1,8 @@
 import {
+  CreateEvaluatorArgs,
   EvaluationResult,
   Evaluator,
   OptimizationDirection,
-  CreateEvaluatorArgs,
 } from "../types";
 
 /**

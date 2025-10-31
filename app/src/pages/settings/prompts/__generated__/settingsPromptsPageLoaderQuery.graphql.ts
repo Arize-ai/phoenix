@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3625722f5f780857d19a15869fd03ec8>>
+ * @generated SignedSource<<fd2aed5f8e6f1bad30fecd4970641be4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,13 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type SettingsPromptsPageQuery$variables = Record<PropertyKey, never>;
-export type SettingsPromptsPageQuery$data = {
+export type settingsPromptsPageLoaderQuery$variables = Record<PropertyKey, never>;
+export type settingsPromptsPageLoaderQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"PromptLabelsSettingsCardFragment">;
 };
-export type SettingsPromptsPageQuery = {
-  response: SettingsPromptsPageQuery$data;
-  variables: SettingsPromptsPageQuery$variables;
+export type settingsPromptsPageLoaderQuery = {
+  response: settingsPromptsPageLoaderQuery$data;
+  variables: settingsPromptsPageLoaderQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -32,7 +32,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsPromptsPageQuery",
+    "name": "settingsPromptsPageLoaderQuery",
     "selections": [
       {
         "args": null,
@@ -47,7 +47,7 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "SettingsPromptsPageQuery",
+    "name": "settingsPromptsPageLoaderQuery",
     "selections": [
       {
         "alias": null,
@@ -161,16 +161,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1c255afec515a75c7aa19151e0718175",
+    "cacheID": "6535608721c8bfc6cd7b5cd97463a7e0",
     "id": null,
     "metadata": {},
-    "name": "SettingsPromptsPageQuery",
+    "name": "settingsPromptsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query SettingsPromptsPageQuery {\n  ...PromptLabelsSettingsCardFragment\n}\n\nfragment PromptLabelsSettingsCardFragment on Query {\n  ...PromptLabelsTableFragment\n}\n\nfragment PromptLabelsTableFragment on Query {\n  promptLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsPromptsPageLoaderQuery {\n  ...PromptLabelsSettingsCardFragment\n}\n\nfragment PromptLabelsSettingsCardFragment on Query {\n  ...PromptLabelsTableFragment\n}\n\nfragment PromptLabelsTableFragment on Query {\n  promptLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ec4e42601216511601fd3c8f10c615fb";
+(node as any).hash = "44dc2c69c64dbe1d68af886497083b2b";
 
 export default node;

@@ -41,6 +41,7 @@ import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
+import { ExperimentRunMetadataEmpty } from "@phoenix/components/experiment/ExperimentRunMetadataEmpty";
 import {
   compactResizeHandleCSS,
   resizeHandleCSS,
@@ -88,6 +89,7 @@ export function ExperimentCompareDetails({
   defaultSelectedRepetitionNumber,
   openTraceDialog,
 }: ExperimentCompareDetailsProps) {
+  const inputPanelRef = useRef<ImperativePanelHandle>(null);
   const experimentIds = useMemo(
     () => [baseExperimentId, ...compareExperimentIds],
     [baseExperimentId, compareExperimentIds]
@@ -132,6 +134,7 @@ export function ExperimentCompareDetails({
                         name
                         label
                         score
+                        metadata
                         trace {
                           traceId
                           projectId
@@ -234,39 +237,40 @@ export function ExperimentCompareDetails({
 
   return (
     <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
-      <Panel defaultSize={35}>
+      <Panel
+        defaultSize={35}
+        ref={inputPanelRef}
+        style={{
+          minHeight: 78, // card header height (46px) + padding (2 * 16px)
+        }}
+      >
         <div
           css={css`
             height: 100%;
           `}
         >
           <View overflow="hidden" padding="size-200" height="100%">
-            <Flex direction="row" gap="size-200" flex="1 1 auto" height="100%">
-              <Card
-                title="Input"
-                extra={<CopyToClipboardButton text={JSON.stringify(input)} />}
-                height="100%"
-                flex={1}
-                scrollBody={true}
-              >
-                <FullSizeJSONBlock value={JSON.stringify(input, null, 2)} />
-              </Card>
-              <Card
-                title="Reference Output"
-                extra={
-                  <CopyToClipboardButton
-                    text={JSON.stringify(referenceOutput)}
-                  />
+            <Card
+              title="Input"
+              extra={<CopyToClipboardButton text={JSON.stringify(input)} />}
+              height="100%"
+              scrollBody={true}
+              collapsible
+              onCollapseChange={(isCollapsed) => {
+                const panel = inputPanelRef.current;
+                if (panel) {
+                  if (isCollapsed) {
+                    // Shrink panel to minimum size when collapsed
+                    panel.resize(0);
+                  } else {
+                    // Expand panel to default size when expanded
+                    panel.resize(35);
+                  }
                 }
-                height="100%"
-                flex={1}
-                scrollBody={true}
-              >
-                <FullSizeJSONBlock
-                  value={JSON.stringify(referenceOutput, null, 2)}
-                />
-              </Card>
-            </Flex>
+              }}
+            >
+              <FullSizeJSONBlock value={JSON.stringify(input, null, 2)} />
+            </Card>
           </View>
         </div>
       </Panel>
@@ -287,6 +291,7 @@ export function ExperimentCompareDetails({
               experimentRepetitionsByExperimentId
             }
             annotationSummaries={annotationSummaries}
+            referenceOutput={referenceOutput}
             includeRepetitions={Object.values(experimentsById).some(
               (experiment) => experiment.repetitions > 1
             )}
@@ -308,6 +313,8 @@ export function ExperimentRunOutputs() {
     experimentsById,
     baseExperimentId,
     compareExperimentIds,
+    referenceOutput,
+    referenceOutputSelected,
   } = useExperimentCompareDetailsContext();
 
   const experimentIds = useMemo(
@@ -381,6 +388,15 @@ export function ExperimentRunOutputs() {
               padding: var(--ac-global-dimension-static-size-200);
             `}
           >
+            {referenceOutput && referenceOutputSelected && (
+              <li
+                css={css`
+                  flex: none;
+                `}
+              >
+                <ReferenceOutputItem />
+              </li>
+            )}
             {sortedExperimentRepetitions.map(
               ({ experimentId, experimentRepetitions }) => {
                 const experiment = experimentsById[experimentId];
@@ -466,6 +482,9 @@ function ExperimentRunOutputsSidebar() {
     setSelectedAnnotation,
     toggleSortDirection,
     includeRepetitions,
+    referenceOutput,
+    referenceOutputSelected,
+    toggleReferenceOutputSelected,
   } = useExperimentCompareDetailsContext();
 
   const experimentIds = useMemo(
@@ -494,105 +513,110 @@ function ExperimentRunOutputsSidebar() {
         box-sizing: border-box;
       `}
     >
-      <Flex
-        direction="row"
-        gap="size-200"
-        alignItems="center"
-        justifyContent="space-between"
-        css={css`
-          // vertically align with collapse buttons if they are present
-          padding-left: ${includeRepetitions
-            ? `var(--ac-global-dimension-size-85)`
-            : 0};
-        `}
+      <View
+        // vertically align with collapse buttons if they are present
+        paddingStart={includeRepetitions ? "size-85" : 0}
       >
-        <Checkbox
-          isSelected={allRepetitionsSelected}
-          isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
-          onChange={(checked) => toggleAllRepetitionsSelection(checked)}
+        <Flex
+          direction="row"
+          gap="size-200"
+          alignItems="center"
+          justifyContent="space-between"
         >
-          <Text>
-            <Truncate maxWidth="100%">Select all</Truncate>
-          </Text>
-        </Checkbox>
-        {annotationSummaries.length > 0 && (
-          <Flex
-            direction="row"
-            alignItems="center"
-            css={css`
-              overflow: hidden;
-              padding: var(--ac-global-dimension-size-25);
-            `}
+          <Checkbox
+            isSelected={allRepetitionsSelected}
+            isIndeterminate={someRepetitionsSelected && !allRepetitionsSelected}
+            onChange={(checked) => toggleAllRepetitionsSelection(checked)}
           >
-            <MenuTrigger>
-              <Button
-                variant="quiet"
-                size="S"
-                css={css`
-                  min-width: 100px;
-                  flex: 0 1 auto;
-                `}
-              >
-                {selectedAnnotation ? (
-                  <Truncate maxWidth="100%">
-                    <Text>{selectedAnnotation}</Text>
-                  </Truncate>
-                ) : (
-                  <MenuTriggerPlaceholder>
-                    Sort by annotation
-                  </MenuTriggerPlaceholder>
-                )}
-                <SelectChevronUpDownIcon />
-              </Button>
-              <Popover>
-                <Menu
-                  items={annotationSummaries}
-                  selectionMode="single"
-                  selectedKeys={selectedAnnotation ? [selectedAnnotation] : []}
-                  onSelectionChange={(keys) => {
-                    if (keys === "all") {
-                      return;
-                    }
-                    setSelectedAnnotation(keys.values().next().value as string);
-                  }}
+            <Text>
+              <Truncate maxWidth="100%">Select all</Truncate>
+            </Text>
+          </Checkbox>
+          {annotationSummaries.length > 0 && (
+            <Flex
+              direction="row"
+              alignItems="center"
+              css={css`
+                overflow: hidden;
+                padding: var(--ac-global-dimension-size-25);
+              `}
+            >
+              <MenuTrigger>
+                <Button
+                  variant="quiet"
+                  size="S"
                   css={css`
-                    font-size: var(--ac-global-font-size-s);
+                    min-width: 100px;
+                    flex: 0 1 auto;
                   `}
                 >
-                  {(annotation) => (
-                    <MenuItem
-                      key={annotation.annotationName}
-                      id={annotation.annotationName}
-                    >
-                      {annotation.annotationName}
-                    </MenuItem>
+                  {selectedAnnotation ? (
+                    <Truncate maxWidth="100%">
+                      <Text>{selectedAnnotation}</Text>
+                    </Truncate>
+                  ) : (
+                    <MenuTriggerPlaceholder>
+                      Sort by annotation
+                    </MenuTriggerPlaceholder>
                   )}
-                </Menu>
-              </Popover>
-            </MenuTrigger>
-            {selectedAnnotation ? (
-              <IconButton
-                size="S"
-                aria-label="Change sort direction"
-                onPress={toggleSortDirection}
-                css={css`
-                  flex: none;
-                `}
-              >
-                <Icon svg={<Icons.ArrowUpDown />} />
-              </IconButton>
-            ) : (
-              <div // placeholder to prevent layout shift when annotation is selected
-                css={css`
-                  width: 30px;
-                  height: 30px;
-                  flex: none;
-                `}
-              />
-            )}
-          </Flex>
+                  <SelectChevronUpDownIcon />
+                </Button>
+                <Popover>
+                  <Menu
+                    items={annotationSummaries}
+                    selectionMode="single"
+                    selectedKeys={
+                      selectedAnnotation ? [selectedAnnotation] : []
+                    }
+                    onSelectionChange={(keys) => {
+                      if (keys === "all") {
+                        return;
+                      }
+                      setSelectedAnnotation(
+                        keys.values().next().value as string
+                      );
+                    }}
+                    css={css`
+                      font-size: var(--ac-global-font-size-s);
+                    `}
+                  >
+                    {(annotation) => (
+                      <MenuItem
+                        key={annotation.annotationName}
+                        id={annotation.annotationName}
+                      >
+                        {annotation.annotationName}
+                      </MenuItem>
+                    )}
+                  </Menu>
+                </Popover>
+              </MenuTrigger>
+              {selectedAnnotation && (
+                <IconButton
+                  size="S"
+                  aria-label="Change sort direction"
+                  onPress={toggleSortDirection}
+                  css={css`
+                    flex: none;
+                  `}
+                >
+                  <Icon svg={<Icons.ArrowUpDown />} />
+                </IconButton>
+              )}
+            </Flex>
+          )}
+        </Flex>
+        {referenceOutput && (
+          <Checkbox
+            isSelected={referenceOutputSelected}
+            onChange={toggleReferenceOutputSelected}
+          >
+            <Flex minHeight={30} alignItems="center">
+              <Text>reference output</Text>
+            </Flex>
+          </Checkbox>
         )}
-      </Flex>
+      </View>
       {sortedExperimentRepetitions.map(
         ({ experimentId, experimentRepetitions }) => {
           const experiment = experimentsById[experimentId];
@@ -825,6 +849,90 @@ const experimentItemCSS = css`
   height: 100%;
 `;
 
+function ExperimentItemHeader({
+  children,
+  onTraceClick,
+  copyText,
+}: {
+  children: React.ReactNode;
+  onTraceClick?: () => void;
+  copyText?: string;
+}) {
+  return (
+    <View paddingX="size-200" paddingTop="size-200" flex="none">
+      <Flex direction="row" gap="size-100" alignItems="center">
+        {children}
+        <div
+          css={css`
+            margin-left: auto;
+            padding-left: var(--ac-global-dimension-size-100);
+          `}
+        >
+          <Flex direction="row" gap="size-100">
+            {onTraceClick && (
+              <TooltipTrigger>
+                <IconButton
+                  size="S"
+                  aria-label="View run trace"
+                  onPress={onTraceClick}
+                >
+                  <Icon svg={<Icons.Trace />} />
+                </IconButton>
+                <Tooltip>View run trace</Tooltip>
+              </TooltipTrigger>
+            )}
+            {copyText && <CopyToClipboardButton text={copyText} />}
+          </Flex>
+        </div>
+      </Flex>
+    </View>
+  );
+}
+
+function ExperimentItemMetadata({
+  experimentRun,
+}: {
+  experimentRun?: ExperimentRun;
+}) {
+  return (
+    <View
+      paddingX="size-200"
+      paddingTop="size-100"
+      paddingBottom="size-100"
+      flex="none"
+    >
+      <div
+        css={css`
+          opacity: ${experimentRun ? 1 : 0.25};
+        `}
+      >
+        {experimentRun ? (
+          <ExperimentRunMetadata {...experimentRun} />
+        ) : (
+          <ExperimentRunMetadataEmpty />
+        )}
+      </div>
+    </View>
+  );
+}
+
+function ExperimentItemAnnotations({
+  experimentRun,
+}: {
+  experimentRun?: ExperimentRun;
+}) {
+  return (
+    <View
+      paddingX="size-100"
+      paddingBottom="size-100"
+      borderBottomColor="grey-300"
+      borderBottomWidth="thin"
+    >
+      <ExperimentRunAnnotations experimentRun={experimentRun} />
+    </View>
+  );
+}
+
 /**
  * Shows a single experiment's output and annotations
  */
@@ -856,90 +964,58 @@ export function ExperimentItem({
   const traceId = experimentRepetition?.experimentRun?.trace?.traceId;
   const projectId = experimentRepetition?.experimentRun?.trace?.projectId;
   const hasTrace = traceId != null && projectId != null;
+
+  const handleTraceClick = hasTrace
+    ? () => openTraceDialog(traceId, projectId, "Experiment Run Trace")
+    : undefined;
+
+  const copyText =
+    experimentRunOutputStr && !experimentRepetition.experimentRun?.error
+      ? experimentRunOutputStr
+      : undefined;
+
   return (
     <div css={experimentItemCSS}>
       <Flex direction="column" height="100%">
-        <View paddingX="size-200" paddingTop="size-200" flex="none">
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <span
-              css={css`
-                flex: none;
-              `}
-            >
-              <ColorSwatch color={color} shape="circle" />
-            </span>
-            <Heading
-              weight="heavy"
-              level={3}
-              css={css`
-                min-width: 0;
-              `}
-            >
-              <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
-            </Heading>
-            {includeRepetitions && (
-              <>
-                <Icon svg={<Icons.ChevronRight />} />
-                <Heading weight="heavy" level={3}>
-                  repetition&nbsp;{experimentRepetition.repetitionNumber}
-                </Heading>
-              </>
-            )}
-            <div
-              css={css`
-                margin-left: auto;
-                padding-left: var(--ac-global-dimension-size-100);
-              `}
-            >
-              <Flex direction="row" gap="size-100">
-                {hasTrace && (
-                  <TooltipTrigger>
-                    <IconButton
-                      size="S"
-                      aria-label="View run trace"
-                      onPress={() => {
-                        openTraceDialog(
-                          traceId,
-                          projectId,
-                          "Experiment Run Trace"
-                        );
-                      }}
-                    >
-                      <Icon svg={<Icons.Trace />} />
-                    </IconButton>
-                    <Tooltip>View run trace</Tooltip>
-                  </TooltipTrigger>
-                )}
-                {experimentRunOutputStr &&
-                  !experimentRepetition.experimentRun?.error && (
-                    <CopyToClipboardButton text={experimentRunOutputStr} />
-                  )}
-              </Flex>
-            </div>
-          </Flex>
-        </View>
+        <ExperimentItemHeader
+          onTraceClick={handleTraceClick}
+          copyText={copyText}
+        >
+          <span
+            css={css`
+              flex: none;
+            `}
+          >
+            <ColorSwatch color={color} shape="circle" />
+          </span>
+          <Heading
+            weight="heavy"
+            level={3}
+            css={css`
+              min-width: 0;
+            `}
+          >
+            <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
+          </Heading>
+          {includeRepetitions && (
+            <>
+              <Icon svg={<Icons.ChevronRight />} />
+              <Heading weight="heavy" level={3}>
+                repetition&nbsp;{experimentRepetition.repetitionNumber}
+              </Heading>
+            </>
+          )}
+        </ExperimentItemHeader>
         {!experimentRepetition?.experimentRun ? (
           <Empty message="Did not run" />
         ) : (
           <>
-            <View
-              paddingX="size-200"
-              paddingTop="size-100"
-              paddingBottom="size-100"
-              flex="none"
-            >
-              <ExperimentRunMetadata {...experimentRepetition.experimentRun} />
-            </View>
-            <View
-              paddingX="size-100"
-              paddingBottom="size-100"
-              borderBottomColor="grey-300"
-              borderBottomWidth="thin"
-            >
-              <ExperimentRunAnnotations
-                experimentRun={experimentRepetition.experimentRun}
-              />
-            </View>
+            <ExperimentItemMetadata
+              experimentRun={experimentRepetition.experimentRun}
+            />
+            <ExperimentItemAnnotations
+              experimentRun={experimentRepetition.experimentRun}
+            />
             <View flex={1}>
               {experimentRepetition.experimentRun.error ? (
                 <View padding="size-200">
@@ -951,6 +1027,32 @@ export function ExperimentItem({
             </View>
           </>
         )}
+      </Flex>
+    </div>
+  );
+}
+
+function ReferenceOutputItem() {
+  const { referenceOutput } = useExperimentCompareDetailsContext();
+
+  const referenceOutputStr = useMemo(
+    () => JSON.stringify(referenceOutput, null, 2),
+    [referenceOutput]
+  );
+
+  return (
+    <div css={experimentItemCSS}>
+      <Flex direction="column" height="100%">
+        <ExperimentItemHeader copyText={referenceOutputStr}>
+          <Heading weight="heavy" level={3}>
+            Reference Output
+          </Heading>
+        </ExperimentItemHeader>
+        <ExperimentItemMetadata />
+        <ExperimentItemAnnotations />
+        <View flex={1}>
+          <FullSizeJSONBlock value={referenceOutputStr} />
+        </View>
       </Flex>
     </div>
   );
@@ -980,7 +1082,7 @@ function FullSizeJSONBlock({ value }: { value: string }) {
 export function ExperimentRunAnnotations({
   experimentRun,
 }: {
-  experimentRun: ExperimentRun;
+  experimentRun?: ExperimentRun;
 }) {
   const { annotationSummaries } = useExperimentCompareDetailsContext();
   return (
@@ -994,7 +1096,7 @@ export function ExperimentRunAnnotations({
       `}
     >
       {annotationSummaries.map((annotationSummary) => {
-        const annotation = experimentRun.annotations?.edges.find(
+        const annotation = experimentRun?.annotations?.edges.find(
           (edge) => edge.annotation.name === annotationSummary.annotationName
         )?.annotation;
         return (
