@@ -8,6 +8,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    OptimizationDirection,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -87,7 +88,7 @@ class TestEvaluatorFields:
                 output_config=CategoricalAnnotationConfig(
                     type="CATEGORICAL",
                     description="correctness description",
-                    optimization_direction="MAXIMIZE",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
                     values=[
                         CategoricalAnnotationValue(label="correct", score=1.0),
                         CategoricalAnnotationValue(label="incorrect", score=0.0),

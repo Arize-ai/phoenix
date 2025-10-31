@@ -14,6 +14,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    OptimizationDirection,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -728,7 +729,7 @@ class TestEvaluatorPolymorphism:
                 annotation_name="goodness",
                 output_config=CategoricalAnnotationConfig(
                     type="CATEGORICAL",
-                    optimization_direction="MAXIMIZE",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
                     description="goodness description",
                     values=[
                         CategoricalAnnotationValue(label="good", score=1.0),
@@ -745,7 +746,7 @@ class TestEvaluatorPolymorphism:
                 annotation_name="correctness",
                 output_config=CategoricalAnnotationConfig(
                     type="CATEGORICAL",
-                    optimization_direction="MAXIMIZE",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
                     description="correctness description",
                     values=[
                         CategoricalAnnotationValue(label="correct", score=1.0),
@@ -897,7 +898,7 @@ class TestEvaluatorPolymorphism:
                 annotation_name="hallucination",
                 output_config=CategoricalAnnotationConfig(
                     type="CATEGORICAL",
-                    optimization_direction="MAXIMIZE",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
                     description="thirdness description",
                     values=[
                         CategoricalAnnotationValue(label="hallucinated", score=1.0),

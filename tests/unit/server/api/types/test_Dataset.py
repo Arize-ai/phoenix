@@ -12,6 +12,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    OptimizationDirection,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -968,7 +969,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             annotation_name="goodness",
             output_config=CategoricalAnnotationConfig(
                 type="CATEGORICAL",
-                optimization_direction="MAXIMIZE",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
                 description="goodness description",
                 values=[
                     CategoricalAnnotationValue(label="good", score=1.0),
@@ -984,7 +985,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             annotation_name="correctness",
             output_config=CategoricalAnnotationConfig(
                 type="CATEGORICAL",
-                optimization_direction="MAXIMIZE",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
                 description="correctness description",
                 values=[
                     CategoricalAnnotationValue(label="correct", score=1.0),

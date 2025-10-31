@@ -10,6 +10,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    OptimizationDirection,
 )
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.db.types.model_provider import ModelProvider
@@ -528,7 +529,7 @@ async def llm_evaluator(
         annotation_name="correctness",
         output_config=CategoricalAnnotationConfig(
             type="CATEGORICAL",
-            optimization_direction="MAXIMIZE",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
             description="correctness description",
             values=[
                 CategoricalAnnotationValue(label="correct", score=1.0),
