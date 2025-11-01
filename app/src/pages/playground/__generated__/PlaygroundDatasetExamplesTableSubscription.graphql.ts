@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aad8107610b95e666ab343219db4e09b>>
+ * @generated SignedSource<<4463cae8856e3a78a3e50818bc17502c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type ChatCompletionOverDatasetInput = {
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
+  evaluators?: ReadonlyArray<PlaygroundEvaluatorInput> | null;
   experimentDescription?: string | null;
   experimentMetadata?: any | null;
   experimentName?: string | null;
@@ -58,6 +59,10 @@ export type InvocationParameterInput = {
 export type GenerativeCredentialInput = {
   envVarName: string;
   value: string;
+};
+export type PlaygroundEvaluatorInput = {
+  id: string;
+  inputMapping?: any | null;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ChatCompletionOverDatasetInput;
