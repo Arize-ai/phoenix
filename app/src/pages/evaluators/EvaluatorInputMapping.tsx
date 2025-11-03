@@ -1,4 +1,10 @@
-import { PropsWithChildren, Suspense, useMemo, useState } from "react";
+import {
+  PropsWithChildren,
+  Suspense,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import { Control, Controller } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import invariant from "tiny-invariant";
@@ -120,7 +126,10 @@ const EvaluatorInputMappingControls = ({
     ];
   }, [data]);
   const { variableKeys: labels } = useDerivedPlaygroundVariables();
-  const [inputValue, setInputValue] = useState("");
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const setInputValue = useCallback((key: string, value: string) => {
+    setInputValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
   // iterate over all keys in the control
   // each row should have a label, an arrow pointing to the example field, and a select field
   // the label should be the key, the select field should have all flattened example keys as options
@@ -148,18 +157,11 @@ const EvaluatorInputMappingControls = ({
                 defaultItems={allExampleKeys}
                 selectedKey={field.value ?? ""}
                 onSelectionChange={(key) => {
-                  // toggle existing value
-                  if (key === field.value) {
-                    field.onChange(null);
-                    setInputValue("");
-                    return;
-                  }
-                  // set new value
                   field.onChange(key);
-                  setInputValue((key as string) ?? "");
+                  setInputValue(label, key as string);
                 }}
-                onInputChange={setInputValue}
-                inputValue={inputValue}
+                onInputChange={(value) => setInputValue(label, value)}
+                inputValue={inputValues[label] ?? ""}
                 css={css`
                   width: 100%;
                 `}
