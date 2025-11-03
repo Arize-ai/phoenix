@@ -53,6 +53,7 @@ export const EvaluatorChatTemplate = () => {
       disablePromptSave
       disableResponseFormat
       disableTools
+      disablePromptMenu
     />
   );
 };
