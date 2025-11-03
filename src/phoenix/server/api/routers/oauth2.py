@@ -11,7 +11,7 @@ from authlib.integrations.starlette_client import OAuthError
 from authlib.jose import jwt
 from authlib.jose.errors import JoseError
 from fastapi import APIRouter, Cookie, Depends, Path, Query, Request
-from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
+from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -664,9 +664,13 @@ async def _create_or_update_user(
             role_name=role_name or "VIEWER",  # Default for new users
         )
     else:
-        # Existing user: update email if changed
+        # Existing user: update email, profile picture, and/or role if changed
         if user.email != user_info.email:
-            user = await _update_user_email(session, user_id=user.id, email=user_info.email)
+            user.email = user_info.email
+
+        # Update profile picture if changed
+        if user.profile_picture_url != user_info.profile_picture_url:
+            user.profile_picture_url = user_info.profile_picture_url
 
         # Update role ONLY if role mapping is configured (role_name is not None)
         # This preserves existing user roles when role mapping is not configured
@@ -676,6 +680,13 @@ async def _create_or_update_user(
             )
             if role is not None:
                 user.role = role
+
+        # Flush to execute the UPDATE and catch any email conflicts
+        if user in session.dirty:
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise EmailAlreadyInUse(f"An account for {user_info.email} is already in use.")
     return user
 
 
@@ -746,26 +757,6 @@ async def _create_user(
         )
     )
     assert isinstance(user_id, int)
-    user = await session.scalar(
-        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
-    )  # query user again for joined load
-    assert isinstance(user, models.User)
-    return user
-
-
-async def _update_user_email(session: AsyncSession, /, *, user_id: int, email: str) -> models.User:
-    """
-    Updates an existing user's email.
-    """
-    try:
-        await session.execute(
-            update(models.User)
-            .where(models.User.id == user_id)
-            .values(email=email)
-            .options(joinedload(models.User.role))
-        )
-    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise EmailAlreadyInUse(f"An account for {email} is already in use.")
     user = await session.scalar(
         select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
     )  # query user again for joined load

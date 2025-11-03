@@ -131,6 +131,20 @@ def _env_oauth2_role_admin(
 
 
 @pytest.fixture(scope="package")
+def _env_oauth2_dynamic(
+    _oidc_server_dynamic: _OIDCServer,
+) -> dict[str, str]:
+    """Configure OAuth2 with dynamic attribute changes (for testing IDP updates between logins)."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_dynamic}_DYNAMIC_CLIENT_ID".upper(): _oidc_server_dynamic.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_dynamic}_DYNAMIC_CLIENT_SECRET".upper(): _oidc_server_dynamic.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_dynamic}_DYNAMIC_OIDC_CONFIG_URL".upper(): f"{_oidc_server_dynamic.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_dynamic}_DYNAMIC_ROLE_ATTRIBUTE_PATH".upper(): "role",
+        f"PHOENIX_OAUTH2_{_oidc_server_dynamic}_DYNAMIC_ROLE_MAPPING".upper(): "Owner:ADMIN,Developer:MEMBER,Reader:VIEWER",
+    }
+
+
+@pytest.fixture(scope="package")
 def _env_oauth2_role_member(
     _oidc_server_with_role_member: _OIDCServer,
 ) -> dict[str, str]:
@@ -223,6 +237,7 @@ def _env_oauth2(
     _env_oauth2_pkce_groups_denied: dict[str, str],
     _env_oauth2_standard_groups_granted: dict[str, str],
     _env_oauth2_standard_groups_denied: dict[str, str],
+    _env_oauth2_dynamic: dict[str, str],
     _env_oauth2_role_admin: dict[str, str],
     _env_oauth2_role_member: dict[str, str],
     _env_oauth2_role_viewer: dict[str, str],
@@ -240,6 +255,7 @@ def _env_oauth2(
         **_env_oauth2_pkce_groups_denied,
         **_env_oauth2_standard_groups_granted,
         **_env_oauth2_standard_groups_denied,
+        **_env_oauth2_dynamic,
         **_env_oauth2_role_admin,
         **_env_oauth2_role_member,
         **_env_oauth2_role_viewer,
@@ -385,6 +401,41 @@ def _oidc_server(
 ) -> _OIDCServer:
     """Alias for backward compatibility with existing tests."""
     return _oidc_server_standard
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_dynamic(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """
+    Dynamic OIDC server for testing IDP attribute changes between logins.
+
+    This flexible server supports dynamically changing role, email, and user
+    identity using set_role(), set_email(), and set_user() to simulate
+    IDP changes between login sessions.
+
+    Starts with 'Developer' role (maps to MEMBER), but all attributes can be changed
+    dynamically for testing scenarios where the IDP state changes between logins.
+
+    Examples:
+        # Test role changes for same user across logins
+        server.set_user("user_123", "alice@example.com", num_logins=2)
+        server.set_role("Developer", num_logins=1)  # First login: MEMBER
+        email1, _, _ = await complete_flow(app, server)
+
+        server.set_role("Owner", num_logins=1)  # Second login: ADMIN
+        email2, _, _ = await complete_flow(app, server)
+        assert email1 == email2  # Same user, different role!
+
+        # Test email changes for same user
+        server.set_user("user_123", "old@example.com", num_logins=2)
+        email1, _, _ = await complete_flow(app, server)  # old@example.com
+
+        server.set_email("new@example.com", num_logins=1)
+        email2, _, _ = await complete_flow(app, server)  # new@example.com
+    """
+    with _OIDCServer(port=next(_ports), use_pkce=False, role="Developer") as server:
+        yield server
 
 
 @pytest.fixture(scope="package")

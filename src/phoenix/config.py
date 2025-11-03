@@ -1347,6 +1347,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
             • Simple key: `role` - extracts top-level string
             • Nested key: `user.organization.role` - dot notation for nested objects
             • Array element: `roles[0]` - gets first role from array
+            • Constant value: `'MEMBER'` - assigns a fixed role to all users from this IDP (no mapping needed)
             • Conditional logic: `contains(groups[*], 'admin') && 'ADMIN' || 'VIEWER'` - compute role
               from group membership using logical operators (returns Phoenix role directly, no mapping needed)
 
