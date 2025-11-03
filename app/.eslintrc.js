@@ -288,6 +288,10 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { classNames } from '@phoenix/utils'",
       },
+      {
+        name: "Field",
+        module: "@arizeai/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },

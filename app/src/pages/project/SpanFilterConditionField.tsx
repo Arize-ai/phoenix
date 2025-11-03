@@ -17,8 +17,6 @@ import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Field } from "@arizeai/components";
-
 import {
   Button,
   DialogTrigger,
@@ -26,12 +24,14 @@ import {
   Icon,
   IconButton,
   Icons,
+  Label,
   Popover,
   Text,
   Tooltip,
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 
@@ -449,7 +449,8 @@ function FilterConditionSnippet(props: {
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   return (
-    <Field label={props.label}>
+    <div css={fieldBaseCSS}>
+      <Label>{props.label}</Label>
       <Flex direction="row" width="100%" gap="size-100">
         <div
           css={css(
@@ -483,6 +484,6 @@ function FilterConditionSnippet(props: {
           leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         />
       </Flex>
-    </Field>
+    </div>
   );
 }
