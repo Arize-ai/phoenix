@@ -973,9 +973,12 @@ def get_runs_with_incomplete_evaluations_query(
                 sa.String,
             )
         else:  # SQLite
-            json_agg_expr = func.coalesce(
-                func.json_group_array(models.ExperimentRunAnnotation.name),
-                literal_column("'[]'"),
+            json_agg_expr = func.cast(
+                func.coalesce(
+                    func.json_group_array(models.ExperimentRunAnnotation.name),
+                    literal_column("'[]'"),
+                ),
+                sa.String,
             )
 
         successful_annotations_json = (

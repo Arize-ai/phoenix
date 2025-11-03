@@ -353,12 +353,6 @@ describe("resumeEvaluation", () => {
   });
 
   it("should validate inputs", async () => {
-    const evaluator = asEvaluator({
-      name: "correctness",
-      kind: "CODE",
-      evaluate: async () => ({ score: 1, label: "correct" }),
-    });
-
     // Empty evaluators array
     await expect(
       resumeEvaluation({
