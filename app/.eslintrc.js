@@ -286,7 +286,7 @@ module.exports = {
       {
         name: "classNames",
         module: "@arizeai/components",
-        use: "import { classNames } from '@phoenix/components'",
+        use: "import { classNames } from '@phoenix/utils'",
       },
     ],
     "no-duplicate-imports": "error",
