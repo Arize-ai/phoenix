@@ -31,6 +31,7 @@
     "@tanstack/react-virtual": "^3.13.12",
     "@uiw/codemirror-theme-github": "^4.24.2",
     "@uiw/react-codemirror": "^4.24.2",
+    "clsx": "^2.1.1",
     "codemirror-json-schema": "^0.7.9",
     "copy-to-clipboard": "^3.3.3",
     "cron-parser": "^5.3.0",
