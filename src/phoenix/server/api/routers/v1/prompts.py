@@ -729,7 +729,6 @@ def _prompt_version_from_orm_version(
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
     return PromptVersion(
         id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
-        prompt=_prompt_from_orm_prompt(prompt_version.prompt),
         description=prompt_version.description or "",
         model_provider=prompt_version.model_provider,
         model_name=prompt_version.model_name,

@@ -155,15 +155,6 @@ class TestPrompts:
             GlobalID.from_id(data.pop("id")), PromptVersion.__name__
         )
         assert id_ == prompt_version.id
-        # Validate and pop the prompt field
-        prompt_data = data.pop("prompt")
-        prompt_id = from_global_id_with_expected_type(
-            GlobalID.from_id(prompt_data["id"]), Prompt.__name__
-        )
-        assert prompt_id == prompt_version.prompt_id
-        # The prompt field should have id, name, description, source_prompt_id, and metadata
-        assert "name" in prompt_data
-        assert "metadata" in prompt_data
         assert data.pop("description") == (prompt_version.description or "")
         assert not DeepDiff(
             data.pop("invocation_parameters"),
