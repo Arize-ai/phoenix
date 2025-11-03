@@ -1,12 +1,9 @@
 import { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
-import {
-  classNames,
-  Field,
-  FieldProps,
-  ValidationState,
-} from "@arizeai/components";
+import { Field, FieldProps, ValidationState } from "@arizeai/components";
+
+import { classNames } from "@phoenix/utils";
 
 const codeEditorFormWrapperCSS = css`
   &.is-hovered {
