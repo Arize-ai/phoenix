@@ -16,8 +16,6 @@ We recommend using `llama_index >= 0.11.0`
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

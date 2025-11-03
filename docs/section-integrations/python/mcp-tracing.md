@@ -9,8 +9,6 @@ description: >-
 
 The `openinference-instrumentation-mcp` instrumentor is unique compared to other OpenInference instrumentors. It does not generate any of its own telemetry. Instead, it enables context propagation between MCP clients and servers to unify traces. **You still need generate OpenTelemetry traces in both the client and server to see a unified trace.**
 
-{% include "../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install <a href="#install" id="install"></a>
 
 ```bash

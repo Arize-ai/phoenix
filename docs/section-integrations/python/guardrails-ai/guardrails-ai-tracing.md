@@ -10,8 +10,6 @@ In this example we will instrument a small program that uses the [Guardrails AI]
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

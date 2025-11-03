@@ -14,8 +14,6 @@ Phoenix provides auto-instrumentation, allowing you to track and visualize every
 
 We have several code samples below on different ways to integrate with smolagents, based on how you want to use Phoenix.
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

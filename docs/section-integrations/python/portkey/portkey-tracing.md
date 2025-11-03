@@ -10,8 +10,6 @@ Phoenix provides seamless integration with [Portkey](https://portkey.ai/), the A
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

@@ -12,8 +12,6 @@ OpenInference Traces collect telemetry data about the execution of your LLM appl
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash
