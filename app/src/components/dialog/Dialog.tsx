@@ -5,12 +5,11 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
-
 import { Button, ButtonProps } from "@phoenix/components/button";
 import { Heading, HeadingProps } from "@phoenix/components/content";
 import { Icon, Icons } from "@phoenix/components/icon";
 import { Flex, FlexProps } from "@phoenix/components/layout";
+import { classNames } from "@phoenix/utils";
 
 export type DialogProps = AriaDialogProps;
 

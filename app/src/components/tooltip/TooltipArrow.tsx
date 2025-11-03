@@ -1,7 +1,7 @@
 import { forwardRef, Ref } from "react";
 import { OverlayArrow } from "react-aria-components";
 
-import { classNames } from "@arizeai/components";
+import { classNames } from "@phoenix/utils";
 
 import { StylableProps } from "../types";
 

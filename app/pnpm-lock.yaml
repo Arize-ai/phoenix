@@ -90,6 +90,9 @@ importers:
       '@uiw/react-codemirror':
         specifier: ^4.24.2
         version: 4.24.2(@babel/runtime@7.28.4)(@codemirror/autocomplete@6.12.0(@codemirror/language@6.11.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))(@codemirror/language@6.11.2)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.6)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.38.1)(codemirror@6.0.1(@lezer/common@1.2.3))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       codemirror-json-schema:
         specifier: ^0.7.9
         version: 0.7.9(@codemirror/language@6.11.2)(@codemirror/lint@6.8.5)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)

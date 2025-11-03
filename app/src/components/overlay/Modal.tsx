@@ -6,7 +6,7 @@ import {
 } from "react-aria-components";
 import { css, keyframes } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
+import { classNames } from "@phoenix/utils";
 
 import { SizingProps } from "../types";
 

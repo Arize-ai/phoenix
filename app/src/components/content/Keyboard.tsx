@@ -1,7 +1,7 @@
 import { forwardRef, PropsWithChildren, Ref } from "react";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
+import { classNames } from "@phoenix/utils";
 
 export interface KeyboardProps extends PropsWithChildren {
   className?: string;
