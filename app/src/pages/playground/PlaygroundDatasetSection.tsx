@@ -1,9 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, Icon, Icons, LinkButton, Text, View } from "@phoenix/components";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
+import {
+  type EvaluatorItem,
+  EvaluatorSelect,
+} from "@phoenix/components/evaluators/EvaluatorSelect";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
@@ -36,6 +41,15 @@ export function PlaygroundDatasetSection({
               name
               color
             }
+            evaluators {
+              edges {
+                evaluator: node {
+                  id
+                  name
+                  kind
+                }
+              }
+            }
           }
         }
       }
@@ -59,6 +73,15 @@ export function PlaygroundDatasetSection({
         color: split.color ?? "#808080",
       }));
   }, [data, splitIds]);
+
+  const evaluators: EvaluatorItem[] = [
+    { id: btoa("LLMEvaluator:1"), name: "correctness", kind: "LLM" },
+    { id: btoa("LLMEvaluator:2"), name: "exact match", kind: "CODE" },
+  ]; // todo: use real evaluators
+  const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
+    evaluators.map((evaluator) => evaluator.id)
+  );
+
   return (
     <Flex direction={"column"} height={"100%"}>
       <View
@@ -82,32 +105,48 @@ export function PlaygroundDatasetSection({
               </Text>
             ) : null}
           </Flex>
-          {experimentIds.length > 0 && (
-            <LinkButton
-              size="S"
-              isDisabled={isRunning}
-              leadingVisual={
-                <Icon
-                  svg={
-                    isRunning ? (
-                      <Icons.LoadingOutline />
-                    ) : (
-                      <Icons.ExperimentOutline />
-                    )
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <EvaluatorSelect
+              evaluators={evaluators}
+              selectedIds={selectedEvaluatorIds}
+              onSelectionChange={(id: string) => {
+                setSelectedEvaluatorIds((prev) => {
+                  if (prev.includes(id)) {
+                    return prev.filter((evaluatorId) => evaluatorId !== id);
                   }
-                />
-              }
-              to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
-            >
-              View Experiment{instances.length > 1 ? "s" : ""}
-            </LinkButton>
-          )}
+                  return [...prev, id];
+                });
+              }}
+              addNewEvaluatorLink={prependBasename("/evaluators/new")}
+            />
+            {experimentIds.length > 0 && (
+              <LinkButton
+                size="S"
+                isDisabled={isRunning}
+                leadingVisual={
+                  <Icon
+                    svg={
+                      isRunning ? (
+                        <Icons.LoadingOutline />
+                      ) : (
+                        <Icons.ExperimentOutline />
+                      )
+                    }
+                  />
+                }
+                to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
+              >
+                View Experiment{instances.length > 1 ? "s" : ""}
+              </LinkButton>
+            )}
+          </Flex>
         </Flex>
       </View>
       <PlaygroundDatasetExamplesTableProvider>
         <PlaygroundDatasetExamplesTable
           datasetId={datasetId}
           splitIds={splitIds}
+          evaluatorIds={selectedEvaluatorIds}
         />
       </PlaygroundDatasetExamplesTableProvider>
     </Flex>

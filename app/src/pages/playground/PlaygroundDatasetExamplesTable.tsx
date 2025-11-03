@@ -527,9 +527,11 @@ export const MemoizedTableBody = memo(
 export function PlaygroundDatasetExamplesTable({
   datasetId,
   splitIds,
+  evaluatorIds,
 }: {
   datasetId: string;
   splitIds?: string[];
+  evaluatorIds: string[];
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
@@ -646,7 +648,15 @@ export function PlaygroundDatasetExamplesTable({
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               toolCallChunk: chatCompletion,
             });
-
+            break;
+          }
+          case "EvaluationChunk": {
+            if (chatCompletion.datasetExampleId == null) {
+              return;
+            }
+            const evaluation = chatCompletion.evaluation;
+            // eslint-disable-next-line no-console
+            console.log({ evaluation }); // todo: display evaluations
             break;
           }
           // This should never happen
@@ -734,6 +744,7 @@ export function PlaygroundDatasetExamplesTable({
             playgroundStore,
             datasetId,
             splitIds,
+            evaluatorIds,
           }),
         };
         const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
@@ -791,6 +802,7 @@ export function PlaygroundDatasetExamplesTable({
             playgroundStore,
             datasetId,
             splitIds,
+            evaluatorIds,
           }),
         };
         const disposable = generateChatCompletion({
@@ -827,6 +839,7 @@ export function PlaygroundDatasetExamplesTable({
     datasetId,
     splitIds,
     environment,
+    evaluatorIds,
     generateChatCompletion,
     hasSomeRunIds,
     markPlaygroundInstanceComplete,
@@ -1281,6 +1294,14 @@ graphql`
         repetitionNumber
         message
       }
+      ... on EvaluationChunk {
+        datasetExampleId
+        repetitionNumber
+        evaluation {
+          label
+          score
+        }
+      }
     }
   }
 `;
@@ -1326,6 +1347,10 @@ graphql`
                 name
                 arguments
               }
+            }
+            evaluations {
+              label
+              score
             }
           }
         }
