@@ -1346,12 +1346,14 @@ class DatabaseValidators:
                 return False
 
             data = config_map.get("data", {})
-            
+
             if data.get("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH") != str(enabled).lower():
                 return False
 
             if token_lifetime is not None and enabled:
-                if data.get("PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS") != str(token_lifetime):
+                if data.get("PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS") != str(
+                    token_lifetime
+                ):
                     return False
 
             return True
@@ -1604,7 +1606,9 @@ def get_test_suite() -> list[TestCase]:
             all_of(
                 no_postgresql,
                 ConfigMapValidators.configmap_has_key("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH", "true"),
-                ConfigMapValidators.configmap_has_key("PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS", "840"),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS", "840"
+                ),
                 DatabaseValidators.aws_iam_auth(True, 840),
             ),
         ),
@@ -1819,25 +1823,39 @@ def get_test_suite() -> list[TestCase]:
             "Auth with admin users configured",
             "--set auth.enableAuth=true --set auth.admins='John Doe=john@example.com;Jane Smith=jane@example.com'",
             all_of(
-                ConfigMapValidators.configmap_has_key("PHOENIX_ADMINS", "John Doe=john@example.com;Jane Smith=jane@example.com"),
-                AuthValidators.admins_configured("John Doe=john@example.com;Jane Smith=jane@example.com"),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_ADMINS", "John Doe=john@example.com;Jane Smith=jane@example.com"
+                ),
+                AuthValidators.admins_configured(
+                    "John Doe=john@example.com;Jane Smith=jane@example.com"
+                ),
             ),
         ),
         TestCase(
             "OAuth2 with role mapping configuration",
             "--set auth.oauth2.enabled=true --set auth.oauth2.providers.keycloak.client_id=keycloak-id --set auth.oauth2.providers.keycloak.client_secret=keycloak-secret --set auth.oauth2.providers.keycloak.oidc_config_url=https://keycloak.example.com/.well-known/openid-configuration --set auth.oauth2.providers.keycloak.role_attribute_path='resource_access.phoenix.role' --set-string auth.oauth2.providers.keycloak.role_mapping=admin:ADMIN",
             all_of(
-                ConfigMapValidators.configmap_has_key("PHOENIX_OAUTH2_KEYCLOAK_ROLE_ATTRIBUTE_PATH", "resource_access.phoenix.role"),
-                ConfigMapValidators.configmap_has_key("PHOENIX_OAUTH2_KEYCLOAK_ROLE_MAPPING", "admin:ADMIN"),
-                OAuth2Validators.provider_role_mapping("keycloak", "resource_access.phoenix.role", "admin:ADMIN"),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_OAUTH2_KEYCLOAK_ROLE_ATTRIBUTE_PATH", "resource_access.phoenix.role"
+                ),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_OAUTH2_KEYCLOAK_ROLE_MAPPING", "admin:ADMIN"
+                ),
+                OAuth2Validators.provider_role_mapping(
+                    "keycloak", "resource_access.phoenix.role", "admin:ADMIN"
+                ),
             ),
         ),
         TestCase(
             "OAuth2 with strict role mapping",
             "--set auth.oauth2.enabled=true --set auth.oauth2.providers.okta.client_id=okta-id --set auth.oauth2.providers.okta.client_secret=okta-secret --set auth.oauth2.providers.okta.oidc_config_url=https://okta.example.com/.well-known/openid-configuration --set auth.oauth2.providers.okta.role_attribute_path='role' --set-string auth.oauth2.providers.okta.role_mapping=Owner:ADMIN --set auth.oauth2.providers.okta.role_attribute_strict=true",
             all_of(
-                ConfigMapValidators.configmap_has_key("PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT", "true"),
-                OAuth2Validators.provider_role_mapping("okta", "role", "Owner:ADMIN", role_attribute_strict=True),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT", "true"
+                ),
+                OAuth2Validators.provider_role_mapping(
+                    "okta", "role", "Owner:ADMIN", role_attribute_strict=True
+                ),
             ),
         ),
         # Ingress
