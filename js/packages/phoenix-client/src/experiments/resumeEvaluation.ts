@@ -364,7 +364,7 @@ export async function resumeEvaluation({
         // Check for API errors
         if (res.error) {
           throw new Error(
-            `Failed to fetch incomplete evaluations: ${JSON.stringify(res.error)}`
+            `Failed to fetch incomplete evaluations: ${ensureString(res.error)}`
           );
         }
 
@@ -456,14 +456,15 @@ export async function resumeEvaluation({
   }
 
   // Start concurrent execution
-  const producerTask = fetchIncompleteEvaluations();
-  const workerTasks = Array.from({ length: concurrency }, () =>
-    processEvaluationsFromChannel()
-  );
-
-  // Wait for producer and all workers to finish
+  // Wrap in try-finally to ensure channel is always closed, even if Promise.all throws
   let executionError: Error | null = null;
   try {
+    const producerTask = fetchIncompleteEvaluations();
+    const workerTasks = Array.from({ length: concurrency }, () =>
+      processEvaluationsFromChannel()
+    );
+
+    // Wait for producer and all workers to finish
     await Promise.all([producerTask, ...workerTasks]);
   } catch (error) {
     if (stopOnFirstError) {
@@ -471,6 +472,12 @@ export async function resumeEvaluation({
         error instanceof Error ? error : new Error(String(error));
     }
     // If not stopOnFirstError, errors were already logged by workers
+  } finally {
+    // Ensure channel is closed even if there are unexpected errors
+    // This is a safety net in case producer's finally block didn't execute
+    if (!evalChannel.isClosed) {
+      evalChannel.close();
+    }
   }
 
   // Only show completion message if we didn't stop on error
@@ -530,56 +537,38 @@ async function recordEvaluationResults({
     for (const singleResult of results) {
       const evaluationName = singleResult.name ?? evaluator.name;
 
-      try {
-        await client.POST("/v1/experiment_evaluations", {
-          body: {
-            experiment_run_id: experimentRun.id,
-            name: evaluationName,
-            annotator_kind: evaluator.kind,
-            result: {
-              score: singleResult.score ?? null,
-              label: singleResult.label ?? null,
-              explanation: singleResult.explanation ?? null,
-              metadata: singleResult.metadata ?? {},
-            },
-            start_time: startTime.toISOString(),
-            end_time: endTime.toISOString(),
-            error: null,
-            trace_id: traceId,
-          },
-        });
-      } catch (err: unknown) {
-        // Ignore 409 Conflict - evaluation already exists
-        const error = err as { response?: { status?: number } };
-        if (error.response?.status === 409) {
-          continue; // Silently ignore - evaluation already recorded
-        }
-        throw err; // Re-throw other errors
-      }
-    }
-  } else if (error) {
-    // Error case: record failed evaluation with evaluator name
-    try {
       await client.POST("/v1/experiment_evaluations", {
         body: {
           experiment_run_id: experimentRun.id,
-          name: evaluator.name,
+          name: evaluationName,
           annotator_kind: evaluator.kind,
-          result: null,
+          result: {
+            score: singleResult.score ?? null,
+            label: singleResult.label ?? null,
+            explanation: singleResult.explanation ?? null,
+            metadata: singleResult.metadata ?? {},
+          },
           start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
-          error,
+          error: null,
           trace_id: traceId,
         },
       });
-    } catch (err: unknown) {
-      // Ignore 409 Conflict - evaluation already exists (e.g., from previous partial run)
-      const error = err as { response?: { status?: number } };
-      if (error.response?.status === 409) {
-        return; // Silently ignore - evaluation already recorded
-      }
-      throw err; // Re-throw other errors
     }
+  } else if (error) {
+    // Error case: record failed evaluation with evaluator name
+    await client.POST("/v1/experiment_evaluations", {
+      body: {
+        experiment_run_id: experimentRun.id,
+        name: evaluator.name,
+        annotator_kind: evaluator.kind,
+        result: null,
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        error,
+        trace_id: traceId,
+      },
+    });
   }
 }
 
@@ -649,7 +638,7 @@ async function runSingleEvaluation({
         [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
           OpenInferenceSpanKind.EVALUATOR,
         [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
-        [SemanticConventions.INPUT_VALUE]: JSON.stringify({
+        [SemanticConventions.INPUT_VALUE]: ensureString({
           input: datasetExample.input,
           output: experimentRun.output,
           expected: datasetExample.output,

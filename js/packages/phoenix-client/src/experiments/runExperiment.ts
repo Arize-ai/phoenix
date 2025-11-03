@@ -674,7 +674,7 @@ export async function evaluateExperiment({
             [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
               OpenInferenceSpanKind.EVALUATOR,
             [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
-            [SemanticConventions.INPUT_VALUE]: JSON.stringify({
+            [SemanticConventions.INPUT_VALUE]: ensureString({
               input: examplesById[evaluatorAndRun.run.datasetExampleId]?.input,
               output: evaluatorAndRun.run.output,
               expected:

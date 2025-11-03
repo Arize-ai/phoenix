@@ -20,6 +20,7 @@ import type { Evaluator, ExperimentTask } from "../types/experiments";
 import { type Logger } from "../types/logger";
 import { Channel } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
+import { isHttpErrorWithStatus } from "../utils/isHttpError";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
 
@@ -425,14 +426,15 @@ export async function resumeExperiment({
   }
 
   // Start concurrent execution
-  const producerTask = fetchIncompleteRuns();
-  const workerTasks = Array.from({ length: concurrency }, () =>
-    processTasksFromChannel()
-  );
-
-  // Wait for producer and all workers to finish
+  // Wrap in try-finally to ensure channel is always closed, even if Promise.all throws
   let executionError: Error | null = null;
   try {
+    const producerTask = fetchIncompleteRuns();
+    const workerTasks = Array.from({ length: concurrency }, () =>
+      processTasksFromChannel()
+    );
+
+    // Wait for producer and all workers to finish
     await Promise.all([producerTask, ...workerTasks]);
   } catch (error) {
     if (stopOnFirstError) {
@@ -440,6 +442,12 @@ export async function resumeExperiment({
         error instanceof Error ? error : new Error(String(error));
     }
     // If not stopOnFirstError, errors were already logged by workers
+  } finally {
+    // Ensure channel is closed even if there are unexpected errors
+    // This is a safety net in case producer's finally block didn't execute
+    if (!taskChannel.isClosed) {
+      taskChannel.close();
+    }
   }
 
   // Only show completion message if we didn't stop on error
@@ -532,9 +540,11 @@ async function recordTaskResult({
     });
   } catch (err: unknown) {
     // Ignore 409 Conflict - result already exists
-    const error = err as { response?: { status?: number } };
-    if (error.response?.status === 409) {
-      return; // Silently ignore - result already recorded
+    if (isHttpErrorWithStatus(err, 409)) {
+      console.debug(
+        `[resumeExperiment] Task result already exists for example ${example.id}, repetition ${repetitionNumber} (409 Conflict - skipping)`
+      );
+      return; // Result already recorded, idempotency working as expected
     }
     throw err; // Re-throw other errors
   }

@@ -1,5 +1,6 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
+import { ensureString } from "../utils/ensureString";
 
 /**
  * Parameters to delete an experiment
@@ -60,10 +61,7 @@ export async function deleteExperiment({
     }
 
     // Extract meaningful error information
-    const errorMessage =
-      typeof error === "object" && error !== null
-        ? JSON.stringify(error, null, 2)
-        : String(error);
+    const errorMessage = ensureString(error);
     throw new Error(`Failed to delete experiment: ${errorMessage}`);
   }
 }
