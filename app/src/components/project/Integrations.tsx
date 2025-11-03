@@ -339,9 +339,8 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Mastra",
     docsHref:
-      "https://arize.com/docs/phoenix/integrations/mastra/mastra-tracing",
-    githubHref:
-      "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-mastra",
+      "https://arize.com/docs/phoenix/integrations/typescript/mastra/mastra-tracing",
+    githubHref: "https://github.com/mastra-ai/mastra",
     icon: <MastraSVG />,
   },
   {

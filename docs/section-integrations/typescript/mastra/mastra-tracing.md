@@ -13,36 +13,41 @@ Mastra is an agentic framework that simplifies building complex AI applications 
 ## Install
 
 ```bash
-npm install @arizeai/openinference-mastra@^2.2.0 @mastra/core
-npm install -D mastra 
+npm install @mastra/arize
+```
+
+## Configure Environment
+
+Create a `.env` file that points Mastra to your Phoenix instance:
+
+```bash
+PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
+PHOENIX_API_KEY=your-api-key # Optional for local Phoenix
+PHOENIX_PROJECT_NAME=mastra-service # Optional, defaults to "mastra-service"
 ```
 
 ## Setup
 
-Initialize OpenTelemetry tracing for your Mastra application:
+Initialize the Arize exporter inside your Mastra project:
 
 ```typescript
-import { Mastra } from '@mastra/core/mastra';
-import {
-  OpenInferenceOTLPTraceExporter,
-  isOpenInferenceSpan,
-} from "@arizeai/openinference-mastra";
+import { Mastra } from "@mastra/core";
+import { ArizeExporter } from "@mastra/arize";
 
 export const mastra = new Mastra({
   // ... other config (agents, workflows, etc.)
-  telemetry: {
-    serviceName: "my-mastra-app",
-    enabled: true,
-    export: {
-      type: "custom",
-      tracerName: "my-mastra-app",
-      exporter: new OpenInferenceOTLPTraceExporter({
-        url: process.env.PHOENIX_COLLECTOR_ENDPOINT + "/v1/traces",
-        headers: {
-          Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
-        },
-        spanFilter: isOpenInferenceSpan,
-      }),
+  observability: {
+    configs: {
+      arize: {
+        serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
+        exporters: [
+          new ArizeExporter({
+            endpoint: process.env.PHOENIX_ENDPOINT!,
+            apiKey: process.env.PHOENIX_API_KEY,
+            projectName: process.env.PHOENIX_PROJECT_NAME,
+          }),
+        ],
+      },
     },
   },
 });
@@ -50,10 +55,10 @@ export const mastra = new Mastra({
 
 ## ℹ️ Running with Mastra Dev Server
 
-Phoenix tracing is enabled only when running your app with the Mastra dev server:
+The exporter runs when you start your application with the Mastra dev server:
 
-- Use **`mastra dev`** to send traces to Phoenix.
-- Running scripts directly (e.g., with `node` or `tsx`) will not enable tracing.
+- Use `mastra dev` to send traces to Phoenix.
+- Running scripts directly (e.g., with `node` or `tsx`) does not initialize tracing.
 
 
 ## Create Agents and Tools
@@ -63,6 +68,8 @@ From here you can use Mastra as normal. Create agents with tools and run them:
 ```typescript
 import { openai } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core/agent";
+import { Mastra } from "@mastra/core";
+import { ArizeExporter } from "@mastra/arize";
 import { z } from "zod";
 
 // Create a simple weather tool
@@ -78,7 +85,7 @@ const weatherTool = {
       location,
       temperature: "22°C",
       condition: "Sunny",
-      humidity: "60%"
+      humidity: "60%",
     };
   },
 };
@@ -94,19 +101,18 @@ const weatherAgent = new Agent({
 // Register the agent with Mastra instance
 const mastra = new Mastra({
   agents: { weatherAgent },
-  telemetry: {
-    serviceName: "mastra-weather-agent",
-    enabled: true,
-    export: {
-      type: "custom",
-      tracerName: "mastra-weather-agent",
-      exporter: new OpenInferenceOTLPTraceExporter({
-        url: process.env.PHOENIX_COLLECTOR_ENDPOINT + "/v1/traces",
-        headers: {
-          Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
-        },
-        spanFilter: isOpenInferenceSpan,
-      }),
+  observability: {
+    configs: {
+      arize: {
+        serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
+        exporters: [
+          new ArizeExporter({
+            endpoint: process.env.PHOENIX_ENDPOINT!,
+            apiKey: process.env.PHOENIX_API_KEY,
+            projectName: process.env.PHOENIX_PROJECT_NAME,
+          }),
+        ],
+      },
     },
   },
 });
@@ -122,16 +128,15 @@ mastra dev
 ```
 
 This will:
-1. Generate OpenTelemetry instrumentation files in `.mastra/output/`
-2. Initialize the tracing SDK with your telemetry configuration  
-3. Start the Mastra playground at `http://localhost:4111`
-4. Enable trace export to Phoenix at `http://localhost:6006`
+1. Initialize the tracing SDK with your observability configuration
+2. Start the Mastra playground at `http://localhost:4111`
+3. Enable trace export to Phoenix at `http://localhost:6006`
 
 **Interact with your agents:**
 
 - **Via Playground:** Navigate to `http://localhost:4111/playground` to chat with agents
-- **Via API:** Make requests to the generated API endpoints  
-- **Programmatically:** Create test scripts that run within the mastra dev environment
+- **Via API:** Make requests to the generated API endpoints
+- **Programmatically:** Create test scripts that run within the Mastra dev environment
 
 
 ## Observe

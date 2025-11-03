@@ -1,11 +1,8 @@
 // chosen-project-name/src/index.ts
-import { Mastra } from "@mastra/core/mastra";
+import { Mastra } from "@mastra/core";
 import { createLogger } from "@mastra/core/logger";
 import { LibSQLStore } from "@mastra/libsql";
-import {
-  isOpenInferenceSpan,
-  OpenInferenceOTLPTraceExporter,
-} from "@arizeai/openinference-mastra";
+import { ArizeExporter } from "@mastra/arize";
 
 import { weatherAgent } from "./agents/weather-agent";
 
@@ -18,18 +15,18 @@ export const mastra = new Mastra({
     name: "Mastra",
     level: "info",
   }),
-  telemetry: {
-    enabled: true,
-    serviceName: "weather-agent",
-    export: {
-      type: "custom",
-      exporter: new OpenInferenceOTLPTraceExporter({
-        url: process.env.PHOENIX_COLLECTOR_ENDPOINT + "/v1/traces",
-        headers: {
-          Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
-        },
-        spanFilter: isOpenInferenceSpan,
-      }),
+  observability: {
+    configs: {
+      arize: {
+        serviceName: process.env.PHOENIX_PROJECT_NAME || "weather-agent",
+        exporters: [
+          new ArizeExporter({
+            endpoint: process.env.PHOENIX_ENDPOINT!,
+            apiKey: process.env.PHOENIX_API_KEY,
+            projectName: process.env.PHOENIX_PROJECT_NAME,
+          }),
+        ],
+      },
     },
   },
 });
