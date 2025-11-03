@@ -90,8 +90,9 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
     throw new Error(`Playground instance ${id} not found`);
   }
 
-  const hasTools = playgroundInstance.tools.length > 0;
+  const hasTools = !props.disableTools && playgroundInstance.tools.length > 0;
   const hasResponseFormat =
+    !props.disableResponseFormat &&
     playgroundInstance.model.invocationParameters.find((p) =>
       areInvocationParamsEqual(p, {
         canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
@@ -111,6 +112,8 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  const { disableResponseFormat, disableTools } = props;
 
   return (
     <DndContext
@@ -171,6 +174,8 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         <PlaygroundChatTemplateFooter
           instanceId={id}
           hasResponseFormat={hasResponseFormat}
+          disableResponseFormat={disableResponseFormat}
+          disableTools={disableTools}
         />
       </View>
       {hasTools || hasResponseFormat ? (
