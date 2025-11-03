@@ -1572,3 +1572,71 @@ class TestDeprecatedSourceAndHeuristic:
 
         ev = deco(_fn)
         assert ev.kind == expected_kind
+
+    def test_conflicting_kind_and_source_raise_error_for_score(self):
+        """Providing both 'kind' and deprecated 'source' with different values should error."""
+        with pytest.raises(
+            ValueError, match=r"Provide only one of 'kind' or 'source' \(they differ\). Use 'kind'."
+        ):
+            Score(kind="llm", source="code")
+
+    def test_conflicting_kind_and_source_raise_error_for_evaluator(self):
+        """Evaluator constructor should also error on conflicting 'kind' and 'source'."""
+
+        class _MinimalEvaluator(Evaluator):
+            def _evaluate(self, eval_input):
+                return [Score(name=self.name, score=1.0, kind=self.kind)]
+
+        with pytest.raises(
+            ValueError, match=r"Provide only one of 'kind' or 'source' \(they differ\). Use 'kind'."
+        ):
+            _MinimalEvaluator(name="min", kind="llm", source="code")
+
+    @pytest.mark.parametrize(
+        "kind,source",
+        [
+            pytest.param("code", "code", id="score-equal-values"),
+            pytest.param("llm", "llm", id="score-equal-llm"),
+        ],
+    )
+    def test_equal_kind_and_source_allowed_for_score(self, kind, source):
+        """Equal 'kind' and 'source' should pass with deprecation warning and keep kind value."""
+        with pytest.warns(DeprecationWarning, match=r"deprecated"):
+            s = Score(kind=kind, source=source)
+        assert s.kind == kind
+
+    @pytest.mark.parametrize(
+        "kind,source",
+        [
+            pytest.param("code", "code", id="evaluator-equal-code"),
+            pytest.param("human", "human", id="evaluator-equal-human"),
+        ],
+    )
+    def test_equal_kind_and_source_allowed_for_evaluator(self, kind, source):
+        """Equal 'kind' and 'source' should pass for Evaluator with deprecation warning."""
+
+        class _MinimalEvaluator(Evaluator):
+            def _evaluate(self, eval_input):
+                return [Score(name=self.name, score=1.0, kind=self.kind)]
+
+        with pytest.warns(DeprecationWarning, match=r"deprecated"):
+            ev = _MinimalEvaluator(name="min", kind=kind, source=source)
+        assert ev.kind == kind
+
+    def test_conflicting_kind_and_source_raise_error_for_create_evaluator(self):
+        """Decorator factory should error when both provided and different."""
+        with pytest.raises(
+            ValueError, match=r"Provide only one of 'kind' or 'source' \(they differ\). Use 'kind'."
+        ):
+            create_evaluator(name="conflict", kind="llm", source="code")
+
+    def test_equal_kind_and_source_allowed_for_create_evaluator(self):
+        """Decorator factory should allow equal values and emit deprecation warning."""
+
+        def _fn(text: str) -> float:
+            return 1.0
+
+        with pytest.warns(DeprecationWarning, match=r"deprecated"):
+            deco = create_evaluator(name="equal", kind="code", source="code")
+        ev = deco(_fn)
+        assert ev.kind == "code"
