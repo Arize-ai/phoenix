@@ -11,7 +11,7 @@ from authlib.integrations.starlette_client import OAuthError
 from authlib.jose import jwt
 from authlib.jose.errors import JoseError
 from fastapi import APIRouter, Cookie, Depends, Path, Query, Request
-from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
+from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -37,6 +37,7 @@ from phoenix.auth import (
     set_refresh_token_cookie,
 )
 from phoenix.config import (
+    OAuth2UserRoleName,
     get_env_disable_basic_auth,
     get_env_disable_rate_limit,
 )
@@ -214,7 +215,11 @@ async def create_tokens(
         logger.error("OAuth2 IDP %s does not appear to support OpenID Connect", idp_name)
         return _redirect_to_login(request=request, error="no_oidc_support")
 
-    id_token_claims = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
+    try:
+        id_token_claims = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
+    except JoseError as e:
+        logger.error("ID token validation failed for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="auth_failed")
 
     if oauth2_client.has_sufficient_claims(id_token_claims):
         user_claims = id_token_claims
@@ -229,8 +234,14 @@ async def create_tokens(
         logger.error("Error parsing user info for IDP %s: %s", idp_name, e)
         return _redirect_to_login(request=request, error="missing_email_scope")
 
+    # Validate access and extract role from claims
+    # Both validate_access and extract_and_map_role may raise PermissionError
     try:
         oauth2_client.validate_access(user_info.claims)
+        # Extract and map role from claims
+        # Returns None if role mapping not configured (preserves existing user roles)
+        # Raises PermissionError if strict mode enabled and role validation fails
+        role_name = oauth2_client.extract_and_map_role(user_info.claims)
     except PermissionError as e:
         logger.error("Access validation failed for IDP %s: %s", idp_name, e)
         return _redirect_to_login(request=request, error="auth_failed")
@@ -242,6 +253,7 @@ async def create_tokens(
                 oauth2_client_id=str(oauth2_client.client_id),
                 user_info=user_info,
                 allow_sign_up=oauth2_client.allow_sign_up,
+                role_name=role_name,
             )
     except EmailAlreadyInUse as e:
         logger.error("Email already in use for IDP %s: %s", idp_name, e)
@@ -471,6 +483,7 @@ async def _process_oauth2_user(
     oauth2_client_id: str,
     user_info: UserInfo,
     allow_sign_up: bool,
+    role_name: Optional[OAuth2UserRoleName],
 ) -> models.User:
     """
     Processes an OAuth2 user, either signing in an existing user or creating/updating one.
@@ -479,11 +492,12 @@ async def _process_oauth2_user(
     1. When sign-up is not allowed (allow_sign_up=False):
        - Checks if the user exists and can sign in with the given OAuth2 credentials
        - Updates placeholder OAuth2 credentials if needed (e.g., temporary IDs)
+       - Updates the user's role if role_name is provided (role mapping configured)
        - If the user doesn't exist or has a password set, raises SignInNotAllowed
     2. When sign-up is allowed (allow_sign_up=True):
        - Finds the user by OAuth2 credentials (client_id and user_id)
-       - Creates a new user if one doesn't exist, with default member role
-       - Updates the user's email if it has changed
+       - Creates a new user if one doesn't exist, with the provided role (or VIEWER if None)
+       - Updates the user's email and role (if role_name provided) if they have changed
        - Handles username conflicts by adding a random suffix if needed
 
     The allow_sign_up parameter is typically controlled by the PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP
@@ -494,6 +508,8 @@ async def _process_oauth2_user(
         oauth2_client_id: The ID of the OAuth2 client
         user_info: User information from the OAuth2 provider
         allow_sign_up: Whether to allow creating new users
+        role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER), or None to preserve
+                   existing user roles (backward compatibility when role mapping not configured)
 
     Returns:
         The user object
@@ -503,24 +519,27 @@ async def _process_oauth2_user(
         EmailAlreadyInUse: When the email is already in use by another account
     """  # noqa: E501
     if not allow_sign_up:
-        return await _get_existing_oauth2_user(
+        return await _sign_in_existing_oauth2_user(
             session,
             oauth2_client_id=oauth2_client_id,
             user_info=user_info,
+            role_name=role_name,
         )
     return await _create_or_update_user(
         session,
         oauth2_client_id=oauth2_client_id,
         user_info=user_info,
+        role_name=role_name,
     )
 
 
-async def _get_existing_oauth2_user(
+async def _sign_in_existing_oauth2_user(
     session: AsyncSession,
     /,
     *,
     oauth2_client_id: str,
     user_info: UserInfo,
+    role_name: Optional[OAuth2UserRoleName],
 ) -> models.User:
     """Signs in an existing user with OAuth2 credentials.
 
@@ -542,6 +561,7 @@ async def _get_existing_oauth2_user(
     Profile Updates:
     - Email: Updated if different from IDP info
     - Profile Picture: Updated if provided in user_info
+    - Role: Updated ONLY if role_name is provided (role mapping configured)
     - Username: Never updated (remains unchanged)
     - OAuth2 Credentials: Updated based on the three cases above
 
@@ -549,6 +569,8 @@ async def _get_existing_oauth2_user(
         session: The database session
         oauth2_client_id: The ID of the OAuth2 client
         user_info: User information from the OAuth2 provider
+        role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER), or None to preserve
+                   existing role (backward compatibility when role mapping not configured)
 
     Returns:
         The signed-in user
@@ -589,6 +611,16 @@ async def _get_existing_oauth2_user(
             raise SignInNotAllowed("Sign in is not allowed.")
     if profile_picture_url != user.profile_picture_url:
         user.profile_picture_url = profile_picture_url
+
+    # Update role ONLY if role mapping is configured (role_name is not None)
+    # This preserves existing user roles when role mapping is not configured
+    if role_name is not None and user.role.name != role_name:
+        role = await session.scalar(
+            select(models.UserRole).where(models.UserRole.name == role_name)
+        )
+        if role is not None:
+            user.role = role
+
     if user in session.dirty:
         await session.flush()
     return user
@@ -600,6 +632,7 @@ async def _create_or_update_user(
     *,
     oauth2_client_id: str,
     user_info: UserInfo,
+    role_name: Optional[OAuth2UserRoleName],
 ) -> models.User:
     """
     Creates a new user or updates an existing one with OAuth2 credentials.
@@ -608,6 +641,8 @@ async def _create_or_update_user(
         session: The database session
         oauth2_client_id: The ID of the OAuth2 client
         user_info: User information from the OAuth2 provider
+        role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER), or None to use
+                   VIEWER for new users and preserve existing users' roles (backward compatibility)
 
     Returns:
         The created or updated user
@@ -621,9 +656,37 @@ async def _create_or_update_user(
         idp_user_id=user_info.idp_user_id,
     )
     if user is None:
-        user = await _create_user(session, oauth2_client_id=oauth2_client_id, user_info=user_info)
-    elif user.email != user_info.email:
-        user = await _update_user_email(session, user_id=user.id, email=user_info.email)
+        # New user: use provided role_name, or default to VIEWER if role mapping not configured
+        user = await _create_user(
+            session,
+            oauth2_client_id=oauth2_client_id,
+            user_info=user_info,
+            role_name=role_name or "VIEWER",  # Default for new users
+        )
+    else:
+        # Existing user: update email, profile picture, and/or role if changed
+        if user.email != user_info.email:
+            user.email = user_info.email
+
+        # Update profile picture if changed
+        if user.profile_picture_url != user_info.profile_picture_url:
+            user.profile_picture_url = user_info.profile_picture_url
+
+        # Update role ONLY if role mapping is configured (role_name is not None)
+        # This preserves existing user roles when role mapping is not configured
+        if role_name is not None and user.role.name != role_name:
+            role = await session.scalar(
+                select(models.UserRole).where(models.UserRole.name == role_name)
+            )
+            if role is not None:
+                user.role = role
+
+        # Flush to execute the UPDATE and catch any email conflicts
+        if user in session.dirty:
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise EmailAlreadyInUse(f"An account for {user_info.email} is already in use.")
     return user
 
 
@@ -657,9 +720,19 @@ async def _create_user(
     *,
     oauth2_client_id: str,
     user_info: UserInfo,
+    role_name: OAuth2UserRoleName,
 ) -> models.User:
     """
     Creates a new user with the user info from the IDP.
+
+    Args:
+        session: The database session
+        oauth2_client_id: The ID of the OAuth2 client
+        user_info: User information from the OAuth2 provider
+        role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER)
+
+    Returns:
+        The created user
     """
     email_exists, username_exists = await _email_and_username_exist(
         session,
@@ -668,14 +741,12 @@ async def _create_user(
     )
     if email_exists:
         raise EmailAlreadyInUse(f"An account for {email} is already in use.")
-    member_role_id = (
-        select(models.UserRole.id).where(models.UserRole.name == "MEMBER").scalar_subquery()
-    )
+    role_id = select(models.UserRole.id).where(models.UserRole.name == role_name).scalar_subquery()
     user_id = await session.scalar(
         insert(models.User)
         .returning(models.User.id)
         .values(
-            user_role_id=member_role_id,
+            user_role_id=role_id,
             oauth2_client_id=oauth2_client_id,
             oauth2_user_id=user_info.idp_user_id,
             username=_with_random_suffix(username) if username and username_exists else username,
@@ -686,26 +757,6 @@ async def _create_user(
         )
     )
     assert isinstance(user_id, int)
-    user = await session.scalar(
-        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
-    )  # query user again for joined load
-    assert isinstance(user, models.User)
-    return user
-
-
-async def _update_user_email(session: AsyncSession, /, *, user_id: int, email: str) -> models.User:
-    """
-    Updates an existing user's email.
-    """
-    try:
-        await session.execute(
-            update(models.User)
-            .where(models.User.id == user_id)
-            .values(email=email)
-            .options(joinedload(models.User.role))
-        )
-    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise EmailAlreadyInUse(f"An account for {email} is already in use.")
     user = await session.scalar(
         select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
     )  # query user again for joined load
