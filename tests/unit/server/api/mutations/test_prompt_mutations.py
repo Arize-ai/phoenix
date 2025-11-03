@@ -14,6 +14,7 @@ class TestPromptMutations:
           id
           name
           description
+          metadata
           createdAt
           promptVersions {
             edges {
@@ -106,6 +107,7 @@ class TestPromptMutations:
           id
           name
           description
+          metadata
           createdAt
           promptVersions {
             edges {
@@ -348,6 +350,35 @@ class TestPromptMutations:
                 },
                 id="with-output-schema",
             ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "metadata": {
+                            "environment": "production",
+                            "version": "1.0",
+                            "tags": ["important"],
+                        },
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateFormat": "MUSTACHE",
+                            "template": {
+                                "messages": [
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "hello world"}}],
+                                    }
+                                ]
+                            },
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "OPENAI",
+                            "modelName": "gpt-4o",
+                        },
+                    }
+                },
+                id="with-metadata",
+            ),
         ],
     )
     async def test_create_chat_prompt_succeeds_with_valid_input(
@@ -362,6 +393,8 @@ class TestPromptMutations:
         data = result.data["createChatPrompt"]
         assert data.pop("name") == "prompt-name"
         assert data.pop("description") == "prompt-description"
+        expected_metadata = variables["input"].get("metadata", {})
+        assert data.pop("metadata") == expected_metadata
         assert isinstance(data.pop("id"), str)
         assert isinstance(data.pop("createdAt"), str)
         prompt_version = data.pop("promptVersions")["edges"][0]["promptVersion"]
@@ -1008,6 +1041,39 @@ class TestPromptMutations:
                 },
                 id="with-valid-input",
             ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name-copy",
+                        "description": "new prompt-description",
+                        "metadata": {"cloned": True, "source": "original"},
+                        "promptId": str(GlobalID("Prompt", "1")),
+                    }
+                },
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "metadata": {"environment": "staging", "version": "2.0"},
+                        "promptVersion": {
+                            "description": "initial-version",
+                            "templateFormat": "MUSTACHE",
+                            "template": {
+                                "messages": [
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "initial"}}],
+                                    }
+                                ]
+                            },
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "OPENAI",
+                            "modelName": "o1-mini",
+                        },
+                    }
+                },
+                id="with-metadata-override",
+            ),
         ],
     )
     async def test_clone_prompt_succeeds_with_valid_input(
@@ -1039,6 +1105,9 @@ class TestPromptMutations:
         assert data.pop("name") != created_prompt["name"]
         assert data.pop("createdAt") is not None
         assert data.pop("description") != created_prompt["description"]
+        # Metadata should be overridden if provided, otherwise copied from original
+        expected_metadata = variables["input"].get("metadata", created_prompt["metadata"])
+        assert data.pop("metadata") == expected_metadata
         cloned_prompt_version = data["promptVersions"]["edges"][0].pop("promptVersion")
         assert cloned_prompt_version.pop("id") != created_prompt_version["id"]
         assert cloned_prompt_version.pop("description") == created_prompt_version["description"]

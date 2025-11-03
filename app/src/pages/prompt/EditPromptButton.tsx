@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useFragment, useMutation } from "react-relay";
 
@@ -21,13 +21,16 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 import { EditPromptButton_data$key } from "./__generated__/EditPromptButton_data.graphql";
 import { EditPromptButtonPatchPromptMutation } from "./__generated__/EditPromptButtonPatchPromptMutation.graphql";
 type EditPromptFormParams = {
   description: string;
+  metadata: string;
 };
 
 export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
@@ -39,6 +42,7 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
       fragment EditPromptButton_data on Prompt {
         id
         description
+        metadata
       }
     `,
     props.prompt
@@ -51,18 +55,36 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
         }
       }
     `);
-  const { control, handleSubmit } = useForm<EditPromptFormParams>({
+  const { control, handleSubmit, reset } = useForm<EditPromptFormParams>({
     defaultValues: {
       description: data.description ?? "",
+      metadata: JSON.stringify(data.metadata, null, 2) ?? "{}",
     },
   });
+
+  // Reset form to original values when modal opens or data changes
+  useEffect(() => {
+    if (isOpen) {
+      reset({
+        description: data.description ?? "",
+        metadata: JSON.stringify(data.metadata, null, 2) ?? "{}",
+      });
+    }
+  }, [isOpen, data.description, data.metadata, reset]);
   const onSubmit = useCallback(
     (promptPatch: EditPromptFormParams) => {
+      // Parse metadata, or set to empty object if empty
+      const metadata =
+        promptPatch.metadata && promptPatch.metadata.trim() !== ""
+          ? JSON.parse(promptPatch.metadata)
+          : {};
+
       mutatePrompt({
         variables: {
           input: {
             promptId: data.id,
             description: promptPatch.description,
+            metadata,
           },
         },
         onCompleted: () => {
@@ -91,7 +113,7 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
         aria-label="configure prompt"
         onPress={() => setIsOpen(true)}
       />
-      <Modal size="S" isDismissable>
+      <Modal size="M" isDismissable>
         <Dialog>
           <DialogHeader>
             <DialogTitle>Edit Prompt Details</DialogTitle>
@@ -110,6 +132,39 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
                     <TextArea placeholder="Enter a description for the prompt" />
                     <Text slot="description">A description of the prompt</Text>
                   </TextField>
+                )}
+              />
+              <Controller
+                name="metadata"
+                control={control}
+                rules={{
+                  validate: (value) => {
+                    // Allow empty values (will be treated as null)
+                    if (!value || value.trim() === "") {
+                      return true;
+                    }
+                    if (!isJSONObjectString(value)) {
+                      return "metadata must be a valid JSON object";
+                    }
+                    return true;
+                  },
+                }}
+                render={({
+                  field: { onChange, onBlur, value },
+                  fieldState: { invalid, error },
+                }) => (
+                  <CodeEditorFieldWrapper
+                    validationState={invalid ? "invalid" : "valid"}
+                    label={"Metadata"}
+                    errorMessage={error?.message}
+                    description="A JSON object containing metadata for the prompt (leave empty to remove)"
+                  >
+                    <JSONEditor
+                      value={value}
+                      onChange={onChange}
+                      onBlur={onBlur}
+                    />
+                  </CodeEditorFieldWrapper>
                 )}
               />
             </View>

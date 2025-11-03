@@ -122,11 +122,18 @@ export const UpsertPromptFromTemplateDialog = ({
         instanceId,
         store
       );
+      // Parse metadata, or set to undefined if empty
+      const metadata =
+        params.metadata && params.metadata.trim() !== ""
+          ? JSON.parse(params.metadata)
+          : undefined;
+
       createPrompt({
         variables: {
           input: {
             name: params.name,
             description: params.description,
+            metadata,
             promptVersion: {
               ...promptInput,
               templateFormat,

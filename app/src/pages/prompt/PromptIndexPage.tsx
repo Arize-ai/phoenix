@@ -100,6 +100,7 @@ function PromptIndexPageAside({
         id
         name
         description
+        metadata
         ...PromptLatestVersionsListFragment
         ...EditPromptButton_data
         ...PromptLabels
@@ -130,6 +131,7 @@ function PromptIndexPageAside({
                   promptId={data.id}
                   promptName={data.name}
                   promptDescription={data.description ?? undefined}
+                  promptMetadata={data.metadata ?? undefined}
                 />
               </Modal>
             </ModalOverlay>
@@ -156,6 +158,35 @@ function PromptIndexPageAside({
         <Text color={hasDescription ? "text-900" : "text-700"}>
           {data.description || "No Description"}
         </Text>
+        {data.metadata && Object.keys(data.metadata).length > 0 && (
+          <section>
+            <Flex
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <Heading level={3}>Metadata</Heading>
+              <EditPromptButton prompt={data} />
+            </Flex>
+            <View
+              backgroundColor="grey-100"
+              borderRadius="medium"
+              padding="size-100"
+            >
+              <pre
+                style={{
+                  margin: 0,
+                  fontSize: "12px",
+                  fontFamily: "monospace",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {JSON.stringify(data.metadata, null, 2)}
+              </pre>
+            </View>
+          </section>
+        )}
         <section>
           <Flex
             direction="row"

@@ -13,9 +13,11 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import { identifierPattern } from "@phoenix/utils/identifierUtils";
+import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export type SavePromptSubmitHandler = (
   params: SavePromptFormParams,
@@ -26,6 +28,7 @@ export type SavePromptFormParams = {
   promptId?: string;
   name: string;
   description?: string;
+  metadata?: string;
 };
 
 export function SavePromptForm({
@@ -85,6 +88,7 @@ export function SavePromptForm({
     },
     defaultValues: {
       description: "",
+      metadata: "{}",
     },
     reValidateMode: "onChange",
     resetOptions: {
@@ -174,6 +178,41 @@ export function SavePromptForm({
               </TextField>
             )}
           />
+          {mode === "create" && (
+            <Controller
+              name="metadata"
+              control={control}
+              rules={{
+                validate: (value) => {
+                  // Allow empty values (will be treated as null)
+                  if (!value || value.trim() === "") {
+                    return true;
+                  }
+                  if (!isJSONObjectString(value)) {
+                    return "metadata must be a valid JSON object";
+                  }
+                  return true;
+                },
+              }}
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { invalid, error },
+              }) => (
+                <CodeEditorFieldWrapper
+                  validationState={invalid ? "invalid" : "valid"}
+                  label={"Metadata"}
+                  errorMessage={error?.message}
+                  description="A JSON object containing metadata for the prompt (optional)"
+                >
+                  <JSONEditor
+                    value={value}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                  />
+                </CodeEditorFieldWrapper>
+              )}
+            />
+          )}
         </View>
 
         <View

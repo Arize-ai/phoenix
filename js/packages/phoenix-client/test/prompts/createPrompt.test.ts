@@ -95,4 +95,31 @@ describe("createPrompt", () => {
     expect(prompt).toBeDefined();
     expect(prompt.id).toBe("mocked-prompt-id");
   });
+
+  it("should create a prompt with metadata", async () => {
+    const prompt = await createPrompt({
+      name: "test-prompt",
+      description: "test-description",
+      metadata: {
+        environment: "production",
+        version: "1.0",
+        team: "ai",
+      },
+      version: promptVersion({
+        modelProvider: "OPENAI",
+        modelName: "gpt-4",
+        template: [
+          {
+            role: "user",
+            content: "{{ question }}",
+          },
+        ],
+        invocationParameters: {
+          temperature: 0.7,
+        },
+      }),
+    });
+    expect(prompt).toBeDefined();
+    expect(prompt.id).toBe("mocked-prompt-id");
+  });
 });

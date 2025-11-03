@@ -229,6 +229,7 @@ class PromptData(TypedDict):
     name: str
     description: NotRequired[str]
     source_prompt_id: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
 
 
 class Prompt(PromptData):
@@ -801,6 +802,7 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
+    prompt: Prompt
 
 
 class CreatePromptRequestBody(TypedDict):

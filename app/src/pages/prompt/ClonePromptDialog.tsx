@@ -16,6 +16,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import {
   DialogCloseButton,
   DialogContent,
@@ -26,15 +27,18 @@ import {
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export const ClonePromptDialog = ({
   promptId,
   promptName,
   promptDescription,
+  promptMetadata,
 }: {
   promptId: string;
   promptName: string;
   promptDescription?: string;
+  promptMetadata?: Record<string, unknown>;
 }) => {
   const notifySuccess = useNotifySuccess();
   const navigate = useNavigate();
@@ -54,6 +58,7 @@ export const ClonePromptDialog = ({
     defaultValues: {
       name: `${promptName}-clone`,
       description: promptDescription,
+      metadata: promptMetadata ? JSON.stringify(promptMetadata, null, 2) : "{}",
     },
   });
   const {
@@ -64,12 +69,18 @@ export const ClonePromptDialog = ({
   } = form;
   const onSubmit = (close: () => void) =>
     handleSubmit((data) => {
+      // Parse metadata, or set to undefined if empty
+      const metadata =
+        data.metadata && data.metadata.trim() !== ""
+          ? JSON.parse(data.metadata)
+          : undefined;
       clonePrompt({
         variables: {
           input: {
             promptId,
             name: data.name,
             description: data.description,
+            metadata,
           },
         },
         onCompleted: (data) => {
@@ -171,6 +182,39 @@ export const ClonePromptDialog = ({
                       )}
                       <FieldError>{error?.message}</FieldError>
                     </TextField>
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="metadata"
+                  rules={{
+                    validate: (value) => {
+                      // Allow empty values (will be treated as undefined)
+                      if (!value || value.trim() === "") {
+                        return true;
+                      }
+                      if (!isJSONObjectString(value)) {
+                        return "metadata must be a valid JSON object";
+                      }
+                      return true;
+                    },
+                  }}
+                  render={({
+                    field: { onChange, onBlur, value },
+                    fieldState: { invalid, error },
+                  }) => (
+                    <CodeEditorFieldWrapper
+                      validationState={invalid ? "invalid" : "valid"}
+                      label="Metadata"
+                      errorMessage={error?.message}
+                      description="A JSON object containing metadata for the prompt (leave empty to remove)"
+                    >
+                      <JSONEditor
+                        value={value}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                      />
+                    </CodeEditorFieldWrapper>
                   )}
                 />
                 {errors?.root && (

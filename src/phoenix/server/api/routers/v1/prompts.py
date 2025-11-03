@@ -4,6 +4,7 @@ from typing import Any, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import ValidationError, model_validator
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
@@ -42,6 +43,7 @@ class PromptData(V1RoutesBaseModel):
     name: Identifier
     description: Optional[str] = None
     source_prompt_id: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
 
 
 class Prompt(PromptData):
@@ -74,6 +76,7 @@ class PromptVersionData(V1RoutesBaseModel):
 
 class PromptVersion(PromptVersionData):
     id: str
+    prompt: Prompt
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):
@@ -213,7 +216,7 @@ async def list_prompt_versions(
         HTTPException: If the cursor format is invalid, the prompt identifier is invalid,
             or the prompt is not found.
     """
-    query = select(models.PromptVersion)
+    query = select(models.PromptVersion).options(joinedload(models.PromptVersion.prompt))
     query = _filter_by_prompt_identifier(query.join(models.Prompt), prompt_identifier)
     query = query.order_by(models.PromptVersion.id.desc())
 
@@ -287,7 +290,12 @@ async def get_prompt_version_by_prompt_version_id(
     except ValueError:
         raise HTTPException(422, "Invalid prompt version ID")
     async with request.app.state.db() as session:
-        prompt_version = await session.get(models.PromptVersion, id_)
+        stmt = (
+            select(models.PromptVersion)
+            .options(joinedload(models.PromptVersion.prompt))
+            .where(models.PromptVersion.id == id_)
+        )
+        prompt_version = await session.scalar(stmt)
         if prompt_version is None:
             raise HTTPException(404)
     data = _prompt_version_from_orm_version(prompt_version)
@@ -336,6 +344,7 @@ async def get_prompt_version_by_tag_name(
         raise HTTPException(422, "Invalid tag name")
     stmt = (
         select(models.PromptVersion)
+        .options(joinedload(models.PromptVersion.prompt))
         .join_from(models.PromptVersion, models.PromptVersionTag)
         .where(models.PromptVersionTag.name == name)
     )
@@ -381,7 +390,12 @@ async def get_prompt_version_by_latest(
     Raises:
         HTTPException: If the prompt identifier is invalid or no prompt version is found.
     """
-    stmt = select(models.PromptVersion).order_by(models.PromptVersion.id.desc()).limit(1)
+    stmt = (
+        select(models.PromptVersion)
+        .options(joinedload(models.PromptVersion.prompt))
+        .order_by(models.PromptVersion.id.desc())
+        .limit(1)
+    )
     stmt = _filter_by_prompt_identifier(stmt.join(models.Prompt), prompt_identifier)
     async with request.app.state.db() as session:
         prompt_version: models.PromptVersion = await session.scalar(stmt)
@@ -451,6 +465,7 @@ async def create_prompt(
             prompt_orm = models.Prompt(
                 name=name,
                 description=prompt.description,
+                metadata_=prompt.metadata or {},
             )
             session.add(prompt_orm)
             await session.flush()
@@ -718,6 +733,7 @@ def _prompt_version_from_orm_version(
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
     return PromptVersion(
         id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
+        prompt=_prompt_from_orm_prompt(prompt_version.prompt),
         description=prompt_version.description or "",
         model_provider=prompt_version.model_provider,
         model_name=prompt_version.model_name,
@@ -741,4 +757,5 @@ def _prompt_from_orm_prompt(orm_prompt: models.Prompt) -> Prompt:
         source_prompt_id=source_prompt_id,
         name=orm_prompt.name,
         description=orm_prompt.description,
+        metadata=orm_prompt.metadata_,
     )

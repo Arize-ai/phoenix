@@ -34,6 +34,7 @@ class CreateChatPromptInput:
     name: Identifier
     description: Optional[str] = None
     prompt_version: ChatPromptVersionInput
+    metadata: Optional[strawberry.scalars.JSON] = None
 
 
 @strawberry.input
@@ -53,12 +54,14 @@ class ClonePromptInput:
     name: Identifier
     description: Optional[str] = None
     prompt_id: GlobalID
+    metadata: Optional[strawberry.scalars.JSON] = None
 
 
 @strawberry.input
 class PatchPromptInput:
     prompt_id: GlobalID
     description: str
+    metadata: Optional[strawberry.scalars.JSON] = None
 
 
 @strawberry.type
@@ -85,6 +88,7 @@ class PromptMutationMixin:
         prompt = models.Prompt(
             name=name,
             description=input.description,
+            metadata_=input.metadata or {},
             prompt_versions=[prompt_version],
         )
         async with info.context.db() as session:
@@ -167,6 +171,7 @@ class PromptMutationMixin:
                 name=name,
                 description=input.description,
                 source_prompt_id=prompt_id,
+                metadata_=input.metadata if input.metadata is not None else prompt.metadata_,
             )
 
             # Create copies of all versions
@@ -203,11 +208,15 @@ class PromptMutationMixin:
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
 
+        values = {"description": input.description}
+        if input.metadata is not None:
+            values["metadata_"] = input.metadata
+
         async with info.context.db() as session:
             stmt = (
                 update(models.Prompt)
                 .where(models.Prompt.id == prompt_id)
-                .values(description=input.description)
+                .values(**values)
                 .returning(models.Prompt)
             )
 

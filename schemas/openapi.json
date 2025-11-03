@@ -6690,6 +6690,18 @@
             ],
             "title": "Source Prompt Id"
           },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -6955,6 +6967,18 @@
               }
             ],
             "title": "Source Prompt Id"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
           }
         },
         "type": "object",
@@ -7647,6 +7671,9 @@
           "id": {
             "type": "string",
             "title": "Id"
+          },
+          "prompt": {
+            "$ref": "#/components/schemas/Prompt"
           }
         },
         "type": "object",
@@ -7657,7 +7684,8 @@
           "template_type",
           "template_format",
           "invocation_parameters",
-          "id"
+          "id",
+          "prompt"
         ],
         "title": "PromptVersion"
       },

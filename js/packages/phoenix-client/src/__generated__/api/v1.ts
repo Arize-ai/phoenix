@@ -1774,6 +1774,10 @@ export interface components {
             description?: string | null;
             /** Source Prompt Id */
             source_prompt_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
             /** Id */
             id: string;
         };
@@ -1883,6 +1887,10 @@ export interface components {
             description?: string | null;
             /** Source Prompt Id */
             source_prompt_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** PromptDeepSeekInvocationParameters */
         PromptDeepSeekInvocationParameters: {
@@ -2143,6 +2151,7 @@ export interface components {
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /** Id */
             id: string;
+            prompt: components["schemas"]["Prompt"];
         };
         /** PromptVersionData */
         PromptVersionData: {
