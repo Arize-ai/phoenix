@@ -354,6 +354,42 @@ class DeploymentValidators:
 
         return validator
 
+    @staticmethod
+    def has_additional_env(env_name: str, expected_value: Optional[str] = None) -> Validator:
+        """Validate that an additional environment variable is present in deployment."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            containers = get_deployment_containers(resources)
+            env = find_env_in_containers(containers, env_name)
+            if env is None:
+                return False
+            if expected_value is not None:
+                return env.get("value") == expected_value
+            return True
+
+        return validator
+
+    @staticmethod
+    def has_additional_env_from_secret(
+        env_name: str, secret_name: Optional[str] = None, secret_key: Optional[str] = None
+    ) -> Validator:
+        """Validate that an additional environment variable from secret is present."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            containers = get_deployment_containers(resources)
+            env = find_env_in_containers(containers, env_name)
+            if env is None or "valueFrom" not in env:
+                return False
+            value_from = env.get("valueFrom", {})
+            secret_ref = value_from.get("secretKeyRef", {})
+            if secret_name and secret_ref.get("name") != secret_name:
+                return False
+            if secret_key and secret_ref.get("key") != secret_key:
+                return False
+            return True
+
+        return validator
+
 
 class IngressValidators:
     """Validators specific to Ingress resources."""
@@ -1361,6 +1397,111 @@ class DatabaseValidators:
         return validator
 
 
+class NamingValidators:
+    """Validators for resource naming with nameOverride and fullnameOverride."""
+
+    @staticmethod
+    def _find_phoenix_resource(
+        resources: list[dict[str, Any]], kind: str
+    ) -> Optional[dict[str, Any]]:
+        """Find Phoenix resource (excluding PostgreSQL subchart resources)."""
+        for resource in iter_resources_by_kind(resources, kind):
+            name = resource.get("metadata", {}).get("name", "")
+            # Exclude PostgreSQL subchart resources
+            if "postgresql" not in name:
+                return resource
+        return None
+
+    @staticmethod
+    def deployment_name(expected_name: str) -> Validator:
+        """Validate Deployment resource name (Phoenix deployment, not PostgreSQL)."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            deployment = NamingValidators._find_phoenix_resource(resources, "Deployment")
+            if not deployment:
+                return False
+            actual_name = deployment.get("metadata", {}).get("name", "")
+            return actual_name == expected_name
+
+        return validator
+
+    @staticmethod
+    def service_name(expected_name: str) -> Validator:
+        """Validate Service resource name (Phoenix service, not PostgreSQL)."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            service = NamingValidators._find_phoenix_resource(resources, "Service")
+            if not service:
+                return False
+            actual_name = service.get("metadata", {}).get("name", "")
+            return actual_name == expected_name
+
+        return validator
+
+    @staticmethod
+    def configmap_name(expected_name: str) -> Validator:
+        """Validate ConfigMap resource name (Phoenix configmap, not PostgreSQL)."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            # Use the existing find_resource with "configmap" filter which already excludes PostgreSQL
+            configmap = find_resource(resources, "ConfigMap", "configmap")
+            if not configmap:
+                return False
+            actual_name = configmap.get("metadata", {}).get("name", "")
+            return actual_name == expected_name
+
+        return validator
+
+    @staticmethod
+    def pvc_name(expected_name: str) -> Validator:
+        """Validate PersistentVolumeClaim resource name."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            pvc = find_resource(resources, "PersistentVolumeClaim")
+            if not pvc:
+                return False
+            actual_name = pvc.get("metadata", {}).get("name", "")
+            return actual_name == expected_name
+
+        return validator
+
+    @staticmethod
+    def all_resources_with_fullname(expected_fullname: str) -> Validator:
+        """Validate that all main Phoenix resources use the expected fullname."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            # Check Deployment name (Phoenix deployment only, not PostgreSQL)
+            deployment = NamingValidators._find_phoenix_resource(resources, "Deployment")
+            if deployment and deployment.get("metadata", {}).get("name", "") != expected_fullname:
+                return False
+
+            # Check Service name (Phoenix service only, not PostgreSQL)
+            service = NamingValidators._find_phoenix_resource(resources, "Service")
+            if (
+                service
+                and service.get("metadata", {}).get("name", "") != f"{expected_fullname}-svc"
+            ):
+                return False
+
+            # Check ConfigMap name (should be {fullname}-configmap)
+            configmap = find_resource(resources, "ConfigMap", "configmap")
+            if (
+                configmap
+                and configmap.get("metadata", {}).get("name", "")
+                != f"{expected_fullname}-configmap"
+            ):
+                return False
+
+            # Check PVC name if it exists (should be {fullname}-data-pvc)
+            pvc = find_resource(resources, "PersistentVolumeClaim")
+            if pvc and pvc.get("metadata", {}).get("name", "") != f"{expected_fullname}-data-pvc":
+                return False
+
+            return True
+
+        return validator
+
+
 # ============================================================================
 # Test Runner
 # ============================================================================
@@ -2293,6 +2434,82 @@ def get_test_suite() -> list[TestCase]:
                     "internal-registry.company.local", "phoenix/phoenix", "v12.6.0"
                 ),
                 LoggingValidators.logging_config("structured", "warning", "warning"),
+            ),
+        ),
+        # Naming Overrides (nameOverride and fullnameOverride)
+        TestCase(
+            "nameOverride: custom name for resources",
+            "--set nameOverride=custom-phoenix",
+            all_of(
+                # When nameOverride is set, fullname becomes {release-name}-{nameOverride}
+                # For release name "test-release", fullname should be "test-release-custom-phoenix"
+                NamingValidators.deployment_name("test-release-custom-phoenix"),
+                NamingValidators.service_name("test-release-custom-phoenix-svc"),
+                NamingValidators.configmap_name("test-release-custom-phoenix-configmap"),
+            ),
+        ),
+        TestCase(
+            "fullnameOverride: complete custom name override",
+            "--set fullnameOverride=my-app",
+            all_of(
+                # When fullnameOverride is set, all resources use exactly that name
+                NamingValidators.deployment_name("my-app"),
+                NamingValidators.service_name("my-app-svc"),
+                NamingValidators.configmap_name("my-app-configmap"),
+            ),
+        ),
+        TestCase(
+            "fullnameOverride with persistence",
+            "--set postgresql.enabled=false --set persistence.enabled=true --set fullnameOverride=custom-phoenix-app",
+            all_of(
+                NamingValidators.all_resources_with_fullname("custom-phoenix-app"),
+                NamingValidators.pvc_name("custom-phoenix-app-data-pvc"),
+                has_pvc,
+            ),
+        ),
+        TestCase(
+            "nameOverride as subchart simulation",
+            "--set nameOverride=observability",
+            all_of(
+                # Simulates being used as a subchart - resources should be prefixed properly
+                NamingValidators.deployment_name("test-release-observability"),
+                NamingValidators.service_name("test-release-observability-svc"),
+            ),
+        ),
+        # Additional Environment Variables
+        TestCase(
+            "additionalEnv: single environment variable",
+            "--set 'additionalEnv[0].name=CUSTOM_VAR' --set 'additionalEnv[0].value=custom-value'",
+            DeploymentValidators.has_additional_env("CUSTOM_VAR", "custom-value"),
+        ),
+        TestCase(
+            "additionalEnv: multiple environment variables",
+            "--set 'additionalEnv[0].name=VAR_ONE' --set 'additionalEnv[0].value=value1' --set 'additionalEnv[1].name=VAR_TWO' --set 'additionalEnv[1].value=value2'",
+            all_of(
+                DeploymentValidators.has_additional_env("VAR_ONE", "value1"),
+                DeploymentValidators.has_additional_env("VAR_TWO", "value2"),
+            ),
+        ),
+        TestCase(
+            "additionalEnv: environment variable from secret",
+            "--set 'additionalEnv[0].name=SECRET_KEY' --set 'additionalEnv[0].valueFrom.secretKeyRef.name=my-secret' --set 'additionalEnv[0].valueFrom.secretKeyRef.key=secret-key'",
+            DeploymentValidators.has_additional_env_from_secret(
+                "SECRET_KEY", "my-secret", "secret-key"
+            ),
+        ),
+        TestCase(
+            "additionalEnv: environment variable from configMap",
+            "--set 'additionalEnv[0].name=CONFIG_KEY' --set 'additionalEnv[0].valueFrom.configMapKeyRef.name=my-config' --set 'additionalEnv[0].valueFrom.configMapKeyRef.key=config-key'",
+            DeploymentValidators.has_additional_env("CONFIG_KEY"),
+        ),
+        TestCase(
+            "additionalEnv: mixed direct values and references",
+            "--set 'additionalEnv[0].name=DIRECT_VAR' --set 'additionalEnv[0].value=direct123' --set 'additionalEnv[1].name=SECRET_VAR' --set 'additionalEnv[1].valueFrom.secretKeyRef.name=ext-secret' --set 'additionalEnv[1].valueFrom.secretKeyRef.key=ext-key'",
+            all_of(
+                DeploymentValidators.has_additional_env("DIRECT_VAR", "direct123"),
+                DeploymentValidators.has_additional_env_from_secret(
+                    "SECRET_VAR", "ext-secret", "ext-key"
+                ),
             ),
         ),
     ]

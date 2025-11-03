@@ -4,10 +4,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-configmap
+  name: {{ include "phoenix.fullname" . }}-configmap
   namespace: {{ .Release.Namespace | quote }}
   labels:
-    app: {{ .Release.Name }}
+    app: {{ include "phoenix.fullname" . }}
 data:
   # Authentication configuration
   PHOENIX_ENABLE_AUTH: {{ .Values.auth.enableAuth | quote }}

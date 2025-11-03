@@ -6,10 +6,10 @@ Validate persistence configuration to prevent conflicts
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ include "phoenix.fullname" . }}
   namespace: {{ .Release.Namespace | quote }}
   labels:
-    app: {{ .Release.Name }}
+    app: {{ include "phoenix.fullname" . }}
 spec:
   replicas: {{ .Values.replicaCount | default 1 }}
   {{- if .Values.deployment.strategy }}
@@ -18,14 +18,14 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      app: {{ .Release.Name }}
+      app: {{ include "phoenix.fullname" . }}
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}
+        app: {{ include "phoenix.fullname" . }}
     spec:
       {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
-      serviceAccountName: {{ .Values.serviceAccount.name | default .Release.Name }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default (include "phoenix.fullname" .) }}
       {{- end }}
       {{- if .Values.securityContext.pod.enabled }}
       securityContext: {{- omit .Values.securityContext.pod "enabled" | toYaml | nindent 8 }}
@@ -76,7 +76,7 @@ spec:
           {{- end }}
           envFrom:
             - configMapRef:
-                name: {{ .Release.Name }}-configmap
+                name: {{ include "phoenix.fullname" . }}-configmap
           {{- if or .Values.auth.secret (and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers) (and .Values.additionalEnv (gt (len .Values.additionalEnv) 0)) }}
           env:
           {{- if .Values.auth.secret }}
@@ -141,7 +141,7 @@ spec:
         {{- if and (.Values.persistence.enabled | toString | eq "true") (not $isMemoryDatabase) }}
         - name: data
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-data-pvc
+            claimName: {{ include "phoenix.fullname" . }}-data-pvc
         {{- else }}
         - name: data
           emptyDir: {}
