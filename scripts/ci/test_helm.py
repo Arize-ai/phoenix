@@ -1401,7 +1401,9 @@ class NamingValidators:
     """Validators for resource naming with nameOverride and fullnameOverride."""
 
     @staticmethod
-    def _find_phoenix_resource(resources: list[dict[str, Any]], kind: str) -> Optional[dict[str, Any]]:
+    def _find_phoenix_resource(
+        resources: list[dict[str, Any]], kind: str
+    ) -> Optional[dict[str, Any]]:
         """Find Phoenix resource (excluding PostgreSQL subchart resources)."""
         for resource in iter_resources_by_kind(resources, kind):
             name = resource.get("metadata", {}).get("name", "")
@@ -1475,14 +1477,18 @@ class NamingValidators:
 
             # Check Service name (Phoenix service only, not PostgreSQL)
             service = NamingValidators._find_phoenix_resource(resources, "Service")
-            if service and service.get("metadata", {}).get("name", "") != f"{expected_fullname}-svc":
+            if (
+                service
+                and service.get("metadata", {}).get("name", "") != f"{expected_fullname}-svc"
+            ):
                 return False
 
             # Check ConfigMap name (should be {fullname}-configmap)
             configmap = find_resource(resources, "ConfigMap", "configmap")
             if (
                 configmap
-                and configmap.get("metadata", {}).get("name", "") != f"{expected_fullname}-configmap"
+                and configmap.get("metadata", {}).get("name", "")
+                != f"{expected_fullname}-configmap"
             ):
                 return False
 
@@ -2487,7 +2493,9 @@ def get_test_suite() -> list[TestCase]:
         TestCase(
             "additionalEnv: environment variable from secret",
             "--set 'additionalEnv[0].name=SECRET_KEY' --set 'additionalEnv[0].valueFrom.secretKeyRef.name=my-secret' --set 'additionalEnv[0].valueFrom.secretKeyRef.key=secret-key'",
-            DeploymentValidators.has_additional_env_from_secret("SECRET_KEY", "my-secret", "secret-key"),
+            DeploymentValidators.has_additional_env_from_secret(
+                "SECRET_KEY", "my-secret", "secret-key"
+            ),
         ),
         TestCase(
             "additionalEnv: environment variable from configMap",
@@ -2499,7 +2507,9 @@ def get_test_suite() -> list[TestCase]:
             "--set 'additionalEnv[0].name=DIRECT_VAR' --set 'additionalEnv[0].value=direct123' --set 'additionalEnv[1].name=SECRET_VAR' --set 'additionalEnv[1].valueFrom.secretKeyRef.name=ext-secret' --set 'additionalEnv[1].valueFrom.secretKeyRef.key=ext-key'",
             all_of(
                 DeploymentValidators.has_additional_env("DIRECT_VAR", "direct123"),
-                DeploymentValidators.has_additional_env_from_secret("SECRET_VAR", "ext-secret", "ext-key"),
+                DeploymentValidators.has_additional_env_from_secret(
+                    "SECRET_VAR", "ext-secret", "ext-key"
+                ),
             ),
         ),
     ]
