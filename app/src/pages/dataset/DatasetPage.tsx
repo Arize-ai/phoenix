@@ -175,6 +175,10 @@ function DatasetPageContent({
     },
     [navigate, datasetId]
   );
+  const datasetHasVersions = useMemo(
+    () => (dataset.latestVersions?.edges.length ?? 0) > 0,
+    [dataset.latestVersions]
+  );
 
   // Set the initial tab
   const location = useLocation();
@@ -288,6 +292,7 @@ function DatasetPageContent({
             />
             <DatasetLabelConfigButton datasetId={dataset.id} />
             <Button
+              isDisabled={!datasetHasVersions}
               size="S"
               variant="primary"
               leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
