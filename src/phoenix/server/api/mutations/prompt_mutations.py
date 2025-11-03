@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 import strawberry
 from fastapi import Request
@@ -7,6 +7,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
@@ -52,16 +53,16 @@ class DeletePromptInput:
 @strawberry.input
 class ClonePromptInput:
     name: Identifier
-    description: Optional[str] = None
     prompt_id: GlobalID
-    metadata: Optional[strawberry.scalars.JSON] = None
+    description: Optional[str] = UNSET
+    metadata: Optional[strawberry.scalars.JSON] = UNSET
 
 
 @strawberry.input
 class PatchPromptInput:
     prompt_id: GlobalID
-    description: str
-    metadata: Optional[strawberry.scalars.JSON] = None
+    description: Optional[str] = UNSET
+    metadata: Optional[strawberry.scalars.JSON] = UNSET
 
 
 @strawberry.type
@@ -167,11 +168,23 @@ class PromptMutationMixin:
 
             # Create new prompt
             name = IdentifierModel.model_validate(str(input.name))
+            # Handle description: inherit if UNSET, otherwise use value (can be None)
+            if input.description is UNSET:
+                description = prompt.description
+            else:
+                description = input.description.strip() if input.description is not None else None
+
+            # Handle metadata: inherit if UNSET, clear to empty dict if None, or use value
+            if input.metadata is UNSET:
+                metadata = prompt.metadata_
+            else:
+                metadata = input.metadata or {}
+
             new_prompt = models.Prompt(
                 name=name,
-                description=input.description,
                 source_prompt_id=prompt_id,
-                metadata_=input.metadata if input.metadata is not None else prompt.metadata_,
+                description=description,
+                metadata_=metadata,
             )
 
             # Create copies of all versions
@@ -208,9 +221,16 @@ class PromptMutationMixin:
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
 
-        values = {"description": input.description}
-        if input.metadata is not None:
-            values["metadata_"] = input.metadata
+        values: dict[str, Any] = {}
+        if input.description is not UNSET:
+            values["description"] = (
+                input.description.strip() if input.description is not None else None
+            )
+        if input.metadata is not UNSET:
+            values["metadata_"] = input.metadata or {}
+
+        if not values:
+            raise BadRequest("No fields provided to update")
 
         async with info.context.db() as session:
             stmt = (

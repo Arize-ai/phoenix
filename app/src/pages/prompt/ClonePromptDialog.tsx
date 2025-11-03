@@ -69,11 +69,18 @@ export const ClonePromptDialog = ({
   } = form;
   const onSubmit = (close: () => void) =>
     handleSubmit((data) => {
-      // Parse metadata, or set to undefined if empty
-      const metadata =
-        data.metadata && data.metadata.trim() !== ""
-          ? JSON.parse(data.metadata)
-          : undefined;
+      // Parse metadata, or set to null to clear if empty
+      let metadata: unknown = null;
+      if (data.metadata && data.metadata.trim() !== "") {
+        try {
+          metadata = JSON.parse(data.metadata);
+        } catch (error) {
+          setError("metadata", {
+            message: "Failed to parse metadata as JSON",
+          });
+          return;
+        }
+      }
       clonePrompt({
         variables: {
           input: {

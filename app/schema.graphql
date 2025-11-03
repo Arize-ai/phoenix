@@ -354,9 +354,9 @@ input ClearProjectInput {
 
 input ClonePromptInput {
   name: Identifier!
-  description: String = null
   promptId: ID!
-  metadata: JSON = null
+  description: String
+  metadata: JSON
 }
 
 type Cluster {
@@ -1963,8 +1963,8 @@ input PatchProjectTraceRetentionPolicyInput {
 
 input PatchPromptInput {
   promptId: ID!
-  description: String!
-  metadata: JSON = null
+  description: String
+  metadata: JSON
 }
 
 input PatchPromptLabelInput {

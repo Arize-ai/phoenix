@@ -461,18 +461,15 @@ async def create_prompt(
         assert isinstance(user := request.user, PhoenixUser)
         user_id = int(user.identity)
     async with request.app.state.db() as session:
-        if not (prompt_id := await session.scalar(select(models.Prompt.id).filter_by(name=name))):
+        if not (prompt_orm := await session.scalar(select(models.Prompt).filter_by(name=name))):
             prompt_orm = models.Prompt(
                 name=name,
                 description=prompt.description,
                 metadata_=prompt.metadata or {},
             )
-            session.add(prompt_orm)
-            await session.flush()
-            prompt_id = prompt_orm.id
         version_orm = models.PromptVersion(
             user_id=user_id,
-            prompt_id=prompt_id,
+            prompt=prompt_orm,
             description=version.description,
             model_provider=version.model_provider,
             model_name=version.model_name,

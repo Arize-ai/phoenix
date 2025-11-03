@@ -122,11 +122,19 @@ export const UpsertPromptFromTemplateDialog = ({
         instanceId,
         store
       );
-      // Parse metadata, or set to undefined if empty
-      const metadata =
-        params.metadata && params.metadata.trim() !== ""
-          ? JSON.parse(params.metadata)
-          : undefined;
+      // Parse metadata, or set to null to clear if empty
+      let metadata: unknown = null;
+      if (params.metadata && params.metadata.trim() !== "") {
+        try {
+          metadata = JSON.parse(params.metadata);
+        } catch (error) {
+          notifyError({
+            title: "Invalid metadata",
+            message: "Failed to parse metadata as JSON",
+          });
+          return;
+        }
+      }
 
       createPrompt({
         variables: {

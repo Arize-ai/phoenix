@@ -73,11 +73,19 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
   }, [isOpen, data.description, data.metadata, reset]);
   const onSubmit = useCallback(
     (promptPatch: EditPromptFormParams) => {
-      // Parse metadata, or set to empty object if empty
-      const metadata =
-        promptPatch.metadata && promptPatch.metadata.trim() !== ""
-          ? JSON.parse(promptPatch.metadata)
-          : {};
+      // Parse metadata, or set to null to clear if empty
+      let metadata: unknown = null;
+      if (promptPatch.metadata && promptPatch.metadata.trim() !== "") {
+        try {
+          metadata = JSON.parse(promptPatch.metadata);
+        } catch (error) {
+          notifyError({
+            title: "Invalid metadata",
+            message: "Failed to parse metadata as JSON",
+          });
+          return;
+        }
+      }
 
       mutatePrompt({
         variables: {

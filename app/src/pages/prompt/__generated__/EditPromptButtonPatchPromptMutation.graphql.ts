@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8d95d5e372ab102d031a051db32384d6>>
+ * @generated SignedSource<<7fecad1db0b3fa42f3c50a246867e16e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PatchPromptInput = {
-  description: string;
+  description?: string | null;
   metadata?: any | null;
   promptId: string;
 };
