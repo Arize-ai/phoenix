@@ -1197,7 +1197,7 @@ class Experiments:
                     timeout=timeout,
                 )
                 response.raise_for_status()
-                body = cast(v1.GetIncompleteRunsResponseBody, response.json())
+                body = cast(v1.GetIncompleteExperimentRunsResponseBody, response.json())
                 batch_incomplete = body["data"]
 
                 if not batch_incomplete:
@@ -2895,7 +2895,7 @@ class AsyncExperiments:
                     timeout=timeout,
                 )
                 response.raise_for_status()
-                body = cast(v1.GetIncompleteRunsResponseBody, response.json())
+                body = cast(v1.GetIncompleteExperimentRunsResponseBody, response.json())
                 batch_incomplete = body["data"]
 
                 if not batch_incomplete:

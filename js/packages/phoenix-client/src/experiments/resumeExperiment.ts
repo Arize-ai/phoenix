@@ -327,7 +327,7 @@ export async function resumeExperiment({
         }
 
         let res: {
-          data?: components["schemas"]["GetIncompleteRunsResponseBody"];
+          data?: components["schemas"]["GetIncompleteExperimentRunsResponseBody"];
         };
 
         try {

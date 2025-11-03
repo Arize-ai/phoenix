@@ -310,7 +310,7 @@ export interface paths {
          *         Paginated list of incomplete runs grouped by dataset example,
          *         with repetition numbers that need to be run
          */
-        get: operations["getIncompleteRuns"];
+        get: operations["getIncompleteExperimentRuns"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1410,8 +1410,8 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /** GetIncompleteRunsResponseBody */
-        GetIncompleteRunsResponseBody: {
+        /** GetIncompleteExperimentRunsResponseBody */
+        GetIncompleteExperimentRunsResponseBody: {
             /** Data */
             data: components["schemas"]["IncompleteRun"][];
             /** Next Cursor */
@@ -3953,7 +3953,7 @@ export interface operations {
             };
         };
     };
-    getIncompleteRuns: {
+    getIncompleteExperimentRuns: {
         parameters: {
             query?: {
                 /** @description Cursor for pagination */
@@ -3975,7 +3975,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GetIncompleteRunsResponseBody"];
+                    "application/json": components["schemas"]["GetIncompleteExperimentRunsResponseBody"];
                 };
             };
             /** @description Forbidden */

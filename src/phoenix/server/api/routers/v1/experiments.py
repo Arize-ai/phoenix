@@ -431,13 +431,13 @@ class IncompleteRun(V1RoutesBaseModel):
     )
 
 
-class GetIncompleteRunsResponseBody(PaginatedResponseBody[IncompleteRun]):
+class GetIncompleteExperimentRunsResponseBody(PaginatedResponseBody[IncompleteRun]):
     pass
 
 
 @router.get(
     "/experiments/{experiment_id}/incomplete-runs",
-    operation_id="getIncompleteRuns",
+    operation_id="getIncompleteExperimentRuns",
     summary="Get incomplete runs for an experiment",
     responses=add_errors_to_responses(
         [
@@ -454,7 +454,7 @@ async def get_incomplete_runs(
     limit: int = Query(
         default=50, description="Maximum number of examples with incomplete runs to return", gt=0
     ),
-) -> GetIncompleteRunsResponseBody:
+) -> GetIncompleteExperimentRunsResponseBody:
     """
     Get runs that need to be completed for this experiment.
 
@@ -572,7 +572,9 @@ async def get_incomplete_runs(
                 )
             )
 
-        return GetIncompleteRunsResponseBody(data=incomplete_runs_list, next_cursor=next_cursor)
+        return GetIncompleteExperimentRunsResponseBody(
+            data=incomplete_runs_list, next_cursor=next_cursor
+        )
 
 
 @router.get(

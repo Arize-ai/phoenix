@@ -1821,7 +1821,7 @@
         ],
         "summary": "Get incomplete runs for an experiment",
         "description": "Get runs that need to be completed for this experiment.\n\nReturns all incomplete runs, including both missing runs (not yet attempted)\nand failed runs (attempted but have errors).\n\nArgs:\n    experiment_id: The ID of the experiment\n    cursor: Cursor for pagination\n    limit: Maximum number of results to return\n\nReturns:\n    Paginated list of incomplete runs grouped by dataset example,\n    with repetition numbers that need to be run",
-        "operationId": "getIncompleteRuns",
+        "operationId": "getIncompleteExperimentRuns",
         "parameters": [
           {
             "name": "experiment_id",
@@ -1870,7 +1870,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetIncompleteRunsResponseBody"
+                  "$ref": "#/components/schemas/GetIncompleteExperimentRunsResponseBody"
                 }
               }
             }
@@ -5843,7 +5843,7 @@
         ],
         "title": "GetIncompleteEvaluationsResponseBody"
       },
-      "GetIncompleteRunsResponseBody": {
+      "GetIncompleteExperimentRunsResponseBody": {
         "properties": {
           "data": {
             "items": {
@@ -5869,7 +5869,7 @@
           "data",
           "next_cursor"
         ],
-        "title": "GetIncompleteRunsResponseBody"
+        "title": "GetIncompleteExperimentRunsResponseBody"
       },
       "GetProjectResponseBody": {
         "properties": {

@@ -646,7 +646,7 @@ class GetIncompleteEvaluationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
-class GetIncompleteRunsResponseBody(TypedDict):
+class GetIncompleteExperimentRunsResponseBody(TypedDict):
     data: Sequence[IncompleteRun]
     next_cursor: Optional[str]
 
