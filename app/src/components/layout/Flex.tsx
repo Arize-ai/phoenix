@@ -2,8 +2,6 @@ import { forwardRef, ReactNode, Ref } from "react";
 import { filterDOMProps } from "@react-aria/utils";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
-
 import { DOMProps, FlexStyleProps } from "@phoenix/components/types";
 import {
   passthroughStyle,
@@ -11,6 +9,7 @@ import {
   StyleHandlers,
   useStyleProps,
 } from "@phoenix/components/utils";
+import { classNames } from "@phoenix/utils";
 
 export interface FlexProps extends DOMProps, FlexStyleProps {
   /** Children of the flex container. */

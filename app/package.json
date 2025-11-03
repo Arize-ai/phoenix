@@ -145,7 +145,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
     "lint:fix": "eslint --fix ./src",
-    "prettier": "prettier --write './src/**/*'",
+    "prettier:write": "prettier --write './src/**/*'",
     "prettier:check": "prettier --check './src/**/*'",
     "storybook": "storybook dev -p 6007",
     "build-storybook": "storybook build",
