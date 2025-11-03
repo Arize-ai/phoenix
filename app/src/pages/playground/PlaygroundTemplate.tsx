@@ -12,7 +12,6 @@ import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
-  View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -22,7 +21,6 @@ import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/Upsert
 
 import { ModelConfigButton } from "./ModelConfigButton";
 import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
-import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
@@ -93,7 +91,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
   }
-  const { template } = instance;
 
   // A prompt is "selected" in the PromptMenu when both a promptId and promptVersionId
   // are available in the instance
@@ -106,6 +103,8 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
     };
   }, [promptId, promptVersionId, promptTagName]);
 
+  const { disablePromptMenu, disablePromptSave } = props;
+
   return (
     <>
       <Flex direction="row" justifyContent="space-between">
@@ -116,7 +115,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           marginEnd="size-100"
         >
           <AlphabeticIndexIcon index={index} />
-          <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
+          {!disablePromptMenu ? (
+            <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
+          ) : null}
         </Flex>
         <Flex direction="row" gap="size-100">
           <Suspense
@@ -131,19 +132,12 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             <ModelSupportedParamsFetcher instanceId={instanceId} />
           </Suspense>
           <ModelConfigButton {...props} />
-          <SaveButton instanceId={instanceId} dirty={dirty} />
+          {!disablePromptSave ? (
+            <SaveButton instanceId={instanceId} dirty={dirty} />
+          ) : null}
           {instances.length > 1 ? <DeleteButton {...props} /> : null}
         </Flex>
       </Flex>
-      <View paddingY="size-100">
-        {template.__type === "chat" ? (
-          <Suspense>
-            <PlaygroundChatTemplate {...props} />
-          </Suspense>
-        ) : (
-          "Completion Template"
-        )}
-      </View>
     </>
   );
 }
