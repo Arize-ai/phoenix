@@ -213,7 +213,11 @@ class Subscription:
                             "metadata": {},
                         }
                     )
-                    yield EvaluationChunk(evaluation=dummy_annotation)
+                    yield EvaluationChunk(
+                        evaluation=dummy_annotation,
+                        dataset_example_id=None,
+                        repetition_number=None,
+                    )
 
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def chat_completion_over_dataset(
@@ -432,20 +436,27 @@ class Subscription:
 
         async with info.context.db() as session:
             if input.evaluators:
-                for ii, evaluator in enumerate(input.evaluators):
-                    _, db_id = from_global_id(evaluator.id)
-                    evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
-                    evaluator_name = evaluator_record.name if evaluator_record else ""  # pyright: ignore
-                    dummy_annotation = ExperimentRunAnnotation.from_dict(
-                        {
-                            "name": evaluator_name,
-                            "label": f"dummy {ii}",
-                            "score": 0.5,
-                            "explanation": "dummy evaluation",
-                            "metadata": {},
-                        }
-                    )
-                    yield EvaluationChunk(evaluation=dummy_annotation)
+                for revision in revisions:
+                    example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
+                    for repetition_number in range(1, input.repetitions + 1):
+                        for ii, evaluator in enumerate(input.evaluators):
+                            _, db_id = from_global_id(evaluator.id)
+                            evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
+                            evaluator_name = evaluator_record.name if evaluator_record else ""  # pyright: ignore
+                            dummy_annotation = ExperimentRunAnnotation.from_dict(
+                                {
+                                    "name": evaluator_name,
+                                    "label": f"dummy {ii}",
+                                    "score": 0.5,
+                                    "explanation": "dummy evaluation",
+                                    "metadata": {},
+                                }
+                            )
+                            yield EvaluationChunk(
+                                evaluation=dummy_annotation,
+                                dataset_example_id=example_id,
+                                repetition_number=repetition_number,
+                            )
 
 
 async def _stream_chat_completion_over_dataset_example(
