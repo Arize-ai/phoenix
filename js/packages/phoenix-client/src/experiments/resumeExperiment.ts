@@ -67,11 +67,6 @@ export type ResumeExperimentParams = ClientFn & {
    */
   readonly diagLogLevel?: DiagLogLevel;
   /**
-   * The pagination size by which to pull incomplete runs
-   * @default 50
-   */
-  readonly pageSize?: number;
-  /**
    * Stop processing and exit as soon as any task fails.
    * @default false
    */
@@ -248,16 +243,10 @@ export async function resumeExperiment({
   setGlobalTracerProvider = true,
   useBatchSpanProcessor = true,
   diagLogLevel,
-  pageSize = DEFAULT_PAGE_SIZE,
   stopOnFirstError = false,
 }: ResumeExperimentParams): Promise<void> {
   const client = _client ?? createClient();
-
-  // Validate pageSize
-  invariant(
-    Number.isInteger(pageSize) && pageSize > 0,
-    "pageSize must be a positive integer greater than 0"
-  );
+  const pageSize = DEFAULT_PAGE_SIZE;
 
   // Get experiment info
   logger.info(`🔍 Fetching experiment info...`);

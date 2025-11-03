@@ -2,8 +2,9 @@
 import { createDataset } from "../src/datasets";
 import {
   asEvaluator,
+  createExperiment,
   resumeEvaluation,
-  runExperiment,
+  resumeExperiment,
 } from "../src/experiments";
 
 /**
@@ -31,6 +32,34 @@ async function main() {
         input: { prompt: "Write a thank you" },
         output: { text: "Thank you so much for your help!" },
       },
+      {
+        input: { prompt: "Write an apology" },
+        output: { text: "I apologize for the inconvenience." },
+      },
+      {
+        input: { prompt: "Write a welcome message" },
+        output: { text: "Welcome to our service!" },
+      },
+      {
+        input: { prompt: "Write a congratulations message" },
+        output: { text: "Congratulations on your achievement!" },
+      },
+      {
+        input: { prompt: "Write a request for help" },
+        output: { text: "Could you please assist me with this?" },
+      },
+      {
+        input: { prompt: "Write an introduction" },
+        output: { text: "My name is Alex, nice to meet you." },
+      },
+      {
+        input: { prompt: "Write a confirmation" },
+        output: { text: "Yes, I can confirm that." },
+      },
+      {
+        input: { prompt: "Write an encouragement" },
+        output: { text: "You're doing great, keep it up!" },
+      },
     ],
   });
 
@@ -46,18 +75,20 @@ async function main() {
     };
   };
 
-  console.log("\nStep 2: Run experiment with basic task (no evaluators yet)");
-  const experiment = await runExperiment({
-    dataset: { datasetId },
+  console.log("\nStep 2: Create experiment and run task (no evaluators yet)");
+  const experiment = await createExperiment({
+    datasetId,
     repetitions: 10,
+  });
+
+  await resumeExperiment({
+    experimentId: experiment.id,
     task: textGenerationTask,
     // No evaluators - we'll add them later using resumeEvaluation
-    evaluators: [],
   });
 
   console.log("\n✅ Experiment completed (task runs only, no evaluations)");
   console.log(`   Experiment ID: ${experiment.id}`);
-  console.log(`   Total runs: ${experiment.successfulRunCount}`);
 
   console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("Step 3: Add evaluations using resumeEvaluation");
@@ -136,8 +167,7 @@ async function main() {
         },
       }),
     ],
-    pageSize: 2, // Fetch incomplete evaluations in smaller batches
-    concurrency: 2, // Run 2 evaluations in parallel
+    concurrency: 10, // Run 10 evaluations in parallel
   });
 
   console.log("\n✅ Evaluations completed!");

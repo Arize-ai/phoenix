@@ -50,11 +50,6 @@ export type ResumeEvaluationParams = ClientFn & {
    */
   readonly concurrency?: number;
   /**
-   * The pagination size by which to pull incomplete evaluations
-   * @default 50
-   */
-  readonly pageSize?: number;
-  /**
    * Whether to set the global tracer provider when running evaluators.
    * @default true
    */
@@ -273,23 +268,19 @@ export async function resumeEvaluation({
   evaluators: _evaluators,
   logger = console,
   concurrency = 5,
-  pageSize = DEFAULT_PAGE_SIZE,
   setGlobalTracerProvider = true,
   useBatchSpanProcessor = true,
   diagLogLevel,
   stopOnFirstError = false,
 }: ResumeEvaluationParams): Promise<void> {
   const client = _client ?? createClient();
+  const pageSize = DEFAULT_PAGE_SIZE;
 
   // Normalize evaluators to array
   const evaluators = Array.isArray(_evaluators) ? _evaluators : [_evaluators];
 
   // Validate inputs
   invariant(evaluators.length > 0, "Must specify at least one evaluator");
-  invariant(
-    Number.isInteger(pageSize) && pageSize > 0,
-    "pageSize must be a positive integer greater than 0"
-  );
 
   // Get experiment info
   logger.info(`🔍 Checking for incomplete evaluations...`);

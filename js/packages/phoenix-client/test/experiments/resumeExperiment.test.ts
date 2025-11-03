@@ -271,29 +271,6 @@ describe("resumeExperiment", () => {
     expect(mockClient.POST).not.toHaveBeenCalled();
   });
 
-  it("should respect custom pageSize", async () => {
-    const task = async (example: Example) => `Hello, ${example.input.name}!`;
-
-    await resumeExperiment({
-      experimentId: "exp-1",
-      task,
-      pageSize: 10,
-      client: mockClient,
-    });
-
-    // Should use custom pageSize in the query
-    expect(mockClient.GET).toHaveBeenCalledWith(
-      "/v1/experiments/{experiment_id}/incomplete-runs",
-      expect.objectContaining({
-        params: expect.objectContaining({
-          query: expect.objectContaining({
-            limit: 10,
-          }),
-        }),
-      })
-    );
-  });
-
   it("should handle task failures gracefully", async () => {
     const taskFn = vi.fn(async (example: Example) => {
       if (example.input.name === "Alice") {
@@ -313,37 +290,6 @@ describe("resumeExperiment", () => {
 
     // Should still attempt all runs even if some fail
     expect(mockClient.POST).toHaveBeenCalled();
-  });
-
-  it("should validate pageSize", async () => {
-    const task = async (example: Example) => `Hello, ${example.input.name}!`;
-
-    await expect(
-      resumeExperiment({
-        experimentId: "exp-1",
-        task,
-        pageSize: 0,
-        client: mockClient,
-      })
-    ).rejects.toThrow("pageSize must be a positive integer greater than 0");
-
-    await expect(
-      resumeExperiment({
-        experimentId: "exp-1",
-        task,
-        pageSize: -1,
-        client: mockClient,
-      })
-    ).rejects.toThrow("pageSize must be a positive integer greater than 0");
-
-    await expect(
-      resumeExperiment({
-        experimentId: "exp-1",
-        task,
-        pageSize: 1.5,
-        client: mockClient,
-      })
-    ).rejects.toThrow("pageSize must be a positive integer greater than 0");
   });
 
   it("should only evaluate incomplete evaluations, not all runs", async () => {

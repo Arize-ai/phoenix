@@ -323,33 +323,6 @@ describe("resumeEvaluation", () => {
     expect(mockClient.POST).not.toHaveBeenCalled();
   });
 
-  it("should respect custom pageSize", async () => {
-    const evaluator = asEvaluator({
-      name: "correctness",
-      kind: "CODE",
-      evaluate: async () => ({ score: 1, label: "correct" }),
-    });
-
-    await resumeEvaluation({
-      experimentId: "exp-1",
-      evaluators: [evaluator],
-      pageSize: 25,
-      client: mockClient,
-    });
-
-    // Should use custom pageSize in the query
-    expect(mockClient.GET).toHaveBeenCalledWith(
-      "/v1/experiments/{experiment_id}/incomplete-evaluations",
-      expect.objectContaining({
-        params: expect.objectContaining({
-          query: expect.objectContaining({
-            limit: 25,
-          }),
-        }),
-      })
-    );
-  });
-
   it("should handle evaluator failures gracefully", async () => {
     const failingFn = vi.fn(async ({ output }: EvaluatorParams) => {
       const outputText = (output as { text?: string })?.text ?? "";
@@ -394,25 +367,6 @@ describe("resumeEvaluation", () => {
         client: mockClient,
       })
     ).rejects.toThrow("Must specify at least one evaluator");
-
-    // Invalid pageSize
-    await expect(
-      resumeEvaluation({
-        experimentId: "exp-1",
-        evaluators: [evaluator],
-        pageSize: 0,
-        client: mockClient,
-      })
-    ).rejects.toThrow("pageSize must be a positive integer greater than 0");
-
-    await expect(
-      resumeEvaluation({
-        experimentId: "exp-1",
-        evaluators: [evaluator],
-        pageSize: -1,
-        client: mockClient,
-      })
-    ).rejects.toThrow("pageSize must be a positive integer greater than 0");
   });
 
   it("should respect custom concurrency", async () => {

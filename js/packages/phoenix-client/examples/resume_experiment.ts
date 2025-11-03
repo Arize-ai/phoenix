@@ -22,6 +22,13 @@ async function main() {
       { input: { question: "What is 2+2?" }, output: { answer: "4" } },
       { input: { question: "What is 3+3?" }, output: { answer: "6" } },
       { input: { question: "What is 5+5?" }, output: { answer: "10" } },
+      { input: { question: "What is 7+8?" }, output: { answer: "15" } },
+      { input: { question: "What is 12+13?" }, output: { answer: "25" } },
+      { input: { question: "What is 9+1?" }, output: { answer: "10" } },
+      { input: { question: "What is 4+6?" }, output: { answer: "10" } },
+      { input: { question: "What is 11+9?" }, output: { answer: "20" } },
+      { input: { question: "What is 15+5?" }, output: { answer: "20" } },
+      { input: { question: "What is 8+8?" }, output: { answer: "16" } },
     ],
   });
 
@@ -109,8 +116,7 @@ async function main() {
           },
         }),
       ],
-      pageSize: 5, // Fetch incomplete runs in smaller batches
-      concurrency: 2, // Run 2 tasks in parallel
+      concurrency: 10, // Run 10 tasks in parallel
     });
 
     console.log("\n✅ Experiment resumed and completed!");
