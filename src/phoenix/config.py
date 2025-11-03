@@ -98,15 +98,43 @@ Used with PHOENIX_POSTGRES_HOST to specify the port to use for the PostgreSQL da
 ENV_PHOENIX_POSTGRES_USER = "PHOENIX_POSTGRES_USER"
 """
 Used with PHOENIX_POSTGRES_HOST to specify the user to use for the PostgreSQL database (required).
+
+When using AWS RDS IAM authentication (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH=true), this should be
+set to the IAM-enabled database username configured in your RDS/Aurora instance.
 """
 ENV_PHOENIX_POSTGRES_PASSWORD = "PHOENIX_POSTGRES_PASSWORD"
 """
 Used with PHOENIX_POSTGRES_HOST to specify the password to use for the PostgreSQL database
-(required).
+(required, unless PHOENIX_POSTGRES_USE_AWS_IAM_AUTH is enabled).
+
+When using AWS RDS IAM authentication (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH=true), this password
+is NOT used. Instead, authentication tokens are generated dynamically using AWS IAM credentials.
 """
 ENV_PHOENIX_POSTGRES_DB = "PHOENIX_POSTGRES_DB"
 """
 Used with PHOENIX_POSTGRES_HOST to specify the database to use for the PostgreSQL database.
+"""
+ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH = "PHOENIX_POSTGRES_USE_AWS_IAM_AUTH"
+"""
+Enable AWS RDS IAM database authentication. When enabled, Phoenix will use AWS IAM credentials
+to generate short-lived authentication tokens instead of using a static password.
+
+This requires:
+- boto3 to be installed: pip install 'arize-phoenix[aws]'
+- AWS credentials configured (via environment, ~/.aws/credentials, or IAM role)
+- AWS region configured via standard AWS methods
+- The database user to be configured for IAM authentication in RDS/Aurora
+- SSL to be enabled (required by AWS RDS IAM auth)
+
+When enabled, PHOENIX_POSTGRES_PASSWORD should NOT be set.
+"""
+ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS = (
+    "PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS"
+)
+"""
+Token lifetime in seconds for connection pool recycling when using AWS RDS IAM authentication.
+AWS RDS auth tokens are valid for 15 minutes. This should be set slightly lower to ensure
+tokens are refreshed before expiration. Defaults to 840 seconds (14 minutes).
 """
 ENV_PHOENIX_SQL_DATABASE_SCHEMA = "PHOENIX_SQL_DATABASE_SCHEMA"
 """
@@ -1583,18 +1611,36 @@ def get_env_postgres_connection_str() -> Optional[str]:
     """
     Build PostgreSQL connection string from environment variables.
     """
-    if not (
-        (pg_host := getenv(ENV_PHOENIX_POSTGRES_HOST, "").rstrip("/"))
-        and (pg_user := getenv(ENV_PHOENIX_POSTGRES_USER))
-        and (pg_password := getenv(ENV_PHOENIX_POSTGRES_PASSWORD))
-    ):
+    pg_host = getenv(ENV_PHOENIX_POSTGRES_HOST, "").rstrip("/")
+    pg_user = getenv(ENV_PHOENIX_POSTGRES_USER)
+    pg_password = getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
+    use_iam_auth = _bool_val(ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH, False)
+
+    if not (pg_host and pg_user):
         return None
+
+    if use_iam_auth:
+        if pg_password:
+            raise ValueError(
+                f"The environment variable {ENV_PHOENIX_POSTGRES_PASSWORD} is set but will be "
+                "ignored when using AWS RDS IAM authentication "
+                f"({ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH}=true). Authentication tokens will be "
+                "generated using AWS credentials."
+            )
+        connection_str = f"postgresql://{quote(pg_user)}@{pg_host}"
+    else:
+        if not pg_password:
+            raise ValueError(
+                f"The environment variable {ENV_PHOENIX_POSTGRES_PASSWORD} is not set. "
+                "Please set it to the password for the PostgreSQL database."
+            )
+        encoded_user = quote(pg_user)
+        encoded_password = quote(pg_password)
+        connection_str = f"postgresql://{encoded_user}:{encoded_password}@{pg_host}"
+
     pg_port = getenv(ENV_PHOENIX_POSTGRES_PORT)
     pg_db = getenv(ENV_PHOENIX_POSTGRES_DB)
 
-    encoded_user = quote(pg_user)
-    encoded_password = quote(pg_password)
-    connection_str = f"postgresql://{encoded_user}:{encoded_password}@{pg_host}"
     if pg_port:
         connection_str = f"{connection_str}:{pg_port}"
     if pg_db:
@@ -2151,6 +2197,7 @@ def verify_server_environment_variables() -> None:
     get_env_database_usage_insertion_blocking_threshold_percentage()
     get_env_max_spans_queue_size()
     validate_env_support_email()
+    _validate_iam_auth_config()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:
@@ -2209,3 +2256,78 @@ def get_env_allow_external_resources() -> bool:
     Defaults to True if not set.
     """
     return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)
+
+
+def get_env_postgres_use_iam_auth() -> bool:
+    """
+    Gets whether AWS RDS IAM authentication is enabled for PostgreSQL connections.
+
+    Returns:
+        bool: True if IAM authentication should be used, False otherwise (default)
+    """
+    return _bool_val(ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH, False)
+
+
+def get_env_postgres_iam_token_lifetime() -> int:
+    """
+    Gets the token lifetime in seconds for AWS RDS IAM authentication pool recycling.
+
+    AWS RDS IAM tokens are valid for 15 minutes (900 seconds). This value should be
+    set slightly lower to ensure connections are recycled before token expiration.
+
+    Returns:
+        int: Token lifetime in seconds (default: 840 = 14 minutes)
+    """
+    lifetime = _int_val(ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS, 840)
+    if lifetime <= 0:
+        raise ValueError(
+            f"{ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS} must be a positive integer. "
+            f"Got: {lifetime}"
+        )
+    if lifetime > 900:
+        logger.warning(
+            f"{ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS} is set to {lifetime} seconds, "
+            f"which exceeds AWS RDS IAM token validity (900 seconds / 15 minutes). "
+            f"Consider setting it to 840 seconds (14 minutes) or less."
+        )
+    return lifetime
+
+
+def _validate_iam_auth_config() -> None:
+    """
+    Validate AWS RDS IAM authentication configuration if enabled.
+
+    Raises:
+        ImportError: If boto3 is not installed when IAM auth is enabled
+        ValueError: If configuration is invalid
+    """
+    if not get_env_postgres_use_iam_auth():
+        return
+
+    pg_host = getenv(ENV_PHOENIX_POSTGRES_HOST)
+    if not pg_host:
+        return
+
+    try:
+        import boto3  # type: ignore  # noqa: F401
+    except ImportError:
+        raise ImportError(
+            f"boto3 is required when {ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH} is enabled. "
+            "Install it with: pip install 'arize-phoenix[aws]'"
+        )
+
+    if not getenv(ENV_PHOENIX_POSTGRES_USER):
+        raise ValueError(
+            f"{ENV_PHOENIX_POSTGRES_USER} must be set when using AWS RDS IAM authentication"
+        )
+
+    try:
+        client = boto3.client("sts")  # pyright: ignore
+        client.get_caller_identity()  # pyright: ignore
+        logger.info("✓ AWS credentials validated for RDS IAM authentication")
+    except Exception as e:
+        raise ValueError(
+            f"Failed to validate AWS credentials for RDS IAM authentication: {e}. "
+            "Ensure AWS credentials are configured via environment variables, "
+            "~/.aws/credentials, or IAM role."
+        )

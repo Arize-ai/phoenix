@@ -8,10 +8,21 @@ from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, Sequence, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    BinaryIO,
+    Iterator,
+    Literal,
+    Optional,
+    Sequence,
+    TypedDict,
+    Union,
+)
 from urllib.parse import quote
 
 import httpx
+from typing_extensions import Required, TypeGuard
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -23,27 +34,40 @@ logger = logging.getLogger(__name__)
 
 DatasetExample = v1.DatasetExample
 
+
+class _InputDatasetExample(TypedDict, total=False):
+    """
+    This type is created manually since we do not have compiled request types
+    for the POST /v1/datasets/upload route.
+
+    https://github.com/Arize-ai/phoenix/blob/19e69091543b9c0f4051b9e561fa53d4f39d0fa4/src/phoenix/server/api/routers/v1/datasets.py#L354
+    """
+
+    input: Required[Mapping[str, Any]]
+    output: Required[Mapping[str, Any]]
+    metadata: Mapping[str, Any]
+
+
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
-def _is_valid_dataset_example(obj: Any) -> bool:
-    """Check if an object is a valid DatasetExample using the TypedDict's annotations.
-
-    Args:
-        obj (Any): The object to validate.
-
-    Returns:
-        bool: True if the object is a valid DatasetExample, False otherwise.
+def _is_input_dataset_example(obj: Any) -> TypeGuard[_InputDatasetExample]:
+    """
+    Checks if an object is a valid _InputDatasetExample.
     """
     if not isinstance(obj, dict):
         return False
 
-    # Exclude optional fields (splits is NotRequired for backwards compatibility)
-    required_fields = set(DatasetExample.__annotations__.keys()) - {"splits"}
+    keys = set(obj.keys())  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+    required_keys = {"input", "output"}
+    return required_keys.issubset(keys)  # pyright: ignore[reportUnknownArgumentType]
 
-    if not required_fields.issubset(obj.keys()):  # pyright: ignore[reportUnknownArgumentType]
-        return False
-    return True
+
+def _is_iterable_of_input_dataset_examples(obj: Any) -> TypeGuard[Iterable[_InputDatasetExample]]:
+    """
+    Checks if an object is an iterable of _InputDatasetExample objects.
+    """
+    return isinstance(obj, Iterable) and all(_is_input_dataset_example(example) for example in obj)  # pyright: ignore[reportUnknownVariableType]
 
 
 class Dataset:
@@ -691,7 +715,7 @@ class Datasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -708,7 +732,8 @@ class Datasets:
 
         Args:
             dataset_name: Name of the dataset.
-            examples: Either a single DatasetExample or list of DatasetExample objects to add.
+            examples: Either a single dictionary with required 'input' and 'output' keys
+                and an optional 'metadata' key, or an iterable of such dictionaries.
                 When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
@@ -743,15 +768,20 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[_InputDatasetExample]
+            if _is_input_dataset_example(examples):
+                examples_list = [examples]
+            elif _is_iterable_of_input_dataset_examples(examples):
+                examples_list = list(examples)
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                raise ValueError(
+                    "examples must be a single dictionary with required 'input' and 'output' keys "
+                    "and an optional 'metadata' key, or an iterable of such dictionaries"
+                )
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            metadata = [dict(example.get("metadata", {})) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -781,7 +811,7 @@ class Datasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -798,7 +828,8 @@ class Datasets:
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict with 'id'/'name' fields.
-            examples: Either a single DatasetExample or list of DatasetExample objects to add.
+            examples: Either a single dictionary with required 'input' and 'output' keys
+                and an optional 'metadata' key, or an iterable of such dictionaries.
                 When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
@@ -849,15 +880,20 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[_InputDatasetExample]
+            if _is_input_dataset_example(examples):
+                examples_list = [examples]
+            elif _is_iterable_of_input_dataset_examples(examples):
+                examples_list = list(examples)
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                raise ValueError(
+                    "examples must be a single dictionary with required 'input' and 'output' keys "
+                    "and an optional 'metadata' key, or an iterable of such dictionaries"
+                )
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            metadata = [dict(example.get("metadata", {})) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1395,7 +1431,7 @@ class AsyncDatasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1412,8 +1448,9 @@ class AsyncDatasets:
 
         Args:
             dataset_name: Name of the dataset.
-            examples: Either a single DatasetExample or list of DatasetExample objects to add.
-                When provided, inputs/outputs/metadata are extracted automatically.
+            examples: Either a single dictionary with required 'input' and 'output' keys
+                and an optional 'metadata' key, or an iterable of such dictionaries.
+                to add. When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -1447,15 +1484,20 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[_InputDatasetExample]
+            if _is_input_dataset_example(examples):
+                examples_list = [examples]
+            elif _is_iterable_of_input_dataset_examples(examples):
+                examples_list = list(examples)
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                raise ValueError(
+                    "examples must be a single dictionary with required 'input' and 'output' keys "
+                    "and an optional 'metadata' key, or an iterable of such dictionaries"
+                )
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            metadata = [dict(example.get("metadata", {})) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1485,7 +1527,7 @@ class AsyncDatasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1502,7 +1544,8 @@ class AsyncDatasets:
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict with 'id'/'name' fields.
-            examples: Either a single DatasetExample or list of DatasetExample objects to add.
+            examples: Either a single dictionary with required 'input' and 'output' keys
+                and an optional 'metadata' key, or an iterable of such dictionaries.
                 When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
@@ -1553,15 +1596,20 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[_InputDatasetExample]
+            if _is_input_dataset_example(examples):
+                examples_list = [examples]
+            elif _is_iterable_of_input_dataset_examples(examples):
+                examples_list = list(examples)
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                raise ValueError(
+                    "examples must be a single dictionary with required 'input' and 'output' keys "
+                    "and an optional 'metadata' key, or an iterable of such dictionaries"
+                )
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            metadata = [dict(example.get("metadata", {})) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path

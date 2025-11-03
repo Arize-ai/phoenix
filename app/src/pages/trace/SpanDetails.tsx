@@ -750,38 +750,42 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             <LazyTabPanel id="prompt-template">
               <View padding="size-200">
                 <Flex direction="column" gap="size-100">
-                  <View
-                    borderRadius="medium"
-                    borderColor="light"
-                    backgroundColor="light"
-                    borderWidth="thin"
-                    padding="size-200"
-                  >
-                    <CopyToClipboard text={promptTemplateObject.template}>
-                      <Text color="text-700" fontStyle="italic">
-                        prompt template
-                      </Text>
-                      <PreBlock>{promptTemplateObject.template}</PreBlock>
-                    </CopyToClipboard>
-                  </View>
-                  <View
-                    borderRadius="medium"
-                    borderColor="light"
-                    backgroundColor="light"
-                    borderWidth="thin"
-                    padding="size-200"
-                  >
-                    <CopyToClipboard
-                      text={JSON.stringify(promptTemplateObject.variables)}
+                  {promptTemplateObject.template != null && (
+                    <View
+                      borderRadius="medium"
+                      borderColor="light"
+                      backgroundColor="light"
+                      borderWidth="thin"
+                      padding="size-200"
                     >
-                      <Text color="text-700" fontStyle="italic">
-                        template variables
-                      </Text>
-                      <JSONBlock>
-                        {JSON.stringify(promptTemplateObject.variables)}
-                      </JSONBlock>
-                    </CopyToClipboard>
-                  </View>
+                      <CopyToClipboard text={promptTemplateObject.template}>
+                        <Text color="text-700" fontStyle="italic">
+                          prompt template
+                        </Text>
+                        <PreBlock>{promptTemplateObject.template}</PreBlock>
+                      </CopyToClipboard>
+                    </View>
+                  )}
+                  {promptTemplateObject.variables != null && (
+                    <View
+                      borderRadius="medium"
+                      borderColor="light"
+                      backgroundColor="light"
+                      borderWidth="thin"
+                      padding="size-200"
+                    >
+                      <CopyToClipboard
+                        text={JSON.stringify(promptTemplateObject.variables)}
+                      >
+                        <Text color="text-700" fontStyle="italic">
+                          template variables
+                        </Text>
+                        <JSONBlock>
+                          {JSON.stringify(promptTemplateObject.variables)}
+                        </JSONBlock>
+                      </CopyToClipboard>
+                    </View>
+                  )}
                 </Flex>
               </View>
             </LazyTabPanel>

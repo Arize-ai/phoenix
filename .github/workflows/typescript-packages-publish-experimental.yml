@@ -19,6 +19,7 @@ jobs:
       phoenix-client: ${{ steps.filter.outputs.phoenix-client }}
       phoenix-mcp: ${{ steps.filter.outputs.phoenix-mcp }}
       phoenix-evals: ${{ steps.filter.outputs.phoenix-evals }}
+      phoenix-otel: ${{ steps.filter.outputs.phoenix-otel }}
     steps:
       # For pull requests it's not necessary to checkout the code
       - uses: dorny/paths-filter@v3
@@ -31,12 +32,14 @@ jobs:
               - 'js/packages/phoenix-mcp/**'
             phoenix-evals:
               - 'js/packages/phoenix-evals/**'
+            phoenix-otel:
+              - 'js/packages/phoenix-otel/**'
             workflow_file:
               - '.github/workflows/typescript-packages-publish-experimental.yml'
 
   publish-experimental-packages:
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix-client == 'true' || needs.changes.outputs.phoenix-mcp == 'true' || needs.changes.outputs.phoenix-evals == 'true' || needs.changes.outputs.workflow_file == 'true' }}
+    if: ${{ needs.changes.outputs.phoenix-client == 'true' || needs.changes.outputs.phoenix-mcp == 'true' || needs.changes.outputs.phoenix-evals == 'true' || needs.changes.outputs.phoenix-otel == 'true' || needs.changes.outputs.workflow_file == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -62,4 +65,4 @@ jobs:
 
       - name: Publish
         working-directory: ./js
-        run: pnpx pkg-pr-new publish ./packages/phoenix-client ./packages/phoenix-mcp ./packages/phoenix-evals
+        run: pnpx pkg-pr-new publish ./packages/phoenix-client ./packages/phoenix-mcp ./packages/phoenix-evals ./packages/phoenix-otel

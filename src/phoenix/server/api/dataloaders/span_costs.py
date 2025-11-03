@@ -1,7 +1,6 @@
 from typing import Optional
 
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload, load_only
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -22,14 +21,9 @@ class SpanCostsDataLoader(DataLoader[Key, Result]):
         span_ids = list(set(keys))
         async with self._db() as session:
             costs = {
-                span.id: span.span_cost
-                async for span in await session.stream_scalars(
-                    select(models.Span)
-                    .where(models.Span.id.in_(span_ids))
-                    .options(
-                        load_only(models.Span.id),
-                        joinedload(models.Span.span_cost),
-                    )
+                span_cost.span_rowid: span_cost
+                async for span_cost in await session.stream_scalars(
+                    select(models.SpanCost).where(models.SpanCost.span_rowid.in_(span_ids))
                 )
             }
         return [costs.get(span_id) for span_id in keys]

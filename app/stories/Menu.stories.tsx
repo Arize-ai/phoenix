@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Autocomplete,
   Collection,
@@ -14,16 +14,23 @@ import {
   Button,
   Flex,
   Icon,
+  IconButton,
   Icons,
   Menu,
+  MenuContainer,
+  MenuFooter,
+  MenuHeader,
+  MenuHeaderTitle,
   MenuItem,
   MenuTrigger,
   Popover,
   SearchField,
   Separator,
   Text,
+  Token,
   View,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 
 const meta: Meta<typeof Menu> = {
   title: "Menu",
@@ -193,6 +200,116 @@ export const SectionedMenu = () => {
           </Menu>
         </Popover>
       </MenuTrigger>
+    </Flex>
+  );
+};
+
+// Generic sample data for filter menu
+const FILTER_OPTIONS = [
+  { id: "1", name: "Category A", color: "#3B82F6" },
+  { id: "2", name: "Category B", color: "#10B981" },
+  { id: "3", name: "Category C", color: "#F59E0B" },
+  { id: "4", name: "Category D", color: "#EF4444" },
+  { id: "5", name: "Category E", color: "#8B5CF6" },
+  { id: "6", name: "Category F", color: "#06B6D4" },
+  { id: "7", name: "Category G", color: "#84CC16" },
+  { id: "8", name: "Category H", color: "#F97316" },
+  { id: "9", name: "Category I", color: "#EC4899" },
+  { id: "10", name: "Category JJJJJJJJJJJJJJJJJJJJJJ", color: "#6B7280" },
+  { id: "11", name: "Category K", color: "#6B7280" },
+  { id: "12", name: "Category L", color: "#6B7280" },
+  { id: "13", name: "Category M", color: "#6B7280" },
+  { id: "14", name: "Category N", color: "#6B7280" },
+  { id: "15", name: "Category O", color: "#6B7280" },
+  { id: "16", name: "Category P", color: "#6B7280" },
+  { id: "17", name: "Category Q", color: "#6B7280" },
+  { id: "18", name: "Category R", color: "#6B7280" },
+  { id: "19", name: "Category S", color: "#6B7280" },
+  { id: "20", name: "Category T", color: "#6B7280" },
+  { id: "21", name: "Category U", color: "#6B7280" },
+  { id: "22", name: "Category V", color: "#6B7280" },
+  { id: "23", name: "Category W", color: "#6B7280" },
+];
+
+export const FilterMenu = () => {
+  const { contains } = useFilter({ sensitivity: "base" });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  return (
+    <Flex direction="column" gap="size-200">
+      <Text>
+        Generic filter menu with search and multi-select functionality
+      </Text>
+      <MenuTrigger>
+        <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
+          Filter Categories
+          {selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
+        </Button>
+        <MenuContainer>
+          <Autocomplete filter={contains}>
+            <MenuHeader>
+              <MenuHeaderTitle
+                leadingContent={
+                  <IconButton size="S">
+                    <Icon svg={<Icons.ChevronLeft />} />
+                  </IconButton>
+                }
+                trailingContent={
+                  <IconButton size="S">
+                    <Icon svg={<Icons.PlusCircleOutline />} />
+                  </IconButton>
+                }
+              >
+                Filter by Categories
+              </MenuHeaderTitle>
+              <SearchField aria-label="Search categories" autoFocus>
+                <Input placeholder="Search categories..." />
+              </SearchField>
+            </MenuHeader>
+            <Menu
+              items={FILTER_OPTIONS}
+              selectionMode="multiple"
+              renderEmptyState={() => "No categories found"}
+              selectedKeys={selectedIds}
+              onSelectionChange={(keys) => {
+                if (keys === "all") {
+                  setSelectedIds(FILTER_OPTIONS.map((item) => item.id));
+                } else {
+                  setSelectedIds(Array.from(keys as Set<string>));
+                }
+              }}
+            >
+              {({ id, name, color }) => (
+                <MenuItem id={id} textValue={name}>
+                  <Token color={color}>
+                    <Truncate maxWidth={80}>{name}</Truncate>
+                  </Token>
+                </MenuItem>
+              )}
+            </Menu>
+          </Autocomplete>
+          <MenuFooter>
+            <Button>Apply</Button>
+          </MenuFooter>
+        </MenuContainer>
+      </MenuTrigger>
+      {selectedIds.length > 0 && (
+        <Flex direction="column" gap="size-100">
+          <Text size="S" weight="heavy">
+            Selected Categories:
+          </Text>
+          <Flex wrap gap="size-100">
+            {selectedIds.map((id) => {
+              const option = FILTER_OPTIONS.find((opt) => opt.id === id);
+              return option ? (
+                <Token key={id} color={option.color}>
+                  {option.name}
+                </Token>
+              ) : null;
+            })}
+          </Flex>
+        </Flex>
+      )}
     </Flex>
   );
 };

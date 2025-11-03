@@ -1,10 +1,11 @@
-import { CreateClassificationEvaluatorArgs } from "../types/evals";
 import {
-  HALLUCINATION_TEMPLATE,
   HALLUCINATION_CHOICES,
+  HALLUCINATION_TEMPLATE,
 } from "../default_templates/HALLUCINATION_TEMPLATE";
-import { createClassificationEvaluator } from "./createClassificationEvaluator";
+import { CreateClassificationEvaluatorArgs } from "../types/evals";
+
 import { ClassificationEvaluator } from "./ClassificationEvaluator";
+import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
 export interface HallucinationEvaluatorArgs
   extends Omit<

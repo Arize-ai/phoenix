@@ -1,11 +1,11 @@
-import z from "zod";
-
 import {
   vercelAIChatPartImageSchema,
   vercelAIChatPartTextSchema,
   vercelAIChatPartToolCallSchema,
   vercelAIChatPartToolResultSchema,
 } from "./messagePartSchemas";
+
+import z from "zod";
 
 /*
  *

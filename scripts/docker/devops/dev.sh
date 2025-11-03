@@ -409,7 +409,7 @@ case "${COMMAND:-help}" in
         fi
         
         echo "📦 Starting all services..."
-        compose_cmd up -d --build
+        compose_cmd up -d
         
         if wait_for_phoenix; then
             log_success "Environment ready!"
@@ -484,6 +484,39 @@ case "${COMMAND:-help}" in
         fi
         ;;
 
+    "prune")
+        log_info "Cleaning up Docker build cache..."
+        CACHE_SIZE=$(docker system df -v 2>/dev/null | grep "Build cache usage" | awk '{print $4}' || echo "unknown")
+        echo "   Current build cache size: $CACHE_SIZE"
+        
+        if docker builder prune -a -f >/dev/null 2>&1; then
+            log_success "Build cache cleaned!"
+            CACHE_SIZE=$(docker system df -v 2>/dev/null | grep "Build cache usage" | awk '{print $4}' || echo "0B")
+            echo "   New build cache size: $CACHE_SIZE"
+        else
+            log_error "Failed to clean build cache"
+        fi
+        ;;
+
+    "clean")
+        log_warning "Full Docker cleanup: images, containers, volumes, build cache, and networks"
+        log_warning "This will remove EVERYTHING Docker-related (not just this project)!"
+        read -p "Are you sure? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Stopping project services..."
+            stop_all_containers
+            
+            log_info "Running full Docker system cleanup..."
+            docker system prune -a --volumes -f
+            
+            log_success "Full cleanup complete! Disk space recovered."
+            echo "   Run './dev.sh up' to start fresh."
+        else
+            log_error "Operation cancelled."
+        fi
+        ;;
+
     "status")
         show_status
         ;;
@@ -527,6 +560,8 @@ Phoenix Development Environment
   down                     Stop all services  
   reset                    Remove all images (rebuild on next 'up')
   destroy                  Wipe data volumes (database, grafana, prometheus)
+  prune                    Clean Docker build cache (frees disk space)
+  clean                    Full Docker cleanup (WARNING: removes everything)
   status                   Show running services and current profile
   profiles                 List available profiles
   env                      Extract environment variables from Phoenix container
@@ -550,6 +585,7 @@ Phoenix Development Environment
   Dependencies changed?   → rebuild
   Need fresh images?      → reset
   Need fresh data?        → destroy
+  Low on disk space?      → prune (or clean for full cleanup)
   Test PKCE?              → up --profile pkce-public
 
 🌐 Access:
@@ -564,6 +600,7 @@ Examples:
   ./dev.sh up --profile pkce-public        # Test PKCE public client
   ./dev.sh up --profile grafana            # Enable monitoring
   ./dev.sh status                          # Check what's running
+  ./dev.sh prune                           # Free up disk space
   ./dev.sh env | grep DATABASE             # Check database config
 EOF
         ;;

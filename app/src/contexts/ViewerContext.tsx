@@ -1,4 +1,4 @@
-import React, { startTransition } from "react";
+import React, { startTransition, useCallback } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 
 import {
@@ -62,7 +62,7 @@ export function ViewerProvider({
     `,
     query
   );
-  const refetchViewer = () => {
+  const refetchViewer = useCallback(() => {
     startTransition(() => {
       _refetch(
         {},
@@ -71,7 +71,7 @@ export function ViewerProvider({
         }
       );
     });
-  };
+  }, [_refetch]);
   return (
     <ViewerContext.Provider value={{ viewer: data.viewer, refetchViewer }}>
       {children}
