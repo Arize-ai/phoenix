@@ -107,6 +107,8 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
     };
   }, [promptId, promptVersionId, promptTagName]);
 
+  const { disablePromptMenu, disablePromptSave } = props;
+
   return (
     <>
       <Card
@@ -119,7 +121,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               marginEnd="size-100"
             >
               <AlphabeticIndexIcon index={index} />
-              <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
+              {!disablePromptMenu ? (
+                <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
+              ) : null}
             </Flex>
           </StopPropagation>
         }
@@ -138,7 +142,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <ModelSupportedParamsFetcher instanceId={instanceId} />
             </Suspense>
             <ModelConfigButton {...props} />
-            <SaveButton instanceId={instanceId} dirty={dirty} />
+            {!disablePromptSave ? (
+              <SaveButton instanceId={instanceId} dirty={dirty} />
+            ) : null}
             {instances.length > 1 ? <DeleteButton {...props} /> : null}
           </Flex>
         }
