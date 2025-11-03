@@ -172,7 +172,7 @@ const EvaluatorInputMappingControls = ({
               </ComboBox>
             )}
           />
-          <Icon svg={<Icons.ArrowRight />} />
+          <Icon svg={<Icons.ArrowRightWithStem />} />
           <Text
             css={css`
               white-space: nowrap;
