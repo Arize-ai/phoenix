@@ -3,11 +3,12 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.helpers import get_runs_with_incomplete_evaluations_query
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.routers.v1.datasets import DatasetExample
@@ -332,12 +333,23 @@ async def get_incomplete_evaluations(
                 status_code=422,
             )
 
+    # Deduplicate evaluation names
+    evaluation_name = list(set(name.strip() for name in evaluation_name if name.strip()))
+
     # Require at least one evaluation name
     if not evaluation_name:
         raise HTTPException(
             detail="At least one evaluation_name must be provided",
             status_code=400,
         )
+
+    # Validate evaluation names - reject null bytes which are invalid in PostgreSQL
+    for name in evaluation_name:
+        if "\x00" in name:
+            raise HTTPException(
+                detail="Invalid evaluation name: null bytes are not allowed",
+                status_code=400,
+            )
 
     async with request.app.state.db() as session:
         # Verify experiment exists
@@ -351,109 +363,64 @@ async def get_incomplete_evaluations(
                 status_code=404,
             )
 
-        # Query for runs with incomplete evaluations
+        # Query for runs with incomplete evaluations in a single query
+        # This fetches runs, revisions, and annotations together to minimize round-trips
         # A run has incomplete evaluations if:
         # 1. It's missing an annotation for any of the requested evaluators
         # 2. It has a failed annotation (error IS NOT NULL) for any evaluator
 
-        # Get all successful runs (error IS NULL) for this experiment
-        runs_query = (
-            select(
-                models.ExperimentRun,
-                models.ExperimentDatasetExample.dataset_example_revision_id,
-            )
-            .join(
-                models.ExperimentDatasetExample,
-                and_(
-                    models.ExperimentDatasetExample.experiment_id == experiment_rowid,
-                    models.ExperimentDatasetExample.dataset_example_id
-                    == models.ExperimentRun.dataset_example_id,
-                ),
-            )
-            .where(
-                and_(
-                    models.ExperimentRun.experiment_id == experiment_rowid,
-                    models.ExperimentRun.error.is_(None),  # Only successful task runs
-                )
-            )
-            .order_by(models.ExperimentRun.id.asc())
+        # Get dialect for SQL generation
+        dialect = request.app.state.db.dialect
+
+        # Single query: Get runs with incomplete evaluations + their revisions + annotations
+        combined_query = get_runs_with_incomplete_evaluations_query(
+            experiment_rowid,
+            evaluation_name,
+            dialect,
+            cursor_run_rowid=cursor_run_rowid,
+            limit=limit,
+            include_annotations_and_revisions=True,
         )
 
-        if cursor_run_rowid:
-            runs_query = runs_query.where(models.ExperimentRun.id >= cursor_run_rowid)
+        combined_result = await session.execute(combined_query)
+        all_rows = combined_result.all()
 
-        # Overfetch by 1 for pagination
-        runs_query = runs_query.limit(limit + 1)
-
-        runs_result = await session.execute(runs_query)
-        runs_with_revisions = runs_result.all()
-
-        if not runs_with_revisions:
+        if not all_rows:
             return GetIncompleteEvaluationsResponseBody(data=[], next_cursor=None)
 
-        # Check if we have more results than requested (for pagination)
-        has_more = len(runs_with_revisions) == limit + 1
+        # Parse rows - now each row is a single run with successful annotations as JSON array
+        # Each row: (ExperimentRun, revision_id, DatasetExampleRevision, annotations_json)
+        import json
+
+        runs_data: list[tuple[models.ExperimentRun, models.DatasetExampleRevision, set[str]]] = []
+
+        for row in all_rows:
+            run = row[0]  # ExperimentRun
+            revision = row[2]  # DatasetExampleRevision
+            annotations_json = row[3]  # JSON string or None
+
+            # Parse successful annotation names (just a list of strings now)
+            successful_eval_names: set[str] = set()
+            if annotations_json:
+                successful_eval_names = set(json.loads(annotations_json))
+
+            runs_data.append((run, revision, successful_eval_names))
+
+        # Apply pagination limit
+        has_more = len(runs_data) > limit
         if has_more:
-            # Remove the extra run, don't include in results
-            runs_to_process = runs_with_revisions[:-1]
+            runs_to_process = runs_data[:limit]
         else:
-            runs_to_process = runs_with_revisions
-
-        # For each run, determine which evaluators are missing or failed
-        run_ids = [run.id for run, _ in runs_to_process]
-
-        # Get all annotations for these runs
-        annotations_query = (
-            select(
-                models.ExperimentRunAnnotation.experiment_run_id,
-                models.ExperimentRunAnnotation.name,
-                models.ExperimentRunAnnotation.error,
-            )
-            .where(models.ExperimentRunAnnotation.experiment_run_id.in_(run_ids))
-            .where(models.ExperimentRunAnnotation.name.in_(evaluation_name))
-        )
-        annotations_result = await session.execute(annotations_query)
-        annotations = annotations_result.all()
-
-        # Build a map: run_id -> {evaluation_name: has_error}
-        run_annotations: dict[int, dict[str, bool]] = {}
-        for annotation in annotations:
-            if annotation.experiment_run_id not in run_annotations:
-                run_annotations[annotation.experiment_run_id] = {}
-            run_annotations[annotation.experiment_run_id][annotation.name] = (
-                annotation.error is not None
-            )
-
-        # Fetch dataset example revisions for the runs
-        revision_ids = [revision_id for _, revision_id in runs_with_revisions]
-        revisions_query = select(models.DatasetExampleRevision).where(
-            models.DatasetExampleRevision.id.in_(revision_ids)
-        )
-        revisions_result = await session.execute(revisions_query)
-        revisions_by_id = {rev.id: rev for rev in revisions_result.scalars()}
+            runs_to_process = runs_data
 
         # Build response
         incomplete_evaluations_list: list[IncompleteExperimentEvaluation] = []
-        for run, revision_id in runs_to_process:
-            run_annots = run_annotations.get(run.id, {})
-
-            # Combine missing evaluations (not run) and failed evaluations (has errors)
+        for run, revision, successful_eval_names in runs_to_process:
+            # Determine incomplete evaluation names for this run
+            # Any evaluation not in the successful set is incomplete (either missing or failed)
             incomplete_evaluation_names = sorted(
-                set(
-                    # Missing: evaluation names not in annotations
-                    [name for name in evaluation_name if name not in run_annots]
-                    # Failed: evaluation names with errors
-                    + [name for name, has_error in run_annots.items() if has_error]
-                )
+                name for name in evaluation_name if name not in successful_eval_names
             )
-
-            # Only include runs with incomplete evaluations
-            if not incomplete_evaluation_names:
-                continue
-
-            revision = revisions_by_id.get(revision_id)
-            if not revision:
-                continue
 
             run_globalid = GlobalID("ExperimentRun", str(run.id))
             example_globalid = GlobalID("DatasetExample", str(run.dataset_example_id))
@@ -487,7 +454,7 @@ async def get_incomplete_evaluations(
         if has_more:
             # Cursor is the ID of the next item to fetch
             # (the extra item we fetched but didn't process)
-            next_run, _ = runs_with_revisions[-1]
+            next_run, _, _ = runs_data[limit]  # First item after our limit
             next_cursor = str(GlobalID("ExperimentRun", str(next_run.id)))
 
         return GetIncompleteEvaluationsResponseBody(

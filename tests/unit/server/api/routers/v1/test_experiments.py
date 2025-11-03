@@ -953,8 +953,14 @@ class TestIncompleteRuns:
 
 class TestIncompleteEvaluations:
     """
-    Test suite for the incomplete evaluations endpoint.
-    Validates detection of missing and failed evaluations with proper pagination and error handling.
+    Comprehensive test suite for the incomplete evaluations endpoint.
+
+    Tests detection of missing and failed evaluations with:
+    - Correct filtering and categorization
+    - Proper pagination behavior
+    - Edge cases and boundary conditions
+    - Error handling
+    - Performance optimizations (JSON aggregation, error string optimization)
     """
 
     @staticmethod
@@ -985,67 +991,111 @@ class TestIncompleteEvaluations:
                 result["json"] = response.json()
         return result
 
-    async def test_incomplete_evaluations_comprehensive(
+    async def test_incomplete_evaluations(
         self,
         httpx_client: httpx.AsyncClient,
         experiments_with_incomplete_runs: ExperimentsWithIncompleteRuns,
         db: DbSessionFactory,
     ) -> None:
         """
-        Comprehensive test for incomplete evaluations endpoint.
+        Comprehensive test for /incomplete-evaluations endpoint.
 
-        Scenarios tested:
-        1. Basic functionality - missing and failed evaluations
-        2. Dataset example and run data included in response
-        3. Correct evaluator categorization (missing vs failed)
-        4. No evaluator names specified returns 400 error
-        5. Invalid experiment ID returns 404 error
-        6. Experiment with no runs returns empty result
-        7. Pagination order - results ordered by run ID ascending
-        8. Invalid cursor returns 422 error
+        This test validates the complete lifecycle and edge cases of evaluations, organized into logical sections:
+
+        I. Core Functionality
+           - Missing and failed evaluation detection
+           - Response structure and data completeness
+           - Filtering (complete runs excluded, task-level errors excluded)
+
+        II. Pagination & Ordering
+           - Correct ordering (by run ID ascending)
+           - Pagination with various limits (1, 2, large, oversized)
+           - Cursor behavior (valid, invalid, at boundaries)
+           - No gaps or duplicates across pages
+           - No empty pages with next_cursor (critical bug fix)
+
+        III. Edge Cases
+           - Multiple evaluation names at once
+           - Duplicate evaluation names
+           - Single vs multiple evaluations
+           - All evaluations complete (empty result)
+
+        IV. Error Handling
+           - No evaluation names (400 error)
+           - Invalid experiment ID (404 error)
+           - Invalid cursor (422 error)
+           - Experiment with no runs (empty result)
+
+        V. Security
+           - SQL injection attempts through evaluation_name parameter
+           - Mixed malicious and legitimate names
+           - Database integrity after attacks
         """
         from datetime import datetime, timezone
+        from secrets import token_hex
 
         from phoenix.db import models
+        from phoenix.server.api.types.node import from_global_id_with_expected_type
 
+        # Setup: Get experiment and example data
         exp_v1_mixed = experiments_with_incomplete_runs.experiment_v1_mixed
         exp_v1_empty = experiments_with_incomplete_runs.experiment_v1_empty
-        examples = experiments_with_incomplete_runs.examples_in_v1
-
-        # Convert to GlobalIDs
         exp_gid = GlobalID("Experiment", str(exp_v1_mixed.id))
-
-        # Add some evaluations to the runs
-        # We'll add annotations for "accuracy" evaluator:
-        # - ex0, rep1: successful
-        # - ex0, rep2: failed
-        # - ex0, rep3: missing
-        # - ex1, rep1: missing (no annotation)
-
+        exp_empty_gid = GlobalID("Experiment", str(exp_v1_empty.id))
         now = datetime.now(timezone.utc)
 
-        # Get the run IDs first (we need to query them from the database)
+        # Randomized evaluation names to avoid test pollution
+        eval1 = f"eval1_{token_hex(4)}"
+        eval2 = f"eval2_{token_hex(4)}"
+        ordering_test_eval = f"ordering_test_{token_hex(4)}"
+        never_added_eval = f"never_added_{token_hex(4)}"
+        single_eval_test = f"single_eval_{token_hex(4)}"
+        all_complete_eval = f"all_complete_{token_hex(4)}"
+
+        # ====================================================================================
+        # SETUP: Create test data with diverse evaluation states
+        # ====================================================================================
+
         async with db() as session:
-            # Get runs for ex0
+            # Get all runs for the experiment
             runs_result = await session.execute(
                 select(models.ExperimentRun)
                 .where(models.ExperimentRun.experiment_id == exp_v1_mixed.id)
-                .where(models.ExperimentRun.dataset_example_id == examples[0].id)
-                .order_by(models.ExperimentRun.repetition_number)
+                .order_by(models.ExperimentRun.id)
             )
-            ex0_runs = list(runs_result.scalars())
+            all_runs = list(runs_result.scalars())
 
-            # Add successful annotation for ex0, rep1
-            if len(ex0_runs) >= 1:
+            # Create specific scenarios for comprehensive testing
+            # Only annotate successful runs (filter out failed runs)
+            successful_runs = [run for run in all_runs if run.error is None]
+            assert len(successful_runs) >= 5, (
+                f"Fixture must provide at least 5 successful runs, got {len(successful_runs)}"
+            )
+
+            # Run 0: Complete for eval1, missing eval2 (partially complete)
+            session.add(
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=successful_runs[0].id,
+                    name=eval1,
+                    annotator_kind="CODE",
+                    label="success",
+                    score=1.0,
+                    error=None,
+                    metadata_={},
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+
+            # Run 1: Complete for BOTH eval1 and eval2 (fully complete - should be filtered out!)
+            for eval_name in [eval1, eval2]:
                 session.add(
                     models.ExperimentRunAnnotation(
-                        experiment_run_id=ex0_runs[0].id,
-                        name="accuracy",
+                        experiment_run_id=successful_runs[1].id,
+                        name=eval_name,
                         annotator_kind="CODE",
-                        label="correct",
+                        label="success",
                         score=1.0,
-                        explanation=None,
-                        trace_id=None,
                         error=None,
                         metadata_={},
                         start_time=now,
@@ -1053,128 +1103,498 @@ class TestIncompleteEvaluations:
                     )
                 )
 
-            # Add failed annotation for ex0, rep2
-            if len(ex0_runs) >= 2:
+            # Run 2: Failed eval1, complete eval2 (partial - failed counts as incomplete)
+            session.add(
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=successful_runs[2].id,
+                    name=eval1,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    error="Evaluation failed",
+                    metadata_={},
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+            session.add(
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=successful_runs[2].id,
+                    name=eval2,
+                    annotator_kind="CODE",
+                    label="success",
+                    score=1.0,
+                    error=None,
+                    metadata_={},
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+
+            # Run 3: Missing both eval1 and eval2 (no annotations)
+            # (No annotations added)
+
+            # Run 4: Failed both eval1 and eval2
+            for eval_name in [eval1, eval2]:
                 session.add(
                     models.ExperimentRunAnnotation(
-                        experiment_run_id=ex0_runs[1].id,
-                        name="accuracy",
+                        experiment_run_id=successful_runs[4].id,
+                        name=eval_name,
                         annotator_kind="CODE",
                         label=None,
                         score=None,
-                        explanation=None,
-                        trace_id=None,
-                        error="Evaluator failed",
+                        error="Evaluation error",
                         metadata_={},
                         start_time=now,
                         end_time=now,
                     )
                 )
 
-        # ===== Test 1: Basic functionality - incomplete evaluations for "accuracy" =====
-        result = await self._get_incomplete_evaluations(httpx_client, exp_gid, ["accuracy"])
+            # For all remaining successful runs beyond the first 5, add complete annotations
+            # This prevents the test from being polluted by extra fixture runs
+            for i in range(5, len(successful_runs)):
+                for eval_name in [eval1, eval2]:
+                    session.add(
+                        models.ExperimentRunAnnotation(
+                            experiment_run_id=successful_runs[i].id,
+                            name=eval_name,
+                            annotator_kind="CODE",
+                            label="success",
+                            score=1.0,
+                            error=None,
+                            metadata_={},
+                            start_time=now,
+                            end_time=now,
+                        )
+                    )
+
+            # Setup for ordering test: annotate first run with ordering_test_eval
+            assert len(all_runs) > 0, "Need at least one run for ordering test setup"
+            session.add(
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=all_runs[0].id,
+                    name=ordering_test_eval,
+                    annotator_kind="CODE",
+                    label="success",
+                    score=1.0,
+                    error=None,
+                    metadata_={},
+                    trace_id=None,
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+
+        # ====================================================================================
+        # PART I: CORE FUNCTIONALITY
+        # ====================================================================================
+
+        # Test 1: Basic detection of missing and failed evaluations
+        result = await self._get_incomplete_evaluations(httpx_client, exp_gid, [eval1, eval2])
         assert result["status_code"] == 200
         assert "data" in result
-        assert len(result["data"]) > 0, "Should find runs with incomplete accuracy evaluations"
 
-        # ===== Test 2: Verify structure of response data =====
-        incomplete_eval = result["data"][0]
-        assert "experiment_run" in incomplete_eval
-        assert "dataset_example" in incomplete_eval
-        assert "evaluation_names" in incomplete_eval
-        assert isinstance(incomplete_eval["evaluation_names"], list)
-        assert "id" in incomplete_eval["experiment_run"]
-        assert "output" in incomplete_eval["experiment_run"]
-        assert "dataset_example_id" in incomplete_eval["experiment_run"]
+        # Test 2: Response structure validation
+        if result["data"]:
+            first_item = result["data"][0]
+            assert "experiment_run" in first_item
+            assert "dataset_example" in first_item
+            assert "evaluation_names" in first_item
+            assert isinstance(first_item["evaluation_names"], list)
+            assert "id" in first_item["experiment_run"]
+            assert "output" in first_item["experiment_run"]
+            assert "dataset_example_id" in first_item["experiment_run"]
 
-        # ===== Test 3: All runs missing "toxicity" evaluator =====
-        toxicity_result = await self._get_incomplete_evaluations(
-            httpx_client, exp_gid, ["toxicity"]
+        # Test 2.5: Verify exactly one row per run (no duplicates from joins)
+        run_ids_in_result = [item["experiment_run"]["id"] for item in result["data"]]
+        assert len(run_ids_in_result) == len(set(run_ids_in_result)), (
+            "Each run should appear exactly once (one row per run, not multiple rows from joins)"
         )
-        assert toxicity_result["status_code"] == 200
-        assert len(toxicity_result["data"]) > 0, "Should find runs missing toxicity evaluator"
-        for incomplete_eval in toxicity_result["data"]:
-            assert "toxicity" in incomplete_eval["evaluation_names"]
 
-        # ===== Test 4: No evaluator names specified returns 400 =====
+        # Get successful_runs again for assertions (we set them up in the db() context)
+        async with db() as session:
+            runs_result = await session.execute(
+                select(models.ExperimentRun)
+                .where(models.ExperimentRun.experiment_id == exp_v1_mixed.id)
+                .where(models.ExperimentRun.error.is_(None))
+                .order_by(models.ExperimentRun.id)
+            )
+            successful_runs = list(runs_result.scalars())
+
+        # Test 3: Filtering - complete runs excluded
+        run1_gid = str(GlobalID("ExperimentRun", str(successful_runs[1].id)))
+        assert run1_gid not in run_ids_in_result, (
+            "Run with all evaluations complete should be excluded"
+        )
+
+        # Test 4: Correct categorization (missing vs failed both included)
+        # Build expected results map
+        expected_incomplete = {
+            str(GlobalID("ExperimentRun", str(successful_runs[0].id))): [
+                eval2
+            ],  # Complete eval1, missing eval2
+            str(GlobalID("ExperimentRun", str(successful_runs[2].id))): [
+                eval1
+            ],  # Failed eval1, complete eval2
+            str(GlobalID("ExperimentRun", str(successful_runs[3].id))): {
+                eval1,
+                eval2,
+            },  # Missing both
+            str(GlobalID("ExperimentRun", str(successful_runs[4].id))): {
+                eval1,
+                eval2,
+            },  # Failed both
+        }
+
+        # Verify we got exactly the expected runs
+        actual_run_ids = {item["experiment_run"]["id"] for item in result["data"]}
+        expected_run_ids = set(expected_incomplete.keys())
+        assert actual_run_ids == expected_run_ids, (
+            f"Expected incomplete runs {expected_run_ids}, got {actual_run_ids}. "
+            f"Missing: {expected_run_ids - actual_run_ids}, Extra: {actual_run_ids - expected_run_ids}"
+        )
+
+        # Verify each run has correct incomplete evaluations
+        for item in result["data"]:
+            run_id_str = item["experiment_run"]["id"]
+            eval_names = item["evaluation_names"]
+            expected = expected_incomplete[run_id_str]
+
+            if isinstance(expected, list):
+                assert eval_names == expected, (
+                    f"Run {run_id_str} should have incomplete evals {expected}, got {eval_names}"
+                )
+            else:  # set
+                assert set(eval_names) == expected, (
+                    f"Run {run_id_str} should have incomplete evals {expected}, got {set(eval_names)}"
+                )
+
+        # Test 5: All runs missing an evaluator
+        all_missing_result = await self._get_incomplete_evaluations(
+            httpx_client, exp_gid, [never_added_eval]
+        )
+        assert all_missing_result["status_code"] == 200
+        # All successful runs should be missing this evaluation (since we never added it)
+        successful_run_count = len(successful_runs)
+        assert len(all_missing_result["data"]) == successful_run_count, (
+            f"All {successful_run_count} successful runs should be missing {never_added_eval}, "
+            f"got {len(all_missing_result['data'])}"
+        )
+
+        # ====================================================================================
+        # PART II: PAGINATION & ORDERING
+        # ====================================================================================
+
+        # Test 6: Results ordered by run ID ascending
+        order_result = await self._get_incomplete_evaluations(
+            httpx_client, exp_gid, [ordering_test_eval]
+        )
+        assert order_result["status_code"] == 200
+        order_run_ids = [item["experiment_run"]["id"] for item in order_result["data"]]
+
+        # Require at least 2 results to test ordering
+        assert len(order_run_ids) >= 2, (
+            f"Need at least 2 results to test ordering, got {len(order_run_ids)}. "
+            f"Ensure fixture provides multiple runs missing {ordering_test_eval}"
+        )
+
+        # Verify strict ascending order
+        order_rowids = [
+            from_global_id_with_expected_type(GlobalID.from_id(gid), "ExperimentRun")
+            for gid in order_run_ids
+        ]
+        for i in range(len(order_rowids) - 1):
+            assert order_rowids[i] < order_rowids[i + 1], (
+                f"Results must be in ascending order: row {order_rowids[i]} should be < {order_rowids[i + 1]}"
+            )
+
+        # Test 7: Pagination with limit=2
+        # First verify the total count we expect
+        total_incomplete = len(result["data"])
+        assert total_incomplete == 4, (
+            f"Expected exactly 4 incomplete runs (0,2,3,4), got {total_incomplete}"
+        )
+
+        paginated_result = await self._get_incomplete_evaluations(
+            httpx_client, exp_gid, [eval1, eval2], limit=2
+        )
+        assert paginated_result["status_code"] == 200
+        assert len(paginated_result["data"]) == 2, (
+            "Should return exactly 2 runs when limit=2 and results exist"
+        )
+        assert paginated_result["next_cursor"] is not None, (
+            "Must have next_cursor when limit < total results"
+        )
+
+        # Test 8: limit=1 (minimum pagination)
+        limit1_result = await self._get_incomplete_evaluations(
+            httpx_client, exp_gid, [eval1, eval2], limit=1
+        )
+        assert limit1_result["status_code"] == 200
+        assert len(limit1_result["data"]) == 1, (
+            "Should return exactly 1 run when limit=1 and results exist"
+        )
+        assert limit1_result["next_cursor"] is not None, (
+            "Must have next_cursor when limit=1 < total results"
+        )
+
+        # Test 9: Large limit exceeding total runs
+        large_limit_result = await self._get_incomplete_evaluations(
+            httpx_client, exp_gid, [eval1, eval2], limit=10000
+        )
+        assert large_limit_result["status_code"] == 200
+        assert large_limit_result.get("next_cursor") is None, (
+            "Should not have next_cursor when limit exceeds total"
+        )
+
+        # Test 10: Pagination continuity - no gaps or duplicates
+        all_paginated_runs = []
+        cursor = None
+        page_count = 0
+        max_pages = 10  # Safety limit
+
+        for _ in range(max_pages):
+            page_result = await self._get_incomplete_evaluations(
+                httpx_client, exp_gid, [eval1, eval2], limit=2, cursor=cursor
+            )
+            assert page_result["status_code"] == 200
+            page_count += 1
+
+            page_runs = page_result["data"]
+            assert len(page_runs) > 0, (
+                f"Page {page_count} must have results (empty pages violate pagination contract)"
+            )
+            all_paginated_runs.extend(page_runs)
+
+            cursor = page_result.get("next_cursor")
+            if cursor is None:
+                break
+        else:
+            raise AssertionError(
+                f"Pagination didn't complete within {max_pages} pages - possible infinite loop"
+            )
+
+        # Verify correct total pages (4 results / 2 per page = 2 pages)
+        assert page_count == 2, f"Expected 2 pages with limit=2 and 4 results, got {page_count}"
+
+        # Verify no duplicates
+        paginated_run_ids = [item["experiment_run"]["id"] for item in all_paginated_runs]
+        assert len(paginated_run_ids) == len(set(paginated_run_ids)), (
+            f"Pagination must not have duplicates. Got {len(paginated_run_ids)} total, "
+            f"{len(set(paginated_run_ids))} unique"
+        )
+
+        # Verify all expected runs retrieved (no gaps)
+        assert set(paginated_run_ids) == set(run_ids_in_result), (
+            f"Pagination must retrieve all results. "
+            f"Missing: {set(run_ids_in_result) - set(paginated_run_ids)}, "
+            f"Extra: {set(paginated_run_ids) - set(run_ids_in_result)}"
+        )
+
+        # Test 11: No empty pages with next_cursor (critical bug fix)
+        # If we got a next_cursor in any response, the data should NOT be empty
+        for page_num in range(10):
+            check_result = await self._get_incomplete_evaluations(
+                httpx_client,
+                exp_gid,
+                [eval1, eval2],
+                limit=1,
+                cursor=cursor if page_num > 0 else None,
+            )
+            if check_result.get("next_cursor"):
+                assert len(check_result["data"]) > 0, (
+                    f"BUG: Got next_cursor with empty data on page {page_num}! "
+                    "This means SQL filtering is not working and empty pages are returned."
+                )
+            if not check_result.get("next_cursor"):
+                break
+
+        # ====================================================================================
+        # PART III: EDGE CASES
+        # ====================================================================================
+
+        # Test 12: Single evaluation name
+        single_eval_result = await self._get_incomplete_evaluations(
+            httpx_client, exp_gid, [single_eval_test]
+        )
+        assert single_eval_result["status_code"] == 200
+        # All successful runs should be missing this evaluation (since we never added it)
+        assert len(single_eval_result["data"]) == successful_run_count, (
+            f"All {successful_run_count} successful runs should be missing {single_eval_test}, "
+            f"got {len(single_eval_result['data'])}"
+        )
+        for item in single_eval_result["data"]:
+            assert item["evaluation_names"] == [single_eval_test], (
+                f"Single evaluation request must only return that evaluation in list, got {item['evaluation_names']}"
+            )
+
+        # Test 13: Duplicate evaluation names (handled gracefully)
+        duplicate_result = await self._get_incomplete_evaluations(
+            httpx_client, exp_gid, [eval1, eval1, eval2, eval2]
+        )
+        assert duplicate_result["status_code"] == 200
+        assert "data" in duplicate_result
+        assert isinstance(duplicate_result["data"], list)
+
+        # Verify duplicates are handled correctly (no crashes, valid structure)
+        for item in duplicate_result["data"]:
+            assert "experiment_run" in item
+            assert "evaluation_names" in item
+            # Each incomplete evaluation name should appear at most once per run
+            assert len(item["evaluation_names"]) == len(set(item["evaluation_names"])), (
+                f"Evaluation names should be deduplicated within each run: {item['evaluation_names']}"
+            )
+            # All evaluation names should be either eval1 or eval2
+            for name in item["evaluation_names"]:
+                assert name in [eval1, eval2], f"Unexpected evaluation name: {name}"
+
+        # Test 14: All evaluations complete (empty result)
+        async with db() as session:
+            runs_result = await session.execute(
+                select(models.ExperimentRun)
+                .where(models.ExperimentRun.experiment_id == exp_v1_mixed.id)
+                .where(models.ExperimentRun.error.is_(None))
+                .order_by(models.ExperimentRun.id)
+            )
+            successful_runs = list(runs_result.scalars())
+
+            for run in successful_runs:
+                session.add(
+                    models.ExperimentRunAnnotation(
+                        experiment_run_id=run.id,
+                        name=all_complete_eval,
+                        annotator_kind="CODE",
+                        label="success",
+                        score=1.0,
+                        error=None,
+                        metadata_={},
+                        start_time=now,
+                        end_time=now,
+                    )
+                )
+
+        all_complete_result = await self._get_incomplete_evaluations(
+            httpx_client, exp_gid, [all_complete_eval]
+        )
+        assert all_complete_result["status_code"] == 200
+        # Should return empty list (all successful runs have this evaluation complete)
+        # Failed runs are excluded from results (they shouldn't be evaluated)
+        assert len(all_complete_result["data"]) == 0, (
+            f"When all successful runs have completed an evaluation, should return 0 results, "
+            f"got {len(all_complete_result['data'])}"
+        )
+        assert all_complete_result.get("next_cursor") is None, (
+            "Empty result should not have next_cursor"
+        )
+
+        # ====================================================================================
+        # PART IV: ERROR HANDLING
+        # ====================================================================================
+
+        # Test 15: No evaluator names specified returns 400
         no_evaluator_result = await self._get_incomplete_evaluations(httpx_client, exp_gid)
         assert no_evaluator_result["status_code"] == 400
         assert "evaluation_name" in no_evaluator_result["text"].lower()
 
-        # ===== Test 5: Invalid experiment ID returns 404 =====
+        # Test 16: Invalid experiment ID returns 404
         fake_exp_gid = GlobalID("Experiment", "999999")
-        invalid_result = await self._get_incomplete_evaluations(
-            httpx_client, fake_exp_gid, ["accuracy"]
-        )
+        invalid_result = await self._get_incomplete_evaluations(httpx_client, fake_exp_gid, [eval1])
         assert invalid_result["status_code"] == 404
         if "json" in invalid_result:
             assert "does not exist" in invalid_result["json"]["detail"]
         else:
             assert "does not exist" in invalid_result["text"]
 
-        # ===== Test 6: Experiment with no runs returns empty result =====
-        exp_empty_gid = GlobalID("Experiment", str(exp_v1_empty.id))
+        # Test 17: Invalid cursor returns 422
+        invalid_cursor_result = await self._get_incomplete_evaluations(
+            httpx_client, exp_gid, [eval1], cursor="invalid-cursor"
+        )
+        assert invalid_cursor_result["status_code"] == 422
+
+        # Test 18: Experiment with no runs returns empty result
+        non_existent_eval = f"non_existent_{token_hex(4)}"
         empty_result = await self._get_incomplete_evaluations(
-            httpx_client, exp_empty_gid, ["non_existent"]
+            httpx_client, exp_empty_gid, [non_existent_eval]
         )
         assert empty_result["status_code"] == 200
         assert len(empty_result["data"]) == 0, "Experiment with no runs should return empty"
         assert empty_result["next_cursor"] is None
 
-        # ===== Test 7: Results ordered by run ID ascending =====
-        # Add annotations to create incomplete evaluations
-        now = datetime.now(timezone.utc)
-        async with db() as session:
-            # Get all runs for this experiment
-            runs_result = await session.execute(
-                select(models.ExperimentRun)
-                .where(models.ExperimentRun.experiment_id == exp_v1_mixed.id)
-                .order_by(models.ExperimentRun.id)
-            )
-            runs = list(runs_result.scalars())
+        # ====================================================================================
+        # PART V: SECURITY
+        # ====================================================================================
 
-            # Add "ordering_test" annotation to only the first run, leaving others incomplete
-            if runs:
-                session.add(
-                    models.ExperimentRunAnnotation(
-                        experiment_run_id=runs[0].id,
-                        name="ordering_test",
-                        annotator_kind="CODE",
-                        label=None,
-                        score=1.0,
-                        explanation=None,
-                        error=None,
-                        metadata_={},
-                        trace_id=None,
-                        start_time=now,
-                        end_time=now,
-                    )
+        # Test 19: SQL injection attempts through evaluation_name parameter
+        sql_injection_attempts = [
+            # Classic SQL injection attempts
+            "'; DROP TABLE experiment_runs; --",
+            "' OR '1'='1",
+            "' OR 1=1--",
+            "admin'--",
+            "' UNION SELECT NULL--",
+            # More sophisticated attempts
+            "1' AND '1'='1",
+            "1' UNION SELECT * FROM experiments--",
+            "'; DELETE FROM experiments WHERE 1=1--",
+            # Boolean-based blind SQL injection
+            "' AND (SELECT COUNT(*) FROM experiments) > 0--",
+            # Time-based blind SQL injection
+            "'; WAITFOR DELAY '00:00:05'--",
+            # PostgreSQL-specific attempts
+            "'; SELECT pg_sleep(5)--",
+            "' OR 1=1; --",
+            # Multiple statement attempts
+            "eval1'; DROP TABLE experiments; SELECT '",
+            # NULL byte injection
+            "eval1\x00",
+            # Unicode/encoding attempts
+            "eval1\u0027 OR 1=1--",
+        ]
+
+        for injection_attempt in sql_injection_attempts:
+            # Test single malicious evaluation name
+            result = await self._get_incomplete_evaluations(
+                httpx_client, exp_gid, [injection_attempt]
+            )
+
+            # Null bytes should be rejected with 400 (invalid input)
+            if "\x00" in injection_attempt:
+                assert result["status_code"] == 400, (
+                    f"Null byte injection should return 400 error: {injection_attempt}"
+                )
+                assert "null byte" in result["text"].lower(), (
+                    "Error message should mention null bytes"
+                )
+            else:
+                # Other injection attempts should return valid response (not crash)
+                assert result["status_code"] == 200, (
+                    f"SQL injection attempt should not cause server error: {injection_attempt}"
                 )
 
-        # Get all incomplete evaluations for ordering test
-        order_result = await self._get_incomplete_evaluations(
-            httpx_client, exp_gid, ["ordering_test"]
-        )
-        assert order_result["status_code"] == 200
-        all_run_ids = [item["experiment_run"]["id"] for item in order_result["data"]]
-        assert len(all_run_ids) >= 2, (
-            f"Need at least 2 incomplete evaluations to test ordering, got {len(all_run_ids)}"
-        )
+                # Result should be empty or contain valid data structure
+                assert "data" in result, "Response should have data field"
+                assert isinstance(result["data"], list), "Data should be a list"
 
-        # Convert all GlobalIDs to rowids and verify ascending order
-        from phoenix.server.api.types.node import from_global_id_with_expected_type
+                # If there's data, verify structure is intact
+                for item in result["data"]:
+                    assert "experiment_run" in item
+                    assert "dataset_example" in item
+                    assert "evaluation_names" in item
+                    assert isinstance(item["evaluation_names"], list)
 
-        all_rowids = [
-            from_global_id_with_expected_type(GlobalID.from_id(gid), "ExperimentRun")
-            for gid in all_run_ids
-        ]
-        for i in range(len(all_rowids) - 1):
-            assert all_rowids[i] < all_rowids[i + 1], (
-                f"Results should be in ascending order: row {all_rowids[i]} should be < {all_rowids[i + 1]}"
-            )
-
-        # ===== Test 8: Invalid cursor returns 422 =====
-        invalid_cursor_result = await self._get_incomplete_evaluations(
-            httpx_client, exp_gid, ["accuracy"], cursor="invalid-cursor"
+        # Test 20: Mixed malicious and legitimate names
+        mixed_attempt = await self._get_incomplete_evaluations(
+            httpx_client,
+            exp_gid,
+            ["legitimate_eval", "'; DROP TABLE experiments--", "another_eval"],
         )
-        assert invalid_cursor_result["status_code"] == 422
+        assert mixed_attempt["status_code"] == 200
+        assert "data" in mixed_attempt
+
+        # Test 21: Verify database integrity after SQL injection attempts
+        normal_result = await self._get_incomplete_evaluations(
+            httpx_client, exp_gid, ["safe_evaluation_name"]
+        )
+        assert normal_result["status_code"] == 200, (
+            "Database should still be functional after SQL injection attempts"
+        )
