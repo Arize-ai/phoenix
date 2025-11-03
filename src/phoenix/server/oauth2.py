@@ -66,7 +66,9 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
                 "If you don't need group-based access control, remove groups_attribute_path."
             )
 
-        self._compiled_groups_path = self._compile_jmespath_expression(self._groups_attribute_path)
+        self._compiled_groups_path = self._compile_jmespath_expression(
+            self._groups_attribute_path, "GROUPS_ATTRIBUTE_PATH"
+        )
 
         # Role mapping configuration
         self._role_attribute_path = (
@@ -76,12 +78,16 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         )
         self._role_mapping = role_mapping
         self._role_attribute_strict = role_attribute_strict
-        self._compiled_role_path = self._compile_jmespath_expression(self._role_attribute_path)
+        self._compiled_role_path = self._compile_jmespath_expression(
+            self._role_attribute_path, "ROLE_ATTRIBUTE_PATH"
+        )
 
         super().__init__(framework=None, *args, **kwargs)
 
     @staticmethod
-    def _compile_jmespath_expression(path: Optional[str]) -> Optional[jmespath.parser.ParsedResult]:
+    def _compile_jmespath_expression(
+        path: Optional[str], attribute_name: str
+    ) -> Optional[jmespath.parser.ParsedResult]:
         """Validate and compile JMESPath expression at startup for fail-fast behavior."""
         if not path:
             return None
@@ -90,7 +96,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
             return jmespath.compile(path)
         except (jmespath.exceptions.JMESPathError, jmespath.exceptions.ParseError) as e:
             raise ValueError(
-                f"Invalid JMESPath expression in GROUPS_ATTRIBUTE_PATH: '{path}'. Error: {e}. "
+                f"Invalid JMESPath expression in {attribute_name}: '{path}'. Error: {e}. "
                 "Hint: Claim keys with special characters (colons, dots, slashes, hyphens) "
                 "must be enclosed in double quotes. "
                 "Examples: '\"cognito:groups\"', '\"https://myapp.com/groups\"'"

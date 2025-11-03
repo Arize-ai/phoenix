@@ -101,7 +101,7 @@ class TestOAuth2ClientJMESPathValidation:
             clients.add_client(config)
 
         error_message = str(exc_info.value)
-        assert "Invalid JMESPath expression" in error_message
+        assert "Invalid JMESPath expression in GROUPS_ATTRIBUTE_PATH" in error_message
         assert "https://myapp.com/groups" in error_message
         assert "double quotes" in error_message
         assert '"cognito:groups"' in error_message  # Example in hint
@@ -120,6 +120,26 @@ class TestOAuth2ClientJMESPathValidation:
 
         clients = OAuth2Clients()
         clients.add_client(config)  # Should not raise
+
+    def test_role_attribute_path_error_message_identifies_role(self) -> None:
+        """Test that error message for invalid role JMESPath correctly identifies ROLE_ATTRIBUTE_PATH."""
+        config = OAuth2ClientConfig(
+            **_OAUTH2_CONFIG_DEFAULTS,
+            groups_attribute_path=None,
+            allowed_groups=[],
+            role_attribute_path="https://myapp.com/role",  # Invalid - needs quotes
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=False,
+        )
+
+        clients = OAuth2Clients()
+        with pytest.raises(ValueError) as exc_info:
+            clients.add_client(config)
+
+        error_message = str(exc_info.value)
+        assert "Invalid JMESPath expression in ROLE_ATTRIBUTE_PATH" in error_message
+        assert "https://myapp.com/role" in error_message
+        assert "double quotes" in error_message
 
 
 class TestHasSufficientClaims:
