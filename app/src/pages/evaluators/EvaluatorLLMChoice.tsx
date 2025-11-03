@@ -17,7 +17,7 @@ import {
 
 type Choice = {
   label: string;
-  score: number;
+  score?: number;
 };
 
 export type ChoiceConfig = {
@@ -63,60 +63,62 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
         />
         <Flex direction="column" gap="size-100">
           <GridRow>
-            <Text>Score</Text>
             <Text>Choice</Text>
+            <Text>Score</Text>
           </GridRow>
           {/* render choices. you must have at least 2 choices, you cannot delete if there are only two remaining */}
           {fields.map((item, index) => (
             <GridRow key={item.id}>
               <Controller
                 control={control}
-                name={`choices.${index}.score`}
+                name={`choices.${index}.label`}
+                rules={{
+                  required: "Choice label is required",
+                }}
                 render={({ field, fieldState: { error } }) => (
-                  <NumberField
+                  <TextField
                     {...field}
-                    value={
-                      typeof field.value === "number" ? field.value : undefined
-                    }
-                    aria-label={`Score ${index + 1}`}
+                    aria-label={`Choice ${index + 1}`}
                     isInvalid={!!error}
+                    autoFocus={index > 0}
                     css={css`
-                      width: 8ch;
+                      flex: 1 1 auto;
+                      flex-shrink: 1;
                     `}
                   >
                     <Input
-                      placeholder={`e.g. ${index} (optional)`}
-                      css={css`
-                        width: 100%;
-                      `}
+                      placeholder={`e.g. ${ALPHABET[index % ALPHABET.length]}`}
                     />
                     <FieldError>{error?.message}</FieldError>
-                  </NumberField>
+                  </TextField>
                 )}
               />
               <Flex direction="row" gap="size-100" alignItems="center">
                 <Controller
                   control={control}
-                  name={`choices.${index}.label`}
-                  rules={{
-                    required: "Choice label is required",
-                  }}
+                  name={`choices.${index}.score`}
                   render={({ field, fieldState: { error } }) => (
-                    <TextField
+                    <NumberField
                       {...field}
-                      aria-label={`Choice ${index + 1}`}
+                      value={
+                        typeof field.value === "number"
+                          ? field.value
+                          : undefined
+                      }
+                      aria-label={`Score ${index + 1}`}
                       isInvalid={!!error}
-                      autoFocus={index > 0}
                       css={css`
-                        flex: 1 1 auto;
-                        flex-shrink: 1;
+                        width: 100%;
                       `}
                     >
                       <Input
-                        placeholder={`e.g. ${ALPHABET[index % ALPHABET.length]}`}
+                        placeholder={`e.g. ${index} (optional)`}
+                        css={css`
+                          width: 100%;
+                        `}
                       />
                       <FieldError>{error?.message}</FieldError>
-                    </TextField>
+                    </NumberField>
                   )}
                 />
                 {index > 1 && (
@@ -145,7 +147,7 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
             leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
             aria-label="Add choice"
             onPress={() => {
-              append({ label: "", score: fields.length });
+              append({ label: "", score: undefined });
             }}
           >
             Add choice
@@ -160,8 +162,9 @@ const GridRow = ({ children }: PropsWithChildren) => {
   return (
     <div
       css={css`
+        width: 100%;
         display: grid;
-        grid-template-columns: 8ch 1fr;
+        grid-template-columns: 3fr 1fr;
         gap: var(--ac-global-dimension-static-size-100);
         align-items: start;
       `}

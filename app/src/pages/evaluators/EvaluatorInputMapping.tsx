@@ -1,26 +1,22 @@
-import { PropsWithChildren, Suspense, useMemo } from "react";
+import {
+  PropsWithChildren,
+  Suspense,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import { Control, Controller } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
-  Autocomplete,
-  Button,
+  ComboBox,
+  ComboBoxItem,
   Icon,
   Icons,
-  Input,
-  ListBox,
-  ListBoxItem,
   Loading,
-  Popover,
-  SearchField,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectValue,
   Text,
-  useFilter,
-  View,
 } from "@phoenix/components";
 import { Heading } from "@phoenix/components/content/Heading";
 import { Flex } from "@phoenix/components/layout/Flex";
@@ -87,7 +83,6 @@ const EvaluatorInputMappingControls = ({
   exampleId: string;
   control: Control<InputMapping, unknown, InputMapping>;
 }) => {
-  const { contains } = useFilter({ sensitivity: "base" });
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances[0];
   invariant(
@@ -131,63 +126,64 @@ const EvaluatorInputMappingControls = ({
     ];
   }, [data]);
   const { variableKeys: labels } = useDerivedPlaygroundVariables();
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const setInputValue = useCallback((key: string, value: string) => {
+    setInputValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
   // iterate over all keys in the control
   // each row should have a label, an arrow pointing to the example field, and a select field
   // the label should be the key, the select field should have all flattened example keys as options
   return (
-    <Flex direction="column" gap="size-100">
+    <Flex direction="column" gap="size-100" width="100%">
       {labels.map((label) => (
-        <Flex direction="row" gap="size-100" alignItems="center" key={label}>
+        <div
+          key={label}
+          css={css`
+            display: grid;
+            grid-template-columns: 4fr 1fr 4fr;
+            gap: var(--ac-global-dimension-static-size-100);
+            align-items: center;
+            justify-items: center;
+            width: 100%;
+          `}
+        >
+          <Controller
+            name={label}
+            control={control}
+            render={({ field }) => (
+              <ComboBox
+                aria-label={`Select an example field for ${label}`}
+                placeholder="Select an example field"
+                defaultItems={allExampleKeys}
+                selectedKey={field.value ?? ""}
+                onSelectionChange={(key) => {
+                  field.onChange(key);
+                  setInputValue(label, key as string);
+                }}
+                onInputChange={(value) => setInputValue(label, value)}
+                inputValue={inputValues[label] ?? ""}
+                css={css`
+                  width: 100%;
+                `}
+              >
+                {(item) => (
+                  <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
+                    {item.label}
+                  </ComboBoxItem>
+                )}
+              </ComboBox>
+            )}
+          />
+          <Icon svg={<Icons.ArrowRightWithStem />} />
           <Text
             css={css`
               white-space: nowrap;
-              min-width: 200px;
             `}
             title={label}
           >
             <Truncate maxWidth="200px">{label}</Truncate>
           </Text>
-          <Icon svg={<Icons.ArrowRight />} />
-          <Controller
-            name={label}
-            control={control}
-            render={({ field }) => (
-              <Select
-                placeholder="Select an example field"
-                value={field.value}
-                onChange={field.onChange}
-                css={css`
-                  width: 100%;
-                `}
-              >
-                <Button>
-                  <SelectValue />
-                  <SelectChevronUpDownIcon />
-                </Button>
-                <Popover>
-                  <Autocomplete filter={contains}>
-                    <View paddingX="size-100" marginTop="size-100">
-                      <SearchField aria-label="Search" autoFocus>
-                        <Input placeholder="Search example fields" />
-                      </SearchField>
-                    </View>
-                    <ListBox items={allExampleKeys}>
-                      {(item) => (
-                        <ListBoxItem
-                          key={item.id}
-                          id={item.id}
-                          textValue={item.id}
-                        >
-                          {item.label}
-                        </ListBoxItem>
-                      )}
-                    </ListBox>
-                  </Autocomplete>
-                </Popover>
-              </Select>
-            )}
-          />
-        </Flex>
+        </div>
       ))}
     </Flex>
   );

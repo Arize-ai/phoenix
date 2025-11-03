@@ -47,5 +47,13 @@ export const EvaluatorChatTemplateProvider = ({
 export const EvaluatorChatTemplate = () => {
   const instances = usePlaygroundContext((state) => state.instances);
   const instanceId = useMemo(() => instances[0].id, [instances]);
-  return <PlaygroundTemplate playgroundInstanceId={instanceId} />;
+  return (
+    <PlaygroundTemplate
+      playgroundInstanceId={instanceId}
+      disablePromptSave
+      disableResponseFormat
+      disableTools
+      disablePromptMenu
+    />
+  );
 };
