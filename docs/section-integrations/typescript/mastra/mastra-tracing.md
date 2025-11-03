@@ -53,14 +53,6 @@ export const mastra = new Mastra({
 });
 ```
 
-## ℹ️ Running with Mastra Dev Server
-
-The exporter runs when you start your application with the Mastra dev server:
-
-- Use `mastra dev` to send traces to Phoenix.
-- Running scripts directly (e.g., with `node` or `tsx`) does not initialize tracing.
-
-
 ## Create Agents and Tools
 
 From here you can use Mastra as normal. Create agents with tools and run them:
@@ -120,28 +112,33 @@ const mastra = new Mastra({
 
 ## Running Your Application
 
-**To start your application with Phoenix tracing:**
+**To test your application with Phoenix tracing:**
 
 ```bash
-# Start the Mastra dev server (required for tracing)
+# Start the Mastra dev server
 mastra dev
+
+## or, build and run the production server with instrumentation enabled
+# npm run build
+# node --import=./.mastra/output/instrumentation.mjs .mastra/output/index.mjs
 ```
 
 This will:
+
 1. Initialize the tracing SDK with your observability configuration
 2. Start the Mastra playground at `http://localhost:4111`
 3. Enable trace export to Phoenix at `http://localhost:6006`
 
 **Interact with your agents:**
 
-- **Via Playground:** Navigate to `http://localhost:4111/playground` to chat with agents
-- **Via API:** Make requests to the generated API endpoints
-- **Programmatically:** Create test scripts that run within the Mastra dev environment
-
+* **Via Playground:** Navigate to `http://localhost:4111/playground` to chat with agents
+* **Via API:** Make requests to the generated API endpoints
+* **Programmatically:** Create test scripts that run within the Mastra dev environment
 
 ## Observe
 
 Now that you have tracing setup, all agent runs, tool calls, and model interactions will be streamed to your running Phoenix for observability and evaluation.
+
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/mastra-traces.png" %}
 
 ## Resources
