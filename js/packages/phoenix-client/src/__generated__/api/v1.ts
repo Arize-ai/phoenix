@@ -2151,7 +2151,6 @@ export interface components {
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /** Id */
             id: string;
-            prompt: components["schemas"]["Prompt"];
         };
         /** PromptVersionData */
         PromptVersionData: {

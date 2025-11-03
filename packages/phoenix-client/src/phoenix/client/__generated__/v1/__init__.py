@@ -802,7 +802,6 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
-    prompt: Prompt
 
 
 class CreatePromptRequestBody(TypedDict):

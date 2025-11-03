@@ -7671,9 +7671,6 @@
           "id": {
             "type": "string",
             "title": "Id"
-          },
-          "prompt": {
-            "$ref": "#/components/schemas/Prompt"
           }
         },
         "type": "object",
@@ -7684,8 +7681,7 @@
           "template_type",
           "template_format",
           "invocation_parameters",
-          "id",
-          "prompt"
+          "id"
         ],
         "title": "PromptVersion"
       },

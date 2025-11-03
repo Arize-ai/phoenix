@@ -76,7 +76,6 @@ class PromptVersionData(V1RoutesBaseModel):
 
 class PromptVersion(PromptVersionData):
     id: str
-    prompt: Prompt
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):

@@ -58,7 +58,7 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
   const { control, handleSubmit, reset } = useForm<EditPromptFormParams>({
     defaultValues: {
       description: data.description ?? "",
-      metadata: JSON.stringify(data.metadata, null, 2) ?? "{}",
+      metadata: data.metadata ? JSON.stringify(data.metadata, null, 2) : "{}",
     },
   });
 
@@ -67,7 +67,7 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
     if (isOpen) {
       reset({
         description: data.description ?? "",
-        metadata: JSON.stringify(data.metadata, null, 2) ?? "{}",
+        metadata: data.metadata ? JSON.stringify(data.metadata, null, 2) : "{}",
       });
     }
   }, [isOpen, data.description, data.metadata, reset]);
