@@ -539,12 +539,9 @@ async function recordTaskResult({
       },
     });
   } catch (err: unknown) {
-    // Ignore 409 Conflict - result already exists
+    // Ignore 409 Conflict - result already exists (idempotency)
     if (isHttpErrorWithStatus(err, 409)) {
-      console.debug(
-        `[resumeExperiment] Task result already exists for example ${example.id}, repetition ${repetitionNumber} (409 Conflict - skipping)`
-      );
-      return; // Result already recorded, idempotency working as expected
+      return;
     }
     throw err; // Re-throw other errors
   }
