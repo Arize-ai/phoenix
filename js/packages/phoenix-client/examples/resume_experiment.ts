@@ -31,8 +31,8 @@ async function main() {
     options?: { simulateFailure?: boolean }
   ) => {
     const question = example.input.question as string;
-    if (options?.simulateFailure && Math.random() < 0.7) {
-      // 70% failure rate to simulate incomplete runs
+    if (options?.simulateFailure && Math.random() < 0.5) {
+      // 50% failure rate to simulate incomplete runs
       throw new Error("Simulated task failure");
     }
     // Add random number to make outputs distinguishable in UI
@@ -50,6 +50,11 @@ async function main() {
         name: "accuracy-score",
         kind: "CODE",
         evaluate: async ({ output, expected }) => {
+          // Simulate 50% evaluator failure rate
+          if (Math.random() < 0.5) {
+            throw new Error("Simulated evaluator failure");
+          }
+
           // Simulate varied accuracy scores for visibility in UI
           const outputStr = String(output?.answer || "");
           const expectedStr = String(expected?.answer || "");

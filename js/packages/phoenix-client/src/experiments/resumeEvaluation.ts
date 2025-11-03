@@ -40,15 +40,6 @@ export type ResumeEvaluationParams = ClientFn & {
    */
   readonly evaluators: Evaluator | readonly Evaluator[];
   /**
-   * List of evaluation names to check for incomplete evaluations.
-   * Use this when a single evaluator produces multiple evaluations whose names
-   * are determined at runtime. When specified, only one evaluator is allowed,
-   * and it will run for any experiment run missing any of the specified evaluations.
-   * If not provided, evaluation names are matched to evaluator names.
-   * @default undefined
-   */
-  readonly evaluationNames?: readonly string[];
-  /**
    * The logger to use
    * @default console
    */
@@ -134,37 +125,10 @@ function buildIncompleteEvaluation(
  */
 function shouldRunEvaluator(
   evaluator: Evaluator,
-  incompleteEval: IncompleteEvaluation,
-  evaluationNames?: readonly string[]
+  incompleteEval: IncompleteEvaluation
 ): boolean {
-  if (evaluationNames) {
-    // If evaluationNames is specified, run the evaluator if any of its evaluations are incomplete
-    return evaluationNames.some((name) =>
-      incompleteEval.evaluationNames.includes(name)
-    );
-  }
-  // Otherwise, match evaluator name directly
+  // Match evaluator name directly
   return incompleteEval.evaluationNames.includes(evaluator.name);
-}
-
-/**
- * Gets the expected evaluation names for a specific evaluator run
- */
-function getExpectedEvaluationNames(
-  evaluator: Evaluator,
-  incompleteEval: IncompleteEvaluation,
-  evaluationNames?: readonly string[]
-): readonly string[] {
-  if (evaluationNames) {
-    // Multi-output: evaluator produces all specified evaluation names
-    return evaluationNames.filter((name) =>
-      incompleteEval.evaluationNames.includes(name)
-    );
-  }
-  // Single-output: evaluator only produces its own name
-  return incompleteEval.evaluationNames.includes(evaluator.name)
-    ? [evaluator.name]
-    : [];
 }
 
 /**
@@ -272,12 +236,12 @@ function printEvaluationSummary({
  *
  * The function processes incomplete evaluations in batches using pagination to minimize memory usage.
  *
- * By default, evaluation names are matched to evaluator names. For example, if you pass
+ * Evaluation names are matched to evaluator names. For example, if you pass
  * an evaluator with name "accuracy", it will check for and resume any runs missing the "accuracy" evaluation.
  *
- * For multi-output evaluators that produce multiple evaluations with names generated at runtime
- * (not known upfront), use `evaluationNames` to explicitly specify which evaluation names to check
- * for incomplete runs. When using `evaluationNames`, only one evaluator is allowed.
+ * **Note:** Multi-output evaluators (evaluators that return an array of results) are not
+ * supported for resume operations. Each evaluator should produce a single evaluation
+ * result with a name matching the evaluator's name.
  *
  * @example
  * ```ts
@@ -301,32 +265,12 @@ function printEvaluationSummary({
  *   evaluators: [myEvaluator],
  *   stopOnFirstError: true, // Exit immediately on first failure
  * });
- *
- * // Multi-output evaluator with runtime-generated names
- * await resumeEvaluation({
- *   experimentId: "exp_123",
- *   evaluators: [{
- *     name: "llm_judge",
- *     kind: "LLM",
- *     evaluate: async ({ output, expected }) => {
- *       // This evaluator produces multiple evaluations with their own names
- *       return [
- *         { name: "coherence", score: 0.95 },
- *         { name: "relevance", score: 0.85 },
- *         { name: "helpfulness", score: 0.92 },
- *       ];
- *     }
- *   }],
- *   // Specify which evaluation names to check for incomplete runs
- *   evaluationNames: ["coherence", "relevance", "helpfulness"],
- * });
  * ```
  */
 export async function resumeEvaluation({
   client: _client,
   experimentId,
   evaluators: _evaluators,
-  evaluationNames,
   logger = console,
   concurrency = 5,
   pageSize = DEFAULT_PAGE_SIZE,
@@ -346,14 +290,6 @@ export async function resumeEvaluation({
     Number.isInteger(pageSize) && pageSize > 0,
     "pageSize must be a positive integer greater than 0"
   );
-
-  // If evaluation_names is specified, only allow one evaluator
-  if (evaluationNames && evaluators.length > 1) {
-    throw new Error(
-      "When evaluationNames is specified, only one evaluator is allowed. " +
-        "The evaluator should produce multiple evaluations with the specified names."
-    );
-  }
 
   // Get experiment info
   logger.info(`🔍 Checking for incomplete evaluations...`);
@@ -380,11 +316,8 @@ export async function resumeEvaluation({
   const provider = tracerSetup?.provider ?? null;
   const evalTracer = tracerSetup?.tracer ?? null;
 
-  // Build evaluation names list for query
-  // Use provided evaluationNames if available, otherwise derive from evaluators
-  const evaluationNamesList = evaluationNames
-    ? [...evaluationNames]
-    : evaluators.map((e) => e.name);
+  // Build evaluation names list for query - derive from evaluator names
+  const evaluationNamesList = evaluators.map((e) => e.name);
 
   // Create a CSP-style bounded buffer for evaluation distribution
   const evalChannel = new Channel<EvalItem>(
@@ -472,7 +405,7 @@ export async function resumeEvaluation({
           const incompleteEval = buildIncompleteEvaluation(incomplete);
 
           const evaluatorsToRun = evaluators.filter((evaluator) =>
-            shouldRunEvaluator(evaluator, incompleteEval, evaluationNames)
+            shouldRunEvaluator(evaluator, incompleteEval)
           );
 
           // Flatten: Send one channel item per evaluator
@@ -505,12 +438,6 @@ export async function resumeEvaluation({
         break;
       }
 
-      const expectedEvaluationNames = getExpectedEvaluationNames(
-        item.evaluator,
-        item.incompleteEval,
-        evaluationNames
-      );
-
       try {
         await runSingleEvaluation({
           client,
@@ -518,7 +445,6 @@ export async function resumeEvaluation({
           evaluator: item.evaluator,
           experimentRun: item.incompleteEval.experimentRun,
           datasetExample: item.incompleteEval.datasetExample,
-          expectedEvaluationNames,
           tracer: evalTracer,
         });
         totalCompleted++;
@@ -594,7 +520,6 @@ async function recordEvaluationResults({
   evaluator,
   experimentRun,
   results,
-  expectedEvaluationNames,
   error,
   startTime,
   endTime,
@@ -604,7 +529,6 @@ async function recordEvaluationResults({
   readonly evaluator: Evaluator;
   readonly experimentRun: IncompleteEvaluation["experimentRun"];
   readonly results?: readonly SingleEvaluationResult[];
-  readonly expectedEvaluationNames: readonly string[];
   readonly error?: string;
   readonly startTime: Date;
   readonly endTime: Date;
@@ -643,36 +567,33 @@ async function recordEvaluationResults({
       }
     }
   } else if (error) {
-    // Error case: record failed evaluation for EACH expected evaluation name
-    for (const evaluationName of expectedEvaluationNames) {
-      try {
-        await client.POST("/v1/experiment_evaluations", {
-          body: {
-            experiment_run_id: experimentRun.id,
-            name: evaluationName,
-            annotator_kind: evaluator.kind,
-            result: null,
-            start_time: startTime.toISOString(),
-            end_time: endTime.toISOString(),
-            error,
-            trace_id: traceId,
-          },
-        });
-      } catch (err: unknown) {
-        // Ignore 409 Conflict - evaluation already exists (e.g., from previous partial run)
-        const error = err as { response?: { status?: number } };
-        if (error.response?.status === 409) {
-          continue; // Silently ignore - evaluation already recorded
-        }
-        throw err; // Re-throw other errors
+    // Error case: record failed evaluation with evaluator name
+    try {
+      await client.POST("/v1/experiment_evaluations", {
+        body: {
+          experiment_run_id: experimentRun.id,
+          name: evaluator.name,
+          annotator_kind: evaluator.kind,
+          result: null,
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
+          error,
+          trace_id: traceId,
+        },
+      });
+    } catch (err: unknown) {
+      // Ignore 409 Conflict - evaluation already exists (e.g., from previous partial run)
+      const error = err as { response?: { status?: number } };
+      if (error.response?.status === 409) {
+        return; // Silently ignore - evaluation already recorded
       }
+      throw err; // Re-throw other errors
     }
   }
 }
 
 /**
- * Run a single evaluation and record the result(s).
- * Handles both single and multi-output evaluators.
+ * Run a single evaluation and record the result.
  */
 async function runSingleEvaluation({
   client,
@@ -680,7 +601,6 @@ async function runSingleEvaluation({
   evaluator,
   experimentRun,
   datasetExample,
-  expectedEvaluationNames,
   tracer,
 }: {
   readonly client: PhoenixClient;
@@ -688,7 +608,6 @@ async function runSingleEvaluation({
   readonly evaluator: Evaluator;
   readonly experimentRun: IncompleteEvaluation["experimentRun"];
   readonly datasetExample: IncompleteEvaluation["datasetExample"];
-  readonly expectedEvaluationNames: readonly string[];
   readonly tracer: Tracer | null;
 }): Promise<void> {
   const startTime = new Date();
@@ -722,7 +641,6 @@ async function runSingleEvaluation({
         evaluator,
         experimentRun,
         results,
-        expectedEvaluationNames,
         error,
         startTime,
         endTime,
@@ -801,7 +719,6 @@ async function runSingleEvaluation({
           evaluator,
           experimentRun,
           results,
-          expectedEvaluationNames,
           error,
           startTime,
           endTime,

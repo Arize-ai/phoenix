@@ -422,7 +422,6 @@ def _build_tasks_for_multi_output_evaluator(
 def _build_incomplete_evaluation_tasks(
     incomplete_evals: Sequence[v1.IncompleteExperimentEvaluation],
     evaluators_by_name: Mapping[EvaluatorName, Evaluator],
-    explicit_evaluation_names: Sequence[str] = (),
 ) -> list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]]:
     """
     Build evaluation tasks from incomplete evaluations response.
@@ -430,20 +429,12 @@ def _build_incomplete_evaluation_tasks(
     Args:
         incomplete_evals: List of incomplete evaluations from server
         evaluators_by_name: Mapping of evaluator names to evaluator functions
-        explicit_evaluation_names: If provided, indicates we're using a single
-            multi-output evaluator. Run it for any run with incomplete evaluations.
 
     Returns:
         List of tuples: (example, run, evaluator)
     """
-    if explicit_evaluation_names:
-        # Multi-output evaluator case: single evaluator produces multiple evaluations
-        # There should only be one evaluator (validated earlier)
-        evaluator = next(iter(evaluators_by_name.values()))
-        return _build_tasks_for_multi_output_evaluator(incomplete_evals, evaluator)
-    else:
-        # Standard case: match evaluator keys with evaluation names
-        return _build_tasks_for_named_evaluators(incomplete_evals, evaluators_by_name)
+    # Standard case: match evaluator keys with evaluation names
+    return _build_tasks_for_named_evaluators(incomplete_evals, evaluators_by_name)
 
 
 class Experiments:
@@ -1074,7 +1065,6 @@ class Experiments:
         experiment_id: str,
         task: ExperimentTask,
         evaluators: Optional[ExperimentEvaluators] = None,
-        evaluation_names: Sequence[str] = (),
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         rate_limit_errors: Optional[RateLimitErrors] = None,
@@ -1088,18 +1078,17 @@ class Experiments:
 
         The method processes incomplete runs in batches using pagination to minimize memory usage.
 
+        .. note::
+            Multi-output evaluators (evaluators that return a list/sequence of results) are not
+            supported for resume operations. Each evaluator should produce a single evaluation
+            result with a name matching the evaluator's key in the dictionary.
+
         Args:
             experiment_id (str): The ID of the experiment to resume.
             task (ExperimentTask): The task to run on incomplete examples.
             evaluators (Optional[ExperimentEvaluators]): Optional evaluators to run on completed
                 task runs. Evaluators can be provided as a dict mapping names to functions, or as
                 a list of functions (names will be auto-generated). Defaults to None.
-            evaluation_names (Sequence[str]): List of evaluation names to check for incomplete
-                evaluations. Use this when a single evaluator produces multiple evaluations whose
-                names are determined at runtime. When specified, only one evaluator is allowed,
-                and it will run for any experiment run missing any of the specified evaluations.
-                If not provided, evaluation names are matched to evaluator dict keys. Defaults to
-                empty tuple.
             print_summary (bool): Whether to print a summary of the results. Defaults to True.
             timeout (Optional[int]): The timeout for task execution in seconds. Defaults to 60.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
@@ -1131,15 +1120,6 @@ class Experiments:
         """
         task_signature = inspect.signature(task)
         _validate_task_signature(task_signature)
-
-        # Validate evaluation_names: if specified, only allow one evaluator
-        if evaluation_names and evaluators is not None:
-            evaluators_by_name = _evaluators_by_name(evaluators)
-            if len(evaluators_by_name) > 1:
-                raise ValueError(
-                    "When evaluation_names is specified, only one evaluator is allowed. "
-                    "The evaluator should produce multiple evaluations with the specified names."
-                )
 
         # Get the experiment metadata
         experiment = self.get(experiment_id=experiment_id)
@@ -1291,7 +1271,6 @@ class Experiments:
             self.resume_evaluation(
                 experiment_id=experiment_id,
                 evaluators=evaluators,
-                evaluation_names=evaluation_names,
                 print_summary=False,  # We'll print our own summary
                 timeout=timeout,
                 rate_limit_errors=rate_limit_errors,
@@ -1312,7 +1291,6 @@ class Experiments:
         *,
         experiment_id: str,
         evaluators: ExperimentEvaluators,
-        evaluation_names: Sequence[str] = (),
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         rate_limit_errors: Optional[RateLimitErrors] = None,
@@ -1329,27 +1307,20 @@ class Experiments:
         The method processes incomplete evaluations in batches using pagination
         to minimize memory usage.
 
-        By default, evaluation names are matched to evaluator dict keys. For example,
+        Evaluation names are matched to evaluator dict keys. For example,
         if you pass ``{"accuracy": accuracy_fn}``, it will check for and resume any runs
         missing the "accuracy" evaluation.
 
-        For multi-output evaluators that produce multiple evaluations with names generated
-        at runtime (not known upfront), use ``evaluation_names`` to explicitly specify which
-        evaluation names to check for incomplete runs. When using ``evaluation_names``, only
-        one evaluator is allowed, and it will run for any experiment run missing any of the
-        specified evaluations.
+        .. note::
+            Multi-output evaluators (evaluators that return a list/sequence of results) are not
+            supported for resume operations. Each evaluator should produce a single evaluation
+            result with a name matching the evaluator's key in the dictionary.
 
         Args:
             experiment_id (str): The ID of the experiment to resume evaluations for.
             evaluators (ExperimentEvaluators): A single evaluator or sequence of evaluators
                 to run. Evaluators can be provided as a dict mapping names to functions,
                 or as a list of functions (names will be auto-generated).
-            evaluation_names (Optional[list[str]]): List of evaluation names to check for
-                incomplete evaluations. Use this when a single evaluator produces multiple
-                evaluations whose names are determined at runtime. When specified, only one
-                evaluator is allowed, and it will run for any experiment run missing any of
-                the specified evaluations. If not provided, evaluation names are matched to
-                evaluator dict keys. Defaults to None.
             print_summary (bool): Whether to print a summary of evaluation results.
                 Defaults to True.
             timeout (Optional[int]): The timeout for evaluation execution in seconds.
@@ -1358,8 +1329,7 @@ class Experiments:
                 exceptions to adaptively throttle on. Defaults to None.
 
         Raises:
-            ValueError: If the experiment is not found, no evaluators are provided, or
-                multiple evaluators are provided with evaluation_names.
+            ValueError: If the experiment is not found or no evaluators are provided.
             httpx.HTTPStatusError: If the API returns an error response.
 
         Example::
@@ -1375,33 +1345,10 @@ class Experiments:
                 experiment_id="exp_123",
                 evaluators={"accuracy": accuracy},
             )
-
-            # Multi-output evaluator with runtime-generated names
-            def multi_metric_evaluator(output, expected):
-                # Returns multiple evaluations with names generated at runtime
-                return [
-                    {"name": "accuracy", "score": 0.9},
-                    {"name": "precision", "score": 0.85},
-                    {"name": "recall", "score": 0.92},
-                ]
-
-            # Specify evaluation_names explicitly since names aren't known upfront
-            client.experiments.resume_evaluation(
-                experiment_id="exp_123",
-                evaluators={"multi_metrics": multi_metric_evaluator},
-                evaluation_names=["accuracy", "precision", "recall"],
-            )
         """
         evaluators_by_name = _evaluators_by_name(evaluators)
         if not evaluators_by_name:
             raise ValueError("Must specify at least one evaluator")
-
-        # If evaluation_names is specified, only allow one evaluator
-        if evaluation_names and len(evaluators_by_name) > 1:
-            raise ValueError(
-                "When evaluation_names is specified, only one evaluator is allowed. "
-                "The evaluator should produce multiple evaluations with the specified names."
-            )
 
         # Get the experiment metadata
         experiment = self.get(experiment_id=experiment_id)
@@ -1413,11 +1360,8 @@ class Experiments:
 
         print("🔍 Checking for incomplete evaluations...")
 
-        # Build evaluation names list for query
-        # Use provided evaluation_names if available, otherwise derive from evaluators
-        evaluation_names_list = (
-            evaluation_names if evaluation_names else list(evaluators_by_name.keys())
-        )
+        # Build evaluation names list for query - derive from evaluator keys
+        evaluation_names_list = list(evaluators_by_name.keys())
 
         # Process incomplete evaluations in streaming batches
         cursor: Optional[str] = None
@@ -1454,7 +1398,6 @@ class Experiments:
                 evaluation_tasks = _build_incomplete_evaluation_tasks(
                     batch_incomplete,
                     evaluators_by_name,
-                    evaluation_names,
                 )
 
                 total_processed += len({inc["experiment_run"]["id"] for inc in batch_incomplete})
@@ -1476,7 +1419,6 @@ class Experiments:
                     False,  # dry_run
                     timeout,
                     rate_limit_errors,
-                    evaluation_names=evaluation_names,
                 )
 
                 total_completed += len([r for r in batch_eval_runs if r.error is None])
@@ -1843,7 +1785,6 @@ class Experiments:
         dry_run: bool,
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
-        evaluation_names: Sequence[str] = (),
     ) -> list[ExperimentEvaluationRun]:
         """
         Execute evaluation tasks.
@@ -1855,7 +1796,6 @@ class Experiments:
             dry_run: Whether to skip server submission
             timeout: Timeout for evaluations
             rate_limit_errors: Errors to rate limit on
-            evaluation_names: Expected evaluation names for multi-output evaluators
 
         Returns:
             List of evaluation run results
@@ -1881,7 +1821,6 @@ class Experiments:
                 resource,
                 dry_run,
                 timeout,
-                expected_evaluation_names=evaluation_names or (),
             )
 
         rate_limited_sync_evaluate_run = functools.reduce(
@@ -1914,7 +1853,6 @@ class Experiments:
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
-        expected_evaluation_names: Sequence[str] = (),
     ) -> list[ExperimentEvaluationRun]:
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -1988,12 +1926,7 @@ class Experiments:
 
         results_to_submit: list[Optional[EvaluationResult]]
         if result is None:
-            # If evaluator failed and we have expected evaluation names (multi-output case),
-            # create one error record for each expected evaluation name
-            if error is not None and expected_evaluation_names:
-                results_to_submit = [None] * len(expected_evaluation_names)
-            else:
-                results_to_submit = [None]
+            results_to_submit = [None]
         elif isinstance(result, Sequence) and not isinstance(result, (str, bytes, dict)):
             results_to_submit = list(result)  # pyright: ignore[reportUnknownArgumentType]
         else:
@@ -2014,19 +1947,9 @@ class Experiments:
                     )
                 )
             else:
-                # For error cases with expected evaluation names, use those names
-                if (
-                    error is not None
-                    and expected_evaluation_names
-                    and idx < len(expected_evaluation_names)
-                ):
-                    eval_name = expected_evaluation_names[idx]
-                else:
-                    eval_name = (
-                        evaluator.name
-                        if len(results_to_submit) == 1
-                        else f"{evaluator.name}-{idx + 1}"
-                    )
+                eval_name = (
+                    evaluator.name if len(results_to_submit) == 1 else f"{evaluator.name}-{idx + 1}"
+                )
 
             eval_run = ExperimentEvaluationRun(
                 experiment_run_id=experiment_run["id"],
@@ -2838,7 +2761,6 @@ class AsyncExperiments:
         experiment_id: str,
         task: ExperimentTask,
         evaluators: Optional[ExperimentEvaluators] = None,
-        evaluation_names: Sequence[str] = (),
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
@@ -2853,18 +2775,17 @@ class AsyncExperiments:
 
         The method processes incomplete runs in batches using pagination to minimize memory usage.
 
+        .. note::
+            Multi-output evaluators (evaluators that return a list/sequence of results) are not
+            supported for resume operations. Each evaluator should produce a single evaluation
+            result with a name matching the evaluator's key in the dictionary.
+
         Args:
             experiment_id (str): The ID of the experiment to resume.
             task (ExperimentTask): The task to run on incomplete examples.
             evaluators (Optional[ExperimentEvaluators]): Optional evaluators to run on completed
                 task runs. Evaluators can be provided as a dict mapping names to functions, or as
                 a list of functions (names will be auto-generated). Defaults to None.
-            evaluation_names (Sequence[str]): List of evaluation names to check for incomplete
-                evaluations. Use this when a single evaluator produces multiple evaluations whose
-                names are determined at runtime. When specified, only one evaluator is allowed,
-                and it will run for any experiment run missing any of the specified evaluations.
-                If not provided, evaluation names are matched to evaluator dict keys. Defaults to
-                empty tuple.
             print_summary (bool): Whether to print a summary of the results. Defaults to True.
             timeout (Optional[int]): The timeout for task execution in seconds. Defaults to 60.
             concurrency (int): The number of concurrent tasks to run. Defaults to 3.
@@ -2897,15 +2818,6 @@ class AsyncExperiments:
         """
         task_signature = inspect.signature(task)
         _validate_task_signature(task_signature)
-
-        # Validate evaluation_names: if specified, only allow one evaluator
-        if evaluation_names and evaluators is not None:
-            evaluators_by_name = _evaluators_by_name(evaluators)
-            if len(evaluators_by_name) > 1:
-                raise ValueError(
-                    "When evaluation_names is specified, only one evaluator is allowed. "
-                    "The evaluator should produce multiple evaluations with the specified names."
-                )
 
         # Get the experiment metadata
         experiment = await self.get(experiment_id=experiment_id)
@@ -3058,7 +2970,6 @@ class AsyncExperiments:
             await self.resume_evaluation(
                 experiment_id=experiment_id,
                 evaluators=evaluators,
-                evaluation_names=evaluation_names,
                 print_summary=False,  # We'll print our own summary
                 timeout=timeout,
                 concurrency=concurrency,
@@ -3080,7 +2991,6 @@ class AsyncExperiments:
         *,
         experiment_id: str,
         evaluators: ExperimentEvaluators,
-        evaluation_names: Sequence[str] = (),
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
@@ -3098,27 +3008,20 @@ class AsyncExperiments:
         The method processes incomplete evaluations in batches using pagination
         to minimize memory usage.
 
-        By default, evaluation names are matched to evaluator dict keys. For example,
+        Evaluation names are matched to evaluator dict keys. For example,
         if you pass ``{"accuracy": accuracy_fn}``, it will check for and resume any runs
         missing the "accuracy" evaluation.
 
-        For multi-output evaluators that produce multiple evaluations with names generated
-        at runtime (not known upfront), use ``evaluation_names`` to explicitly specify which
-        evaluation names to check for incomplete runs. When using ``evaluation_names``, only
-        one evaluator is allowed, and it will run for any experiment run missing any of the
-        specified evaluations.
+        .. note::
+            Multi-output evaluators (evaluators that return a list/sequence of results) are not
+            supported for resume operations. Each evaluator should produce a single evaluation
+            result with a name matching the evaluator's key in the dictionary.
 
         Args:
             experiment_id (str): The ID of the experiment to resume evaluations for.
             evaluators (ExperimentEvaluators): A single evaluator or sequence of evaluators
                 to run. Evaluators can be provided as a dict mapping names to functions,
                 or as a list of functions (names will be auto-generated).
-            evaluation_names (Optional[list[str]]): List of evaluation names to check for
-                incomplete evaluations. Use this when a single evaluator produces multiple
-                evaluations whose names are determined at runtime. When specified, only one
-                evaluator is allowed, and it will run for any experiment run missing any of
-                the specified evaluations. If not provided, evaluation names are matched to
-                evaluator dict keys. Defaults to None.
             print_summary (bool): Whether to print a summary of evaluation results.
                 Defaults to True.
             timeout (Optional[int]): The timeout for evaluation execution in seconds.
@@ -3128,8 +3031,7 @@ class AsyncExperiments:
                 exceptions to adaptively throttle on. Defaults to None.
 
         Raises:
-            ValueError: If the experiment is not found, no evaluators are provided, or
-                multiple evaluators are provided with evaluation_names.
+            ValueError: If the experiment is not found or no evaluators are provided.
             httpx.HTTPStatusError: If the API returns an error response.
 
         Example::
@@ -3145,33 +3047,10 @@ class AsyncExperiments:
                 experiment_id="exp_123",
                 evaluators={"accuracy": accuracy},
             )
-
-            # Multi-output evaluator with runtime-generated names
-            async def multi_metric_evaluator(output, expected):
-                # Returns multiple evaluations with names generated at runtime
-                return [
-                    {"name": "accuracy", "score": 0.9},
-                    {"name": "precision", "score": 0.85},
-                    {"name": "recall", "score": 0.92},
-                ]
-
-            # Specify evaluation_names explicitly since names aren't known upfront
-            await client.experiments.resume_evaluation(
-                experiment_id="exp_123",
-                evaluators={"multi_metrics": multi_metric_evaluator},
-                evaluation_names=["accuracy", "precision", "recall"],
-            )
         """
         evaluators_by_name = _evaluators_by_name(evaluators)
         if not evaluators_by_name:
             raise ValueError("Must specify at least one evaluator")
-
-        # If evaluation_names is specified, only allow one evaluator
-        if evaluation_names and len(evaluators_by_name) > 1:
-            raise ValueError(
-                "When evaluation_names is specified, only one evaluator is allowed. "
-                "The evaluator should produce multiple evaluations with the specified names."
-            )
 
         # Get the experiment metadata
         experiment = await self.get(experiment_id=experiment_id)
@@ -3183,11 +3062,8 @@ class AsyncExperiments:
 
         print("🔍 Checking for incomplete evaluations...")
 
-        # Build evaluation names list for query
-        # Use provided evaluation_names if available, otherwise derive from evaluators
-        evaluation_names_list = (
-            evaluation_names if evaluation_names else list(evaluators_by_name.keys())
-        )
+        # Build evaluation names list for query - derive from evaluator keys
+        evaluation_names_list = list(evaluators_by_name.keys())
 
         # Process incomplete evaluations in streaming batches
         cursor: Optional[str] = None
@@ -3224,7 +3100,6 @@ class AsyncExperiments:
                 evaluation_tasks = _build_incomplete_evaluation_tasks(
                     batch_incomplete,
                     evaluators_by_name,
-                    evaluation_names,
                 )
 
                 total_processed += len({inc["experiment_run"]["id"] for inc in batch_incomplete})
@@ -3247,7 +3122,6 @@ class AsyncExperiments:
                     timeout,
                     rate_limit_errors,
                     concurrency,
-                    evaluation_names=evaluation_names,
                 )
 
                 total_completed += len([r for r in batch_eval_runs if r.error is None])
@@ -3615,7 +3489,6 @@ class AsyncExperiments:
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
         concurrency: int,
-        evaluation_names: Sequence[str] = (),
     ) -> list[ExperimentEvaluationRun]:
         """
         Execute evaluation tasks asynchronously.
@@ -3628,7 +3501,6 @@ class AsyncExperiments:
             timeout: Timeout for evaluations
             rate_limit_errors: Errors to rate limit on
             concurrency: Number of concurrent evaluations
-            evaluation_names: Expected evaluation names for multi-output evaluators
 
         Returns:
             List of evaluation run results
@@ -3654,7 +3526,6 @@ class AsyncExperiments:
                 resource,
                 dry_run,
                 timeout,
-                expected_evaluation_names=evaluation_names or (),
             )
 
         rate_limited_async_evaluate_run = functools.reduce(
@@ -3688,7 +3559,6 @@ class AsyncExperiments:
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
-        expected_evaluation_names: Sequence[str] = (),
     ) -> list[ExperimentEvaluationRun]:
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -3762,12 +3632,7 @@ class AsyncExperiments:
 
         results_to_submit: list[Optional[EvaluationResult]]
         if result is None:
-            # If evaluator failed and we have expected evaluation names (multi-output case),
-            # create one error record for each expected evaluation name
-            if error is not None and expected_evaluation_names:
-                results_to_submit = [None] * len(expected_evaluation_names)
-            else:
-                results_to_submit = [None]
+            results_to_submit = [None]
         elif isinstance(result, Sequence) and not isinstance(result, (str, bytes, dict)):
             results_to_submit = list(result)  # pyright: ignore[reportUnknownArgumentType]
         else:
@@ -3788,19 +3653,9 @@ class AsyncExperiments:
                     )
                 )
             else:
-                # For error cases with expected evaluation names, use those names
-                if (
-                    error is not None
-                    and expected_evaluation_names
-                    and idx < len(expected_evaluation_names)
-                ):
-                    eval_name = expected_evaluation_names[idx]
-                else:
-                    eval_name = (
-                        evaluator.name
-                        if len(results_to_submit) == 1
-                        else f"{evaluator.name}-{idx + 1}"
-                    )
+                eval_name = (
+                    evaluator.name if len(results_to_submit) == 1 else f"{evaluator.name}-{idx + 1}"
+                )
 
             eval_run = ExperimentEvaluationRun(
                 experiment_run_id=experiment_run["id"],

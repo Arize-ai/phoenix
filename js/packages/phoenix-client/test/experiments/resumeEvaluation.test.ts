@@ -236,65 +236,6 @@ describe("resumeEvaluation", () => {
     );
   });
 
-  it("should handle multi-output evaluators", async () => {
-    const multiMetricsFn = vi.fn(
-      async ({ output, expected }: EvaluatorParams) => {
-        const expectedText = (expected as { text?: string })?.text ?? "";
-        const outputText = (output as { text?: string })?.text ?? "";
-        // Return multiple evaluation results
-        return [
-          {
-            name: "coherence",
-            score: outputText === expectedText ? 1 : 0,
-            label: "coherent",
-          },
-          {
-            name: "relevance",
-            score: 0.85,
-            label: "relevant",
-          },
-        ];
-      }
-    );
-
-    const multiMetricsEvaluator = asEvaluator({
-      name: "llm-judge",
-      kind: "LLM",
-      evaluate: multiMetricsFn,
-    });
-
-    await resumeEvaluation({
-      experimentId: "exp-1",
-      evaluators: [multiMetricsEvaluator],
-      evaluationNames: ["coherence", "relevance"],
-      client: mockClient,
-    });
-
-    // Multi-output evaluator should be called exactly once per matching run
-    // run-1 has ["correctness", "relevance"] - matches because of "relevance" -> 1 call
-    // run-2 has ["correctness"] - doesn't match "coherence" or "relevance" -> 0 calls
-    // Total: 1 call
-    expect(multiMetricsFn).toHaveBeenCalledTimes(1);
-
-    // Should fetch incomplete evaluations with evaluation_names
-    expect(mockClient.GET).toHaveBeenCalledWith(
-      "/v1/experiments/{experiment_id}/incomplete-evaluations",
-      expect.objectContaining({
-        params: expect.objectContaining({
-          query: expect.objectContaining({
-            evaluation_name: ["coherence", "relevance"],
-          }),
-        }),
-      })
-    );
-
-    // Should submit evaluation results
-    // Each run produces 2 evaluations (coherence, relevance)
-    // run-1 has both incomplete, run-2 has only correctness incomplete
-    // So we run the evaluator for both runs, producing 4 results total
-    expect(mockClient.POST).toHaveBeenCalled();
-  });
-
   it("should handle pagination of incomplete evaluations", async () => {
     const evaluator = asEvaluator({
       name: "correctness",
@@ -671,46 +612,6 @@ describe("resumeEvaluation", () => {
 
       // Should not process all runs
       expect(evaluationOrder.length).toBeLessThanOrEqual(2);
-    });
-
-    it("should handle stopOnFirstError with multi-output evaluators", async () => {
-      const multiMetricsFn = vi.fn(async ({ output }: EvaluatorParams) => {
-        const outputText = (output as { text?: string })?.text ?? "";
-        if (outputText.includes("Alice")) {
-          throw new Error("Multi-output evaluator failed for Alice");
-        }
-        return [
-          { name: "coherence", score: 0.95 },
-          { name: "relevance", score: 0.85 },
-        ];
-      });
-
-      const multiMetricsEvaluator = asEvaluator({
-        name: "llm-judge",
-        kind: "LLM",
-        evaluate: multiMetricsFn,
-      });
-
-      await expect(
-        resumeEvaluation({
-          experimentId: "exp-1",
-          evaluators: [multiMetricsEvaluator],
-          evaluationNames: ["coherence", "relevance"],
-          stopOnFirstError: true,
-          client: mockClient,
-        })
-      ).rejects.toThrow("Multi-output evaluator failed for Alice");
-
-      // Should record the error for the expected evaluation names
-      const errorCalls = mockClient.POST.mock.calls.filter(
-        (call: unknown[]) => {
-          const body = (call[1] as { body?: { error?: string } })?.body;
-          return body?.error === "Multi-output evaluator failed for Alice";
-        }
-      );
-
-      // Should record error for expected evaluations (at least one)
-      expect(errorCalls.length).toBeGreaterThan(0);
     });
 
     it("should default to stopOnFirstError = false", async () => {

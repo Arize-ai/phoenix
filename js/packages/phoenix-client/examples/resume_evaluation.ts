@@ -66,7 +66,7 @@ async function main() {
   await resumeEvaluation({
     experimentId: experiment.id,
     evaluators: [
-      // Single-output evaluator: simulates response quality check with variation
+      // Evaluator 1: simulates response quality check with variation
       asEvaluator({
         name: "contains-response",
         kind: "CODE",
@@ -84,35 +84,35 @@ async function main() {
         },
       }),
 
-      // Multi-output evaluator: produces multiple metrics with visible variation
+      // Evaluator 2: simulates length quality assessment
       asEvaluator({
-        name: "text-quality-metrics",
+        name: "length-score",
         kind: "CODE",
         evaluate: async ({ output }) => {
           const text = (output as { text?: string })?.text || "";
-
-          // Generate varied scores to demonstrate different quality aspects
-          return [
-            {
-              name: "length-score",
-              score: 0.5 + Math.random() * 0.5, // 0.5 to 1.0
-              metadata: { length: text.length },
-            },
-            {
-              name: "punctuation-score",
-              score: 0.3 + Math.random() * 0.7, // 0.3 to 1.0
-              label: /[.!?]$/.test(text) ? "has punctuation" : "no punctuation",
-            },
-            {
-              name: "word-count-score",
-              score: 0.4 + Math.random() * 0.6, // 0.4 to 1.0
-              metadata: { wordCount: text.split(/\s+/).length },
-            },
-          ];
+          const score = 0.5 + Math.random() * 0.5; // 0.5 to 1.0
+          return {
+            score,
+            metadata: { length: text.length },
+          };
         },
       }),
 
-      // Another single-output evaluator: simulates subjective politeness assessment
+      // Evaluator 3: simulates punctuation check
+      asEvaluator({
+        name: "punctuation-score",
+        kind: "CODE",
+        evaluate: async ({ output }) => {
+          const text = (output as { text?: string })?.text || "";
+          const score = 0.3 + Math.random() * 0.7; // 0.3 to 1.0
+          return {
+            score,
+            label: /[.!?]$/.test(text) ? "has punctuation" : "no punctuation",
+          };
+        },
+      }),
+
+      // Evaluator 4: simulates subjective politeness assessment
       asEvaluator({
         name: "politeness-check",
         kind: "CODE",
@@ -142,11 +142,7 @@ async function main() {
 
   console.log("\n✅ Evaluations completed!");
   console.log(
-    "   - Single-output evaluators: contains-response, politeness-check"
-  );
-  console.log("   - Multi-output evaluator: text-quality-metrics");
-  console.log(
-    "     (produces: length-score, punctuation-score, word-count-score)"
+    "   Evaluators: contains-response, length-score, punctuation-score, politeness-check"
   );
 
   console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -154,9 +150,14 @@ async function main() {
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("resumeEvaluation allows you to:");
   console.log("  • Add new evaluators to completed experiments");
-  console.log("  • Use multi-output evaluators for comprehensive analysis");
   console.log("  • Retry failed evaluations");
   console.log("  • Iterate on evaluation strategies without re-running tasks");
+  console.log(
+    "\nNote: Multi-output evaluators (that return arrays) are not supported"
+  );
+  console.log(
+    "      for resume operations. Use separate evaluators for each metric."
+  );
 }
 
 main().catch(console.error);
