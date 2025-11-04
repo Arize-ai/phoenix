@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
 import { css } from "@emotion/react";
 
-import { Field } from "@arizeai/components";
-
+import { Label, Text } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { safelyParseJSON, safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 /**
@@ -46,15 +46,17 @@ export function InvocationParameterJsonEditor({
         }
       `}
     >
-      <Field
-        label={label}
-        errorMessage={errorMessage}
-        validationState={errorMessage ? "invalid" : undefined}
-      >
+      <div css={fieldBaseCSS}>
+        <Label>{label}</Label>
         <CodeWrap>
           <JSONEditor value={editorValue} onChange={onChange} optionalLint />
         </CodeWrap>
-      </Field>
+        {errorMessage ? (
+          <Text slot="errorMessage" color="danger">
+            {errorMessage}
+          </Text>
+        ) : null}
+      </div>
     </div>
   );
 }
