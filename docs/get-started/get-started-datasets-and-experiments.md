@@ -1,27 +1,27 @@
 # Get Started: Datasets & Experiments
 
-Now that you have Phoenix up and running, one of the next steps you can take is creating a **Dataset** & Running **Experiments**.&#x20;
+Now that you have Phoenix up and running, one of the next steps you can take is creating a **Dataset** & Running **Experiments**.
 
-* Datasets let you curate and organize examples to test your application systematically.&#x20;
-* Experiments let you compare different model versions or configurations on the same dataset to see which performs best.&#x20;
+* Datasets let you curate and organize examples to test your application systematically.
+* Experiments let you compare different model versions or configurations on the same dataset to see which performs best.
 
-## Datasets&#x20;
+## Datasets
 
 {% stepper %}
 {% step %}
-### Launch Phoenix&#x20;
+#### Launch Phoenix
 
-Before setting up your first dataset, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./). &#x20;
-
-{% tabs %}
-{% tab title="Phoenix Cloud" %}
-Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).&#x20;
+Before setting up your first dataset, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).
 
 {% tabs %}
 {% tab title="Phoenix Cloud" %}
-Log in, create a space, navigate to the settings page in your space, and create your API keys.&#x20;
+Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).
 
-In your code, set your environment variables.&#x20;
+{% tabs %}
+{% tab title="Phoenix Cloud" %}
+Log in, create a space, navigate to the settings page in your space, and create your API keys.
+
+In your code, set your environment variables.
 
 ```python
 import os
@@ -29,45 +29,45 @@ os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX Collector endpoint"
 ```
 
-You can find your collector endpoint here:&#x20;
+You can find your collector endpoint here:
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings. "><figcaption><p>Launch your space, navigate to settings &#x26; copy your hostname for your collector endpoint </p></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings."><figcaption><p>Launch your space, navigate to settings &#x26; copy your hostname for your collector endpoint</p></figcaption></figure>
 
-Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.&#x20;
+Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.
 {% endtab %}
 {% endtabs %}
 {% endtab %}
 
 {% tab title="Local (Self-hosted)" %}
-If you installed Phoenix locally, you have a variety of options for deployment methods including: Terminal, Docker, Kubernetes, Railway, & AWS CloudFormation.  ([Learn more: Self-Hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/))
+If you installed Phoenix locally, you have a variety of options for deployment methods including: Terminal, Docker, Kubernetes, Railway, & AWS CloudFormation. ([Learn more: Self-Hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/))
 
-To host on your local machine, run `phoenix serve` in your terminal.&#x20;
+To host on your local machine, run `phoenix serve` in your terminal.
 
-Navigate to your localhost in your browser. (example localhost:6006)&#x20;
+Navigate to your localhost in your browser. (example localhost:6006)
 {% endtab %}
 {% endtabs %}
 {% endstep %}
 
 {% step %}
-### Creating a Dataset&#x20;
+#### Creating a Dataset
 
-You can either create a Dataset in the UI, or via code.&#x20;
+You can either create a Dataset in the UI, or via code.
 
-For this quickstart, you can download this [sample.csv](https://drive.google.com/file/d/1n2WoejEe807VYGVT-GsTAA3QUdyFtR6g/view?usp=sharing) as a starter to run you through how to use datasets.&#x20;
+For this quickstart, you can download this [sample.csv](https://drive.google.com/file/d/1n2WoejEe807VYGVT-GsTAA3QUdyFtR6g/view?usp=sharing) as a starter to run you through how to use datasets.
 
 {% tabs %}
 {% tab title="UI" %}
-In the UI, you can either create a empty dataset and then populate data or upload from a CSV.&#x20;
+In the UI, you can either create a empty dataset and then populate data or upload from a CSV.
 
-Once you've downloaded the above csv file, you can follow the video below to upload your first dataset.&#x20;
+Once you've downloaded the above csv file, you can follow the video below to upload your first dataset.
 
 {% embed url="https://drive.google.com/file/d/1UOSnEbmcf-ELE85h4JcPpPiqx5LxgaGj/view?usp=sharing" %}
 {% endtab %}
 
 {% tab title="Python" %}
-To create a Dataset in Phoenix, you will use the `datasets.create_dataset()` function. This can take in either a CSV file, Pandas DataFrame, or dataset Examples.&#x20;
+To create a Dataset in Phoenix, you will use the `datasets.create_dataset()` function. This can take in either a CSV file, Pandas DataFrame, or dataset Examples.
 
-If you have already downloaded the sample.csv, you can create this dataset via this code snippet:&#x20;
+If you have already downloaded the sample.csv, you can create this dataset via this code snippet:
 
 ```python
 from phoenix.client import AsyncClient
@@ -84,7 +84,7 @@ dataset = await px_client.datasets.create_dataset(
 {% endtab %}
 
 {% tab title="TS" %}
-i dont think this is possible unless you have a set of examples. doesn't yet take in csv via code&#x20;
+i dont think this is possible unless you have a set of examples. doesn't yet take in csv via code
 
 ```typescript
 import { createClient } from "@arizeai/phoenix-client";
@@ -103,21 +103,21 @@ const { datasetId } = await createDataset({
 {% endtab %}
 {% endtabs %}
 
-That's it! You've now successfully created your first dataset.&#x20;
+That's it! You've now successfully created your first dataset.
 {% endstep %}
 {% endstepper %}
 
-## Experiments&#x20;
+## Experiments
 
-Once you have a dataset, you're now able to run experiments. Experiments are made of tasks &, optionally, evals. While running evals is optional, they provide valuable metrics to help you compare  each of your experiments quickly — such as comparing models, catching regressions, and understanding which version performs best.&#x20;
+Once you have a dataset, you're now able to run experiments. Experiments are made of tasks &, optionally, evals. While running evals is optional, they provide valuable metrics to help you compare each of your experiments quickly — such as comparing models, catching regressions, and understanding which version performs best.
 
 {% stepper %}
 {% step %}
-### Load your Dataset in Code
+#### Load your Dataset in Code
 
-The first step is to pull down your dataset into your code.&#x20;
+The first step is to pull down your dataset into your code.
 
-If you made your dataset in the UI, you can follow this code snippet: &#x20;
+If you made your dataset in the UI, you can follow this code snippet:
 
 {% tabs %}
 {% tab title="Python" %}
@@ -128,7 +128,7 @@ client = AsyncClient()
 dataset = await client.datasets.get_dataset(dataset="sample", version_id= {your version id here})
 ```
 
-To get the version\_id of your dataset, please navigate to the Versions tab and copy the version you want to run an experiment on.&#x20;
+To get the version\_id of your dataset, please navigate to the Versions tab and copy the version you want to run an experiment on.
 {% endtab %}
 {% endtabs %}
 
@@ -136,13 +136,13 @@ If you created your dataset programmatically, you should already have it availab
 {% endstep %}
 
 {% step %}
-### Create your Task  &#x20;
+#### Create your Task
 
-Create a Task to evaluate.&#x20;
+Create a Task to evaluate.
 
 {% tabs %}
 {% tab title="Python" %}
-Your task can be any function with any definition & does not have to use an LLM. However, for our experiment we want to run our list of input questions through a new prompt, and will need to start by setting our API Keys:&#x20;
+Your task can be any function with any definition & does not have to use an LLM. However, for our experiment we want to run our list of input questions through a new prompt, and will need to start by setting our API Keys:
 
 ```python
 from openai import OpenAI
@@ -200,9 +200,9 @@ const task: RunExperimentParams["task"] = async (example) => {
 {% endstep %}
 
 {% step %}
-### Create your Evaluator&#x20;
+#### Create your Evaluator
 
-Next step is to create your Evaluator. If you have already defined your Q\&A Correctness eval from the last quick start, you won't need to redefine it. If not, you can follow along with these code snippets.&#x20;
+Next step is to create your Evaluator. If you have already defined your Q\&A Correctness eval from the last quick start, you won't need to redefine it. If not, you can follow along with these code snippets.
 
 ```python
 from phoenix.evals.llm import LLM
@@ -236,7 +236,7 @@ correctness_evaluator = create_classifier(
 )
 ```
 
-You can run multiple evaluators at once. Let's define a custom Completeness Eval.&#x20;
+You can run multiple evaluators at once. Let's define a custom Completeness Eval.
 
 ```python
 from phoenix.evals import ClassificationEvaluator
@@ -264,9 +264,9 @@ completeness = ClassificationEvaluator(
 {% endstep %}
 
 {% step %}
-### Run your Experiment&#x20;
+#### Run your Experiment
 
-Now that we have defined our Task & our Evaluators, we're now ready to run our experiment.&#x20;
+Now that we have defined our Task & our Evaluators, we're now ready to run our experiment.
 
 ```python
 from phoenix.client.experiments import async_run_experiment
@@ -277,11 +277,11 @@ experiment = await async_run_experiment(
     evaluators=[correctness_evaluator, completeness])
 ```
 
-After running multiple experiments, you can compare the experiment output & evals side by side!&#x20;
+After running multiple experiments, you can compare the experiment output & evals side by side!
 
 {% embed url="https://drive.google.com/file/d/1EtkIVSq23fuaXlRaLOSCNYwgsxgGpFCR/view?usp=sharing" %}
 
-**Optional:** If you wanted to run even more evaluators after this experiment, you can do so following this code:&#x20;
+**Optional:** If you wanted to run even more evaluators after this experiment, you can do so following this code:
 
 {% tabs %}
 {% tab title="Python" %}
@@ -312,4 +312,4 @@ console.log("Additional evaluations completed for experiment:", experiment.id);
 
 ### Learn More:
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>Datasets &#x26; Experiments Concepts </td><td><a href="../datasets-and-experiments/concepts-datasets.md">concepts-datasets.md</a></td></tr><tr><td>Datasets &#x26; Experiments in Phoenix </td><td><a href="../datasets-and-experiments/overview-datasets.md">overview-datasets.md</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>Datasets &#x26; Experiments Concepts</td><td><a href="../datasets-and-experiments/concepts-datasets.md">concepts-datasets.md</a></td></tr><tr><td>Datasets &#x26; Experiments in Phoenix</td><td><a href="../datasets-and-experiments/overview-datasets.md">overview-datasets.md</a></td></tr></tbody></table>

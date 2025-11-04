@@ -2,58 +2,58 @@
 
 To begin using Phoenix, you can either run it locally or launch a Phoenix Cloud instance.
 
-For most first time users, we **recommend** setting up a Phoenix cloud account.&#x20;
+For most first time users, we **recommend** setting up a Phoenix cloud account.
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/Phoenix%20decision%20tree.png" alt=""><figcaption></figcaption></figure>
 
-## Choose your Path:&#x20;
+## Choose your Path:
 
 <table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>Phoenix Cloud</strong></td><td>Connect to a pre-configured, managed Phoenix instance</td><td><a href="./#setup-and-run-phoenix-cloud">#setup-and-run-phoenix-cloud</a></td><td><a href="../.gitbook/assets/Screenshot 2024-10-09 at 6.32.50 PM.png">Screenshot 2024-10-09 at 6.32.50 PM.png</a></td></tr><tr><td><strong>As a Container</strong></td><td>Self-host your own Phoenix</td><td><a href="./#run-phoenix-using-docker">#run-phoenix-using-docker</a></td><td><a href="../.gitbook/assets/docker.png">docker.png</a></td></tr><tr><td><strong>From the Terminal</strong></td><td>Run Phoenix via the CLI on your local machine</td><td><a href="./#run-phoenix-through-your-terminal">#run-phoenix-through-your-terminal</a></td><td><a href="../.gitbook/assets/terminal.png">terminal.png</a></td></tr></tbody></table>
 
 {% hint style="info" %}
-If you’d prefer to self-host using alternative deployment services, see [this guide](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/) for more details.&#x20;
+If you’d prefer to self-host using alternative deployment services, see [this guide](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/) for more details.
 {% endhint %}
 
 ## Setup & Run Phoenix Cloud
 
 {% stepper %}
 {% step %}
-### Log In & Create a Phoenix Space
+#### Log In & Create a Phoenix Space
 
-* [ ] Make a free Phoenix Cloud [account](https://app.arize.com/auth/phoenix/login)&#x20;
+* [ ] Make a free Phoenix Cloud [account](https://app.arize.com/auth/phoenix/login)
 * [ ] Click the **Create a Space** button in the upper-right corner of the dashboard.
 * [ ] Enter a name for your new space.
 * [ ] After creating your space, launch your Phoenix instance directly from the dashboard.
 
-You can navigate back to [https://app.phoenix.arize.com/management/spaces](https://app.phoenix.arize.com/management/spaces) anytime to manage your spaces.&#x20;
+You can navigate back to [https://app.phoenix.arize.com/management/spaces](https://app.phoenix.arize.com/management/spaces) anytime to manage your spaces.
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4" %}
 {% endstep %}
 
 {% step %}
-### &#x20;Set Up Keys
+#### Set Up Keys
 
 To create a new API key, go to your **Settings** page & click down to the **API Keys** section. Click the **Add System Key** button, then provide a name for your API key. You may also include an optional description and set an expiration date if desired. All your API keys will be listed and manageable in this section.
 
-#### System vs User API Keys
+**System vs User API Keys**
 
-* &#x20;System API keys represent the actions taken by the system as a whole (not tied to specific user)&#x20;
+* System API keys represent the actions taken by the system as a whole (not tied to specific user)
 * User API keys represent the actions of a particular user. They are tied to lifespan of the user that created them.
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/api_key_hostname.mp4" %}
 {% endstep %}
 
 {% step %}
-### (optional) Add Collaborators
+#### (optional) Add Collaborators
 
-Phoenix Cloud supports team collaboration by allowing you to invite members to your space. You can also assign roles and permissions to manage access levels securely. &#x20;
+Phoenix Cloud supports team collaboration by allowing you to invite members to your space. You can also assign roles and permissions to manage access levels securely.
 
-### Roles
+#### Roles
 
 * **Admins** have full control over the space, including managing members, settings, system and user API keys, and roles.
-* **Members** can access their own profile and manage their own user API keys&#x20;
+* **Members** can access their own profile and manage their own user API keys
 
-### Adding Collaborators&#x20;
+#### Adding Collaborators
 
 On the Settings page, click the **Add User** button. Enter the user’s name, email address, and assign a role. The user will receive an email invitation to log in to the Phoenix instance.
 
@@ -65,37 +65,37 @@ Continue to the next guide to send your first trace and begin working with Phoen
 {% endstep %}
 {% endstepper %}
 
-## Run Phoenix through your Terminal&#x20;
+## Run Phoenix through your Terminal
 
-Running Phoenix through your terminal is the fastest way to get Phoenix up and running locally.&#x20;
+Running Phoenix through your terminal is the fastest way to get Phoenix up and running locally.
 
 {% stepper %}
 {% step %}
-### Install the Phoenix Library&#x20;
+#### Install the Phoenix Library
 
 Run the following command in your terminal to install Phoenix:
 
-&#x20;`pip install arize-phoenix`&#x20;
+`pip install arize-phoenix`
 {% endstep %}
 
 {% step %}
-### Start Phoenix&#x20;
+#### Start Phoenix
 
 Once installed, start the Phoenix server with:
 
-&#x20;`phoenix serve`&#x20;
+`phoenix serve`
 
-This will launch Phoenix locally and make the application available in your browser. It should look something like this:&#x20;
+This will launch Phoenix locally and make the application available in your browser. It should look something like this:
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/local_phoenix_start.jpeg" %}
 {% endstep %}
 
 {% step %}
-### Open Phoenix UI&#x20;
+#### Open Phoenix UI
 
 Once Phoenix is running, you can open the UI directly from the links displayed in your terminal. By default, the Phoenix UI will be available at:
 
-👉 [http://localhost:6006](http://localhost:6006)&#x20;
+👉 [http://localhost:6006](http://localhost:6006)
 
 This launches the Phoenix dashboard in your browser, where you can begin exploring logs, traces, and other features.
 
@@ -105,13 +105,13 @@ Continue to the next guide to send your first trace and begin working with Phoen
 {% endstep %}
 {% endstepper %}
 
-## Run Phoenix using Docker&#x20;
+## Run Phoenix using Docker
 
 {% embed url="https://hub.docker.com/r/arizephoenix/phoenix" %}
 
 {% stepper %}
 {% step %}
-### &#x20;Prerequisites
+#### Prerequisites
 
 1.  Ensure Docker is installed and running on your system. You can verify this by running:
 
@@ -123,7 +123,7 @@ Continue to the next guide to send your first trace and begin working with Phoen
 
     Our Docker Compose files are pegged to the latest release of Phoenix. If you want to use a different version, you can specify it in the `docker-compose.yml` file.
 
-Some Optional Steps&#x20;
+Some Optional Steps
 
 1.  Persistent Disc
 
@@ -134,7 +134,7 @@ Some Optional Steps&#x20;
 {% endstep %}
 
 {% step %}
-### Run Local Instance of Arize Phoenix&#x20;
+#### Run Local Instance of Arize Phoenix
 
 {% tabs %}
 {% tab title="Docker" %}
@@ -156,15 +156,15 @@ docker run -p 6006:6006 -p 4317:4317 -i -t arizephoenix/phoenix:latest
 
 See for details on the ports for the container.
 
-Navigate to [http://localhost:6006](http://localhost:6006) and you should see your local Arize Phoenix.&#x20;
+Navigate to [http://localhost:6006](http://localhost:6006) and you should see your local Arize Phoenix.
 
-Note that the above simply starts the phoenix server locally. A simple way to make sure your application always has a running phoenix server as a collector is to run the phoenix server as a side car. Look at the next tab for an example **compose.yaml** file. &#x20;
+Note that the above simply starts the phoenix server locally. A simple way to make sure your application always has a running phoenix server as a collector is to run the phoenix server as a side car. Look at the next tab for an example **compose.yaml** file.
 {% endtab %}
 
 {% tab title="compose.yaml" %}
 A simple way to make sure your application always has a running phoenix server as a collector is to run the phoenix server as a side car.
 
-Here is an example **compose.yaml:**&#x20;
+Here is an example **compose.yaml:**
 
 ```yaml
 services:

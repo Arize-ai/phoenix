@@ -1,10 +1,10 @@
 ---
 description: >-
-  As part of the OpenInference library, Phoenix provides helpful abstractions to
-  make manual instrumentation easier.
+  OpenInference packages provide helpful abstractions to make manual
+  instrumentation of agents simpler.
 ---
 
-# Using Phoenix Decorators
+# Using Tracing Helpers
 
 ## OpenInference OTEL Tracing
 
@@ -16,19 +16,35 @@ If you'd prefer to use pure OTEL instead, see [custom-spans.md](custom-spans.md 
 
 ### Installation
 
-Ensure you have OpenInference and OpenTelemetry installed:
+Ensure you have OpenInference and Phoenix OTEL installed:
 
+
+
+{% tabs %}
+{% tab title="Python" %}
 ```bash
-pip install openinference-semantic-conventions opentelemetry-api opentelemetry-sdk
+pip install arize-phoenix-otel
 ```
+{% endtab %}
+
+{% tab title="TS" %}
+```bash
+npm install @arizeai/phoenix-otel @arizeai/openinference-core
+```
+
+For detailed API documentation, consult the respective documentation sites.
+
+{% embed url="https://arize-ai.github.io/phoenix" %}
+
+{% embed url="https://arize-ai.github.io/openinference/js/" %}
+{% endtab %}
+{% endtabs %}
 
 ### Setting Up Tracing
 
-You can configure the tracer using either `TracerProvider` from `openinference.instrumentation` or using `phoenix.otel.register`.
-
 {% tabs %}
-{% tab title="Using phoenix.otel.register" %}
-```
+{% tab title="Python" %}
+```python
 from phoenix.otel import register
 
 tracer_provider = register(protocol="http/protobuf", project_name="your project name")
@@ -36,42 +52,51 @@ tracer = tracer_provider.get_tracer(__name__)
 ```
 {% endtab %}
 
-{% tab title="Using TracerProvider" %}
-```python
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+{% tab title="TS" %}
+```typescript
+import { register } from "@arizeai/phoenix-otel";
 
-from openinference.instrumentation import TracerProvider
-from openinference.semconv.resource import ResourceAttributes
-
-endpoint = "http://127.0.0.1:6006/v1/traces"
-resource = Resource(attributes={ResourceAttributes.PROJECT_NAME: "openinference-tracer"})
-tracer_provider = TracerProvider(resource=resource)
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-tracer = tracer_provider.get_tracer(__name__)
+cont tracerProvider = register({
+  projectName: "my-app",
+  url: "https://your-phoenix.com",
+  apiKey: process.env.PHOENIX_API_KEY,
+});
 ```
 {% endtab %}
 {% endtabs %}
 
 ***
 
-## Using your Tracer
+## Using Helpers
 
 Your tracer object can now be used in two primary ways:
 
-### 1. As a decorator to trace entire functions
+### 1. Tracing a function
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 @tracer.chain
 def my_func(input: str) -> str:
     return "output"
 ```
+{% endtab %}
+
+{% tab title="TS" %}
+```typescript
+// coming soon
+```
+{% endtab %}
+{% endtabs %}
 
 This entire function will appear as a Span in Phoenix. Input and output attributes in Phoenix will be set automatically based on `my_func`'s parameters and return. The status attribute will also be set automatically.
 
 ### 2. As a with clause to trace specific code blocks
 
+
+
+{% tabs %}
+{% tab title="Python" %}
 ```python
 with tracer.start_as_current_span(
     "my-span-name",
@@ -81,6 +106,12 @@ with tracer.start_as_current_span(
     span.set_output("output")
     span.set_status(Status(StatusCode.OK))
 ```
+{% endtab %}
+
+{% tab title="TS" %}
+
+{% endtab %}
+{% endtabs %}
 
 The code within this clause will be captured as a Span in Phoenix. Here the input, output, and status must be set manually.
 
@@ -90,7 +121,7 @@ This approach is useful when you need only a portion of a method to be captured 
 
 OpenInference Span Kinds denote the possible types of spans you might capture, and will be rendered different in the Phoenix UI.
 
-The possible values are:\\
+The possible values are:
 
 | Span Kind | Use                                                                                                   |
 | --------- | ----------------------------------------------------------------------------------------------------- |
@@ -107,6 +138,8 @@ The possible values are:\\
 
 ## Chains
 
+{% tabs %}
+{% tab title="Python" %}
 ### Using Context Managers
 
 ```python
@@ -148,11 +181,21 @@ def this_name_should_be_overriden(input: str) -> Dict[str, Any]:
 
 this_name_should_be_overriden("input")
 ```
+{% endtab %}
+
+{% tab title="TS" %}
+```typescript
+// Some code
+```
+{% endtab %}
+{% endtabs %}
 
 ***
 
 ## Agents
 
+{% tabs %}
+{% tab title="Python" %}
 ### Using Context Managers
 
 ```python
@@ -175,10 +218,20 @@ def decorated_agent(input: str) -> str:
 decorated_agent("input")
 ```
 
+
+{% endtab %}
+
+{% tab title="TS" %}
+
+{% endtab %}
+{% endtabs %}
+
 ***
 
 ## Tools
 
+{% tabs %}
+{% tab title="Python" %}
 ### Using Context Managers
 
 ```python
@@ -223,6 +276,16 @@ def this_tool_name_should_be_overriden(input1: str, input2: int) -> None:
 this_tool_name_should_be_overriden("input1", 1)
 ```
 
+
+{% endtab %}
+
+{% tab title="TS" %}
+```typescript
+// Some code
+```
+{% endtab %}
+{% endtabs %}
+
 ***
 
 ## LLMs
@@ -233,6 +296,14 @@ While this guide uses the OpenAI Python client for illustration, in practice, yo
 
 To run the snippets in this section, set your `OPENAI_API_KEY` environment variable.
 
+
+
+{% tabs %}
+{% tab title="Python" %}
+
+{% endtab %}
+
+{% tab title="TS" %}
 ### Context Manager
 
 ```python
@@ -285,9 +356,8 @@ invoke_llm([{"role": "user", "content": "Hello, world!"}])
 
 This decorator pattern above works for sync functions, async coroutine functions, sync generator functions, and async generator functions. Here's an example with an async generator.
 
-```python
-from typing import AsyncGenerator, List
-
+<pre class="language-python"><code class="lang-python"><strong>from typing import AsyncGenerator, List
+</strong>
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
@@ -312,7 +382,7 @@ async def stream_llm_responses(
 async for token in stream_llm_responses([{"role": "user", "content": "Hello, world!"}]):
     print(token, end="")
 
-```
+</code></pre>
 
 ### Method Patch
 
@@ -732,6 +802,10 @@ openai_client.chat.completions.create(
 )
 ```
 
+
+{% endtab %}
+{% endtabs %}
+
 ***
 
 ## Additional Features
@@ -740,6 +814,8 @@ The OpenInference Tracer shown above respects context Managers for [Suppressing 
 
 ### Suppress Tracing
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 with suppress_tracing():
     # this trace will not be recorded
@@ -752,8 +828,20 @@ with suppress_tracing():
         span.set_status(Status(StatusCode.OK))
 ```
 
+
+{% endtab %}
+
+{% tab title="TS" %}
+```typescript
+// Coming Soon
+```
+{% endtab %}
+{% endtabs %}
+
 ### Using Context Attributes
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 with using_attributes(session_id="123"):
     # this trace has session id "123"
@@ -766,10 +854,22 @@ with using_attributes(session_id="123"):
         span.set_status(Status(StatusCode.OK))
 ```
 
+
+{% endtab %}
+
+{% tab title="TS" %}
+```typescript
+// coming soon
+```
+{% endtab %}
+{% endtabs %}
+
 ### Adding Images to your Traces
 
 OpenInference includes message types that can be useful in composing text and image or other file inputs and outputs:
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 import openinference.instrumentation as oi
 
@@ -814,3 +914,13 @@ with tracer.start_as_current_span(
     span.set_output(response)
     print(response.content)
 ```
+
+
+{% endtab %}
+
+{% tab title="TS" %}
+```typescript
+// Coming soon
+```
+{% endtab %}
+{% endtabs %}

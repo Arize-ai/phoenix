@@ -76,6 +76,6 @@ Each example in the dataset was evaluating using the `REF_LINK_EVAL_PROMPT_TEMPL
 
 **GPT-4 Results**
 
-<figure><img src="../../.gitbook/assets/GPT-4 Ref Evals (3).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/GPT-4 Ref Evals (1).png" alt=""><figcaption></figcaption></figure>
 
 <table><thead><tr><th width="130">Reference Link Evals</th><th>GPT-4o</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.96</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.79</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.87</mark></td></tr></tbody></table>
