@@ -270,8 +270,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       '@arizeai/openinference-vercel':
-        specifier: ^2.3.1
-        version: 2.3.4(@opentelemetry/api@1.9.0)
+        specifier: ^2.5.0
+        version: 2.5.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -334,6 +334,9 @@ packages:
   '@arizeai/openinference-core@1.0.7':
     resolution: {integrity: sha512-O9WYkrHNh/0mGTV+T9SWC3tkxVrT16gBrFiByG3aukBsqdOfSzoRj6QINk+Oi+VEDNIoQUzVQPFh81/gEL/thA==}
 
+  '@arizeai/openinference-core@2.0.0':
+    resolution: {integrity: sha512-H0INw5Yy0zHUe0HG0ZMVoexrBX/B1W6FJODmnIP7vbXHXOzzMtlBdjg0evxFY2HTSk+MRpVpDP05Ty+OSqfd0w==}
+
   '@arizeai/openinference-instrumentation-openai@2.3.1':
     resolution: {integrity: sha512-8z5TEPwhj8fE7+6li2ufLP2jknkPTV7KAQwiNLj4/9IIz0o0dbFltm5O834bpE7LjzkGAqPt8CMVRDhpnw82IA==}
 
@@ -351,6 +354,11 @@ packages:
 
   '@arizeai/openinference-vercel@2.3.4':
     resolution: {integrity: sha512-oQY5dhXMmJev37yziHhTnzQaI2DO8YfRVQWsarh2o26EBKOdOir8rfOm0IjQXJuR9fGNj5sSiQ45obia7EdXXw==}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.7.0 <2.0.0'
+
+  '@arizeai/openinference-vercel@2.5.0':
+    resolution: {integrity: sha512-7bAQnx6Gfr2mzSTcVFeErDyWQklVBRNOxz8B4izSnqxx5koNVgf035KMRmHAXHO5sKIfA4Z5gwtf6+Q3L9cYJw==}
     peerDependencies:
       '@opentelemetry/api': '>=1.7.0 <2.0.0'
 
@@ -3179,6 +3187,12 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
 
+  '@arizeai/openinference-core@2.0.0':
+    dependencies:
+      '@arizeai/openinference-semantic-conventions': 2.1.2
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
+
   '@arizeai/openinference-instrumentation-openai@2.3.1':
     dependencies:
       '@arizeai/openinference-core': 1.0.3
@@ -3208,6 +3222,13 @@ snapshots:
   '@arizeai/openinference-vercel@2.3.4(@opentelemetry/api@1.9.0)':
     dependencies:
       '@arizeai/openinference-core': 1.0.7
+      '@arizeai/openinference-semantic-conventions': 2.1.2
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
+
+  '@arizeai/openinference-vercel@2.5.0(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@arizeai/openinference-core': 2.0.0
       '@arizeai/openinference-semantic-conventions': 2.1.2
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
@@ -4261,23 +4282,23 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
+  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@18.19.130))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.19
     optionalDependencies:
       msw: 2.11.6(@types/node@18.19.130)(typescript@5.9.3)
-      vite: 5.4.21(@types/node@24.9.1)
+      vite: 5.4.21(@types/node@18.19.130)
 
-  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
+  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@20.19.23))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.19
     optionalDependencies:
       msw: 2.11.6(@types/node@20.19.23)(typescript@5.9.3)
-      vite: 5.4.21(@types/node@24.9.1)
+      vite: 5.4.21(@types/node@20.19.23)
 
   '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
     dependencies:
@@ -6083,7 +6104,7 @@ snapshots:
   vitest@2.1.9(@types/node@18.19.130)(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3)):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))
+      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@18.19.130))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -6118,7 +6139,7 @@ snapshots:
   vitest@2.1.9(@types/node@20.19.23)(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3)):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))
+      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@20.19.23))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
