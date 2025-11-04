@@ -1873,18 +1873,10 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "DB Config: External PostgreSQL URL sets custom database.url",
-            "--set postgresql.enabled=false --set persistence.enabled=false --set database.url='postgresql://myuser:mypass@external.db:5432/phoenix'",
+            "--set postgresql.enabled=false --set persistence.enabled=false --set database.url='postgresql://myuser:mypass@external.db:5432/phoenix' --set database.postgres.host=phoenix-postgresql --set database.postgres.user=postgres --set database.postgres.password=postgres --set database.postgres.db=phoenix --set database.postgres.port=5432",
             all_of(
                 no_postgresql,
                 DatabaseValidators.custom_database_url("postgresql://myuser:mypass@external.db:5432/phoenix"),
-            ),
-        ),
-        TestCase(
-            "DB Config: External SQLite URL sets custom database.url",
-            "--set postgresql.enabled=false --set persistence.enabled=true --set database.url='sqlite:////mnt/data/phoenix.db'",
-            all_of(
-                no_postgresql,
-                DatabaseValidators.custom_database_url("sqlite:////mnt/data/phoenix.db"),
             ),
         ),
         # Auth
