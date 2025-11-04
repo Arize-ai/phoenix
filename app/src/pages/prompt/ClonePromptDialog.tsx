@@ -129,101 +129,103 @@ export const ClonePromptDialog = ({
           <Suspense fallback={<Loading />}>
             <View padding="size-200">
               <form onSubmit={onSubmit(close)}>
-                <Controller
-                  control={control}
-                  name="name"
-                  rules={{
-                    required: { message: "Name is required", value: true },
-                    validate: {
-                      unique: (value) => {
-                        if (value.trim() === promptName.trim()) {
-                          return "Name must be different from the original prompt name";
+                <Flex direction="column" gap="size-100">
+                  <Controller
+                    control={control}
+                    name="name"
+                    rules={{
+                      required: { message: "Name is required", value: true },
+                      validate: {
+                        unique: (value) => {
+                          if (value.trim() === promptName.trim()) {
+                            return "Name must be different from the original prompt name";
+                          }
+                          return true;
+                        },
+                      },
+                    }}
+                    render={({
+                      field: { onChange, onBlur, value, disabled },
+                      fieldState: { error },
+                    }) => (
+                      <TextField isInvalid={!!error?.message}>
+                        <Label>Name</Label>
+                        <Input
+                          name="name"
+                          type="text"
+                          onChange={onChange}
+                          onBlur={onBlur}
+                          value={value}
+                          disabled={disabled}
+                        />
+                        {!error && (
+                          <Text slot="description">
+                            A name for the cloned prompt.
+                          </Text>
+                        )}
+                        <FieldError>{error?.message}</FieldError>
+                      </TextField>
+                    )}
+                  />
+                  <Controller
+                    control={control}
+                    name="description"
+                    render={({
+                      field: { onChange, onBlur, value, disabled },
+                      fieldState: { error },
+                    }) => (
+                      <TextField
+                        isInvalid={!!error?.message}
+                        isDisabled={disabled}
+                        value={value}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                      >
+                        <Label>Description</Label>
+                        <TextArea name="description" />
+                        {!error && (
+                          <Text slot="description">
+                            A description for the cloned prompt.
+                          </Text>
+                        )}
+                        <FieldError>{error?.message}</FieldError>
+                      </TextField>
+                    )}
+                  />
+                  <Controller
+                    control={control}
+                    name="metadata"
+                    rules={{
+                      validate: (value) => {
+                        // Allow empty values (will be treated as undefined)
+                        if (!value || value.trim() === "") {
+                          return true;
+                        }
+                        if (!isJSONObjectString(value)) {
+                          return "metadata must be a valid JSON object";
                         }
                         return true;
                       },
-                    },
-                  }}
-                  render={({
-                    field: { onChange, onBlur, value, disabled },
-                    fieldState: { error },
-                  }) => (
-                    <TextField isInvalid={!!error?.message}>
-                      <Label>Name</Label>
-                      <Input
-                        name="name"
-                        type="text"
-                        onChange={onChange}
-                        onBlur={onBlur}
-                        value={value}
-                        disabled={disabled}
-                      />
-                      {!error && (
-                        <Text slot="description">
-                          A name for the cloned prompt.
-                        </Text>
-                      )}
-                      <FieldError>{error?.message}</FieldError>
-                    </TextField>
-                  )}
-                />
-                <Controller
-                  control={control}
-                  name="description"
-                  render={({
-                    field: { onChange, onBlur, value, disabled },
-                    fieldState: { error },
-                  }) => (
-                    <TextField
-                      isInvalid={!!error?.message}
-                      isDisabled={disabled}
-                      value={value}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                    >
-                      <Label>Description</Label>
-                      <TextArea name="description" />
-                      {!error && (
-                        <Text slot="description">
-                          A description for the cloned prompt.
-                        </Text>
-                      )}
-                      <FieldError>{error?.message}</FieldError>
-                    </TextField>
-                  )}
-                />
-                <Controller
-                  control={control}
-                  name="metadata"
-                  rules={{
-                    validate: (value) => {
-                      // Allow empty values (will be treated as undefined)
-                      if (!value || value.trim() === "") {
-                        return true;
-                      }
-                      if (!isJSONObjectString(value)) {
-                        return "metadata must be a valid JSON object";
-                      }
-                      return true;
-                    },
-                  }}
-                  render={({
-                    field: { onChange, onBlur, value },
-                    fieldState: { invalid, error },
-                  }) => (
-                    <CodeEditorFieldWrapper
-                      validationState={invalid ? "invalid" : "valid"}
-                      label="Metadata"
-                      errorMessage={error?.message}
-                      description="A JSON object containing metadata for the prompt (leave empty to remove)"
-                    >
-                      <JSONEditor
-                        value={value}
-                        onChange={onChange}
-                        onBlur={onBlur}
-                      />
-                    </CodeEditorFieldWrapper>
-                  )}
-                />
+                    }}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <CodeEditorFieldWrapper
+                        validationState={invalid ? "invalid" : "valid"}
+                        label="Metadata"
+                        errorMessage={error?.message}
+                        description="A JSON object containing metadata for the prompt"
+                      >
+                        <JSONEditor
+                          value={value}
+                          onChange={onChange}
+                          onBlur={onBlur}
+                        />
+                      </CodeEditorFieldWrapper>
+                    )}
+                  />
+                </Flex>
                 {errors?.root && (
                   <Text color="danger">{errors?.root?.message}</Text>
                 )}

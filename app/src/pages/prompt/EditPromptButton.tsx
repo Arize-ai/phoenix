@@ -131,50 +131,54 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
           </DialogHeader>
           <Form>
             <View padding="size-200">
-              <Controller
-                name="description"
-                control={control}
-                render={({ field }) => (
-                  <TextField value={field.value} onChange={field.onChange}>
-                    <Label>Prompt Description</Label>
-                    <TextArea placeholder="Enter a description for the prompt" />
-                    <Text slot="description">A description of the prompt</Text>
-                  </TextField>
-                )}
-              />
-              <Controller
-                name="metadata"
-                control={control}
-                rules={{
-                  validate: (value) => {
-                    // Allow empty values (will be treated as null)
-                    if (!value || value.trim() === "") {
+              <Flex direction="column" gap="size-100">
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField value={field.value} onChange={field.onChange}>
+                      <Label>Prompt Description</Label>
+                      <TextArea placeholder="Enter a description for the prompt" />
+                      <Text slot="description">
+                        A description of the prompt
+                      </Text>
+                    </TextField>
+                  )}
+                />
+                <Controller
+                  name="metadata"
+                  control={control}
+                  rules={{
+                    validate: (value) => {
+                      // Allow empty values (will be treated as null)
+                      if (!value || value.trim() === "") {
+                        return true;
+                      }
+                      if (!isJSONObjectString(value)) {
+                        return "metadata must be a valid JSON object";
+                      }
                       return true;
-                    }
-                    if (!isJSONObjectString(value)) {
-                      return "metadata must be a valid JSON object";
-                    }
-                    return true;
-                  },
-                }}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { invalid, error },
-                }) => (
-                  <CodeEditorFieldWrapper
-                    validationState={invalid ? "invalid" : "valid"}
-                    label={"Metadata"}
-                    errorMessage={error?.message}
-                    description="A JSON object containing metadata for the prompt (leave empty to remove)"
-                  >
-                    <JSONEditor
-                      value={value}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                    />
-                  </CodeEditorFieldWrapper>
-                )}
-              />
+                    },
+                  }}
+                  render={({
+                    field: { onChange, onBlur, value },
+                    fieldState: { invalid, error },
+                  }) => (
+                    <CodeEditorFieldWrapper
+                      validationState={invalid ? "invalid" : "valid"}
+                      label={"Metadata"}
+                      errorMessage={error?.message}
+                      description="A JSON object containing metadata for the prompt"
+                    >
+                      <JSONEditor
+                        value={value}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                      />
+                    </CodeEditorFieldWrapper>
+                  )}
+                />
+              </Flex>
             </View>
             <View
               paddingX="size-200"
