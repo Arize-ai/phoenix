@@ -10,7 +10,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 
-type FeatureFlag = "evaluators";
+type FeatureFlag = "evaluators" | "viewerRole";
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -20,6 +20,11 @@ export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   evaluators: false,
+  /**
+   * Whether or not the viewer role can be selected and assigned.
+   * This flag will be listed once the feature is fully implemented.
+   */
+  viewerRole: false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {

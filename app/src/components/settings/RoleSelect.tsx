@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { css } from "@emotion/react";
 
 import {
@@ -13,6 +14,7 @@ import {
   SelectValue,
 } from "@phoenix/components";
 import { isUserRole, normalizeUserRole, UserRole } from "@phoenix/constants";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 const UserRoles = Object.values(UserRole);
 
@@ -58,6 +60,14 @@ export function RoleSelect({
   size = "M",
   ...selectProps
 }: RoleSelectProps) {
+  const canSelectViewerRole = useFeatureFlag("viewerRole");
+
+  const userRoles = useMemo(() => {
+    if (canSelectViewerRole) {
+      return UserRoles;
+    }
+    return UserRoles.filter((role) => role !== UserRole.VIEWER);
+  }, [canSelectViewerRole]);
   return (
     <Select
       css={!includeLabel ? hiddenLabelCSS : undefined}
@@ -80,7 +90,7 @@ export function RoleSelect({
       </Button>
       <Popover>
         <ListBox>
-          {UserRoles.map((role) => {
+          {userRoles.map((role) => {
             return (
               <SelectItem key={role} id={role}>
                 {normalizeUserRole(role)}

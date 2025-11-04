@@ -41,6 +41,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { CanModify } from "@phoenix/components/auth";
 import {
   ConnectedTimeRangeSelector,
   useTimeRange,
@@ -346,10 +347,12 @@ export function ProjectsPageContent({
           >
             <ProjectViewModeToggle />
             <ConnectedTimeRangeSelector size="M" />
-            <NewProjectButton
-              variant="primary"
-              refetchProjects={() => refetch({})}
-            />
+            <CanModify>
+              <NewProjectButton
+                variant="primary"
+                refetchProjects={() => refetch({})}
+              />
+            </CanModify>
           </Flex>
         </Flex>
       </View>
