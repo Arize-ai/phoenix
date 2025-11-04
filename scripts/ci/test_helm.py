@@ -1445,7 +1445,9 @@ class DatabaseValidators:
             # Should NOT have SQL_DATABASE_URL (Phoenix auto-configures SQLite)
             # Should also NOT have POSTGRES credentials
             no_url = "PHOENIX_SQL_DATABASE_URL" not in data
-            no_pg_host = "PHOENIX_POSTGRES_HOST" not in data or data.get("PHOENIX_POSTGRES_HOST") == ""
+            no_pg_host = (
+                "PHOENIX_POSTGRES_HOST" not in data or data.get("PHOENIX_POSTGRES_HOST") == ""
+            )
 
             return no_url and no_pg_host
 
@@ -1876,7 +1878,9 @@ def get_test_suite() -> list[TestCase]:
             "--set postgresql.enabled=false --set persistence.enabled=false --set database.url='postgresql://myuser:mypass@external.db:5432/phoenix' --set database.postgres.host=phoenix-postgresql --set database.postgres.user=postgres --set database.postgres.password=postgres --set database.postgres.db=phoenix --set database.postgres.port=5432",
             all_of(
                 no_postgresql,
-                DatabaseValidators.custom_database_url("postgresql://myuser:mypass@external.db:5432/phoenix"),
+                DatabaseValidators.custom_database_url(
+                    "postgresql://myuser:mypass@external.db:5432/phoenix"
+                ),
             ),
         ),
         # Auth
