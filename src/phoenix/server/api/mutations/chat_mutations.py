@@ -67,7 +67,8 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
@@ -107,6 +108,7 @@ class ChatCompletionMutationPayload:
     tool_calls: List[ChatCompletionToolCall]
     span: Span
     error_message: Optional[str]
+    evaluations: List[ExperimentRunAnnotation] = field(default_factory=list)
 
 
 @strawberry.type
@@ -120,6 +122,7 @@ class ChatCompletionOverDatasetMutationExamplePayload:
     repetition_number: int
     experiment_run_id: GlobalID
     result: Union[ChatCompletionMutationPayload, ChatCompletionMutationError]
+    evaluations: List[ExperimentRunAnnotation] = field(default_factory=list)
 
 
 @strawberry.type
@@ -299,6 +302,24 @@ class ChatCompletionMutationMixin:
             session.add_all(experiment_runs)
             await session.flush()
 
+        evaluations: List[ExperimentRunAnnotation] = []
+        if input.evaluators:
+            async with info.context.db() as session:
+                for ii, evaluator in enumerate(input.evaluators):
+                    _, db_id = from_global_id(evaluator.id)
+                    evaluator_record = await session.get(models.Evaluator, db_id)
+                    evaluator_name = evaluator_record.name if evaluator_record else ""
+                    dummy_annotation = ExperimentRunAnnotation.from_dict(
+                        {
+                            "name": evaluator_name,
+                            "label": f"dummy {ii}",
+                            "score": 0.5,
+                            "explanation": "dummy evaluation",
+                            "metadata": {},
+                        }
+                    )
+                    evaluations.append(dummy_annotation)
+
         for (revision, repetition_number), experiment_run, result in zip(
             unbatched_items, experiment_runs, results
         ):
@@ -313,6 +334,7 @@ class ChatCompletionMutationMixin:
                 result=result
                 if isinstance(result, ChatCompletionMutationPayload)
                 else ChatCompletionMutationError(message=str(result)),
+                evaluations=evaluations,
             )
             payload.examples.append(example_payload)
         return payload
@@ -505,6 +527,24 @@ class ChatCompletionMutationMixin:
 
         gql_span = Span(id=span.id, db_record=span)
 
+        evaluations: List[ExperimentRunAnnotation] = []
+        if input.evaluators:
+            async with info.context.db() as session:
+                for ii, evaluator in enumerate(input.evaluators):
+                    _, db_id = from_global_id(evaluator.id)
+                    evaluator_record = await session.get(models.Evaluator, db_id)
+                    evaluator_name = evaluator_record.name if evaluator_record else ""
+                    dummy_annotation = ExperimentRunAnnotation.from_dict(
+                        {
+                            "name": evaluator_name,
+                            "label": f"dummy {ii}",
+                            "score": 0.5,
+                            "explanation": "dummy evaluation",
+                            "metadata": {},
+                        }
+                    )
+                    evaluations.append(dummy_annotation)
+
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
 
         if status_code is StatusCode.ERROR:
@@ -514,6 +554,7 @@ class ChatCompletionMutationMixin:
                 tool_calls=[],
                 span=gql_span,
                 error_message=status_message,
+                evaluations=evaluations,
             )
         else:
             return ChatCompletionMutationPayload(
@@ -522,6 +563,7 @@ class ChatCompletionMutationMixin:
                 tool_calls=list(tool_calls.values()),
                 span=gql_span,
                 error_message=None,
+                evaluations=evaluations,
             )
 
 

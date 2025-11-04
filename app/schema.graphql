@@ -242,6 +242,7 @@ input ChatCompletionInput {
   template: PromptTemplateOptions
   promptName: Identifier = null
   repetitions: Int!
+  evaluators: [PlaygroundEvaluatorInput!]! = []
 }
 
 input ChatCompletionMessageInput {
@@ -275,6 +276,7 @@ type ChatCompletionMutationPayload {
   toolCalls: [ChatCompletionToolCall!]!
   span: Span!
   errorMessage: String
+  evaluations: [ExperimentRunAnnotation!]!
 }
 
 union ChatCompletionMutationPayloadChatCompletionMutationError = ChatCompletionMutationPayload | ChatCompletionMutationError
@@ -294,6 +296,7 @@ input ChatCompletionOverDatasetInput {
   experimentDescription: String = null
   experimentMetadata: JSON = {}
   promptName: Identifier = null
+  evaluators: [PlaygroundEvaluatorInput!]! = []
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {
@@ -301,6 +304,7 @@ type ChatCompletionOverDatasetMutationExamplePayload {
   repetitionNumber: Int!
   experimentRunId: ID!
   result: ChatCompletionMutationPayloadChatCompletionMutationError!
+  evaluations: [ExperimentRunAnnotation!]!
 }
 
 type ChatCompletionOverDatasetMutationPayload {
@@ -1275,6 +1279,12 @@ input EvalResultKey {
   attr: EvalAttr!
 }
 
+type EvaluationChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  evaluation: ExperimentRunAnnotation!
+}
+
 interface Evaluator implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2097,6 +2107,11 @@ input PerformanceMetricInput {
 
 type PerformanceTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
+}
+
+input PlaygroundEvaluatorInput {
+  id: ID!
+  inputMapping: JSON = {}
 }
 
 type PlaygroundModel implements ModelInterface {
