@@ -1396,6 +1396,77 @@ class DatabaseValidators:
 
         return validator
 
+    @staticmethod
+    def sqlite_in_memory_url() -> Validator:
+        """Validate that PHOENIX_SQL_DATABASE_URL is set to sqlite:///:memory:"""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return data.get("PHOENIX_SQL_DATABASE_URL") == "sqlite:///:memory:"
+
+        return validator
+
+    @staticmethod
+    def postgresql_credentials_set() -> Validator:
+        """Validate that PostgreSQL credentials are set in ConfigMap (not using database.url)."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            # Should have POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_DB
+            # Should NOT have SQL_DATABASE_URL
+            has_host = "PHOENIX_POSTGRES_HOST" in data
+            has_port = "PHOENIX_POSTGRES_PORT" in data
+            has_user = "PHOENIX_POSTGRES_USER" in data
+            has_db = "PHOENIX_POSTGRES_DB" in data
+            no_url = "PHOENIX_SQL_DATABASE_URL" not in data
+
+            return has_host and has_port and has_user and has_db and no_url
+
+        return validator
+
+    @staticmethod
+    def no_database_url_set() -> Validator:
+        """Validate that PHOENIX_SQL_DATABASE_URL is NOT set (for SQLite persistent mode)."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            # Should NOT have SQL_DATABASE_URL (Phoenix auto-configures SQLite)
+            # Should also NOT have POSTGRES credentials
+            no_url = "PHOENIX_SQL_DATABASE_URL" not in data
+            no_pg_host = (
+                "PHOENIX_POSTGRES_HOST" not in data or data.get("PHOENIX_POSTGRES_HOST") == ""
+            )
+
+            return no_url and no_pg_host
+
+        return validator
+
+    @staticmethod
+    def custom_database_url(expected_url: str) -> Validator:
+        """Validate that custom database URL is set."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return data.get("PHOENIX_SQL_DATABASE_URL") == expected_url
+
+        return validator
+
 
 class NamingValidators:
     """Validators for resource naming with nameOverride and fullnameOverride."""
@@ -1773,6 +1844,42 @@ def get_test_suite() -> list[TestCase]:
                 no_postgresql,
                 PostgreSQLValidators.external_config(
                     "external-pg.example.com", "5432", "phoenix_user", "phoenix_db"
+                ),
+            ),
+        ),
+        # Database Configuration Validation (validates correct ConfigMap settings for each mode)
+        TestCase(
+            "DB Config: PostgreSQL mode sets postgres credentials in ConfigMap",
+            "--set postgresql.enabled=true --set persistence.enabled=false",
+            all_of(
+                PostgreSQLValidators.is_enabled(),
+                DatabaseValidators.postgresql_credentials_set(),
+            ),
+        ),
+        TestCase(
+            "DB Config: SQLite persistent mode - no database URL in ConfigMap",
+            "--set postgresql.enabled=false --set persistence.enabled=true",
+            all_of(
+                no_postgresql,
+                has_pvc,
+                DatabaseValidators.no_database_url_set(),
+            ),
+        ),
+        TestCase(
+            "DB Config: SQLite in-memory mode sets sqlite:///:memory: URL",
+            "--set postgresql.enabled=false --set persistence.inMemory=true --set persistence.enabled=false --set database.url='sqlite:///:memory:'",
+            all_of(
+                no_postgresql,
+                DatabaseValidators.sqlite_in_memory_url(),
+            ),
+        ),
+        TestCase(
+            "DB Config: External PostgreSQL URL sets custom database.url",
+            "--set postgresql.enabled=false --set persistence.enabled=false --set database.url='postgresql://myuser:mypass@external.db:5432/phoenix' --set database.postgres.host=phoenix-postgresql --set database.postgres.user=postgres --set database.postgres.password=postgres --set database.postgres.db=phoenix --set database.postgres.port=5432",
+            all_of(
+                no_postgresql,
+                DatabaseValidators.custom_database_url(
+                    "postgresql://myuser:mypass@external.db:5432/phoenix"
                 ),
             ),
         ),
