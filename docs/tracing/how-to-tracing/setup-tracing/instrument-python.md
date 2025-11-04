@@ -1208,34 +1208,32 @@ with using_attributes(session_id="123"):
 {% tab title="TS" %}
 
 ```typescript
+import { context } from "@opentelemetry/api";
+import { setSession } from "@arizeai/openinference-core";
 import { withSpan } from "@arizeai/openinference-core";
 import { trace } from "@arizeai/phoenix-otel";
-import { context } from "@opentelemetry/api";
-import { propagation } from "@opentelemetry/api";
 
-// Set context attributes
-const ctx = propagation.setActive(context.active(), {
-  "session.id": "123",
-});
-
-await context.with(ctx, async () => {
-  // this trace has session id "123"
-  await withSpan(
-    async () => {
-      const span = trace.getActiveSpan();
-      if (span) {
-        span.setAttributes({
-          "input.value": "input",
-          "output.value": "output",
-        });
+await context.with(
+  setSession(context.active(), { sessionId: "123" }),
+  async () => {
+    // this trace has session id "123"
+    await withSpan(
+      async () => {
+        const span = trace.getActiveSpan();
+        if (span) {
+          span.setAttributes({
+            "input.value": "input",
+            "output.value": "output",
+          });
+        }
+      },
+      {
+        name: "chain-span-with-context-attributes",
+        kind: "CHAIN",
       }
-    },
-    {
-      name: "chain-span-with-context-attributes",
-      kind: "CHAIN",
-    }
-  );
-});
+    );
+  }
+);
 ```
 
 {% endtab %}
