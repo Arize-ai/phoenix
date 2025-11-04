@@ -158,9 +158,9 @@ export function GitHubLink({ isExpanded }: { isExpanded: boolean }) {
 }
 
 export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
-  const { themeMode, setThemeMode } = useTheme();
-  const { nextThemeMode, themeModeText, themeIcon } = useMemo(() => {
-    const themeModes: ProviderThemeMode[] = ["dark", "light", "system"];
+  const { theme, themeMode, setThemeMode } = useTheme();
+  const { nextThemeMode, themeText, themeIcon } = useMemo(() => {
+    const themeModes: ProviderThemeMode[] = ["system", "dark", "light"];
     const currentThemeModeIndex = themeModes.indexOf(themeMode);
     const nextThemeModeIndex = (currentThemeModeIndex + 1) % themeModes.length;
     const nextThemeMode = themeModes[nextThemeModeIndex];
@@ -178,14 +178,30 @@ export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
       default:
         assertUnreachable(themeMode);
     }
-    const capitalizedThemeMode =
-      themeMode.charAt(0).toUpperCase() + themeMode.slice(1);
+    let themeText: string;
+    switch (themeMode) {
+      case "light": {
+        themeText = "Light";
+        break;
+      }
+      case "dark": {
+        themeText = "Dark";
+        break;
+      }
+      case "system": {
+        themeText = `${theme === "light" ? "Light" : "Dark"} (auto)`;
+        break;
+      }
+      default: {
+        assertUnreachable(themeMode);
+      }
+    }
     return {
       nextThemeMode,
       themeIcon,
-      themeModeText: capitalizedThemeMode,
+      themeText,
     };
-  }, [themeMode]);
+  }, [theme, themeMode]);
 
   return (
     <TooltipTrigger delay={0} isDisabled={isExpanded}>
@@ -196,11 +212,11 @@ export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
           className="button--reset"
         >
           <Icon svg={themeIcon} />
-          <Text>{themeModeText}</Text>
+          <Text>{themeText}</Text>
         </button>
       </Pressable>
       <Tooltip placement="right" offset={10}>
-        {themeModeText}
+        {themeText}
       </Tooltip>
     </TooltipTrigger>
   );
