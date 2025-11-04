@@ -594,7 +594,7 @@ function processOutput(response: OpenAI.Chat.Completions.ChatCompletion) {
 When using `withSpan` to wrap functions, you can pass `processInput` and `processOutput` functions as options. These should satisfy the following:
 
 - The input signature of `processInput` should exactly match the input signature of the wrapped function.
-- The input signature of `processOutput` has a single argument, the output of the wrapped function. This argument accepts the returned value when the wrapped function is a sync or async function, or a list of yielded values when the wrapped function is a sync or async generator function.
+- The input signature of `processOutput` has a single argument, the output of the wrapped function. This argument accepts the returned value when the wrapped function is a sync or async function.
 - Both `processInput` and `processOutput` should output a dictionary mapping attribute names to values.
 
 ```typescript
@@ -630,134 +630,6 @@ const invokeLLM = withSpan(
 await invokeLLM([{ role: "user", content: "Hello, world!" }], "gpt-4", 0.5);
 ```
 
-When wrapping a generator function, `processOutput` should accept a single argument, a list of the values yielded by the wrapped function.
-
-```typescript
-import { withSpan } from "@arizeai/openinference-core";
-import {
-  getLLMAttributes,
-  defaultProcessOutput,
-} from "@arizeai/openinference-core";
-import OpenAI from "openai";
-
-function processGeneratorOutput(
-  outputs: OpenAI.Chat.Completions.ChatCompletionChunk[]
-) {
-  let role: string | undefined;
-  let content = "";
-  const tokenCount: { prompt?: number; completion?: number } = {};
-
-  for (const chunk of outputs) {
-    if (chunk.choices && chunk.choices.length > 0) {
-      const delta = chunk.choices[0].delta;
-      if (typeof delta.content === "string") {
-        content += delta.content;
-      }
-      if (typeof delta.role === "string") {
-        role = delta.role;
-      }
-    }
-    if (chunk.usage) {
-      if (chunk.usage.prompt_tokens) {
-        tokenCount.prompt = chunk.usage.prompt_tokens;
-      }
-      if (chunk.usage.completion_tokens) {
-        tokenCount.completion = chunk.usage.completion_tokens;
-      }
-    }
-  }
-
-  const outputMessages = [];
-  if (role && content) {
-    outputMessages.push({ role, content });
-  }
-
-  return {
-    ...getLLMAttributes({
-      outputMessages,
-      tokenCount:
-        tokenCount.prompt && tokenCount.completion ? tokenCount : undefined,
-    }),
-    ...defaultProcessOutput(content),
-  };
-}
-```
-
-Then the wrapping is the same as before.
-
-```typescript
-import { withSpan } from "@arizeai/openinference-core";
-import OpenAI from "openai";
-
-const openaiAsyncClient = new OpenAI();
-
-const streamLLMResponse = withSpan(
-  async function* (
-    messages: ChatCompletionMessageParam[],
-    model: string,
-    temperature?: number
-  ): AsyncGenerator<
-    OpenAI.Chat.Completions.ChatCompletionChunk,
-    void,
-    unknown
-  > {
-    const stream = await openaiAsyncClient.chat.completions.create({
-      messages: messages,
-      model: model,
-      temperature: temperature,
-      stream: true,
-    });
-    for await (const chunk of stream) {
-      yield chunk;
-    }
-  },
-  {
-    name: "stream-llm-response",
-    kind: "LLM",
-    processInput: (messages, model, temperature) =>
-      processInput(messages, model, temperature),
-    processOutput: processGeneratorOutput,
-  }
-);
-
-for await (const chunk of streamLLMResponse(
-  [{ role: "user", content: "Hello, world!" }],
-  "gpt-4",
-  0.5
-)) {
-  console.log(chunk);
-}
-```
-
-### Method Patch
-
-As before, it's possible to directly patch the method on the client. Just ensure that the input signatures of `processInput` and the patched method match.
-
-```typescript
-import { withSpan } from "@arizeai/openinference-core";
-import OpenAI from "openai";
-
-const openaiClient = new OpenAI();
-
-// patch the create method
-const originalCreate = openaiClient.chat.completions.create.bind(
-  openaiClient.chat.completions
-);
-openaiClient.chat.completions.create = withSpan(originalCreate, {
-  name: "openai-chat-completion",
-  kind: "LLM",
-  processInput: (model, messages, ...args) =>
-    processInput(messages, model, ...args),
-  processOutput: (response) => processOutput(response),
-}) as typeof originalCreate;
-
-// invoke the patched method normally
-await openaiClient.chat.completions.create({
-  model: "gpt-4o",
-  messages: [{ role: "user", content: "Hello, world!" }],
-});
-```
-
 {% endtab %}
 {% endtabs %}
 
@@ -789,19 +661,20 @@ with suppress_tracing():
 {% tab title="TS" %}
 
 ```typescript
-import { suppressTracing } from "@arizeai/openinference-core";
+import { suppressTracing } from "@opentelemetry/core";
 import { withSpan } from "@arizeai/openinference-core";
-import { trace } from "@arizeai/phoenix-otel";
+import { trace, context } from "@arizeai/phoenix-otel";
 
-await suppressTracing(async () => {
+await context.with(suppressTracing(context.active()), async () => {
   // this trace will not be recorded
   await withSpan(
     async () => {
       const span = trace.getActiveSpan();
       if (span) {
-        span.setAttribute("input.value", "input");
-        span.setAttribute("output.value", "output");
-        span.setStatus({ code: 1 }); // OK
+        span.setAttributes({
+          "input.value": "input",
+          "output.value": "output",
+        });
       }
     },
     {
@@ -853,9 +726,10 @@ await context.with(ctx, async () => {
     async () => {
       const span = trace.getActiveSpan();
       if (span) {
-        span.setAttribute("input.value", "input");
-        span.setAttribute("output.value", "output");
-        span.setStatus({ code: 1 }); // OK
+        span.setAttributes({
+          "input.value": "input",
+          "output.value": "output",
+        });
       }
     },
     {
@@ -961,12 +835,13 @@ await withSpan(
           inputMessages: messages,
         })
       );
-      span.setAttribute("input.value", text);
-
       // Call your LLM here
       const response = "This is a test response";
 
-      span.setAttribute("output.value", response);
+      span.setAttributes({
+        "input.value": text,
+        "output.value": response,
+      });
       console.log(response);
     }
   },
