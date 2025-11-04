@@ -37,7 +37,7 @@ import {
 } from "@phoenix/pages/evaluators/EvaluatorLLMChoice";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { identifierPattern } from "@phoenix/utils/identifierUtils";
+import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 export const NewEvaluatorPage = () => {
   return (
@@ -275,13 +275,7 @@ const NewEvaluatorPageContent = () => {
                 control={nameControl}
                 rules={{
                   required: "Name is required",
-                  pattern: {
-                    value: identifierPattern.value,
-                    message: identifierPattern.message.replace(
-                      "identifier",
-                      "evaluator name"
-                    ),
-                  },
+                  validate: validateIdentifier,
                 }}
                 render={({ field, fieldState: { error } }) => (
                   <TextField {...field} autoComplete="off" isInvalid={!!error}>

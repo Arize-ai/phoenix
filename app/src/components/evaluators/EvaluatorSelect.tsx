@@ -20,7 +20,7 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
-type EvaluatorItem = {
+export type EvaluatorItem = {
   id: string;
   name: string;
   kind: "CODE" | "LLM";
@@ -41,7 +41,7 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
 
   return (
     <MenuTrigger>
-      <Button leadingVisual={<Icon svg={<Icons.PlusOutline />} />}>
+      <Button size="S" leadingVisual={<Icon svg={<Icons.PlusOutline />} />}>
         Add evaluator
       </Button>
       <MenuContainer>
