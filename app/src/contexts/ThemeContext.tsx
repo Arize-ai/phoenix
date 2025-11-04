@@ -28,6 +28,7 @@ export function isProviderThemeMode(
 
 export type ThemeContextType = {
   theme: ProviderTheme;
+  systemTheme: ProviderTheme;
   themeMode: ProviderThemeMode;
   setThemeMode: (themeMode: ProviderThemeMode) => void;
 };
@@ -134,7 +135,9 @@ export function ThemeProvider(
   }, [theme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, themeMode, setThemeMode }}>
+    <ThemeContext.Provider
+      value={{ theme, systemTheme, themeMode, setThemeMode }}
+    >
       {props.children}
     </ThemeContext.Provider>
   );
