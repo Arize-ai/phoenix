@@ -61,13 +61,15 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionExperiment,
     ChatCompletionSubscriptionPayload,
     ChatCompletionSubscriptionResult,
+    EvaluationChunk,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
@@ -335,6 +337,27 @@ class Subscription:
             ):
                 yield result_payload
 
+        if input.evaluators:
+            async with info.context.db() as session:
+                for ii, evaluator in enumerate(input.evaluators):
+                    _, db_id = from_global_id(evaluator.id)
+                    evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
+                    evaluator_name = evaluator_record.name if evaluator_record else ""  # pyright: ignore
+                    dummy_annotation = ExperimentRunAnnotation.from_dict(
+                        {
+                            "name": evaluator_name,
+                            "label": f"dummy {ii}",
+                            "score": 0.5,
+                            "explanation": "dummy evaluation",
+                            "metadata": {},
+                        }
+                    )
+                    yield EvaluationChunk(
+                        evaluation=dummy_annotation,
+                        dataset_example_id=None,
+                        repetition_number=None,
+                    )
+
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def chat_completion_over_dataset(
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
@@ -551,6 +574,30 @@ class Subscription:
                 span_cost_calculator=info.context.span_cost_calculator,
             ):
                 yield result_payload
+
+        if input.evaluators:
+            async with info.context.db() as session:
+                for revision in revisions:
+                    example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
+                    for repetition_number in range(1, input.repetitions + 1):
+                        for ii, evaluator in enumerate(input.evaluators):
+                            _, db_id = from_global_id(evaluator.id)
+                            evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
+                            evaluator_name = evaluator_record.name if evaluator_record else ""  # pyright: ignore
+                            dummy_annotation = ExperimentRunAnnotation.from_dict(
+                                {
+                                    "name": evaluator_name,
+                                    "label": f"dummy {ii}",
+                                    "score": 0.5,
+                                    "explanation": "dummy evaluation",
+                                    "metadata": {},
+                                }
+                            )
+                            yield EvaluationChunk(
+                                evaluation=dummy_annotation,
+                                dataset_example_id=example_id,
+                                repetition_number=repetition_number,
+                            )
 
 
 async def _stream_chat_completion_over_dataset_example(
