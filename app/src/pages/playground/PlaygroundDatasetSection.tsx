@@ -1,13 +1,21 @@
 import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Flex, Icon, Icons, LinkButton, Text, View } from "@phoenix/components";
-import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import {
-  type EvaluatorItem,
-  EvaluatorSelect,
-} from "@phoenix/components/evaluators/EvaluatorSelect";
+  Flex,
+  Icon,
+  Icons,
+  LinkButton,
+  Text,
+  Token,
+  View,
+} from "@phoenix/components";
+import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
+import { EvaluatorSelect } from "@phoenix/components/evaluators/EvaluatorSelect";
+import { useTheme } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { Mutable } from "@phoenix/typeUtils";
+import { getWordColor } from "@phoenix/utils/colorUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
@@ -22,6 +30,7 @@ export function PlaygroundDatasetSection({
   splitIds?: string[];
 }) {
   const instances = usePlaygroundContext((state) => state.instances);
+  const { theme } = useTheme();
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const experimentIds = useMemo(() => {
     return instances
@@ -29,9 +38,22 @@ export function PlaygroundDatasetSection({
       .filter((id) => id != null);
   }, [instances]);
 
+  // eslint-disable-next-line no-console
+  console.warn(
+    "Using global evaluators. Use dataset evaluators when assignment becomes available."
+  );
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
       query PlaygroundDatasetSectionQuery($datasetId: ID!, $splitIds: [ID!]) {
+        evaluators {
+          edges {
+            evaluator: node {
+              id
+              name
+              kind
+            }
+          }
+        }
         dataset: node(id: $datasetId) {
           ... on Dataset {
             name
@@ -41,15 +63,16 @@ export function PlaygroundDatasetSection({
               name
               color
             }
-            evaluators {
-              edges {
-                evaluator: node {
-                  id
-                  name
-                  kind
-                }
-              }
-            }
+            # TODO: uncomment this when you can assign evaluators to datasets
+            # evaluators {
+            #   edges {
+            #     evaluator: node {
+            #       id
+            #       name
+            #       kind
+            #     }
+            #   }
+            # }
           }
         }
       }
@@ -74,12 +97,10 @@ export function PlaygroundDatasetSection({
       }));
   }, [data, splitIds]);
 
-  const evaluators: EvaluatorItem[] = [
-    { id: btoa("LLMEvaluator:1"), name: "correctness", kind: "LLM" },
-    { id: btoa("LLMEvaluator:2"), name: "exact match", kind: "CODE" },
-  ]; // todo: use real evaluators
+  const evaluators =
+    data.evaluators?.edges?.map((edge) => edge.evaluator) ?? [];
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
-    evaluators.map((evaluator) => evaluator.id)
+    () => evaluators.map((evaluator) => evaluator.id) ?? []
   );
 
   return (
@@ -106,8 +127,20 @@ export function PlaygroundDatasetSection({
             ) : null}
           </Flex>
           <Flex direction="row" gap="size-100" alignItems="center">
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {evaluators
+                .filter((e) => selectedEvaluatorIds.includes(e.id))
+                .map((e) => (
+                  <Token
+                    key={e.id}
+                    color={getWordColor({ word: e.name, theme })}
+                  >
+                    {e.name}
+                  </Token>
+                ))}
+            </Flex>
             <EvaluatorSelect
-              evaluators={evaluators}
+              evaluators={evaluators as Mutable<(typeof evaluators)[number]>[]}
               selectedIds={selectedEvaluatorIds}
               onSelectionChange={(id: string) => {
                 setSelectedEvaluatorIds((prev) => {
