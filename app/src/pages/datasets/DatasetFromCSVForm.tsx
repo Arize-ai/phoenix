@@ -2,8 +2,6 @@ import { useCallback, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import { Field, FieldProps } from "@arizeai/components";
-
 import {
   Button,
   FieldError,
@@ -221,13 +219,9 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
           rules={{
             required: "field is required",
           }}
-          render={({
-            field: { value, onChange },
-            fieldState: { invalid, error },
-          }) => (
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
             <ColumnMultiSelector
               label="input keys"
-              validationState={invalid ? "invalid" : "valid"}
               description={`the columns to use as input`}
               columns={columns}
               selectedColumns={value}
@@ -239,13 +233,9 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
         <Controller
           name="output_keys"
           control={control}
-          render={({
-            field: { value, onChange },
-            fieldState: { invalid, error },
-          }) => (
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
             <ColumnMultiSelector
               label="output keys"
-              validationState={invalid ? "invalid" : "valid"}
               description={`the columns to use as output`}
               columns={columns}
               selectedColumns={value}
@@ -257,13 +247,9 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
         <Controller
           name="metadata_keys"
           control={control}
-          render={({
-            field: { value, onChange },
-            fieldState: { invalid, error },
-          }) => (
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
             <ColumnMultiSelector
               label="metadata keys"
-              validationState={invalid ? "invalid" : "valid"}
               description={`the columns to use as metadata`}
               columns={columns}
               selectedColumns={value}
@@ -295,23 +281,19 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
   );
 }
 
-function ColumnMultiSelector(
-  props: Pick<
-    FieldProps,
-    "label" | "validationState" | "description" | "errorMessage"
-  > & {
-    label: string;
-    columns: string[];
-    selectedColumns: string[];
-    onChange: (selectedColumns: string[]) => void;
-  }
-) {
+function ColumnMultiSelector(props: {
+  description?: string;
+  errorMessage?: string;
+  label: string;
+  columns: string[];
+  selectedColumns: string[];
+  onChange: (selectedColumns: string[]) => void;
+}) {
   const {
     columns,
     selectedColumns,
     onChange,
     label,
-    validationState,
     description,
     errorMessage,
   } = props;
@@ -321,13 +303,8 @@ function ColumnMultiSelector(
   }, [columns]);
 
   return (
-    <Field
-      label={label}
-      isDisabled={noColumns}
-      validationState={validationState}
-      description={description}
-      errorMessage={errorMessage}
-    >
+    <div css={fieldBaseCSS}>
+      <Label>{label}</Label>
       <Select
         isDisabled={noColumns}
         placeholder="Select columns"
@@ -353,6 +330,14 @@ function ColumnMultiSelector(
           </ListBox>
         </Popover>
       </Select>
-    </Field>
+      {errorMessage ? (
+        <Text slot="errorMessage" color="danger">
+          {errorMessage}
+        </Text>
+      ) : null}
+      {description && !errorMessage ? (
+        <Text slot="description">{description}</Text>
+      ) : null}
+    </div>
   );
 }
