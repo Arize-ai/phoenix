@@ -30,7 +30,7 @@
   * [Setup Tracing](tracing/how-to-tracing/setup-tracing/README.md)
     * [Setup using Phoenix OTEL](tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel.md)
     * [Setup using base OTEL](tracing/how-to-tracing/setup-tracing/custom-spans.md)
-    * [Using Tracing Helpers](tracing/how-to-tracing/setup-tracing/instrument-python.md)
+    * [Using Tracing Helpers](tracing/how-to-tracing/setup-tracing/instrument.md)
     * [Setup Tracing (TS)](tracing/how-to-tracing/setup-tracing/javascript.md)
     * [Setup Projects](tracing/how-to-tracing/setup-tracing/setup-projects.md)
     * [Setup Sessions](tracing/how-to-tracing/setup-tracing/setup-sessions.md)

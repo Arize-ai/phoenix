@@ -6,7 +6,7 @@ hidden: true
 
 Phoenix supports three main options to collect traces:
 
-1. Use [Phoenix's decorators](../how-to-tracing/setup-tracing/instrument-python.md) to mark functions and code blocks.
+1. Use [Phoenix's decorators](../how-to-tracing/setup-tracing/instrument.md) to mark functions and code blocks.
 2. Use [automatic instrumentation](https://arize.com/docs/phoenix/integrations) to capture all calls made to supported frameworks.
 3. Use [base OpenTelemetry](../how-to-tracing/setup-tracing/custom-spans.md) instrumentation. Supported in [Python](../how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](../how-to-tracing/setup-tracing/javascript.md)
 
