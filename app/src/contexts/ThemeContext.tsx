@@ -105,9 +105,6 @@ export function ThemeProvider(
   }, [themeMode, systemTheme]);
 
   useEffect(() => {
-    if (themeMode !== "system") {
-      return;
-    }
     const isDarkSystemThemeMediaQuery = window.matchMedia(
       IS_DARK_SYSTEM_THEME_MEDIA_QUERY_STRING
     );
@@ -118,7 +115,7 @@ export function ThemeProvider(
     return () => {
       isDarkSystemThemeMediaQuery.removeEventListener("change", handleChange);
     };
-  }, [themeMode]);
+  }, []);
 
   useEffect(() => {
     if (props.themeMode) {
