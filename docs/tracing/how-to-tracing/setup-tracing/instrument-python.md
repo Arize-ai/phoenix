@@ -135,9 +135,10 @@ await withSpan(
   async () => {
     const span = trace.getActiveSpan();
     if (span) {
-      span.setAttribute("input.value", "input");
-      span.setAttribute("output.value", "output");
-      span.setStatus({ code: 1 }); // OK
+      span.setAttributes({
+        "input.value": "input",
+        "output.value": "output",
+      });
     }
   },
   {
@@ -158,20 +159,19 @@ This approach is useful when you need only a portion of a method to be captured 
 
 OpenInference Span Kinds denote the possible types of spans you might capture, and will be rendered different in the Phoenix UI.
 
-The possible values are:
+The `openinference.span.kind` attribute is required for all OpenInference spans and identifies the type of operation being traced. The span kind provides a hint to the tracing backend as to how the trace should be assembled. Valid values include:
 
-| Span Kind | Use                                                                                                   |
-| --------- | ----------------------------------------------------------------------------------------------------- |
-| CHAIN     | General logic operations, functions, or code blocks                                                   |
-| LLM       | Making LLM calls                                                                                      |
-| TOOL      | Completing tool calls                                                                                 |
-| RETRIEVER | Retrieving documents                                                                                  |
-| EMBEDDING | Generating embeddings                                                                                 |
-| AGENT     | Agent invokations - typically a top level or near top level span                                      |
-| RERANKER  | Reranking retrieved context                                                                           |
-| UNKNOWN   | Unknown                                                                                               |
-| GUARDRAIL | Guardrail checks                                                                                      |
-| EVALUATOR | Evaluators - typically only use by Phoenix when automatically tracing evaluation and experiment calls |
+| Span Kind | Description                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LLM       | A span that represents a call to a Large Language Model (LLM). For example, an LLM span could be used to represent a call to OpenAI or Llama for chat completions or text generation.                                                                                                                                                                                                                                                       |
+| EMBEDDING | A span that represents a call to an LLM or embedding service for generating embeddings. For example, an Embedding span could be used to represent a call to OpenAI to get an ada embedding for retrieval.                                                                                                                                                                                                                                   |
+| CHAIN     | A span that represents a starting point or a link between different LLM application steps. For example, a Chain span could be used to represent the beginning of a request to an LLM application or the glue code that passes context from a retriever to an LLM call.                                                                                                                                                                      |
+| RETRIEVER | A span that represents a data retrieval step. For example, a Retriever span could be used to represent a call to a vector store or a database to fetch documents or information.                                                                                                                                                                                                                                                            |
+| RERANKER  | A span that represents the reranking of a set of input documents. For example, a cross-encoder may be used to compute the input documents' relevance scores with respect to a user query, and the top K documents with the highest scores are then returned by the Reranker.                                                                                                                                                                |
+| TOOL      | A span that represents a call to an external tool such as a calculator, weather API, or any function execution that is invoked by an LLM or agent.                                                                                                                                                                                                                                                                                          |
+| AGENT     | A span that encompasses calls to LLMs and Tools. An agent describes a reasoning block that acts on tools using the guidance of an LLM.                                                                                                                                                                                                                                                                                                      |
+| GUARDRAIL | A span that represents calls to a component to protect against jailbreak user input prompts by taking action to modify or reject an LLM's response if it contains undesirable content. For example, a Guardrail span could involve checking if an LLM's output response contains inappropriate language, via a custom or external guardrail library, and then amending the LLM response to remove references to the inappropriate language. |
+| EVALUATOR | A span that represents a call to a function or process performing an evaluation of the language model's outputs. Examples include assessing the relevance, correctness, or helpfulness of the language model's answers.                                                                                                                                                                                                                     |
 
 ## Chains
 
@@ -234,9 +234,10 @@ await withSpan(
   async () => {
     const span = trace.getActiveSpan();
     if (span) {
-      span.setAttribute("input.value", "input");
-      span.setAttribute("output.value", "output");
-      span.setStatus({ code: 1 }); // OK
+      span.setAttributes({
+        "input.value": "input",
+        "output.value": "output",
+      });
     }
   },
   {
@@ -261,7 +262,7 @@ const decoratedChainWithPlainTextOutput = traceChain(
 decoratedChainWithPlainTextOutput("input");
 ```
 
-#### Using JSON Output
+#### Using JSON Serializable Output
 
 ```typescript
 import { traceChain } from "@arizeai/openinference-core";
