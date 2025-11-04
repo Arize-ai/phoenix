@@ -1,6 +1,16 @@
 import { graphql, useFragment } from "react-relay";
 
 import { Card, Flex, Text, View } from "@phoenix/components";
+import {
+  PromptChatMessagesCard__main$data,
+  PromptChatMessagesCard__main$key,
+} from "@phoenix/components/prompt/__generated__/PromptChatMessagesCard__main.graphql";
+import {
+  ChatTemplateMessageCard,
+  ChatTemplateMessageTextPart,
+  ChatTemplateMessageToolCallPart,
+  ChatTemplateMessageToolResultPart,
+} from "@phoenix/components/prompt/ChatTemplateMessageCard";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
@@ -10,17 +20,6 @@ import {
   asToolCallPart,
   asToolResultPart,
 } from "@phoenix/utils/promptUtils";
-
-import {
-  PromptChatMessagesCard__main$data,
-  PromptChatMessagesCard__main$key,
-} from "./__generated__/PromptChatMessagesCard__main.graphql";
-import {
-  ChatTemplateMessageCard,
-  ChatTemplateMessageTextPart,
-  ChatTemplateMessageToolCallPart,
-  ChatTemplateMessageToolResultPart,
-} from "./ChatTemplateMessageCard";
 
 export function PromptChatMessages({
   promptVersion,
@@ -156,13 +155,13 @@ function ChatMessages({
   const { messages } = template;
   return (
     <Flex direction="column" gap="size-100" data-testid="chat-messages">
-      {messages.map((message, i) => {
+      {messages.map((message, i: number) => {
         const isOnlyChild =
           message.content.length === 1 &&
           message.content.find(asTextPart) != null;
         return (
           <ChatTemplateMessageCard key={i} role={message.role as string}>
-            {message.content.map((content, i) => (
+            {message.content.map((content, i: number) => (
               <ChatMessageContentPart
                 key={`${i}-${content.__typename}`}
                 part={content}

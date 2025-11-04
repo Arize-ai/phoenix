@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 import { PromptLabelConfigButton } from "@phoenix/pages/prompt/PromptLabelConfigButton";
 import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
@@ -20,7 +21,6 @@ import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelC
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
 import { EditPromptButton } from "./EditPromptButton";
-import { PromptChatMessagesCard } from "./PromptChatMessagesCard";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
 import { usePromptIdLoader } from "./usePromptIdLoader";

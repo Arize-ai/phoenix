@@ -82,11 +82,14 @@ export function DatasetEvaluatorsPage() {
           }
         }}
       >
-        <Modal>
-          <EvaluatorConfigDialog
-            onClose={onCloseEvaluatorConfigDialog}
-            datasetRef={data.dataset}
-          />
+        <Modal size="L">
+          {addingEvaluatorId && (
+            <EvaluatorConfigDialog
+              evaluatorId={addingEvaluatorId}
+              onClose={onCloseEvaluatorConfigDialog}
+              datasetRef={data.dataset}
+            />
+          )}
         </Modal>
       </ModalOverlay>
     </main>
