@@ -242,7 +242,7 @@ input ChatCompletionInput {
   template: PromptTemplateOptions
   promptName: Identifier = null
   repetitions: Int!
-  evaluators: [PlaygroundEvaluatorInput!] = []
+  evaluators: [PlaygroundEvaluatorInput!]! = []
 }
 
 input ChatCompletionMessageInput {

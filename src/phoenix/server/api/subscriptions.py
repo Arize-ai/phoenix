@@ -198,8 +198,8 @@ class Subscription:
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
         yield ChatCompletionSubscriptionResult(span=Span(id=db_span.id, db_record=db_span))
 
-        async with info.context.db() as session:
-            if input.evaluators:
+        if input.evaluators:
+            async with info.context.db() as session:
                 for ii, evaluator in enumerate(input.evaluators):
                     _, db_id = from_global_id(evaluator.id)
                     evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
@@ -434,8 +434,8 @@ class Subscription:
             ):
                 yield result_payload
 
-        async with info.context.db() as session:
-            if input.evaluators:
+        if input.evaluators:
+            async with info.context.db() as session:
                 for revision in revisions:
                     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
                     for repetition_number in range(1, input.repetitions + 1):
