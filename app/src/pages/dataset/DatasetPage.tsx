@@ -175,10 +175,7 @@ function DatasetPageContent({
     },
     [navigate, datasetId]
   );
-  const datasetHasVersions = useMemo(
-    () => (dataset.latestVersions?.edges.length ?? 0) > 0,
-    [dataset.latestVersions]
-  );
+  const datasetHasVersions = (dataset.latestVersions?.edges.length ?? 0) > 0;
 
   // Set the initial tab
   const location = useLocation();
