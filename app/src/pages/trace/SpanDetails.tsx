@@ -1451,7 +1451,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       >
         <ErrorBoundary>
           {messagesContents ? (
-            <MessageContentsList messageContents={messagesContents} />
+            <MessageContentsList messageContents={messagesContents ?? []} />
           ) : null}
         </ErrorBoundary>
         <Flex direction="column" alignItems="start">
@@ -1480,7 +1480,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             ]}
           >
             {/* when the message is a tool result, show the tool result in a disclosure */}
-            {messageContent && role.toLowerCase() === "tool" ? (
+            {role.toLowerCase() === "tool" ? (
               <Disclosure id="tool-content">
                 <DisclosureTrigger
                   arrowPosition="start"
@@ -1496,7 +1496,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                 <DisclosurePanel>
                   <View width="100%">
                     <ConnectedMarkdownBlock>
-                      {messageContent}
+                      {messageContent || `undefined`}
                     </ConnectedMarkdownBlock>
                   </View>
                 </DisclosurePanel>
