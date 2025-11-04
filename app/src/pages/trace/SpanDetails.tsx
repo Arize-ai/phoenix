@@ -1483,7 +1483,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             {role.toLowerCase() === "tool" ? (
               <Disclosure id="tool-content">
                 <DisclosureTrigger
-                  arrowPosition="start"
+                  arrowPosition={messageContent ? "start" : "none"}
                   justifyContent="space-between"
                 >
                   <Text>
