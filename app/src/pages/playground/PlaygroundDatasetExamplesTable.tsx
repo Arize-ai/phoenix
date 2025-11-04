@@ -86,7 +86,7 @@ import {
 } from "./__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
-import {
+import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
@@ -504,9 +504,11 @@ export const MemoizedTableBody = memo(
 export function PlaygroundDatasetExamplesTable({
   datasetId,
   splitIds,
+  evaluatorIds,
 }: {
   datasetId: string;
   splitIds?: string[];
+  evaluatorIds: string[];
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
@@ -623,7 +625,15 @@ export function PlaygroundDatasetExamplesTable({
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               toolCallChunk: chatCompletion,
             });
-
+            break;
+          }
+          case "EvaluationChunk": {
+            if (chatCompletion.datasetExampleId == null) {
+              return;
+            }
+            const evaluation = chatCompletion.evaluation;
+            // eslint-disable-next-line no-console
+            console.log({ evaluation }); // todo: display evaluations
             break;
           }
           // This should never happen
@@ -749,66 +759,12 @@ export function PlaygroundDatasetExamplesTable({
             playgroundStore,
             datasetId,
             splitIds,
+            evaluatorIds,
           }),
         };
         const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
           {
-            subscription: graphql`
-              subscription PlaygroundDatasetExamplesTableSubscription(
-                $input: ChatCompletionOverDatasetInput!
-              ) {
-                chatCompletionOverDataset(input: $input) {
-                  __typename
-                  ... on TextChunk {
-                    content
-                    datasetExampleId
-                    repetitionNumber
-                  }
-                  ... on ToolCallChunk {
-                    id
-                    datasetExampleId
-                    repetitionNumber
-                    function {
-                      name
-                      arguments
-                    }
-                  }
-                  ... on ChatCompletionSubscriptionExperiment {
-                    experiment {
-                      id
-                    }
-                  }
-                  ... on ChatCompletionSubscriptionResult {
-                    datasetExampleId
-                    repetitionNumber
-                    span {
-                      id
-                      tokenCountTotal
-                      costSummary {
-                        total {
-                          cost
-                        }
-                      }
-                      latencyMs
-                      project {
-                        id
-                      }
-                      context {
-                        traceId
-                      }
-                    }
-                    experimentRun {
-                      id
-                    }
-                  }
-                  ... on ChatCompletionSubscriptionError {
-                    datasetExampleId
-                    repetitionNumber
-                    message
-                  }
-                }
-              }
-            `,
+            subscription: PlaygroundDatasetExamplesTableSubscription,
             variables,
             onNext: onNext(instance.id),
             onCompleted: () => {
@@ -861,6 +817,7 @@ export function PlaygroundDatasetExamplesTable({
             playgroundStore,
             datasetId,
             splitIds,
+            evaluatorIds,
           }),
         };
         const disposable = generateChatCompletion({
@@ -897,6 +854,7 @@ export function PlaygroundDatasetExamplesTable({
     datasetId,
     splitIds,
     environment,
+    evaluatorIds,
     generateChatCompletion,
     hasSomeRunIds,
     markPlaygroundInstanceComplete,
@@ -1160,12 +1118,10 @@ export function PlaygroundDatasetExamplesTable({
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     // eslint-disable-next-line react-hooks/exhaustive-deps
     table.getState().columnSizingInfo,
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
     table.getState().columnSizing,
     columns.length,
@@ -1296,3 +1252,69 @@ export function PlaygroundDatasetExamplesTable({
     </div>
   );
 }
+
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+graphql`
+  subscription PlaygroundDatasetExamplesTableSubscription(
+    $input: ChatCompletionOverDatasetInput!
+  ) {
+    chatCompletionOverDataset(input: $input) {
+      __typename
+      ... on TextChunk {
+        content
+        datasetExampleId
+        repetitionNumber
+      }
+      ... on ToolCallChunk {
+        id
+        datasetExampleId
+        repetitionNumber
+        function {
+          name
+          arguments
+        }
+      }
+      ... on ChatCompletionSubscriptionExperiment {
+        experiment {
+          id
+        }
+      }
+      ... on ChatCompletionSubscriptionResult {
+        datasetExampleId
+        repetitionNumber
+        span {
+          id
+          tokenCountTotal
+          costSummary {
+            total {
+              cost
+            }
+          }
+          latencyMs
+          project {
+            id
+          }
+          context {
+            traceId
+          }
+        }
+        experimentRun {
+          id
+        }
+      }
+      ... on ChatCompletionSubscriptionError {
+        datasetExampleId
+        repetitionNumber
+        message
+      }
+      ... on EvaluationChunk {
+        datasetExampleId
+        repetitionNumber
+        evaluation {
+          label
+          score
+        }
+      }
+    }
+  }
+`;
