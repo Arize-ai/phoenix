@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<06d642df59db94cc0d7996ddf1788971>>
+ * @generated SignedSource<<c553ad468f6cf556b78fa01a19683653>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,16 +10,21 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type EvaluatorKind = "CODE" | "LLM";
 export type EvaluatorConfigDialog_evaluatorQuery$variables = {
   evaluatorId: string;
 };
 export type EvaluatorConfigDialog_evaluatorQuery$data = {
   readonly evaluator: {
     readonly id: string;
+    readonly kind?: EvaluatorKind;
     readonly name?: string;
-    readonly prompt?: {
-      readonly id: string;
+    readonly outputConfig?: {
       readonly name: string;
+      readonly values: ReadonlyArray<{
+        readonly label: string;
+        readonly score: number | null;
+      }>;
     };
     readonly promptVersion?: {
       readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessagesCard__main">;
@@ -63,7 +68,14 @@ v3 = {
 v4 = {
   "kind": "InlineFragment",
   "selections": [
-    (v3/*: any*/)
+    (v3/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "kind",
+      "storageKey": null
+    }
   ],
   "type": "Evaluator",
   "abstractKey": "__isEvaluator"
@@ -71,13 +83,25 @@ v4 = {
 v5 = {
   "alias": null,
   "args": null,
-  "concreteType": "Prompt",
+  "concreteType": "CategoricalAnnotationValue",
   "kind": "LinkedField",
-  "name": "prompt",
-  "plural": false,
+  "name": "values",
+  "plural": true,
   "selections": [
-    (v2/*: any*/),
-    (v3/*: any*/)
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "label",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "score",
+      "storageKey": null
+    }
   ],
   "storageKey": null
 },
@@ -115,7 +139,19 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v5/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "CategoricalAnnotationConfig",
+                "kind": "LinkedField",
+                "name": "outputConfig",
+                "plural": false,
+                "selections": [
+                  (v3/*: any*/),
+                  (v5/*: any*/)
+                ],
+                "storageKey": null
+              },
               {
                 "alias": null,
                 "args": null,
@@ -163,7 +199,20 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v5/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "CategoricalAnnotationConfig",
+                "kind": "LinkedField",
+                "name": "outputConfig",
+                "plural": false,
+                "selections": [
+                  (v3/*: any*/),
+                  (v5/*: any*/),
+                  (v2/*: any*/)
+                ],
+                "storageKey": null
+              },
               {
                 "alias": null,
                 "args": null,
@@ -359,16 +408,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5fa7789f800f19af466ce44d45d1524c",
+    "cacheID": "d6b4a746993590519b4a508723af8d56",
     "id": null,
     "metadata": {},
     "name": "EvaluatorConfigDialog_evaluatorQuery",
     "operationKind": "query",
-    "text": "query EvaluatorConfigDialog_evaluatorQuery(\n  $evaluatorId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    id\n    ... on Evaluator {\n      __isEvaluator: __typename\n      name\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        ...PromptChatMessagesCard__main\n        id\n      }\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n"
+    "text": "query EvaluatorConfigDialog_evaluatorQuery(\n  $evaluatorId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    id\n    ... on Evaluator {\n      __isEvaluator: __typename\n      name\n      kind\n    }\n    ... on LLMEvaluator {\n      outputConfig {\n        name\n        values {\n          label\n          score\n        }\n        id\n      }\n      promptVersion {\n        ...PromptChatMessagesCard__main\n        id\n      }\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3fe53d4e83c53f0bad03220d609e9b74";
+(node as any).hash = "cc780e38eb8a0e88f61a1551d65f652e";
 
 export default node;
