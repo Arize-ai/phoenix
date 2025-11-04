@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useFragment, useMutation } from "react-relay";
 
@@ -62,15 +62,20 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
     },
   });
 
-  // Reset form to original values when modal opens or data changes
-  useEffect(() => {
-    if (isOpen) {
-      reset({
-        description: data.description ?? "",
-        metadata: data.metadata ? JSON.stringify(data.metadata, null, 2) : "{}",
-      });
-    }
-  }, [isOpen, data.description, data.metadata, reset]);
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      setIsOpen(open);
+      if (open) {
+        reset({
+          description: data.description ?? "",
+          metadata: data.metadata
+            ? JSON.stringify(data.metadata, null, 2)
+            : "{}",
+        });
+      }
+    },
+    [data, reset]
+  );
   const onSubmit = useCallback(
     (promptPatch: EditPromptFormParams) => {
       // Parse metadata, or set to null to clear if empty
@@ -113,13 +118,12 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
     [data.id, mutatePrompt, notifyError, notifySuccess]
   );
   return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+    <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Button
         size="S"
         leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
         variant="quiet"
         aria-label="configure prompt"
-        onPress={() => setIsOpen(true)}
       />
       <Modal size="M" isDismissable>
         <Dialog>
