@@ -13,7 +13,7 @@ import {
   NavLink,
   SideNavbar,
   SideNavToggleButton,
-  ThemeToggle,
+  ThemeSelector,
   TopNavbar,
 } from "@phoenix/components/nav";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
@@ -172,7 +172,7 @@ function SideNav() {
             />
           </li>
           <li key="theme-toggle">
-            <ThemeToggle isExpanded={isSideNavExpanded} />
+            <ThemeSelector isExpanded={isSideNavExpanded} />
           </li>
           {authenticationEnabled && (
             <>

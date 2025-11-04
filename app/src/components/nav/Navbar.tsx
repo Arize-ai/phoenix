@@ -163,7 +163,7 @@ export function GitHubLink({ isExpanded }: { isExpanded: boolean }) {
   );
 }
 
-export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
+export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
   const { theme, systemTheme, themeMode, setThemeMode } = useTheme();
   const { themeText, themeIcon } = useMemo(() => {
     let themeIcon: ReactNode;
