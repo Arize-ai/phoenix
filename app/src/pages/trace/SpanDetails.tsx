@@ -1451,7 +1451,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       >
         <ErrorBoundary>
           {messagesContents ? (
-            <MessageContentsList messageContents={messagesContents ?? []} />
+            <MessageContentsList messageContents={messagesContents} />
           ) : null}
         </ErrorBoundary>
         <Flex direction="column" alignItems="start">
@@ -1494,11 +1494,13 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   ) : null}
                 </DisclosureTrigger>
                 <DisclosurePanel>
-                  <View width="100%">
-                    <ConnectedMarkdownBlock>
-                      {messageContent || `undefined`}
-                    </ConnectedMarkdownBlock>
-                  </View>
+                  {messageContent ? (
+                    <View width="100%">
+                      <ConnectedMarkdownBlock>
+                        {messageContent}
+                      </ConnectedMarkdownBlock>
+                    </View>
+                  ) : null}
                 </DisclosurePanel>
               </Disclosure>
             ) : // when the message is any other kind, just show the content without a disclosure
