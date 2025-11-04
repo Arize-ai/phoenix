@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<406bba39bc51c74b3ff1c68903d0086e>>
+ * @generated SignedSource<<4889c41dd2e97c56993cb8b29cd0428d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEP
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
+  evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
@@ -56,6 +57,10 @@ export type GenerativeCredentialInput = {
 export type PromptTemplateOptions = {
   format: PromptTemplateFormat;
   variables: any;
+};
+export type PlaygroundEvaluatorInput = {
+  id: string;
+  inputMapping?: any | null;
 };
 export type PlaygroundOutputMutation$variables = {
   input: ChatCompletionInput;
