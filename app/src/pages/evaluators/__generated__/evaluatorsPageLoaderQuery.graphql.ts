@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<240686640f34c78c47308c27b329f81a>>
+ * @generated SignedSource<<41914ae7a234c01d2d170c22734367ef>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -181,7 +181,10 @@ return {
       {
         "alias": null,
         "args": (v0/*: any*/),
-        "filters": null,
+        "filters": [
+          "sort",
+          "filter"
+        ],
         "handle": "connection",
         "key": "EvaluatorsTable_evaluators",
         "kind": "LinkedHandle",

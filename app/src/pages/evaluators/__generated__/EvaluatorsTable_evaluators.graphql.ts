@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4616671afa6d56398de527380298c778>>
+ * @generated SignedSource<<45dcac53529f9fb7241aa84c2cd42e0a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,9 +45,19 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
+    },
+    {
       "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "sort"
     }
   ],
   "kind": "Fragment",
@@ -77,7 +87,18 @@ return {
   "selections": [
     {
       "alias": "evaluators",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
+        },
+        {
+          "kind": "Variable",
+          "name": "sort",
+          "variableName": "sort"
+        }
+      ],
       "concreteType": "EvaluatorConnection",
       "kind": "LinkedField",
       "name": "__EvaluatorsTable_evaluators_connection",
@@ -206,6 +227,6 @@ return {
 };
 })();
 
-(node as any).hash = "106500fd3f48e71ec93bedbd11242e6f";
+(node as any).hash = "ac63a15202ef4786656d0502a6bb7165";
 
 export default node;

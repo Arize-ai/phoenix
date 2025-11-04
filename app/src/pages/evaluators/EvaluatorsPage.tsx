@@ -1,8 +1,9 @@
+import { Suspense } from "react";
 import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex } from "@phoenix/components";
+import { Flex, Loading } from "@phoenix/components";
 import { EvaluatorsFilterBar } from "@phoenix/pages/evaluators/EvaluatorsFilterBar";
 import { EvaluatorsFilterProvider } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 import {
@@ -19,7 +20,9 @@ export const EvaluatorsPage = () => {
     <EvaluatorsFilterProvider>
       <Flex direction="column" height="100%">
         <EvaluatorsFilterBar />
-        <EvaluatorsTable query={query} />
+        <Suspense fallback={<Loading />}>
+          <EvaluatorsTable query={query} />
+        </Suspense>
       </Flex>
     </EvaluatorsFilterProvider>
   );

@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useRef } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -6,6 +12,7 @@ import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
+  SortingState,
   Updater,
   useReactTable,
 } from "@tanstack/react-table";
@@ -17,48 +24,106 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { EvaluatorsTable_evaluators$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_evaluators.graphql";
-import { EvaluatorsTableEvaluatorsQuery } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTableEvaluatorsQuery.graphql";
+import {
+  EvaluatorSort,
+  EvaluatorsTableEvaluatorsQuery,
+} from "@phoenix/pages/evaluators/__generated__/EvaluatorsTableEvaluatorsQuery.graphql";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 
 const PAGE_SIZE = 100;
+
+const convertEvaluatorSortToTanstackSort = (
+  sort: EvaluatorSort | null | undefined
+): SortingState => {
+  if (!sort) return [];
+  return [{ id: sort.col, desc: sort.dir === "desc" }];
+};
+
+const convertTanstackSortToEvaluatorSort = (
+  sorting: SortingState
+): EvaluatorSort | null | undefined => {
+  if (sorting.length === 0) return null;
+  const col = sorting[0].id;
+  if (
+    col !== "name" &&
+    col !== "kind" &&
+    col !== "createdAt" &&
+    col !== "updatedAt"
+  ) {
+    // eslint-disable-next-line no-console
+    console.error("Invalid sort column", col);
+    return null;
+  }
+  return { col, dir: sorting[0].desc ? "desc" : "asc" };
+};
 
 type EvaluatorsTableProps = {
   query: EvaluatorsTable_evaluators$key;
 };
 
 export const EvaluatorsTable = ({ query }: EvaluatorsTableProps) => {
-  const { selectedEvaluatorIds, setSelectedEvaluatorIds } =
-    useEvaluatorsFilterContext();
+  const {
+    selectedEvaluatorIds,
+    setSelectedEvaluatorIds,
+    sort,
+    setSort,
+    filter,
+  } = useEvaluatorsFilterContext();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { data, hasNext, isLoadingNext, loadNext } = usePaginationFragment<
-    EvaluatorsTableEvaluatorsQuery,
-    EvaluatorsTable_evaluators$key
-  >(
-    graphql`
-      fragment EvaluatorsTable_evaluators on Query
-      @refetchable(queryName: "EvaluatorsTableEvaluatorsQuery")
-      @argumentDefinitions(
-        after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 100 }
-      ) {
-        evaluators(first: $first, after: $after)
-          @connection(key: "EvaluatorsTable_evaluators") {
-          edges {
-            evaluator: node {
-              id
-              name
-              createdAt
-              updatedAt
-              description
-              kind
+  const sorting = useMemo(
+    () => convertEvaluatorSortToTanstackSort(sort),
+    [sort]
+  );
+  const setSorting = useCallback(
+    (sorting: Updater<SortingState>) => {
+      if (typeof sorting === "function") {
+        setSort((prevSort) =>
+          convertTanstackSortToEvaluatorSort(
+            sorting(convertEvaluatorSortToTanstackSort(prevSort))
+          )
+        );
+      } else {
+        setSort(convertTanstackSortToEvaluatorSort(sorting));
+      }
+    },
+    [setSort]
+  );
+  const { data, hasNext, isLoadingNext, loadNext, refetch } =
+    usePaginationFragment<
+      EvaluatorsTableEvaluatorsQuery,
+      EvaluatorsTable_evaluators$key
+    >(
+      graphql`
+        fragment EvaluatorsTable_evaluators on Query
+        @refetchable(queryName: "EvaluatorsTableEvaluatorsQuery")
+        @argumentDefinitions(
+          after: { type: "String", defaultValue: null }
+          first: { type: "Int", defaultValue: 100 }
+          sort: { type: "EvaluatorSort", defaultValue: null }
+          filter: { type: "EvaluatorFilter", defaultValue: null }
+        ) {
+          evaluators(
+            first: $first
+            after: $after
+            sort: $sort
+            filter: $filter
+          ) @connection(key: "EvaluatorsTable_evaluators") {
+            edges {
+              evaluator: node {
+                id
+                name
+                createdAt
+                updatedAt
+                description
+                kind
+              }
             }
           }
         }
-      }
-    `,
-    query
-  );
+      `,
+      query
+    );
   const tableData = useMemo(
     () => data.evaluators.edges.map((edge) => edge.evaluator),
     [data]
@@ -102,6 +167,7 @@ export const EvaluatorsTable = ({ query }: EvaluatorsTableProps) => {
         header: "description",
         accessorKey: "description",
         cell: TextCell,
+        enableSorting: false,
       },
       {
         header: "last updated",
@@ -147,26 +213,54 @@ export const EvaluatorsTable = ({ query }: EvaluatorsTableProps) => {
     getSortedRowModel: getSortedRowModel(),
     state: {
       rowSelection,
+      sorting,
     },
+    onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     getRowId: (row) => row.id,
   });
-  const fetchMoreOnBottomReached = useCallback(
-    (containerRefElement?: HTMLDivElement | null) => {
-      if (containerRefElement) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
-        if (
-          scrollHeight - scrollTop - clientHeight < 300 &&
-          !isLoadingNext &&
-          hasNext
-        ) {
-          loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: {} });
-        }
+  const fetchMoreOnBottomReached = (
+    containerRefElement?: HTMLDivElement | null
+  ) => {
+    if (containerRefElement) {
+      const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+      //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+      if (
+        scrollHeight - scrollTop - clientHeight < 300 &&
+        !isLoadingNext &&
+        hasNext
+      ) {
+        loadNext(PAGE_SIZE, {
+          UNSTABLE_extraVariables: {
+            sort: sort,
+            filter: filter
+              ? {
+                  col: "name",
+                  value: filter,
+                }
+              : null,
+          },
+        });
       }
-    },
-    [hasNext, isLoadingNext, loadNext]
-  );
+    }
+  };
+  // Refetch the data when the filter or sort changes
+  useEffect(() => {
+    startTransition(() => {
+      refetch(
+        {
+          sort: sort,
+          filter: filter
+            ? {
+                col: "name",
+                value: filter,
+              }
+            : null,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
+    });
+  }, [sort, filter, refetch]);
 
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;

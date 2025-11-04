@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3abdfcc78b20aadad913ad5a264dccd1>>
+ * @generated SignedSource<<bd0ca64ffb6a3fc066649206363db569>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,9 +10,22 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type EvaluatorColumn = "createdAt" | "kind" | "name" | "updatedAt";
+export type EvaluatorFilterColumn = "name";
+export type SortDir = "asc" | "desc";
+export type EvaluatorFilter = {
+  col: EvaluatorFilterColumn;
+  value: string;
+};
+export type EvaluatorSort = {
+  col: EvaluatorColumn;
+  dir: SortDir;
+};
 export type EvaluatorsTableEvaluatorsQuery$variables = {
   after?: string | null;
+  filter?: EvaluatorFilter | null;
   first?: number | null;
+  sort?: EvaluatorSort | null;
 };
 export type EvaluatorsTableEvaluatorsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"EvaluatorsTable_evaluators">;
@@ -30,9 +43,19 @@ var v0 = [
     "name": "after"
   },
   {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "filter"
+  },
+  {
     "defaultValue": 100,
     "kind": "LocalArgument",
     "name": "first"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "sort"
   }
 ],
 v1 = [
@@ -43,8 +66,18 @@ v1 = [
   },
   {
     "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
+  },
+  {
+    "kind": "Variable",
     "name": "first",
     "variableName": "first"
+  },
+  {
+    "kind": "Variable",
+    "name": "sort",
+    "variableName": "sort"
   }
 ],
 v2 = {
@@ -201,7 +234,10 @@ return {
       {
         "alias": null,
         "args": (v1/*: any*/),
-        "filters": null,
+        "filters": [
+          "sort",
+          "filter"
+        ],
         "handle": "connection",
         "key": "EvaluatorsTable_evaluators",
         "kind": "LinkedHandle",
@@ -210,16 +246,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e95cdea16c6351eb786a2d736b5ebb1c",
+    "cacheID": "b2015d4a299dfeb869d1afe292db5c98",
     "id": null,
     "metadata": {},
     "name": "EvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query EvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...EvaluatorsTable_evaluators_2HEEH6\n}\n\nfragment EvaluatorsTable_evaluators_2HEEH6 on Query {\n  evaluators(first: $first, after: $after) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        createdAt\n        updatedAt\n        description\n        kind\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query EvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...EvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        createdAt\n        updatedAt\n        description\n        kind\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "106500fd3f48e71ec93bedbd11242e6f";
+(node as any).hash = "ac63a15202ef4786656d0502a6bb7165";
 
 export default node;
