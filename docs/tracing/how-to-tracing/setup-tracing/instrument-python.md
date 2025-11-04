@@ -1296,8 +1296,7 @@ with tracer.start_as_current_span(
 {% tab title="TS" %}
 
 ```typescript
-import { withSpan } from "@arizeai/openinference-core";
-import { getLLMAttributes } from "@arizeai/openinference-core";
+import { withSpan, getLLMAttributes } from "@arizeai/openinference-core";
 import { trace } from "@arizeai/phoenix-otel";
 
 const imageUrl =
