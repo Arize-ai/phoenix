@@ -78,7 +78,6 @@ export type RegisterParams = {
    * These headers will be merged with any automatically generated headers (like Authorization).
    *
    * @example { "x-custom-header": "value", "x-api-version": "1.0" }
-   * @example [["x-custom-header", "value"], ["x-api-version", "1.0"]]
    */
   headers?: Headers;
 
