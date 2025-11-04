@@ -1,8 +1,6 @@
 import { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
-import { ValidationState } from "@arizeai/components";
-
 import { Label, Text } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { classNames } from "@phoenix/utils";
@@ -36,20 +34,18 @@ const codeEditorFormWrapperCSS = css`
  */
 export function CodeEditorFieldWrapper({
   children,
-  validationState,
   label,
   errorMessage,
   description,
 }: {
   children: ReactNode;
-  validationState: ValidationState;
   label: string;
   errorMessage?: string | null;
   description?: string | null;
 }) {
   const [isFocused, setIsFocused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const isInvalid = validationState === "invalid";
+  const isInvalid = !!errorMessage;
   return (
     <div css={fieldBaseCSS}>
       <Label>{label}</Label>
