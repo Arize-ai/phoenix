@@ -57,46 +57,6 @@ def _deprecate_positional_args(
     return decorator
 
 
-def _deprecate_heuristic_kind(func: Callable[..., Any]) -> Callable[..., Any]:
-    """
-    Decorator to deprecate the 'heuristic' kind in favor of 'code'.
-
-    Args:
-        func (Callable[..., Any]): Function to be decorated that may receive
-            a deprecated 'heuristic' kind.
-
-    Returns:
-        Callable[..., Any]: Wrapper function that converts 'heuristic' kind
-            to 'code' and issues deprecation warning.
-    """
-
-    # TODO:Remove this once the `heuristic` kind in Scores/Evaluators is no longer supported
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        signature = inspect.signature(func)
-
-        # Prevent silent override if both 'kind' and deprecated 'source' are provided and differ
-        if "source" in kwargs and "kind" in kwargs and kwargs["kind"] != kwargs["source"]:
-            raise ValueError("Provide only one of 'kind' or 'source' (they differ). Use 'kind'.")
-
-        if "source" in kwargs:
-            warnings.warn(
-                "`'source' is deprecated; next time, use 'kind' instead. This time, we'll \
-                automatically convert it for you.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            # Only set kind from source if kind wasn't already provided (or equal)
-            if "kind" not in kwargs:
-                kwargs["kind"] = kwargs["source"]
-            kwargs.pop("source")
-        bound_args = signature.bind_partial(*args, **kwargs)
-        bound_args.apply_defaults()
-        return func(*bound_args.args, **bound_args.kwargs)
-
-    return wrapper
-
-
 def _deprecate_source_and_heuristic(func: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorator to deprecate the 'source' argument in favor of 'kind'.

@@ -774,7 +774,7 @@ def create_evaluator(
     resolved_kind: KindType = (
         kind if kind is not None else (source if source is not None else "code")
     )
-    if kind is None and source is not None:
+    if source is not None and (kind is None or kind == source):
         warnings.warn(
             "'source' is deprecated; next time, use 'kind' instead. This time, \
             we'll automatically convert it for you.",
