@@ -18,7 +18,7 @@ export type ProjectSortOrder = {
   direction: "asc" | "desc";
 };
 
-export type DisplayTimezone = "local" | "UTC";
+export type DisplayTimezone = "local" | "UTC" | string;
 
 export interface PreferencesProps {
   /**

@@ -1,3 +1,5 @@
+import { getLocalTimeZone } from "@internationalized/date";
+
 import {
   Button,
   Card,
@@ -14,8 +16,9 @@ import {
 } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { DisplayTimezone } from "@phoenix/store/preferencesStore";
+import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
-export function TimezonePreferencesCard() {
+export function ViewerPreferences() {
   const { displayTimezone, setDisplayTimezone } = usePreferencesContext(
     (state) => ({
       displayTimezone: state.displayTimezone,
@@ -30,7 +33,7 @@ export function TimezonePreferencesCard() {
   }> = [
     {
       value: "local",
-      label: "Local Timezone",
+      label: `Local (${getLocalTimeZone()})`,
       description: "Display timestamps in your browser's local timezone",
     },
     {
@@ -38,10 +41,15 @@ export function TimezonePreferencesCard() {
       label: "UTC",
       description: "Display all timestamps in UTC (Coordinated Universal Time)",
     },
+    ...getSupportedTimezones().map((timezone) => ({
+      value: timezone,
+      label: timezone,
+      description: `Display all timestamps in ${timezone}`,
+    })),
   ];
 
   return (
-    <Card title="Display Preferences">
+    <Card title="Preferences">
       <View padding="size-200">
         <Flex direction="column" gap="size-100">
           <Select
@@ -51,9 +59,8 @@ export function TimezonePreferencesCard() {
               setDisplayTimezone(key as DisplayTimezone);
             }}
           >
-            <Label>Timezone Display</Label>
-
-            <Button>
+            <Label>Timezone</Label>
+            <Button size="S">
               <SelectValue />
               <SelectChevronUpDownIcon />
             </Button>

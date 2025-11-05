@@ -5,6 +5,7 @@ import { Flex } from "@phoenix/components";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 import { ViewerAPIKeys } from "./ViewerAPIKeys";
+import { ViewerPreferences } from "./ViewerPreferences";
 import { ViewerProfileCard } from "./ViewerProfileCard";
 
 const profilePageCSS = css`
@@ -37,6 +38,7 @@ export function ProfilePage() {
       <div css={profilePageInnerCSS}>
         <Flex direction="column" gap="size-200">
           <ViewerProfileCard />
+          <ViewerPreferences />
           <ViewerAPIKeys viewer={viewer} />
         </Flex>
       </div>

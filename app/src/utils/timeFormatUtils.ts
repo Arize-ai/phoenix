@@ -144,7 +144,6 @@ export const timeRangeFormatter = createTimeRangeFormatter({
 export function getLocaleDateFormatPattern(locale: string) {
   const formatParts = new Intl.DateTimeFormat(locale, {
     day: "2-digit",
-    month: "2-digit",
     year: "numeric",
   }).formatToParts(new Date());
 
