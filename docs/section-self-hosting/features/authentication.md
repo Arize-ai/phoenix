@@ -45,40 +45,59 @@ docker run \
 Helm users can set `auth.defaultAdminPassword` or provide the secret key `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` in the chart's Secret.
 {% endhint %}
 
-The following environment variables are optional but recommended:
-
 ## User Management
 
-Users can be added and removed from a Phoenix instance with authentication enabled. Users have one of two roles `admin` or `member`, see permissions below to learn more about the permissions for each role.
+Users can be added and removed from a Phoenix instance with authentication enabled. Users have one of three roles: `admin`, `member`, or `viewer`. See permissions below to learn more about the permissions for each role.
 
-Only admins can manage phoenix users. They can add, delete, and reset the passwords of other members. To manage users go to the `/settings` page.
+Only admins can manage phoenix users. They can add, delete, and reset the passwords of other users. To manage users go to the `/settings` page.
 
 ## Permissions
 
-This section outlines the specific actions that users can perform based on their assigned roles within the system: **Admin** and **Member**. The permission matrix is divided into two main categories:
+This section outlines the specific actions that users can perform based on their assigned roles within the system: **Admin**, **Member**, and **Viewer**. The permission matrix is divided into two main categories:
 
 * Mutations: Operations that allow users to create, update, or delete data within the system.
 * Queries: Operations that enable users to retrieve or view data from the system.
 
 ### Mutations
 
-Mutations are operations that enable users to create, update, or delete data within the system. This permission matrix ensures that only authorized roles can execute sensitive actions, such as managing users and API keys, while allowing members to perform essential account-related updates like changing their own passwords and usernames.
+Mutations are operations that enable users to create, update, or delete data within the system. This permission matrix ensures that only authorized roles can execute sensitive actions, such as managing users and API keys, while allowing members to perform essential account-related updates like changing their own passwords and usernames. Viewers have read-only access and cannot perform mutations.
 
 {% hint style="info" %}
-Neither an **Admin** nor **Member** is permitted to change email addresses.
+Neither an **Admin**, **Member**, nor **Viewer** is permitted to change email addresses.
 {% endhint %}
 
-<table><thead><tr><th width="549">Action</th><th width="100" align="center">Admin</th><th align="center">Member</th></tr></thead><tbody><tr><td>Create User</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Delete User</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Change Own Password</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Change Other's Password</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Change Own Username</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Change Other's Username</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Create System API Keys</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Delete System API Keys</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Create Own User API Keys</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Delete Own User API Keys</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Delete Other's User API Keys</td><td align="center">✅ Yes</td><td align="center">No</td></tr></tbody></table>
+<table><thead><tr><th width="549">Action</th><th width="100" align="center">Admin</th><th width="100" align="center">Member</th><th align="center">Viewer</th></tr></thead><tbody><tr><td>Create User</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr><tr><td>Delete User</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr><tr><td>Change Own Password</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Change Other's Password</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr><tr><td>Change Own Username</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Change Other's Username</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr><tr><td>Create System API Keys</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr><tr><td>Delete System API Keys</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr><tr><td>Create Own User API Keys</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Delete Own User API Keys</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Delete Other's User API Keys</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr></tbody></table>
 
 ### Queries
 
 Queries are operations that allow users to retrieve and view data from the system.
 
 {% hint style="info" %}
-This table only shows actions that a **Member** is not permitted to do. Actions without restrictions are omitted.
+This table only shows actions that a **Member** or **Viewer** is not permitted to do. Actions without restrictions (such as viewing traces, projects, datasets, etc.) are omitted.
 {% endhint %}
 
-<table><thead><tr><th width="548">Action</th><th width="98" align="center">Admin</th><th align="center">Member</th></tr></thead><tbody><tr><td>List All System API Keys</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>List All User API Keys</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>List All Users</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Fetch Other User's Info, e.g. emails</td><td align="center">✅ Yes</td><td align="center">No</td></tr></tbody></table>
+<table><thead><tr><th width="548">Action</th><th width="98" align="center">Admin</th><th width="98" align="center">Member</th><th align="center">Viewer</th></tr></thead><tbody><tr><td>List All System API Keys</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr><tr><td>List All User API Keys</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr><tr><td>List All Users</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr><tr><td>Fetch Other User's Info, e.g. emails</td><td align="center">✅ Yes</td><td align="center">No</td><td align="center">No</td></tr></tbody></table>
+
+### REST API Permissions (v1/ endpoints)
+
+For programmatic access via REST API endpoints (paths beginning with `/v1/`), permissions are determined by both the user's role and the HTTP method used:
+
+<table><thead><tr><th width="300">Endpoint Category</th><th width="120" align="center">Admin</th><th width="120" align="center">Member</th><th align="center">Viewer</th></tr></thead><tbody><tr><td><strong>GET requests</strong> (read operations)<br>Projects, datasets, experiments, prompts, spans, traces, annotations, annotation configs, evaluations</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td><strong>POST/PUT/DELETE requests</strong> (write operations)<br>Creating, updating, or deleting resources</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">❌ No<br>(403 Forbidden)</td></tr><tr><td><strong>User management endpoints</strong><br><code>GET /v1/users</code><br><code>POST /v1/users</code><br><code>DELETE /v1/users/{id}</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br>(403 Forbidden)</td><td align="center">❌ No<br>(403 Forbidden)</td></tr><tr><td><strong>Project management endpoints</strong><br><code>PUT /v1/projects/{id}</code><br><code>DELETE /v1/projects/{id}</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br>(403 Forbidden)</td><td align="center">❌ No<br>(403 Forbidden)</td></tr></tbody></table>
+
+{% hint style="warning" %}
+**Viewer role restrictions for REST API:**
+* Viewers have **read-only access** to v1/ endpoints
+* All GET requests are allowed (viewing projects, datasets, experiments, traces, spans, etc.)
+* All write operations (POST, PUT, DELETE) return **403 Forbidden**
+* User management and project CRUD operations are also blocked
+
+**Examples of blocked operations for Viewers:**
+* Creating datasets: `POST /v1/datasets/upload`
+* Creating experiments: `POST /v1/datasets/{id}/experiments`
+* Creating annotations: `POST /v1/span_annotations`
+* Uploading traces: `POST /v1/traces`
+* Deleting resources: `DELETE /v1/datasets/{id}`, `DELETE /v1/experiments/{id}`
+{% endhint %}
 
 ## API Keys
 
@@ -176,13 +195,138 @@ OAuth2 enables applications such as Phoenix to authorize access to resources via
 
 Phoenix uses the OAuth2 authorization code flow for web applications, which requires setting a few environment variables in addition to `PHOENIX_ENABLE_AUTH` and `PHOENIX_SECRET`:
 
-<table data-full-width="false"><thead><tr><th width="416">Environment Variable</th><th>Description</th></tr></thead><tbody><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_CLIENT_ID</strong></td><td>The client ID generated by the IDP when registering the application.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_CLIENT_SECRET</strong></td><td>The client secret generated by the IDP when registering the application.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_OIDC_CONFIG_URL</strong></td><td>The URL to the OpenID Connect well-known configuration endpoint. Entering this URL in your browser will return a JSON object containing authorization server metadata.</td></tr></tbody></table>
+<table data-full-width="false"><thead><tr><th width="416">Environment Variable</th><th>Description</th></tr></thead><tbody><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_CLIENT_ID</strong></td><td>The client ID generated by the IDP when registering the application. (Required)</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_CLIENT_SECRET</strong></td><td>The client secret generated by the IDP when registering the application. Required by default for confidential clients. Only optional when <code>TOKEN_ENDPOINT_AUTH_METHOD</code> is explicitly set to <code>none</code> (for public clients without client authentication).</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_OIDC_CONFIG_URL</strong></td><td>The URL to the OpenID Connect well-known configuration endpoint. Entering this URL in your browser will return a JSON object containing authorization server metadata. Must be HTTPS except for localhost. (Required)</td></tr></tbody></table>
 
-Detailed instructions for common IDPs are provided below.
+### Optional OAuth2 Configuration
+
+The following optional environment variables provide additional control over OAuth2 authentication behavior:
+
+<table data-full-width="false"><thead><tr><th width="416">Environment Variable</th><th>Description</th></tr></thead><tbody><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_DISPLAY_NAME</strong></td><td>A user-friendly name for the identity provider shown in the UI. If not set, Phoenix will generate a display name based on the IDP identifier.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_ALLOW_SIGN_UP</strong></td><td>Whether to allow new user registration via this OAuth2 provider. Defaults to <code>True</code>. When set to <code>False</code>, only existing users can sign in. The system will check if the user exists in the database by their email address. If the user does not exist or has a password set (local auth), they will be redirected to the login page with an error message.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_AUTO_LOGIN</strong></td><td>Automatically redirect to this provider's login page, skipping the Phoenix login screen. Defaults to <code>False</code>. Useful for single sign-on deployments. Note: Only one provider should have <code>AUTO_LOGIN</code> enabled if you configure multiple IDPs.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_USE_PKCE</strong></td><td>Enable PKCE (Proof Key for Code Exchange) with S256 code challenge method for enhanced security. PKCE protects the authorization code from interception and can be used with both public clients and confidential clients. This setting is orthogonal to client authentication—whether <code>CLIENT_SECRET</code> is required is determined solely by <code>TOKEN_ENDPOINT_AUTH_METHOD</code>, not by <code>USE_PKCE</code>. Defaults to <code>False</code>.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_TOKEN_ENDPOINT_AUTH_METHOD</strong></td><td>OAuth2 token endpoint authentication method. This setting determines how the client authenticates with the token endpoint and whether <code>CLIENT_SECRET</code> is required. If not set, defaults to requiring <code>CLIENT_SECRET</code> (confidential client). Options: <br>• <code>client_secret_basic</code>: Send credentials in HTTP Basic Auth header (most common). <code>CLIENT_SECRET</code> is required. This is the assumed default behavior if not set.<br>• <code>client_secret_post</code>: Send credentials in POST body (required by some providers). <code>CLIENT_SECRET</code> is required.<br>• <code>none</code>: No client authentication (for public clients). <code>CLIENT_SECRET</code> is not required. Use this for public clients that cannot securely store a client secret, typically in combination with PKCE.<br><br>Most providers work with the default behavior. Set this explicitly only if your provider requires a specific method or if you're configuring a public client.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_SCOPES</strong></td><td>Additional OAuth2 scopes to request (space-separated). These are added to the required baseline scopes <code>openid email profile</code>. For example, set to <code>offline_access groups</code> to request refresh tokens and group information. The baseline scopes are always included and cannot be removed.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_GROUPS_ATTRIBUTE_PATH</strong></td><td>JMESPath expression to extract group/role claims from the OIDC ID token or userinfo endpoint response. The path navigates nested JSON structures to find group/role information. This claim is checked from both the ID token and userinfo endpoint (if available). The result is normalized to a list of strings for group matching. See <a href="https://jmespath.org">jmespath.org</a> for full syntax.<br><br><strong>⚠️ IMPORTANT:</strong> Claim keys with special characters (colons, dots, slashes, hyphens, etc.) MUST be enclosed in double quotes.<br><br>Common JMESPath patterns:<br>• Simple keys: <code>groups</code> - extracts top-level array<br>• Nested keys: <code>resource_access.phoenix.roles</code> - dot notation for nested objects<br>• Array projection: <code>teams[*].name</code> - extracts 'name' field from each object in array<br>• Array indexing: <code>groups[0]</code> - gets first element<br><br>Common provider examples:<br>• Google Workspace: <code>groups</code><br>• Azure AD/Entra ID: <code>roles</code> or <code>groups</code><br>• Keycloak: <code>resource_access.phoenix.roles</code> (nested structure)<br>• AWS Cognito: <code>"cognito:groups"</code> (use quotes for colon)<br>• Okta: <code>groups</code><br>• Auth0 (custom namespace): <code>"https://myapp.com/groups"</code> (use quotes for special chars)<br>• Custom objects: <code>teams[*].name</code> (extract field from array of objects)<br><br>If not set, group-based access control is disabled for this provider.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_ALLOWED_GROUPS</strong></td><td>Comma-separated list of group names that are permitted to sign in. Users must belong to at least one of these groups (extracted via <code>GROUPS_ATTRIBUTE_PATH</code>) to authenticate successfully. Works together with <code>GROUPS_ATTRIBUTE_PATH</code> to implement group-based access control. If not set, all authenticated users can sign in (subject to <code>ALLOW_SIGN_UP</code> restrictions).<br><br>Example: <code>PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS="admin,developers,viewers"</code><br><br>Note: Both <code>GROUPS_ATTRIBUTE_PATH</code> and <code>ALLOWED_GROUPS</code> must be configured together. If one is set, the other is required.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_ROLE_ATTRIBUTE_PATH</strong></td><td>JMESPath expression to extract user role claim from the OIDC ID token or userinfo endpoint response. Similar to <code>GROUPS_ATTRIBUTE_PATH</code> but for extracting a single role value. See <a href="https://jmespath.org">jmespath.org</a> for full syntax.<br><br><strong>⚠️ IMPORTANT:</strong> Claim keys with special characters MUST be enclosed in double quotes.<br>Examples: <code>"https://myapp.com/role"</code>, <code>"custom:role"</code>, <code>user.profile."app-role"</code><br><br>Common patterns:<br>• Simple key: <code>role</code> - extracts top-level string<br>• Nested key: <code>user.organization.role</code> - dot notation for nested objects<br>• Array element: <code>roles[0]</code> - gets first role from array<br>• Constant value: <code>'MEMBER'</code> - assigns a fixed role to all users from this IDP (no mapping needed)<br>• Conditional logic: <code>contains(groups[*], 'admin') &amp;&amp; 'ADMIN' || 'VIEWER'</code> - compute role from group membership using logical operators (returns Phoenix role directly, no mapping needed)<br><br>This claim is used with <code>ROLE_MAPPING</code> to automatically assign Phoenix roles (ADMIN, MEMBER, VIEWER) based on the user's role in your identity provider. The extracted role value is matched against keys in <code>ROLE_MAPPING</code> to determine the Phoenix role.<br><br><strong>Advanced:</strong> If the JMESPath expression returns a valid Phoenix role name (ADMIN, MEMBER, VIEWER) directly, <code>ROLE_MAPPING</code> is optional - the value will be used as-is after case-insensitive validation.<br><br><strong>⚠️ Role Update Behavior:</strong><br>• When <code>ROLE_ATTRIBUTE_PATH</code> IS configured: User roles are synchronized from the IDP on EVERY login. This ensures Phoenix roles stay in sync with your IDP's role assignments.<br>• When <code>ROLE_ATTRIBUTE_PATH</code> is NOT configured: User roles are preserved as-is (backward compatibility). New users get VIEWER role (least privilege), existing users keep their current roles.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_ROLE_MAPPING</strong></td><td>Maps identity provider role values to Phoenix roles. Format: <code>IdpRole1:PhoenixRole1,IdpRole2:PhoenixRole2</code><br><br>Phoenix roles (case-insensitive):<br>• <strong>ADMIN</strong>: Full system access, can manage users and settings<br>• <strong>MEMBER</strong>: Standard user access, can create and manage own resources<br>• <strong>VIEWER</strong>: Read-only access, cannot create or modify resources<br><br>Example mappings:<br>• <code>PHOENIX_OAUTH2_OKTA_ROLE_MAPPING="Owner:ADMIN,Developer:MEMBER,Guest:VIEWER"</code><br>• <code>PHOENIX_OAUTH2_KEYCLOAK_ROLE_MAPPING="admin:ADMIN,user:MEMBER"</code><br><br><strong>⚠️ Security:</strong> The SYSTEM role cannot be assigned via OAuth2. Attempts to map to SYSTEM will be rejected.<br><br><strong>Optional Behavior (no mapping required):</strong><br>If <code>ROLE_MAPPING</code> is not configured but <code>ROLE_ATTRIBUTE_PATH</code> is set, the system will use the IDP role value directly if it exactly matches "ADMIN", "MEMBER", or "VIEWER" (case-insensitive). This allows IDPs that already use Phoenix's role names to work without explicit mapping.<br><br>IDP role keys are case-sensitive and must match exactly. Phoenix role values are case-insensitive but will be normalized to uppercase (ADMIN, MEMBER, VIEWER). If a user's IDP role is not in the mapping, behavior depends on <code>ROLE_ATTRIBUTE_STRICT</code>:<br>• strict=false (default): User gets VIEWER role (least privilege)<br>• strict=true: User is denied access<br><br>Works together with <code>ROLE_ATTRIBUTE_PATH</code>. If <code>ROLE_ATTRIBUTE_PATH</code> is set but <code>ROLE_MAPPING</code> is not, the IDP role value is used directly if it matches a valid Phoenix role (ADMIN, MEMBER, VIEWER). If the IDP role doesn't match a valid Phoenix role, behavior depends on <code>ROLE_ATTRIBUTE_STRICT</code>.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_ROLE_ATTRIBUTE_STRICT</strong></td><td>Controls behavior when role cannot be determined from identity provider claims. Defaults to <code>false</code>.<br><br>When <code>true</code>:<br>• Missing role claim → access denied<br>• Role not in ROLE_MAPPING → access denied<br>• Empty/invalid role value → access denied<br><br>When <code>false</code> (default):<br>• Missing/unmapped/invalid role → user gets VIEWER role (least privilege, fail-safe)<br><br>Strict mode is recommended for high-security environments where all users must have explicitly assigned roles. Non-strict mode (default) is more forgiving and suitable for gradual rollout of role mapping.<br><br>Example: <code>PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT=true</code><br><br>Note: This setting only applies when <code>ROLE_ATTRIBUTE_PATH</code> is configured. If <code>ROLE_ATTRIBUTE_PATH</code> is not set, this setting is ignored.</td></tr></tbody></table>
+
+{% hint style="warning" %}
+**Group-based access control requirements:**
+* If you set `ALLOWED_GROUPS`, you must also set `GROUPS_ATTRIBUTE_PATH` to extract groups from the ID token.
+* If you set `GROUPS_ATTRIBUTE_PATH`, you must also set `ALLOWED_GROUPS` to specify which groups are allowed.
+* Group-based access control is evaluated per-provider: if a user authenticates via an IDP with `ALLOWED_GROUPS` configured, they must belong to one of those groups to sign in.
+
+**Role mapping configuration:**
+* `ROLE_ATTRIBUTE_PATH` and `ROLE_MAPPING` work together to automatically assign Phoenix roles based on IDP roles.
+* If `ROLE_ATTRIBUTE_PATH` is configured, user roles are synchronized from the IDP on every login.
+* If `ROLE_ATTRIBUTE_PATH` is not configured, new OAuth2 users get the VIEWER role by default and existing users keep their current roles.
+* Groups control **access** (who can sign in), while roles control **permissions** (what users can do).
+{% endhint %}
+
+### Multiple Identity Providers
+
+You can configure multiple IDPs simultaneously by setting environment variables for each provider with different IDP identifiers. Users will see all configured providers as login options on the Phoenix login page. Each IDP is configured independently with its own set of variables.
+
+Example with both Google and Okta:
+
+```bash
+# Google OAuth
+export PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=google_client_id
+export PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=google_secret
+export PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
+
+# Internal Okta with group restrictions
+export PHOENIX_OAUTH2_OKTA_CLIENT_ID=okta_client_id
+export PHOENIX_OAUTH2_OKTA_CLIENT_SECRET=okta_secret
+export PHOENIX_OAUTH2_OKTA_OIDC_CONFIG_URL=https://your-domain.okta.com/.well-known/openid-configuration
+export PHOENIX_OAUTH2_OKTA_GROUPS_ATTRIBUTE_PATH=groups
+export PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS="engineering,platform-team"
+```
+
+### Common OAuth2 Configuration Examples
+
+**Public client with PKCE (no client secret):**
+
+```bash
+export PHOENIX_OAUTH2_MOBILE_CLIENT_ID=mobile_app_id
+export PHOENIX_OAUTH2_MOBILE_OIDC_CONFIG_URL=https://auth.example.com/.well-known/openid-configuration
+export PHOENIX_OAUTH2_MOBILE_TOKEN_ENDPOINT_AUTH_METHOD=none
+export PHOENIX_OAUTH2_MOBILE_USE_PKCE=true
+```
+
+**With nested group path (Keycloak):**
+
+```bash
+export PHOENIX_OAUTH2_KEYCLOAK_GROUPS_ATTRIBUTE_PATH=resource_access.phoenix.roles
+export PHOENIX_OAUTH2_KEYCLOAK_ALLOWED_GROUPS="admin,developer"
+```
+
+**With special characters in path (AWS Cognito - quotes REQUIRED):**
+
+```bash
+export PHOENIX_OAUTH2_COGNITO_GROUPS_ATTRIBUTE_PATH='"cognito:groups"'
+export PHOENIX_OAUTH2_COGNITO_ALLOWED_GROUPS="Administrators,PowerUsers"
+```
+
+**With namespaced claims (Auth0 - quotes REQUIRED):**
+
+```bash
+export PHOENIX_OAUTH2_AUTH0_GROUPS_ATTRIBUTE_PATH='"https://myapp.com/groups"'
+export PHOENIX_OAUTH2_AUTH0_ALLOWED_GROUPS="admin,users"
+```
+
+**With array projection (extract names from objects):**
+
+```bash
+export PHOENIX_OAUTH2_CUSTOM_GROUPS_ATTRIBUTE_PATH="teams[*].name"
+export PHOENIX_OAUTH2_CUSTOM_ALLOWED_GROUPS="engineering,operations"
+```
+
+**Single sign-on with auto-login:**
+
+```bash
+export PHOENIX_OAUTH2_COMPANY_DISPLAY_NAME="Company SSO"
+export PHOENIX_OAUTH2_COMPANY_AUTO_LOGIN=true
+export PHOENIX_OAUTH2_COMPANY_ALLOW_SIGN_UP=false
+```
+
+**With role mapping (simple):**
+
+```bash
+export PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_PATH=role
+export PHOENIX_OAUTH2_OKTA_ROLE_MAPPING="Owner:ADMIN,Developer:MEMBER,Viewer:VIEWER"
+```
+
+**With role mapping (nested path for Keycloak):**
+
+```bash
+export PHOENIX_OAUTH2_KEYCLOAK_ROLE_ATTRIBUTE_PATH=resource_access.phoenix.role
+export PHOENIX_OAUTH2_KEYCLOAK_ROLE_MAPPING="admin:ADMIN,user:MEMBER"
+```
+
+**With role mapping in strict mode (deny unmapped roles):**
+
+```bash
+export PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_PATH=role
+export PHOENIX_OAUTH2_OKTA_ROLE_MAPPING="Owner:ADMIN,Developer:MEMBER"
+export PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT=true
+```
+
+**With conditional logic to compute role from groups (no mapping needed):**
+
+```bash
+export PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_PATH="contains(groups[*], 'admin') && 'ADMIN' || contains(groups[*], 'editor') && 'MEMBER' || 'VIEWER'"
+```
+
+**With both groups and roles (groups control access, roles control permissions):**
+
+```bash
+export PHOENIX_OAUTH2_OKTA_GROUPS_ATTRIBUTE_PATH=groups
+export PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS="engineering,platform-team"
+export PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_PATH=role
+export PHOENIX_OAUTH2_OKTA_ROLE_MAPPING="Owner:ADMIN,Developer:MEMBER,Guest:VIEWER"
+```
 
 {% hint style="info" %}
-Users that sign into Phoenix via an OAuth2 IDP are initially added as members. Their role can be changed after their first login by a Phoenix admin.
+**Default role behavior:**
+* If `ROLE_ATTRIBUTE_PATH` is **not configured**: New OAuth2 users are initially added as VIEWER (least privilege). Their role can be changed after their first login by a Phoenix admin. Existing users keep their current roles.
+* If `ROLE_ATTRIBUTE_PATH` **is configured**: User roles are automatically synchronized from the IDP on every login based on the role mapping configuration.
 {% endhint %}
+
+Detailed instructions for common IDPs are provided below.
 
 ### Google
 
@@ -261,4 +405,10 @@ Phoenix can integrate with any OAuth2 IDP that supports OpenID Connect and has a
 1. Register a Phoenix client application with your IDP. If prompted to select an application type, select **traditional web application** or a similarly named application type that allows you to generate a client secret in addition to a client ID.
 2. Find the well-known configuration endpoint for your IDP.
 3. Deploy Phoenix with the environment variables described above, substituting `<IDP>` with your IDP name, e.g., `AUTH0`. If you have configured a root path via the `PHOENIX_HOST_ROOT_PATH` environment variable, ensure that the root path is included in the path of your callback URL.
-4. Phoenix will make a best-effort attempt to display a readable name for your IDP on the login page based on the value substituted in the previous step. If you wish to customize the display name, for example, if your IDP name contains special characters, you may optionally configure the IDP name to be displayed with the `PHOENIX_OAUTH2_<IDP>_DISPLAY_NAME` environment variable.
+4. Use the optional configuration variables documented above to customize behavior such as display names, sign-up policies, group-based access control, and more.
+
+## Advanced Authentication Configuration
+
+The following optional environment variables provide additional control over authentication behavior for advanced use cases:
+
+<table data-full-width="false"><thead><tr><th width="300">Variable</th><th>Description</th></tr></thead><tbody><tr><td><strong>PHOENIX_ADMIN_SECRET</strong></td><td>A secret key that can be used as a bearer token instead of an API key. It authenticates as the first system user (admin). This key must be at least 32 characters long, include at least one digit and one lowercase letter, and must be different from <code>PHOENIX_SECRET</code>. Additionally, it must not be set if <code>PHOENIX_SECRET</code> is not configured.<br><br>Usage: <code>Authorization: Bearer &lt;PHOENIX_ADMIN_SECRET&gt;</code></td></tr><tr><td><strong>PHOENIX_DISABLE_BASIC_AUTH</strong></td><td>Forbid login via password and disable the creation of local users, which log in via passwords. This can be helpful in setups where authentication is handled entirely through OAuth2. Defaults to <code>False</code>.</td></tr><tr><td><strong>PHOENIX_DISABLE_RATE_LIMIT</strong></td><td>Disable rate limiting for login attempts. Defaults to <code>False</code>. Use with caution as this removes brute-force protection.</td></tr><tr><td><strong>PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES</strong></td><td>The duration, in minutes, before access tokens expire. Defaults to the system default if not specified.</td></tr><tr><td><strong>PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES</strong></td><td>The duration, in minutes, before refresh tokens expire. Defaults to the system default if not specified.</td></tr><tr><td><strong>PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES</strong></td><td>The duration, in minutes, before password reset tokens expire. Defaults to the system default if not specified.</td></tr><tr><td><strong>PHOENIX_ADMINS</strong></td><td>A semicolon-separated list of username and email address pairs to create as admin users on startup. The format is <code>username=email</code>, e.g., <code>John Doe=john@example.com;Doe, Jane=jane@example.com</code>. The password for each user will be randomly generated and will need to be reset. The application will not start if this environment variable is set but cannot be parsed or contains invalid emails. If the username or email address already exists in the database, the user record will not be modified. Changing this environment variable for the next startup will not undo any records created in previous startups.</td></tr><tr><td><strong>PHOENIX_ROOT_URL</strong></td><td>This is the full URL used to access Phoenix from a web browser. This setting is important when you have a reverse proxy in front of Phoenix. If the reverse proxy exposes Phoenix through a sub-path, add that sub-path to the end of this URL setting.<br><br><strong>⚠️ WARNING:</strong> When a sub-path is needed, you must also specify the sub-path via the environment variable <code>PHOENIX_HOST_ROOT_PATH</code>. Setting just this URL setting is not enough.<br><br>Examples:<br>• With a sub-path: <code>https://example.com/phoenix</code><br>• Without a sub-path: <code>https://phoenix.example.com</code></td></tr><tr><td><strong>PHOENIX_MANAGEMENT_URL</strong></td><td>The URL to use for redirecting to a management interface that may be hosting Phoenix. If set, and the current user is within <code>PHOENIX_ADMINS</code>, a link will be added to the navigation menu to return to this URL.</td></tr></tbody></table>
