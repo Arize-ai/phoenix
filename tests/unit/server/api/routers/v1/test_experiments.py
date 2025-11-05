@@ -1,6 +1,7 @@
-import datetime
 import json
+from datetime import datetime, timezone
 from io import StringIO
+from secrets import token_hex
 from typing import Any, Optional
 
 import httpx
@@ -10,6 +11,8 @@ from httpx import HTTPStatusError
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
+from phoenix.db import models
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import verify_experiment_examples_junction_table
 from tests.unit.server.api.conftest import ExperimentsWithIncompleteRuns
@@ -65,8 +68,8 @@ async def test_experiments_api(
         "trace_id": "placeholder-id",
         "output": "some LLM application output",
         "repetition_number": 1,
-        "start_time": datetime.datetime.now().isoformat(),
-        "end_time": datetime.datetime.now().isoformat(),
+        "start_time": datetime.now(timezone.utc).isoformat(),
+        "end_time": datetime.now(timezone.utc).isoformat(),
         "error": "an error message, if applicable",
     }
     run_payload["id"] = (
@@ -144,8 +147,8 @@ async def test_experiments_api(
             "metadata": {"some": "metadata"},
         },
         "error": "an error message, if applicable",
-        "start_time": datetime.datetime.now().isoformat(),
-        "end_time": datetime.datetime.now().isoformat(),
+        "start_time": datetime.now(timezone.utc).isoformat(),
+        "end_time": datetime.now(timezone.utc).isoformat(),
     }
     experiment_evaluation = (
         await httpx_client.post("v1/experiment_evaluations", json=evaluation_payload)
@@ -334,8 +337,8 @@ async def test_experiment_runs_pagination(
                     "trace_id": f"trace-{i}",
                     "output": f"output-{i}",
                     "repetition_number": i + 1,
-                    "start_time": datetime.datetime.now().isoformat(),
-                    "end_time": datetime.datetime.now().isoformat(),
+                    "start_time": datetime.now(timezone.utc).isoformat(),
+                    "end_time": datetime.now(timezone.utc).isoformat(),
                 },
             )
         ).json()["data"]
@@ -439,8 +442,8 @@ class TestExperimentCounts:
                 "trace_id": trace_id,
                 "output": output,
                 "repetition_number": repetition_number,
-                "start_time": datetime.datetime.now().isoformat(),
-                "end_time": datetime.datetime.now().isoformat(),
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": datetime.now(timezone.utc).isoformat(),
                 **({"error": error} if error else {}),
             },
         )
@@ -751,8 +754,8 @@ class TestIncompleteRuns:
                 "trace_id": trace_id,
                 "output": output,
                 "repetition_number": repetition_number,
-                "start_time": datetime.datetime.now().isoformat(),
-                "end_time": datetime.datetime.now().isoformat(),
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": datetime.now(timezone.utc).isoformat(),
                 **({"error": error} if error else {}),
             },
         )
@@ -811,6 +814,30 @@ class TestIncompleteRuns:
             assert "id" in incomplete_run["dataset_example"]
             assert "input" in incomplete_run["dataset_example"]
             assert "output" in incomplete_run["dataset_example"]
+
+        # ===== Test 2.1: Verify correct revision snapshot (not latest revision) =====
+        # The fixture has ex3 modified in v2 (ex3-v2-patched), but experiment_v1_mixed
+        # was created with v1, so it should return v1 data (ex3-v1), not v2 data.
+        ex3_incomplete = next(
+            (
+                run
+                for run in result["data"]
+                if int(GlobalID.from_id(run["dataset_example"]["id"]).node_id) == example_id_map[3]
+            ),
+            None,
+        )
+        assert ex3_incomplete is not None, "Example 3 should be in incomplete runs"
+
+        # Verify snapshot data is v1 (not v2)
+        assert ex3_incomplete["dataset_example"]["input"] == {"query": "ex3-v1"}, (
+            f"Expected v1 snapshot data 'ex3-v1', but got "
+            f"{ex3_incomplete['dataset_example']['input']!r}. "
+            "This suggests the query is returning the latest revision instead of the snapshot."
+        )
+        assert ex3_incomplete["dataset_example"]["output"] == {"response": "expected-3-v1"}, (
+            f"Expected v1 snapshot output 'expected-3-v1', but got "
+            f"{ex3_incomplete['dataset_example']['output']!r}"
+        )
 
         # ===== Test 3: Complete examples are excluded =====
         example_ids = [
@@ -1031,11 +1058,6 @@ class TestIncompleteEvaluations:
            - Mixed malicious and legitimate names
            - Database integrity after attacks
         """
-        from datetime import datetime, timezone
-        from secrets import token_hex
-
-        from phoenix.db import models
-        from phoenix.server.api.types.node import from_global_id_with_expected_type
 
         # Setup: Get experiment and example data
         exp_v1_mixed = experiments_with_incomplete_runs.experiment_v1_mixed
@@ -1219,6 +1241,33 @@ class TestIncompleteEvaluations:
                 f"incomplete-evaluations returned {first_item['experiment_run']['output']!r}, "
                 f"list_experiment_runs returned {matching_run['output']!r}"
             )
+
+            # Test 2.2: Verify correct revision snapshot in dataset_example
+            # The fixture has ex3 modified in v2, but experiment_v1_mixed uses v1 snapshot
+            example_id_map = experiments_with_incomplete_runs.example_id_map
+
+            # Find an evaluation for ex3 (which was modified in v2)
+            ex3_eval = next(
+                (
+                    item
+                    for item in result["data"]
+                    if int(GlobalID.from_id(item["experiment_run"]["dataset_example_id"]).node_id)
+                    == example_id_map[3]
+                ),
+                None,
+            )
+
+            if ex3_eval is not None:
+                # Verify snapshot data is v1 (not v2 which has "ex3-v2-patched")
+                assert ex3_eval["dataset_example"]["input"] == {"query": "ex3-v1"}, (
+                    f"Expected v1 snapshot data 'ex3-v1', but got "
+                    f"{ex3_eval['dataset_example']['input']!r}. "
+                    "This suggests the query is returning the latest revision instead of the snapshot."
+                )
+                assert ex3_eval["dataset_example"]["output"] == {"response": "expected-3-v1"}, (
+                    f"Expected v1 snapshot output 'expected-3-v1', but got "
+                    f"{ex3_eval['dataset_example']['output']!r}"
+                )
 
         # Test 2.5: Verify exactly one row per run (no duplicates from joins)
         run_ids_in_result = [item["experiment_run"]["id"] for item in result["data"]]
