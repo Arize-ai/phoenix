@@ -15,7 +15,6 @@ from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.prometheus import (
     RETENTION_POLICY_EXECUTIONS,
     RETENTION_SWEEPER_LAST_RUN,
-    RETENTION_TRACES_DELETED,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.utilities import hour_of_week
@@ -80,10 +79,6 @@ class TraceDataSweeper(DaemonTask):
             async with self._db() as session:
                 result = await policy.rule.delete_traces(session, project_rowids)
             self._dml_event_handler.put(SpanDeleteEvent(tuple(result)))
-
-            # Record metrics
-            num_deleted = len(result)
-            RETENTION_TRACES_DELETED.inc(num_deleted)
             RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
         except Exception:
             logger.exception(f"Failed to apply retention policy '{policy.name}' (id={policy.id})")

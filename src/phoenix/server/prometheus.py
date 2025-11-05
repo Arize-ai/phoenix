@@ -132,12 +132,6 @@ RETENTION_POLICY_EXECUTIONS = Counter(
     labelnames=["status"],
 )
 
-RETENTION_TRACES_DELETED = Counter(
-    namespace="phoenix",
-    name="retention_traces_deleted_total",
-    documentation="Total number of traces deleted by retention policies",
-)
-
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
