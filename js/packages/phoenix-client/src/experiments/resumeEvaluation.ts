@@ -22,13 +22,39 @@ import type {
   TaskOutput,
 } from "../types/experiments";
 import { type Logger } from "../types/logger";
-import { Channel } from "../utils/channel";
+import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 
 import { getExperimentInfo } from "./getExperimentInfo.js";
 
 import invariant from "tiny-invariant";
+
+/**
+ * Error thrown when evaluation is aborted due to a failure in stopOnFirstError mode.
+ * This provides semantic context that the abort was intentional, not an infrastructure failure.
+ * @internal - Not exported to minimize API surface area
+ */
+class EvaluationAbortedError extends Error {
+  constructor(message: string, cause?: Error) {
+    super(message);
+    this.name = "EvaluationAbortedError";
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when the producer fails to fetch incomplete evaluations from the server.
+ * This is a critical error that should always be surfaced, even in stopOnFirstError=false mode.
+ * @internal - Not exported to minimize API surface area
+ */
+class EvaluationFetchError extends Error {
+  constructor(message: string, cause?: Error) {
+    super(message);
+    this.name = "EvaluationFetchError";
+    this.cause = cause;
+  }
+}
 
 export type ResumeEvaluationParams = ClientFn & {
   /**
@@ -238,21 +264,39 @@ function printEvaluationSummary({
  * supported for resume operations. Each evaluator should produce a single evaluation
  * result with a name matching the evaluator's name.
  *
+ * @throws {Error} Throws different error types based on failure:
+ *   - "EvaluationFetchError": Unable to fetch incomplete evaluations from the server.
+ *     Always thrown regardless of stopOnFirstError, as it indicates critical infrastructure failure.
+ *   - "EvaluationAbortedError": stopOnFirstError=true and an evaluator failed.
+ *     Original error preserved in `cause` property.
+ *   - Generic Error: Other evaluator execution errors or unexpected failures.
+ *
  * @example
  * ```ts
  * import { resumeEvaluation } from "@arizeai/phoenix-client/experiments";
  *
  * // Standard usage: evaluation name matches evaluator name
- * await resumeEvaluation({
- *   experimentId: "exp_123",
- *   evaluators: [{
- *     name: "correctness",
- *     kind: "CODE",
- *     evaluate: async ({ output, expected }) => ({
- *       score: output === expected ? 1 : 0
- *     })
- *   }],
- * });
+ * try {
+ *   await resumeEvaluation({
+ *     experimentId: "exp_123",
+ *     evaluators: [{
+ *       name: "correctness",
+ *       kind: "CODE",
+ *       evaluate: async ({ output, expected }) => ({
+ *         score: output === expected ? 1 : 0
+ *       })
+ *     }],
+ *   });
+ * } catch (error) {
+ *   // Handle by error name (no instanceof needed)
+ *   if (error.name === "EvaluationFetchError") {
+ *     console.error("Failed to connect to server:", error.cause);
+ *   } else if (error.name === "EvaluationAbortedError") {
+ *     console.error("Evaluation stopped due to error:", error.cause);
+ *   } else {
+ *     console.error("Unexpected error:", error);
+ *   }
+ * }
  *
  * // Stop on first error (useful for debugging)
  * await resumeEvaluation({
@@ -358,12 +402,16 @@ export async function resumeEvaluation({
           );
         } catch (error: unknown) {
           await handleEvaluationFetchError(error, client, "resume_evaluation");
-          throw error; // TypeScript needs this to know execution doesn't continue
+          // Wrap in semantic error type
+          throw new EvaluationFetchError(
+            "Failed to fetch incomplete evaluations from server",
+            error instanceof Error ? error : undefined
+          );
         }
 
         // Check for API errors
         if (res.error) {
-          throw new Error(
+          throw new EvaluationFetchError(
             `Failed to fetch incomplete evaluations: ${ensureString(res.error)}`
           );
         }
@@ -416,6 +464,16 @@ export async function resumeEvaluation({
           `Fetched batch of ${batchCount} evaluation tasks (channel buffer: ${evalChannel.length})`
         );
       } while (cursor !== null && !signal.aborted);
+    } catch (error) {
+      // Re-throw with context preservation
+      if (error instanceof EvaluationFetchError) {
+        throw error;
+      }
+      // Wrap any unexpected errors from channel operations
+      throw new EvaluationFetchError(
+        "Unexpected error during evaluation fetch",
+        error instanceof Error ? error : undefined
+      );
     } finally {
       evalChannel.close(); // Signal workers we're done
     }
@@ -467,11 +525,29 @@ export async function resumeEvaluation({
     // Wait for producer and all workers to finish
     await Promise.all([producerTask, ...workerTasks]);
   } catch (error) {
-    if (stopOnFirstError) {
-      executionError =
-        error instanceof Error ? error : new Error(String(error));
+    // Classify and handle errors based on their nature
+    const err = error instanceof Error ? error : new Error(String(error));
+
+    // Always surface producer/infrastructure errors
+    if (error instanceof EvaluationFetchError) {
+      // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
+      logger.error(`❌ Critical: Failed to fetch evaluations from server`);
+      executionError = err;
+    } else if (error instanceof ChannelError && signal.aborted) {
+      // Channel closed due to intentional abort - wrap in semantic error
+      executionError = new EvaluationAbortedError(
+        "Evaluation stopped due to error in concurrent evaluator",
+        err
+      );
+    } else if (stopOnFirstError) {
+      // Worker error in stopOnFirstError mode - already logged by worker
+      executionError = err;
+    } else {
+      // Unexpected error (not from worker, not from producer fetch)
+      // This could be a bug in our code or infrastructure failure
+      logger.error(`❌ Unexpected error during evaluation: ${err.message}`);
+      executionError = err;
     }
-    // If not stopOnFirstError, errors were already logged by workers
   } finally {
     // Ensure channel is closed even if there are unexpected errors
     // This is a safety net in case producer's finally block didn't execute
@@ -504,7 +580,7 @@ export async function resumeEvaluation({
     await provider.forceFlush();
   }
 
-  // Re-throw error if stopOnFirstError was triggered
+  // Re-throw error if evaluation failed
   if (executionError) {
     throw executionError;
   }

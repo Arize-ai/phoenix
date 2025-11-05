@@ -18,7 +18,7 @@ import { ClientFn } from "../types/core";
 import { ExampleWithId } from "../types/datasets";
 import type { Evaluator, ExperimentTask } from "../types/experiments";
 import { type Logger } from "../types/logger";
-import { Channel } from "../utils/channel";
+import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { isHttpErrorWithStatus } from "../utils/isHttpError";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
@@ -28,6 +28,32 @@ import { getExperimentInfo } from "./getExperimentInfo.js";
 import { resumeEvaluation } from "./resumeEvaluation";
 
 import invariant from "tiny-invariant";
+
+/**
+ * Error thrown when task is aborted due to a failure in stopOnFirstError mode.
+ * This provides semantic context that the abort was intentional, not an infrastructure failure.
+ * @internal - Not exported to minimize API surface area
+ */
+class TaskAbortedError extends Error {
+  constructor(message: string, cause?: Error) {
+    super(message);
+    this.name = "TaskAbortedError";
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when the producer fails to fetch incomplete runs from the server.
+ * This is a critical error that should always be surfaced, even in stopOnFirstError=false mode.
+ * @internal - Not exported to minimize API surface area
+ */
+class TaskFetchError extends Error {
+  constructor(message: string, cause?: Error) {
+    super(message);
+    this.name = "TaskFetchError";
+    this.cause = cause;
+  }
+}
 
 export type ResumeExperimentParams = ClientFn & {
   /**
@@ -209,15 +235,33 @@ function printExperimentSummary({
  *
  * The function processes incomplete runs in batches using pagination to minimize memory usage.
  *
+ * @throws {Error} Throws different error types based on failure:
+ *   - "TaskFetchError": Unable to fetch incomplete runs from the server.
+ *     Always thrown regardless of stopOnFirstError, as it indicates critical infrastructure failure.
+ *   - "TaskAbortedError": stopOnFirstError=true and a task failed.
+ *     Original error preserved in `cause` property.
+ *   - Generic Error: Other task execution errors or unexpected failures.
+ *
  * @example
  * ```ts
  * import { resumeExperiment } from "@arizeai/phoenix-client/experiments";
  *
  * // Resume an interrupted experiment
- * await resumeExperiment({
- *   experimentId: "exp_123",
- *   task: myTask,
- * });
+ * try {
+ *   await resumeExperiment({
+ *     experimentId: "exp_123",
+ *     task: myTask,
+ *   });
+ * } catch (error) {
+ *   // Handle by error name (no instanceof needed)
+ *   if (error.name === "TaskFetchError") {
+ *     console.error("Failed to connect to server:", error.cause);
+ *   } else if (error.name === "TaskAbortedError") {
+ *     console.error("Task stopped due to error:", error.cause);
+ *   } else {
+ *     console.error("Unexpected error:", error);
+ *   }
+ * }
  *
  * // Resume with evaluators
  * await resumeExperiment({
@@ -348,7 +392,11 @@ export async function resumeExperiment({
           );
         } catch (error: unknown) {
           await handleFetchError(error, client, "resume_experiment");
-          throw error; // TypeScript needs this to know execution doesn't continue
+          // Wrap in semantic error type
+          throw new TaskFetchError(
+            "Failed to fetch incomplete runs from server",
+            error instanceof Error ? error : undefined
+          );
         }
 
         cursor = res.data?.next_cursor ?? null;
@@ -386,6 +434,16 @@ export async function resumeExperiment({
           `Fetched batch of ${batchCount} incomplete runs (channel buffer: ${taskChannel.length})`
         );
       } while (cursor !== null && !signal.aborted);
+    } catch (error) {
+      // Re-throw with context preservation
+      if (error instanceof TaskFetchError) {
+        throw error;
+      }
+      // Wrap any unexpected errors from channel operations
+      throw new TaskFetchError(
+        "Unexpected error during task fetch",
+        error instanceof Error ? error : undefined
+      );
     } finally {
       taskChannel.close(); // Signal workers we're done
     }
@@ -437,11 +495,29 @@ export async function resumeExperiment({
     // Wait for producer and all workers to finish
     await Promise.all([producerTask, ...workerTasks]);
   } catch (error) {
-    if (stopOnFirstError) {
-      executionError =
-        error instanceof Error ? error : new Error(String(error));
+    // Classify and handle errors based on their nature
+    const err = error instanceof Error ? error : new Error(String(error));
+
+    // Always surface producer/infrastructure errors
+    if (error instanceof TaskFetchError) {
+      // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
+      logger.error(`❌ Critical: Failed to fetch incomplete runs from server`);
+      executionError = err;
+    } else if (error instanceof ChannelError && signal.aborted) {
+      // Channel closed due to intentional abort - wrap in semantic error
+      executionError = new TaskAbortedError(
+        "Task execution stopped due to error in concurrent worker",
+        err
+      );
+    } else if (stopOnFirstError) {
+      // Worker error in stopOnFirstError mode - already logged by worker
+      executionError = err;
+    } else {
+      // Unexpected error (not from worker, not from producer fetch)
+      // This could be a bug in our code or infrastructure failure
+      logger.error(`❌ Unexpected error during task execution: ${err.message}`);
+      executionError = err;
     }
-    // If not stopOnFirstError, errors were already logged by workers
   } finally {
     // Ensure channel is closed even if there are unexpected errors
     // This is a safety net in case producer's finally block didn't execute
