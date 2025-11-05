@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { Autocomplete, Input, useFilter } from "react-aria-components";
+import {
+  Autocomplete,
+  Input,
+  SelectionMode,
+  useFilter,
+} from "react-aria-components";
 import { css } from "@emotion/react";
 
 import {
@@ -29,14 +34,20 @@ export type EvaluatorItem = {
 
 type EvaluatorSelectProps = {
   evaluators: EvaluatorItem[];
-  selectedIds: string[];
+  selectedIds?: string[];
   onSelectionChange: (id: string) => void;
   addNewEvaluatorLink: string;
+  selectionMode?: SelectionMode;
 };
 
 export function EvaluatorSelect(props: EvaluatorSelectProps) {
-  const { evaluators, selectedIds, onSelectionChange, addNewEvaluatorLink } =
-    props;
+  const {
+    evaluators,
+    selectedIds,
+    onSelectionChange,
+    addNewEvaluatorLink,
+    selectionMode = "multiple",
+  } = props;
   const { contains } = useFilter({ sensitivity: "base" });
 
   return (
@@ -53,7 +64,7 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
             </SearchField>
           </MenuHeader>
           <Menu
-            selectionMode="multiple"
+            selectionMode={selectionMode}
             selectedKeys={selectedIds}
             items={evaluators}
             renderEmptyState={() => (
@@ -69,7 +80,7 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
               <EvaluatorMenuItem
                 evaluator={evaluator}
                 onSelectionChange={() => onSelectionChange(evaluator.id)}
-                isSelected={selectedIds.includes(evaluator.id)}
+                isSelected={selectedIds?.includes(evaluator.id) ?? false}
               />
             )}
           </Menu>

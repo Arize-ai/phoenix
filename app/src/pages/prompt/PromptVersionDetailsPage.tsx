@@ -15,11 +15,11 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
+import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 import { promptVersionLoader } from "@phoenix/pages/prompt/promptVersionLoader";
 
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
-import { PromptChatMessagesCard } from "./PromptChatMessagesCard";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
 import { TagPromptVersionButton } from "./TagPromptVersionButton";

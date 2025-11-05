@@ -17,6 +17,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import {
@@ -27,7 +28,6 @@ import {
   EvaluatorChatTemplate,
   EvaluatorChatTemplateProvider,
 } from "@phoenix/pages/evaluators/EvaluatorChatTemplate";
-import { EvaluatorExampleDataset } from "@phoenix/pages/evaluators/EvaluatorExampleDataset";
 import {
   EvaluatorInputMapping,
   InputMapping,
@@ -37,6 +37,7 @@ import {
   EvaluatorLLMChoice,
 } from "@phoenix/pages/evaluators/EvaluatorLLMChoice";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
+import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
@@ -130,6 +131,7 @@ const createEvaluatorPayload = ({
 
 const NewEvaluatorPageContent = () => {
   const store = usePlaygroundStore();
+  const { variableKeys: variables } = useDerivedPlaygroundVariables();
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(
     null
   );
@@ -364,6 +366,7 @@ const NewEvaluatorPageContent = () => {
               <EvaluatorInputMapping
                 exampleId={selectedExampleId ?? undefined}
                 control={inputMappingControl}
+                variables={variables}
               />
             </div>
           </PanelContainer>

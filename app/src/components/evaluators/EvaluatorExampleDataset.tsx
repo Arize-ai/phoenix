@@ -1,6 +1,6 @@
 import { Flex } from "@phoenix/components";
 import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
-import { EvaluatorDatasetExamplePreview } from "@phoenix/pages/evaluators/EvaluatorDatasetExamplePreview";
+import { EvaluatorDatasetExamplePreview } from "@phoenix/components/evaluators/EvaluatorDatasetExamplePreview";
 
 type EvaluatorExampleDatasetProps = {
   selectedDatasetId: string | null;
@@ -8,6 +8,7 @@ type EvaluatorExampleDatasetProps = {
   selectedSplitIds: string[];
   onSelectSplits: (splitIds: string[]) => void;
   onSelectExampleId: (exampleId: string | null) => void;
+  datasetSelectIsDisabled?: boolean;
 };
 
 export const EvaluatorExampleDataset = ({
@@ -16,6 +17,7 @@ export const EvaluatorExampleDataset = ({
   selectedSplitIds,
   onSelectSplits,
   onSelectExampleId,
+  datasetSelectIsDisabled,
 }: EvaluatorExampleDatasetProps) => {
   return (
     <Flex direction="column" gap="size-100">
@@ -26,6 +28,7 @@ export const EvaluatorExampleDataset = ({
           onSelectDataset(datasetId);
           onSelectSplits(splitIds);
         }}
+        isDisabled={datasetSelectIsDisabled}
       />
       <EvaluatorDatasetExamplePreview
         datasetId={selectedDatasetId}
