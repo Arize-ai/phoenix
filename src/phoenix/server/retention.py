@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 from asyncio import create_task, gather, sleep
 from datetime import datetime, timedelta, timezone
+from time import time
 
 import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
@@ -10,8 +12,14 @@ from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.models import Project, ProjectTraceRetentionPolicy
 from phoenix.server.dml_event import SpanDeleteEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
+from phoenix.server.prometheus import (
+    RETENTION_POLICY_EXECUTIONS,
+    RETENTION_SWEEPER_LAST_RUN,
+)
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.utilities import hour_of_week
+
+logger = logging.getLogger(__name__)
 
 
 class TraceDataSweeper(DaemonTask):
@@ -24,15 +32,19 @@ class TraceDataSweeper(DaemonTask):
         """Check hourly and apply policies."""
         while self._running:
             await self._sleep_until_next_hour()
-            if not (policies := await self._get_policies()):
-                continue
-            current_hour = self._current_hour()
-            if tasks := [
-                create_task(self._apply(policy))
-                for policy in policies
-                if self._should_apply(policy, current_hour)
-            ]:
-                await gather(*tasks, return_exceptions=True)
+            RETENTION_SWEEPER_LAST_RUN.set(time())
+            try:
+                if not (policies := await self._get_policies()):
+                    continue
+                current_hour = self._current_hour()
+                if tasks := [
+                    create_task(self._apply(policy))
+                    for policy in policies
+                    if self._should_apply(policy, current_hour)
+                ]:
+                    await gather(*tasks, return_exceptions=True)
+            except Exception:
+                logger.exception("Unexpected error in retention sweeper main loop")
 
     async def _get_policies(self) -> list[ProjectTraceRetentionPolicy]:
         stmt = sa.select(ProjectTraceRetentionPolicy).options(
@@ -58,18 +70,19 @@ class TraceDataSweeper(DaemonTask):
         return True
 
     async def _apply(self, policy: ProjectTraceRetentionPolicy) -> None:
-        project_rowids = (
-            (
-                sa.select(Project.id)
-                .where(Project.trace_retention_policy_id.is_(None))
-                .scalar_subquery()
+        try:
+            project_rowids = (
+                (sa.select(Project.id).where(Project.trace_retention_policy_id.is_(None)))
+                if policy.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+                else [p.id for p in policy.projects]
             )
-            if policy.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
-            else [p.id for p in policy.projects]
-        )
-        async with self._db() as session:
-            result = await policy.rule.delete_traces(session, project_rowids)
-        self._dml_event_handler.put(SpanDeleteEvent(tuple(result)))
+            async with self._db() as session:
+                result = await policy.rule.delete_traces(session, project_rowids)
+            self._dml_event_handler.put(SpanDeleteEvent(tuple(result)))
+            RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
+        except Exception:
+            logger.exception(f"Failed to apply retention policy '{policy.name}' (id={policy.id})")
+            RETENTION_POLICY_EXECUTIONS.labels(status="error").inc()
 
     async def _sleep_until_next_hour(self) -> None:
         next_hour = self._now().replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)

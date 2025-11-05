@@ -391,12 +391,18 @@ export async function resumeExperiment({
             }
           );
         } catch (error: unknown) {
-          await handleFetchError(error, client, "resume_experiment");
-          // Wrap in semantic error type
-          throw new TaskFetchError(
-            "Failed to fetch incomplete runs from server",
-            error instanceof Error ? error : undefined
-          );
+          // Check for version compatibility issues and throw helpful error
+          try {
+            await handleFetchError(error, client, "resume_experiment");
+            // TypeScript: handleFetchError never returns, but add throw for safety
+            throw new Error("handleFetchError should never return");
+          } catch (handledError) {
+            // Wrap the error (from handleFetchError or original) in semantic error type
+            throw new TaskFetchError(
+              "Failed to fetch incomplete runs from server",
+              handledError instanceof Error ? handledError : undefined
+            );
+          }
         }
 
         cursor = res.data?.next_cursor ?? null;
@@ -437,6 +443,11 @@ export async function resumeExperiment({
     } catch (error) {
       // Re-throw with context preservation
       if (error instanceof TaskFetchError) {
+        throw error;
+      }
+      // ChannelError from blocked send() should bubble up naturally
+      // (happens when channel closes while producer is blocked)
+      if (error instanceof ChannelError) {
         throw error;
       }
       // Wrap any unexpected errors from channel operations
