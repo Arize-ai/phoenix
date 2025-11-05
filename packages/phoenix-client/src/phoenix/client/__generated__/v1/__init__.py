@@ -147,7 +147,7 @@ class IncompleteExperimentEvaluation(TypedDict):
     evaluation_names: Sequence[str]
 
 
-class IncompleteRun(TypedDict):
+class IncompleteExperimentRun(TypedDict):
     dataset_example: DatasetExample
     repetition_numbers: Sequence[int]
 
@@ -647,7 +647,7 @@ class GetIncompleteEvaluationsResponseBody(TypedDict):
 
 
 class GetIncompleteExperimentRunsResponseBody(TypedDict):
-    data: Sequence[IncompleteRun]
+    data: Sequence[IncompleteExperimentRun]
     next_cursor: Optional[str]
 
 

@@ -1413,7 +1413,7 @@ export interface components {
         /** GetIncompleteExperimentRunsResponseBody */
         GetIncompleteExperimentRunsResponseBody: {
             /** Data */
-            data: components["schemas"]["IncompleteRun"][];
+            data: components["schemas"]["IncompleteExperimentRun"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -1483,10 +1483,10 @@ export interface components {
             evaluation_names: string[];
         };
         /**
-         * IncompleteRun
+         * IncompleteExperimentRun
          * @description Information about incomplete runs for a dataset example
          */
-        IncompleteRun: {
+        IncompleteExperimentRun: {
             /** @description The dataset example */
             dataset_example: components["schemas"]["DatasetExample"];
             /**
@@ -4216,7 +4216,7 @@ export interface operations {
     getIncompleteExperimentEvaluations: {
         parameters: {
             query?: {
-                /** @description Evaluation names to check (can be repeated) */
+                /** @description Evaluation names to check */
                 evaluation_name?: string[];
                 /** @description Cursor for pagination */
                 cursor?: string | null;

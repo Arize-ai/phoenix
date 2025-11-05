@@ -2233,11 +2233,11 @@
               "items": {
                 "type": "string"
               },
-              "description": "Evaluation names to check (can be repeated)",
+              "description": "Evaluation names to check",
               "default": [],
               "title": "Evaluation Name"
             },
-            "description": "Evaluation names to check (can be repeated)"
+            "description": "Evaluation names to check"
           },
           {
             "name": "cursor",
@@ -5847,7 +5847,7 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/IncompleteRun"
+              "$ref": "#/components/schemas/IncompleteExperimentRun"
             },
             "type": "array",
             "title": "Data"
@@ -6095,7 +6095,7 @@
         "title": "IncompleteExperimentEvaluation",
         "description": "Information about an experiment run with incomplete evaluations"
       },
-      "IncompleteRun": {
+      "IncompleteExperimentRun": {
         "properties": {
           "dataset_example": {
             "$ref": "#/components/schemas/DatasetExample",
@@ -6115,7 +6115,7 @@
           "dataset_example",
           "repetition_numbers"
         ],
-        "title": "IncompleteRun",
+        "title": "IncompleteExperimentRun",
         "description": "Information about incomplete runs for a dataset example"
       },
       "InsertedSessionAnnotation": {

@@ -420,7 +420,7 @@ class ListExperimentsResponseBody(PaginatedResponseBody[Experiment]):
     pass
 
 
-class IncompleteRun(V1RoutesBaseModel):
+class IncompleteExperimentRun(V1RoutesBaseModel):
     """
     Information about incomplete runs for a dataset example
     """
@@ -431,7 +431,7 @@ class IncompleteRun(V1RoutesBaseModel):
     )
 
 
-class GetIncompleteExperimentRunsResponseBody(PaginatedResponseBody[IncompleteRun]):
+class GetIncompleteExperimentRunsResponseBody(PaginatedResponseBody[IncompleteExperimentRun]):
     pass
 
 
@@ -535,7 +535,7 @@ async def get_incomplete_runs(
         # Optimization: Precompute the "all repetitions" list for completely missing examples
         # to avoid recomputing it for every missing example
         all_repetitions = list(range(1, experiment.repetitions + 1))
-        incomplete_runs_list: list[IncompleteRun] = []
+        incomplete_runs_list: list[IncompleteExperimentRun] = []
 
         for revision, successful_count, incomplete_reps in examples_to_process:
             example_id = revision.dataset_example_id
@@ -560,7 +560,7 @@ async def get_incomplete_runs(
             # Build response
             example_globalid = GlobalID("DatasetExample", str(example_id))
             incomplete_runs_list.append(
-                IncompleteRun(
+                IncompleteExperimentRun(
                     dataset_example=DatasetExample(
                         id=str(example_globalid),
                         input=revision.input,

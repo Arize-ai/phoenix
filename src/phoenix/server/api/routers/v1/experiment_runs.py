@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import Any, Optional
 
@@ -282,9 +283,7 @@ async def list_experiment_runs(
 async def get_incomplete_evaluations(
     request: Request,
     experiment_id: str,
-    evaluation_name: list[str] = Query(
-        default=[], description="Evaluation names to check (can be repeated)"
-    ),
+    evaluation_name: list[str] = Query(default=[], description="Evaluation names to check"),
     cursor: Optional[str] = Query(default=None, description="Cursor for pagination"),
     limit: int = Query(
         default=50, description="Maximum number of runs with incomplete evaluations to return", gt=0
@@ -390,8 +389,6 @@ async def get_incomplete_evaluations(
 
         # Parse rows - now each row is a single run with successful annotations as JSON array
         # Each row: (ExperimentRun, revision_id, DatasetExampleRevision, annotations_json)
-        import json
-
         runs_data: list[tuple[models.ExperimentRun, models.DatasetExampleRevision, set[str]]] = []
 
         for row in all_rows:
