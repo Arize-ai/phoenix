@@ -44,6 +44,7 @@ type DatasetSelectWithSplitsProps = {
   isRequired?: boolean;
   placement?: ComponentProps<typeof MenuContainer>["placement"];
   shouldFlip?: ComponentProps<typeof MenuContainer>["shouldFlip"];
+  isDisabled?: boolean;
 };
 
 type SplitItem = {
@@ -132,6 +133,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         className="dataset-picker-button"
         trailingVisual={<SelectChevronUpDownIcon />}
         size={props.size ?? "S"}
+        isDisabled={props.isDisabled}
       >
         <Flex alignItems="center" width="100%">
           {selectedDataset ? (
