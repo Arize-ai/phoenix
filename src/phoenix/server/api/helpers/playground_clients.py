@@ -328,6 +328,10 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 label="Response Format",
                 canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
             ),
+            JSONInvocationParameter(
+                invocation_name="extra_body",
+                label="Extra Body",
+            ),
         ]
 
     async def chat_completion_create(
