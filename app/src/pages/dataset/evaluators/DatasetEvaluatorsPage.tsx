@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { graphql, useFragment, usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Modal, ModalOverlay, View } from "@phoenix/components";
+import { Flex, Loading, Modal, ModalOverlay, View } from "@phoenix/components";
 import { EvaluatorSelect } from "@phoenix/components/evaluators/EvaluatorSelect";
 import {
   datasetEvaluatorsLoader,
@@ -14,6 +14,14 @@ import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/Evaluat
 import type { DatasetEvaluatorsPage_evaluators$key } from "./__generated__/DatasetEvaluatorsPage_evaluators.graphql";
 
 export function DatasetEvaluatorsPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <DatasetEvaluatorsPageContent />
+    </Suspense>
+  );
+}
+
+export function DatasetEvaluatorsPageContent() {
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   graphql,
@@ -20,6 +20,7 @@ import {
   Icon,
   Icons,
   Link,
+  Loading,
   Text,
   View,
 } from "@phoenix/components";
@@ -45,6 +46,36 @@ type OutputConfig = NonNullable<
 >;
 
 export function EvaluatorConfigDialog({
+  evaluatorId,
+  onClose,
+  datasetRef,
+}: {
+  evaluatorId: string;
+  onClose: () => void;
+  datasetRef: EvaluatorConfigDialog_dataset$key;
+}) {
+  return (
+    <Dialog>
+      <DialogContent minHeight="300px">
+        <Suspense
+          fallback={
+            <Flex flex={1} alignItems="center">
+              <Loading />
+            </Flex>
+          }
+        >
+          <EvaluatorConfigDialogContent
+            evaluatorId={evaluatorId}
+            onClose={onClose}
+            datasetRef={datasetRef}
+          />
+        </Suspense>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function EvaluatorConfigDialogContent({
   evaluatorId,
   onClose,
   datasetRef,
@@ -172,96 +203,88 @@ export function EvaluatorConfigDialog({
   };
 
   return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            <Flex direction="row" alignItems="center" gap="size-50">
-              Add
-              <Flex direction="row" alignItems="center" gap="size-25">
-                <Icon svg={<Icons.Scale />} />
-                {evaluator.name}
-              </Flex>
-              to
-              <Flex direction="row" alignItems="center" gap="size-25">
-                <Icon svg={<Icons.DatabaseOutline />} />
-                {dataset.name}
-              </Flex>
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          <Flex direction="row" alignItems="center" gap="size-50">
+            Add
+            <Flex direction="row" alignItems="center" gap="size-25">
+              <Icon svg={<Icons.Scale />} />
+              {evaluator.name}
             </Flex>
-          </DialogTitle>
-          <DialogTitleExtra>
-            <Button onPress={onClose}>Cancel</Button>
-            <Button
-              variant="primary"
-              onPress={onAddEvaluator}
-              isDisabled={!isInputMappingValid || isAssigningEvaluatorToDataset}
-            >
-              Done
-            </Button>
-          </DialogTitleExtra>
-        </DialogHeader>
-        <View
-          paddingX="size-300"
-          paddingBottom="size-300"
-          paddingTop="size-200"
-        >
-          <Flex direction="row" alignItems="start" gap="size-200">
-            {evaluator.kind === "LLM" && (
-              <Flex direction="column" gap="size-300" flex="1">
-                {evaluator.promptVersion && (
-                  <Flex direction="column" gap="size-100">
-                    <Text>
-                      This is in read only mode, you can{" "}
-                      <Link to="TODO: link to evaluator edit page when it exists">
-                        edit the global evaluator
-                      </Link>
-                    </Text>
-                    <Text size="L">Prompt</Text>
-                    <PromptChatMessages
-                      promptVersion={evaluator.promptVersion}
-                    />
-                  </Flex>
-                )}
-                {evaluator.outputConfig && (
-                  <Flex direction="column" gap="size-100">
-                    <Text size="L">Eval</Text>
-                    <Flex direction="row" alignItems="center" gap="size-100">
-                      <AnnotationColorSwatch
-                        annotationName={evaluator.outputConfig.name}
-                      />
-                      <Text color="grey-600" weight="heavy">
-                        {evaluator.outputConfig.name}
-                      </Text>
-                    </Flex>
-                    <Text color="grey-700">
-                      {getOutputConfigValuesSummary(evaluator.outputConfig)}
-                    </Text>
-                  </Flex>
-                )}
-              </Flex>
-            )}
-            <Flex direction="column" gap="size-300" flex="1">
-              <Flex direction="column" gap="size-100">
-                <Text size="L">Example</Text>
-                <EvaluatorExampleDataset
-                  selectedDatasetId={dataset.id}
-                  datasetSelectIsDisabled
-                  onSelectDataset={() => {}}
-                  selectedSplitIds={[]}
-                  onSelectSplits={() => {}}
-                  onSelectExampleId={setSelectedExampleId}
-                />
-              </Flex>
-              <EvaluatorInputMapping
-                exampleId={selectedExampleId ?? undefined}
-                control={inputMappingControl}
-                variables={promptVariables}
-              />
+            to
+            <Flex direction="row" alignItems="center" gap="size-25">
+              <Icon svg={<Icons.DatabaseOutline />} />
+              {dataset.name}
             </Flex>
           </Flex>
-        </View>
-      </DialogContent>
-    </Dialog>
+        </DialogTitle>
+        <DialogTitleExtra>
+          <Button onPress={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
+            onPress={onAddEvaluator}
+            isDisabled={!isInputMappingValid || isAssigningEvaluatorToDataset}
+          >
+            Done
+          </Button>
+        </DialogTitleExtra>
+      </DialogHeader>
+      <View paddingX="size-300" paddingBottom="size-300" paddingTop="size-200">
+        <Flex direction="row" alignItems="start" gap="size-200">
+          {evaluator.kind === "LLM" && (
+            <Flex direction="column" gap="size-300" flex="1">
+              {evaluator.promptVersion && (
+                <Flex direction="column" gap="size-100">
+                  <Text>
+                    This is in read only mode, you can{" "}
+                    <Link to="TODO: link to evaluator edit page when it exists">
+                      edit the global evaluator
+                    </Link>
+                  </Text>
+                  <Text size="L">Prompt</Text>
+                  <PromptChatMessages promptVersion={evaluator.promptVersion} />
+                </Flex>
+              )}
+              {evaluator.outputConfig && (
+                <Flex direction="column" gap="size-100">
+                  <Text size="L">Eval</Text>
+                  <Flex direction="row" alignItems="center" gap="size-100">
+                    <AnnotationColorSwatch
+                      annotationName={evaluator.outputConfig.name}
+                    />
+                    <Text color="grey-600" weight="heavy">
+                      {evaluator.outputConfig.name}
+                    </Text>
+                  </Flex>
+                  <Text color="grey-700">
+                    {getOutputConfigValuesSummary(evaluator.outputConfig)}
+                  </Text>
+                </Flex>
+              )}
+            </Flex>
+          )}
+          <Flex direction="column" gap="size-300" flex="1">
+            <Flex direction="column" gap="size-100">
+              <Text size="L">Example</Text>
+              <EvaluatorExampleDataset
+                selectedDatasetId={dataset.id}
+                datasetSelectIsDisabled
+                onSelectDataset={() => {}}
+                selectedSplitIds={[]}
+                onSelectSplits={() => {}}
+                onSelectExampleId={setSelectedExampleId}
+              />
+            </Flex>
+            <EvaluatorInputMapping
+              exampleId={selectedExampleId ?? undefined}
+              control={inputMappingControl}
+              variables={promptVariables}
+            />
+          </Flex>
+        </Flex>
+      </View>
+    </>
   );
 }
 
