@@ -307,7 +307,7 @@ class EvaluatorMutationMixin:
         stmt = delete(models.Evaluator).where(models.Evaluator.id == evaluator_rowid)
         async with info.context.db() as session:
             result = await session.execute(stmt)
-            if result.rowcount == 0:
+            if result.rowcount == 0:  # type: ignore[attr-defined]
                 raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
         return DeleteEvaluatorPayload(
             evaluator_id=input.evaluator_id,
