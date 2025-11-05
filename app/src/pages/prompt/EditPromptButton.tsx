@@ -166,10 +166,9 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
                   }}
                   render={({
                     field: { onChange, onBlur, value },
-                    fieldState: { invalid, error },
+                    fieldState: { error },
                   }) => (
                     <CodeEditorFieldWrapper
-                      validationState={invalid ? "invalid" : "valid"}
                       label={"Metadata"}
                       errorMessage={error?.message}
                       description="A JSON object containing metadata for the prompt"
