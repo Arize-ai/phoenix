@@ -946,6 +946,15 @@ input DeleteExperimentsInput {
   experimentIds: [ID!]!
 }
 
+input DeleteLLMEvaluatorInput {
+  evaluatorId: ID!
+}
+
+type DeleteLLMEvaluatorPayload {
+  evaluatorId: ID!
+  query: Query!
+}
+
 input DeleteModelMutationInput {
   id: ID!
 }
@@ -1940,6 +1949,7 @@ type Mutation {
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   createLlmEvaluator(input: CreateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
+  deleteLlmEvaluator(input: DeleteLLMEvaluatorInput!): DeleteLLMEvaluatorPayload!
   assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
   unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!

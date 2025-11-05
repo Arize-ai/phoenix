@@ -98,6 +98,17 @@ class UnassignEvaluatorFromDatasetInput:
     evaluator_id: GlobalID
 
 
+@strawberry.input
+class DeleteLLMEvaluatorInput:
+    evaluator_id: GlobalID
+
+
+@strawberry.type
+class DeleteLLMEvaluatorPayload:
+    evaluator_id: GlobalID
+    query: Query
+
+
 @strawberry.type
 class EvaluatorMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -201,6 +212,29 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Evaluator with name {input.name} already exists")
         return LLMEvaluatorMutationPayload(
             evaluator=LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def delete_llm_evaluator(
+        self, info: Info[Context, None], input: DeleteLLMEvaluatorInput
+    ) -> DeleteLLMEvaluatorPayload:
+        try:
+            evaluator_rowid = from_global_id_with_expected_type(
+                global_id=input.evaluator_id,
+                expected_type_name=LLMEvaluator.__name__,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid LLM evaluator id: {input.evaluator_id}")
+
+        stmt = delete(models.Evaluator).where(models.Evaluator.id == evaluator_rowid)
+        async with info.context.db() as session:
+            result = await session.execute(stmt)
+            if result.rowcount == 0:
+                raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
+
+        return DeleteLLMEvaluatorPayload(
+            evaluator_id=input.evaluator_id,
             query=Query(),
         )
 
