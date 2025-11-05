@@ -402,6 +402,7 @@ type CodeEvaluator implements Evaluator & Node {
   id: ID!
   name: Identifier!
   description: String
+  metadata: JSON!
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1290,6 +1291,7 @@ interface Evaluator implements Node {
   id: ID!
   name: Identifier!
   description: String
+  metadata: JSON!
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1884,6 +1886,7 @@ type LLMEvaluator implements Evaluator & Node {
   id: ID!
   name: Identifier!
   description: String
+  metadata: JSON!
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!

@@ -2063,6 +2063,7 @@ class Evaluator(HasId):
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False, unique=True)
     description: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
