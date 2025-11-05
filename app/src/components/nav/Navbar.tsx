@@ -175,7 +175,7 @@ export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
         themeIcon = <Icons.MoonOutline />;
         break;
       case "system":
-        themeIcon = <Icons.HalfMoonHallSunOutline />;
+        themeIcon = <Icons.HalfMoonHalfSunOutline />;
         break;
       default:
         assertUnreachable(themeMode);
@@ -232,7 +232,7 @@ export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
                 justifyContent="start"
                 alignItems="center"
               >
-                <Icon svg={<Icons.HalfMoonHallSunOutline />} />
+                <Icon svg={<Icons.HalfMoonHalfSunOutline />} />
                 <Text>{`Auto (${systemTheme})`}</Text>
               </Flex>
             </MenuItem>

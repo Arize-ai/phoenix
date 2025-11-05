@@ -1426,7 +1426,7 @@ export const Globe = () => (
   </svg>
 );
 
-export const HalfMoonHallSunOutline = () => (
+export const HalfMoonHalfSunOutline = () => (
   <svg
     width="24"
     height="24"
