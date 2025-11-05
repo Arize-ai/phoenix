@@ -43,6 +43,8 @@ from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
+from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
@@ -1098,6 +1100,8 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        sort: Optional[EvaluatorSort] = UNSET,
+        filter: Optional[EvaluatorFilter] = UNSET,
     ) -> Connection[Evaluator]:
         args = ConnectionArgs(
             first=first,
@@ -1111,7 +1115,30 @@ class Query:
         PolymorphicEvaluator = with_polymorphic(
             models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
         )  # eagerly join sub-classed evaluator tables
-        query = select(PolymorphicEvaluator).order_by(PolymorphicEvaluator.name.asc())
+        query = select(PolymorphicEvaluator)
+
+        if filter:
+            column = getattr(PolymorphicEvaluator, filter.col.value)
+            # Cast Identifier columns to String for ilike operations
+            if filter.col.value == "name":
+                column = cast(column, String)
+            query = query.where(column.ilike(f"%{filter.value}%"))
+
+        if sort:
+            if sort.col.value == "updated_at":
+                # updated_at exists in sub-tables, not base table
+                # Use case to pick the value based on kind
+                # this special case can be removed if we add updated_at to the base table
+                sort_col = case(
+                    (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
+                    else_=None,
+                )
+            else:
+                sort_col = getattr(PolymorphicEvaluator, sort.col.value)
+            query = query.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        else:
+            query = query.order_by(PolymorphicEvaluator.name.asc())
 
         async with info.context.db() as session:
             evaluators = await session.scalars(query)
