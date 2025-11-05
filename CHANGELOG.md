@@ -1,5 +1,31 @@
 # Changelog
 
+## [12.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.9.0...arize-phoenix-v12.10.0) (2025-11-05)
+
+
+### Features
+
+* add es2022 as new target ([#10143](https://github.com/Arize-ai/phoenix/issues/10143)) ([cccc40a](https://github.com/Arize-ai/phoenix/commit/cccc40a21172819539395406a9ee8d3a4a45976b))
+* Add extra body param ([#10131](https://github.com/Arize-ai/phoenix/issues/10131)) ([41e1746](https://github.com/Arize-ai/phoenix/commit/41e1746671c2e90006b1593041b2f5ce3e334450))
+* add system theme ([#10030](https://github.com/Arize-ai/phoenix/issues/10030)) ([90f133a](https://github.com/Arize-ai/phoenix/commit/90f133ab315085b2ae1dd0eb2025dbb62f91ac61))
+* add valueFrom option to auth.secret ([#9932](https://github.com/Arize-ai/phoenix/issues/9932)) ([0c6a3e8](https://github.com/Arize-ai/phoenix/commit/0c6a3e86cd418e6e9b4f24c102a89e2edc1f76c3))
+* added additionalEnv support ([#10022](https://github.com/Arize-ai/phoenix/issues/10022)) ([b2aadb3](https://github.com/Arize-ai/phoenix/commit/b2aadb321ae40f90f4c42fb36ae3ee884069a46b))
+* **auth:** hide prominent actions for viewers. ([#10124](https://github.com/Arize-ai/phoenix/issues/10124)) ([bd24cba](https://github.com/Arize-ai/phoenix/commit/bd24cba088337ce02cb08809a6f3bed707b3f79d))
+* classnames migration to vendored approach ([#10098](https://github.com/Arize-ai/phoenix/issues/10098)) ([37e106b](https://github.com/Arize-ai/phoenix/commit/37e106b968614a28e13ca4a248b99869b906f505))
+* **helm:** Allow fullname override, enhance helm tests ([#10106](https://github.com/Arize-ai/phoenix/issues/10106)) ([1788b84](https://github.com/Arize-ai/phoenix/commit/1788b840fdbfcae1f7ce9052e6a3f4534cc798f7))
+* metadata for prompts ([#10097](https://github.com/Arize-ai/phoenix/issues/10097)) ([0c92232](https://github.com/Arize-ai/phoenix/commit/0c92232a91679d1b8146167a26aecd20326fce9c))
+* OIDC role mapping ([#9982](https://github.com/Arize-ai/phoenix/issues/9982)) ([29615ef](https://github.com/Arize-ai/phoenix/commit/29615ef4b38a4ef076d887a71affb96a033edd7d))
+* prometheus metrics for trace retention sweeper ([#10130](https://github.com/Arize-ai/phoenix/issues/10130)) ([3c9d92b](https://github.com/Arize-ai/phoenix/commit/3c9d92b4bd07aafe9f61f4fb55ad36a6d1e491ac))
+* resume experiment and evaluation ([#9994](https://github.com/Arize-ai/phoenix/issues/9994)) ([557865c](https://github.com/Arize-ai/phoenix/commit/557865c60b08dee5b09912bd09dfd2593231f713))
+* **ui:** playground dataset label ([#9902](https://github.com/Arize-ai/phoenix/issues/9902)) ([12d6855](https://github.com/Arize-ai/phoenix/commit/12d685551248948ea88272c20fa020d0956288c3))
+
+
+### Bug Fixes
+
+* **helm:** in-memory deployment from conflicting values ([#10118](https://github.com/Arize-ai/phoenix/issues/10118)) ([8e16a62](https://github.com/Arize-ai/phoenix/commit/8e16a622fdd29dfe3db29e96d958146b9b0c4558))
+* **playground:** remove useMemo ([#10110](https://github.com/Arize-ai/phoenix/issues/10110)) ([bcbe5bd](https://github.com/Arize-ai/phoenix/commit/bcbe5bdf407e25532459ef08e305911ba411333e))
+* render tool messages with undefined outputs ([#10116](https://github.com/Arize-ai/phoenix/issues/10116)) ([c7d76e1](https://github.com/Arize-ai/phoenix/commit/c7d76e1bd39371ac2c0549721835fbe7fc850724))
+
 ## [12.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.8.0...arize-phoenix-v12.9.0) (2025-10-29)
 
 
