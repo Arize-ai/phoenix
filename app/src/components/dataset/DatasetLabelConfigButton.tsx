@@ -200,7 +200,6 @@ function DatasetLabelList({
         borderBottomWidth="thin"
         borderColor="dark"
         minWidth={300}
-        maxWidth={300}
       >
         <Flex direction="column" gap="size-50">
           <Flex
