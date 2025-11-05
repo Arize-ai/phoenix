@@ -190,10 +190,8 @@ class JsonDict(TypeDecorator[dict[str, Any]]):
     cache_ok = True
     impl = JSON_
 
-    def process_bind_param(
-        self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[dict[str, Any]]:
-        return value if isinstance(value, dict) else None
+    def process_bind_param(self, value: Optional[dict[str, Any]], _: Dialect) -> dict[str, Any]:
+        return value if isinstance(value, dict) else {}
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[dict[str, Any]]:
         return orjson.loads(orjson.dumps(value)) if isinstance(value, dict) and value else value
@@ -2065,7 +2063,7 @@ class Evaluator(HasId):
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False, unique=True)
     description: Mapped[Optional[str]]
-    metadata_: Mapped[Optional[dict[str, Any]]] = mapped_column("metadata")
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,

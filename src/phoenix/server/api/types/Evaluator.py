@@ -48,7 +48,7 @@ class Evaluator(Node):
         raise NotImplementedError
 
     @strawberry.field
-    async def metadata(self) -> Optional[JSON]:
+    async def metadata(self) -> JSON:
         raise NotImplementedError
 
     @strawberry.field
@@ -125,7 +125,7 @@ class CodeEvaluator(Evaluator, Node):
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]:
+    ) -> JSON:
         if self.db_record:
             val = self.db_record.metadata_
         else:
@@ -223,7 +223,7 @@ class LLMEvaluator(Evaluator, Node):
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]:
+    ) -> JSON:
         if self.db_record:
             val = self.db_record.metadata_
         else:

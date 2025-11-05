@@ -146,7 +146,7 @@ class TestEvaluatorFields:
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
-        assert node["metadata"] is None
+        assert node["metadata"] == {}
         assert node["promptVersionTag"]["id"] == str(
             GlobalID("PromptVersionTag", str(_test_data["tag"]))
         )
