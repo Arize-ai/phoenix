@@ -155,13 +155,13 @@ function ChatMessages({
   const { messages } = template;
   return (
     <Flex direction="column" gap="size-100" data-testid="chat-messages">
-      {messages.map((message, i: number) => {
+      {messages.map((message, i) => {
         const isOnlyChild =
           message.content.length === 1 &&
           message.content.find(asTextPart) != null;
         return (
           <ChatTemplateMessageCard key={i} role={message.role as string}>
-            {message.content.map((content, i: number) => (
+            {message.content.map((content, i) => (
               <ChatMessageContentPart
                 key={`${i}-${content.__typename}`}
                 part={content}
