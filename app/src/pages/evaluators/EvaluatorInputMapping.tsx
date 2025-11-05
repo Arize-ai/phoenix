@@ -7,7 +7,6 @@ import {
 } from "react";
 import { Control, Controller } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
@@ -21,9 +20,7 @@ import {
 import { Heading } from "@phoenix/components/content/Heading";
 import { Flex } from "@phoenix/components/layout/Flex";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorInputMappingControlsQuery } from "@phoenix/pages/evaluators/__generated__/EvaluatorInputMappingControlsQuery.graphql";
-import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
 
 export type InputMapping = Record<string, string>;
@@ -31,11 +28,13 @@ export type InputMapping = Record<string, string>;
 type EvaluatorInputMappingProps = {
   control: Control<InputMapping, unknown, InputMapping>;
   exampleId?: string;
+  variables: string[];
 };
 
 export const EvaluatorInputMapping = ({
   control,
   exampleId,
+  variables,
 }: EvaluatorInputMappingProps) => {
   if (!exampleId) {
     return (
@@ -52,6 +51,7 @@ export const EvaluatorInputMapping = ({
         <EvaluatorInputMappingControls
           exampleId={exampleId}
           control={control}
+          variables={variables}
         />
       </Suspense>
     </EvaluatorInputMappingTitle>
@@ -79,16 +79,12 @@ type ExampleKeyItem = {
 const EvaluatorInputMappingControls = ({
   exampleId,
   control,
+  variables,
 }: {
   exampleId: string;
   control: Control<InputMapping, unknown, InputMapping>;
+  variables: string[];
 }) => {
-  const instances = usePlaygroundContext((state) => state.instances);
-  const instance = instances[0];
-  invariant(
-    instance,
-    "There should be one instance available on the New Evaluator page"
-  );
   const data = useLazyLoadQuery<EvaluatorInputMappingControlsQuery>(
     graphql`
       query EvaluatorInputMappingControlsQuery($exampleId: ID!) {
@@ -125,19 +121,18 @@ const EvaluatorInputMappingControls = ({
       })),
     ];
   }, [data]);
-  const { variableKeys: labels } = useDerivedPlaygroundVariables();
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const setInputValue = useCallback((key: string, value: string) => {
     setInputValues((prev) => ({ ...prev, [key]: value }));
   }, []);
   // iterate over all keys in the control
-  // each row should have a label, an arrow pointing to the example field, and a select field
-  // the label should be the key, the select field should have all flattened example keys as options
+  // each row should have a variable, an arrow pointing to the example field, and a select field
+  // the variable should be the key, the select field should have all flattened example keys as options
   return (
     <Flex direction="column" gap="size-100" width="100%">
-      {labels.map((label) => (
+      {variables.map((variable) => (
         <div
-          key={label}
+          key={variable}
           css={css`
             display: grid;
             grid-template-columns: 4fr 1fr 4fr;
@@ -148,20 +143,20 @@ const EvaluatorInputMappingControls = ({
           `}
         >
           <Controller
-            name={label}
+            name={variable}
             control={control}
             render={({ field }) => (
               <ComboBox
-                aria-label={`Select an example field for ${label}`}
+                aria-label={`Select an example field for ${variable}`}
                 placeholder="Select an example field"
                 defaultItems={allExampleKeys}
                 selectedKey={field.value ?? ""}
                 onSelectionChange={(key) => {
                   field.onChange(key);
-                  setInputValue(label, key as string);
+                  setInputValue(variable, key as string);
                 }}
-                onInputChange={(value) => setInputValue(label, value)}
-                inputValue={inputValues[label] ?? ""}
+                onInputChange={(value) => setInputValue(variable, value)}
+                inputValue={inputValues[variable] ?? ""}
                 css={css`
                   width: 100%;
                 `}
@@ -179,9 +174,9 @@ const EvaluatorInputMappingControls = ({
             css={css`
               white-space: nowrap;
             `}
-            title={label}
+            title={variable}
           >
-            <Truncate maxWidth="200px">{label}</Truncate>
+            <Truncate maxWidth="200px">{variable}</Truncate>
           </Text>
         </div>
       ))}
