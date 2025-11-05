@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 import sqlalchemy as sa
 import strawberry
 from strawberry.relay import GlobalID, Node, NodeID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -44,6 +45,10 @@ class Evaluator(Node):
 
     @strawberry.field
     async def description(self) -> Optional[str]:
+        raise NotImplementedError
+
+    @strawberry.field
+    async def metadata(self) -> JSON:
         raise NotImplementedError
 
     @strawberry.field
@@ -113,6 +118,19 @@ class CodeEvaluator(Evaluator, Node):
         else:
             val = await info.context.data_loaders.code_evaluator_fields.load(
                 (self.id, models.CodeEvaluator.description),
+            )
+        return val
+
+    @strawberry.field
+    async def metadata(
+        self,
+        info: Info[Context, None],
+    ) -> JSON:
+        if self.db_record:
+            val = self.db_record.metadata_
+        else:
+            val = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.metadata_),
             )
         return val
 
@@ -198,6 +216,19 @@ class LLMEvaluator(Evaluator, Node):
         else:
             val = await info.context.data_loaders.llm_evaluator_fields.load(
                 (self.id, models.LLMEvaluator.description),
+            )
+        return val
+
+    @strawberry.field
+    async def metadata(
+        self,
+        info: Info[Context, None],
+    ) -> JSON:
+        if self.db_record:
+            val = self.db_record.metadata_
+        else:
+            val = await info.context.data_loaders.llm_evaluator_fields.load(
+                (self.id, models.LLMEvaluator.metadata_),
             )
         return val
 
