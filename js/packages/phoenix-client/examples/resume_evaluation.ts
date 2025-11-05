@@ -182,12 +182,6 @@ async function main() {
   console.log("  • Add new evaluators to completed experiments");
   console.log("  • Retry failed evaluations");
   console.log("  • Iterate on evaluation strategies without re-running tasks");
-  console.log(
-    "\nNote: Multi-output evaluators (that return arrays) are not supported"
-  );
-  console.log(
-    "      for resume operations. Use separate evaluators for each metric."
-  );
 }
 
 main().catch(console.error);
