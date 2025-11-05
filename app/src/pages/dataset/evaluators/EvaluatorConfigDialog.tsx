@@ -27,6 +27,7 @@ import {
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorConfigDialog_dataset$key } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_dataset.graphql";
 import {
   EvaluatorConfigDialog_evaluatorQuery,
@@ -38,8 +39,9 @@ import {
   EvaluatorInputMapping,
   InputMapping,
 } from "@phoenix/pages/evaluators/EvaluatorInputMapping";
-import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
+import { promptVersionToInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { extractVariablesFromInstance } from "@phoenix/pages/playground/playgroundUtils";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type OutputConfig = NonNullable<
   EvaluatorConfigDialog_evaluatorQuery$data["evaluator"]["outputConfig"]
@@ -84,6 +86,8 @@ export function EvaluatorConfigDialogContent({
   onClose: () => void;
   datasetRef: EvaluatorConfigDialog_dataset$key;
 }) {
+  const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
   const loaderData = useLoaderData<typeof datasetEvaluatorsLoader>();
   invariant(loaderData, "loaderData is required");
 
@@ -132,6 +136,7 @@ export function EvaluatorConfigDialogContent({
             promptVersion {
               id
               templateFormat
+              ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
               ...PromptChatMessagesCard__main
             }
           }
@@ -165,15 +170,14 @@ export function EvaluatorConfigDialogContent({
     if (!evaluator.prompt || !evaluator.promptVersion) {
       return;
     }
-    const response = await fetchPlaygroundPromptAsInstance({
+    const instance = promptVersionToInstance({
       promptId: evaluator.prompt.id,
-      promptVersionId: evaluator.promptVersion.id,
+      promptName: evaluator.prompt.name,
+      promptVersionRef: evaluator.promptVersion,
+      promptVersionTag: null,
     });
-    if (!response) {
-      return;
-    }
     const promptVariables = extractVariablesFromInstance({
-      instance: { id: 0, ...response.instance },
+      instance: { id: 0, ...instance },
       templateFormat: evaluator.promptVersion.templateFormat,
     });
     setPromptVariables(promptVariables);
@@ -198,8 +202,22 @@ export function EvaluatorConfigDialogContent({
         },
         datasetId: dataset.id,
       },
+      onCompleted: () => {
+        notifySuccess({
+          title: "Evaluator added",
+          message: "The evaluator has been added to the dataset.",
+        });
+        onClose();
+      },
+      onError: (error) => {
+        notifyError({
+          title: "Failed to add evaluator",
+          message:
+            getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+            error.message,
+        });
+      },
     });
-    onClose();
   };
 
   return (
