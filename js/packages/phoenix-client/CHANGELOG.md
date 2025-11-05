@@ -1,5 +1,23 @@
 # @arizeai/phoenix-client
 
+## 5.3.0
+
+### Minor Changes
+
+- 557865c: Add experiment resume and management features
+
+  **New APIs:**
+  - `createExperiment()` - Create an experiment without running it
+  - `resumeExperiment()` - Resume incomplete experiment runs (handles failed or missing runs)
+  - `resumeEvaluation()` - Add evaluations to completed experiments or retry failed evaluations
+  - `listExperiments()` - List experiments with filtering and pagination
+  - `deleteExperiment()` - Delete experiments
+
+### Patch Changes
+
+- b000189: fix bug with channel error
+- 0c92232: allow metadata when creating prompts
+
 ## 5.2.1
 
 ### Patch Changes
