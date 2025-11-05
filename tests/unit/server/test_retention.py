@@ -24,7 +24,7 @@ from phoenix.server.types import DbSessionFactory
 
 class TestTraceDataSweeper:
     @pytest.mark.parametrize("use_default_policy", [True, False])
-    async def test_run(
+    async def test_max_count_rule(
         self,
         use_default_policy: bool,
         sweeper_trigger: Event,
@@ -146,18 +146,13 @@ class TestTraceDataSweeper:
                         ).all()
                     )
 
-                    # Verify we have exactly the number of traces we want to keep
+                    # Verify we kept exactly the expected traces
                     expected_trace_ids = project_expected_trace_ids[project_id]
                     assert remaining_trace_ids == expected_trace_ids, (
                         f"Project {project_id}: Trace IDs mismatch in cycle {retention_cycle}"
                     )
-                    traces_after_sweep = len(remaining_trace_ids)
-                    assert traces_after_sweep == traces_to_keep, (
-                        f"Project {project_id}: Final trace count should match traces_to_keep "
-                        f"in cycle {retention_cycle}"
-                    )
 
-                    project_current_trace_count[project_id] = traces_after_sweep
+                    project_current_trace_count[project_id] = len(remaining_trace_ids)
 
     @pytest.mark.parametrize("use_default_policy", [True, False])
     async def test_max_days_rule(
@@ -280,10 +275,6 @@ class TestTraceDataSweeper:
                     f"Project {project_id} trace IDs mismatch: "
                     f"expected {expected_trace_ids}, got {remaining_trace_ids}"
                 )
-                assert len(remaining_trace_ids) == recent_traces_count, (
-                    f"Project {project_id} should have {recent_traces_count} traces, "
-                    f"has {len(remaining_trace_ids)}"
-                )
 
     @pytest.mark.parametrize("use_default_policy", [True, False])
     async def test_max_days_or_count_rule(
@@ -301,22 +292,19 @@ class TestTraceDataSweeper:
         3. Works with both default and custom policies
         4. Correctly applies to multiple projects
 
+        To ensure both rules are independently tested, we structure projects so that:
+        - Project 0: Tests max_days enforcement (few traces, but some are old)
+        - Project 1: Tests max_count enforcement (many recent traces, none are old)
+
         Test flow:
-        1. Creates multiple projects with traces spanning different ages
+        1. Creates projects with different trace patterns to test each rule independently
         2. Sets up a retention policy with both max_days and max_count thresholds
-        3. Creates old traces (violate max_days) and excess recent traces (violate max_count)
-        4. Triggers sweeper and waits for processing
-        5. Verifies that only the most recent traces within both limits remain
+        3. Triggers sweeper and waits for processing
+        4. Verifies correct retention behavior for each project
         """
         # Test configuration
-        num_projects = 3  # Test with multiple projects
         max_days = 7  # Keep traces from last 7 days
         max_count = 5  # Keep at most 5 traces
-        old_traces_count = 3  # Old traces (> max_days) - should be deleted
-        excess_recent_traces = 4  # Recent but exceed count - should be deleted
-        kept_recent_traces = max_count  # Recent and within count - should be kept
-        initial_traces = old_traces_count + excess_recent_traces + kept_recent_traces
-        assert initial_traces > max_count, "Must create more traces than max_count"
 
         # Configure retention policy
         retention_rule = TraceRetentionRule(
@@ -326,10 +314,14 @@ class TestTraceDataSweeper:
 
         # Setup: Create projects and policy
         async with db() as session:
-            projects = [models.Project(name=token_hex(8)) for _ in range(num_projects)]
+            # Project 0: Tests max_days (3 traces: 2 old, 1 recent)
+            project_max_days = models.Project(name="test_max_days_" + token_hex(8))
+            # Project 1: Tests max_count (10 recent traces, all within max_days)
+            project_max_count = models.Project(name="test_max_count_" + token_hex(8))
+
+            projects = [project_max_days, project_max_count]
             session.add_all(projects)
             await session.flush()
-            project_ids = [p.id for p in projects]
 
             if use_default_policy:
                 policy = await session.get(
@@ -346,57 +338,74 @@ class TestTraceDataSweeper:
             policy.cron_expression = hourly_schedule
             await session.merge(policy)
 
-        # Create traces for each project: old, excess recent, and kept recent
-        project_expected_trace_ids = {}
+        # Create traces with different patterns per project
+        project_test_cases = {}
+        now = datetime.now(timezone.utc)
 
         async with db() as session:
-            now = datetime.now(timezone.utc)
-
-            for project_id in project_ids:
-                # Old traces (violate max_days) - should be deleted
-                for i in range(old_traces_count):
-                    trace = models.Trace(
-                        project_rowid=project_id,
+            # Project 0: Test max_days enforcement
+            # Create 2 old traces (should be deleted) and 1 recent trace (should be kept)
+            project_max_days_tmp = await session.get(models.Project, projects[0].id)
+            assert project_max_days_tmp is not None
+            project_max_days = project_max_days_tmp
+            for i in range(2):
+                session.add(
+                    models.Trace(
+                        project_rowid=project_max_days.id,
                         trace_id=token_hex(16),
                         start_time=now - timedelta(days=max_days + 3 + i),
                         end_time=now - timedelta(days=max_days + 3 + i) + timedelta(seconds=1),
                     )
-                    session.add(trace)
+                )
+            recent_trace_id = token_hex(16)
+            session.add(
+                models.Trace(
+                    project_rowid=project_max_days.id,
+                    trace_id=recent_trace_id,
+                    start_time=now - timedelta(hours=1),
+                    end_time=now - timedelta(hours=1) + timedelta(seconds=1),
+                )
+            )
+            project_test_cases[project_max_days.id] = {
+                "initial_count": 3,
+                "expected_trace_ids": {recent_trace_id},
+                "description": "max_days rule",
+            }
 
-                # Excess recent traces (within max_days but exceed max_count) - should be deleted
-                # These are created with older timestamps within the max_days window
-                for i in range(excess_recent_traces):
-                    offset_days = max_days - 1 - (i * 0.1)  # Spread within max_days window
-                    trace = models.Trace(
-                        project_rowid=project_id,
-                        trace_id=token_hex(16),
-                        start_time=now - timedelta(days=offset_days),
-                        end_time=now - timedelta(days=offset_days) + timedelta(seconds=1),
-                    )
-                    session.add(trace)
-
-                # Most recent traces (within max_days AND within max_count) - should be kept
-                expected_kept_trace_ids = set()
-                for i in range(kept_recent_traces):
-                    trace = models.Trace(
-                        project_rowid=project_id,
-                        trace_id=token_hex(16),
+            # Project 1: Test max_count enforcement
+            # Create 10 recent traces (all within max_days), should keep only 5 most recent
+            project_max_count_tmp = await session.get(models.Project, projects[1].id)
+            assert project_max_count_tmp is not None
+            project_max_count = project_max_count_tmp
+            expected_trace_ids_max_count = set()
+            for i in range(10):
+                trace_id = token_hex(16)
+                session.add(
+                    models.Trace(
+                        project_rowid=project_max_count.id,
+                        trace_id=trace_id,
                         start_time=now - timedelta(hours=i),
                         end_time=now - timedelta(hours=i) + timedelta(seconds=1),
                     )
-                    session.add(trace)
-                    expected_kept_trace_ids.add(trace.trace_id)
-
-                project_expected_trace_ids[project_id] = expected_kept_trace_ids
+                )
+                # The first 5 traces (i=0-4) are the most recent and should be kept
+                if i < max_count:
+                    expected_trace_ids_max_count.add(trace_id)
+            project_test_cases[project_max_count.id] = {
+                "initial_count": 10,
+                "expected_trace_ids": expected_trace_ids_max_count,
+                "description": "max_count rule",
+            }
 
         # Verify initial state for each project
         async with db() as session:
-            for project_id in project_ids:
+            for project_id, test_case in project_test_cases.items():
                 traces_before_sweep = await session.scalar(
                     sa.select(func.count(models.Trace.id)).filter_by(project_rowid=project_id)
                 )
-                assert traces_before_sweep == initial_traces, (
-                    f"Project {project_id} should have {initial_traces} traces before sweep, "
+                assert traces_before_sweep == test_case["initial_count"], (
+                    f"Project {project_id} ({test_case['description']}): "
+                    f"should have {test_case['initial_count']} traces before sweep, "
                     f"has {traces_before_sweep}"
                 )
 
@@ -407,7 +416,7 @@ class TestTraceDataSweeper:
 
         # Verify final state for each project
         async with db() as session:
-            for project_id in project_ids:
+            for project_id, test_case in project_test_cases.items():
                 remaining_trace_ids = set(
                     (
                         await session.scalars(
@@ -416,15 +425,11 @@ class TestTraceDataSweeper:
                     ).all()
                 )
 
-                # Verify we kept only the most recent traces within both limits
-                expected_trace_ids = project_expected_trace_ids[project_id]
+                # Verify we kept the expected traces
+                expected_trace_ids = test_case["expected_trace_ids"]
                 assert remaining_trace_ids == expected_trace_ids, (
-                    f"Project {project_id} trace IDs mismatch: "
-                    f"expected {expected_trace_ids}, got {remaining_trace_ids}"
-                )
-                assert len(remaining_trace_ids) == max_count, (
-                    f"Project {project_id} should have {max_count} traces, "
-                    f"has {len(remaining_trace_ids)}"
+                    f"Project {project_id} ({test_case['description']}): "
+                    f"trace IDs mismatch: expected {expected_trace_ids}, got {remaining_trace_ids}"
                 )
 
 
