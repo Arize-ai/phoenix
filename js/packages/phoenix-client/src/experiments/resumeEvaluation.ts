@@ -401,12 +401,22 @@ export async function resumeEvaluation({
             }
           );
         } catch (error: unknown) {
-          await handleEvaluationFetchError(error, client, "resume_evaluation");
-          // Wrap in semantic error type
-          throw new EvaluationFetchError(
-            "Failed to fetch incomplete evaluations from server",
-            error instanceof Error ? error : undefined
-          );
+          // Check for version compatibility issues and throw helpful error
+          try {
+            await handleEvaluationFetchError(
+              error,
+              client,
+              "resume_evaluation"
+            );
+            // TypeScript: handleEvaluationFetchError never returns, but add throw for safety
+            throw new Error("handleEvaluationFetchError should never return");
+          } catch (handledError) {
+            // Wrap the error (from handleEvaluationFetchError or original) in semantic error type
+            throw new EvaluationFetchError(
+              "Failed to fetch incomplete evaluations from server",
+              handledError instanceof Error ? handledError : undefined
+            );
+          }
         }
 
         // Check for API errors
@@ -467,6 +477,11 @@ export async function resumeEvaluation({
     } catch (error) {
       // Re-throw with context preservation
       if (error instanceof EvaluationFetchError) {
+        throw error;
+      }
+      // ChannelError from blocked send() should bubble up naturally
+      // (happens when channel closes while producer is blocked)
+      if (error instanceof ChannelError) {
         throw error;
       }
       // Wrap any unexpected errors from channel operations
