@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<71a8f03ef48ce54131f2c279fcefa9cc>>
+ * @generated SignedSource<<2311c9fda293012fd96b11a27f319f93>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | 
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type CreateChatPromptInput = {
   description?: string | null;
+  metadata?: any | null;
   name: string;
   promptVersion: ChatPromptVersionInput;
 };

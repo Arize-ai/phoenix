@@ -354,8 +354,9 @@ input ClearProjectInput {
 
 input ClonePromptInput {
   name: Identifier!
-  description: String = null
   promptId: ID!
+  description: String
+  metadata: JSON
 }
 
 type Cluster {
@@ -441,6 +442,7 @@ input CreateChatPromptInput {
   name: Identifier!
   description: String = null
   promptVersion: ChatPromptVersionInput!
+  metadata: JSON = null
 }
 
 input CreateChatPromptVersionInput {
@@ -1961,7 +1963,8 @@ input PatchProjectTraceRetentionPolicyInput {
 
 input PatchPromptInput {
   promptId: ID!
-  description: String!
+  description: String
+  metadata: JSON
 }
 
 input PatchPromptLabelInput {
@@ -2289,6 +2292,7 @@ type Prompt implements Node {
   sourcePromptId: ID
   name: Identifier!
   description: String
+  metadata: JSON!
   createdAt: DateTime!
   version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
   versionTags: [PromptVersionTag!]!

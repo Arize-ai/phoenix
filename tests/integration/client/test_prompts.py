@@ -52,7 +52,7 @@ from ...__generated__.graphql import (
     TextContentValueInput,
     ToolDefinitionInput,
 )
-from .._helpers import _MEMBER, _AppInfo, _await_or_return, _GetUser, _LoggedInUser
+from .._helpers import _MEMBER, _AppInfo, _await_or_return, _GetUser, _gql, _LoggedInUser
 
 
 class TestUserMessage:
@@ -325,6 +325,58 @@ class TestUserId:
         )
         response, _ = u.gql(_app, query=self.QUERY, variables={"versionId": prompt.id})
         assert u.gid == response["data"]["node"]["user"]["id"]
+
+
+class TestMetadata:
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_create_and_retrieve_metadata(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that metadata can be created and retrieved for prompts."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # Create prompt with metadata
+        prompt_name = token_hex(8)
+        prompt_description = token_hex(8)
+        prompt_metadata = {"environment": token_hex(8)}
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).prompts.create(
+                name=prompt_name,
+                version=PromptVersion.from_openai(
+                    CompletionCreateParamsBase(
+                        model=token_hex(8), messages=[{"role": "user", "content": "hello"}]
+                    )
+                ),
+                prompt_description=prompt_description,
+                prompt_metadata=prompt_metadata,
+            )
+        )
+
+        # Query prompt metadata via GraphQL
+        query = """
+        query($name: String!) {
+            prompts(first: 1, filter: {col: name, value: $name}) {
+                edges {
+                    node {
+                        id
+                        metadata
+                        description
+                    }
+                }
+            }
+        }
+        """
+        response, _ = _gql(_app, _app.admin_secret, query=query, variables={"name": prompt_name})
+        assert response["data"]["prompts"]["edges"]
+        retrieved_metadata = response["data"]["prompts"]["edges"][0]["node"]["metadata"]
+        assert retrieved_metadata == prompt_metadata
+        assert response["data"]["prompts"]["edges"][0]["node"]["description"] == prompt_description
 
 
 def _can_recreate_via_client(_app: _AppInfo, version: PromptVersion, api_key: str) -> None:

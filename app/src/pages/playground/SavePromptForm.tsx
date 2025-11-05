@@ -13,9 +13,11 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import { identifierPattern } from "@phoenix/utils/identifierUtils";
+import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export type SavePromptSubmitHandler = (
   params: SavePromptFormParams,
@@ -26,6 +28,7 @@ export type SavePromptFormParams = {
   promptId?: string;
   name: string;
   description?: string;
+  metadata?: string;
 };
 
 export function SavePromptForm({
@@ -85,6 +88,7 @@ export function SavePromptForm({
     },
     defaultValues: {
       description: "",
+      metadata: "{}",
     },
     reValidateMode: "onChange",
     resetOptions: {
@@ -142,38 +146,74 @@ export function SavePromptForm({
       </View>
       <Form onSubmit={handleSubmit(onSubmit)}>
         <View paddingX="size-200" paddingBottom="size-200">
-          <Controller
-            name="description"
-            control={control}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <TextField
-                isInvalid={invalid}
-                onChange={onChange}
-                onBlur={onBlur}
-                value={value}
-                size="S"
-              >
-                <Label>
-                  {mode === "create"
-                    ? "Prompt Description"
-                    : "Change Description"}
-                </Label>
-                <TextArea />
-                {error ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
+          <Flex direction="column" gap="size-100">
+            <Controller
+              name="description"
+              control={control}
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { invalid, error },
+              }) => (
+                <TextField
+                  isInvalid={invalid}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  value={value}
+                  size="S"
+                >
+                  <Label>
                     {mode === "create"
-                      ? "A description of your prompt (optional)"
-                      : "A description of your changes to the prompt (optional)"}
-                  </Text>
+                      ? "Prompt Description"
+                      : "Change Description"}
+                  </Label>
+                  <TextArea />
+                  {error ? (
+                    <FieldError>{error.message}</FieldError>
+                  ) : (
+                    <Text slot="description">
+                      {mode === "create"
+                        ? "A description of your prompt (optional)"
+                        : "A description of your changes to the prompt (optional)"}
+                    </Text>
+                  )}
+                </TextField>
+              )}
+            />
+            {mode === "create" && (
+              <Controller
+                name="metadata"
+                control={control}
+                rules={{
+                  validate: (value) => {
+                    // Allow empty values (will be treated as null)
+                    if (!value || value.trim() === "") {
+                      return true;
+                    }
+                    if (!isJSONObjectString(value)) {
+                      return "metadata must be a valid JSON object";
+                    }
+                    return true;
+                  },
+                }}
+                render={({
+                  field: { onChange, onBlur, value },
+                  fieldState: { error },
+                }) => (
+                  <CodeEditorFieldWrapper
+                    label={"Metadata"}
+                    errorMessage={error?.message}
+                    description="A JSON object containing metadata for the prompt (optional)"
+                  >
+                    <JSONEditor
+                      value={value}
+                      onChange={onChange}
+                      onBlur={onBlur}
+                    />
+                  </CodeEditorFieldWrapper>
                 )}
-              </TextField>
+              />
             )}
-          />
+          </Flex>
         </View>
 
         <View

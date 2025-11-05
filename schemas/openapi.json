@@ -6690,6 +6690,18 @@
             ],
             "title": "Source Prompt Id"
           },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -6955,6 +6967,18 @@
               }
             ],
             "title": "Source Prompt Id"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
           }
         },
         "type": "object",

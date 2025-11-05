@@ -6,6 +6,7 @@ import strawberry
 from sqlalchemy import func, select
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -75,6 +76,19 @@ class Prompt(Node):
         else:
             val = await info.context.data_loaders.prompt_fields.load(
                 (self.id, models.Prompt.description),
+            )
+        return val
+
+    @strawberry.field
+    async def metadata(
+        self,
+        info: Info[Context, None],
+    ) -> JSON:
+        if self.db_record:
+            val = self.db_record.metadata_
+        else:
+            val = await info.context.data_loaders.prompt_fields.load(
+                (self.id, models.Prompt.metadata_),
             )
         return val
 
