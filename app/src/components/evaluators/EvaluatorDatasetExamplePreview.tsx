@@ -4,7 +4,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Loading, Text } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import { EvaluatorDatasetExamplePreviewContentQuery } from "@phoenix/pages/evaluators/__generated__/EvaluatorDatasetExamplePreviewContentQuery.graphql";
+import { EvaluatorDatasetExamplePreviewContentQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorDatasetExamplePreviewContentQuery.graphql";
 
 type EvaluatorDatasetExamplePreviewProps = {
   datasetId?: string | null;
