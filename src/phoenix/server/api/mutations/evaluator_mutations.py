@@ -31,6 +31,7 @@ from phoenix.server.api.types.Evaluator import (
     CodeEvaluator,
     Evaluator,
     LLMEvaluator,
+    is_supported_evaluator_type_name,
 )
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
@@ -113,13 +114,13 @@ class UnassignEvaluatorFromDatasetInput:
 
 
 @strawberry.input
-class DeleteEvaluatorInput:
-    evaluator_id: GlobalID
+class DeleteEvaluatorsInput:
+    evaluator_ids: list[GlobalID]
 
 
 @strawberry.type
-class DeleteEvaluatorPayload:
-    evaluator_id: GlobalID
+class DeleteEvaluatorsPayload:
+    evaluator_ids: list[GlobalID]
     query: Query
 
 
@@ -293,24 +294,28 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def delete_evaluator(
-        self, info: Info[Context, None], input: DeleteEvaluatorInput
-    ) -> DeleteEvaluatorPayload:
-        try:
-            evaluator_rowid = from_global_id_with_expected_type(
-                global_id=input.evaluator_id,
-                expected_type_name=LLMEvaluator.__name__,
-            )
-        except ValueError:
-            raise BadRequest(f"Invalid LLM evaluator id: {input.evaluator_id}")
+    async def delete_evaluators(
+        self, info: Info[Context, None], input: DeleteEvaluatorsInput
+    ) -> DeleteEvaluatorsPayload:
+        evaluator_gids_to_rowids: dict[GlobalID, int] = {}
+        for evaluator_gid in input.evaluator_ids:
+            if evaluator_gid in evaluator_gids_to_rowids:
+                continue
+            evaluator_type_name, evaluator_rowid = from_global_id(global_id=evaluator_gid)
+            if not is_supported_evaluator_type_name(evaluator_type_name):
+                raise BadRequest(f"Invalid evaluator id: {evaluator_gid}")
+            evaluator_gids_to_rowids[evaluator_gid] = evaluator_rowid
 
-        stmt = delete(models.Evaluator).where(models.Evaluator.id == evaluator_rowid)
+        stmt = delete(models.Evaluator).where(
+            models.Evaluator.id.in_(evaluator_gids_to_rowids.values())
+        )
         async with info.context.db() as session:
             result = await session.execute(stmt)
-            if result.rowcount == 0:  # type: ignore[attr-defined]
-                raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
-        return DeleteEvaluatorPayload(
-            evaluator_id=input.evaluator_id,
+            if result.rowcount < len(input.evaluator_ids):  # type: ignore[attr-defined]
+                raise NotFound("One or more evaluators not found")
+        deleted_evaluator_gids = list(evaluator_gids_to_rowids.keys())
+        return DeleteEvaluatorsPayload(
+            evaluator_ids=deleted_evaluator_gids,
             query=Query(),
         )
 

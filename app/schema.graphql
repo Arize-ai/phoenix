@@ -942,12 +942,12 @@ type DeleteDatasetSplitsMutationPayload {
   query: Query!
 }
 
-input DeleteEvaluatorInput {
-  evaluatorId: ID!
+input DeleteEvaluatorsInput {
+  evaluatorIds: [ID!]!
 }
 
-type DeleteEvaluatorPayload {
-  evaluatorId: ID!
+type DeleteEvaluatorsPayload {
+  evaluatorIds: [ID!]!
   query: Query!
 }
 
@@ -1950,7 +1950,7 @@ type Mutation {
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   createLlmEvaluator(input: CreateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
   updateLlmEvaluator(input: UpdateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
-  deleteEvaluator(input: DeleteEvaluatorInput!): DeleteEvaluatorPayload!
+  deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
   assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
   unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!

@@ -348,6 +348,10 @@ class LLMEvaluator(Evaluator, Node):
         return to_gql_prompt_version(prompt_version)
 
 
+def is_supported_evaluator_type_name(type_name: str) -> bool:
+    return type_name in {LLMEvaluator.__name__, CodeEvaluator.__name__}
+
+
 def _to_gql_categorical_annotation_config(
     config: CategoricalAnnotationConfigModel,
     annotation_name: str,
