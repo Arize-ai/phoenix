@@ -139,29 +139,12 @@ export type Evaluator = {
   ) => Promise<EvaluationResult> | EvaluationResult;
 };
 
-/**
- * A single evaluation result from an evaluator
- */
-export type SingleEvaluationResult = {
-  /**
-   * The name of this specific evaluation.
-   * If not provided, falls back to the evaluator's name.
-   * Required for multi-output evaluators that return multiple evaluations.
-   */
-  name?: string;
+export type EvaluationResult = {
   score?: number | null;
   label?: string | null;
   metadata?: Record<string, unknown>;
   explanation?: string | null;
 };
-
-/**
- * The result from an evaluator.
- * Can be a single evaluation or an array of evaluations (for multi-output evaluators).
- */
-export type EvaluationResult =
-  | SingleEvaluationResult
-  | SingleEvaluationResult[];
 
 export interface ExperimentEvaluationRun extends Node {
   experimentRunId: string;

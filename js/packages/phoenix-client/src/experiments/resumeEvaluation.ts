@@ -16,9 +16,9 @@ import { components } from "../__generated__/api/v1";
 import { createClient, type PhoenixClient } from "../client";
 import { ClientFn } from "../types/core";
 import type {
+  EvaluationResult,
   Evaluator,
   IncompleteEvaluation,
-  SingleEvaluationResult,
   TaskOutput,
 } from "../types/experiments";
 import { type Logger } from "../types/logger";
@@ -526,7 +526,7 @@ async function recordEvaluationResults({
   readonly client: PhoenixClient;
   readonly evaluator: Evaluator;
   readonly experimentRun: IncompleteEvaluation["experimentRun"];
-  readonly results?: readonly SingleEvaluationResult[];
+  readonly results?: readonly EvaluationResult[];
   readonly error?: string;
   readonly startTime: Date;
   readonly endTime: Date;
@@ -535,12 +535,10 @@ async function recordEvaluationResults({
   if (results) {
     // Success case: record each evaluation result
     for (const singleResult of results) {
-      const evaluationName = singleResult.name ?? evaluator.name;
-
       await client.POST("/v1/experiment_evaluations", {
         body: {
           experiment_run_id: experimentRun.id,
-          name: evaluationName,
+          name: evaluator.name,
           annotator_kind: evaluator.kind,
           result: {
             score: singleResult.score ?? null,
@@ -598,7 +596,7 @@ async function runSingleEvaluation({
 
   // If no tracer (no project_name), execute without tracing
   if (!tracer) {
-    let results: readonly SingleEvaluationResult[] | undefined;
+    let results: readonly EvaluationResult[] | undefined;
     let error: string | undefined;
 
     try {
@@ -651,7 +649,7 @@ async function runSingleEvaluation({
         }),
       });
 
-      let results: readonly SingleEvaluationResult[] | undefined;
+      let results: readonly EvaluationResult[] | undefined;
       let error: string | undefined;
 
       try {

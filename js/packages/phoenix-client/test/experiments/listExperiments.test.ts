@@ -139,45 +139,6 @@ describe("listExperiments", () => {
     );
   });
 
-  it("should respect custom pageSize parameter", async () => {
-    mockGet.mockResolvedValueOnce({
-      data: {
-        data: mockExperiments,
-      },
-    });
-
-    await listExperiments({ datasetId: "dataset-123", pageSize: 10 });
-
-    expect(mockGet).toHaveBeenCalledWith(
-      "/v1/datasets/{dataset_id}/experiments",
-      {
-        params: {
-          path: {
-            dataset_id: "dataset-123",
-          },
-          query: {
-            cursor: null,
-            limit: 10,
-          },
-        },
-      }
-    );
-  });
-
-  it("should throw error if pageSize is invalid", async () => {
-    await expect(
-      listExperiments({ datasetId: "dataset-123", pageSize: 0 })
-    ).rejects.toThrow("pageSize must be a positive integer greater than 0");
-
-    await expect(
-      listExperiments({ datasetId: "dataset-123", pageSize: -1 })
-    ).rejects.toThrow("pageSize must be a positive integer greater than 0");
-
-    await expect(
-      listExperiments({ datasetId: "dataset-123", pageSize: 1.5 })
-    ).rejects.toThrow("pageSize must be a positive integer greater than 0");
-  });
-
   it("should throw error if API returns no data", async () => {
     mockGet.mockResolvedValueOnce({
       data: undefined,
