@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from pydantic import AfterValidator, BaseModel, Field, RootModel
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.roles import InElementRole
 
 from phoenix.utilities import hour_of_week
 
@@ -28,7 +29,7 @@ class _MaxCount(BaseModel):
 
     def max_count_filter(
         self,
-        project_rowids: Union[Iterable[int], sa.ScalarSelect[int]],
+        project_rowids: Union[Iterable[int], InElementRole],
     ) -> sa.ColumnElement[bool]:
         if self.max_count <= 0:
             return sa.literal(False)
@@ -56,7 +57,7 @@ class MaxDaysRule(_MaxDays, BaseModel):
     async def delete_traces(
         self,
         session: AsyncSession,
-        project_rowids: Union[Iterable[int], sa.ScalarSelect[int]],
+        project_rowids: Union[Iterable[int], InElementRole],
     ) -> set[int]:
         if self.max_days <= 0:
             return set()
@@ -80,7 +81,7 @@ class MaxCountRule(_MaxCount, BaseModel):
     async def delete_traces(
         self,
         session: AsyncSession,
-        project_rowids: Union[Iterable[int], sa.ScalarSelect[int]],
+        project_rowids: Union[Iterable[int], InElementRole],
     ) -> set[int]:
         if self.max_count <= 0:
             return set()
@@ -104,7 +105,7 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
     async def delete_traces(
         self,
         session: AsyncSession,
-        project_rowids: Union[Iterable[int], sa.ScalarSelect[int]],
+        project_rowids: Union[Iterable[int], InElementRole],
     ) -> set[int]:
         if self.max_days <= 0 and self.max_count <= 0:
             return set()
@@ -130,7 +131,7 @@ class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCou
     async def delete_traces(
         self,
         session: AsyncSession,
-        project_rowids: Union[Iterable[int], sa.ScalarSelect[int]],
+        project_rowids: Union[Iterable[int], InElementRole],
     ) -> set[int]:
         return await self.root.delete_traces(session, project_rowids)
 
