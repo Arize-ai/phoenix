@@ -46,7 +46,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import coalesce
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
@@ -1862,6 +1862,25 @@ class PromptVersion(HasId):
         cascade="all, delete-orphan",
         uselist=True,
     )
+
+    def has_identical_content(self, other: Self) -> bool:
+        """
+        Checks if the content of this prompt version is identical to the content of another prompt
+        version, excluding fields such as id, created_at, and user_id that do not include the actual
+        content of the prompt version.
+        """
+        return (
+            self.description == other.description
+            and self.template_type == other.template_type
+            and self.template_format == other.template_format
+            and self.template == other.template
+            and self.invocation_parameters == other.invocation_parameters
+            and self.tools == other.tools
+            and self.response_format == other.response_format
+            and self.model_provider == other.model_provider
+            and self.model_name == other.model_name
+            and self.metadata == other.metadata
+        )
 
 
 class PromptVersionTag(HasId):

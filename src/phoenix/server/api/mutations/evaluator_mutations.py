@@ -28,7 +28,6 @@ from phoenix.server.api.mutations.annotation_config_mutations import (
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Evaluator import (
-    CategoricalAnnotationConfigModel,
     CodeEvaluator,
     Evaluator,
     LLMEvaluator,
@@ -73,12 +72,12 @@ class CreateCodeEvaluatorInput:
 
 
 @strawberry.input
-class PatchLLMEvaluatorInput:
+class UpdateLLMEvaluatorInput:
     evaluator_id: GlobalID
-    name: Optional[Identifier] = UNSET
+    name: Identifier
     description: Optional[str] = UNSET
-    prompt_version: Optional[ChatPromptVersionInput] = UNSET
-    output_config: Optional[CategoricalAnnotationConfigInput] = UNSET
+    prompt_version: ChatPromptVersionInput
+    output_config: CategoricalAnnotationConfigInput
 
 
 @strawberry.type
@@ -231,8 +230,8 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.field
-    async def patch_llm_evaluator(
-        self, info: Info[Context, None], input: PatchLLMEvaluatorInput
+    async def update_llm_evaluator(
+        self, info: Info[Context, None], input: UpdateLLMEvaluatorInput
     ) -> LLMEvaluatorMutationPayload:
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
@@ -240,23 +239,17 @@ class EvaluatorMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
 
-        evaluator_name: Optional[Identifier] = None
-        if input.name is not UNSET and input.name is not None:
-            try:
-                evaluator_name = IdentifierModel.model_validate(input.name)
-            except ValidationError as error:
-                raise BadRequest(f"Invalid evaluator name: {error}")
+        try:
+            evaluator_name = IdentifierModel.model_validate(input.name)
+        except ValidationError as error:
+            raise BadRequest(f"Invalid evaluator name: {error}")
 
-        output_config: Optional[CategoricalAnnotationConfigModel] = None
-        if input.output_config:
-            output_config = _to_pydantic_categorical_annotation_config(input.output_config)
+        output_config = _to_pydantic_categorical_annotation_config(input.output_config)
 
-        prompt_version: Optional[models.PromptVersion] = None
-        if input.prompt_version is not UNSET and input.prompt_version is not None:
-            try:
-                prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
-            except ValidationError as error:
-                raise BadRequest(str(error))
+        try:
+            prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
+        except ValidationError as error:
+            raise BadRequest(str(error))
 
         try:
             evaluator_rowid = from_global_id_with_expected_type(
@@ -277,20 +270,22 @@ class EvaluatorMutationMixin:
             if llm_evaluator is None:
                 raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
 
-            if evaluator_name is not None:
-                llm_evaluator.name = evaluator_name
+            llm_evaluator.name = evaluator_name
+            llm_evaluator.description = (
+                input.description if isinstance(input.description, str) else None
+            )
+            llm_evaluator.output_config = output_config
 
-            if input.description is not UNSET:
-                llm_evaluator.description = input.description
-
-            if output_config:
-                llm_evaluator.output_config = output_config
-
-            if prompt_version is not None:
+            # todo: compare against active prompt version as determined by prompt tag or version
+            # https://github.com/Arize-ai/phoenix/issues/10142
+            active_prompt_version = llm_evaluator.prompt.prompt_versions[-1]
+            create_new_prompt_version = not active_prompt_version.has_identical_content(
+                prompt_version
+            )
+            if create_new_prompt_version:
                 llm_evaluator.prompt.prompt_versions.append(prompt_version)
 
-            if llm_evaluator in session.dirty:
-                await session.flush()
+            await session.flush()
 
         return LLMEvaluatorMutationPayload(
             evaluator=LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator),
