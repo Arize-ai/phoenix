@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
+import {
+  graphql,
+  useFragment,
+  useLazyLoadQuery,
+  useMutation,
+} from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -26,6 +31,7 @@ import {
   EvaluatorConfigDialog_evaluatorQuery,
   EvaluatorConfigDialog_evaluatorQuery$data,
 } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_evaluatorQuery.graphql";
+import { EvaluatorConfigDialogAssignEvaluatorToDatasetMutation } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialogAssignEvaluatorToDatasetMutation.graphql";
 import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import {
   EvaluatorInputMapping,
@@ -104,6 +110,24 @@ export function EvaluatorConfigDialog({
     { evaluatorId }
   );
 
+  const [assignEvaluatorToDataset, isAssigningEvaluatorToDataset] =
+    useMutation<EvaluatorConfigDialogAssignEvaluatorToDatasetMutation>(graphql`
+      mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(
+        $input: AssignEvaluatorToDatasetInput!
+        $datasetId: ID!
+      ) {
+        assignEvaluatorToDataset(input: $input) {
+          query {
+            ...DatasetEvaluatorsPage_evaluators
+              @arguments(datasetId: $datasetId)
+          }
+          evaluator {
+            id
+          }
+        }
+      }
+    `);
+
   const [promptVariables, setPromptVariables] = useState<string[]>([]);
 
   const updatePromptVariables = useCallback(async () => {
@@ -129,7 +153,21 @@ export function EvaluatorConfigDialog({
   }, [updatePromptVariables]);
 
   const onAddEvaluator = () => {
-    // TODO: add evaluator to dataset
+    if (!isInputMappingValid) {
+      return;
+    }
+    // TODO: save input mapping
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const inputMapping = getInputMappingValues();
+    assignEvaluatorToDataset({
+      variables: {
+        input: {
+          datasetId: dataset.id,
+          evaluatorId: evaluator.id,
+        },
+        datasetId: dataset.id,
+      },
+    });
     onClose();
   };
 
@@ -153,7 +191,11 @@ export function EvaluatorConfigDialog({
           </DialogTitle>
           <DialogTitleExtra>
             <Button onPress={onClose}>Cancel</Button>
-            <Button variant="primary" onPress={onAddEvaluator}>
+            <Button
+              variant="primary"
+              onPress={onAddEvaluator}
+              isDisabled={!isInputMappingValid || isAssigningEvaluatorToDataset}
+            >
               Done
             </Button>
           </DialogTitleExtra>
