@@ -39,22 +39,31 @@ const convertEvaluatorSortToTanstackSort = (
   return [{ id: sort.col, desc: sort.dir === "desc" }];
 };
 
+const EVALUATOR_SORT_COLUMNS: EvaluatorSort["col"][] = [
+  "name",
+  "kind",
+  "createdAt",
+  "updatedAt",
+];
+
 const convertTanstackSortToEvaluatorSort = (
   sorting: SortingState
 ): EvaluatorSort | null | undefined => {
   if (sorting.length === 0) return null;
   const col = sorting[0].id;
   if (
-    col !== "name" &&
-    col !== "kind" &&
-    col !== "createdAt" &&
-    col !== "updatedAt"
+    EVALUATOR_SORT_COLUMNS.includes(
+      col as (typeof EVALUATOR_SORT_COLUMNS)[number]
+    )
   ) {
-    // eslint-disable-next-line no-console
-    console.error("Invalid sort column", col);
-    return null;
+    return {
+      col: col as EvaluatorSort["col"],
+      dir: sorting[0].desc ? "desc" : "asc",
+    };
   }
-  return { col, dir: sorting[0].desc ? "desc" : "asc" };
+  // eslint-disable-next-line no-console
+  console.error("Invalid sort column", col);
+  return null;
 };
 
 type EvaluatorsTableProps = {
