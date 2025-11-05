@@ -2,6 +2,7 @@ import { PropsWithChildren, useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -86,6 +87,7 @@ const createEvaluatorPayload = ({
   store,
   instanceId,
   name,
+  description,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   choiceConfig,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -94,6 +96,7 @@ const createEvaluatorPayload = ({
   store: ReturnType<typeof usePlaygroundStore>;
   instanceId: number;
   name: string;
+  description: string;
   choiceConfig: ChoiceConfig;
   inputMapping: InputMapping;
 }): CreateLLMEvaluatorInput => {
@@ -111,7 +114,7 @@ const createEvaluatorPayload = ({
 
   return {
     name,
-    // TODO: add description
+    description,
     // TODO: add input mapping
     promptVersion: prunedPromptInput,
     outputConfig: {
@@ -134,15 +137,18 @@ const NewEvaluatorPageContent = () => {
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     null
   );
+  const navigate = useNavigate();
   const {
     control: nameControl,
     getValues: getNameValues,
     formState: { isValid: isNameValid },
   } = useForm<{
     name: string;
+    description: string;
   }>({
     defaultValues: {
       name: "",
+      description: "",
     },
     mode: "onChange",
   });
@@ -187,7 +193,7 @@ const NewEvaluatorPageContent = () => {
     if (!areFormsValid) {
       return;
     }
-    const evaluatorName = getNameValues().name;
+    const { name, description } = getNameValues();
     const choiceConfig = getChoiceConfigValues();
     const inputMapping = getInputMappingValues();
     const instance = store.getState().instances[0];
@@ -202,7 +208,8 @@ const NewEvaluatorPageContent = () => {
     const input = createEvaluatorPayload({
       store,
       instanceId: instance.id,
-      name: evaluatorName,
+      name,
+      description,
       choiceConfig,
       inputMapping,
     });
@@ -211,11 +218,11 @@ const NewEvaluatorPageContent = () => {
         input,
       },
       onCompleted: (response) => {
-        // TODO: navigate to evaluator list page or evaluator detail page when implemented
         notifySuccess({
           title: "Evaluator created",
           message: `Evaluator (${response.createLlmEvaluator.evaluator.id}) "${response.createLlmEvaluator.evaluator.name}" created successfully`,
         });
+        navigate("/evaluators");
       },
       onError: (error) => {
         const errorMessages = getErrorMessagesFromRelayMutationError(error);
@@ -234,6 +241,7 @@ const NewEvaluatorPageContent = () => {
     notifyError,
     notifySuccess,
     store,
+    navigate,
   ]);
 
   return (
@@ -269,7 +277,13 @@ const NewEvaluatorPageContent = () => {
       <PanelGroup direction="horizontal">
         <Panel defaultSize={65} css={panelCSS} style={panelStyle}>
           <PanelContainer>
-            <Flex direction="column" gap="size-100" marginTop="size-100">
+            <Flex
+              direction="row"
+              alignItems="center"
+              width="100%"
+              gap="size-100"
+              marginTop="size-100"
+            >
               <Controller
                 name="name"
                 control={nameControl}
@@ -287,6 +301,20 @@ const NewEvaluatorPageContent = () => {
                   <TextField {...field} autoComplete="off" isInvalid={!!error}>
                     <Label>Name</Label>
                     <Input placeholder="e.g. correctness_evaluator" autoFocus />
+                    <FieldError>{error?.message}</FieldError>
+                  </TextField>
+                )}
+              />
+              <Controller
+                name="description"
+                control={nameControl}
+                render={({ field, fieldState: { error } }) => (
+                  <TextField {...field} autoComplete="off" isInvalid={!!error}>
+                    <Label>Description (optional)</Label>
+                    <Input
+                      placeholder="e.g. rate the response on correctness"
+                      autoFocus
+                    />
                     <FieldError>{error?.message}</FieldError>
                   </TextField>
                 )}
