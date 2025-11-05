@@ -4,8 +4,9 @@ from typing import Optional
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
@@ -26,7 +27,12 @@ from phoenix.server.api.mutations.annotation_config_mutations import (
 )
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset
-from phoenix.server.api.types.Evaluator import CodeEvaluator, Evaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import (
+    CategoricalAnnotationConfigModel,
+    CodeEvaluator,
+    Evaluator,
+    LLMEvaluator,
+)
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.bearer_auth import PhoenixUser
@@ -64,6 +70,15 @@ class CreateCodeEvaluatorInput:
     dataset_id: Optional[GlobalID] = UNSET
     name: Identifier
     description: Optional[str] = UNSET
+
+
+@strawberry.input
+class PatchLLMEvaluatorInput:
+    evaluator_id: GlobalID
+    name: Optional[Identifier] = UNSET
+    description: Optional[str] = UNSET
+    prompt_version: Optional[ChatPromptVersionInput] = UNSET
+    output_config: Optional[CategoricalAnnotationConfigInput] = UNSET
 
 
 @strawberry.type
@@ -210,6 +225,73 @@ class EvaluatorMutationMixin:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
             raise BadRequest(f"Evaluator with name {input.name} already exists")
+        return LLMEvaluatorMutationPayload(
+            evaluator=LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator),
+            query=Query(),
+        )
+
+    @strawberry.field
+    async def patch_llm_evaluator(
+        self, info: Info[Context, None], input: PatchLLMEvaluatorInput
+    ) -> LLMEvaluatorMutationPayload:
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        evaluator_name: Optional[Identifier] = None
+        if input.name is not UNSET and input.name is not None:
+            try:
+                evaluator_name = IdentifierModel.model_validate(input.name)
+            except ValidationError as error:
+                raise BadRequest(f"Invalid evaluator name: {error}")
+
+        output_config: Optional[CategoricalAnnotationConfigModel] = None
+        if input.output_config:
+            output_config = _to_pydantic_categorical_annotation_config(input.output_config)
+
+        prompt_version: Optional[models.PromptVersion] = None
+        if input.prompt_version is not UNSET and input.prompt_version is not None:
+            try:
+                prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
+            except ValidationError as error:
+                raise BadRequest(str(error))
+
+        try:
+            evaluator_rowid = from_global_id_with_expected_type(
+                global_id=input.evaluator_id,
+                expected_type_name=LLMEvaluator.__name__,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid LLM evaluator id: {input.evaluator_id}")
+
+        async with info.context.db() as session:
+            llm_evaluator = await session.scalar(
+                select(models.LLMEvaluator)
+                .where(models.LLMEvaluator.id == evaluator_rowid)
+                .options(
+                    joinedload(models.LLMEvaluator.prompt).joinedload(models.Prompt.prompt_versions)
+                )
+            )
+            if llm_evaluator is None:
+                raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
+
+            if evaluator_name is not None:
+                llm_evaluator.name = evaluator_name
+
+            if input.description is not UNSET:
+                llm_evaluator.description = input.description
+
+            if output_config:
+                llm_evaluator.output_config = output_config
+
+            if prompt_version is not None:
+                llm_evaluator.prompt.prompt_versions.append(prompt_version)
+
+            if llm_evaluator in session.dirty:
+                await session.flush()
+
         return LLMEvaluatorMutationPayload(
             evaluator=LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator),
             query=Query(),

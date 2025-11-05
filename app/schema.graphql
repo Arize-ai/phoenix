@@ -1949,6 +1949,7 @@ type Mutation {
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   createLlmEvaluator(input: CreateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
+  patchLlmEvaluator(input: PatchLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
   deleteEvaluator(input: DeleteEvaluatorInput!): DeleteEvaluatorPayload!
   assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
   unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!
@@ -2069,6 +2070,14 @@ input PatchDatasetSplitInput {
   description: String
   color: String
   metadata: JSON
+}
+
+input PatchLLMEvaluatorInput {
+  evaluatorId: ID!
+  name: Identifier
+  description: String
+  promptVersion: ChatPromptVersionInput
+  outputConfig: CategoricalAnnotationConfigInput
 }
 
 input PatchProjectTraceRetentionPolicyInput {
