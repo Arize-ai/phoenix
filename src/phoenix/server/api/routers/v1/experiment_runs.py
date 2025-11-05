@@ -428,7 +428,7 @@ async def get_incomplete_evaluations(
                         id=str(run_globalid),
                         experiment_id=str(experiment_globalid),
                         dataset_example_id=str(example_globalid),
-                        output=run.output,
+                        output=run.output.get("task_output"),
                         repetition_number=run.repetition_number,
                         start_time=run.start_time,
                         end_time=run.end_time,

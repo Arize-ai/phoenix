@@ -1205,6 +1205,21 @@ class TestIncompleteEvaluations:
             assert "output" in first_item["experiment_run"]
             assert "dataset_example_id" in first_item["experiment_run"]
 
+            # Test 2.1: Verify output consistency across endpoints
+            run_id = first_item["experiment_run"]["id"]
+            list_runs_response = await httpx_client.get(f"v1/experiments/{exp_gid}/runs")
+            list_runs_data = list_runs_response.json()["data"]
+            matching_run = next((r for r in list_runs_data if r["id"] == run_id), None)
+            assert matching_run is not None, (
+                f"Run {run_id} from incomplete-evaluations not found in list_experiment_runs"
+            )
+            # Both endpoints must return identical output for the same run
+            assert first_item["experiment_run"]["output"] == matching_run["output"], (
+                f"Output must be identical across endpoints: "
+                f"incomplete-evaluations returned {first_item['experiment_run']['output']!r}, "
+                f"list_experiment_runs returned {matching_run['output']!r}"
+            )
+
         # Test 2.5: Verify exactly one row per run (no duplicates from joins)
         run_ids_in_result = [item["experiment_run"]["id"] for item in result["data"]]
         assert len(run_ids_in_result) == len(set(run_ids_in_result)), (

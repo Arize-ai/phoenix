@@ -2369,13 +2369,7 @@ class TestResumeOperations:
 
         def pagination_evaluator(output: Any) -> float:
             # Extract index from output to track which runs were evaluated
-            output_str: str
-            if isinstance(output, dict) and "task_output" in output:
-                output_str = str(output["task_output"])  # pyright: ignore[reportUnknownArgumentType]
-            elif isinstance(output, str):
-                output_str = output
-            else:
-                output_str = str(output)  # pyright: ignore[reportUnknownArgumentType]
+            output_str = str(output)  # pyright: ignore[reportUnknownArgumentType]
             idx = int(output_str.split("_")[1])
             evaluated_indices.add(idx)
             return 0.8
