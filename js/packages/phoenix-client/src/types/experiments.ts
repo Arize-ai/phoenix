@@ -1,6 +1,6 @@
 import { AnnotatorKind } from "./annotations";
 import { Node } from "./core";
-import { Example } from "./datasets";
+import { Example, ExampleWithId } from "./datasets";
 
 /**
  * An experiment is a set of task runs on a dataset version
@@ -11,17 +11,76 @@ export interface ExperimentInfo extends Node {
   // @todo: mark this as required when experiment API returns it
   datasetSplits?: string[];
   /**
-   * The project under which the experiment task traces are recorded
+   * Number of times the experiment is repeated
    */
-  projectName: string;
+  repetitions: number;
   /**
    * Metadata about the experiment as an object of key values
    * e.x. model name
    */
   metadata: Record<string, unknown>;
+  /**
+   * The project under which the experiment task traces are recorded
+   * Note: This can be null when no project is associated with the experiment
+   */
+  projectName: string | null;
+  /**
+   * The creation timestamp of the experiment
+   */
+  createdAt: string;
+  /**
+   * The last update timestamp of the experiment
+   */
+  updatedAt: string;
+  /**
+   * Number of examples in the experiment
+   */
+  exampleCount: number;
+  /**
+   * Number of successful runs in the experiment
+   */
+  successfulRunCount: number;
+  /**
+   * Number of failed runs in the experiment
+   */
+  failedRunCount: number;
+  /**
+   * Number of missing (not yet executed) runs in the experiment
+   */
+  missingRunCount: number;
 }
 
 export type ExperimentRunID = string;
+
+/**
+ * Represents incomplete experiment runs for a dataset example
+ * Groups all incomplete repetitions for a single example
+ */
+export interface IncompleteRun {
+  /**
+   * The dataset example that has incomplete runs
+   */
+  datasetExample: Example;
+  /**
+   * List of repetition numbers that need to be run for this example
+   */
+  repetitionNumbers: number[];
+}
+
+export interface IncompleteEvaluation {
+  /**
+   * The experiment run with incomplete evaluations
+   */
+  experimentRun: ExperimentRun;
+  /**
+   * The dataset example for this run
+   */
+  datasetExample: ExampleWithId;
+  /**
+   * List of evaluation names that are incomplete (either missing or failed)
+   */
+  evaluationNames: string[];
+}
 
 /**
  * A map of an experiment runId to the run

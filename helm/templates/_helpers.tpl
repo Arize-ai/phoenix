@@ -82,6 +82,9 @@ Validate persistence configuration to prevent data storage conflicts
 {{- $postgresqlEnabled := .Values.postgresql.enabled | toString | eq "true" }}
 {{- $databaseUrlConfigured := and .Values.database.url (ne .Values.database.url "") }}
 {{- $isMemoryDatabase := .Values.persistence.inMemory | toString | eq "true" }}
+{{- if and $isMemoryDatabase $persistenceEnabled }}
+{{- fail "ERROR: Invalid persistence configuration detected!\n\nYou cannot enable both 'persistence.enabled=true' and 'persistence.inMemory=true' simultaneously.\n\nThese options are mutually exclusive. Please choose ONE:\n\n  1. SQLite with persistent storage:\n     - Set persistence.enabled=true\n     - Set persistence.inMemory=false\n     - Set postgresql.enabled=false\n\n  2. SQLite in-memory (demo/testing only):\n     - Set persistence.enabled=false\n     - Set persistence.inMemory=true\n     - Set postgresql.enabled=false\n\nNote: In-memory mode will lose ALL data when the pod restarts." }}
+{{- end }}
 {{- if and $isMemoryDatabase $postgresqlEnabled }}
 {{- fail "ERROR: In-memory database configuration conflict!\n\nWhen using SQLite In-memory (database.url=\"sqlite:///:memory:\"), PostgreSQL must be disabled.\n\nTo fix this:\n  - Set database.url=\"sqlite:///:memory:\"\n  - Set postgresql.enabled=false\n\nNote: In-memory mode is for demos/testing only. All data will be lost when the pod restarts." }}
 {{- end }}
@@ -102,8 +105,10 @@ Validate external database configuration for consistency
 {{- define "phoenix.validateExternalDatabase" -}}
 {{- $postgresqlEnabled := .Values.postgresql.enabled | toString | eq "true" }}
 {{- $persistenceEnabled := .Values.persistence.enabled | toString | eq "true" }}
+{{- $isMemoryDatabase := .Values.persistence.inMemory | toString | eq "true" }}
 {{- $databaseUrlConfigured := and .Values.database.url (ne .Values.database.url "") }}
-{{- if and (not $postgresqlEnabled) (not $persistenceEnabled) }}
+{{- /* Skip validation when using in-memory database - custom postgres settings are irrelevant */ -}}
+{{- if and (not $postgresqlEnabled) (not $persistenceEnabled) (not $isMemoryDatabase) }}
 {{- $hasCustomHost := ne .Values.database.postgres.host "phoenix-postgresql" }}
 {{- $hasCustomUser := ne .Values.database.postgres.user "postgres" }}
 {{- $hasCustomPassword := ne .Values.database.postgres.password "postgres" }}
@@ -131,9 +136,6 @@ Validate database URL format when provided
 {{- end }}
 {{- if and (hasPrefix "sqlite://" $url) (not $persistenceEnabled) (not $isMemoryDatabase) }}
 {{- fail "ERROR: SQLite database URL provided without persistent storage!\n\nWhen using SQLite with database.url, you must enable persistent storage to prevent data loss.\n\nTo fix this:\n  - Set persistence.enabled=true\n  - Ensure the SQLite file path in database.url points to the persistent volume\n\nAlternatively, for SQLite with persistence, it's recommended to:\n  - Set persistence.enabled=true\n  - Set database.url to empty string (Phoenix will auto-configure SQLite)" }}
-{{- end }}
-{{- if and ($persistenceEnabled) ($isMemoryDatabase) }}
-{{- fail "ERROR: cannot use in-memory and persistance at the same time" }}
 {{- end }}
 {{- if and (not (hasPrefix "sqlite:///:memory:" $url)) (not $persistenceEnabled) ($isMemoryDatabase) }}
 {{- fail "ERROR: Sqlite database URL is using in-memory setting without proper `sqlite:///:memory:` prefix." }}

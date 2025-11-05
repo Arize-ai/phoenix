@@ -96,6 +96,10 @@ class Experiment(TypedDict):
     project_name: Optional[str]
     created_at: str
     updated_at: str
+    example_count: int
+    successful_run_count: int
+    failed_run_count: int
+    missing_run_count: int
 
 
 class ExperimentEvaluationResult(TypedDict):
@@ -104,7 +108,7 @@ class ExperimentEvaluationResult(TypedDict):
     explanation: NotRequired[str]
 
 
-class ExperimentRunResponse(TypedDict):
+class ExperimentRun(TypedDict):
     dataset_example_id: str
     output: Any
     repetition_number: int
@@ -135,6 +139,17 @@ class GetDatasetResponseBody(TypedDict):
 
 class GetExperimentResponseBody(TypedDict):
     data: Experiment
+
+
+class IncompleteExperimentEvaluation(TypedDict):
+    experiment_run: ExperimentRun
+    dataset_example: DatasetExample
+    evaluation_names: Sequence[str]
+
+
+class IncompleteExperimentRun(TypedDict):
+    dataset_example: DatasetExample
+    repetition_numbers: Sequence[int]
 
 
 class InsertedSessionAnnotation(TypedDict):
@@ -175,12 +190,13 @@ class ListDatasetsResponseBody(TypedDict):
 
 
 class ListExperimentRunsResponseBody(TypedDict):
-    data: Sequence[ExperimentRunResponse]
+    data: Sequence[ExperimentRun]
     next_cursor: Optional[str]
 
 
 class ListExperimentsResponseBody(TypedDict):
     data: Sequence[Experiment]
+    next_cursor: Optional[str]
 
 
 class LocalUserData(TypedDict):
@@ -229,6 +245,7 @@ class PromptData(TypedDict):
     name: str
     description: NotRequired[str]
     source_prompt_id: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
 
 
 class Prompt(PromptData):
@@ -622,6 +639,16 @@ class GetAnnotationConfigsResponseBody(TypedDict):
     data: Sequence[
         Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
     ]
+    next_cursor: Optional[str]
+
+
+class GetIncompleteEvaluationsResponseBody(TypedDict):
+    data: Sequence[IncompleteExperimentEvaluation]
+    next_cursor: Optional[str]
+
+
+class GetIncompleteExperimentRunsResponseBody(TypedDict):
+    data: Sequence[IncompleteExperimentRun]
     next_cursor: Optional[str]
 
 

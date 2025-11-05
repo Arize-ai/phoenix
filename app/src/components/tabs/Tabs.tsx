@@ -11,9 +11,8 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
-
 import { StylableProps } from "@phoenix/components/types";
+import { classNames } from "@phoenix/utils";
 
 const tabsCSS = css`
   display: flex;

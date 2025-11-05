@@ -1,7 +1,7 @@
 import { forwardRef, HTMLAttributes } from "react";
 import { css, keyframes } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
+import { classNames } from "@phoenix/utils";
 
 import { BorderRadiusToken } from "../types/sizing";
 

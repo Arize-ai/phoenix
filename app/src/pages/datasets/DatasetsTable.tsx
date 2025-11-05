@@ -25,7 +25,11 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import {
+  useNotifyError,
+  useNotifySuccess,
+  useViewerCanModify,
+} from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
@@ -135,6 +139,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     },
     [hasNext, isLoadingNext, loadNext, filter, labelFilter]
   );
+  const canModify = useViewerCanModify();
   const columns = useMemo(() => {
     const cols: ColumnDef<(typeof tableData)[number]>[] = [
       {
@@ -208,7 +213,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
         enableSorting: false,
         cell: CompactJSONCell,
       },
-      {
+    ];
+    if (canModify) {
+      cols.push({
         header: "",
         id: "actions",
         enableSorting: false,
@@ -281,10 +288,10 @@ export function DatasetsTable(props: DatasetsTableProps) {
             />
           );
         },
-      },
-    ];
+      });
+    }
     return cols;
-  }, [filter, labelFilter, notifyError, notifySuccess, refetch]);
+  }, [filter, labelFilter, notifyError, notifySuccess, refetch, canModify]);
   const table = useReactTable({
     columns,
     data: tableData,

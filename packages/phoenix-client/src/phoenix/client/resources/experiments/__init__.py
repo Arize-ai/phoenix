@@ -332,6 +332,111 @@ def _print_experiment_error(
     print("\033[91m" + formatted_exception + "\033[0m")  # prints in red
 
 
+def _build_evaluation_tasks(
+    task_runs: Sequence[ExperimentRun],
+    evaluators_by_name: Mapping[EvaluatorName, Evaluator],
+    examples_by_id: Mapping[str, v1.DatasetExample],
+) -> list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]]:
+    """
+    Build evaluation tasks for all evaluators on all runs.
+
+    Args:
+        task_runs: List of experiment runs to evaluate
+        evaluators_by_name: Mapping of evaluator names to evaluator functions
+        examples_by_id: Mapping of example IDs to dataset examples
+
+    Returns:
+        List of tuples: (example, run, evaluator)
+    """
+    evaluation_tasks: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]] = []
+
+    for run in task_runs:
+        example = examples_by_id.get(run["dataset_example_id"])
+        if example is None:
+            continue
+
+        for evaluator in evaluators_by_name.values():
+            evaluation_tasks.append((example, run, evaluator))
+
+    return evaluation_tasks
+
+
+def _build_tasks_for_named_evaluators(
+    incomplete_evals: Sequence[v1.IncompleteExperimentEvaluation],
+    evaluators_by_name: Mapping[EvaluatorName, Evaluator],
+) -> list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]]:
+    """
+    Build evaluation tasks for standard named evaluators.
+
+    Matches evaluator dict keys with incomplete evaluation names.
+
+    Args:
+        incomplete_evals: List of incomplete evaluations from server
+        evaluators_by_name: Mapping of evaluator names to evaluator functions
+
+    Returns:
+        List of tuples: (example, run, evaluator)
+    """
+    evaluation_tasks: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]] = []
+
+    for incomplete in incomplete_evals:
+        run = incomplete["experiment_run"]
+        example = incomplete["dataset_example"]
+
+        incomplete_names = set(incomplete["evaluation_names"])
+
+        # Match evaluator keys with incomplete evaluation names
+        for evaluator_name in incomplete_names & evaluators_by_name.keys():
+            evaluator = evaluators_by_name[evaluator_name]
+            evaluation_tasks.append((example, run, evaluator))
+
+    return evaluation_tasks
+
+
+def _build_tasks_for_multi_output_evaluator(
+    incomplete_evals: Sequence[v1.IncompleteExperimentEvaluation],
+    evaluator: Evaluator,
+) -> list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]]:
+    """
+    Build evaluation tasks for a single multi-output evaluator.
+
+    Runs the evaluator for any run with any incomplete evaluation.
+
+    Args:
+        incomplete_evals: List of incomplete evaluations from server
+        evaluator: The single multi-output evaluator to run
+
+    Returns:
+        List of tuples: (example, run, evaluator)
+    """
+    evaluation_tasks: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]] = []
+
+    for incomplete in incomplete_evals:
+        run = incomplete["experiment_run"]
+        example = incomplete["dataset_example"]
+        evaluation_tasks.append((example, run, evaluator))
+
+    return evaluation_tasks
+
+
+def _build_incomplete_evaluation_tasks(
+    incomplete_evals: Sequence[v1.IncompleteExperimentEvaluation],
+    evaluators_by_name: Mapping[EvaluatorName, Evaluator],
+) -> list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]]:
+    """
+    Build evaluation tasks from incomplete evaluations response.
+
+    Args:
+        incomplete_evals: List of incomplete evaluations from server
+        evaluators_by_name: Mapping of evaluator names to evaluator functions
+
+    Returns:
+        List of tuples: (example, run, evaluator)
+    """
+    # Standard case: match evaluator keys with evaluation names
+    return _build_tasks_for_named_evaluators(incomplete_evals, evaluators_by_name)
+
+
 class Experiments:
     """
     Provides methods for running experiments and evaluations.
@@ -429,6 +534,93 @@ class Experiments:
             f"datasets/{dataset_id}/compare?experimentId={experiment_id}",
         )
 
+    def create(
+        self,
+        *,
+        dataset_id: str,
+        dataset_version_id: Optional[str] = None,
+        experiment_name: Optional[str] = None,
+        experiment_description: Optional[str] = None,
+        experiment_metadata: Optional[Mapping[str, Any]] = None,
+        splits: Optional[Sequence[str]] = None,
+        repetitions: int = 1,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> Experiment:
+        """Create a new experiment without running it.
+
+        This method creates an experiment record in the Phoenix database but does not
+        execute any tasks. Use `resume_experiment` to run tasks on the created experiment.
+
+        Args:
+            dataset_id (str): The ID of the dataset on which the experiment will be run.
+            dataset_version_id (Optional[str]): The ID of the dataset version to use. If not
+                provided, the latest version will be used. Defaults to None.
+            experiment_name (Optional[str]): The name of the experiment. Defaults to None.
+            experiment_description (Optional[str]): A description of the experiment. Defaults to
+                None.
+            experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
+                experiment. Defaults to None.
+            splits (Optional[Sequence[str]]): List of dataset split identifiers (IDs or names)
+                to filter by. Defaults to None.
+            repetitions (int): The number of times the task will be run on each example.
+                Defaults to 1.
+            timeout (Optional[int]): The timeout for the request in seconds. Defaults to 60.
+
+        Returns:
+            Experiment: The newly created experiment.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            experiment = client.experiments.create(
+                dataset_id="dataset_123",
+                experiment_name="my-experiment",
+                experiment_description="Testing my task",
+                repetitions=3,
+            )
+            print(f"Created experiment with ID: {experiment['id']}")
+
+            # Later, run the experiment
+            client.experiments.resume_experiment(
+                experiment_id=experiment["id"],
+                task=my_task,
+            )
+        """
+        _validate_repetitions(repetitions)
+
+        payload: dict[str, Any] = {
+            "repetitions": repetitions,
+        }
+
+        if experiment_name and experiment_name.strip():
+            payload["name"] = experiment_name.strip()
+
+        if experiment_description and experiment_description.strip():
+            payload["description"] = experiment_description.strip()
+
+        if experiment_metadata:
+            payload["metadata"] = experiment_metadata
+
+        if dataset_version_id and dataset_version_id.strip():
+            payload["version_id"] = dataset_version_id.strip()
+
+        if splits:
+            payload["splits"] = list(splits)
+
+        experiment_response = self._client.post(
+            f"v1/datasets/{dataset_id}/experiments",
+            json=payload,
+            timeout=timeout,
+        )
+        experiment_response.raise_for_status()
+        exp_json = experiment_response.json()["data"]
+        return cast(Experiment, exp_json)
+
     def run_experiment(
         self,
         *,
@@ -488,7 +680,9 @@ class Experiments:
             dataset (Dataset): The dataset on which to run the experiment.
             task (ExperimentTask): The task to run on each example in the dataset.
             evaluators (Optional[ExperimentEvaluators]): A single evaluator or sequence of
-                evaluators used to evaluate the results of the experiment. Defaults to None.
+                evaluators used to evaluate the results of the experiment. Evaluators can be
+                provided as a dict mapping names to functions, or as a list of functions (names
+                will be auto-generated). Defaults to None.
             experiment_name (Optional[str]): The name of the experiment. Defaults to None.
             experiment_description (Optional[str]): A description of the experiment. Defaults to
                 None.
@@ -523,45 +717,32 @@ class Experiments:
 
         _validate_repetitions(repetitions)
 
-        payload = {
-            "version_id": dataset.version_id,
-            "splits": dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
-            "name": experiment_name,
-            "description": experiment_description,
-            "metadata": experiment_metadata,
-            "repetitions": repetitions,
-        }
-
         if not dry_run:
-            experiment_response = self._client.post(
-                f"v1/datasets/{dataset.id}/experiments",
-                json=payload,
+            experiment = self.create(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset.version_id,
+                experiment_name=experiment_name,
+                experiment_description=experiment_description,
+                experiment_metadata=experiment_metadata,
+                splits=dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
+                repetitions=repetitions,
                 timeout=timeout,
             )
-            experiment_response.raise_for_status()
-            exp_json = experiment_response.json()["data"]
-            project_name = exp_json.get("project_name")
-            experiment: Experiment = {
-                "id": exp_json["id"],
-                "dataset_id": dataset.id,
-                "dataset_version_id": dataset.version_id,
-                "repetitions": repetitions,
-                "metadata": exp_json.get("metadata", {}),
-                "project_name": project_name,
-                "created_at": exp_json["created_at"],
-                "updated_at": exp_json["updated_at"],
-            }
         else:
-            experiment = {
-                "id": DRY_RUN,
-                "dataset_id": dataset.id,
-                "dataset_version_id": dataset.version_id,
-                "repetitions": repetitions,
-                "metadata": {},
-                "project_name": None,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }
+            experiment = Experiment(
+                id=DRY_RUN,
+                dataset_id=dataset.id,
+                dataset_version_id=dataset.version_id,
+                repetitions=repetitions,
+                metadata={},
+                project_name=None,
+                created_at=datetime.now(timezone.utc).isoformat(),
+                updated_at=datetime.now(timezone.utc).isoformat(),
+                example_count=0,
+                successful_run_count=0,
+                failed_run_count=0,
+                missing_run_count=0,
+            )
 
         tracer, resource = _get_tracer(
             experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
@@ -878,6 +1059,417 @@ class Experiments:
 
         return ran_experiment
 
+    def resume_experiment(
+        self,
+        *,
+        experiment_id: str,
+        task: ExperimentTask,
+        evaluators: Optional[ExperimentEvaluators] = None,
+        print_summary: bool = True,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        rate_limit_errors: Optional[RateLimitErrors] = None,
+    ) -> None:
+        """
+        Resume an incomplete experiment by running only the missing or failed runs.
+
+        This method identifies which (example, repetition) pairs have not been completed
+        (either missing or failed) and re-runs the task only for those pairs. Optionally,
+        evaluators can be run on the completed runs after task execution.
+
+        The method processes incomplete runs in batches using pagination to minimize memory usage.
+
+        .. note::
+            Multi-output evaluators (evaluators that return a list/sequence of results) are not
+            supported for resume operations. Each evaluator should produce a single evaluation
+            result with a name matching the evaluator's key in the dictionary.
+
+        Args:
+            experiment_id (str): The ID of the experiment to resume.
+            task (ExperimentTask): The task to run on incomplete examples.
+            evaluators (Optional[ExperimentEvaluators]): Optional evaluators to run on completed
+                task runs. Evaluators can be provided as a dict mapping names to functions, or as
+                a list of functions (names will be auto-generated). Defaults to None.
+            print_summary (bool): Whether to print a summary of the results. Defaults to True.
+            timeout (Optional[int]): The timeout for task execution in seconds. Defaults to 60.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
+                to adaptively throttle on. Defaults to None.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the experiment is not found.
+            httpx.HTTPStatusError: If the API returns an error response.
+
+        Example::
+
+            client = Client()
+
+            # Resume an interrupted experiment
+            client.experiments.resume_experiment(
+                experiment_id="exp_123",
+                task=my_task,
+            )
+
+            # Resume with evaluators
+            client.experiments.resume_experiment(
+                experiment_id="exp_123",
+                task=my_task,
+                evaluators={"quality": my_evaluator},
+            )
+        """
+        task_signature = inspect.signature(task)
+        _validate_task_signature(task_signature)
+
+        # Get the experiment metadata
+        experiment = self.get(experiment_id=experiment_id)
+
+        # Setup for task execution
+        tracer, resource = _get_tracer(
+            experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
+        )
+        root_span_name = f"Task: {get_func_name(task)}"
+        task_result_cache: dict[tuple[str, int], Any] = {}
+
+        # Setup rate limiting
+        errors: tuple[type[BaseException], ...]
+        if not isinstance(rate_limit_errors, Sequence):
+            errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
+        else:
+            errors = tuple(filter(None, rate_limit_errors))
+        rate_limiters = [RateLimiter(rate_limit_error=error) for error in errors]
+
+        def sync_run_task(test_case: TestCase) -> Optional[ExperimentRun]:
+            return self._run_single_task_sync(
+                test_case,
+                task,
+                task_signature,
+                experiment,
+                tracer,
+                resource,
+                root_span_name,
+                False,  # dry_run
+                timeout,
+                task_result_cache,
+            )
+
+        rate_limited_sync_run_task = functools.reduce(
+            lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_run_task
+        )
+
+        # Check experiment status using counts from the experiment response
+        print("🔍 Checking for incomplete runs...")
+        total_expected = experiment["example_count"] * experiment["repetitions"]
+        incomplete_count = total_expected - experiment["successful_run_count"]
+
+        if incomplete_count == 0:
+            print("✅ No incomplete runs found. Experiment is already complete.")
+            return None
+
+        print(f"🧪 Resuming experiment with {incomplete_count} incomplete runs...")
+
+        dataset_experiments_url = self.get_dataset_experiments_url(
+            dataset_id=experiment["dataset_id"]
+        )
+        experiment_compare_url = self.get_experiment_url(
+            dataset_id=experiment["dataset_id"],
+            experiment_id=experiment["id"],
+        )
+        print(f"📺 View dataset experiments: {dataset_experiments_url}")
+        print(f"🔗 View this experiment: {experiment_compare_url}")
+
+        # Process incomplete runs in streaming batches
+        cursor: Optional[str] = None
+        page_size = 50
+        total_processed = 0
+        total_completed = 0
+
+        while True:
+            # Fetch next batch of incomplete runs
+            params: dict[str, Any] = {"limit": page_size}
+            if cursor:
+                params["cursor"] = cursor
+
+            try:
+                response = self._client.get(
+                    f"v1/experiments/{experiment_id}/incomplete-runs",
+                    params=params,
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                body = cast(v1.GetIncompleteExperimentRunsResponseBody, response.json())
+                batch_incomplete = body["data"]
+
+                if not batch_incomplete:
+                    break
+
+                # Build test cases from this batch
+                batch_test_cases: list[TestCase] = []
+                for incomplete in batch_incomplete:
+                    example_data = incomplete["dataset_example"]
+                    for rep in incomplete["repetition_numbers"]:
+                        batch_test_cases.append(
+                            TestCase(example=example_data, repetition_number=rep)
+                        )
+
+                print(f"Processing batch of {len(batch_test_cases)} incomplete runs...")
+
+                # Execute tasks for this batch
+                executor = SyncExecutor(
+                    generation_fn=rate_limited_sync_run_task,
+                    tqdm_bar_format=get_tqdm_progress_bar_formatter("resuming tasks"),
+                    max_retries=0,
+                    exit_on_error=False,
+                    fallback_return_value=None,
+                )
+
+                batch_results, _ = executor.run(batch_test_cases)
+                batch_completed_runs = [r for r in batch_results if r is not None]
+
+                total_processed += len(batch_test_cases)
+                total_completed += len(batch_completed_runs)
+
+                cursor = body.get("next_cursor")
+                if not cursor:
+                    break
+
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Check if response is HTML (endpoint doesn't exist on old server)
+                    content_type = e.response.headers.get("content-type", "")
+                    if "text/html" in content_type:
+                        # Fetch server version to provide helpful context
+                        version_info = ""
+                        try:
+                            version_resp = self._client.get(
+                                "arize_phoenix_version", timeout=timeout
+                            )
+                            version_info = f" Your current server version is {version_resp.text}."
+                        except Exception:
+                            pass  # Ignore errors fetching version
+
+                        raise ValueError(
+                            "The resume_experiment feature is not available on this "
+                            f"Phoenix server. Please upgrade your Phoenix server to "
+                            f"use this feature.{version_info}"
+                        ) from e
+                    # Otherwise it's a real 404 (experiment doesn't exist)
+                    raise ValueError(f"Experiment not found: {experiment_id}") from e
+                raise
+
+        print("✅ Task runs completed.")
+
+        if total_completed < total_processed:
+            print(
+                f"⚠️  Warning: Only {total_completed} out of {total_processed} incomplete runs "
+                "were completed successfully."
+            )
+
+        # Run evaluators if provided
+        if evaluators:
+            print()  # Add spacing before evaluation output
+            self.resume_evaluation(
+                experiment_id=experiment_id,
+                evaluators=evaluators,
+                print_summary=False,  # We'll print our own summary
+                timeout=timeout,
+                rate_limit_errors=rate_limit_errors,
+            )
+
+        # Print summary if requested
+        if print_summary:
+            print("\n" + "=" * 70)
+            print("📊 Experiment Resume Summary")
+            print("=" * 70)
+            print(f"Experiment ID: {experiment['id']}")
+            print(f"Incomplete runs processed: {total_processed}")
+            print(f"Successfully completed: {total_completed}")
+            print("=" * 70 + "\n")
+
+    def resume_evaluation(
+        self,
+        *,
+        experiment_id: str,
+        evaluators: ExperimentEvaluators,
+        print_summary: bool = True,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        rate_limit_errors: Optional[RateLimitErrors] = None,
+    ) -> None:
+        """
+        Resume incomplete evaluations for an experiment.
+
+        This method identifies which evaluations have not been completed (either missing or failed)
+        and runs the evaluators only for those runs. This is useful for:
+        - Recovering from transient evaluator failures
+        - Adding new evaluators to completed experiments
+        - Completing partially evaluated experiments
+
+        The method processes incomplete evaluations in batches using pagination
+        to minimize memory usage.
+
+        Evaluation names are matched to evaluator dict keys. For example,
+        if you pass ``{"accuracy": accuracy_fn}``, it will check for and resume any runs
+        missing the "accuracy" evaluation.
+
+        .. note::
+            Multi-output evaluators (evaluators that return a list/sequence of results) are not
+            supported for resume operations. Each evaluator should produce a single evaluation
+            result with a name matching the evaluator's key in the dictionary.
+
+        Args:
+            experiment_id (str): The ID of the experiment to resume evaluations for.
+            evaluators (ExperimentEvaluators): A single evaluator or sequence of evaluators
+                to run. Evaluators can be provided as a dict mapping names to functions,
+                or as a list of functions (names will be auto-generated).
+            print_summary (bool): Whether to print a summary of evaluation results.
+                Defaults to True.
+            timeout (Optional[int]): The timeout for evaluation execution in seconds.
+                Defaults to 60.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of
+                exceptions to adaptively throttle on. Defaults to None.
+
+        Raises:
+            ValueError: If the experiment is not found or no evaluators are provided.
+            httpx.HTTPStatusError: If the API returns an error response.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            def accuracy(output, expected):
+                return 1.0 if output == expected else 0.0
+
+            # Standard usage: evaluation name matches evaluator key
+            client.experiments.resume_evaluation(
+                experiment_id="exp_123",
+                evaluators={"accuracy": accuracy},
+            )
+        """
+        evaluators_by_name = _evaluators_by_name(evaluators)
+        if not evaluators_by_name:
+            raise ValueError("Must specify at least one evaluator")
+
+        # Get the experiment metadata
+        experiment = self.get(experiment_id=experiment_id)
+
+        # Setup for evaluator execution
+        eval_tracer, eval_resource = _get_tracer(
+            experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
+        )
+
+        print("🔍 Checking for incomplete evaluations...")
+
+        # Build evaluation names list for query - derive from evaluator keys
+        evaluation_names_list = list(evaluators_by_name.keys())
+
+        # Process incomplete evaluations in streaming batches
+        cursor: Optional[str] = None
+        page_size = 50
+        total_processed = 0
+        total_completed = 0
+
+        while True:
+            # Fetch next batch of incomplete evaluations
+            params: dict[str, Any] = {"limit": page_size, "evaluation_name": evaluation_names_list}
+            if cursor:
+                params["cursor"] = cursor
+
+            try:
+                response = self._client.get(
+                    f"v1/experiments/{experiment_id}/incomplete-evaluations",
+                    params=params,
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                body = cast(v1.GetIncompleteEvaluationsResponseBody, response.json())
+                batch_incomplete = body["data"]
+
+                if not batch_incomplete:
+                    if total_processed == 0:
+                        print("✅ No incomplete evaluations found. All evaluations are complete.")
+                        return
+                    break
+
+                if total_processed == 0:
+                    print("🧠 Resuming evaluations...")
+
+                # Build evaluation tasks from incomplete evaluations
+                evaluation_tasks = _build_incomplete_evaluation_tasks(
+                    batch_incomplete,
+                    evaluators_by_name,
+                )
+
+                total_processed += len({inc["experiment_run"]["id"] for inc in batch_incomplete})
+
+                if not evaluation_tasks:
+                    # No evaluators in this batch match the provided evaluators
+                    cursor = body.get("next_cursor")
+                    if not cursor:
+                        break
+                    continue
+
+                print(f"Processing batch of {len(evaluation_tasks)} evaluation tasks...")
+
+                # Execute evaluations using refactored method
+                batch_eval_runs = self._run_evaluations(
+                    evaluation_tasks,
+                    eval_tracer,
+                    eval_resource,
+                    False,  # dry_run
+                    timeout,
+                    rate_limit_errors,
+                )
+
+                total_completed += len([r for r in batch_eval_runs if r.error is None])
+
+                # Check for next page
+                cursor = body.get("next_cursor")
+                if not cursor:
+                    break
+
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Check if response is HTML (endpoint doesn't exist on old server)
+                    content_type = e.response.headers.get("content-type", "")
+                    if "text/html" in content_type:
+                        # Fetch server version to provide helpful context
+                        version_info = ""
+                        try:
+                            version_resp = self._client.get(
+                                "arize_phoenix_version", timeout=timeout
+                            )
+                            version_info = f" Your current server version is {version_resp.text}."
+                        except Exception:
+                            pass  # Ignore errors fetching version
+
+                        raise ValueError(
+                            "The resume_evaluation feature is not available on this "
+                            f"Phoenix server. Please upgrade your Phoenix server to "
+                            f"use this feature.{version_info}"
+                        ) from e
+                    # Otherwise it's a real 404 (experiment doesn't exist)
+                    raise ValueError(f"Experiment not found: {experiment_id}") from e
+                raise
+
+        print("✅ Evaluations completed.")
+
+        if total_completed < total_processed * len(evaluators_by_name):
+            print(
+                f"⚠️  Warning: Only {total_completed} out of "
+                f"{total_processed * len(evaluators_by_name)} incomplete evaluations "
+                "were completed successfully."
+            )
+
+        # Print summary if requested
+        if print_summary:
+            print("\n" + "=" * 70)
+            print("📊 Evaluation Resume Summary")
+            print("=" * 70)
+            print(f"Runs processed: {total_processed}")
+            print(f"Evaluations completed: {total_completed}")
+            print("=" * 70 + "\n")
+
     def evaluate_experiment(
         self,
         *,
@@ -903,7 +1495,9 @@ class Experiments:
         Args:
             experiment (RanExperiment): The experiment to evaluate, returned from `run_experiment`.
             evaluators (ExperimentEvaluators): A single evaluator or sequence of evaluators
-                used to evaluate the results of the experiment.
+                used to evaluate the results of the experiment. Evaluators can be provided as a
+                dict mapping names to functions, or as a list of functions (names will be
+                auto-generated).
             dry_run (bool): Run the evaluation in dry-run mode. When set, evaluation results will
                 not be recorded in Phoenix. Defaults to False.
             print_summary (bool): Whether to print a summary of the evaluation results.
@@ -947,7 +1541,16 @@ class Experiments:
                 project_name = experiment_data.get("project_name")
             except HTTPStatusError as e:
                 if e.response.status_code == 404:
-                    raise ValueError(f"Experiment not found: {experiment_id}")
+                    # Check if response is HTML (endpoint doesn't exist on old server)
+                    content_type = e.response.headers.get("content-type", "")
+                    if "text/html" in content_type:
+                        raise ValueError(
+                            "The resume_evaluation feature is not available on this "
+                            "Phoenix server. Please upgrade your Phoenix server to "
+                            "use this feature."
+                        ) from e
+                    # Otherwise it's a real 404 (experiment doesn't exist)
+                    raise ValueError(f"Experiment not found: {experiment_id}") from e
                 raise
 
         version_params = {"version_id": dataset_version_id}
@@ -988,15 +1591,22 @@ class Experiments:
         if dry_run:
             print("🌵️ This is a dry-run evaluation.")
 
-        eval_runs = self._run_evaluations(
+        # Build evaluation tasks
+        examples_by_id = {ex["id"]: ex for ex in dataset.examples}
+        evaluation_tasks = _build_evaluation_tasks(
             task_runs,
             evaluators_by_name,
+            examples_by_id,
+        )
+
+        # Run evaluations
+        eval_runs = self._run_evaluations(
+            evaluation_tasks,
             eval_tracer,
             eval_resource,
             dry_run,
             timeout,
             rate_limit_errors,
-            dataset,
         )
 
         all_evaluation_runs = eval_runs
@@ -1169,28 +1779,27 @@ class Experiments:
 
     def _run_evaluations(
         self,
-        task_runs: list[ExperimentRun],
-        evaluators_by_name: Mapping[EvaluatorName, Evaluator],
+        evaluation_tasks: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]],
         tracer: Tracer,
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
-        dataset: Dataset,
     ) -> list[ExperimentEvaluationRun]:
-        # Create evaluation input with example data
-        evaluation_input: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]] = []
-        for run in task_runs:
-            # Find the corresponding example for this run
-            example = None
-            for ex in dataset.examples:
-                if ex["id"] == run["dataset_example_id"]:
-                    example = ex
-                    break
+        """
+        Execute evaluation tasks.
 
-            if example is not None:
-                for evaluator in evaluators_by_name.values():
-                    evaluation_input.append((example, run, evaluator))
+        Args:
+            evaluation_tasks: List of (example, run, evaluator) tuples
+            tracer: OpenTelemetry tracer
+            resource: OpenTelemetry resource
+            dry_run: Whether to skip server submission
+            timeout: Timeout for evaluations
+            rate_limit_errors: Errors to rate limit on
+
+        Returns:
+            List of evaluation run results
+        """
 
         # Setup rate limiting
         errors: tuple[type[BaseException], ...]
@@ -1205,7 +1814,13 @@ class Experiments:
         ) -> list[ExperimentEvaluationRun]:
             example, run, evaluator = obj
             return self._run_single_evaluation_sync(
-                example, run, evaluator, tracer, resource, dry_run, timeout
+                example,
+                run,
+                evaluator,
+                tracer,
+                resource,
+                dry_run,
+                timeout,
             )
 
         rate_limited_sync_evaluate_run = functools.reduce(
@@ -1221,7 +1836,7 @@ class Experiments:
             tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
         )
 
-        eval_runs, _execution_details = executor.run(evaluation_input)
+        eval_runs, _execution_details = executor.run(evaluation_tasks)
         flattened: list[ExperimentEvaluationRun] = []
         for res in eval_runs:
             if res is None:
@@ -1367,6 +1982,153 @@ class Experiments:
 
         return eval_runs
 
+    def get(
+        self,
+        *,
+        experiment_id: str,
+    ) -> Experiment:
+        """Get an experiment by ID.
+
+        Args:
+            experiment_id (str): The ID of the experiment to retrieve.
+
+        Returns:
+            Experiment: The experiment with the specified ID.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the experiment is not found.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            experiment = client.experiments.get(experiment_id="exp_123")
+            print(f"Example count: {experiment['example_count']}")
+            print(f"Successful runs: {experiment['successful_run_count']}")
+        """
+        try:
+            response = self._client.get(f"v1/experiments/{experiment_id}")
+            response.raise_for_status()
+            exp_data = response.json()["data"]
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Experiment not found: {experiment_id}")
+            raise
+
+        return cast(Experiment, exp_data)
+
+    def delete(
+        self,
+        *,
+        experiment_id: str,
+    ) -> None:
+        """Delete an experiment by ID.
+
+        Args:
+            experiment_id (str): The ID of the experiment to delete.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the experiment is not found.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            client.experiments.delete(experiment_id="exp_123")
+        """
+        try:
+            response = self._client.delete(f"v1/experiments/{experiment_id}")
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Experiment not found: {experiment_id}")
+            raise
+
+    def _paginate(
+        self,
+        *,
+        dataset_id: str,
+        cursor: Optional[str] = None,
+        limit: int = 50,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.ListExperimentsResponseBody:
+        """
+        Internal method to paginate through experiments with cursor-based pagination.
+
+        This is a private method used internally by the list() method to handle pagination.
+        Users should use the list() method instead of calling this directly.
+
+        Args:
+            dataset_id (str): The ID of the dataset to list experiments for.
+            cursor: Cursor for pagination. Use the `next_cursor` from a previous
+                response to get the next page. None for the first page.
+            limit: Maximum number of experiments to return per page (default: 50).
+            timeout: Request timeout in seconds (default: 60).
+
+        Returns:
+            Dictionary with pagination response containing:
+                - data: List of experiment dictionaries with fields: id, dataset_id,
+                  dataset_version_id, repetitions, metadata, project_name, created_at,
+                  updated_at, example_count, successful_run_count, failed_run_count,
+                  missing_run_count
+                - next_cursor: String cursor for next page, or None if no more pages
+
+        Raises:
+            httpx.HTTPError: If the API request fails (e.g., invalid cursor, network error).
+        """
+        url = f"v1/datasets/{dataset_id}/experiments"
+        params: dict[str, Any] = {"limit": limit}
+        if cursor:
+            params["cursor"] = cursor
+        response = self._client.get(url, params=params, timeout=timeout)
+        response.raise_for_status()
+        return cast(v1.ListExperimentsResponseBody, response.json())
+
+    def list(
+        self,
+        *,
+        dataset_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[Experiment]:
+        """List all experiments for a dataset with automatic pagination handling.
+
+        This method automatically handles pagination behind the scenes and returns
+        a simple list of experiments.
+
+        Args:
+            dataset_id (str): The ID of the dataset to list experiments for.
+            timeout: Request timeout in seconds for each paginated request (default: 60).
+
+        Returns:
+            list[Experiment]: A list of all experiments for the dataset.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            experiments = client.experiments.list(dataset_id="dataset_123")
+            for experiment in experiments:
+                print(f"Experiment: {experiment['id']}, Runs: {experiment['successful_run_count']}")
+        """
+        all_experiments: list[Experiment] = []
+        cursor: Optional[str] = None
+        while True:
+            data = self._paginate(dataset_id=dataset_id, cursor=cursor, timeout=timeout)
+            all_experiments.extend(data["data"])
+
+            cursor = data.get("next_cursor")
+            if not cursor:
+                break
+        return all_experiments
+
 
 class AsyncExperiments:
     """
@@ -1466,6 +2228,93 @@ class AsyncExperiments:
             f"datasets/{dataset_id}/compare?experimentId={experiment_id}",
         )
 
+    async def create(
+        self,
+        *,
+        dataset_id: str,
+        dataset_version_id: Optional[str] = None,
+        experiment_name: Optional[str] = None,
+        experiment_description: Optional[str] = None,
+        experiment_metadata: Optional[Mapping[str, Any]] = None,
+        splits: Optional[Sequence[str]] = None,
+        repetitions: int = 1,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> Experiment:
+        """Create a new experiment without running it (async version).
+
+        This method creates an experiment record in the Phoenix database but does not
+        execute any tasks. Use `resume_experiment` to run tasks on the created experiment.
+
+        Args:
+            dataset_id (str): The ID of the dataset on which the experiment will be run.
+            dataset_version_id (Optional[str]): The ID of the dataset version to use. If not
+                provided, the latest version will be used. Defaults to None.
+            experiment_name (Optional[str]): The name of the experiment. Defaults to None.
+            experiment_description (Optional[str]): A description of the experiment. Defaults to
+                None.
+            experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
+                experiment. Defaults to None.
+            splits (Optional[Sequence[str]]): List of dataset split identifiers (IDs or names)
+                to filter by. Defaults to None.
+            repetitions (int): The number of times the task will be run on each example.
+                Defaults to 1.
+            timeout (Optional[int]): The timeout for the request in seconds. Defaults to 60.
+
+        Returns:
+            Experiment: The newly created experiment.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            experiment = await async_client.experiments.create(
+                dataset_id="dataset_123",
+                experiment_name="my-experiment",
+                experiment_description="Testing my task",
+                repetitions=3,
+            )
+            print(f"Created experiment with ID: {experiment['id']}")
+
+            # Later, run the experiment
+            await async_client.experiments.resume_experiment(
+                experiment_id=experiment["id"],
+                task=my_task,
+            )
+        """
+        _validate_repetitions(repetitions)
+
+        payload: dict[str, Any] = {
+            "repetitions": repetitions,
+        }
+
+        if experiment_name and experiment_name.strip():
+            payload["name"] = experiment_name.strip()
+
+        if experiment_description and experiment_description.strip():
+            payload["description"] = experiment_description.strip()
+
+        if experiment_metadata:
+            payload["metadata"] = experiment_metadata
+
+        if dataset_version_id and dataset_version_id.strip():
+            payload["version_id"] = dataset_version_id.strip()
+
+        if splits:
+            payload["splits"] = list(splits)
+
+        experiment_response = await self._client.post(
+            f"v1/datasets/{dataset_id}/experiments",
+            json=payload,
+            timeout=timeout,
+        )
+        experiment_response.raise_for_status()
+        exp_json = experiment_response.json()["data"]
+        return cast(Experiment, exp_json)
+
     async def run_experiment(
         self,
         *,
@@ -1525,7 +2374,9 @@ class AsyncExperiments:
             dataset (Dataset): The dataset on which to run the experiment.
             task (ExperimentTask): The task to run on each example in the dataset.
             evaluators (Optional[ExperimentEvaluators]): A single evaluator or sequence of
-                evaluators used to evaluate the results of the experiment. Defaults to None.
+                evaluators used to evaluate the results of the experiment. Evaluators can be
+                provided as a dict mapping names to functions, or as a list of functions (names
+                will be auto-generated). Defaults to None.
             experiment_name (Optional[str]): The name of the experiment. Defaults to None.
             experiment_description (Optional[str]): A description of the experiment. Defaults to
                 None.
@@ -1561,45 +2412,32 @@ class AsyncExperiments:
 
         _validate_repetitions(repetitions)
 
-        payload = {
-            "version_id": dataset.version_id,
-            "splits": dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
-            "name": experiment_name,
-            "description": experiment_description,
-            "metadata": experiment_metadata,
-            "repetitions": repetitions,
-        }
-
         if not dry_run:
-            experiment_response = await self._client.post(
-                f"v1/datasets/{dataset.id}/experiments",
-                json=payload,
+            experiment = await self.create(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset.version_id,
+                experiment_name=experiment_name,
+                experiment_description=experiment_description,
+                experiment_metadata=experiment_metadata,
+                splits=dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
+                repetitions=repetitions,
                 timeout=timeout,
             )
-            experiment_response.raise_for_status()
-            exp_json = experiment_response.json()["data"]
-            project_name = exp_json["project_name"]
-            experiment: Experiment = {
-                "id": exp_json["id"],
-                "dataset_id": dataset.id,
-                "dataset_version_id": dataset.version_id,
-                "repetitions": repetitions,
-                "metadata": exp_json.get("metadata", {}),
-                "project_name": project_name,
-                "created_at": exp_json["created_at"],
-                "updated_at": exp_json["updated_at"],
-            }
         else:
-            experiment = {
-                "id": DRY_RUN,
-                "dataset_id": dataset.id,
-                "dataset_version_id": dataset.version_id,
-                "repetitions": repetitions,
-                "metadata": {},
-                "project_name": "",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }
+            experiment = Experiment(
+                id=DRY_RUN,
+                dataset_id=dataset.id,
+                dataset_version_id=dataset.version_id,
+                repetitions=repetitions,
+                metadata={},
+                project_name=None,
+                created_at=datetime.now(timezone.utc).isoformat(),
+                updated_at=datetime.now(timezone.utc).isoformat(),
+                example_count=0,
+                successful_run_count=0,
+                failed_run_count=0,
+                missing_run_count=0,
+            )
 
         tracer, resource = _get_tracer(
             experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
@@ -1917,6 +2755,424 @@ class AsyncExperiments:
 
         return ran_experiment
 
+    async def resume_experiment(
+        self,
+        *,
+        experiment_id: str,
+        task: ExperimentTask,
+        evaluators: Optional[ExperimentEvaluators] = None,
+        print_summary: bool = True,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        concurrency: int = 3,
+        rate_limit_errors: Optional[RateLimitErrors] = None,
+    ) -> None:
+        """
+        Resume an incomplete experiment by running only the missing or failed runs.
+
+        This method identifies which (example, repetition) pairs have not been completed
+        (either missing or failed) and re-runs the task only for those pairs. Optionally,
+        evaluators can be run on the completed runs after task execution.
+
+        The method processes incomplete runs in batches using pagination to minimize memory usage.
+
+        .. note::
+            Multi-output evaluators (evaluators that return a list/sequence of results) are not
+            supported for resume operations. Each evaluator should produce a single evaluation
+            result with a name matching the evaluator's key in the dictionary.
+
+        Args:
+            experiment_id (str): The ID of the experiment to resume.
+            task (ExperimentTask): The task to run on incomplete examples.
+            evaluators (Optional[ExperimentEvaluators]): Optional evaluators to run on completed
+                task runs. Evaluators can be provided as a dict mapping names to functions, or as
+                a list of functions (names will be auto-generated). Defaults to None.
+            print_summary (bool): Whether to print a summary of the results. Defaults to True.
+            timeout (Optional[int]): The timeout for task execution in seconds. Defaults to 60.
+            concurrency (int): The number of concurrent tasks to run. Defaults to 3.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
+                to adaptively throttle on. Defaults to None.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the experiment is not found.
+            httpx.HTTPStatusError: If the API returns an error response.
+
+        Example::
+
+            client = AsyncClient()
+
+            # Resume an interrupted experiment
+            await client.experiments.resume_experiment(
+                experiment_id="exp_123",
+                task=my_async_task,
+            )
+
+            # Resume with evaluators
+            await client.experiments.resume_experiment(
+                experiment_id="exp_123",
+                task=my_async_task,
+                evaluators={"quality": my_evaluator},
+            )
+        """
+        task_signature = inspect.signature(task)
+        _validate_task_signature(task_signature)
+
+        # Get the experiment metadata
+        experiment = await self.get(experiment_id=experiment_id)
+
+        # Setup for task execution
+        tracer, resource = _get_tracer(
+            experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
+        )
+        root_span_name = f"Task: {get_func_name(task)}"
+        task_result_cache: dict[tuple[str, int], Any] = {}
+
+        # Setup rate limiting
+        errors: tuple[type[BaseException], ...]
+        if not isinstance(rate_limit_errors, Sequence):
+            errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
+        else:
+            errors = tuple(filter(None, rate_limit_errors))
+        rate_limiters = [RateLimiter(rate_limit_error=error) for error in errors]
+
+        async def async_run_task(test_case: TestCase) -> Optional[ExperimentRun]:
+            return await self._run_single_task_async(
+                test_case,
+                task,
+                task_signature,
+                experiment,
+                tracer,
+                resource,
+                root_span_name,
+                False,  # dry_run
+                timeout,
+                task_result_cache,
+            )
+
+        rate_limited_async_run_task = functools.reduce(
+            lambda fn, limiter: limiter.alimit(fn), rate_limiters, async_run_task
+        )
+
+        # Check experiment status using counts from the experiment response
+        print("🔍 Checking for incomplete runs...")
+        total_expected = experiment["example_count"] * experiment["repetitions"]
+        incomplete_count = total_expected - experiment["successful_run_count"]
+
+        if incomplete_count == 0:
+            print("✅ No incomplete runs found. Experiment is already complete.")
+            return None
+
+        print(f"🧪 Resuming experiment with {incomplete_count} incomplete runs...")
+
+        dataset_experiments_url = self.get_dataset_experiments_url(
+            dataset_id=experiment["dataset_id"]
+        )
+        experiment_compare_url = self.get_experiment_url(
+            dataset_id=experiment["dataset_id"],
+            experiment_id=experiment["id"],
+        )
+        print(f"📺 View dataset experiments: {dataset_experiments_url}")
+        print(f"🔗 View this experiment: {experiment_compare_url}")
+
+        # Process incomplete runs in streaming batches
+        cursor: Optional[str] = None
+        page_size = 100
+        total_processed = 0
+        total_completed = 0
+
+        while True:
+            # Fetch next batch of incomplete runs
+            params: dict[str, Any] = {"limit": page_size}
+            if cursor:
+                params["cursor"] = cursor
+
+            try:
+                response = await self._client.get(
+                    f"v1/experiments/{experiment_id}/incomplete-runs",
+                    params=params,
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                body = cast(v1.GetIncompleteExperimentRunsResponseBody, response.json())
+                batch_incomplete = body["data"]
+
+                if not batch_incomplete:
+                    break
+
+                # Build test cases from this batch
+                batch_test_cases: list[TestCase] = []
+                for incomplete in batch_incomplete:
+                    example_data = incomplete["dataset_example"]
+                    for rep in incomplete["repetition_numbers"]:
+                        batch_test_cases.append(
+                            TestCase(example=example_data, repetition_number=rep)
+                        )
+
+                print(f"Processing batch of {len(batch_test_cases)} incomplete runs...")
+
+                # Execute tasks for this batch
+                executor = AsyncExecutor(
+                    generation_fn=rate_limited_async_run_task,
+                    concurrency=concurrency,
+                    tqdm_bar_format=get_tqdm_progress_bar_formatter("resuming tasks"),
+                    max_retries=0,
+                    exit_on_error=False,
+                    fallback_return_value=None,
+                )
+
+                batch_results, _ = await executor.execute(batch_test_cases)
+                batch_completed_runs = [r for r in batch_results if r is not None]
+
+                total_processed += len(batch_test_cases)
+                total_completed += len(batch_completed_runs)
+
+                cursor = body.get("next_cursor")
+                if not cursor:
+                    break
+
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Check if response is HTML (endpoint doesn't exist on old server)
+                    content_type = e.response.headers.get("content-type", "")
+                    if "text/html" in content_type:
+                        # Fetch server version to provide helpful context
+                        version_info = ""
+                        try:
+                            version_resp = await self._client.get(
+                                "arize_phoenix_version", timeout=timeout
+                            )
+                            version_info = f" Your current server version is {version_resp.text}."
+                        except Exception:
+                            pass  # Ignore errors fetching version
+
+                        raise ValueError(
+                            "The resume_experiment feature is not available on this "
+                            f"Phoenix server. Please upgrade your Phoenix server to "
+                            f"use this feature.{version_info}"
+                        ) from e
+                    # Otherwise it's a real 404 (experiment doesn't exist)
+                    raise ValueError(f"Experiment not found: {experiment_id}") from e
+                raise
+
+        print("✅ Task runs completed.")
+
+        if total_completed < total_processed:
+            print(
+                f"⚠️  Warning: Only {total_completed} out of {total_processed} incomplete runs "
+                "were completed successfully."
+            )
+
+        # Run evaluators if provided
+        if evaluators:
+            print()  # Add spacing before evaluation output
+            await self.resume_evaluation(
+                experiment_id=experiment_id,
+                evaluators=evaluators,
+                print_summary=False,  # We'll print our own summary
+                timeout=timeout,
+                concurrency=concurrency,
+                rate_limit_errors=rate_limit_errors,
+            )
+
+        # Print summary if requested
+        if print_summary:
+            print("\n" + "=" * 70)
+            print("📊 Experiment Resume Summary")
+            print("=" * 70)
+            print(f"Experiment ID: {experiment['id']}")
+            print(f"Incomplete runs processed: {total_processed}")
+            print(f"Successfully completed: {total_completed}")
+            print("=" * 70 + "\n")
+
+    async def resume_evaluation(
+        self,
+        *,
+        experiment_id: str,
+        evaluators: ExperimentEvaluators,
+        print_summary: bool = True,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        concurrency: int = 3,
+        rate_limit_errors: Optional[RateLimitErrors] = None,
+    ) -> None:
+        """
+        Resume incomplete evaluations for an experiment (async version).
+
+        This method identifies which evaluations have not been completed (either missing or failed)
+        and runs the evaluators only for those runs. This is useful for:
+        - Recovering from transient evaluator failures
+        - Adding new evaluators to completed experiments
+        - Completing partially evaluated experiments
+
+        The method processes incomplete evaluations in batches using pagination
+        to minimize memory usage.
+
+        Evaluation names are matched to evaluator dict keys. For example,
+        if you pass ``{"accuracy": accuracy_fn}``, it will check for and resume any runs
+        missing the "accuracy" evaluation.
+
+        .. note::
+            Multi-output evaluators (evaluators that return a list/sequence of results) are not
+            supported for resume operations. Each evaluator should produce a single evaluation
+            result with a name matching the evaluator's key in the dictionary.
+
+        Args:
+            experiment_id (str): The ID of the experiment to resume evaluations for.
+            evaluators (ExperimentEvaluators): A single evaluator or sequence of evaluators
+                to run. Evaluators can be provided as a dict mapping names to functions,
+                or as a list of functions (names will be auto-generated).
+            print_summary (bool): Whether to print a summary of evaluation results.
+                Defaults to True.
+            timeout (Optional[int]): The timeout for evaluation execution in seconds.
+                Defaults to 60.
+            concurrency (int): The number of concurrent evaluations to run. Defaults to 3.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of
+                exceptions to adaptively throttle on. Defaults to None.
+
+        Raises:
+            ValueError: If the experiment is not found or no evaluators are provided.
+            httpx.HTTPStatusError: If the API returns an error response.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            async def accuracy(output, expected):
+                return 1.0 if output == expected else 0.0
+
+            # Standard usage: evaluation name matches evaluator key
+            await client.experiments.resume_evaluation(
+                experiment_id="exp_123",
+                evaluators={"accuracy": accuracy},
+            )
+        """
+        evaluators_by_name = _evaluators_by_name(evaluators)
+        if not evaluators_by_name:
+            raise ValueError("Must specify at least one evaluator")
+
+        # Get the experiment metadata
+        experiment = await self.get(experiment_id=experiment_id)
+
+        # Setup for evaluator execution
+        eval_tracer, eval_resource = _get_tracer(
+            experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
+        )
+
+        print("🔍 Checking for incomplete evaluations...")
+
+        # Build evaluation names list for query - derive from evaluator keys
+        evaluation_names_list = list(evaluators_by_name.keys())
+
+        # Process incomplete evaluations in streaming batches
+        cursor: Optional[str] = None
+        page_size = 100
+        total_processed = 0
+        total_completed = 0
+
+        while True:
+            # Fetch next batch of incomplete evaluations
+            params: dict[str, Any] = {"limit": page_size, "evaluation_name": evaluation_names_list}
+            if cursor:
+                params["cursor"] = cursor
+
+            try:
+                response = await self._client.get(
+                    f"v1/experiments/{experiment_id}/incomplete-evaluations",
+                    params=params,
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                body = cast(v1.GetIncompleteEvaluationsResponseBody, response.json())
+                batch_incomplete = body["data"]
+
+                if not batch_incomplete:
+                    if total_processed == 0:
+                        print("✅ No incomplete evaluations found. All evaluations are complete.")
+                        return
+                    break
+
+                if total_processed == 0:
+                    print("🧠 Resuming evaluations...")
+
+                # Build evaluation tasks from incomplete evaluations
+                evaluation_tasks = _build_incomplete_evaluation_tasks(
+                    batch_incomplete,
+                    evaluators_by_name,
+                )
+
+                total_processed += len({inc["experiment_run"]["id"] for inc in batch_incomplete})
+
+                if not evaluation_tasks:
+                    # No evaluators in this batch match the provided evaluators
+                    cursor = body.get("next_cursor")
+                    if not cursor:
+                        break
+                    continue
+
+                print(f"Processing batch of {len(evaluation_tasks)} evaluation tasks...")
+
+                # Execute evaluations using refactored method
+                batch_eval_runs = await self._run_evaluations(
+                    evaluation_tasks,
+                    eval_tracer,
+                    eval_resource,
+                    False,  # dry_run
+                    timeout,
+                    rate_limit_errors,
+                    concurrency,
+                )
+
+                total_completed += len([r for r in batch_eval_runs if r.error is None])
+
+                # Check for next page
+                cursor = body.get("next_cursor")
+                if not cursor:
+                    break
+
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Check if response is HTML (endpoint doesn't exist on old server)
+                    content_type = e.response.headers.get("content-type", "")
+                    if "text/html" in content_type:
+                        # Fetch server version to provide helpful context
+                        version_info = ""
+                        try:
+                            version_resp = await self._client.get(
+                                "arize_phoenix_version", timeout=timeout
+                            )
+                            version_info = f" Your current server version is {version_resp.text}."
+                        except Exception:
+                            pass  # Ignore errors fetching version
+
+                        raise ValueError(
+                            "The resume_evaluation feature is not available on this "
+                            f"Phoenix server. Please upgrade your Phoenix server to "
+                            f"use this feature.{version_info}"
+                        ) from e
+                    # Otherwise it's a real 404 (experiment doesn't exist)
+                    raise ValueError(f"Experiment not found: {experiment_id}") from e
+                raise
+
+        print("✅ Evaluations completed.")
+
+        if total_completed < total_processed * len(evaluators_by_name):
+            print(
+                f"⚠️  Warning: Only {total_completed} out of "
+                f"{total_processed * len(evaluators_by_name)} incomplete evaluations "
+                "were completed successfully."
+            )
+
+        # Print summary if requested
+        if print_summary:
+            print("\n" + "=" * 70)
+            print("📊 Evaluation Resume Summary")
+            print("=" * 70)
+            print(f"Runs processed: {total_processed}")
+            print(f"Evaluations completed: {total_completed}")
+            print("=" * 70 + "\n")
+
     async def evaluate_experiment(
         self,
         *,
@@ -1943,7 +3199,9 @@ class AsyncExperiments:
         Args:
             experiment (RanExperiment): The experiment to evaluate, returned from `run_experiment`.
             evaluators (ExperimentEvaluators): A single evaluator or sequence of evaluators
-                used to evaluate the results of the experiment.
+                used to evaluate the results of the experiment. Evaluators can be provided as a
+                dict mapping names to functions, or as a list of functions (names will be
+                auto-generated).
             dry_run (bool): Run the evaluation in dry-run mode. When set, evaluation results will
                 not be recorded in Phoenix. Defaults to False.
             print_summary (bool): Whether to print a summary of the evaluation results.
@@ -1988,7 +3246,16 @@ class AsyncExperiments:
                 project_name = experiment_data.get("project_name")
             except HTTPStatusError as e:
                 if e.response.status_code == 404:
-                    raise ValueError(f"Experiment not found: {experiment_id}")
+                    # Check if response is HTML (endpoint doesn't exist on old server)
+                    content_type = e.response.headers.get("content-type", "")
+                    if "text/html" in content_type:
+                        raise ValueError(
+                            "The resume_evaluation feature is not available on this "
+                            "Phoenix server. Please upgrade your Phoenix server to "
+                            "use this feature."
+                        ) from e
+                    # Otherwise it's a real 404 (experiment doesn't exist)
+                    raise ValueError(f"Experiment not found: {experiment_id}") from e
                 raise
 
         version_params = {"version_id": dataset_version_id}
@@ -2029,16 +3296,23 @@ class AsyncExperiments:
         if dry_run:
             print("🌵️ This is a dry-run evaluation.")
 
-        eval_runs = await self._run_evaluations(
+        # Build evaluation tasks
+        examples_by_id = {ex["id"]: ex for ex in dataset.examples}
+        evaluation_tasks = _build_evaluation_tasks(
             task_runs,
             evaluators_by_name,
+            examples_by_id,
+        )
+
+        # Run evaluations
+        eval_runs = await self._run_evaluations(
+            evaluation_tasks,
             eval_tracer,
             eval_resource,
             dry_run,
             timeout,
             rate_limit_errors,
             concurrency,
-            dataset,
         )
 
         all_evaluation_runs = eval_runs
@@ -2121,16 +3395,17 @@ class AsyncExperiments:
         start_time = datetime.now(timezone.utc)
         end_time = start_time
         trace_id = None
+
         status = Status(StatusCode.OK)
 
         with ExitStack() as stack:
+            stack.enter_context(capture_spans(resource))
             span = cast(
                 Span,
                 stack.enter_context(
                     tracer.start_as_current_span(root_span_name, context=Context())
                 ),
             )
-            stack.enter_context(capture_spans(resource))
             try:
                 bound_task_args = _bind_task_signature(task_signature, example)
                 _output = task(*bound_task_args.args, **bound_task_args.kwargs)
@@ -2207,29 +3482,29 @@ class AsyncExperiments:
 
     async def _run_evaluations(
         self,
-        task_runs: list[ExperimentRun],
-        evaluators_by_name: Mapping[EvaluatorName, Evaluator],
+        evaluation_tasks: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]],
         tracer: Tracer,
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
         concurrency: int,
-        dataset: Dataset,
     ) -> list[ExperimentEvaluationRun]:
-        # Create evaluation input with example data
-        evaluation_input: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]] = []
-        for run in task_runs:
-            # Find the corresponding example for this run
-            example = None
-            for ex in dataset.examples:
-                if ex["id"] == run["dataset_example_id"]:
-                    example = ex
-                    break
+        """
+        Execute evaluation tasks asynchronously.
 
-            if example is not None:
-                for evaluator in evaluators_by_name.values():
-                    evaluation_input.append((example, run, evaluator))
+        Args:
+            evaluation_tasks: List of (example, run, evaluator) tuples
+            tracer: OpenTelemetry tracer
+            resource: OpenTelemetry resource
+            dry_run: Whether to skip server submission
+            timeout: Timeout for evaluations
+            rate_limit_errors: Errors to rate limit on
+            concurrency: Number of concurrent evaluations
+
+        Returns:
+            List of evaluation run results
+        """
 
         # Setup rate limiting
         errors: tuple[type[BaseException], ...]
@@ -2244,7 +3519,13 @@ class AsyncExperiments:
         ) -> list[ExperimentEvaluationRun]:
             example, run, evaluator = obj
             return await self._run_single_evaluation_async(
-                example, run, evaluator, tracer, resource, dry_run, timeout
+                example,
+                run,
+                evaluator,
+                tracer,
+                resource,
+                dry_run,
+                timeout,
             )
 
         rate_limited_async_evaluate_run = functools.reduce(
@@ -2261,7 +3542,7 @@ class AsyncExperiments:
             timeout=timeout,
         )
 
-        eval_runs, _execution_details = await executor.execute(evaluation_input)
+        eval_runs, _execution_details = await executor.execute(evaluation_tasks)
         flattened: list[ExperimentEvaluationRun] = []
         for res in eval_runs:
             if res is None:
@@ -2288,13 +3569,13 @@ class AsyncExperiments:
         status = Status(StatusCode.OK)
 
         with ExitStack() as stack:
+            stack.enter_context(capture_spans(resource))
             span = cast(
                 Span,
                 stack.enter_context(
                     tracer.start_as_current_span(root_span_name, context=Context())
                 ),
             )
-            stack.enter_context(capture_spans(resource))
             try:
                 result = await evaluator.async_evaluate(
                     output=experiment_run["output"],
@@ -2406,3 +3687,150 @@ class AsyncExperiments:
             eval_runs.append(eval_run)
 
         return eval_runs
+
+    async def get(
+        self,
+        *,
+        experiment_id: str,
+    ) -> Experiment:
+        """Get an experiment by ID.
+
+        Args:
+            experiment_id (str): The ID of the experiment to retrieve.
+
+        Returns:
+            Experiment: The experiment with the specified ID.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the experiment is not found.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            experiment = await async_client.experiments.get(experiment_id="exp_123")
+            print(f"Example count: {experiment['example_count']}")
+            print(f"Successful runs: {experiment['successful_run_count']}")
+        """
+        try:
+            response = await self._client.get(f"v1/experiments/{experiment_id}")
+            response.raise_for_status()
+            exp_data = response.json()["data"]
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Experiment not found: {experiment_id}")
+            raise
+
+        return cast(Experiment, exp_data)
+
+    async def delete(
+        self,
+        *,
+        experiment_id: str,
+    ) -> None:
+        """Delete an experiment by ID.
+
+        Args:
+            experiment_id (str): The ID of the experiment to delete.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the experiment is not found.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            await async_client.experiments.delete(experiment_id="exp_123")
+        """
+        try:
+            response = await self._client.delete(f"v1/experiments/{experiment_id}")
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Experiment not found: {experiment_id}")
+            raise
+
+    async def _paginate(
+        self,
+        *,
+        dataset_id: str,
+        cursor: Optional[str] = None,
+        limit: int = 50,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.ListExperimentsResponseBody:
+        """
+        Internal method to paginate through experiments with cursor-based pagination.
+
+        This is a private method used internally by the list() method to handle pagination.
+        Users should use the list() method instead of calling this directly.
+
+        Args:
+            dataset_id (str): The ID of the dataset to list experiments for.
+            cursor: Cursor for pagination. Use the `next_cursor` from a previous
+                response to get the next page. None for the first page.
+            limit: Maximum number of experiments to return per page (default: 50).
+            timeout: Request timeout in seconds (default: 60).
+
+        Returns:
+            Dictionary with pagination response containing:
+                - data: List of experiment dictionaries with fields: id, dataset_id,
+                  dataset_version_id, repetitions, metadata, project_name, created_at,
+                  updated_at, example_count, successful_run_count, failed_run_count,
+                  missing_run_count
+                - next_cursor: String cursor for next page, or None if no more pages
+
+        Raises:
+            httpx.HTTPError: If the API request fails (e.g., invalid cursor, network error).
+        """
+        url = f"v1/datasets/{dataset_id}/experiments"
+        params: dict[str, Any] = {"limit": limit}
+        if cursor:
+            params["cursor"] = cursor
+        response = await self._client.get(url, params=params, timeout=timeout)
+        response.raise_for_status()
+        return cast(v1.ListExperimentsResponseBody, response.json())
+
+    async def list(
+        self,
+        *,
+        dataset_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[Experiment]:
+        """List all experiments for a dataset with automatic pagination handling.
+
+        This method automatically handles pagination behind the scenes and returns
+        a simple list of experiments.
+
+        Args:
+            dataset_id (str): The ID of the dataset to list experiments for.
+            timeout: Request timeout in seconds for each paginated request (default: 60).
+
+        Returns:
+            list[Experiment]: A list of all experiments for the dataset.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            experiments = await async_client.experiments.list(dataset_id="dataset_123")
+            for experiment in experiments:
+                print(f"Experiment: {experiment['id']}, Runs: {experiment['successful_run_count']}")
+        """
+        all_experiments: list[Experiment] = []
+        cursor: Optional[str] = None
+        while True:
+            data = await self._paginate(dataset_id=dataset_id, cursor=cursor, timeout=timeout)
+            all_experiments.extend(data["data"])
+
+            cursor = data.get("next_cursor")
+            if not cursor:
+                break
+        return all_experiments

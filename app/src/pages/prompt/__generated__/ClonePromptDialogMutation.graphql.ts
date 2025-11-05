@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ff7ae57641ec15930f2f38521308781f>>
+ * @generated SignedSource<<de952eb9485525d2f7a33126f2009601>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type ClonePromptInput = {
   description?: string | null;
+  metadata?: any | null;
   name: string;
   promptId: string;
 };

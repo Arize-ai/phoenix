@@ -9,18 +9,25 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Optional, Union, cast, overload
 from urllib.parse import quote, urljoin, urlparse
 
 import wrapt
 from email_validator import EmailNotValidError, validate_email
 from starlette.datastructures import URL, Secret
+from typing_extensions import TypeAlias, get_args
 
 from phoenix.utilities.logging import log_a_list
 from phoenix.utilities.re import parse_env_headers
 
 if TYPE_CHECKING:
     from phoenix.server.oauth2 import OAuth2Clients
+
+# OAuth2-assignable roles (SYSTEM is internal-only and not included)
+OAuth2UserRoleName: TypeAlias = Literal["ADMIN", "MEMBER", "VIEWER"]
+
+# Tuple of valid OAuth2 roles for validation
+_VALID_OAUTH2_ROLES: tuple[str, ...] = get_args(OAuth2UserRoleName)
 
 logger = logging.getLogger(__name__)
 
@@ -1030,6 +1037,11 @@ class OAuth2ClientConfig:
     groups_attribute_path: Optional[str]
     allowed_groups: list[str]
 
+    # Role mapping
+    role_attribute_path: Optional[str]
+    role_mapping: dict[str, OAuth2UserRoleName]
+    role_attribute_strict: bool
+
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
         """Load OAuth2 client configuration from environment variables for the given IDP name."""
@@ -1140,6 +1152,71 @@ class OAuth2ClientConfig:
                 "If you don't need group-based access control, remove GROUPS_ATTRIBUTE_PATH."
             )
 
+        # Role mapping
+        role_attribute_path = _get_optional("ROLE_ATTRIBUTE_PATH")
+        role_mapping: dict[str, OAuth2UserRoleName] = {}
+        if raw_mapping := _get_optional("ROLE_MAPPING"):
+            # Parse role mapping: "IdpRole1:PhoenixRole,IdpRole2:PhoenixRole"
+            for mapping_pair in raw_mapping.split(","):
+                mapping_pair = mapping_pair.strip()
+                if not mapping_pair:
+                    continue
+
+                if ":" not in mapping_pair:
+                    raise ValueError(
+                        f"Invalid ROLE_MAPPING format for {idp_name}: '{mapping_pair}'. "
+                        "Expected format: 'IdpRole:PhoenixRole' "
+                        "(e.g., 'Owner:ADMIN,Developer:MEMBER')"
+                    )
+
+                idp_role, phoenix_role = mapping_pair.split(":", 1)
+                idp_role = idp_role.strip()
+                phoenix_role_upper = phoenix_role.strip().upper()
+
+                if not idp_role:
+                    raise ValueError(
+                        f"Invalid ROLE_MAPPING for {idp_name}: "
+                        f"IDP role cannot be empty in '{mapping_pair}'"
+                    )
+
+                # Explicitly reject SYSTEM role (internal-only)
+                if phoenix_role_upper == "SYSTEM":
+                    raise ValueError(
+                        f"Invalid ROLE_MAPPING for {idp_name}: "
+                        f"SYSTEM role cannot be assigned via OAuth2. "
+                        f"SYSTEM is an internal-only role for system API keys. "
+                        f"Valid roles are: {', '.join(sorted(_VALID_OAUTH2_ROLES))}"
+                    )
+
+                if phoenix_role_upper not in _VALID_OAUTH2_ROLES:
+                    valid_roles = ", ".join(sorted(_VALID_OAUTH2_ROLES))
+                    raise ValueError(
+                        f"Invalid ROLE_MAPPING for {idp_name}: "
+                        f"'{phoenix_role}' is not a valid Phoenix role. "
+                        f"Valid roles are: {valid_roles} (case-insensitive)."
+                    )
+
+                role_mapping[idp_role] = phoenix_role_upper  # type: ignore[assignment]
+
+        # Get role_attribute_strict setting (defaults to False)
+        role_attribute_strict = _bool_val(f"{idp_prefix}_ROLE_ATTRIBUTE_STRICT", False)
+
+        # Validate role configuration consistency
+        if not role_attribute_path:
+            # If ROLE_ATTRIBUTE_PATH is not configured, other role settings should not be set
+            if role_mapping:
+                raise ValueError(
+                    f"Invalid configuration for {idp_name}: ROLE_MAPPING is set but "
+                    f"ROLE_ATTRIBUTE_PATH is not configured. ROLE_MAPPING requires "
+                    f"ROLE_ATTRIBUTE_PATH to specify where to extract the role from."
+                )
+            if role_attribute_strict:
+                raise ValueError(
+                    f"Invalid configuration for {idp_name}: ROLE_ATTRIBUTE_STRICT is set to "
+                    f"true but ROLE_ATTRIBUTE_PATH is not configured. ROLE_ATTRIBUTE_STRICT "
+                    f"only applies when role extraction is enabled via ROLE_ATTRIBUTE_PATH."
+                )
+
         return cls(
             idp_name=idp_name,
             idp_display_name=_get_optional("DISPLAY_NAME")
@@ -1154,6 +1231,9 @@ class OAuth2ClientConfig:
             scopes=" ".join(scopes),
             groups_attribute_path=groups_attribute_path,
             allowed_groups=allowed_groups,
+            role_attribute_path=role_attribute_path,
+            role_mapping=role_mapping,
+            role_attribute_strict=role_attribute_strict,
         )
 
 
@@ -1171,6 +1251,9 @@ _OAUTH2_CONFIG_SUFFIXES = (
     "SCOPES",
     "GROUPS_ATTRIBUTE_PATH",  # JMESPath expression to extract groups from ID token
     "ALLOWED_GROUPS",  # Comma-separated list of groups allowed to sign in
+    "ROLE_ATTRIBUTE_PATH",  # JMESPath expression to extract role from ID token
+    "ROLE_MAPPING",  # Comma-separated list of IDP role to Phoenix role mappings
+    "ROLE_ATTRIBUTE_STRICT",  # Whether to deny access if role cannot be extracted/mapped
 )
 
 
@@ -1281,12 +1364,90 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
           Works together with GROUPS_ATTRIBUTE_PATH to implement group-based access control. If not set,
           all authenticated users can sign in (subject to ALLOW_SIGN_UP restrictions).
 
+        - PHOENIX_OAUTH2_{IDP_NAME}_ROLE_ATTRIBUTE_PATH: JMESPath expression to extract user role claim
+          from the OIDC ID token or userinfo endpoint response. Similar to GROUPS_ATTRIBUTE_PATH but for
+          extracting a single role value. See https://jmespath.org for full syntax.
+
+          ⚠️ IMPORTANT: Claim keys with special characters MUST be enclosed in double quotes.
+          Examples: `"https://myapp.com/role"`, `"custom:role"`, `user.profile."app-role"`
+
+          Common patterns:
+            • Simple key: `role` - extracts top-level string
+            • Nested key: `user.organization.role` - dot notation for nested objects
+            • Array element: `roles[0]` - gets first role from array
+            • Constant value: `'MEMBER'` - assigns a fixed role to all users from this IDP (no mapping needed)
+            • Conditional logic: `contains(groups[*], 'admin') && 'ADMIN' || 'VIEWER'` - compute role
+              from group membership using logical operators (returns Phoenix role directly, no mapping needed)
+
+          This claim is used with ROLE_MAPPING to automatically assign Phoenix roles (ADMIN, MEMBER, VIEWER)
+          based on the user's role in your identity provider. The extracted role value is matched against
+          keys in ROLE_MAPPING to determine the Phoenix role.
+
+          Advanced: If the JMESPath expression returns a valid Phoenix role name (ADMIN, MEMBER, VIEWER)
+          directly, ROLE_MAPPING is optional - the value will be used as-is after case-insensitive validation.
+
+          ⚠️ Role Update Behavior:
+            • When ROLE_ATTRIBUTE_PATH IS configured: User roles are synchronized from the IDP on EVERY login.
+              This ensures Phoenix roles stay in sync with your IDP's role assignments.
+            • When ROLE_ATTRIBUTE_PATH is NOT configured: User roles are preserved as-is (backward compatibility).
+              New users get VIEWER role (least privilege), existing users keep their current roles.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_ROLE_MAPPING: Maps identity provider role values to Phoenix roles.
+          Format: "IdpRole1:PhoenixRole1,IdpRole2:PhoenixRole2"
+
+          Phoenix roles (case-insensitive):
+            • ADMIN: Full system access, can manage users and settings
+            • MEMBER: Standard user access, can create and manage own resources
+            • VIEWER: Read-only access, cannot create or modify resources
+
+          Example mappings:
+            PHOENIX_OAUTH2_OKTA_ROLE_MAPPING="Owner:ADMIN,Developer:MEMBER,Guest:VIEWER"
+            PHOENIX_OAUTH2_KEYCLOAK_ROLE_MAPPING="admin:ADMIN,user:MEMBER"
+
+          ⚠️ Security: The SYSTEM role cannot be assigned via OAuth2. Attempts to map to SYSTEM will be rejected.
+
+          Optional Behavior (no mapping required):
+            If ROLE_MAPPING is not configured but ROLE_ATTRIBUTE_PATH is set, the system will use the
+            IDP role value directly if it exactly matches "ADMIN", "MEMBER", or "VIEWER" (case-insensitive).
+            This allows IDPs that already use Phoenix's role names to work without explicit mapping.
+
+          IDP role keys are case-sensitive and must match exactly. Phoenix role values are case-insensitive
+          but will be normalized to uppercase (ADMIN, MEMBER, VIEWER). If a user's IDP role is not in the
+          mapping, behavior depends on ROLE_ATTRIBUTE_STRICT:
+            • strict=false (default): User gets VIEWER role (least privilege)
+            • strict=true: User is denied access
+
+          Works together with ROLE_ATTRIBUTE_PATH. If ROLE_ATTRIBUTE_PATH is set but ROLE_MAPPING is not,
+          the IDP role value is used directly if it matches a valid Phoenix role (ADMIN, MEMBER, VIEWER).
+          If the IDP role doesn't match a valid Phoenix role, behavior depends on ROLE_ATTRIBUTE_STRICT.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_ROLE_ATTRIBUTE_STRICT: Controls behavior when role cannot be determined
+          from identity provider claims. Defaults to false.
+
+          When true:
+            • Missing role claim → access denied
+            • Role not in ROLE_MAPPING → access denied
+            • Empty/invalid role value → access denied
+
+          When false (default):
+            • Missing/unmapped/invalid role → user gets VIEWER role (least privilege, fail-safe)
+
+          Strict mode is recommended for high-security environments where all users must have explicitly
+          assigned roles. Non-strict mode (default) is more forgiving and suitable for gradual rollout
+          of role mapping.
+
+          Example:
+            PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT=true
+
     Multiple Identity Providers:
         You can configure multiple IDPs simultaneously. Users will see all configured providers
         as login options. Each IDP is configured independently with its own set of variables.
 
-        Group-based access control is evaluated per-provider: if a user authenticates via an IDP
-        with ALLOWED_GROUPS configured, they must belong to one of those groups to sign in.
+        Group-based access control and role mapping are evaluated per-provider:
+        • Groups control access (who can sign in): Users must belong to ALLOWED_GROUPS
+        • Roles control permissions (what users can do): Users are assigned Phoenix roles via ROLE_MAPPING
+        • Groups are checked first, then roles are assigned if access is granted
+        • Each IDP can have different group/role configurations
 
     Returns:
         list[OAuth2ClientConfig]: A list of configured OAuth2 identity providers, sorted alphabetically by IDP name.
@@ -1325,6 +1486,28 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         With array projection (extract names from objects):
             PHOENIX_OAUTH2_CUSTOM_GROUPS_ATTRIBUTE_PATH=teams[*].name
             PHOENIX_OAUTH2_CUSTOM_ALLOWED_GROUPS=engineering operations
+
+        With role mapping (simple):
+            PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_PATH=role
+            PHOENIX_OAUTH2_OKTA_ROLE_MAPPING="Owner:ADMIN,Developer:MEMBER,Viewer:VIEWER"
+
+        With role mapping (nested path for Keycloak):
+            PHOENIX_OAUTH2_KEYCLOAK_ROLE_ATTRIBUTE_PATH=resource_access.phoenix.role
+            PHOENIX_OAUTH2_KEYCLOAK_ROLE_MAPPING="admin:ADMIN,user:MEMBER"
+
+        With role mapping in strict mode (deny unmapped roles):
+            PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_PATH=role
+            PHOENIX_OAUTH2_OKTA_ROLE_MAPPING="Owner:ADMIN,Developer:MEMBER"
+            PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT=true
+
+        With conditional logic to compute role from groups (no mapping needed):
+            PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_PATH="contains(groups[*], 'admin') && 'ADMIN' || contains(groups[*], 'editor') && 'MEMBER' || 'VIEWER'"
+
+        With both groups and roles (groups control access, roles control permissions):
+            PHOENIX_OAUTH2_OKTA_GROUPS_ATTRIBUTE_PATH=groups
+            PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS=engineering platform-team
+            PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_PATH=role
+            PHOENIX_OAUTH2_OKTA_ROLE_MAPPING="Owner:ADMIN,Developer:MEMBER,Guest:VIEWER"
 
         For public clients using PKCE (no client secret needed):
             PHOENIX_OAUTH2_MOBILE_CLIENT_ID=mobile_app_id

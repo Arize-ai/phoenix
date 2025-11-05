@@ -283,6 +283,15 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { ContextualHelp } from '@phoenix/components'",
       },
+      {
+        name: "classNames",
+        module: "@arizeai/components",
+        use: "import { classNames } from '@phoenix/utils'",
+      },
+      {
+        name: "Field",
+        module: "@arizeai/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },

@@ -7,8 +7,6 @@ import {
 } from "react";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
-
 import {
   Button,
   Flex,
@@ -26,6 +24,7 @@ import {
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { classNames } from "@phoenix/utils";
 
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
