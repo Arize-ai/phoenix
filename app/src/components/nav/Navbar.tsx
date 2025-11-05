@@ -167,36 +167,22 @@ export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
   const { theme, systemTheme, themeMode, setThemeMode } = useTheme();
   const { themeText, themeIcon } = useMemo(() => {
     let themeIcon: ReactNode;
+    let themeText: string;
     switch (themeMode) {
       case "light":
         themeIcon = <Icons.SunOutline />;
+        themeText = "Light";
         break;
       case "dark":
         themeIcon = <Icons.MoonOutline />;
+        themeText = "Dark";
         break;
       case "system":
         themeIcon = <Icons.HalfMoonHalfSunOutline />;
+        themeText = `${theme === "light" ? "Light" : "Dark"} (auto)`;
         break;
       default:
         assertUnreachable(themeMode);
-    }
-    let themeText: string;
-    switch (themeMode) {
-      case "light": {
-        themeText = "Light";
-        break;
-      }
-      case "dark": {
-        themeText = "Dark";
-        break;
-      }
-      case "system": {
-        themeText = `${theme === "light" ? "Light" : "Dark"} (auto)`;
-        break;
-      }
-      default: {
-        assertUnreachable(themeMode);
-      }
     }
     return {
       themeIcon,
