@@ -1,3 +1,4 @@
+import { CSSProperties } from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Text } from "@phoenix/components";
@@ -52,11 +53,13 @@ const getAnnotationDisplayValue = ({
 interface AnnotationNameAndValueProps extends SizingProps {
   annotation: Annotation;
   displayPreference: AnnotationDisplayPreference;
+  minWidth?: CSSProperties["minWidth"];
 }
 export function AnnotationNameAndValue({
   annotation,
   displayPreference,
   size,
+  minWidth = "5rem",
 }: AnnotationNameAndValueProps) {
   const labelValue = getAnnotationDisplayValue({
     annotation,
@@ -70,7 +73,7 @@ export function AnnotationNameAndValue({
       className="annotation-name-and-value"
     >
       <AnnotationColorSwatch annotationName={annotation.name} />
-      <div css={css(textCSS, { minWidth: "5rem" })}>
+      <div css={css(textCSS, { minWidth })} title={annotation.name}>
         <Text weight="heavy" size={size} color="inherit">
           {annotation.name}
         </Text>
