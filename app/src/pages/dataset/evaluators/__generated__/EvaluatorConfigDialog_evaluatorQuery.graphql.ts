@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c553ad468f6cf556b78fa01a19683653>>
+ * @generated SignedSource<<2ec6947cbc7be79670bbbbc6930651e0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EvaluatorKind = "CODE" | "LLM";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type EvaluatorConfigDialog_evaluatorQuery$variables = {
   evaluatorId: string;
 };
@@ -26,7 +27,13 @@ export type EvaluatorConfigDialog_evaluatorQuery$data = {
         readonly score: number | null;
       }>;
     };
+    readonly prompt?: {
+      readonly id: string;
+      readonly name: string;
+    };
     readonly promptVersion?: {
+      readonly id: string;
+      readonly templateFormat: PromptTemplateFormat;
       readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessagesCard__main">;
     };
   };
@@ -108,11 +115,31 @@ v5 = {
 v6 = {
   "alias": null,
   "args": null,
+  "concreteType": "Prompt",
+  "kind": "LinkedField",
+  "name": "prompt",
+  "plural": false,
+  "selections": [
+    (v2/*: any*/),
+    (v3/*: any*/)
+  ],
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "templateFormat",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v7 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -152,6 +179,7 @@ return {
                 ],
                 "storageKey": null
               },
+              (v6/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -160,6 +188,8 @@ return {
                 "name": "promptVersion",
                 "plural": false,
                 "selections": [
+                  (v2/*: any*/),
+                  (v7/*: any*/),
                   {
                     "args": null,
                     "kind": "FragmentSpread",
@@ -193,7 +223,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*: any*/),
+          (v8/*: any*/),
           (v2/*: any*/),
           (v4/*: any*/),
           {
@@ -213,6 +243,7 @@ return {
                 ],
                 "storageKey": null
               },
+              (v6/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -221,6 +252,8 @@ return {
                 "name": "promptVersion",
                 "plural": false,
                 "selections": [
+                  (v2/*: any*/),
+                  (v7/*: any*/),
                   {
                     "alias": "provider",
                     "args": null,
@@ -236,7 +269,7 @@ return {
                     "name": "template",
                     "plural": false,
                     "selections": [
-                      (v6/*: any*/),
+                      (v8/*: any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -263,7 +296,7 @@ return {
                                 "name": "content",
                                 "plural": true,
                                 "selections": [
-                                  (v6/*: any*/),
+                                  (v8/*: any*/),
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
@@ -300,7 +333,7 @@ return {
                                         "name": "toolCall",
                                         "plural": false,
                                         "selections": [
-                                          (v7/*: any*/),
+                                          (v9/*: any*/),
                                           {
                                             "alias": null,
                                             "args": null,
@@ -338,7 +371,7 @@ return {
                                         "name": "toolResult",
                                         "plural": false,
                                         "selections": [
-                                          (v7/*: any*/),
+                                          (v9/*: any*/),
                                           {
                                             "alias": null,
                                             "args": null,
@@ -386,15 +419,7 @@ return {
                     "kind": "ScalarField",
                     "name": "templateType",
                     "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "templateFormat",
-                    "storageKey": null
-                  },
-                  (v2/*: any*/)
+                  }
                 ],
                 "storageKey": null
               }
@@ -408,16 +433,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d6b4a746993590519b4a508723af8d56",
+    "cacheID": "7e2ca9041b60c8a5ab232c217d1f5e8e",
     "id": null,
     "metadata": {},
     "name": "EvaluatorConfigDialog_evaluatorQuery",
     "operationKind": "query",
-    "text": "query EvaluatorConfigDialog_evaluatorQuery(\n  $evaluatorId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    id\n    ... on Evaluator {\n      __isEvaluator: __typename\n      name\n      kind\n    }\n    ... on LLMEvaluator {\n      outputConfig {\n        name\n        values {\n          label\n          score\n        }\n        id\n      }\n      promptVersion {\n        ...PromptChatMessagesCard__main\n        id\n      }\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n"
+    "text": "query EvaluatorConfigDialog_evaluatorQuery(\n  $evaluatorId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    id\n    ... on Evaluator {\n      __isEvaluator: __typename\n      name\n      kind\n    }\n    ... on LLMEvaluator {\n      outputConfig {\n        name\n        values {\n          label\n          score\n        }\n        id\n      }\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        id\n        templateFormat\n        ...PromptChatMessagesCard__main\n      }\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cc780e38eb8a0e88f61a1551d65f652e";
+(node as any).hash = "919986f9d058e93c0ef490110529dc4e";
 
 export default node;

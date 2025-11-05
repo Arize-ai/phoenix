@@ -1,3 +1,5 @@
+import { useCallback, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
@@ -17,6 +19,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { EvaluatorConfigDialog_dataset$key } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_dataset.graphql";
 import {
@@ -24,6 +27,12 @@ import {
   EvaluatorConfigDialog_evaluatorQuery$data,
 } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_evaluatorQuery.graphql";
 import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
+import {
+  EvaluatorInputMapping,
+  InputMapping,
+} from "@phoenix/pages/evaluators/EvaluatorInputMapping";
+import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
+import { extractVariablesFromInstance } from "@phoenix/pages/playground/playgroundUtils";
 
 type OutputConfig = NonNullable<
   EvaluatorConfigDialog_evaluatorQuery$data["evaluator"]["outputConfig"]
@@ -40,6 +49,18 @@ export function EvaluatorConfigDialog({
 }) {
   const loaderData = useLoaderData<typeof datasetEvaluatorsLoader>();
   invariant(loaderData, "loaderData is required");
+
+  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
+    null
+  );
+  const {
+    control: inputMappingControl,
+    getValues: getInputMappingValues,
+    formState: { isValid: isInputMappingValid },
+  } = useForm<InputMapping>({
+    defaultValues: {},
+  });
+
   const dataset = useFragment<EvaluatorConfigDialog_dataset$key>(
     graphql`
       fragment EvaluatorConfigDialog_dataset on Dataset {
@@ -67,7 +88,13 @@ export function EvaluatorConfigDialog({
                 score
               }
             }
+            prompt {
+              id
+              name
+            }
             promptVersion {
+              id
+              templateFormat
               ...PromptChatMessagesCard__main
             }
           }
@@ -76,6 +103,30 @@ export function EvaluatorConfigDialog({
     `,
     { evaluatorId }
   );
+
+  const [promptVariables, setPromptVariables] = useState<string[]>([]);
+
+  const updatePromptVariables = useCallback(async () => {
+    if (!evaluator.prompt || !evaluator.promptVersion) {
+      return;
+    }
+    const response = await fetchPlaygroundPromptAsInstance({
+      promptId: evaluator.prompt.id,
+      promptVersionId: evaluator.promptVersion.id,
+    });
+    if (!response) {
+      return;
+    }
+    const promptVariables = extractVariablesFromInstance({
+      instance: { id: 0, ...response.instance },
+      templateFormat: evaluator.promptVersion.templateFormat,
+    });
+    setPromptVariables(promptVariables);
+  }, [evaluator]);
+
+  useEffect(() => {
+    updatePromptVariables();
+  }, [updatePromptVariables]);
 
   const onAddEvaluator = () => {
     // TODO: add evaluator to dataset
@@ -112,15 +163,11 @@ export function EvaluatorConfigDialog({
           paddingBottom="size-300"
           paddingTop="size-200"
         >
-          <Flex direction="row" alignItems="center" gap="size-200">
+          <Flex direction="row" alignItems="start" gap="size-200">
             {evaluator.kind === "LLM" && (
-              <div>
+              <Flex direction="column" gap="size-300" flex="1">
                 {evaluator.promptVersion && (
-                  <Flex
-                    direction="column"
-                    gap="size-100"
-                    marginBottom="size-300"
-                  >
+                  <Flex direction="column" gap="size-100">
                     <Text>
                       This is in read only mode, you can{" "}
                       <Link to="TODO: link to evaluator edit page when it exists">
@@ -149,9 +196,26 @@ export function EvaluatorConfigDialog({
                     </Text>
                   </Flex>
                 )}
-              </div>
+              </Flex>
             )}
-            <div></div>
+            <Flex direction="column" gap="size-300" flex="1">
+              <Flex direction="column" gap="size-100">
+                <Text size="L">Example</Text>
+                <EvaluatorExampleDataset
+                  selectedDatasetId={dataset.id}
+                  datasetSelectIsDisabled
+                  onSelectDataset={() => {}}
+                  selectedSplitIds={[]}
+                  onSelectSplits={() => {}}
+                  onSelectExampleId={setSelectedExampleId}
+                />
+              </Flex>
+              <EvaluatorInputMapping
+                exampleId={selectedExampleId ?? undefined}
+                control={inputMappingControl}
+                variables={promptVariables}
+              />
+            </Flex>
           </Flex>
         </View>
       </DialogContent>
