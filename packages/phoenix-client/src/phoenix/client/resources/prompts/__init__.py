@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Optional, cast
 
 import httpx
@@ -11,6 +12,13 @@ from phoenix.client.types.prompts import PromptVersion
 from phoenix.client.utils.encode_path_param import encode_path_param
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_TIMEOUT_IN_SECONDS = 5
+
+
+def _parse_datetime(datetime_str: str) -> datetime:
+    """Convert ISO datetime string to datetime object."""
+    return datetime.fromisoformat(datetime_str)
 
 
 class Prompts:
@@ -152,6 +160,59 @@ class Prompts:
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
         return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+
+    def get_prompt_versions(
+        self,
+        *,
+        prompt_identifier: str,
+        limit: Optional[int] = 100,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[v1.PromptVersion]:
+        """
+        Get versions of a specific prompt.
+
+        Retrieves a list of prompt versions for the specified prompt identifier,
+        ordered from most recent to oldest. Each version includes the complete
+        prompt configuration including template, model settings, and invocation parameters.
+
+        Args:
+            prompt_identifier: The unique identifier for the prompt.
+            limit: Maximum number of versions to return, starting from the most recent.
+                Defaults to 100.
+            timeout: Optional request timeout in seconds. Uses the default timeout
+                if not specified.
+
+        Returns:
+            List of dictionaries containing prompt version information.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+
+        Example:
+            >>> versions = client.get_prompt_versions(
+            ...     prompt_identifier="my-prompt",
+            ...     limit=5
+            ... )
+            >>> for version in versions:
+            ...     print(f"Version {version['id']}: {version['model_name']}")
+        """
+        response = self._client.get(
+            url=f"v1/prompts/{prompt_identifier}/versions",
+            params={"limit": limit},
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+
+        records = response.json()["data"]
+        if not records:
+            return []
+
+        for record in records:
+            if "created_at" in record:
+                record["created_at"] = _parse_datetime(record["created_at"])
+
+        return records  # type: ignore[no-any-return]
 
 
 class PromptVersionTags:
@@ -423,6 +484,59 @@ class AsyncPrompts:
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
         return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+
+    async def get_prompt_versions(
+        self,
+        *,
+        prompt_identifier: str,
+        limit: Optional[int] = 100,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[v1.PromptVersion]:
+        """
+        Asynchronously get versions of a specific prompt.
+
+        Retrieves a list of prompt versions for the specified prompt identifier,
+        ordered from most recent to oldest. Each version includes the complete
+        prompt configuration including template, model settings, and invocation parameters.
+
+        Args:
+            prompt_identifier: The unique identifier for the prompt.
+            limit: Maximum number of versions to return, starting from the most recent.
+                Defaults to 100.
+            timeout: Optional request timeout in seconds. Uses the default timeout
+                if not specified.
+
+        Returns:
+            List of dictionaries containing prompt version information.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+
+        Example:
+            >>> versions = await client.get_prompt_versions(
+            ...     prompt_identifier="my-prompt",
+            ...     limit=5
+            ... )
+            >>> for version in versions:
+            ...     print(f"Version {version['id']}: {version['model_name']}")
+        """
+        response = await self._client.get(
+            url=f"v1/prompts/{prompt_identifier}/versions",
+            params={"limit": limit},
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+
+        records = response.json()["data"]
+        if not records:
+            return []
+
+        for record in records:
+            if "created_at" in record:
+                record["created_at"] = _parse_datetime(record["created_at"])
+
+        return records  # type: ignore[no-any-return]
 
 
 class AsyncPromptVersionTags:
