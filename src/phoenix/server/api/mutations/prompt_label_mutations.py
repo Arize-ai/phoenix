@@ -188,7 +188,7 @@ class PromptLabelMutationMixin:
             )
             result = await session.execute(stmt)
 
-            if result.rowcount != len(label_ids):  # type: ignore[attr-defined]
+            if result.rowcount != len(label_ids):
                 label_ids_str = ", ".join(str(i) for i in label_ids)
                 raise NotFound(
                     f"No association between prompt={prompt_id} and labels={label_ids_str}."
