@@ -99,12 +99,12 @@ class UnassignEvaluatorFromDatasetInput:
 
 
 @strawberry.input
-class DeleteLLMEvaluatorInput:
+class DeleteEvaluatorInput:
     evaluator_id: GlobalID
 
 
 @strawberry.type
-class DeleteLLMEvaluatorPayload:
+class DeleteEvaluatorPayload:
     evaluator_id: GlobalID
     query: Query
 
@@ -216,9 +216,9 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def delete_llm_evaluator(
-        self, info: Info[Context, None], input: DeleteLLMEvaluatorInput
-    ) -> DeleteLLMEvaluatorPayload:
+    async def delete_evaluator(
+        self, info: Info[Context, None], input: DeleteEvaluatorInput
+    ) -> DeleteEvaluatorPayload:
         try:
             evaluator_rowid = from_global_id_with_expected_type(
                 global_id=input.evaluator_id,
@@ -232,8 +232,7 @@ class EvaluatorMutationMixin:
             result = await session.execute(stmt)
             if result.rowcount == 0:
                 raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
-
-        return DeleteLLMEvaluatorPayload(
+        return DeleteEvaluatorPayload(
             evaluator_id=input.evaluator_id,
             query=Query(),
         )
