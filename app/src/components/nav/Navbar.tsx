@@ -1,17 +1,24 @@
-import { PropsWithChildren, ReactNode } from "react";
-import { Pressable } from "react-aria-components";
+import { PropsWithChildren, ReactNode, useMemo } from "react";
+import { Button, Pressable } from "react-aria-components";
 import { Link, NavLink as RRNavLink } from "react-router";
 import { css } from "@emotion/react";
 
 import {
+  Flex,
   Icon,
   Icons,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover,
+  PopoverArrow,
   Text,
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
 import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
-import { useTheme, useViewer } from "@phoenix/contexts";
+import { isProviderThemeMode, useTheme, useViewer } from "@phoenix/contexts";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { Logo, LogoText } from "./Logo";
 
@@ -156,23 +163,92 @@ export function GitHubLink({ isExpanded }: { isExpanded: boolean }) {
   );
 }
 
-export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
+export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
+  const { theme, systemTheme, themeMode, setThemeMode } = useTheme();
+  const { themeText, themeIcon } = useMemo(() => {
+    let themeIcon: ReactNode;
+    let themeText: string;
+    switch (themeMode) {
+      case "light":
+        themeIcon = <Icons.SunOutline />;
+        themeText = "Light";
+        break;
+      case "dark":
+        themeIcon = <Icons.MoonOutline />;
+        themeText = "Dark";
+        break;
+      case "system":
+        themeIcon = <Icons.HalfMoonHalfSunOutline />;
+        themeText = `${theme === "light" ? "Light" : "Dark"} (auto)`;
+        break;
+      default:
+        assertUnreachable(themeMode);
+    }
+    return {
+      themeIcon,
+      themeText,
+    };
+  }, [theme, themeMode]);
+
   return (
     <TooltipTrigger delay={0} isDisabled={isExpanded}>
-      <Pressable>
-        <button
-          css={navLinkCSS}
-          onClick={() => setTheme(isDark ? "light" : "dark")}
-          className="button--reset"
-        >
-          <Icon svg={isDark ? <Icons.MoonOutline /> : <Icons.SunOutline />} />
-          <Text>{isDark ? "Dark" : "Light"}</Text>
-        </button>
-      </Pressable>
+      <MenuTrigger>
+        <Button css={navLinkCSS} className="button--reset">
+          <Icon svg={themeIcon} />
+          <Text>{themeText}</Text>
+        </Button>
+        <Popover placement="right top">
+          <PopoverArrow />
+          <Menu
+            aria-label="Theme selection"
+            selectedKeys={new Set([themeMode])}
+            selectionMode="single"
+            onSelectionChange={(keys) => {
+              const selectedKey =
+                keys instanceof Set ? Array.from(keys)[0] : null;
+              if (selectedKey && isProviderThemeMode(selectedKey)) {
+                setThemeMode(selectedKey);
+              }
+            }}
+          >
+            <MenuItem id="system">
+              <Flex
+                direction="row"
+                gap="size-100"
+                justifyContent="start"
+                alignItems="center"
+              >
+                <Icon svg={<Icons.HalfMoonHalfSunOutline />} />
+                <Text>{`Auto (${systemTheme})`}</Text>
+              </Flex>
+            </MenuItem>
+            <MenuItem id="dark">
+              <Flex
+                direction="row"
+                gap="size-100"
+                justifyContent="start"
+                alignItems="center"
+              >
+                <Icon svg={<Icons.MoonOutline />} />
+                <Text>Dark</Text>
+              </Flex>
+            </MenuItem>
+            <MenuItem id="light">
+              <Flex
+                direction="row"
+                gap="size-100"
+                justifyContent="start"
+                alignItems="center"
+              >
+                <Icon svg={<Icons.SunOutline />} />
+                <Text>Light</Text>
+              </Flex>
+            </MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
       <Tooltip placement="right" offset={10}>
-        {isDark ? "Dark" : "Light"}
+        {themeText}
       </Tooltip>
     </TooltipTrigger>
   );

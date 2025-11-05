@@ -172,6 +172,9 @@ export const darkThemeCSS = css`
   .ac-theme--dark {
     /* Colors */
 
+    // sync system elements like the scrollbar with the theme
+    color-scheme: dark;
+
     // The newer grays (grey)
     --ac-global-color-grey-50-rgb: 0, 0, 0;
     --ac-global-color-grey-50: rgb(var(--ac-global-color-grey-50-rgb));
@@ -687,6 +690,9 @@ export const lightThemeCSS = css`
   :root,
   .ac-theme--light {
     /* Colors */
+
+    // sync system elements like the scrollbar with the theme
+    color-scheme: light;
 
     // The newer grays (grey)
     --ac-global-color-grey-50-rgb: 255, 255, 255;
