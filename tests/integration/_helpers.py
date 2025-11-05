@@ -2187,6 +2187,8 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/experiments/fake-id-{}"),
     (422, "GET", "v1/datasets/fake-id-{}/experiments"),
     (422, "GET", "v1/experiments/fake-id-{}/runs"),
+    (422, "GET", "v1/experiments/fake-id-{}/incomplete-runs"),
+    (422, "GET", "v1/experiments/fake-id-{}/incomplete-evaluations"),
     (422, "GET", "v1/experiments/fake-id-{}/json"),
     (422, "GET", "v1/experiments/fake-id-{}/csv"),
     # Prompts
@@ -2247,6 +2249,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     # DELETE routes
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),
+    (422, "DELETE", "v1/experiments/fake-id-{}"),
     (404, "DELETE", "v1/spans/fake-id-{}"),
     (404, "DELETE", "v1/traces/fake-id-{}"),
 )

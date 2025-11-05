@@ -1621,6 +1621,7 @@
           "experiments"
         ],
         "summary": "List experiments by dataset",
+        "description": "Retrieve a paginated list of experiments for the specified dataset.",
         "operationId": "listExperiments",
         "parameters": [
           {
@@ -1631,11 +1632,42 @@
               "type": "string",
               "title": "Dataset ID"
             }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded experiment ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded experiment ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of experiments to return at a time.",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "The max number of experiments to return at a time."
           }
         ],
         "responses": {
           "200": {
-            "description": "Experiments retrieved successfully",
+            "description": "Paginated list of experiments for the dataset",
             "content": {
               "application/json": {
                 "schema": {
@@ -1655,14 +1687,14 @@
             "description": "Forbidden"
           },
           "422": {
-            "description": "Validation Error",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -1725,6 +1757,153 @@
                 }
               }
             }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Delete experiment by ID",
+        "operationId": "deleteExperiment",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Experiment deleted successfully"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/experiments/{experiment_id}/incomplete-runs": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get incomplete runs for an experiment",
+        "description": "Get runs that need to be completed for this experiment.\n\nReturns all incomplete runs, including both missing runs (not yet attempted)\nand failed runs (attempted but have errors).\n\nArgs:\n    experiment_id: The ID of the experiment\n    cursor: Cursor for pagination\n    limit: Maximum number of results to return\n\nReturns:\n    Paginated list of incomplete runs grouped by dataset example,\n    with repetition numbers that need to be run",
+        "operationId": "getIncompleteExperimentRuns",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of examples with incomplete runs to return",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Maximum number of examples with incomplete runs to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Incomplete runs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetIncompleteExperimentRunsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid cursor format"
           }
         }
       }
@@ -1914,7 +2093,7 @@
                 }
               }
             },
-            "description": "This experiment run has already been submitted"
+            "description": "Experiment run already exists with a successful result and cannot be updated"
           },
           "422": {
             "description": "Validation Error",
@@ -2003,6 +2182,125 @@
               }
             },
             "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid cursor format"
+          }
+        }
+      }
+    },
+    "/v1/experiments/{experiment_id}/incomplete-evaluations": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get incomplete evaluations for an experiment",
+        "description": "Get experiment runs that have incomplete evaluations.\n\nReturns runs with:\n- Missing evaluations (evaluator has not been run)\n- Failed evaluations (evaluator ran but has errors)\n\nArgs:\n    experiment_id: The ID of the experiment\n    evaluation_name: List of evaluation names to check (required, at least one)\n    cursor: Cursor for pagination\n    limit: Maximum number of results to return\n\nReturns:\n    Paginated list of runs with incomplete evaluations",
+        "operationId": "getIncompleteExperimentEvaluations",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "evaluation_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Evaluation names to check",
+              "default": [],
+              "title": "Evaluation Name"
+            },
+            "description": "Evaluation names to check"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of runs with incomplete evaluations to return",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Maximum number of runs with incomplete evaluations to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Incomplete evaluations retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetIncompleteEvaluationsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "No evaluator names provided"
           },
           "404": {
             "content": {
@@ -5194,6 +5492,26 @@
             "format": "date-time",
             "title": "Updated At",
             "description": "The last update timestamp of the experiment"
+          },
+          "example_count": {
+            "type": "integer",
+            "title": "Example Count",
+            "description": "Number of examples in the experiment"
+          },
+          "successful_run_count": {
+            "type": "integer",
+            "title": "Successful Run Count",
+            "description": "Number of successful runs in the experiment"
+          },
+          "failed_run_count": {
+            "type": "integer",
+            "title": "Failed Run Count",
+            "description": "Number of failed runs in the experiment"
+          },
+          "missing_run_count": {
+            "type": "integer",
+            "title": "Missing Run Count",
+            "description": "Number of missing (not yet executed) runs in the experiment"
           }
         },
         "type": "object",
@@ -5205,7 +5523,11 @@
           "metadata",
           "project_name",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "example_count",
+          "successful_run_count",
+          "failed_run_count",
+          "missing_run_count"
         ],
         "title": "Experiment"
       },
@@ -5251,7 +5573,7 @@
         "type": "object",
         "title": "ExperimentEvaluationResult"
       },
-      "ExperimentRunResponse": {
+      "ExperimentRun": {
         "properties": {
           "dataset_example_id": {
             "type": "string",
@@ -5325,7 +5647,7 @@
           "id",
           "experiment_id"
         ],
-        "title": "ExperimentRunResponse"
+        "title": "ExperimentRun"
       },
       "FreeformAnnotationConfig": {
         "properties": {
@@ -5492,6 +5814,62 @@
           "data"
         ],
         "title": "GetExperimentResponseBody"
+      },
+      "GetIncompleteEvaluationsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/IncompleteExperimentEvaluation"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetIncompleteEvaluationsResponseBody"
+      },
+      "GetIncompleteExperimentRunsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/IncompleteExperimentRun"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetIncompleteExperimentRunsResponseBody"
       },
       "GetProjectResponseBody": {
         "properties": {
@@ -5689,6 +6067,57 @@
         "pattern": "^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$",
         "title": "Identifier"
       },
+      "IncompleteExperimentEvaluation": {
+        "properties": {
+          "experiment_run": {
+            "$ref": "#/components/schemas/ExperimentRun",
+            "description": "The experiment run"
+          },
+          "dataset_example": {
+            "$ref": "#/components/schemas/DatasetExample",
+            "description": "The dataset example"
+          },
+          "evaluation_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evaluation Names",
+            "description": "List of evaluation names that are incomplete (either missing or failed)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experiment_run",
+          "dataset_example",
+          "evaluation_names"
+        ],
+        "title": "IncompleteExperimentEvaluation",
+        "description": "Information about an experiment run with incomplete evaluations"
+      },
+      "IncompleteExperimentRun": {
+        "properties": {
+          "dataset_example": {
+            "$ref": "#/components/schemas/DatasetExample",
+            "description": "The dataset example"
+          },
+          "repetition_numbers": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Repetition Numbers",
+            "description": "List of repetition numbers that need to be run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_example",
+          "repetition_numbers"
+        ],
+        "title": "IncompleteExperimentRun",
+        "description": "Information about incomplete runs for a dataset example"
+      },
       "InsertedSessionAnnotation": {
         "properties": {
           "id": {
@@ -5850,7 +6279,7 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/ExperimentRunResponse"
+              "$ref": "#/components/schemas/ExperimentRun"
             },
             "type": "array",
             "title": "Data"
@@ -5882,11 +6311,23 @@
             },
             "type": "array",
             "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           }
         },
         "type": "object",
         "required": [
-          "data"
+          "data",
+          "next_cursor"
         ],
         "title": "ListExperimentsResponseBody"
       },
