@@ -10,12 +10,11 @@ import {
   Token,
   View,
 } from "@phoenix/components";
+import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { EvaluatorSelect } from "@phoenix/components/evaluators/EvaluatorSelect";
-import { useTheme } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { Mutable } from "@phoenix/typeUtils";
-import { getWordColor } from "@phoenix/utils/colorUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
@@ -30,7 +29,6 @@ export function PlaygroundDatasetSection({
   splitIds?: string[];
 }) {
   const instances = usePlaygroundContext((state) => state.instances);
-  const { theme } = useTheme();
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const experimentIds = useMemo(() => {
     return instances
@@ -130,14 +128,23 @@ export function PlaygroundDatasetSection({
             <Flex direction="row" gap="size-100" alignItems="center">
               {evaluators
                 .filter((e) => selectedEvaluatorIds.includes(e.id))
-                .map((e) => (
-                  <Token
+                .slice(0, 3)
+                .flatMap((e, index, array) => [
+                  <AnnotationNameAndValue
                     key={e.id}
-                    color={getWordColor({ word: e.name, theme })}
-                  >
-                    {e.name}
-                  </Token>
-                ))}
+                    annotation={e}
+                    displayPreference="none"
+                    minWidth="auto"
+                  />,
+                  ...(index === array.length - 1 &&
+                  selectedEvaluatorIds.length > 3
+                    ? [
+                        <Token key={`more`}>
+                          <Text>+ {selectedEvaluatorIds.length - 3} more</Text>
+                        </Token>,
+                      ]
+                    : []),
+                ])}
             </Flex>
             <EvaluatorSelect
               evaluators={evaluators as Mutable<(typeof evaluators)[number]>[]}
