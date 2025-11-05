@@ -325,7 +325,7 @@ class AsyncPrompts:
                     model_provider="OPENAI"
                 ),
                 prompt_description="Sentiment classification prompt",
-                metadata={"category": "classification", "version": "1.0"}
+                prompt_metadata={"category": "classification"}
             )
 
         Working with tags::
