@@ -7,9 +7,9 @@ import ReactCodeMirror, {
   keymap,
 } from "@uiw/react-codemirror";
 
-import { Field } from "@arizeai/components";
-
+import { Label } from "@phoenix/components";
 import { CodeWrap } from "@phoenix/components/code";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { useTheme } from "@phoenix/contexts";
 
 type VariableEditorProps = {
@@ -66,7 +66,8 @@ export const VariableEditor = ({
   }, [label]);
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   return (
-    <Field label={label}>
+    <div css={fieldBaseCSS}>
+      <Label>{label}</Label>
       <CodeWrap width="100%">
         <ReactCodeMirror
           key={version}
@@ -77,6 +78,6 @@ export const VariableEditor = ({
           onChange={onChange}
         />
       </CodeWrap>
-    </Field>
+    </div>
   );
 };

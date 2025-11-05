@@ -11,8 +11,6 @@ import { JSONSchema7 } from "json-schema";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
 
-import { Field } from "@arizeai/components";
-
 import {
   Button,
   ComboBox,
@@ -37,6 +35,7 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
@@ -476,12 +475,8 @@ function CustomHeadersModelConfigFormField({
 
   return (
     <div css={fieldContainerCSS}>
-      <Field
-        label={<div css={labelCSS}>Custom Headers</div>}
-        description="Custom HTTP headers to send with requests to the LLM provider"
-        errorMessage={errorMessage}
-        validationState={errorMessage ? "invalid" : undefined}
-      >
+      <div css={fieldBaseCSS}>
+        <Label>Custom Headers</Label>
         <CodeWrap>
           <JSONEditor
             value={editorValue}
@@ -491,7 +486,17 @@ function CustomHeadersModelConfigFormField({
             placeholder={`{"X-Custom-Header": "custom-value"}`}
           />
         </CodeWrap>
-      </Field>
+        {errorMessage ? (
+          <Text slot="errorMessage" color="danger">
+            {errorMessage}
+          </Text>
+        ) : null}
+        {!errorMessage ? (
+          <Text slot="description">
+            Custom HTTP headers to send with requests to the LLM provider
+          </Text>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -500,12 +505,6 @@ const fieldContainerCSS = css`
   & .ac-view {
     width: 100%;
   }
-`;
-
-const labelCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--ac-global-dimension-size-75);
 `;
 
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}

@@ -83,7 +83,7 @@ export const DisclosurePanel = ({
 };
 
 export type DisclosureTriggerProps = PropsWithChildren<{
-  arrowPosition?: "start" | "end";
+  arrowPosition?: "start" | "end" | "none";
   justifyContent?: FlexStyleProps["justifyContent"];
   asHeading?: boolean;
   width?: CSSProperties["width"];
@@ -115,7 +115,9 @@ export const DisclosureTrigger = ({
         >
           {children}
         </Flex>
-        <Icon svg={<Icons.ArrowIosForwardOutline />} />
+        {arrowPosition !== "none" ? (
+          <Icon svg={<Icons.ArrowIosForwardOutline />} />
+        ) : null}
       </Button>
     </Heading>
   );

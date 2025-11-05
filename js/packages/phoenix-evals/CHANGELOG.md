@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.3.0
+
+### Minor Changes
+
+- f66c5b6: refactor: change source to kind for evaluators
+
 ## 0.2.2
 
 ### Patch Changes

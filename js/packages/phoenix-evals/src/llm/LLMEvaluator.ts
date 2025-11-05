@@ -12,7 +12,7 @@ export abstract class LLMEvaluator<RecordType extends Record<string, unknown>>
   implements Evaluator<RecordType>
 {
   readonly name: string;
-  readonly source = "LLM" as const;
+  readonly kind = "LLM" as const;
   readonly optimizationDirection?: OptimizationDirection;
   constructor({ name, optimizationDirection }: CreateEvaluatorArgs) {
     this.name = name;

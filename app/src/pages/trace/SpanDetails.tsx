@@ -1480,10 +1480,10 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             ]}
           >
             {/* when the message is a tool result, show the tool result in a disclosure */}
-            {messageContent && role.toLowerCase() === "tool" ? (
+            {role.toLowerCase() === "tool" ? (
               <Disclosure id="tool-content">
                 <DisclosureTrigger
-                  arrowPosition="start"
+                  arrowPosition={messageContent ? "start" : "none"}
                   justifyContent="space-between"
                 >
                   <Text>
@@ -1494,11 +1494,13 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   ) : null}
                 </DisclosureTrigger>
                 <DisclosurePanel>
-                  <View width="100%">
-                    <ConnectedMarkdownBlock>
-                      {messageContent}
-                    </ConnectedMarkdownBlock>
-                  </View>
+                  {messageContent ? (
+                    <View width="100%">
+                      <ConnectedMarkdownBlock>
+                        {messageContent}
+                      </ConnectedMarkdownBlock>
+                    </View>
+                  ) : null}
                 </DisclosurePanel>
               </Disclosure>
             ) : // when the message is any other kind, just show the content without a disclosure

@@ -64,10 +64,6 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
       <Popover
         placement="bottom start"
         shouldCloseOnInteractOutside={() => true}
-        css={css`
-          min-width: 400px;
-          max-width: 500px;
-        `}
       >
         <PopoverArrow />
         <Dialog>
@@ -200,10 +196,10 @@ function DatasetLabelList({
     <>
       <View
         padding="size-100"
+        paddingTop="size-50"
         borderBottomWidth="thin"
         borderColor="dark"
         minWidth={300}
-        maxWidth={300}
       >
         <Flex direction="column" gap="size-50">
           <Flex
@@ -254,8 +250,7 @@ function DatasetLabelList({
             selectedKeys={selected}
             onSelectionChange={onSelectionChange}
             css={css`
-              min-height: 300px;
-              max-height: 300px;
+              height: 300px;
             `}
             renderEmptyState={() => "No labels found"}
           >

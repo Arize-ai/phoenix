@@ -15,7 +15,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
-import { Field, Form } from "@arizeai/components";
+import { Form } from "@arizeai/components";
 
 import {
   Button,
@@ -26,11 +26,13 @@ import {
   Icon,
   Icons,
   Input,
+  Label,
   TextField,
   View,
 } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import {
   TemplateEditor,
   TemplateEditorWrap,
@@ -208,14 +210,15 @@ function MessageEditor({
         paddingEnd="size-250"
         paddingBottom="size-200"
       >
-        <Field label={"Tool Calls"}>
+        <div css={fieldBaseCSS}>
+          <Label>Tool Calls</Label>
           <CodeWrap width={"100%"}>
             <ChatMessageToolCallsEditor
               playgroundInstanceId={playgroundInstanceId}
               messageId={message.id}
             />
           </CodeWrap>
-        </Field>
+        </div>
       </View>
     );
   }
