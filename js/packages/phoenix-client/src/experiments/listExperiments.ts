@@ -10,12 +10,6 @@ export type ListExperimentsParams = ClientFn & {
    * The dataset ID to list experiments for
    */
   datasetId: string;
-  /**
-   * The pagination size by which to pull experiments
-   * Exposed for controlling the rate at which experiments are pulled
-   * @default 50
-   */
-  pageSize?: number;
 };
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -42,15 +36,8 @@ const DEFAULT_PAGE_SIZE = 50;
 export async function listExperiments({
   client: _client,
   datasetId,
-  pageSize = DEFAULT_PAGE_SIZE,
 }: ListExperimentsParams): Promise<ExperimentInfo[]> {
   const client = _client || createClient();
-
-  // Validate that the parameter is an integer and exit early
-  invariant(
-    Number.isInteger(pageSize) && pageSize > 0,
-    "pageSize must be a positive integer greater than 0"
-  );
 
   const experiments: ExperimentInfo[] = [];
   let cursor: string | null = null;
@@ -65,7 +52,7 @@ export async function listExperiments({
         },
         query: {
           cursor,
-          limit: pageSize,
+          limit: DEFAULT_PAGE_SIZE,
         },
       },
     });
