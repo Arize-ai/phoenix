@@ -12,7 +12,7 @@ By default, the container exposes the following ports:
 
 <table><thead><tr><th width="93">Port</th><th width="100">Protocol</th><th width="137">Endpoint</th><th width="193">Function</th><th>Env Var</th></tr></thead><tbody><tr><td>6006</td><td>HTTP</td><td><code>/</code></td><td>User interface (UI) of the web application.</td><td><code>PHOENIX_PORT</code></td></tr><tr><td>6006</td><td>HTTP</td><td><code>/v1/traces</code></td><td>Accepts traces in <a href="https://github.com/open-telemetry/opentelemetry-proto/blob/main/docs/specification.md">OpenTelemetry OTLP format </a> (Protobuf).</td><td><code>PHOENIX_PORT</code></td></tr><tr><td>4317</td><td>gRPC</td><td>n/a</td><td>Accepts traces in <a href="https://github.com/open-telemetry/opentelemetry-proto/blob/main/docs/specification.md">OpenTelemetry OTLP format </a> (Protobuf).</td><td><code>PHOENIX_GRPC_PORT</code></td></tr></tbody></table>
 
-If the above ports need to be modified, consult the  section below.
+If the above ports need to be modified, consult the section below.
 
 ## Environment Variables
 
@@ -42,7 +42,7 @@ The following environment variables will control how your phoenix server runs.
 * **PHOENIX\_POSTGRES\_PASSWORD:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the password to use for the PostgreSQL database.
 * **PHOENIX\_POSTGRES\_DB:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the database to use for the PostgreSQL database.
 * **PHOENIX\_SQL\_DATABASE\_SCHEMA:** An optional string specifying the PostgreSQL [schema](https://www.postgresql.org/docs/current/ddl-schemas.html) for the database tables. Similar to folders, schemas help organize tables outside the default `public` schema. If the specified schema does not exist, it will be created. This option is ignored when using SQLite.
-* **PHOENIX\_DEFAULT\_RETENTION\_POLICY\_DAYS:** Sets the default retention policy for traces in days. Defaults to 0 (infinite retention). When set to a positive value, traces older than this many days will be automatically removed from the database according to the configured cleanup schedule. This setting affects the default retention policy that applies to all projects unless overridden on a per-project basis through the Phoenix UI. See the [data retention documentation](../settings/data-retention.md) for more details.
+* **PHOENIX\_DEFAULT\_RETENTION\_POLICY\_DAYS:** Sets the default retention policy for traces in days. Defaults to 0 (infinite retention). When set to a positive value, traces older than this many days will be automatically removed from the database according to the configured cleanup schedule. This setting affects the default retention policy that applies to all projects unless overridden on a per-project basis through the Phoenix UI. See the [data retention documentation](../../settings/data-retention.md) for more details.
 * **PHOENIX\_ENABLE\_PROMETHEUS:** Whether to enable Prometheus metrics at port 9090. Defaults to false.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_HTTP\_ENDPOINT:** Specifies an HTTP endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_GRPC\_ENDPOINT:** Specifies an gRPC endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
