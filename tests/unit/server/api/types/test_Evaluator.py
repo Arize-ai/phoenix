@@ -79,6 +79,7 @@ class TestEvaluatorFields:
                         CategoricalAnnotationValue(label="bad", score=0.0),
                     ],
                 ),
+                metadata_={"key": "value", "count": 42},
             )
             tagged = models.LLMEvaluator(
                 name=Identifier(token_hex(4)),
@@ -94,6 +95,7 @@ class TestEvaluatorFields:
                         CategoricalAnnotationValue(label="incorrect", score=0.0),
                     ],
                 ),
+                metadata_=None,
             )
             session.add_all([untagged, tagged])
 
@@ -111,11 +113,11 @@ class TestEvaluatorFields:
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         """Test LLMEvaluator interface fields, relationships, and version resolution logic."""
-        # Test untagged evaluator: interface fields and promptVersion returns latest
+        # Test untagged evaluator: interface fields, promptVersion returns latest, and metadata is non-null
         resp = await gql_client.execute(
             """query ($id: ID!) {
                 node(id: $id) {
-                    ... on Evaluator { id name kind createdAt updatedAt }
+                    ... on Evaluator { id name kind metadata createdAt updatedAt }
                     ... on LLMEvaluator { prompt { id } promptVersion { id } }
                 }
             }""",
@@ -125,13 +127,15 @@ class TestEvaluatorFields:
         node = resp.data["node"]
         assert node["kind"] == "LLM"
         assert node["createdAt"] and node["updatedAt"]
+        assert node["metadata"] == {"key": "value", "count": 42}
         assert node["prompt"]["id"] == str(GlobalID("Prompt", str(_test_data["prompt"])))
         assert node["promptVersion"]["id"] == str(GlobalID("PromptVersion", str(_test_data["v2"])))
 
-        # Test tagged evaluator: promptVersionTag exists and promptVersion returns tagged version
+        # Test tagged evaluator: promptVersionTag exists, promptVersion returns tagged version, and metadata is null
         resp = await gql_client.execute(
             """query ($id: ID!) {
                 node(id: $id) {
+                    ... on Evaluator { metadata }
                     ... on LLMEvaluator {
                         promptVersionTag { id }
                         promptVersion { id }
@@ -142,6 +146,7 @@ class TestEvaluatorFields:
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
+        assert node["metadata"] is None
         assert node["promptVersionTag"]["id"] == str(
             GlobalID("PromptVersionTag", str(_test_data["tag"]))
         )
