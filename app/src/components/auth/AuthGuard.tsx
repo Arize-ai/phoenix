@@ -3,6 +3,7 @@ import { PropsWithChildren, ReactNode } from "react";
 import {
   useViewer,
   useViewerCanManageRetentionPolicy,
+  useViewerCanModify,
 } from "@phoenix/contexts";
 
 type AuthGuardProps = {
@@ -32,10 +33,10 @@ export function IsAdmin(props: PropsWithChildren<AuthGuardProps>) {
  */
 export function CanModify(props: PropsWithChildren<AuthGuardProps>) {
   const { fallback = null, children } = props;
-  const { viewer } = useViewer();
+  const canModify = useViewerCanModify();
   // If the viewer is simply a viewer role (e.g. not an admin or member)
   // Show the fallback
-  if (viewer && viewer.role.name === "VIEWER") {
+  if (!canModify) {
     return <>{fallback}</>;
   }
   return children;

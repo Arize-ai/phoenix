@@ -53,7 +53,11 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
+import {
+  useNotifySuccess,
+  usePreferencesContext,
+  useViewerCanModify,
+} from "@phoenix/contexts";
 import {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
@@ -553,13 +557,15 @@ function ProjectItem({
             </Text>
           </Flex>
         </Flex>
-        <ProjectActionMenu
-          projectId={project.id}
-          projectName={project.name}
-          onProjectDelete={onProjectDelete}
-          onProjectClear={onProjectClear}
-          onProjectRemoveData={onProjectRemoveData}
-        />
+        <CanModify>
+          <ProjectActionMenu
+            projectId={project.id}
+            projectName={project.name}
+            onProjectDelete={onProjectDelete}
+            onProjectClear={onProjectClear}
+            onProjectRemoveData={onProjectRemoveData}
+          />
+        </CanModify>
       </Flex>
       <ProjectMetrics projectId={project.id} timeRange={timeRange} />
     </div>
@@ -707,83 +713,85 @@ function ProjectsTable({
   onSort,
 }: ProjectViewComponentProps) {
   const navigate = useNavigate();
+  const canModify = useViewerCanModify();
   const columns: ColumnDef<
     ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"]
-  >[] = useMemo(
-    () =>
-      [
-        {
-          header: "name",
-          accessorKey: "name",
-          maxSize: 135,
-          cell: ({ row }) => {
-            return (
-              <Flex direction="row" gap="size-200" alignItems="center">
-                <GradientCircle
-                  gradientStartColor={row.original.gradientStartColor}
-                  gradientEndColor={row.original.gradientEndColor}
-                />
-                <Link to={`/projects/${row.original.id}`}>
-                  <Truncate maxWidth="300px">{row.original.name}</Truncate>
-                </Link>
-              </Flex>
-            );
-          },
-        },
-        {
-          header: "last updated at",
-          accessorKey: "endTime",
-          maxSize: 30,
-          cell: TimestampCell,
-        },
-        {
-          header: "metrics",
-          id: "metrics",
-          enableSorting: false,
-          cell: ({ row }) => {
-            return (
-              <div
-                css={css`
-                  max-width: 100%;
-                `}
-              >
-                <ProjectMetrics
-                  flexProps={{
-                    justifyContent: "start",
-                    gap: "size-800",
-                    rowGap: "size-100",
-                  }}
-                  projectId={row.original.id}
-                  timeRange={timeRangeVariable}
-                />
-              </div>
-            );
-          },
-        },
-        {
-          header: "",
-          id: "actions",
-          enableSorting: false,
-          size: 10,
-          maxSize: 10,
-          minSize: 10,
-          cell: ({ row }) => {
-            return (
-              <ProjectActionMenu
-                projectId={row.original.id}
-                projectName={row.original.name}
-                onProjectClear={() => onClear(row.original.name)}
-                onProjectRemoveData={() => onRemove(row.original.name)}
-                onProjectDelete={() => onDelete(row.original.name)}
+  >[] = useMemo(() => {
+    const cols: ColumnDef<
+      ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"]
+    >[] = [
+      {
+        header: "name",
+        accessorKey: "name",
+        maxSize: 135,
+        cell: ({ row }) => {
+          return (
+            <Flex direction="row" gap="size-200" alignItems="center">
+              <GradientCircle
+                gradientStartColor={row.original.gradientStartColor}
+                gradientEndColor={row.original.gradientEndColor}
               />
-            );
-          },
+              <Link to={`/projects/${row.original.id}`}>
+                <Truncate maxWidth="300px">{row.original.name}</Truncate>
+              </Link>
+            </Flex>
+          );
         },
-      ] satisfies ColumnDef<
-        ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"]
-      >[],
-    [timeRangeVariable, onClear, onDelete, onRemove]
-  );
+      },
+      {
+        header: "last updated at",
+        accessorKey: "endTime",
+        maxSize: 30,
+        cell: TimestampCell,
+      },
+      {
+        header: "metrics",
+        id: "metrics",
+        enableSorting: false,
+        cell: ({ row }) => {
+          return (
+            <div
+              css={css`
+                max-width: 100%;
+              `}
+            >
+              <ProjectMetrics
+                flexProps={{
+                  justifyContent: "start",
+                  gap: "size-800",
+                  rowGap: "size-100",
+                }}
+                projectId={row.original.id}
+                timeRange={timeRangeVariable}
+              />
+            </div>
+          );
+        },
+      },
+    ];
+    if (canModify) {
+      cols.push({
+        header: "",
+        id: "actions",
+        enableSorting: false,
+        size: 10,
+        maxSize: 10,
+        minSize: 10,
+        cell: ({ row }) => {
+          return (
+            <ProjectActionMenu
+              projectId={row.original.id}
+              projectName={row.original.name}
+              onProjectClear={() => onClear(row.original.name)}
+              onProjectRemoveData={() => onRemove(row.original.name)}
+              onProjectDelete={() => onDelete(row.original.name)}
+            />
+          );
+        },
+      });
+    }
+    return cols;
+  }, [timeRangeVariable, onClear, onDelete, onRemove, canModify]);
   const sortQueryParams = useProjectSortQueryParams();
   const { setProjectSortOrder } = usePreferencesContext((state) => ({
     setProjectSortOrder: state.setProjectSortOrder,
