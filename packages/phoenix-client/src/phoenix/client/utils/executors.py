@@ -58,7 +58,7 @@ class ExecutionStatus(Enum):
 
 class ExecutionDetails:
     def __init__(self) -> None:
-        self.exceptions: List[Exception] = []
+        self.exceptions: List[Union[Exception, asyncio.CancelledError]] = []
         self.status = ExecutionStatus.DID_NOT_RUN
         self.execution_seconds: float = 0
 
@@ -71,7 +71,7 @@ class ExecutionDetails:
         else:
             self.status = ExecutionStatus.COMPLETED
 
-    def log_exception(self, exc: Exception) -> None:
+    def log_exception(self, exc: Union[Exception, asyncio.CancelledError]) -> None:
         self.exceptions.append(exc)
 
     def log_runtime(self, start_time: float) -> None:
@@ -350,7 +350,7 @@ class AsyncExecutor(Executor):
                     details.log_runtime(task_start_time)
                     if self._concurrency_controller is not None:
                         self._concurrency_controller.record_timeout()
-            except Exception as exc:
+            except (Exception, asyncio.CancelledError) as exc:
                 details = cast(ExecutionDetails, execution_details[index])
                 details.log_exception(exc)
                 details.log_runtime(task_start_time)
