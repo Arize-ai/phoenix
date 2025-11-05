@@ -6,6 +6,7 @@ import {
   LinkButton,
   View,
 } from "@phoenix/components";
+import { CanModify } from "@phoenix/components/auth";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 import { PromptsLabelMenu } from "@phoenix/pages/prompts/PromptsLabelMenu";
 
@@ -41,14 +42,16 @@ export const PromptsFilterBar = () => {
             selectedLabelIds={selectedPromptLabelIds}
             onSelectionChange={setSelectedPromptLabelIds}
           />
-          <LinkButton
-            size="M"
-            leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
-            variant="primary"
-            to="/playground"
-          >
-            New Prompt
-          </LinkButton>
+          <CanModify>
+            <LinkButton
+              size="M"
+              leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
+              variant="primary"
+              to="/playground"
+            >
+              New Prompt
+            </LinkButton>
+          </CanModify>
         </Flex>
       </Flex>
     </View>

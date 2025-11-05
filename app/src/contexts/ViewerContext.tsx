@@ -25,6 +25,17 @@ export function useViewer() {
 }
 
 /**
+ * Returns true if the viewer can modify entities in the application
+ */
+export function useViewerCanModify() {
+  const { viewer } = useViewer();
+  if (viewer && viewer.role.name === "VIEWER") {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Returns true if the viewer can manage retention policies
  * Note: when the app is not configured with auth, we assume the user is an admin
  */
