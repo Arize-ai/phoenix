@@ -8,8 +8,6 @@ This integration will allow you to trace [Microsoft PromptFlow](https://github.c
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

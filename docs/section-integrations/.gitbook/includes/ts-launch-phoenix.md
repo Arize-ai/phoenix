@@ -11,10 +11,10 @@ title: TS - Launch Phoenix
 ```sh
 # .env, or shell environment
 
+# And Collector Endpoint for Phoenix Cloud
+PHOENIX_ENDPOINT="ADD YOUR PHOENIX ENDPOINT e.g. https://app.phoenix.arize.com/s/<example>/v1/traces"
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY="ADD YOUR PHOENIX API KEY"
-# And Collector Endpoint for Phoenix Cloud
-PHOENIX_COLLECTOR_ENDPOINT="ADD YOUR PHOENIX HOSTNAME"
 ```
 {% endtab %}
 
@@ -26,7 +26,7 @@ PHOENIX_COLLECTOR_ENDPOINT="ADD YOUR PHOENIX HOSTNAME"
 # .env, or shell environment
 ​
 # Collector Endpoint for your self hosted Phoenix, like localhost
-PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+PHOENIX_ENDPOINT="http://localhost:6006/v1/traces"
 # (optional) If authentication enabled, add Phoenix API Key for tracing
 PHOENIX_API_KEY="ADD YOUR API KEY"
 ```

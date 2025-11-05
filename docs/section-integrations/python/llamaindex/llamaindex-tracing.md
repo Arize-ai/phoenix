@@ -16,8 +16,6 @@ For LlamaIndex, tracing instrumentation is added via an OpenTelemetry instrument
 
 Phoenix supports LlamaIndex's latest [instrumentation](https://docs.llamaindex.ai/en/stable/module_guides/observability/instrumentation/) paradigm. This paradigm requires LlamaIndex >= 0.10.43. For legacy support, see below.
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

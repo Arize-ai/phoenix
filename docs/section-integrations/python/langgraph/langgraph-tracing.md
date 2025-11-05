@@ -8,8 +8,6 @@ LangGraph is supported by our LangChain instrumentor. If you've already set up i
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

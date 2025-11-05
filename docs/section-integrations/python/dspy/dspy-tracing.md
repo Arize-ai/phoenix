@@ -10,8 +10,6 @@ Phoenix makes your DSPy applications observable by visualizing the underlying st
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

@@ -10,8 +10,6 @@ description: Instrument multi-agent applications using CrewAI
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

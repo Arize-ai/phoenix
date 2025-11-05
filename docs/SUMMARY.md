@@ -10,8 +10,9 @@
 * [User Guide](user-guide.md)
 * [Environments](environments.md)
 * [Phoenix Demo](https://phoenix-demo.arize.com/projects)
-* [End to End Phoenix Features Notebook ](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llm_ops_overview.ipynb)
+* [End to End Phoenix Features Notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llm_ops_overview.ipynb)
 * [Production Guide](production-guide.md)
+* [Integrations](section-integrations/README.md)
 
 ## Tracing
 
@@ -29,7 +30,7 @@
   * [Setup Tracing](tracing/how-to-tracing/setup-tracing/README.md)
     * [Setup using Phoenix OTEL](tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel.md)
     * [Setup using base OTEL](tracing/how-to-tracing/setup-tracing/custom-spans.md)
-    * [Using Phoenix Decorators](tracing/how-to-tracing/setup-tracing/instrument-python.md)
+    * [Using Tracing Helpers](tracing/how-to-tracing/setup-tracing/instrument.md)
     * [Setup Tracing (TS)](tracing/how-to-tracing/setup-tracing/javascript.md)
     * [Setup Projects](tracing/how-to-tracing/setup-tracing/setup-projects.md)
     * [Setup Sessions](tracing/how-to-tracing/setup-tracing/setup-sessions.md)
@@ -93,6 +94,7 @@
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
   * [Repetitions](datasets-and-experiments/how-to-experiments/repetitions.md)
+  * [Splits](datasets-and-experiments/how-to-experiments/splits.md)
 * [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 
 ## Evaluation

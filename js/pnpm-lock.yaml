@@ -4282,23 +4282,23 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@18.19.130))':
+  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.19
     optionalDependencies:
       msw: 2.11.6(@types/node@18.19.130)(typescript@5.9.3)
-      vite: 5.4.21(@types/node@18.19.130)
+      vite: 5.4.21(@types/node@24.9.1)
 
-  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@20.19.23))':
+  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.19
     optionalDependencies:
       msw: 2.11.6(@types/node@20.19.23)(typescript@5.9.3)
-      vite: 5.4.21(@types/node@20.19.23)
+      vite: 5.4.21(@types/node@24.9.1)
 
   '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
     dependencies:
@@ -6104,7 +6104,7 @@ snapshots:
   vitest@2.1.9(@types/node@18.19.130)(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3)):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@18.19.130))
+      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -6139,7 +6139,7 @@ snapshots:
   vitest@2.1.9(@types/node@20.19.23)(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3)):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@20.19.23))
+      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9

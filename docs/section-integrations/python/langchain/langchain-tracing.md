@@ -8,8 +8,6 @@ Phoenix has first-class support for [LangChain](https://langchain.com/) applicat
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

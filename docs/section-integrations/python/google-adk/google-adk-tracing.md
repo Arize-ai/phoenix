@@ -8,8 +8,6 @@ description: Instrument LLM calls made using the Google ADK Python SDK
 
 Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ### Install <a href="#install" id="install"></a>
 
 ```bash
@@ -112,6 +110,7 @@ When using **Vertex AI Agent Engine** for remote deployment, instrumentation mus
 For Agent Engine deployment, include the instrumentation packages in your requirements and set up instrumentation in your agent module:
 
 **Main Application:**
+
 ```python
 remote_agent = agent_engines.create(
     agent_engine=ModuleAgent(module_name="adk_agent", agent_name="app"),
@@ -129,6 +128,7 @@ remote_agent = agent_engines.create(
 ```
 
 **Agent Module (`adk_agent.py`):**
+
 ```python
 from phoenix.otel import register
 from openinference.instrumentation.google_adk import GoogleADKInstrumentor
