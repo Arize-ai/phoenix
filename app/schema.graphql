@@ -1288,6 +1288,13 @@ interface Evaluator implements Node {
   isAssignedToDataset(datasetId: ID!): Boolean!
 }
 
+enum EvaluatorColumn {
+  name
+  kind
+  createdAt
+  updatedAt
+}
+
 """A connection to a list of items."""
 type EvaluatorConnection {
   """Pagination data for this connection"""
@@ -1306,6 +1313,16 @@ type EvaluatorEdge {
   node: Evaluator!
 }
 
+"""The filter key and value for evaluator connections"""
+input EvaluatorFilter {
+  col: EvaluatorFilterColumn!
+  value: String!
+}
+
+enum EvaluatorFilterColumn {
+  name
+}
+
 enum EvaluatorKind {
   LLM
   CODE
@@ -1314,6 +1331,12 @@ enum EvaluatorKind {
 type EvaluatorMutationPayload {
   evaluator: Evaluator!
   query: Query!
+}
+
+"""The sort key and direction for evaluator connections"""
+input EvaluatorSort {
+  col: EvaluatorColumn!
+  dir: SortDir!
 }
 
 type Event {
@@ -2612,7 +2635,7 @@ type Query {
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
   datasetLabels(first: Int = 50, last: Int, after: String, before: String): DatasetLabelConnection!
   datasetSplits(first: Int = 50, last: Int, after: String, before: String): DatasetSplitConnection!
-  evaluators(first: Int = 50, last: Int, after: String, before: String): EvaluatorConnection!
+  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
