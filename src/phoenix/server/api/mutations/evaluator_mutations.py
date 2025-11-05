@@ -311,7 +311,7 @@ class EvaluatorMutationMixin:
         )
         async with info.context.db() as session:
             result = await session.execute(stmt)
-            if result.rowcount < len(input.evaluator_ids):  # type: ignore[attr-defined]
+            if result.rowcount < len(evaluator_gids_to_rowids):  # type: ignore[attr-defined]
                 raise NotFound("One or more evaluators not found")
         deleted_evaluator_gids = list(evaluator_gids_to_rowids.keys())
         return DeleteEvaluatorsPayload(
