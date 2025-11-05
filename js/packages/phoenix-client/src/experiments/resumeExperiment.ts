@@ -645,7 +645,7 @@ async function runSingleTask({
 
   // If no tracer (no project_name), execute without tracing
   if (!tracer) {
-    let output: unknown;
+    let output: unknown = null; // Initialize to null for failed tasks
     let error: string | undefined;
 
     try {
@@ -686,7 +686,7 @@ async function runSingleTask({
         }),
       });
 
-      let output: unknown;
+      let output: unknown = null; // Initialize to null for failed tasks
       let error: string | undefined;
 
       try {
