@@ -134,7 +134,6 @@ export const ClonePromptDialog = ({
                     control={control}
                     name="name"
                     rules={{
-                      required: { value: true, message: "Name is required" },
                       validate: {
                         differsFromOriginalName: (value) => {
                           if (value.trim() === promptName.trim()) {

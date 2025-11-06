@@ -113,7 +113,6 @@ export function SavePromptForm({
           name="name"
           control={control}
           rules={{
-            required: { value: true, message: "Prompt name is required" },
             validate: validateIdentifier,
           }}
           render={({ field: { onBlur, onChange }, fieldState }) => (

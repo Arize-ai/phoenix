@@ -5,6 +5,9 @@ const leadingAndTrailingAlphanumericCharactersRegex =
   /^([a-z0-9](.*[a-z0-9])?)?$/;
 
 export function validateIdentifier(value: string): ValidateResult {
+  if (value.trim() === "") {
+    return "Cannot be empty";
+  }
   if (!allowedIdentifierCharactersRegex.test(value)) {
     return "Must have only lowercase alphanumeric characters, dashes, and underscores";
   }

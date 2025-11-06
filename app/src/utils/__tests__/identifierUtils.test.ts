@@ -28,9 +28,18 @@ describe("validateIdentifier", () => {
     it("should accept a single number", () => {
       expect(validateIdentifier("1")).toBe(true);
     });
-    it("should accept an empty string", () => {
-      expect(validateIdentifier("")).toBe(true);
-    }); // forms are expected to handle empty strings separately
+  });
+
+  describe("invalid identifiers - empty", () => {
+    it("should reject an empty string", () => {
+      expect(validateIdentifier("")).toBe("Cannot be empty");
+    });
+    it("should reject a string with only spaces", () => {
+      expect(validateIdentifier("   ")).toBe("Cannot be empty");
+    });
+    it("should reject a string with tabs and newlines", () => {
+      expect(validateIdentifier("\t \n")).toBe("Cannot be empty");
+    });
   });
 
   describe("invalid identifiers - disallowed characters", () => {

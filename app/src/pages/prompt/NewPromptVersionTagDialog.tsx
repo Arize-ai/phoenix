@@ -112,7 +112,6 @@ export function NewPromptVersionDialog({
                   name="name"
                   control={control}
                   rules={{
-                    required: { value: true, message: "Name is required" },
                     validate: (value) => validateIdentifier(value),
                   }}
                   render={({
@@ -150,7 +149,7 @@ export function NewPromptVersionDialog({
                       onChange={onChange}
                       name={name}
                       onBlur={onBlur}
-                      value={value.toString()}
+                      value={value}
                     >
                       <Label>Description</Label>
                       <TextArea placeholder="A description of the tag" />
