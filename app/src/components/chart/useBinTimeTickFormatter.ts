@@ -12,6 +12,7 @@ import { getLocale } from "@phoenix/utils/timeUtils";
 export function useBinTimeTickFormatter({ scale }: { scale: TimeBinScale }) {
   return useMemo(() => {
     const locale = getLocale();
+    debugger;
     switch (scale) {
       case "YEAR":
         return createTimeFormatter(locale, {
