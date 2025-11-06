@@ -65,9 +65,17 @@ export function getFormatterFromSamplingInterval({
  * @param {TimeFormatterConfig} config
  * @returns
  */
-export function useTimeTickFormatter(config: TimeFormatterConfig) {
+export function useTimeTickFormatter({
+  samplingIntervalMinutes,
+  locale,
+  timeZone,
+}: TimeFormatterConfig) {
   const formatter = useMemo(() => {
-    return getFormatterFromSamplingInterval(config);
-  }, [config]);
+    return getFormatterFromSamplingInterval({
+      samplingIntervalMinutes,
+      locale,
+      timeZone,
+    });
+  }, [samplingIntervalMinutes, locale, timeZone]);
   return formatter;
 }
