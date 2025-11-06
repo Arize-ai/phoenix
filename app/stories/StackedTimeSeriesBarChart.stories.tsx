@@ -220,7 +220,6 @@ function StackedBarChart({
   });
 
   const colors = useSequentialChartColors();
-  alert(JSON.stringify(colors));
 
   return (
     <div style={{ width: "100%", height }}>
