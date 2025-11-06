@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
+  ConnectionHandler,
   graphql,
   useFragment,
   useLazyLoadQuery,
@@ -147,19 +148,28 @@ export function EvaluatorConfigDialogContent({
     { evaluatorId }
   );
 
+  const datasetEvaluatorConnection = ConnectionHandler.getConnectionID(
+    dataset.id,
+    "DatasetEvaluatorsTable_evaluators"
+  );
   const [assignEvaluatorToDataset, isAssigningEvaluatorToDataset] =
     useMutation<EvaluatorConfigDialogAssignEvaluatorToDatasetMutation>(graphql`
       mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(
         $input: AssignEvaluatorToDatasetInput!
         $datasetId: ID!
+        $datasetEvaluatorConnection: ID!
       ) {
         assignEvaluatorToDataset(input: $input) {
           query {
             ...DatasetEvaluatorsPage_evaluators
               @arguments(datasetId: $datasetId)
           }
-          evaluator {
-            id
+          evaluator
+            @appendNode(
+              connections: [$datasetEvaluatorConnection]
+              edgeTypeName: "EvaluatorEdge"
+            ) {
+            ...EvaluatorsTable_row @arguments(datasetId: $datasetId)
           }
         }
       }
@@ -201,6 +211,7 @@ export function EvaluatorConfigDialogContent({
           datasetId: dataset.id,
           evaluatorId: evaluator.id,
         },
+        datasetEvaluatorConnection,
         datasetId: dataset.id,
       },
       onCompleted: () => {

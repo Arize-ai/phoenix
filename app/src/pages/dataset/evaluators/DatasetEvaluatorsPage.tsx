@@ -3,21 +3,26 @@ import { graphql, useFragment, usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Loading, Modal, ModalOverlay, View } from "@phoenix/components";
+import { Loading, Modal, ModalOverlay } from "@phoenix/components";
 import { EvaluatorSelect } from "@phoenix/components/evaluators/EvaluatorSelect";
 import {
   datasetEvaluatorsLoader,
   datasetEvaluatorsLoaderGQL,
 } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
+import { DatasetEvaluatorsTable } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsTable";
 import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/EvaluatorConfigDialog";
+import { EvaluatorsFilterBar } from "@phoenix/pages/evaluators/EvaluatorsFilterBar";
+import { EvaluatorsFilterProvider } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 
 import type { DatasetEvaluatorsPage_evaluators$key } from "./__generated__/DatasetEvaluatorsPage_evaluators.graphql";
 
 export function DatasetEvaluatorsPage() {
   return (
-    <Suspense fallback={<Loading />}>
-      <DatasetEvaluatorsPageContent />
-    </Suspense>
+    <EvaluatorsFilterProvider>
+      <Suspense fallback={<Loading />}>
+        <DatasetEvaluatorsPageContent />
+      </Suspense>
+    </EvaluatorsFilterProvider>
   );
 }
 
@@ -34,7 +39,7 @@ export function DatasetEvaluatorsPageContent() {
       graphql`
         fragment DatasetEvaluatorsPage_evaluators on Query
         @argumentDefinitions(datasetId: { type: "ID!" }) {
-          evaluators(first: 100) {
+          globalEvaluators: evaluators(first: 100) {
             edges {
               node {
                 id
@@ -64,7 +69,7 @@ export function DatasetEvaluatorsPageContent() {
 
   const globalEvaluators = useMemo(
     () =>
-      globalEvaluatorsData.evaluators.edges.map((edge) => ({
+      globalEvaluatorsData.globalEvaluators.edges.map((edge) => ({
         id: edge.node.id,
         name: edge.node.name,
         kind: edge.node.kind,
@@ -76,9 +81,10 @@ export function DatasetEvaluatorsPageContent() {
 
   return (
     <main>
-      <View padding="size-200">
-        <Flex direction="row" gap="size-200" justifyContent="end">
+      <EvaluatorsFilterBar
+        extraActions={
           <EvaluatorSelect
+            size="M"
             evaluators={globalEvaluators}
             onSelectionChange={(evaluatorId) => {
               setAddingEvaluatorId(evaluatorId);
@@ -86,8 +92,11 @@ export function DatasetEvaluatorsPageContent() {
             addNewEvaluatorLink="/evaluators/new"
             selectionMode="single"
           />
-        </Flex>
-      </View>
+        }
+      />
+      <Suspense fallback={<Loading />}>
+        <DatasetEvaluatorsTable query={data.dataset} />
+      </Suspense>
       <ModalOverlay
         isOpen={!!addingEvaluatorId}
         onOpenChange={(isOpen) => {

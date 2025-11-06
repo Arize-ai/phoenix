@@ -1,0 +1,70 @@
+import { useCallback } from "react";
+import { usePaginationFragment } from "react-relay";
+import { graphql } from "relay-runtime";
+
+import { DatasetEvaluatorsTable_evaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTable_evaluators.graphql";
+import { EvaluatorsTable } from "@phoenix/pages/evaluators/EvaluatorsTable";
+
+const PAGE_SIZE = 100;
+
+export const DatasetEvaluatorsTable = ({
+  query,
+}: {
+  query: DatasetEvaluatorsTable_evaluators$key;
+}) => {
+  const {
+    data,
+    hasNext,
+    isLoadingNext,
+    loadNext: _loadNext,
+    refetch: _refetch,
+  } = usePaginationFragment(
+    graphql`
+      fragment DatasetEvaluatorsTable_evaluators on Dataset
+      @refetchable(queryName: "DatasetEvaluatorsTableEvaluatorsQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 100 }
+        sort: { type: "EvaluatorSort", defaultValue: null }
+        filter: { type: "EvaluatorFilter", defaultValue: null }
+        datasetId: { type: "ID", defaultValue: null }
+      ) {
+        evaluators(first: $first, after: $after, sort: $sort, filter: $filter)
+          @connection(key: "DatasetEvaluatorsTable_evaluators") {
+          __id
+          edges {
+            node {
+              ...EvaluatorsTable_row @arguments(datasetId: $datasetId)
+            }
+          }
+        }
+      }
+    `,
+    query
+  );
+  const loadNext = useCallback(
+    (
+      args: NonNullable<
+        Parameters<typeof _loadNext>[1]
+      >["UNSTABLE_extraVariables"]
+    ) => {
+      _loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: args });
+    },
+    [_loadNext]
+  );
+  const refetch = useCallback(
+    (args: NonNullable<Parameters<typeof _refetch>[0]>) => {
+      _refetch(args, { fetchPolicy: "store-and-network" });
+    },
+    [_refetch]
+  );
+  return (
+    <EvaluatorsTable
+      rowReferences={data.evaluators.edges.map((edge) => edge.node)}
+      isLoadingNext={isLoadingNext}
+      hasNext={hasNext}
+      loadNext={loadNext}
+      refetch={refetch}
+    />
+  );
+};
