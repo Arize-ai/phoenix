@@ -3429,7 +3429,7 @@ input UpdateAnnotationInput {
 input UpdateLLMEvaluatorInput {
   evaluatorId: ID!
   name: Identifier!
-  description: String
+  description: String = null
   promptVersion: ChatPromptVersionInput!
   outputConfig: CategoricalAnnotationConfigInput!
 }

@@ -75,7 +75,7 @@ class CreateCodeEvaluatorInput:
 class UpdateLLMEvaluatorInput:
     evaluator_id: GlobalID
     name: Identifier
-    description: Optional[str] = UNSET
+    description: Optional[str] = None
     prompt_version: ChatPromptVersionInput
     output_config: CategoricalAnnotationConfigInput
 
@@ -299,28 +299,19 @@ class EvaluatorMutationMixin:
     async def delete_evaluators(
         self, info: Info[Context, None], input: DeleteEvaluatorsInput
     ) -> DeleteEvaluatorsPayload:
-        evaluator_rowids_to_gids: dict[int, GlobalID] = {}
+        evaluator_rowids: set[int] = set()
         for evaluator_gid in input.evaluator_ids:
             try:
                 evaluator_rowid, _ = _parse_evaluator_id(evaluator_gid)
             except ValueError:
                 raise BadRequest(f"Invalid evaluator id: {str(evaluator_gid)}")
-            evaluator_rowids_to_gids[evaluator_rowid] = evaluator_gid
+            evaluator_rowids.add(evaluator_rowid)
 
-        stmt = (
-            delete(models.Evaluator)
-            .where(models.Evaluator.id.in_(evaluator_rowids_to_gids.keys()))
-            .returning(models.Evaluator.id)
-        )
+        stmt = delete(models.Evaluator).where(models.Evaluator.id.in_(evaluator_rowids))
         async with info.context.db() as session:
-            deleted_evaluator_rowids = set(await session.scalars(stmt))
-        deleted_evaluator_gids = [
-            evaluator_gid
-            for evaluator_rowid, evaluator_gid in evaluator_rowids_to_gids.items()
-            if evaluator_rowid in deleted_evaluator_rowids
-        ]
+            await session.execute(stmt)
         return DeleteEvaluatorsPayload(
-            evaluator_ids=deleted_evaluator_gids,
+            evaluator_ids=input.evaluator_ids,
             query=Query(),
         )
 
