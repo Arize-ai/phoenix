@@ -11,7 +11,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text } from "@phoenix/components";
+import { Card, Flex, Text, View } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
@@ -25,16 +25,13 @@ import {
   useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
-import { createFullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { PreferencesProvider } from "@phoenix/contexts";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
+import { ViewerPreferences } from "@phoenix/pages/profile/ViewerPreferences";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
-});
-
-const fullTimeFormatter = createFullTimeFormatter({
-  locale: "en-US",
-  timeZone: "UTC",
 });
 
 const chartData = [
@@ -157,6 +154,8 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const chartColors = useSequentialChartColors();
+  const { fullTimeFormatter } = useTimeFormatters();
+
   if (active && payload && payload.length) {
     const metricValue = payload[1]?.value ?? null;
     const count = payload[0]?.value ?? null;
@@ -273,6 +272,13 @@ function StackedBarChart({
 const meta: Meta<typeof StackedBarChart> = {
   title: "Charting/StackedTimeSeriesBarChart",
   component: StackedBarChart,
+  decorators: [
+    (Story) => (
+      <PreferencesProvider>
+        <Story />
+      </PreferencesProvider>
+    ),
+  ],
   parameters: {
     layout: "padded",
   },
@@ -327,5 +333,30 @@ export const Tall: Story = {
   args: {
     data: chartData,
     height: 600,
+  },
+};
+
+/**
+ * Demonstrates how the chart respects timezone preferences.
+ * The tooltip timestamps will be formatted according to the selected timezone.
+ * Change the timezone in the preferences and hover over the chart bars to see
+ * the timestamps update in the tooltip.
+ */
+export const WithTimezonePreferences: Story = {
+  decorators: [
+    (Story) => (
+      <Flex direction="column" gap="size-200">
+        <ViewerPreferences />
+        <Card title="Chart with Timezone-Aware Tooltips">
+          <View padding="size-200">
+            <Story />
+          </View>
+        </Card>
+      </Flex>
+    ),
+  ],
+  args: {
+    data: chartData,
+    height: 400,
   },
 };
