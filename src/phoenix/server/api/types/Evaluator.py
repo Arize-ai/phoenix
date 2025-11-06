@@ -255,12 +255,12 @@ class LLMEvaluator(Evaluator, Node):
         if self.db_record:
             assert isinstance(self.db_record.output_config, CategoricalAnnotationConfigModel)
             config = self.db_record.output_config
-            annotation_name = self.db_record.name.root
+            annotation_name = self.db_record.annotation_name
         else:
             results = await info.context.data_loaders.llm_evaluator_fields.load_many(
                 [
                     (self.id, models.LLMEvaluator.output_config),
-                    (self.id, models.LLMEvaluator.name),
+                    (self.id, models.LLMEvaluator.annotation_name),
                 ]
             )
             config, annotation_name = results
