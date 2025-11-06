@@ -8,6 +8,7 @@ import {
 } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -24,7 +25,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
@@ -251,7 +252,14 @@ export function EvaluatorConfigDialogContent({
       <View paddingX="size-300" paddingBottom="size-300" paddingTop="size-200">
         <Flex direction="row" alignItems="start" gap="size-200">
           {evaluator.kind === "LLM" && (
-            <Flex direction="column" gap="size-300" flex="1">
+            <Flex
+              direction="column"
+              gap="size-300"
+              flex="1"
+              css={css`
+                overflow: hidden;
+              `}
+            >
               {evaluator.promptVersion && (
                 <Flex direction="column" gap="size-100">
                   <Text>
@@ -267,13 +275,20 @@ export function EvaluatorConfigDialogContent({
               {evaluator.outputConfig && (
                 <Flex direction="column" gap="size-100">
                   <Text size="L">Eval</Text>
-                  <Flex direction="row" alignItems="center" gap="size-100">
-                    <AnnotationColorSwatch
-                      annotationName={evaluator.outputConfig.name}
+                  <Flex
+                    direction="row"
+                    alignItems="center"
+                    gap="size-100"
+                    css={css`
+                      color: var(--ac-global-color-grey-600);
+                    `}
+                  >
+                    <AnnotationNameAndValue
+                      annotation={{ name: evaluator.outputConfig.name }}
+                      displayPreference="none"
+                      size="XS"
+                      maxWidth="100%"
                     />
-                    <Text color="grey-600" weight="heavy">
-                      {evaluator.outputConfig.name}
-                    </Text>
                   </Flex>
                   <Text color="grey-700">
                     {getOutputConfigValuesSummary(evaluator.outputConfig)}
