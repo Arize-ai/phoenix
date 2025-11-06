@@ -27,12 +27,12 @@ export function ViewerPreferences() {
   );
 
   const timezoneOptions: Array<{
-    value: DisplayTimezone;
+    value: DisplayTimezone | undefined;
     label: string;
     description: string;
   }> = [
     {
-      value: "local",
+      value: undefined,
       label: `Local (${getLocalTimeZone()})`,
       description: "Display timestamps in your browser's local timezone",
     },
@@ -54,9 +54,10 @@ export function ViewerPreferences() {
         <Flex direction="column" gap="size-100">
           <Select
             aria-label="Display timezone"
+            defaultValue={undefined}
             selectedKey={displayTimezone}
             onSelectionChange={(key) => {
-              setDisplayTimezone(key as DisplayTimezone);
+              setDisplayTimezone(key as DisplayTimezone | undefined);
             }}
           >
             <Label>Timezone</Label>

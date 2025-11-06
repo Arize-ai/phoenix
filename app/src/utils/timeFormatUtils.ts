@@ -1,5 +1,3 @@
-import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
-
 /**
  * Creates a time formatter from a pattern
  * NB: this is intentionally made strict to Date for safety
@@ -103,43 +101,6 @@ export function createTimeRangeFormatter(
     }
   };
 }
-
-/**
- * A full time formatter using the browser's locale and timezone
- */
-export const fullTimeFormatter = createFullTimeFormatter({
-  locale: getLocale(),
-  timeZone: getTimeZone(),
-});
-
-/**
- * A short time formatter using the browser's locale and timezone
- */
-export const shortTimeFormatter = createShortTimeFormatter({
-  locale: getLocale(),
-  timeZone: getTimeZone(),
-});
-
-/**
- * Formats time to be displayed in short with date and time
- * Equivalent to "P HH:mm a" - date with time (no seconds)
- */
-export const shortDateTimeFormatter = createTimeFormatter(getLocale(), {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: true,
-});
-
-/**
- * Formats a time range as a string using the browser's locale and timezone
- */
-export const timeRangeFormatter = createTimeRangeFormatter({
-  locale: getLocale(),
-  timeZone: getTimeZone(),
-});
 
 export function getLocaleDateFormatPattern(locale: string) {
   const formatParts = new Intl.DateTimeFormat(locale, {

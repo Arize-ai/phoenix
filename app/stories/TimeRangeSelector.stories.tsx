@@ -6,7 +6,7 @@ import {
   TimeRangeSelector,
   TimeRangeSelectorProps,
 } from "@phoenix/components";
-import { timeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { createTimeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 const meta: Meta = {
   title: "TimeRangeSelector",
@@ -15,6 +15,11 @@ const meta: Meta = {
     layout: "centered",
   },
 };
+
+const timeRangeFormatter = createTimeRangeFormatter({
+  locale: "en-US",
+  timeZone: "UTC",
+});
 
 export default meta;
 

@@ -13,7 +13,6 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
-  SEQUENTIAL_CHART_COLORS,
   ChartTooltip,
   ChartTooltipItem,
   defaultBarChartTooltipProps,
@@ -21,15 +20,21 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  SEQUENTIAL_CHART_COLORS,
   SequentialChartColors,
   useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { createFullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
+});
+
+const fullTimeFormatter = createFullTimeFormatter({
+  locale: "en-US",
+  timeZone: "UTC",
 });
 
 const chartData = [

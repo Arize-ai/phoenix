@@ -2,10 +2,11 @@ import { useMemo } from "react";
 
 import { usePreferencesContext } from "@phoenix/contexts";
 import {
-  getFullTimeFormatter,
-  getShortDateTimeFormatter,
-  getShortTimeFormatter,
+  createFullTimeFormatter,
+  createShortTimeFormatter,
+  createTimeRangeFormatter,
 } from "@phoenix/utils/timeFormatUtils";
+import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
 
 /**
  * Hook that returns time formatters based on the user's timezone preference
@@ -15,13 +16,21 @@ export function useTimeFormatters() {
     (state) => state.displayTimezone
   );
 
-  return useMemo(
-    () => ({
-      fullTimeFormatter: getFullTimeFormatter(displayTimezone),
-      shortTimeFormatter: getShortTimeFormatter(displayTimezone),
-      shortDateTimeFormatter: getShortDateTimeFormatter(displayTimezone),
-      displayTimezone,
-    }),
-    [displayTimezone]
-  );
+  return useMemo(() => {
+    const timeZone = displayTimezone ?? getTimeZone();
+    return {
+      fullTimeFormatter: createFullTimeFormatter({
+        locale: getLocale(),
+        timeZone,
+      }),
+      shortTimeFormatter: createShortTimeFormatter({
+        locale: getLocale(),
+        timeZone,
+      }),
+      timeRangeFormatter: createTimeRangeFormatter({
+        locale: getLocale(),
+        timeZone,
+      }),
+    };
+  }, [displayTimezone]);
 }
