@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { timeFormat } from "d3-time-format";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { createTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { getLocale } from "@phoenix/utils/timeUtils";
 
 /**
  * A react hook that returns a time formatter for time series charts
@@ -10,19 +11,36 @@ import { assertUnreachable } from "@phoenix/typeUtils";
  */
 export function useBinTimeTickFormatter({ scale }: { scale: TimeBinScale }) {
   return useMemo(() => {
+    const locale = getLocale();
     switch (scale) {
       case "YEAR":
-        return timeFormat("%Y");
+        return createTimeFormatter(locale, {
+          year: "numeric",
+        });
       case "MONTH":
-        return timeFormat("%b %Y");
+        return createTimeFormatter(locale, {
+          month: "short",
+          year: "numeric",
+        });
       case "WEEK":
       case "DAY":
         // Just show the month and date
-        return timeFormat("%-m/%-d");
+        return createTimeFormatter(locale, {
+          month: "numeric",
+          day: "numeric",
+        });
       case "HOUR":
-        return timeFormat("%H:%M");
+        return createTimeFormatter(locale, {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
       case "MINUTE":
-        return timeFormat("%H:%M");
+        return createTimeFormatter(locale, {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
       default: {
         assertUnreachable(scale);
       }

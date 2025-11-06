@@ -26,10 +26,7 @@ import {
   getCommonPinningStyles,
   tableCSS,
 } from "@phoenix/components/table/styles";
-import {
-  DEFAULT_FORMAT,
-  TimestampCell,
-} from "@phoenix/components/table/TimestampCell";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import {
   RichTooltip,
   Tooltip,
@@ -46,6 +43,7 @@ import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
 import { Mutable } from "@phoenix/typeUtils";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { CloneModelButton } from "./CloneModelButton";
 import { DeleteModelButton } from "./DeleteModelButton";
@@ -65,9 +63,7 @@ type ModelsTableProps = {
  * @returns the date, as a string, in the format of the DEFAULT_FORMAT
  */
 function filterableDateAccessorFn(row?: string | null | undefined) {
-  return row != null
-    ? new Date(row).toLocaleString([], DEFAULT_FORMAT)
-    : undefined;
+  return row != null ? fullTimeFormatter(new Date(row)) : undefined;
 }
 
 /**
@@ -367,18 +363,7 @@ export function ModelsTable({
         header: "start date",
         sortUndefined: "last",
         accessorFn: (row) => filterableDateAccessorFn(row.startTime),
-        cell: (props) => {
-          return (
-            <TimestampCell
-              {...props}
-              format={{
-                year: "numeric",
-                month: "numeric",
-                day: "numeric",
-              }}
-            />
-          );
-        },
+        cell: TimestampCell,
       },
       {
         header: "created at",

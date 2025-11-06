@@ -38,7 +38,6 @@
     "cronstrue": "^2.59.0",
     "d3-format": "^3.1.0",
     "d3-scale-chromatic": "^3.1.0",
-    "d3-time-format": "^4.1.0",
     "date-fns": "^4.1.0",
     "lodash": "^4.17.21",
     "normalize.css": "^8.0.1",
