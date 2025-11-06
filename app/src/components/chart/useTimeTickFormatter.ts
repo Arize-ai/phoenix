@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import { usePreferencesContext } from "@phoenix/contexts";
 import {
   createTimeFormatter,
   type TimeFormatter,
@@ -8,7 +9,7 @@ import {
   ONE_DAY_IN_MINUTES,
   ONE_HOUR_IN_MINUTES,
 } from "@phoenix/utils/timeSeriesUtils";
-import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
+import { getLocale } from "@phoenix/utils/timeUtils";
 
 type TimeFormatterConfig = {
   /**
@@ -29,7 +30,7 @@ type TimeFormatterConfig = {
 export function getFormatterFromSamplingInterval({
   samplingIntervalMinutes,
   locale = getLocale(),
-  timeZone = getTimeZone(),
+  timeZone,
 }: TimeFormatterConfig): TimeFormatter {
   if (samplingIntervalMinutes < ONE_HOUR_IN_MINUTES) {
     // Remove the year, and show minutes
@@ -68,14 +69,16 @@ export function getFormatterFromSamplingInterval({
 export function useTimeTickFormatter({
   samplingIntervalMinutes,
   locale,
-  timeZone,
-}: TimeFormatterConfig) {
+}: Omit<TimeFormatterConfig, "timeZone">) {
+  const displayTimezone = usePreferencesContext(
+    (state) => state.displayTimezone
+  );
   const formatter = useMemo(() => {
     return getFormatterFromSamplingInterval({
       samplingIntervalMinutes,
       locale,
-      timeZone,
+      timeZone: displayTimezone,
     });
-  }, [samplingIntervalMinutes, locale, timeZone]);
+  }, [samplingIntervalMinutes, locale, displayTimezone]);
   return formatter;
 }

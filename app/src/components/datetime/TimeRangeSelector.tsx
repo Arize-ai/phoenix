@@ -15,6 +15,7 @@ import {
   SelectChevronUpDownIcon,
   Text,
   TimeRangeForm,
+  Token,
   View,
 } from "@phoenix/components";
 import { ComponentSize } from "@phoenix/components/types";
@@ -65,6 +66,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
     }
     return rangeValue.label;
   };
+  const hasDisplayTimeZone = displayTimezone !== undefined;
   const absoluteTimeZone = displayTimezone ?? getTimeZone();
   return (
     <DialogTrigger>
@@ -73,7 +75,17 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         leadingVisual={<Icon svg={<Icons.CalendarOutline />} />}
         isDisabled={isDisabled}
       >
-        {getDisplayText(value)}
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <>{getDisplayText(value)}</>
+          {hasDisplayTimeZone && (
+            <Text size="S" color="text-500">
+              {getTimeZoneShortName({
+                locale: getLocale(),
+                timeZone: absoluteTimeZone,
+              })}
+            </Text>
+          )}
+        </Flex>
         <SelectChevronUpDownIcon />
       </Button>
       <Popover placement="bottom end">
