@@ -103,6 +103,12 @@ const readRow = (row: EvaluatorsTable_row$key) => {
 type TableRow = ReturnType<typeof readRow>;
 
 type EvaluatorsTableProps = {
+  /**
+   * Relay fragment references for the evaluator rows to display in the table.
+   *
+   * To obtain row references, spread the EvaluatorsTable_row fragment into an Evaluators connection,
+   * pass the resulting edges into this prop.
+   */
   rowReferences: EvaluatorsTable_row$key[];
   emptyState?: React.ReactNode;
   isLoadingNext: boolean;
