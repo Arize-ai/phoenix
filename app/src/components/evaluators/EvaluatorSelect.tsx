@@ -23,6 +23,7 @@ import {
   SearchIcon,
   Text,
 } from "@phoenix/components";
+import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
 export type EvaluatorItem = {
@@ -30,6 +31,7 @@ export type EvaluatorItem = {
   name: string;
   kind: "CODE" | "LLM";
   alreadyAdded?: boolean;
+  annotationName?: string;
 };
 
 type EvaluatorSelectProps = {
@@ -73,7 +75,7 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
               </Text>
             )}
             css={css`
-              max-width: 300px;
+              max-width: 600px;
             `}
           >
             {(evaluator) => (
@@ -138,25 +140,49 @@ function EvaluatorMenuItem({
       onMouseLeave={onMouseLeave}
     >
       <Flex
+        direction="row"
         alignItems="center"
-        gap="size-100"
+        justifyContent="space-between"
+        gap="size-300"
+        width="100%"
         css={css`
-          color: var(--ac-global-color-grey-800);
-          font-size: var(--ac-global-font-size-s);
           opacity: ${alreadyAdded ? "0.25" : 1};
-          overflow: hidden;
         `}
       >
-        {icon}
-        <Text
+        <Flex
+          alignItems="center"
+          gap="size-100"
           css={css`
+            color: var(--ac-global-color-grey-700);
+            font-size: var(--ac-global-font-size-s);
             overflow: hidden;
           `}
         >
-          <Truncate maxWidth="100%">
-            {showAlreadyAddedState ? "Already added" : name}
-          </Truncate>
-        </Text>
+          {icon}
+          <Text
+            color="inherit"
+            css={css`
+              overflow: hidden;
+            `}
+          >
+            <Truncate maxWidth="100%">
+              {showAlreadyAddedState ? "Already added" : name}
+            </Truncate>
+          </Text>
+        </Flex>
+        {evaluator.annotationName && (
+          <div
+            css={css`
+              color: var(--ac-global-color-grey-600);
+            `}
+          >
+            <AnnotationNameAndValue
+              annotation={{ name: evaluator.annotationName }}
+              displayPreference="none"
+              size="XS"
+            />
+          </div>
+        )}
       </Flex>
     </MenuItem>
   );
