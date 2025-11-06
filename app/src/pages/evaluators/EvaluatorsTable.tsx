@@ -76,6 +76,7 @@ const EmptyState = () => {
         <Text size="XL">
           Create and manage evaluators for your AI applications.
         </Text>
+        {/* TODO: Put a video here explaining how to create and use evaluators */}
       </Flex>
     </View>
   );
