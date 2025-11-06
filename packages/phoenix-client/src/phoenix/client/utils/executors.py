@@ -276,6 +276,7 @@ class AsyncExecutor(Executor):
         termination_event: asyncio.Event,
         progress_bar: Any,
         worker_index: int,
+        requeue_count: List[int],
     ) -> None:
         termination_event_watcher = None
         while True:
@@ -284,7 +285,7 @@ class AsyncExecutor(Executor):
             if self._concurrency_controller is not None:
                 if worker_index >= self._concurrency_controller.target_concurrency:
                     # If production is finished and queue is empty, exit instead of sleeping
-                    if done_producing.is_set() and queue.empty():
+                    if done_producing.is_set() and queue.empty() and requeue_count[0] == 0:
                         break
                     if termination_event.is_set():
                         break
@@ -293,7 +294,7 @@ class AsyncExecutor(Executor):
             try:
                 priority, item = await asyncio.wait_for(queue.get(), timeout=1)
             except asyncio.TimeoutError:
-                if done_producing.is_set() and queue.empty():
+                if done_producing.is_set() and queue.empty() and requeue_count[0] == 0:
                     break
                 continue
             if termination_event.is_set():
@@ -345,9 +346,9 @@ class AsyncExecutor(Executor):
                         except (asyncio.TimeoutError, asyncio.CancelledError):
                             pass
                     # task timeouts are requeued at the same priority
-                    queue.task_done()
-                    marked_done = True
+                    requeue_count[0] += 1
                     await queue.put((priority, item))
+                    requeue_count[0] -= 1
                     details = cast(ExecutionDetails, execution_details[index])
                     details.log_runtime(task_start_time)
                     if self._concurrency_controller is not None:
@@ -369,9 +370,9 @@ class AsyncExecutor(Executor):
                             f"Rate limit throttle on attempt {retry_count + 1}: raised {repr(exc)}"
                         )
                         tqdm.write("Requeuing...")
-                        queue.task_done()
-                        marked_done = True
+                        requeue_count[0] += 1
                         await queue.put((priority - 1, item))
+                        requeue_count[0] -= 1
                         if self._concurrency_controller is not None:
                             self._concurrency_controller.record_error()
                     else:
@@ -379,15 +380,13 @@ class AsyncExecutor(Executor):
                             f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
                         )
                         tqdm.write("Requeuing...")
-                        queue.task_done()
-                        marked_done = True
+                        requeue_count[0] += 1
                         await queue.put((priority - 1, item))
+                        requeue_count[0] -= 1
                 else:
                     details = cast(ExecutionDetails, execution_details[index])
                     details.fail()
                     tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: {exc}")
-                    queue.task_done()
-                    marked_done = True
                     if self.exit_on_error:
                         termination_event.set()
                     else:
@@ -426,6 +425,7 @@ class AsyncExecutor(Executor):
             maxsize=max_queue_size
         )
         done_producing = asyncio.Event()
+        requeue_count: List[int] = [0]
 
         producer = asyncio.create_task(
             self.producer(inputs, queue, max_fill, done_producing, termination_event)
@@ -440,6 +440,7 @@ class AsyncExecutor(Executor):
                     termination_event,
                     progress_bar,
                     worker_index=i,
+                    requeue_count=requeue_count,
                 )
             )
             for i in range(self.concurrency)
