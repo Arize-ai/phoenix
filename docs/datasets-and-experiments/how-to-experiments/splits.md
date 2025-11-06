@@ -50,11 +50,11 @@ Splits can currently only be assigned from the UI on the dataset page. To assign
 
 {% tabs %}
 {% tab title="Assigning Splits" %}
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assign_split.png" alt="Create split dialog"><figcaption></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assign_splits.png" alt="Create split dialog"><figcaption></figcaption></figure>
 {% endtab %}
 
 {% tab title="Splits Assigned" %}
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assign_split_complete.png" alt="Split creation complete"><figcaption></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assign_splits_complete.png" alt="Split creation complete"><figcaption></figcaption></figure>
 {% endtab %}
 {% endtabs %}
 
