@@ -345,6 +345,8 @@ class AsyncExecutor(Executor):
                         except (asyncio.TimeoutError, asyncio.CancelledError):
                             pass
                     # task timeouts are requeued at the same priority
+                    queue.task_done()
+                    marked_done = True
                     await queue.put((priority, item))
                     details = cast(ExecutionDetails, execution_details[index])
                     details.log_runtime(task_start_time)
@@ -367,6 +369,8 @@ class AsyncExecutor(Executor):
                             f"Rate limit throttle on attempt {retry_count + 1}: raised {repr(exc)}"
                         )
                         tqdm.write("Requeuing...")
+                        queue.task_done()
+                        marked_done = True
                         await queue.put((priority - 1, item))
                         if self._concurrency_controller is not None:
                             self._concurrency_controller.record_error()
@@ -375,11 +379,15 @@ class AsyncExecutor(Executor):
                             f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
                         )
                         tqdm.write("Requeuing...")
+                        queue.task_done()
+                        marked_done = True
                         await queue.put((priority - 1, item))
                 else:
                     details = cast(ExecutionDetails, execution_details[index])
                     details.fail()
                     tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: {exc}")
+                    queue.task_done()
+                    marked_done = True
                     if self.exit_on_error:
                         termination_event.set()
                     else:
