@@ -40,7 +40,7 @@ A split can be assigned a name, description and a color
 {% endtab %}
 
 {% tab title="Split Created" %}
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/split_create_dialogue_complete.png" alt="Split creation complete"><figcaption></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/splits_create_dialogue_complete.png" alt="Split creation complete"><figcaption></figcaption></figure>
 {% endtab %}
 {% endtabs %}
 
@@ -50,7 +50,7 @@ Splits can currently only be assigned from the UI on the dataset page. To assign
 
 {% tabs %}
 {% tab title="Assigning Splits" %}
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assign_splits.png" alt="Create split dialog"><figcaption></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assigning_splits.png" alt="Create split dialog"><figcaption></figcaption></figure>
 {% endtab %}
 
 {% tab title="Splits Assigned" %}
