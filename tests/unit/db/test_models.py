@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from datetime import datetime
 from secrets import token_hex
 from typing import Any, AsyncIterator, Sequence
@@ -1005,3 +1006,124 @@ class TestEvaluatorPolymorphism:
                 prompt_to_delete = await session.get(models.Prompt, new_prompt.id)
                 assert prompt_to_delete is not None
                 await session.delete(prompt_to_delete)
+
+
+class TestPromptVersion:
+    @pytest.mark.parametrize(
+        "patch_attrs",
+        [
+            pytest.param(
+                {},
+                id="identical-prompt-versions",
+            ),
+            pytest.param(
+                {"user_id": 42},
+                id="user-id-differs",
+            ),
+        ],
+    )
+    def test_has_identical_content_returns_true_when_content_fields_are_equal(
+        self,
+        patch_attrs: dict[str, Any],
+    ) -> None:
+        base_attrs = {
+            "prompt_id": 1,
+            "user_id": 1,
+            "description": "Test prompt version",
+            "template_type": PromptTemplateType.STRING,
+            "template_format": PromptTemplateFormat.F_STRING,
+            "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
+            "invocation_parameters": PromptOpenAIInvocationParameters(
+                type="openai", openai=PromptOpenAIInvocationParametersContent()
+            ),
+            "tools": None,
+            "response_format": None,
+            "model_provider": ModelProvider.OPENAI,
+            "model_name": "gpt-4",
+            "metadata_": {"key": "value"},
+        }
+        assert all(base_attrs[attr_name] != patch_attrs[attr_name] for attr_name in patch_attrs), (
+            "Each patch attribute should differ from the corresponding base attribute"
+        )
+        version1_attrs = deepcopy(base_attrs)
+        version2_attrs = {**deepcopy(base_attrs), **deepcopy(patch_attrs)}
+        version1 = models.PromptVersion(**version1_attrs)
+        version2 = models.PromptVersion(**version2_attrs)
+        assert version1.has_identical_content(version2)
+        assert version2.has_identical_content(version1)
+
+    @pytest.mark.parametrize(
+        "patch_attrs",
+        [
+            pytest.param(
+                {"description": "Different description"},
+                id="description-differs",
+            ),
+            pytest.param(
+                {"template_type": PromptTemplateType.CHAT},
+                id="template-type-differs",
+            ),
+            pytest.param(
+                {"template_format": PromptTemplateFormat.MUSTACHE},
+                id="template-format-differs",
+            ),
+            pytest.param(
+                {"template": PromptStringTemplate(type="string", template="Different: {input}")},
+                id="template-differs",
+            ),
+            pytest.param(
+                {
+                    "invocation_parameters": PromptOpenAIInvocationParameters(
+                        type="openai",
+                        openai=PromptOpenAIInvocationParametersContent(temperature=0.5),
+                    )
+                },
+                id="invocation-parameters-differ",
+            ),
+            pytest.param(
+                {"model_provider": ModelProvider.ANTHROPIC},
+                id="model-provider-differs",
+            ),
+            pytest.param(
+                {"model_name": "gpt-3.5-turbo"},
+                id="model-name-differs",
+            ),
+            pytest.param(
+                {"metadata_": {"key": "different_value"}},
+                id="metadata-differs",
+            ),
+            pytest.param(
+                {"description": "Different", "model_name": "gpt-3.5-turbo", "metadata_": {}},
+                id="multiple-fields-differ",
+            ),
+        ],
+    )
+    def test_has_identical_content_returns_false_when_content_fields_differ(
+        self,
+        patch_attrs: dict[str, Any],
+    ) -> None:
+        base_attrs = {
+            "prompt_id": 1,
+            "user_id": 1,
+            "description": "Test prompt version",
+            "template_type": PromptTemplateType.STRING,
+            "template_format": PromptTemplateFormat.F_STRING,
+            "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
+            "invocation_parameters": PromptOpenAIInvocationParameters(
+                type="openai", openai=PromptOpenAIInvocationParametersContent()
+            ),
+            "tools": None,
+            "response_format": None,
+            "model_provider": ModelProvider.OPENAI,
+            "model_name": "gpt-4",
+            "metadata_": {"key": "value"},
+        }
+        assert all(base_attrs[attr_name] != patch_attrs[attr_name] for attr_name in patch_attrs), (
+            "Each patch attribute should differ from the corresponding base attribute"
+        )
+        version1_attrs = deepcopy(base_attrs)
+        version2_attrs = {**deepcopy(base_attrs), **deepcopy(patch_attrs)}
+        version1 = models.PromptVersion(**version1_attrs)
+        version2 = models.PromptVersion(**version2_attrs)
+        assert not version1.has_identical_content(version2)
+        assert not version2.has_identical_content(version1)

@@ -933,6 +933,15 @@ type DeleteDatasetSplitsMutationPayload {
   query: Query!
 }
 
+input DeleteEvaluatorsInput {
+  evaluatorIds: [ID!]!
+}
+
+type DeleteEvaluatorsPayload {
+  evaluatorIds: [ID!]!
+  query: Query!
+}
+
 input DeleteExperimentsInput {
   experimentIds: [ID!]!
 }
@@ -1959,6 +1968,8 @@ type Mutation {
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   createLlmEvaluator(input: CreateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
+  updateLlmEvaluator(input: UpdateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
+  deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
   assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
   unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
@@ -3434,6 +3445,14 @@ input UpdateAnnotationInput {
   explanation: String = null
   metadata: JSON! = {}
   source: AnnotationSource! = APP
+}
+
+input UpdateLLMEvaluatorInput {
+  evaluatorId: ID!
+  name: Identifier!
+  description: String = null
+  promptVersion: ChatPromptVersionInput!
+  outputConfig: CategoricalAnnotationConfigInput!
 }
 
 input UpdateModelMutationInput {
