@@ -112,7 +112,7 @@ export function NewPromptVersionDialog({
                   name="name"
                   control={control}
                   rules={{
-                    validate: (value) => validateIdentifier(value),
+                    validate: validateIdentifier,
                   }}
                   render={({
                     field: { name, onChange, onBlur, value },
