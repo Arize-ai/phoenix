@@ -297,23 +297,25 @@ class EvaluatorMutationMixin:
     async def delete_evaluators(
         self, info: Info[Context, None], input: DeleteEvaluatorsInput
     ) -> DeleteEvaluatorsPayload:
-        evaluator_gids_to_rowids: dict[GlobalID, int] = {}
+        evaluator_rowids_to_gids: dict[int, GlobalID] = {}
         for evaluator_gid in input.evaluator_ids:
-            if evaluator_gid in evaluator_gids_to_rowids:
-                continue
             evaluator_type_name, evaluator_rowid = from_global_id(global_id=evaluator_gid)
             if not is_supported_evaluator_type_name(evaluator_type_name):
                 raise BadRequest(f"Invalid evaluator id: {evaluator_gid}")
-            evaluator_gids_to_rowids[evaluator_gid] = evaluator_rowid
+            evaluator_rowids_to_gids[evaluator_rowid] = evaluator_gid
 
-        stmt = delete(models.Evaluator).where(
-            models.Evaluator.id.in_(evaluator_gids_to_rowids.values())
+        stmt = (
+            delete(models.Evaluator)
+            .where(models.Evaluator.id.in_(evaluator_rowids_to_gids.keys()))
+            .returning(models.Evaluator.id)
         )
         async with info.context.db() as session:
-            result = await session.execute(stmt)
-            if result.rowcount < len(evaluator_gids_to_rowids):  # type: ignore[attr-defined]
-                raise NotFound("One or more evaluators not found")
-        deleted_evaluator_gids = list(evaluator_gids_to_rowids.keys())
+            deleted_evaluator_rowids = set(await session.scalars(stmt))
+        deleted_evaluator_gids = [
+            evaluator_gid
+            for evaluator_rowid, evaluator_gid in evaluator_rowids_to_gids.items()
+            if evaluator_rowid in deleted_evaluator_rowids
+        ]
         return DeleteEvaluatorsPayload(
             evaluator_ids=deleted_evaluator_gids,
             query=Query(),
