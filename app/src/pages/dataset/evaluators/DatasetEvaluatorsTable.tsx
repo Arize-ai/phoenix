@@ -2,7 +2,9 @@ import { useCallback } from "react";
 import { usePaginationFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
+import { Empty } from "@phoenix/components";
 import { DatasetEvaluatorsTable_evaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTable_evaluators.graphql";
+import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 import { EvaluatorsTable } from "@phoenix/pages/evaluators/EvaluatorsTable";
 
 const PAGE_SIZE = 100;
@@ -12,6 +14,7 @@ export const DatasetEvaluatorsTable = ({
 }: {
   query: DatasetEvaluatorsTable_evaluators$key;
 }) => {
+  const { filter } = useEvaluatorsFilterContext();
   const {
     data,
     hasNext,
@@ -65,6 +68,16 @@ export const DatasetEvaluatorsTable = ({
       hasNext={hasNext}
       loadNext={loadNext}
       refetch={refetch}
+      emptyState={
+        <Empty
+          size="S"
+          message={
+            filter
+              ? "No evaluators found"
+              : "No evaluators assigned to this dataset"
+          }
+        />
+      }
     />
   );
 };
