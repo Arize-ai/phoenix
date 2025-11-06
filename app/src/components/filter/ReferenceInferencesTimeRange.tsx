@@ -30,7 +30,7 @@ export function ReferenceInferencesTimeRange({
     <div
       css={css`
         .ac-textfield {
-          min-width: 331px;
+          min-width: 365px;
         }
       `}
     >
