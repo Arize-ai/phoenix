@@ -26,7 +26,7 @@ Experiments can be run over previously configured splits either via the Python o
 
 Currently, Splits can be created in the UI on the dataset page. When inspecting the dataset you will see a new splits column along with a splits filter.
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix-docs-images/splits_column_and_filter.png" alt="repetition carousel"><figcaption></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/splits_column_and_filter.png" alt="repetition carousel"><figcaption></figcaption></figure>
 
 On the split filter we have the ability to assign splits and create splits
 
