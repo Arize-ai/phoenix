@@ -148,7 +148,7 @@ export function EvaluatorConfigDialogContent({
     { evaluatorId }
   );
 
-  const datasetEvaluatorConnection = ConnectionHandler.getConnectionID(
+  const datasetEvaluatorsTableConnection = ConnectionHandler.getConnectionID(
     dataset.id,
     "DatasetEvaluatorsTable_evaluators"
   );
@@ -157,7 +157,7 @@ export function EvaluatorConfigDialogContent({
       mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(
         $input: AssignEvaluatorToDatasetInput!
         $datasetId: ID!
-        $datasetEvaluatorConnection: ID!
+        $connectionIds: [ID!]!
       ) {
         assignEvaluatorToDataset(input: $input) {
           query {
@@ -166,7 +166,7 @@ export function EvaluatorConfigDialogContent({
           }
           evaluator
             @appendNode(
-              connections: [$datasetEvaluatorConnection]
+              connections: $connectionIds
               edgeTypeName: "EvaluatorEdge"
             ) {
             ...EvaluatorsTable_row @arguments(datasetId: $datasetId)
@@ -211,7 +211,7 @@ export function EvaluatorConfigDialogContent({
           datasetId: dataset.id,
           evaluatorId: evaluator.id,
         },
-        datasetEvaluatorConnection,
+        connectionIds: [datasetEvaluatorsTableConnection],
         datasetId: dataset.id,
       },
       onCompleted: () => {

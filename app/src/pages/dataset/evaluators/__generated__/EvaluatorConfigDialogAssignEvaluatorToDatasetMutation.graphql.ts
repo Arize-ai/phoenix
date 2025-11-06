@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cf224d80d94d099f9b5b9ed9a62e5998>>
+ * @generated SignedSource<<04e65353eaa3699697e5ab21404d165f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type AssignEvaluatorToDatasetInput = {
   evaluatorId: string;
 };
 export type EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$variables = {
-  datasetEvaluatorConnection: string;
+  connectionIds: ReadonlyArray<string>;
   datasetId: string;
   input: AssignEvaluatorToDatasetInput;
 };
@@ -38,7 +38,7 @@ const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "datasetEvaluatorConnection"
+  "name": "connectionIds"
 },
 v1 = {
   "defaultValue": null,
@@ -316,15 +316,9 @@ return {
             "name": "evaluator",
             "handleArgs": [
               {
-                "items": [
-                  {
-                    "kind": "Variable",
-                    "name": "connections.0",
-                    "variableName": "datasetEvaluatorConnection"
-                  }
-                ],
-                "kind": "ListValue",
-                "name": "connections"
+                "kind": "Variable",
+                "name": "connections",
+                "variableName": "connectionIds"
               },
               {
                 "kind": "Literal",
@@ -349,6 +343,6 @@ return {
 };
 })();
 
-(node as any).hash = "ad8e5da859bc27131593d87abfb86080";
+(node as any).hash = "434c0718b0cbee3b3b02e4651da62d32";
 
 export default node;
