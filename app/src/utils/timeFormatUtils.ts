@@ -9,6 +9,11 @@ import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
 export type TimeFormatter = (date: Date) => string;
 
 /**
+ * A time range formatter
+ */
+export type TimeRangeFormatter = (timeRange: OpenTimeRange) => string;
+
+/**
  * Options for displaying time in a specific locale and timezone
  */
 export type TimeDisplayOptions = {
@@ -78,6 +83,28 @@ export function createShortTimeFormatter(
 }
 
 /**
+ * Creates a time range formatter
+ * @param displayOptions - The display options to use for the formatter
+ * @returns A time range formatter
+ */
+export function createTimeRangeFormatter(
+  displayOptions: TimeDisplayOptions
+): TimeRangeFormatter {
+  const fullTimeFormatter = createFullTimeFormatter(displayOptions);
+  return (timeRange: OpenTimeRange) => {
+    if (timeRange.start && timeRange.end) {
+      return `${fullTimeFormatter(timeRange.start)} - ${fullTimeFormatter(timeRange.end)}`;
+    } else if (timeRange.start) {
+      return `From ${fullTimeFormatter(timeRange.start)}`;
+    } else if (timeRange.end) {
+      return `Until ${fullTimeFormatter(timeRange.end)}`;
+    } else {
+      return "All Time";
+    }
+  };
+}
+
+/**
  * A full time formatter using the browser's locale and timezone
  */
 export const fullTimeFormatter = createFullTimeFormatter({
@@ -107,21 +134,12 @@ export const shortDateTimeFormatter = createTimeFormatter(getLocale(), {
 });
 
 /**
- * Formats a time range as a string
- * @param timeRange - The time range to format
- * @returns The formatted time range
+ * Formats a time range as a string using the browser's locale and timezone
  */
-export const timeRangeFormatter = (timeRange: OpenTimeRange) => {
-  if (timeRange.start && timeRange.end) {
-    return `${fullTimeFormatter(timeRange.start)} - ${fullTimeFormatter(timeRange.end)}`;
-  } else if (timeRange.start) {
-    return `From ${fullTimeFormatter(timeRange.start)}`;
-  } else if (timeRange.end) {
-    return `Until ${fullTimeFormatter(timeRange.end)}`;
-  } else {
-    return "All Time";
-  }
-};
+export const timeRangeFormatter = createTimeRangeFormatter({
+  locale: getLocale(),
+  timeZone: getTimeZone(),
+});
 
 export function getLocaleDateFormatPattern(locale: string) {
   const formatParts = new Intl.DateTimeFormat(locale, {
