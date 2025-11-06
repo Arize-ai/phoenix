@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from datetime import datetime
 from secrets import token_hex
 from typing import Any, AsyncIterator, Sequence
@@ -1021,7 +1022,7 @@ class TestPromptVersion:
             ),
         ],
     )
-    def test_has_identical_content_returns_true_when_content_is_identical(
+    def test_has_identical_content_returns_true_when_content_fields_are_equal(
         self,
         patch_attrs: dict[str, Any],
     ) -> None:
@@ -1042,10 +1043,12 @@ class TestPromptVersion:
             "metadata_": {"key": "value"},
         }
         assert all(base_attrs[attr_name] != patch_attrs[attr_name] for attr_name in patch_attrs), (
-            "There are no differences between the base and patch attributes"
+            "Each patch attribute should differ from the corresponding base attribute"
         )
-        version1 = models.PromptVersion(**base_attrs)
-        version2 = models.PromptVersion(**{**base_attrs, **patch_attrs})
+        version1_attrs = deepcopy(base_attrs)
+        version2_attrs = {**deepcopy(base_attrs), **deepcopy(patch_attrs)}
+        version1 = models.PromptVersion(**version1_attrs)
+        version2 = models.PromptVersion(**version2_attrs)
         assert version1.has_identical_content(version2)
         assert version2.has_identical_content(version1)
 
@@ -1095,7 +1098,7 @@ class TestPromptVersion:
             ),
         ],
     )
-    def test_has_identical_content_returns_false(
+    def test_has_identical_content_returns_false_when_content_fields_differ(
         self,
         patch_attrs: dict[str, Any],
     ) -> None:
@@ -1116,9 +1119,11 @@ class TestPromptVersion:
             "metadata_": {"key": "value"},
         }
         assert all(base_attrs[attr_name] != patch_attrs[attr_name] for attr_name in patch_attrs), (
-            "There are no differences between the base and patch attributes"
+            "Each patch attribute should differ from the corresponding base attribute"
         )
-        version1 = models.PromptVersion(**base_attrs)
-        version2 = models.PromptVersion(**{**base_attrs, **patch_attrs})
+        version1_attrs = deepcopy(base_attrs)
+        version2_attrs = {**deepcopy(base_attrs), **deepcopy(patch_attrs)}
+        version1 = models.PromptVersion(**version1_attrs)
+        version2 = models.PromptVersion(**version2_attrs)
         assert not version1.has_identical_content(version2)
         assert not version2.has_identical_content(version1)
