@@ -8,7 +8,7 @@ import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
  */
 export function TimestampCell<TData extends object, TValue>({
   getValue,
-}: CellContext<TData, TValue> & { format?: Intl.DateTimeFormatOptions }) {
+}: CellContext<TData, TValue>) {
   const value = getValue();
   if (!isStringOrNullOrUndefined(value)) {
     throw new Error(
