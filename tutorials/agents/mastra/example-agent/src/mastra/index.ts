@@ -1,24 +1,13 @@
-// chosen-project-name/src/index.ts
 import { Mastra } from "@mastra/core";
-import { createLogger } from "@mastra/core/logger";
-import { LibSQLStore } from "@mastra/libsql";
 import { ArizeExporter } from "@mastra/arize";
-
-import { weatherAgent } from "./agents/weather-agent";
+import { movieAgent } from "./agents/movie-agent";
 
 export const mastra = new Mastra({
-  agents: { weatherAgent },
-  storage: new LibSQLStore({
-    url: ":memory:",
-  }),
-  logger: createLogger({
-    name: "Mastra",
-    level: "info",
-  }),
+  agents: { movieAgent },
   observability: {
     configs: {
       arize: {
-        serviceName: process.env.PHOENIX_PROJECT_NAME || "weather-agent",
+        serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-project",
         exporters: [
           new ArizeExporter({
             endpoint: process.env.PHOENIX_ENDPOINT!,
@@ -30,3 +19,4 @@ export const mastra = new Mastra({
     },
   },
 });
+

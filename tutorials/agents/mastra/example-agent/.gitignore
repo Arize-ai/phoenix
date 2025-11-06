@@ -1,8 +1,5 @@
-output.txt
-node_modules
-dist
-.mastra
-.env.development
+node_modules/
+package-lock.json
 .env
-*.db
-*.db-*
+.mastra/
+.DS_Store
