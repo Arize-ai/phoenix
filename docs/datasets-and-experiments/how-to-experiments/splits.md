@@ -138,3 +138,23 @@ runExperiment({
 ```
 {% endtab %}
 {% endtabs %}
+
+### Comparing Experiments on Splits
+
+Splits as a property are mutable, meaning you can add or remove examples from splits at any time. However, for consistent experiment comparison, experiment runs are snapshotted at the time of execution. The association between experiment runs and the splits they were executed against is immutable, ensuring that comparisons remain accurate even if split assignments change later.
+
+The comparisons between experiments will always consult the snapshot of the base experiment. This means that when comparing experiments, the system uses the exact set of examples that were included in the base experiment at the time it was executed, regardless of any subsequent changes to split assignments.
+
+For example, if you run an experiment on the "train" split when it contains 7 examples (with specific example IDs), those same 7 example IDs are what will be retrieved and compared in any future experiment comparisons. Even if you later add more examples to the "train" split or remove some examples, the comparison will still only include the original 7 examples that were part of the base experiment's snapshot.
+
+When comparing experiments run on splits we will now see this new overlap states where a experiment comparison either doesn't contain those example IDs:
+
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/no_overlap_example.png" alt="No overlap"><figcaption></figcaption></figure>
+
+Or the expected state when there is an overlap:
+
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/overlap_example.png" alt="Overlap"><figcaption></figcaption></figure>
+
+
+
+
