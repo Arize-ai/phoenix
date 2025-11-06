@@ -13,11 +13,15 @@ import {
   Popover,
   PopoverArrow,
   SelectChevronUpDownIcon,
+  Text,
   TimeRangeForm,
   View,
 } from "@phoenix/components";
 import { ComponentSize } from "@phoenix/components/types";
+import { usePreferencesContext } from "@phoenix/contexts";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
+import { getTimeZoneShortName } from "@phoenix/utils/timeFormatUtils";
+import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
 
 import { LAST_N_TIME_RANGES } from "./constants";
 import { OpenTimeRangeWithKey } from "./types";
@@ -38,7 +42,9 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const { value, isDisabled, onChange, size = "S" } = props;
   const { timeRangeKey, start, end } = value;
   const { timeRangeFormatter } = useTimeFormatters();
-
+  const displayTimezone = usePreferencesContext(
+    (state) => state.displayTimezone
+  );
   /**
    * Get the display text for the time range key. Shows the explicit time range in the case of "custom"
    */
@@ -59,6 +65,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
     }
     return rangeValue.label;
   };
+  const absoluteTimeZone = displayTimezone ?? getTimeZone();
   return (
     <DialogTrigger>
       <Button
@@ -82,8 +89,12 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                       <Heading level={2} weight="heavy">
                         Time Range
                       </Heading>
+                      <Text color="text-700" size="S">
+                        {`Displayed in ${absoluteTimeZone} (${getTimeZoneShortName({ locale: getLocale(), timeZone: absoluteTimeZone })})`}
+                      </Text>
                       <TimeRangeForm
                         initialValue={{ start, end }}
+                        timeZone={displayTimezone}
                         onSubmit={(timeRange) => {
                           onChange &&
                             onChange({

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { getLocalTimeZone } from "@internationalized/date";
 
 import {
@@ -21,25 +22,25 @@ export function ViewerPreferences() {
     })
   );
 
-  const supportedTimezones = getSupportedTimezones();
+  const timeZoneOptions = useMemo(() => {
+    const supportedTimezones = getSupportedTimezones();
+    const locale = getLocale();
 
-  const timeZoneOptions: Array<{
-    value: DisplayTimezone | "local";
-    label: string;
-  }> = [
-    {
-      value: "local",
-      label: `Local (${getLocalTimeZone()})`,
-    },
-    {
-      value: "UTC",
-      label: `UTC (Coordinated Universal Time)`,
-    },
-    ...supportedTimezones.map((timezone) => ({
-      value: timezone,
-      label: `${timezone} (${getTimeZoneShortName({ locale: getLocale(), timeZone: timezone })})`,
-    })),
-  ];
+    return [
+      {
+        value: "local" as const,
+        label: `Local (${getLocalTimeZone()})`,
+      },
+      {
+        value: "UTC" as DisplayTimezone,
+        label: `UTC (Coordinated Universal Time)`,
+      },
+      ...supportedTimezones.map((timezone) => ({
+        value: timezone,
+        label: `${timezone} (${getTimeZoneShortName({ locale, timeZone: timezone })})`,
+      })),
+    ];
+  }, []);
 
   const selectedTimezone = displayTimezone ?? "local";
   return (
