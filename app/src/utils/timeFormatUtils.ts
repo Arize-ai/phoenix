@@ -1,18 +1,53 @@
-import { timeFormat } from "d3-time-format";
+import { formatInTimeZone, FormatOptionsWithTZ } from "date-fns-tz";
+
+import { getTimeZone } from "@phoenix/utils/timeUtils";
 
 /**
- * Formats time to be displayed in full
- * e.x. in a tooltip
+ * Creates a time formatter from a pattern
+ * NB: this is intentionally made strict to Date for safety
+ * @param pattern - The pattern to use for the formatter
+ * @returns A time formatter
  */
-export const fullTimeFormatter = timeFormat("%x %H:%M:%S %p");
+export type TimeFormatter = (
+  date: Date,
+  formatOptions?: FormatOptionsWithTZ
+) => string;
+
+export function createTimeFormatter(
+  pattern: string,
+  timeZone: string
+): TimeFormatter {
+  return (date: Date) => {
+    return formatInTimeZone(date, timeZone, pattern);
+  };
+}
+
+/**
+ * Formats time to be displayed in full with date and time
+ */
+export const fullTimeFormatter = createTimeFormatter(
+  "P HH:mm:ss a",
+  getTimeZone()
+);
 
 /**
  * Formats time to be displayed in short (no year or date)
- * e.x. in a tooltip
  */
-export const shortTimeFormatter = timeFormat("%H:%M %p");
+export const shortTimeFormatter = createTimeFormatter("HH:mm a", getTimeZone());
 
-export const shortDateTimeFormatter = timeFormat("%x %H:%M %p");
+/**
+ * Formats time to be displayed in short with date and time
+ */
+export const shortDateTimeFormatter = createTimeFormatter(
+  "P HH:mm a",
+  getTimeZone()
+);
+
+/**
+ * Formats a time range as a string
+ * @param timeRange - The time range to format
+ * @returns The formatted time range
+ */
 export const timeRangeFormatter = (timeRange: OpenTimeRange) => {
   if (timeRange.start && timeRange.end) {
     return `${fullTimeFormatter(timeRange.start)} - ${fullTimeFormatter(timeRange.end)}`;
