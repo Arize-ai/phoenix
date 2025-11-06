@@ -31,7 +31,6 @@ from phoenix.server.api.types.Evaluator import (
     CodeEvaluator,
     Evaluator,
     LLMEvaluator,
-    is_supported_evaluator_type_name,
 )
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
@@ -299,9 +298,10 @@ class EvaluatorMutationMixin:
     ) -> DeleteEvaluatorsPayload:
         evaluator_rowids_to_gids: dict[int, GlobalID] = {}
         for evaluator_gid in input.evaluator_ids:
-            evaluator_type_name, evaluator_rowid = from_global_id(global_id=evaluator_gid)
-            if not is_supported_evaluator_type_name(evaluator_type_name):
-                raise BadRequest(f"Invalid evaluator id: {evaluator_gid}")
+            try:
+                evaluator_rowid, _ = _parse_evaluator_id(evaluator_gid)
+            except ValueError:
+                raise BadRequest(f"Invalid evaluator id: {str(evaluator_gid)}")
             evaluator_rowids_to_gids[evaluator_rowid] = evaluator_gid
 
         stmt = (
