@@ -1,4 +1,4 @@
-import { getLocale } from "@phoenix/utils/timeUtils";
+import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
 
 /**
  * Creates a time formatter from a pattern
@@ -8,6 +8,25 @@ import { getLocale } from "@phoenix/utils/timeUtils";
  */
 export type TimeFormatter = (date: Date) => string;
 
+/**
+ * Options for displaying time in a specific locale and timezone
+ */
+export type TimeDisplayOptions = {
+  /**
+   * The locale to use for the formatter
+   */
+  locale: string;
+  /**
+   * The timezone to use for the formatter
+   */
+  timeZone: string;
+};
+/**
+ * Creates a time formatter from a locale and options
+ * @param locale - The locale to use for the formatter
+ * @param options - The options to use for the formatter
+ * @returns A time formatter
+ */
 export function createTimeFormatter(
   locale: string,
   options: Intl.DateTimeFormatOptions
@@ -21,27 +40,57 @@ export function createTimeFormatter(
 }
 
 /**
- * Formats time to be displayed in full with date and time
- * Equivalent to "P HH:mm:ss a" - full date with time including seconds
+ * Creates a full time formatter
+ * @param displayOptions - The display options to use for the formatter
+ * @returns A full time formatter
  */
-export const fullTimeFormatter = createTimeFormatter(getLocale(), {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: true,
+export function createFullTimeFormatter(
+  displayOptions: TimeDisplayOptions
+): TimeFormatter {
+  const { locale, timeZone } = displayOptions;
+  return createTimeFormatter(locale, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone,
+  });
+}
+
+/**
+ * Creates a short time formatter
+ * @param displayOptions - The display options to use for the formatter
+ * @returns A short time formatter
+ */
+export function createShortTimeFormatter(
+  displayOptions: TimeDisplayOptions
+): TimeFormatter {
+  const { locale, timeZone } = displayOptions;
+  return createTimeFormatter(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone,
+  });
+}
+
+/**
+ * A full time formatter using the browser's locale and timezone
+ */
+export const fullTimeFormatter = createFullTimeFormatter({
+  locale: getLocale(),
+  timeZone: getTimeZone(),
 });
 
 /**
- * Formats time to be displayed in short (no year or date)
- * Equivalent to "HH:mm a" - time only
+ * A short time formatter using the browser's locale and timezone
  */
-export const shortTimeFormatter = createTimeFormatter(getLocale(), {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: true,
+export const shortTimeFormatter = createShortTimeFormatter({
+  locale: getLocale(),
+  timeZone: getTimeZone(),
 });
 
 /**
