@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { shortDateTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 
 import { messageContainerCSS, messageRowCSS } from "./styles";
 
@@ -77,6 +77,7 @@ export function MessageBubble({
   userName,
   userPicture = null,
 }: MessageBubbleProps) {
+  const { shortDateTimeFormatter } = useTimeFormatters();
   return (
     <div css={messageContainerCSS} data-outgoing={isOutgoing}>
       <div css={messageRowCSS} data-outgoing={isOutgoing}>

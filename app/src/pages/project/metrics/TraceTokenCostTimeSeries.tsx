@@ -24,13 +24,13 @@ import {
   useCategoryChartColors,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   costFormatter,
   floatShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { TraceTokenCostTimeSeriesQuery } from "./__generated__/TraceTokenCostTimeSeriesQuery.graphql";
 
@@ -40,6 +40,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const chartColors = useCategoryChartColors();
+  const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     const promptValue = payload[0]?.value;
     const completionValue = payload[1]?.value;

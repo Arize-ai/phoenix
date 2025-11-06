@@ -43,7 +43,6 @@ import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
 import { Mutable } from "@phoenix/typeUtils";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { CloneModelButton } from "./CloneModelButton";
 import { DeleteModelButton } from "./DeleteModelButton";
@@ -63,7 +62,7 @@ type ModelsTableProps = {
  * @returns the date, as a string, in the format of the DEFAULT_FORMAT
  */
 function filterableDateAccessorFn(row?: string | null | undefined) {
-  return row != null ? fullTimeFormatter(new Date(row)) : undefined;
+  return row != null ? new Date(row).toISOString() : undefined;
 }
 
 /**

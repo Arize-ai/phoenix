@@ -78,7 +78,7 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import { useDimensions } from "@phoenix/hooks";
+import { useDimensions, useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
@@ -1952,6 +1952,7 @@ function EmptyIndicator({ text }: { text: string }) {
   );
 }
 function SpanEventsList({ events }: { events: Span["events"] }) {
+  const { fullTimeFormatter } = useTimeFormatters();
   if (events.length === 0) {
     return <EmptyIndicator text="No events" />;
   }
@@ -1995,7 +1996,7 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
               </Flex>
               <View>
                 <Text color="text-700">
-                  {new Date(event.timestamp).toLocaleString()}
+                  {fullTimeFormatter(new Date(event.timestamp))}
                 </Text>
               </View>
             </Flex>

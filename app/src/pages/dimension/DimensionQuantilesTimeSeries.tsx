@@ -24,7 +24,7 @@ import {
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionQuantilesTimeSeriesQuery } from "./__generated__/DimensionQuantilesTimeSeriesQuery.graphql";
@@ -73,6 +73,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number | Array<number | string>, string>) {
+  const { fullTimeFormatter } = useTimeFormatters();
   const { outerColor, innerColor, lineColor } = useColors();
   if (active && payload && payload.length) {
     const data: ChartDataItem = payload[0].payload;

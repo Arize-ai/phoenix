@@ -2,6 +2,7 @@ import { create, StateCreator } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
+import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
 import { ModelConfig } from "./playground";
 
@@ -17,6 +18,8 @@ export type ProjectSortOrder = {
   column: "name" | "endTime";
   direction: "asc" | "desc";
 };
+
+export type DisplayTimezone = string;
 
 export interface PreferencesProps {
   /**
@@ -68,6 +71,11 @@ export interface PreferencesProps {
    * @default true
    */
   isSideNavExpanded: boolean;
+  /**
+   * The timezone to display timestamps in
+   * @default undefined - use the browser's local timezone
+   */
+  displayTimezone?: DisplayTimezone;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -125,6 +133,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the side nav open state
    */
   setIsSideNavExpanded: (isSideNavExpanded: boolean) => void;
+  /**
+   * Setter for the display timezone
+   */
+  setDisplayTimezone: (displayTimezone: DisplayTimezone | undefined) => void;
 }
 
 export const createPreferencesStore = (
@@ -184,6 +196,16 @@ export const createPreferencesStore = (
     isSideNavExpanded: true,
     setIsSideNavExpanded: (isSideNavExpanded) => {
       set({ isSideNavExpanded });
+    },
+    setDisplayTimezone: (displayTimezone) => {
+      // Just to be extra safe of what we store in local storage.
+      if (
+        displayTimezone &&
+        !getSupportedTimezones().includes(displayTimezone)
+      ) {
+        throw new Error(`Invalid timezone: ${displayTimezone}`);
+      }
+      set({ displayTimezone });
     },
     ...initialProps,
   });

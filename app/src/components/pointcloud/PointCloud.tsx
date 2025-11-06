@@ -29,9 +29,9 @@ import {
   useTheme,
 } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { CanvasMode } from "@phoenix/store";
 import { splitEventIdsByInferenceSet } from "@phoenix/utils/pointCloudUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { CanvasDisplaySettingsDropdown } from "./CanvasDisplaySettingsDropdown";
 import { CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
@@ -50,6 +50,7 @@ const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.2;
  */
 const PointCloudInfo = function PointCloudInfo() {
   const { selectedTimestamp } = useTimeSlice();
+  const { fullTimeFormatter } = useTimeFormatters();
   const points = usePointCloudContext((state) => state.points);
   const hdbscanParameters = usePointCloudContext(
     (state) => state.hdbscanParameters

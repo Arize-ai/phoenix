@@ -18,7 +18,7 @@ import {
 } from "@phoenix/components";
 import { useInferences } from "@phoenix/contexts";
 import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 
 type PrimaryInferencesTimeRangeProps = object;
 
@@ -58,6 +58,7 @@ export function PrimaryInferencesTimeRange(_: PrimaryInferencesTimeRangeProps) {
   const {
     primaryInferences: { name },
   } = useInferences();
+  const { fullTimeFormatter } = useTimeFormatters();
   const nameAbbr = name.slice(0, 10);
   return (
     <div css={triggerWrapCSS}>

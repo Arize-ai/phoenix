@@ -24,13 +24,13 @@ import {
   useCategoryChartColors,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   intFormatter,
   intShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { TraceTokenCountTimeSeriesQuery } from "./__generated__/TraceTokenCountTimeSeriesQuery.graphql";
 
@@ -40,6 +40,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const chartColors = useCategoryChartColors();
+  const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     // For stacked bar charts, payload[0] is the first bar (prompt), payload[1] is the second bar (completion)
     const promptValue = payload[0]?.value ?? null;

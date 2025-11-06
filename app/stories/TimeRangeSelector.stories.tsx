@@ -6,7 +6,8 @@ import {
   TimeRangeSelector,
   TimeRangeSelectorProps,
 } from "@phoenix/components";
-import { timeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { PreferencesProvider } from "@phoenix/contexts";
+import { createTimeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 const meta: Meta = {
   title: "TimeRangeSelector",
@@ -16,6 +17,11 @@ const meta: Meta = {
   },
 };
 
+const timeRangeFormatter = createTimeRangeFormatter({
+  locale: "en-US",
+  timeZone: "UTC",
+});
+
 export default meta;
 
 const Template: StoryFn<TimeRangeSelectorProps> = (args) => {
@@ -24,14 +30,14 @@ const Template: StoryFn<TimeRangeSelectorProps> = (args) => {
     start: new Date("2024-01-15T10:00:00Z"),
   });
   return (
-    <div>
+    <PreferencesProvider>
       <span>{timeRangeFormatter(timeRange)}</span>
       <TimeRangeSelector
         {...args}
         value={timeRange}
         onChange={(value) => setTimeRange(value)}
       />
-    </div>
+    </PreferencesProvider>
   );
 };
 
