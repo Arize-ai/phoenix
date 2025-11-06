@@ -1,16 +1,18 @@
-import { DebouncedSearch, Flex, View } from "@phoenix/components";
+import { DebouncedSearch, Flex, View, ViewProps } from "@phoenix/components";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 
 export const EvaluatorsFilterBar = ({
   extraActions,
+  padding = "size-200",
 }: {
   extraActions?: React.ReactNode;
+  padding?: ViewProps["padding"];
 }) => {
   const { setFilter, filter } = useEvaluatorsFilterContext();
 
   return (
     <View
-      padding="size-200"
+      padding={padding}
       borderBottomWidth="thin"
       borderBottomColor="grey-200"
       flex="none"

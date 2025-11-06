@@ -82,6 +82,7 @@ export function DatasetEvaluatorsPageContent() {
   return (
     <main>
       <EvaluatorsFilterBar
+        padding="size-100"
         extraActions={
           <EvaluatorSelect
             size="M"
