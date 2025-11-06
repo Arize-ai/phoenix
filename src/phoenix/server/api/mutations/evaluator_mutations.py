@@ -19,7 +19,7 @@ from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.mutations.annotation_config_mutations import (
     CategoricalAnnotationConfigInput,
@@ -285,7 +285,10 @@ class EvaluatorMutationMixin:
             if create_new_prompt_version:
                 llm_evaluator.prompt.prompt_versions.append(prompt_version)
 
-            await session.flush()
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict("An evaluator with this name already exists")
 
         return LLMEvaluatorMutationPayload(
             evaluator=LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator),
