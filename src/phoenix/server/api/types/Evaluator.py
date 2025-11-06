@@ -263,7 +263,8 @@ class LLMEvaluator(Evaluator, Node):
                     (self.id, models.LLMEvaluator.name),
                 ]
             )
-            config, annotation_name = results
+            config, annotation_name_identifier = results
+            annotation_name = annotation_name_identifier.root
         return _to_gql_categorical_annotation_config(config=config, annotation_name=annotation_name)
 
     @strawberry.field
