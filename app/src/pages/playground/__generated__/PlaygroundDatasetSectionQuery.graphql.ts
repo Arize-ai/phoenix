@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eab82269eac6f7e92985b9cc82104cdc>>
+ * @generated SignedSource<<5e5ed22133c58d76598d08fe3334ee30>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,6 +22,9 @@ export type PlaygroundDatasetSectionQuery$data = {
           readonly id: string;
           readonly kind: EvaluatorKind;
           readonly name: string;
+          readonly outputConfig?: {
+            readonly name: string;
+          };
         };
       }>;
     };
@@ -167,7 +170,26 @@ return {
                         "selections": [
                           (v4/*: any*/),
                           (v2/*: any*/),
-                          (v6/*: any*/)
+                          (v6/*: any*/),
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "CategoricalAnnotationConfig",
+                                "kind": "LinkedField",
+                                "name": "outputConfig",
+                                "plural": false,
+                                "selections": [
+                                  (v2/*: any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "type": "LLMEvaluator",
+                            "abstractKey": null
+                          }
                         ],
                         "storageKey": null
                       }
@@ -236,7 +258,27 @@ return {
                           (v7/*: any*/),
                           (v4/*: any*/),
                           (v2/*: any*/),
-                          (v6/*: any*/)
+                          (v6/*: any*/),
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "CategoricalAnnotationConfig",
+                                "kind": "LinkedField",
+                                "name": "outputConfig",
+                                "plural": false,
+                                "selections": [
+                                  (v2/*: any*/),
+                                  (v4/*: any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "type": "LLMEvaluator",
+                            "abstractKey": null
+                          }
                         ],
                         "storageKey": null
                       }
@@ -257,16 +299,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a2d134e3296e8266c0f14e6e14a9c165",
+    "cacheID": "c4a1a12f11c35dba5237a6f9bf7cfbab",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      evaluators {\n        edges {\n          evaluator: node {\n            __typename\n            id\n            name\n            kind\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      evaluators {\n        edges {\n          evaluator: node {\n            __typename\n            id\n            name\n            kind\n            ... on LLMEvaluator {\n              outputConfig {\n                name\n                id\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7ddd2966ad26d688d4561a2e856ace5a";
+(node as any).hash = "dd95448d0852a585eff237523f6177f0";
 
 export default node;

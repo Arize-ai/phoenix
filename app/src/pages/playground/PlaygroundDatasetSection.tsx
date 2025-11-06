@@ -54,6 +54,11 @@ export function PlaygroundDatasetSection({
                   id
                   name
                   kind
+                  ... on LLMEvaluator {
+                    outputConfig {
+                      name
+                    }
+                  }
                 }
               }
             }
@@ -82,7 +87,10 @@ export function PlaygroundDatasetSection({
   }, [data, splitIds]);
 
   const evaluators =
-    data.dataset.evaluators?.edges?.map((edge) => edge.evaluator) ?? [];
+    data.dataset.evaluators?.edges?.map((edge) => ({
+      ...edge.evaluator,
+      annotationName: edge.evaluator.outputConfig?.name,
+    })) ?? [];
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
     () => evaluators.map((evaluator) => evaluator.id) ?? []
   );

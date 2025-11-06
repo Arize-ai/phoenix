@@ -151,7 +151,8 @@ function EvaluatorMenuItem({
         alignItems="center"
         justifyContent="space-between"
         gap="size-300"
-        width="100%"
+        minWidth={0}
+        flex={1}
         css={css`
           opacity: ${alreadyAdded ? "0.25" : 1};
         `}
