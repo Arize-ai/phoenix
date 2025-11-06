@@ -4,8 +4,9 @@ from typing import Optional
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
@@ -18,7 +19,7 @@ from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.mutations.annotation_config_mutations import (
     CategoricalAnnotationConfigInput,
@@ -26,7 +27,11 @@ from phoenix.server.api.mutations.annotation_config_mutations import (
 )
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset
-from phoenix.server.api.types.Evaluator import CodeEvaluator, Evaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import (
+    CodeEvaluator,
+    Evaluator,
+    LLMEvaluator,
+)
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.bearer_auth import PhoenixUser
@@ -66,6 +71,15 @@ class CreateCodeEvaluatorInput:
     description: Optional[str] = UNSET
 
 
+@strawberry.input
+class UpdateLLMEvaluatorInput:
+    evaluator_id: GlobalID
+    name: Identifier
+    description: Optional[str] = None
+    prompt_version: ChatPromptVersionInput
+    output_config: CategoricalAnnotationConfigInput
+
+
 @strawberry.type
 class LLMEvaluatorMutationPayload:
     evaluator: LLMEvaluator
@@ -96,6 +110,17 @@ class AssignEvaluatorToDatasetInput:
 class UnassignEvaluatorFromDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
+
+
+@strawberry.input
+class DeleteEvaluatorsInput:
+    evaluator_ids: list[GlobalID]
+
+
+@strawberry.type
+class DeleteEvaluatorsPayload:
+    evaluator_ids: list[GlobalID]
+    query: Query
 
 
 @strawberry.type
@@ -201,6 +226,92 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Evaluator with name {input.name} already exists")
         return LLMEvaluatorMutationPayload(
             evaluator=LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def update_llm_evaluator(
+        self, info: Info[Context, None], input: UpdateLLMEvaluatorInput
+    ) -> LLMEvaluatorMutationPayload:
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        try:
+            evaluator_name = IdentifierModel.model_validate(input.name)
+        except ValidationError as error:
+            raise BadRequest(f"Invalid evaluator name: {error}")
+
+        output_config = _to_pydantic_categorical_annotation_config(input.output_config)
+
+        try:
+            prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
+        except ValidationError as error:
+            raise BadRequest(str(error))
+
+        try:
+            evaluator_rowid = from_global_id_with_expected_type(
+                global_id=input.evaluator_id,
+                expected_type_name=LLMEvaluator.__name__,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid LLM evaluator id: {input.evaluator_id}")
+
+        async with info.context.db() as session:
+            llm_evaluator = await session.scalar(
+                select(models.LLMEvaluator)
+                .where(models.LLMEvaluator.id == evaluator_rowid)
+                .options(
+                    joinedload(models.LLMEvaluator.prompt).joinedload(models.Prompt.prompt_versions)
+                )
+            )
+            if llm_evaluator is None:
+                raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
+
+            llm_evaluator.name = evaluator_name
+            llm_evaluator.description = (
+                input.description if isinstance(input.description, str) else None
+            )
+            llm_evaluator.output_config = output_config
+
+            # todo: compare against active prompt version as determined by prompt tag or version
+            # https://github.com/Arize-ai/phoenix/issues/10142
+            active_prompt_version = llm_evaluator.prompt.prompt_versions[-1]
+            create_new_prompt_version = not active_prompt_version.has_identical_content(
+                prompt_version
+            )
+            if create_new_prompt_version:
+                llm_evaluator.prompt.prompt_versions.append(prompt_version)
+
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict("An evaluator with this name already exists")
+
+        return LLMEvaluatorMutationPayload(
+            evaluator=LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def delete_evaluators(
+        self, info: Info[Context, None], input: DeleteEvaluatorsInput
+    ) -> DeleteEvaluatorsPayload:
+        evaluator_rowids: set[int] = set()
+        for evaluator_gid in input.evaluator_ids:
+            try:
+                evaluator_rowid, _ = _parse_evaluator_id(evaluator_gid)
+            except ValueError:
+                raise BadRequest(f"Invalid evaluator id: {str(evaluator_gid)}")
+            evaluator_rowids.add(evaluator_rowid)
+
+        stmt = delete(models.Evaluator).where(models.Evaluator.id.in_(evaluator_rowids))
+        async with info.context.db() as session:
+            await session.execute(stmt)
+        return DeleteEvaluatorsPayload(
+            evaluator_ids=input.evaluator_ids,
             query=Query(),
         )
 
