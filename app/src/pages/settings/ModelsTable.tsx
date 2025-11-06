@@ -62,7 +62,7 @@ type ModelsTableProps = {
  * @returns the date, as a string, in the format of the DEFAULT_FORMAT
  */
 function filterableDateAccessorFn(row?: string | null | undefined) {
-  return row != null ? new Date(row).toISOString : undefined;
+  return row != null ? new Date(row).toISOString() : undefined;
 }
 
 /**
