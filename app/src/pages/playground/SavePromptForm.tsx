@@ -16,7 +16,7 @@ import {
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
-import { identifierPattern } from "@phoenix/utils/identifierUtils";
+import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export type SavePromptSubmitHandler = (
@@ -77,7 +77,6 @@ export function SavePromptForm({
     control,
     handleSubmit,
     formState: { isDirty, isValid },
-    trigger,
   } = useForm<SavePromptFormParams>({
     values: {
       promptId: selectedPromptId ?? undefined,
@@ -90,7 +89,7 @@ export function SavePromptForm({
       description: "",
       metadata: "{}",
     },
-    reValidateMode: "onChange",
+    mode: "onChange",
     resetOptions: {
       keepDefaultValues: true,
     },
@@ -114,11 +113,7 @@ export function SavePromptForm({
           name="name"
           control={control}
           rules={{
-            required: {
-              message: "Prompt is required",
-              value: true,
-            },
-            pattern: identifierPattern,
+            validate: validateIdentifier,
           }}
           render={({ field: { onBlur, onChange }, fieldState }) => (
             <PromptComboBox
@@ -131,7 +126,6 @@ export function SavePromptForm({
               onInputChange={(value) => {
                 setPromptInputValue(value);
                 onChange(value);
-                trigger("name");
               }}
               errorMessage={fieldState.error?.message}
               allowsCustomValue

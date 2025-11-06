@@ -27,6 +27,7 @@ import {
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export const ClonePromptDialog = ({
@@ -53,7 +54,6 @@ export const ClonePromptDialog = ({
   );
   const form = useForm({
     disabled: isClonePending,
-    reValidateMode: "onBlur",
     mode: "onChange",
     defaultValues: {
       name: `${promptName}-clone`,
@@ -134,14 +134,14 @@ export const ClonePromptDialog = ({
                     control={control}
                     name="name"
                     rules={{
-                      required: { message: "Name is required", value: true },
                       validate: {
-                        unique: (value) => {
+                        differsFromOriginalName: (value) => {
                           if (value.trim() === promptName.trim()) {
                             return "Name must be different from the original prompt name";
                           }
                           return true;
                         },
+                        isValidIdentifier: validateIdentifier,
                       },
                     }}
                     render={({
