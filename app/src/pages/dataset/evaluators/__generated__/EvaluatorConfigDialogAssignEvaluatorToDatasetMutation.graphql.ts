@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e14bc55dfedd6c1b7f9bafe2268c4f25>>
+ * @generated SignedSource<<3d6145cf593c2e300e6aebc9cc3fc487>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -70,6 +70,13 @@ v5 = {
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
   "storageKey": null
 };
 return {
@@ -182,13 +189,7 @@ return {
                         "selections": [
                           (v5/*: any*/),
                           (v4/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "name",
-                            "storageKey": null
-                          },
+                          (v6/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -202,6 +203,26 @@ return {
                             "kind": "ScalarField",
                             "name": "isAssignedToDataset",
                             "storageKey": null
+                          },
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "CategoricalAnnotationConfig",
+                                "kind": "LinkedField",
+                                "name": "outputConfig",
+                                "plural": false,
+                                "selections": [
+                                  (v6/*: any*/),
+                                  (v4/*: any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "type": "LLMEvaluator",
+                            "abstractKey": null
                           }
                         ],
                         "storageKey": null
@@ -234,12 +255,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "15a55284861ccf5c6f30167dbe7732d4",
+    "cacheID": "1e9b07378bb10cb23833f8cee3e85b8e",
     "id": null,
     "metadata": {},
     "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n  $datasetId: ID!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    query {\n      ...DatasetEvaluatorsPage_evaluators_1wYocp\n    }\n    evaluator {\n      __typename\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsPage_evaluators_1wYocp on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $datasetId)\n      }\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n  $datasetId: ID!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    query {\n      ...DatasetEvaluatorsPage_evaluators_1wYocp\n    }\n    evaluator {\n      __typename\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsPage_evaluators_1wYocp on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $datasetId)\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
