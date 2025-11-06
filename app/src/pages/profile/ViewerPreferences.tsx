@@ -31,10 +31,6 @@ export function ViewerPreferences() {
         value: "local" as const,
         label: `Local (${getLocalTimeZone()})`,
       },
-      {
-        value: "UTC" as DisplayTimezone,
-        label: `UTC (Coordinated Universal Time)`,
-      },
       ...supportedTimezones.map((timezone) => ({
         value: timezone,
         label: `${timezone} (${getTimeZoneShortName({ locale, timeZone: timezone })})`,

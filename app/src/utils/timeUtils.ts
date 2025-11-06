@@ -3,6 +3,8 @@ import { getLocalTimeZone } from "@internationalized/date";
 // Singleton to get the current locale and time zone
 const resolvedOptions = Intl.DateTimeFormat().resolvedOptions();
 
+const supportedTimezones = ["UTC", ...Intl.supportedValuesOf("timeZone")];
+
 /**
  * Returns the current locale
  */
@@ -21,7 +23,7 @@ export function getTimeZone(): string {
  * A function that returns a full list of timezones supported by the browser
  */
 export function getSupportedTimezones(): string[] {
-  return Intl.supportedValuesOf("timeZone");
+  return supportedTimezones;
 }
 
 export { getLocalTimeZone };
