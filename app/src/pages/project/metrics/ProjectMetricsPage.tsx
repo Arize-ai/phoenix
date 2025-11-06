@@ -1,9 +1,8 @@
-import { forwardRef, Suspense, useMemo } from "react";
+import { forwardRef, memo, Suspense, useMemo, useRef } from "react";
 import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import {
-  Alert,
   Flex,
   Heading,
   Loading,
@@ -16,7 +15,6 @@ import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
 import { TopModelsByCost } from "@phoenix/pages/project/metrics/TopModelsByCost";
 import { TopModelsByToken } from "@phoenix/pages/project/metrics/TopModelsByToken";
 import { TraceErrorsTimeSeries } from "@phoenix/pages/project/metrics/TraceErrorsTimeSeries";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
 import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
@@ -103,33 +101,78 @@ export const MetricPanel = forwardRef(function MetricPanel(
   );
 });
 
+type EpochTimeRange = {
+  start: number;
+  end: number;
+};
+
+/**
+ * Hook that converts an open time range from context into a closed time range.
+ * If the time range is already closed, it returns it as-is.
+ * If it's open, it fills in missing start/end values based on a frozen "now" timestamp.
+ *
+ * The "now" timestamp is frozen and only updates when the context time range actually changes,
+ * preventing unnecessary recalculations on every render.
+ */
+function useClosedTimeRange(): EpochTimeRange {
+  const { timeRange: contextTimeRange } = useTimeRange();
+
+  // Extract and memoize timestamps to get stable primitive values
+  const startMs = useMemo(
+    () => (contextTimeRange.start ? contextTimeRange.start.getTime() : null),
+    [contextTimeRange.start]
+  );
+  const endMs = useMemo(
+    () => (contextTimeRange.end ? contextTimeRange.end.getTime() : null),
+    [contextTimeRange.end]
+  );
+
+  // Use a ref to freeze "now" until the context time range actually changes
+  const lastTimestampsRef = useRef({ startMs, endMs });
+  const frozenNowMsRef = useRef<number>(Date.now());
+
+  // Only update frozen "now" when timestamps actually change
+  if (
+    lastTimestampsRef.current.startMs !== startMs ||
+    lastTimestampsRef.current.endMs !== endMs
+  ) {
+    lastTimestampsRef.current = { startMs, endMs };
+    frozenNowMsRef.current = Date.now();
+  }
+
+  const frozenNowMs = frozenNowMsRef.current;
+
+  const epochTimeRange = useMemo<EpochTimeRange>(() => {
+    let start = startMs;
+    let end = endMs;
+    if (start !== null && end !== null) {
+      // closed range from context
+      return { start, end };
+    } else if (start === null && end !== null) {
+      return { start: end - ONE_MONTH_MS, end };
+    } else if (start !== null && end === null) {
+      // If start is in the past, close at "now"; else, one month after start
+      end = start < frozenNowMs ? frozenNowMs : start + ONE_MONTH_MS;
+      return { start, end };
+    } else {
+      // both null → last month to now
+      end = frozenNowMs;
+      start = end - ONE_MONTH_MS;
+      return { start, end };
+    }
+  }, [startMs, endMs, frozenNowMs]);
+
+  return epochTimeRange;
+}
+
 export function ProjectMetricsPage() {
   const { projectId } = useParams();
   if (!projectId) {
     throw new Error("projectId is required");
   }
-  const { timeRange: contextTimeRange } = useTimeRange();
-  const isOpenTimeRange =
-    contextTimeRange.start === null || contextTimeRange.end === null;
 
-  const timeRange = useMemo<TimeRange>(() => {
-    const start = contextTimeRange.start;
-    const end = contextTimeRange.end;
+  const epochTimeRange = useClosedTimeRange();
 
-    if (start && end) {
-      return { start, end };
-    } else if (!start && end) {
-      return { start: new Date(end.getTime() - ONE_MONTH_MS), end };
-    } else if (start && !end) {
-      return { start, end: new Date(start.getTime() + ONE_MONTH_MS) };
-    } else if (!start && !end) {
-      return { start: new Date(Date.now() - ONE_MONTH_MS), end: new Date() };
-    } else {
-      throw new Error(
-        `Invalid time range: ${JSON.stringify(contextTimeRange)}`
-      );
-    }
-  }, [contextTimeRange]);
   return (
     <main
       css={css`
@@ -139,114 +182,120 @@ export function ProjectMetricsPage() {
         overflow-y: auto;
       `}
     >
-      {isOpenTimeRange && (
-        <Alert variant="info" banner title="Time Range Adjusted">
-          {`This view does not support open-ended time ranges. Your time range has
-          been set to ${fullTimeFormatter(timeRange.start)} to ${fullTimeFormatter(timeRange.end)}`}
-        </Alert>
-      )}
-      <div
-        css={css`
-          display: flex;
-          flex-direction: column;
-          gap: var(--ac-global-dimension-size-200);
-          padding: var(--ac-global-dimension-size-200);
-        `}
-      >
-        <Flex direction="row" gap="size-200">
-          <MetricPanel
-            title="Traces over time"
-            subtitle="Overall volume of traces"
-          >
-            <TraceCountTimeSeries projectId={projectId} timeRange={timeRange} />
-          </MetricPanel>
-          <MetricPanel
-            title="Traces with errors"
-            subtitle="Overall volume of traces with errors"
-          >
-            <TraceErrorsTimeSeries
-              projectId={projectId}
-              timeRange={timeRange}
-            />
-          </MetricPanel>
-        </Flex>
-        <Flex direction="row" gap="size-200">
-          <MetricPanel title="Trace Latency" subtitle="Latency percentiles">
-            <TraceLatencyPercentilesTimeSeries
-              projectId={projectId}
-              timeRange={timeRange}
-            />
-          </MetricPanel>
-          <MetricPanel
-            title="Annotation scores"
-            subtitle="Average annotation scores"
-          >
-            <SpanAnnotationScoreTimeSeries
-              projectId={projectId}
-              timeRange={timeRange}
-            />
-          </MetricPanel>
-        </Flex>
-        <Flex direction="row" gap="size-200">
-          <MetricPanel title="Cost" subtitle="Estimated cost in USD">
-            <TraceTokenCostTimeSeries
-              projectId={projectId}
-              timeRange={timeRange}
-            />
-          </MetricPanel>
-          <MetricPanel title="Top models by cost">
-            <TopModelsByCost projectId={projectId} timeRange={timeRange} />
-          </MetricPanel>
-        </Flex>
-        <Flex direction="row" gap="size-200">
-          <MetricPanel
-            title="Token usage"
-            subtitle="Token usage by prompt and completion"
-          >
-            <TraceTokenCountTimeSeries
-              projectId={projectId}
-              timeRange={timeRange}
-            />
-          </MetricPanel>
-          <MetricPanel title="Top models by tokens">
-            <TopModelsByToken projectId={projectId} timeRange={timeRange} />
-          </MetricPanel>
-        </Flex>
-        <Flex direction="row" gap="size-200">
-          <MetricPanel title="LLM spans" subtitle="LLM span count over time">
-            <LLMSpanCountTimeSeries
-              projectId={projectId}
-              timeRange={timeRange}
-            />
-          </MetricPanel>
-          <MetricPanel
-            title="LLM spans with errors"
-            subtitle="LLM spans with errors over time"
-          >
-            <LLMSpanErrorsTimeSeries
-              projectId={projectId}
-              timeRange={timeRange}
-            />
-          </MetricPanel>
-        </Flex>
-        <Flex direction="row" gap="size-200">
-          <MetricPanel title="Tool spans" subtitle="Tool span count over time">
-            <ToolSpanCountTimeSeries
-              projectId={projectId}
-              timeRange={timeRange}
-            />
-          </MetricPanel>
-          <MetricPanel
-            title="Tool spans with errors"
-            subtitle="Tool spans with errors over time"
-          >
-            <ToolSpanErrorsTimeSeries
-              projectId={projectId}
-              timeRange={timeRange}
-            />
-          </MetricPanel>
-        </Flex>
-      </div>
+      <MetricPanels projectId={projectId} epochTimeRange={epochTimeRange} />
     </main>
   );
 }
+const MetricPanels = memo(function MetricPanels({
+  projectId,
+  epochTimeRange,
+}: {
+  projectId: string;
+  epochTimeRange: EpochTimeRange;
+}) {
+  const timeRange = useMemo(
+    () => ({
+      start: new Date(epochTimeRange.start),
+      end: new Date(epochTimeRange.end),
+    }),
+    [epochTimeRange]
+  );
+  return (
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-size-200);
+        padding: var(--ac-global-dimension-size-200);
+      `}
+    >
+      <Flex direction="row" gap="size-200">
+        <MetricPanel
+          title="Traces over time"
+          subtitle="Overall volume of traces"
+        >
+          <TraceCountTimeSeries projectId={projectId} timeRange={timeRange} />
+        </MetricPanel>
+        <MetricPanel
+          title="Traces with errors"
+          subtitle="Overall volume of traces with errors"
+        >
+          <TraceErrorsTimeSeries projectId={projectId} timeRange={timeRange} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel title="Trace Latency" subtitle="Latency percentiles">
+          <TraceLatencyPercentilesTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+          />
+        </MetricPanel>
+        <MetricPanel
+          title="Annotation scores"
+          subtitle="Average annotation scores"
+        >
+          <SpanAnnotationScoreTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+          />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel title="Cost" subtitle="Estimated cost in USD">
+          <TraceTokenCostTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+          />
+        </MetricPanel>
+        <MetricPanel title="Top models by cost">
+          <TopModelsByCost projectId={projectId} timeRange={timeRange} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel
+          title="Token usage"
+          subtitle="Token usage by prompt and completion"
+        >
+          <TraceTokenCountTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+          />
+        </MetricPanel>
+        <MetricPanel title="Top models by tokens">
+          <TopModelsByToken projectId={projectId} timeRange={timeRange} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel title="LLM spans" subtitle="LLM span count over time">
+          <LLMSpanCountTimeSeries projectId={projectId} timeRange={timeRange} />
+        </MetricPanel>
+        <MetricPanel
+          title="LLM spans with errors"
+          subtitle="LLM spans with errors over time"
+        >
+          <LLMSpanErrorsTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+          />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel title="Tool spans" subtitle="Tool span count over time">
+          <ToolSpanCountTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+          />
+        </MetricPanel>
+        <MetricPanel
+          title="Tool spans with errors"
+          subtitle="Tool spans with errors over time"
+        >
+          <ToolSpanErrorsTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+          />
+        </MetricPanel>
+      </Flex>
+    </div>
+  );
+});
