@@ -1879,7 +1879,7 @@ class PromptVersion(HasId):
             and self.response_format == other.response_format
             and self.model_provider == other.model_provider
             and self.model_name == other.model_name
-            and self.metadata == other.metadata
+            and self.metadata_ == other.metadata_
         )
 
 
