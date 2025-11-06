@@ -1,6 +1,4 @@
-import { formatInTimeZone, FormatOptionsWithTZ } from "date-fns-tz";
-
-import { getTimeZone } from "@phoenix/utils/timeUtils";
+import { getLocale } from "@phoenix/utils/timeUtils";
 
 /**
  * Creates a time formatter from a pattern
@@ -8,40 +6,56 @@ import { getTimeZone } from "@phoenix/utils/timeUtils";
  * @param pattern - The pattern to use for the formatter
  * @returns A time formatter
  */
-export type TimeFormatter = (
-  date: Date,
-  formatOptions?: FormatOptionsWithTZ
-) => string;
+export type TimeFormatter = (date: Date) => string;
 
 export function createTimeFormatter(
-  pattern: string,
-  timeZone: string
+  locale: string,
+  options: Intl.DateTimeFormatOptions
 ): TimeFormatter {
+  const formatter = new Intl.DateTimeFormat(locale, {
+    ...options,
+  });
   return (date: Date) => {
-    return formatInTimeZone(date, timeZone, pattern);
+    return formatter.format(date);
   };
 }
 
 /**
  * Formats time to be displayed in full with date and time
+ * Equivalent to "P HH:mm:ss a" - full date with time including seconds
  */
-export const fullTimeFormatter = createTimeFormatter(
-  "P HH:mm:ss a",
-  getTimeZone()
-);
+export const fullTimeFormatter = createTimeFormatter(getLocale(), {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: true,
+});
 
 /**
  * Formats time to be displayed in short (no year or date)
+ * Equivalent to "HH:mm a" - time only
  */
-export const shortTimeFormatter = createTimeFormatter("HH:mm a", getTimeZone());
+export const shortTimeFormatter = createTimeFormatter(getLocale(), {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: true,
+});
 
 /**
  * Formats time to be displayed in short with date and time
+ * Equivalent to "P HH:mm a" - date with time (no seconds)
  */
-export const shortDateTimeFormatter = createTimeFormatter(
-  "P HH:mm a",
-  getTimeZone()
-);
+export const shortDateTimeFormatter = createTimeFormatter(getLocale(), {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: true,
+});
 
 /**
  * Formats a time range as a string
