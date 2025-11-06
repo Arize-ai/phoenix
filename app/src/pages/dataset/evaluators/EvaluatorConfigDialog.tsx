@@ -59,7 +59,7 @@ export function EvaluatorConfigDialog({
   datasetRef: EvaluatorConfigDialog_dataset$key;
 }) {
   return (
-    <Dialog>
+    <Dialog aria-label="Add evaluator to dataset">
       <DialogContent minHeight="300px">
         <Suspense
           fallback={
