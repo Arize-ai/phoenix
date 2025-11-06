@@ -1,46 +1,78 @@
-# Mastra Agent Example with Experiments
+# Mastra Agent with Arize Phoenix Tracing
 
-An AI agent built with [Mastra](https://mastra.ai) that provides weather information, performs calculations, and handles time/timezone queries with integrated Phoenix telemetry.
-
-## Features
-
-This example demonstrates a multi-tool agent with the following capabilities:
-
-- **🌤️ Weather Information**: Get current weather conditions for any location
-- **🧮 Mathematical Calculations**: Perform math operations and unit conversions
-- **⏰ Time & Timezone Operations**: Handle time queries, conversions, and calculations
-- **📊 Telemetry Integration**: Built-in observability with Phoenix tracing and experiments
-
-## Prerequisites
-
-- Node.js >= 20.9.0
-- OpenAI API key
-- Phoenix instance
+A movie recommendation agent built with Mastra and traced with Arize Phoenix.
 
 ## Setup
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+### 1. Setup Phoenix
 
-2. **Set environment variables:**
-   ```bash
-   export OPENAI_API_KEY="your-openai-api-key"
-   export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"  # Your Phoenix instance
-   export PHOENIX_API_KEY="your-phoenix-api-key"  # Optional, for Phoenix Cloud
-   ```
+Get started with Phoenix here: https://arize.com/docs/phoenix/get-started
 
-3. **Start development server:**
-   ```bash
-   npm run dev
-   ```
+If running locally, Phoenix will be available at `http://localhost:6006`. 
 
-![mastra trace](https://storage.googleapis.com/arize-phoenix-assets/assets/images/mastra-trace.png)
+### 2. Install Dependencies
 
-4. **Run Phoenix experiments:**
-    ```bash
-    npx tsx src/mastra/experiments/run_experiment.ts
-    ```
+```bash
+npm install
+```
 
-![mastra experiment](https://storage.googleapis.com/arize-phoenix-assets/assets/images/mastra-experiment.png)
+This will install all required dependencies including:
+- `@ai-sdk/openai` - OpenAI SDK for AI SDK
+- `@mastra/core` - Mastra core framework
+- `@mastra/arize` - Arize Phoenix Tracing integration
+- `zod` - Schema validation
+- `dotenv` - Environment variable management
+
+### 3. Configure Environment
+
+Create a `.env` file in the root directory:
+
+```bash
+# OpenAI API Key
+OPENAI_API_KEY=your-openai-api-key-here
+
+# Phoenix Configuration
+PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
+PHOENIX_PROJECT_NAME=mastra-project
+```
+
+If you are using Phoenix Cloud
+1. Be sure to include: PHOENIX_API_KEY=your-api-key
+2. Add "/v1/traces" at the end of your endpoint
+
+## Running the Agent
+
+Start the Mastra dev server:
+
+```bash
+npm run dev
+```
+
+Navigate to the Mastra Playground to interact with the movie recommendation agent.
+
+## Viewing Traces
+
+Once you've run the agent, open Phoenix. You'll see all agent runs, tool calls, and model interactions traced and visualized.
+
+## Project Structure
+
+```
+src/
+  mastra/
+    agents/
+      movie-agent.ts           # Movie recommendation agent
+    tools/
+      movie-selector-tool.ts   # Finds movies by genre
+      reviewer-tool.ts         # Reviews and rates movies
+      preview-summarizer-tool.ts # Summarizes movies
+    index.ts                   # Mastra configuration with Arize Phoenix tracing
+```
+
+## What's Included
+
+- **Movie Recommendation Agent**: An agent that recommends movies using three tools:
+  - MovieSelector: Finds movies by genre
+  - Reviewer: Reviews and sorts movies by rating
+  - PreviewSummarizer: Provides movie summaries
+- **Arize Phoenix Tracing**: All agent interactions are automatically traced and sent to Phoenix
+
