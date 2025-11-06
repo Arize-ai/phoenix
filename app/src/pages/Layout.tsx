@@ -174,16 +174,16 @@ function SideNav() {
           <li key="theme-toggle">
             <ThemeSelector isExpanded={isSideNavExpanded} />
           </li>
+          <li key="profile">
+            <NavLink
+              to="/profile"
+              text="Profile"
+              leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
+              isExpanded={isSideNavExpanded}
+            />
+          </li>
           {authenticationEnabled && (
             <>
-              <li key="profile">
-                <NavLink
-                  to="/profile"
-                  text="Profile"
-                  leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
-                  isExpanded={isSideNavExpanded}
-                />
-              </li>
               <Suspense>
                 <ManagementLink isExpanded={isSideNavExpanded} />
               </Suspense>

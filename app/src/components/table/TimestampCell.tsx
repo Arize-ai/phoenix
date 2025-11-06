@@ -1,7 +1,7 @@
 import { CellContext } from "@tanstack/react-table";
 
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { isStringOrNullOrUndefined } from "@phoenix/typeUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 /**
  * A table cell that nicely formats a timestamp
@@ -9,6 +9,7 @@ import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 export function TimestampCell<TData extends object, TValue>({
   getValue,
 }: CellContext<TData, TValue>) {
+  const { fullTimeFormatter } = useTimeFormatters();
   const value = getValue();
   if (!isStringOrNullOrUndefined(value)) {
     throw new Error(

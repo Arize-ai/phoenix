@@ -11,7 +11,8 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { useInferences } from "@phoenix/contexts";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
+
 type ReferenceInferencesTimeRangeProps = {
   inferencesRole: InferencesRole;
   /**
@@ -24,6 +25,7 @@ export function ReferenceInferencesTimeRange({
   timeRange,
 }: ReferenceInferencesTimeRangeProps) {
   const { referenceInferences } = useInferences();
+  const { fullTimeFormatter } = useTimeFormatters();
   const name = referenceInferences?.name ?? "reference";
   const nameAbbr = name.slice(0, 10);
   return (

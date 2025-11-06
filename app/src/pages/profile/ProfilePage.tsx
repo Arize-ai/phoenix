@@ -10,6 +10,7 @@ import { ViewerProfileCard } from "./ViewerProfileCard";
 
 const profilePageCSS = css`
   overflow-y: auto;
+  height: 100%;
 `;
 
 const profilePageInnerCSS = css`
@@ -29,17 +30,13 @@ export function ProfilePage() {
     refetchViewer();
   }, [refetchViewer]);
 
-  if (!viewer) {
-    return null;
-  }
-
   return (
     <main css={profilePageCSS}>
       <div css={profilePageInnerCSS}>
         <Flex direction="column" gap="size-200">
-          <ViewerProfileCard />
+          {viewer && <ViewerProfileCard />}
           <ViewerPreferences />
-          <ViewerAPIKeys viewer={viewer} />
+          {viewer && <ViewerAPIKeys viewer={viewer} />}
         </Flex>
       </div>
     </main>

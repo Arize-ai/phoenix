@@ -81,6 +81,26 @@ export function createShortTimeFormatter(
 }
 
 /**
+ * Creates a short date time formatter (date + time without seconds)
+ * @param displayOptions - The display options to use for the formatter
+ * @returns A short date time formatter
+ */
+export function createShortDateTimeFormatter(
+  displayOptions: TimeDisplayOptions
+): TimeFormatter {
+  const { locale, timeZone } = displayOptions;
+  return createTimeFormatter(locale, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone,
+  });
+}
+
+/**
  * Creates a time range formatter
  * @param displayOptions - The display options to use for the formatter
  * @returns A time range formatter
@@ -102,9 +122,27 @@ export function createTimeRangeFormatter(
   };
 }
 
+/**
+ * A function that returns the offset string for a given timezone
+ * @param params - The parameters to use for the formatter
+ * @returns The offset string
+ */
+export function getTimeZoneShortName(
+  params: TimeDisplayOptions
+): string | undefined {
+  const { timeZone, locale } = params;
+  return Intl.DateTimeFormat(locale, {
+    timeZoneName: "short",
+    timeZone,
+  })
+    .formatToParts()
+    .find((i) => i.type === "timeZoneName")?.value;
+}
+
 export function getLocaleDateFormatPattern(locale: string) {
   const formatParts = new Intl.DateTimeFormat(locale, {
     day: "2-digit",
+    month: "2-digit",
     year: "numeric",
   }).formatToParts(new Date());
 

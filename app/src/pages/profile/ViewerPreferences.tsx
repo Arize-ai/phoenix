@@ -1,22 +1,17 @@
 import { getLocalTimeZone } from "@internationalized/date";
 
 import {
-  Button,
   Card,
+  ComboBox,
+  ComboBoxItem,
   Flex,
-  Label,
-  ListBox,
-  ListBoxItem,
-  Popover,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectValue,
   Text,
   View,
 } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { DisplayTimezone } from "@phoenix/store/preferencesStore";
-import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
+import { getTimeZoneShortName } from "@phoenix/utils/timeFormatUtils";
+import { getLocale, getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
 export function ViewerPreferences() {
   const { displayTimezone, setDisplayTimezone } = usePreferencesContext(
@@ -26,64 +21,57 @@ export function ViewerPreferences() {
     })
   );
 
-  const timezoneOptions: Array<{
-    value: DisplayTimezone | undefined;
+  const supportedTimezones = getSupportedTimezones();
+
+  const timeZoneOptions: Array<{
+    value: DisplayTimezone | "local";
     label: string;
-    description: string;
   }> = [
     {
-      value: undefined,
+      value: "local",
       label: `Local (${getLocalTimeZone()})`,
-      description: "Display timestamps in your browser's local timezone",
     },
     {
       value: "UTC",
-      label: "UTC",
-      description: "Display all timestamps in UTC (Coordinated Universal Time)",
+      label: `UTC (Coordinated Universal Time)`,
     },
-    ...getSupportedTimezones().map((timezone) => ({
+    ...supportedTimezones.map((timezone) => ({
       value: timezone,
-      label: timezone,
-      description: `Display all timestamps in ${timezone}`,
+      label: `${timezone} (${getTimeZoneShortName({ locale: getLocale(), timeZone: timezone })})`,
     })),
   ];
 
+  const selectedTimezone = displayTimezone ?? "local";
   return (
     <Card title="Preferences">
       <View padding="size-200">
         <Flex direction="column" gap="size-100">
-          <Select
-            aria-label="Display timezone"
-            defaultValue={undefined}
-            selectedKey={displayTimezone}
-            onSelectionChange={(key) => {
-              setDisplayTimezone(key as DisplayTimezone | undefined);
+          <ComboBox
+            aria-label="Display Time Zone"
+            label="Timezone"
+            description="Choose how timestamps are displayed throughout the application"
+            placeholder="Search timezones..."
+            selectedKey={selectedTimezone}
+            onSelectionChange={(value) => {
+              if (value === "local") {
+                setDisplayTimezone(undefined);
+              } else {
+                setDisplayTimezone(value as DisplayTimezone);
+              }
             }}
           >
-            <Label>Timezone</Label>
-            <Button size="S">
-              <SelectValue />
-              <SelectChevronUpDownIcon />
-            </Button>
-            <Popover>
-              <ListBox>
-                {timezoneOptions.map((option) => (
-                  <ListBoxItem
-                    key={option.value}
-                    id={option.value}
-                    textValue={option.label}
-                  >
-                    <Flex direction="column" gap="size-50">
-                      <Text weight="heavy">{option.label}</Text>
-                    </Flex>
-                  </ListBoxItem>
-                ))}
-              </ListBox>
-            </Popover>
-            <Text slot="description">
-              Choose how timestamps are displayed throughout the application
-            </Text>
-          </Select>
+            {timeZoneOptions.map((option) => (
+              <ComboBoxItem
+                key={option.value}
+                id={option.value}
+                textValue={option.label}
+              >
+                <Flex direction="column" gap="size-50">
+                  <Text weight="heavy">{option.label}</Text>
+                </Flex>
+              </ComboBoxItem>
+            ))}
+          </ComboBox>
         </Flex>
       </View>
     </Card>

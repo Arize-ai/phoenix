@@ -17,7 +17,7 @@ import {
   View,
 } from "@phoenix/components";
 import { ComponentSize } from "@phoenix/components/types";
-import { timeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 
 import { LAST_N_TIME_RANGES } from "./constants";
 import { OpenTimeRangeWithKey } from "./types";
@@ -34,26 +34,31 @@ const listBoxCSS = css`
   width: 130px;
 `;
 
-/**
- * Get the display text for the time range key. Shows the explicit time range in the case of "custom"
- */
-function getDisplayText({ timeRangeKey, start, end }: OpenTimeRangeWithKey) {
-  if (timeRangeKey === "custom") {
-    return timeRangeFormatter({ start, end });
-  }
-  const rangeValue = LAST_N_TIME_RANGES.find(
-    (range) => range.key === timeRangeKey
-  );
-  if (!rangeValue) {
-    // Should never happen but must make sure to handle it
-    return "invalid";
-  }
-  return rangeValue.label;
-}
-
 export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const { value, isDisabled, onChange, size = "S" } = props;
   const { timeRangeKey, start, end } = value;
+  const { timeRangeFormatter } = useTimeFormatters();
+
+  /**
+   * Get the display text for the time range key. Shows the explicit time range in the case of "custom"
+   */
+  const getDisplayText = ({
+    timeRangeKey,
+    start,
+    end,
+  }: OpenTimeRangeWithKey) => {
+    if (timeRangeKey === "custom") {
+      return timeRangeFormatter({ start, end });
+    }
+    const rangeValue = LAST_N_TIME_RANGES.find(
+      (range) => range.key === timeRangeKey
+    );
+    if (!rangeValue) {
+      // Should never happen but must make sure to handle it
+      return "invalid";
+    }
+    return rangeValue.label;
+  };
   return (
     <DialogTrigger>
       <Button

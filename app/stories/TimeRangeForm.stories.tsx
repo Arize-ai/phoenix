@@ -13,7 +13,7 @@ import {
   TimeRangeFormProps,
   View,
 } from "@phoenix/components";
-import { timeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 
 const meta: Meta = {
   title: "TimeRangeForm",
@@ -40,6 +40,7 @@ export const InAPopOver = () => {
   const [timeRange, setTimeRange] = useState<OpenTimeRange>({
     start: new Date("2024-01-15T10:00:00Z"),
   });
+  const { timeRangeFormatter } = useTimeFormatters();
   const timeRangeString = timeRangeFormatter(timeRange);
   return (
     <DialogTrigger isOpen>
