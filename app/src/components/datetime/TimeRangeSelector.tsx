@@ -15,7 +15,6 @@ import {
   SelectChevronUpDownIcon,
   Text,
   TimeRangeForm,
-  Token,
   View,
 } from "@phoenix/components";
 import { ComponentSize } from "@phoenix/components/types";
