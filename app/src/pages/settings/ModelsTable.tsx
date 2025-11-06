@@ -363,18 +363,7 @@ export function ModelsTable({
         header: "start date",
         sortUndefined: "last",
         accessorFn: (row) => filterableDateAccessorFn(row.startTime),
-        cell: (props) => {
-          return (
-            <TimestampCell
-              {...props}
-              format={{
-                year: "numeric",
-                month: "numeric",
-                day: "numeric",
-              }}
-            />
-          );
-        },
+        cell: TimestampCell,
       },
       {
         header: "created at",
