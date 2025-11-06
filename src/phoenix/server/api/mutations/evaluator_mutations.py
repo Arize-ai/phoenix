@@ -230,7 +230,7 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
-    @strawberry.field
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def update_llm_evaluator(
         self, info: Info[Context, None], input: UpdateLLMEvaluatorInput
     ) -> LLMEvaluatorMutationPayload:
