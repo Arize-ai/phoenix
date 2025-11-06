@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5109eb24634bdaa2c5ae303082fee604>>
+ * @generated SignedSource<<877c0c967502375f56b260b753fdd6e0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,9 @@ export type DatasetEvaluatorsPage_evaluators$data = {
         readonly isAssignedToDataset: boolean;
         readonly kind: EvaluatorKind;
         readonly name: string;
+        readonly outputConfig?: {
+          readonly name: string;
+        };
       };
     }>;
   };
@@ -29,7 +32,15 @@ export type DatasetEvaluatorsPage_evaluators$key = {
   readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsPage_evaluators">;
 };
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
+return {
   "argumentDefinitions": [
     {
       "defaultValue": null,
@@ -78,13 +89,7 @@ const node: ReaderFragment = {
                   "name": "id",
                   "storageKey": null
                 },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "name",
-                  "storageKey": null
-                },
+                (v0/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -104,6 +109,25 @@ const node: ReaderFragment = {
                   "kind": "ScalarField",
                   "name": "isAssignedToDataset",
                   "storageKey": null
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CategoricalAnnotationConfig",
+                      "kind": "LinkedField",
+                      "name": "outputConfig",
+                      "plural": false,
+                      "selections": [
+                        (v0/*: any*/)
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "LLMEvaluator",
+                  "abstractKey": null
                 }
               ],
               "storageKey": null
@@ -118,7 +142,8 @@ const node: ReaderFragment = {
   "type": "Query",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "36501967bdd54ddfa9a09f4f8421700c";
+(node as any).hash = "3430cbfa4722b958f449a992e37c2098";
 
 export default node;

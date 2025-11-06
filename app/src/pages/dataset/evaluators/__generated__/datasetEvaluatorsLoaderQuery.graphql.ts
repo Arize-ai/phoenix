@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c285989d13371e8915fbfe83a9660157>>
+ * @generated SignedSource<<b12c24bb2f049ae678a117e2fa594974>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -181,6 +181,26 @@ return {
                     "kind": "ScalarField",
                     "name": "isAssignedToDataset",
                     "storageKey": null
+                  },
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "CategoricalAnnotationConfig",
+                        "kind": "LinkedField",
+                        "name": "outputConfig",
+                        "plural": false,
+                        "selections": [
+                          (v5/*: any*/),
+                          (v2/*: any*/)
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "LLMEvaluator",
+                    "abstractKey": null
                   }
                 ],
                 "storageKey": null
@@ -194,12 +214,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b6612c0d3aadc6afcbcb064e3d474648",
+    "cacheID": "f9f9d1561a4b7069f573a28abc82423c",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...EvaluatorConfigDialog_dataset\n    }\n  }\n  ...DatasetEvaluatorsPage_evaluators_2m4mqp\n}\n\nfragment DatasetEvaluatorsPage_evaluators_2m4mqp on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $id)\n      }\n    }\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...EvaluatorConfigDialog_dataset\n    }\n  }\n  ...DatasetEvaluatorsPage_evaluators_2m4mqp\n}\n\nfragment DatasetEvaluatorsPage_evaluators_2m4mqp on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $id)\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n"
   }
 };
 })();

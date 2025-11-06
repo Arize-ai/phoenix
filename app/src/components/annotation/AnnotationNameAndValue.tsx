@@ -2,19 +2,19 @@ import { CSSProperties } from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Text } from "@phoenix/components";
-import { SizingProps } from "@phoenix/components/types";
+import { TextSize } from "@phoenix/components/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
-const textCSS = css`
+const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
   display: flex;
   align-items: center;
   .ac-text {
     display: inline-block;
-    max-width: 9rem;
+    max-width: ${maxWidth};
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -50,16 +50,19 @@ const getAnnotationDisplayValue = ({
   }
 };
 
-interface AnnotationNameAndValueProps extends SizingProps {
+interface AnnotationNameAndValueProps {
   annotation: Annotation;
   displayPreference: AnnotationDisplayPreference;
   minWidth?: CSSProperties["minWidth"];
+  maxWidth?: CSSProperties["maxWidth"];
+  size?: TextSize;
 }
 export function AnnotationNameAndValue({
   annotation,
   displayPreference,
   size,
   minWidth = "5rem",
+  maxWidth = "9rem",
 }: AnnotationNameAndValueProps) {
   const labelValue = getAnnotationDisplayValue({
     annotation,
@@ -71,9 +74,10 @@ export function AnnotationNameAndValue({
       gap="size-100"
       alignItems="center"
       className="annotation-name-and-value"
+      maxWidth={maxWidth}
     >
       <AnnotationColorSwatch annotationName={annotation.name} />
-      <div css={css(textCSS, { minWidth })} title={annotation.name}>
+      <div css={css(textCSS(maxWidth), { minWidth })} title={annotation.name}>
         <Text weight="heavy" size={size} color="inherit">
           {annotation.name}
         </Text>
@@ -81,7 +85,7 @@ export function AnnotationNameAndValue({
       {labelValue && (
         <div
           css={css(
-            textCSS,
+            textCSS(maxWidth),
             css`
               margin-left: var(--ac-global-dimension-100);
             `

@@ -41,6 +41,11 @@ export function DatasetEvaluatorsPageContent() {
                 name
                 kind
                 isAssignedToDataset(datasetId: $datasetId)
+                ... on LLMEvaluator {
+                  outputConfig {
+                    name
+                  }
+                }
               }
             }
           }
@@ -64,6 +69,7 @@ export function DatasetEvaluatorsPageContent() {
         name: edge.node.name,
         kind: edge.node.kind,
         alreadyAdded: edge.node.isAssignedToDataset,
+        annotationName: edge.node.outputConfig?.name,
       })),
     [globalEvaluatorsData]
   );
