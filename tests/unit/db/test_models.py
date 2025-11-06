@@ -1009,165 +1009,66 @@ class TestEvaluatorPolymorphism:
 
 class TestPromptVersion:
     @pytest.mark.parametrize(
-        "base_attrs,patch_attrs",
+        "patch_attrs",
         [
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": "Test prompt version",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "tools": None,
-                    "response_format": None,
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {"key": "value"},
-                },
                 {},
                 id="identical-prompt-versions",
             ),
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "user_id": 1,
-                    "description": "Test prompt version",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "tools": None,
-                    "response_format": None,
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {"key": "value"},
-                },
                 {"user_id": 42},
                 id="user-id-differs",
-            ),
-            pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": None,
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "tools": None,
-                    "response_format": None,
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {},
-                },
-                {},
-                id="optional-fields",
             ),
         ],
     )
     def test_has_identical_content_returns_true_when_content_is_identical(
         self,
-        base_attrs: dict[str, Any],
         patch_attrs: dict[str, Any],
     ) -> None:
+        base_attrs = {
+            "prompt_id": 1,
+            "user_id": 1,
+            "description": "Test prompt version",
+            "template_type": PromptTemplateType.STRING,
+            "template_format": PromptTemplateFormat.F_STRING,
+            "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
+            "invocation_parameters": PromptOpenAIInvocationParameters(
+                type="openai", openai=PromptOpenAIInvocationParametersContent()
+            ),
+            "tools": None,
+            "response_format": None,
+            "model_provider": ModelProvider.OPENAI,
+            "model_name": "gpt-4",
+            "metadata_": {"key": "value"},
+        }
+        assert all(base_attrs[attr_name] != patch_attrs[attr_name] for attr_name in patch_attrs), (
+            "There are no differences between the base and patch attributes"
+        )
         version1 = models.PromptVersion(**base_attrs)
         version2 = models.PromptVersion(**{**base_attrs, **patch_attrs})
         assert version1.has_identical_content(version2)
         assert version2.has_identical_content(version1)
 
     @pytest.mark.parametrize(
-        "base_attrs,patch_attrs",
+        "patch_attrs",
         [
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": "Test prompt version",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "tools": None,
-                    "response_format": None,
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {"key": "value"},
-                },
                 {"description": "Different description"},
                 id="description-differs",
             ),
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": "Test",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {},
-                },
                 {"template_type": PromptTemplateType.CHAT},
                 id="template-type-differs",
             ),
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": "Test",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {},
-                },
                 {"template_format": PromptTemplateFormat.MUSTACHE},
                 id="template-format-differs",
             ),
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": "Test",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {},
-                },
                 {"template": PromptStringTemplate(type="string", template="Different: {input}")},
                 id="template-differs",
             ),
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": "Test",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {},
-                },
                 {
                     "invocation_parameters": PromptOpenAIInvocationParameters(
                         type="openai",
@@ -1177,70 +1078,18 @@ class TestPromptVersion:
                 id="invocation-parameters-differ",
             ),
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": "Test",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {},
-                },
                 {"model_provider": ModelProvider.ANTHROPIC},
                 id="model-provider-differs",
             ),
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": "Test",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {},
-                },
                 {"model_name": "gpt-3.5-turbo"},
                 id="model-name-differs",
             ),
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": "Test",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {"key": "value"},
-                },
                 {"metadata_": {"key": "different_value"}},
                 id="metadata-differs",
             ),
             pytest.param(
-                {
-                    "prompt_id": 1,
-                    "description": "Test",
-                    "template_type": PromptTemplateType.STRING,
-                    "template_format": PromptTemplateFormat.F_STRING,
-                    "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
-                    "invocation_parameters": PromptOpenAIInvocationParameters(
-                        type="openai", openai=PromptOpenAIInvocationParametersContent()
-                    ),
-                    "model_provider": ModelProvider.OPENAI,
-                    "model_name": "gpt-4",
-                    "metadata_": {"key": "value"},
-                },
                 {"description": "Different", "model_name": "gpt-3.5-turbo", "metadata_": {}},
                 id="multiple-fields-differ",
             ),
@@ -1248,9 +1097,28 @@ class TestPromptVersion:
     )
     def test_has_identical_content_returns_false(
         self,
-        base_attrs: dict[str, Any],
         patch_attrs: dict[str, Any],
     ) -> None:
+        base_attrs = {
+            "prompt_id": 1,
+            "user_id": 1,
+            "description": "Test prompt version",
+            "template_type": PromptTemplateType.STRING,
+            "template_format": PromptTemplateFormat.F_STRING,
+            "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
+            "invocation_parameters": PromptOpenAIInvocationParameters(
+                type="openai", openai=PromptOpenAIInvocationParametersContent()
+            ),
+            "tools": None,
+            "response_format": None,
+            "model_provider": ModelProvider.OPENAI,
+            "model_name": "gpt-4",
+            "metadata_": {"key": "value"},
+        }
+        assert all(base_attrs[attr_name] != patch_attrs[attr_name] for attr_name in patch_attrs), (
+            "There are no differences between the base and patch attributes"
+        )
         version1 = models.PromptVersion(**base_attrs)
         version2 = models.PromptVersion(**{**base_attrs, **patch_attrs})
         assert not version1.has_identical_content(version2)
+        assert not version2.has_identical_content(version1)
