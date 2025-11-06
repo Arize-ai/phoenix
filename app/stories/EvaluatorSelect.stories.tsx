@@ -47,6 +47,7 @@ const sampleEvaluators: ComponentProps<typeof EvaluatorSelect>["evaluators"] = [
     id: "2",
     name: "Creativity Evaluator",
     kind: "LLM",
+    annotationName: "creativity_score",
   },
   {
     id: "3",
@@ -57,6 +58,7 @@ const sampleEvaluators: ComponentProps<typeof EvaluatorSelect>["evaluators"] = [
     id: "4",
     name: "An evaluator that has a really really really really really really really really long name",
     kind: "LLM",
+    annotationName: "annotation_name_that_is_very_long_and_should_be_truncated",
   },
   {
     id: "5",
@@ -67,6 +69,7 @@ const sampleEvaluators: ComponentProps<typeof EvaluatorSelect>["evaluators"] = [
     id: "6",
     name: "Hallucination Evaluator",
     kind: "LLM",
+    annotationName: "hallucination",
   },
   {
     id: "7",
