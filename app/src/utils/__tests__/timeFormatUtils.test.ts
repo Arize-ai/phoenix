@@ -14,7 +14,7 @@ describe("timeFormatUtils", () => {
       const result = fullTimeFormatter(testDate);
       // Should include date, time with seconds, and AM/PM
       expect(result).toMatch(/2023/);
-      expect(result).toMatch(/15:30:45/);
+      expect(result).toMatch(/03:30:45/);
       expect(result).toMatch(/PM/);
     });
 
@@ -30,13 +30,13 @@ describe("timeFormatUtils", () => {
   describe("shortTimeFormatter", () => {
     it("should format time only without seconds", () => {
       const result = shortTimeFormatter(testDate);
-      expect(result).toBe("15:30 PM");
+      expect(result).toBe("03:30 PM");
     });
 
     it("should handle midnight correctly", () => {
       const midnight = new Date("2023-09-04T00:00:00");
       const result = shortTimeFormatter(midnight);
-      expect(result).toBe("00:00 AM");
+      expect(result).toBe("12:00 AM");
     });
 
     it("should handle noon correctly", () => {
