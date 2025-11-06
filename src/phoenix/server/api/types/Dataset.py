@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, cast
 
 import strawberry
-from sqlalchemy import Text, and_, func, or_, select
+from sqlalchemy import Text, and_, case, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.orm import with_polymorphic
 from sqlalchemy.sql.functions import count
@@ -496,7 +496,17 @@ class Dataset(Node):
                 column = sqlalchemy_cast(column, String)
             stmt = stmt.where(column.ilike(f"%{filter.value}%"))
         if sort:
-            sort_col = getattr(PolymorphicEvaluator, sort.col.value)
+            if sort.col.value == "updated_at":
+                # updated_at exists in sub-tables, not base table
+                # Use case to pick the value based on kind
+                # this special case can be removed if we add updated_at to the base table
+                sort_col = case(
+                    (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
+                    else_=None,
+                )
+            else:
+                sort_col = getattr(PolymorphicEvaluator, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
         else:
             stmt = stmt.order_by(PolymorphicEvaluator.name.asc())
