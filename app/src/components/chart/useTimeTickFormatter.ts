@@ -1,33 +1,63 @@
 import { useMemo } from "react";
-import { timeFormat } from "d3-time-format";
 
+import {
+  createTimeFormatter,
+  type TimeFormatter,
+} from "@phoenix/utils/timeFormatUtils";
 import {
   ONE_DAY_IN_MINUTES,
   ONE_HOUR_IN_MINUTES,
 } from "@phoenix/utils/timeSeriesUtils";
+import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
 
 type TimeFormatterConfig = {
   /**
    * The sampling interval in minutes. E.g. the time between the dots on the chart
    */
   samplingIntervalMinutes: number;
+  /**
+   * The locale to use for the formatter
+   * @default the browser's locale
+   */
+  locale?: string;
+  /**
+   * The timezone to use for the formatter
+   * @default the user's timezone
+   */
+  timeZone?: string;
 };
-
-export function getFormatFromSamplingInterval(
-  samplingIntervalMinutes: number
-): string {
-  let format: string;
+export function getFormatterFromSamplingInterval({
+  samplingIntervalMinutes,
+  locale = getLocale(),
+  timeZone = getTimeZone(),
+}: TimeFormatterConfig): TimeFormatter {
   if (samplingIntervalMinutes < ONE_HOUR_IN_MINUTES) {
     // Remove the year, and show minutes
-    format = "%H:%M %p";
+    return createTimeFormatter(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone,
+    });
   } else if (samplingIntervalMinutes < ONE_DAY_IN_MINUTES) {
-    // Show a fill date
-    format = "%x %H:%M %p";
+    // Show a full date with time
+    return createTimeFormatter(locale, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone,
+    });
   } else {
     // Just show the month and date
-    format = "%-m/%-d";
+    return createTimeFormatter(locale, {
+      month: "numeric",
+      day: "numeric",
+      timeZone,
+    });
   }
-  return format;
 }
 
 /**
@@ -36,9 +66,8 @@ export function getFormatFromSamplingInterval(
  * @returns
  */
 export function useTimeTickFormatter(config: TimeFormatterConfig) {
-  const samplingIntervalMinutes = config.samplingIntervalMinutes;
   const formatter = useMemo(() => {
-    return timeFormat(getFormatFromSamplingInterval(samplingIntervalMinutes));
-  }, [samplingIntervalMinutes]);
+    return getFormatterFromSamplingInterval(config);
+  }, [config]);
   return formatter;
 }

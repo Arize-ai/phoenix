@@ -1,4 +1,3 @@
-import { timeFormat } from "d3-time-format";
 import { css } from "@emotion/react";
 
 import { FieldColorDesignation } from "@arizeai/components";
@@ -12,8 +11,7 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { useInferences } from "@phoenix/contexts";
-
-const timeFormatter = timeFormat("%x %X");
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 type ReferenceInferencesTimeRangeProps = {
   inferencesRole: InferencesRole;
   /**
@@ -42,7 +40,7 @@ export function ReferenceInferencesTimeRange({
             size="S"
             isReadOnly
             aria-label={"reference inferences time range"}
-            value={`${timeFormatter(timeRange.start)} - ${timeFormatter(
+            value={`${fullTimeFormatter(timeRange.start)} - ${fullTimeFormatter(
               timeRange.end
             )}`}
           >
