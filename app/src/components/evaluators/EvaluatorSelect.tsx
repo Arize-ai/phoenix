@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { ComponentProps, useState } from "react";
 import {
   Autocomplete,
   Input,
@@ -40,8 +40,10 @@ type EvaluatorSelectProps = {
   selectedIds?: string[];
   onSelectionChange: (id: string) => void;
   addNewEvaluatorLink: string;
+  addNewEvaluatorText?: string;
   selectionMode?: SelectionMode;
   size?: ButtonProps["size"];
+  placement?: ComponentProps<typeof MenuContainer>["placement"];
 };
 
 export function EvaluatorSelect(props: EvaluatorSelectProps) {
@@ -50,8 +52,10 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
     selectedIds,
     onSelectionChange,
     addNewEvaluatorLink,
+    addNewEvaluatorText = "New evaluator",
     selectionMode = "multiple",
     size = "S",
+    placement,
   } = props;
   const { contains } = useFilter({ sensitivity: "base" });
 
@@ -60,7 +64,7 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
       <Button size={size} leadingVisual={<Icon svg={<Icons.PlusOutline />} />}>
         Add evaluator
       </Button>
-      <MenuContainer>
+      <MenuContainer placement={placement}>
         <Autocomplete filter={contains}>
           <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
@@ -92,7 +96,7 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
         </Autocomplete>
         <MenuFooter>
           <LinkButton variant="quiet" to={addNewEvaluatorLink}>
-            New evaluator
+            {addNewEvaluatorText}
           </LinkButton>
         </MenuFooter>
       </MenuContainer>

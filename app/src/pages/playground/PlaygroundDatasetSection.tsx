@@ -36,22 +36,9 @@ export function PlaygroundDatasetSection({
       .filter((id) => id != null);
   }, [instances]);
 
-  // eslint-disable-next-line no-console
-  console.warn(
-    "Using global evaluators. Use dataset evaluators when assignment becomes available."
-  );
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
       query PlaygroundDatasetSectionQuery($datasetId: ID!, $splitIds: [ID!]) {
-        evaluators {
-          edges {
-            evaluator: node {
-              id
-              name
-              kind
-            }
-          }
-        }
         dataset: node(id: $datasetId) {
           ... on Dataset {
             name
@@ -61,16 +48,15 @@ export function PlaygroundDatasetSection({
               name
               color
             }
-            # TODO: uncomment this when you can assign evaluators to datasets
-            # evaluators {
-            #   edges {
-            #     evaluator: node {
-            #       id
-            #       name
-            #       kind
-            #     }
-            #   }
-            # }
+            evaluators {
+              edges {
+                evaluator: node {
+                  id
+                  name
+                  kind
+                }
+              }
+            }
           }
         }
       }
@@ -96,7 +82,7 @@ export function PlaygroundDatasetSection({
   }, [data, splitIds]);
 
   const evaluators =
-    data.evaluators?.edges?.map((edge) => edge.evaluator) ?? [];
+    data.dataset.evaluators?.edges?.map((edge) => edge.evaluator) ?? [];
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
     () => evaluators.map((evaluator) => evaluator.id) ?? []
   );
@@ -157,7 +143,11 @@ export function PlaygroundDatasetSection({
                   return [...prev, id];
                 });
               }}
-              addNewEvaluatorLink={prependBasename("/evaluators/new")}
+              addNewEvaluatorLink={prependBasename(
+                `/datasets/${datasetId}/evaluators`
+              )}
+              addNewEvaluatorText="Add evaluator to dataset"
+              placement="top end"
             />
             {experimentIds.length > 0 && (
               <LinkButton
