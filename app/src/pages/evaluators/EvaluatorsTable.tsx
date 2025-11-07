@@ -5,7 +5,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { graphql, readInlineData } from "react-relay";
 import { useNavigate } from "react-router";
 import {
   ColumnDef,
@@ -23,16 +23,14 @@ import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { EvaluatorsTable_evaluators$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_evaluators.graphql";
+import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
 import {
+  EvaluatorFilter,
   EvaluatorSort,
-  EvaluatorsTableEvaluatorsQuery,
-} from "@phoenix/pages/evaluators/__generated__/EvaluatorsTableEvaluatorsQuery.graphql";
+} from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 
-const PAGE_SIZE = 100;
-
-const convertEvaluatorSortToTanstackSort = (
+export const convertEvaluatorSortToTanstackSort = (
   sort: EvaluatorSort | null | undefined
 ): SortingState => {
   if (!sort) return [];
@@ -46,7 +44,7 @@ const EVALUATOR_SORT_COLUMNS: EvaluatorSort["col"][] = [
   "updatedAt",
 ];
 
-const convertTanstackSortToEvaluatorSort = (
+export const convertTanstackSortToEvaluatorSort = (
   sorting: SortingState
 ): EvaluatorSort | null | undefined => {
   if (sorting.length === 0) return null;
@@ -66,11 +64,74 @@ const convertTanstackSortToEvaluatorSort = (
   return null;
 };
 
-type EvaluatorsTableProps = {
-  query: EvaluatorsTable_evaluators$key;
+const EmptyState = () => {
+  return (
+    <View width="100%" paddingY="size-400">
+      <Flex
+        direction="column"
+        width="100%"
+        alignItems="center"
+        justifyContent="center"
+      >
+        <Text size="XL">
+          Create and manage evaluators for your AI applications.
+        </Text>
+        {/* TODO: Put a video here explaining how to create and use evaluators */}
+      </Flex>
+    </View>
+  );
 };
 
-export const EvaluatorsTable = ({ query }: EvaluatorsTableProps) => {
+const readRow = (row: EvaluatorsTable_row$key) => {
+  return readInlineData(
+    graphql`
+      fragment EvaluatorsTable_row on Evaluator
+      @inline
+      @argumentDefinitions(datasetId: { type: "ID", defaultValue: null }) {
+        id
+        name
+        kind
+        description
+        createdAt
+        updatedAt
+        isAssignedToDataset(datasetId: $datasetId)
+      }
+    `,
+    row
+  );
+};
+
+type TableRow = ReturnType<typeof readRow>;
+
+type EvaluatorsTableProps = {
+  /**
+   * Relay fragment references for the evaluator rows to display in the table.
+   *
+   * To obtain row references, spread the EvaluatorsTable_row fragment into an Evaluators connection,
+   * pass the resulting edges into this prop.
+   */
+  rowReferences: EvaluatorsTable_row$key[];
+  emptyState?: React.ReactNode;
+  isLoadingNext: boolean;
+  hasNext: boolean;
+  loadNext: (variables: {
+    sort?: EvaluatorSort | null;
+    filter?: EvaluatorFilter | null;
+  }) => void;
+  refetch: (variables: {
+    sort?: EvaluatorSort | null;
+    filter?: EvaluatorFilter | null;
+  }) => void;
+};
+
+export const EvaluatorsTable = ({
+  rowReferences,
+  emptyState,
+  isLoadingNext,
+  hasNext,
+  loadNext,
+  refetch,
+}: EvaluatorsTableProps) => {
   const {
     selectedEvaluatorIds,
     setSelectedEvaluatorIds,
@@ -98,46 +159,9 @@ export const EvaluatorsTable = ({ query }: EvaluatorsTableProps) => {
     },
     [setSort]
   );
-  const { data, hasNext, isLoadingNext, loadNext, refetch } =
-    usePaginationFragment<
-      EvaluatorsTableEvaluatorsQuery,
-      EvaluatorsTable_evaluators$key
-    >(
-      graphql`
-        fragment EvaluatorsTable_evaluators on Query
-        @refetchable(queryName: "EvaluatorsTableEvaluatorsQuery")
-        @argumentDefinitions(
-          after: { type: "String", defaultValue: null }
-          first: { type: "Int", defaultValue: 100 }
-          sort: { type: "EvaluatorSort", defaultValue: null }
-          filter: { type: "EvaluatorFilter", defaultValue: null }
-        ) {
-          evaluators(
-            first: $first
-            after: $after
-            sort: $sort
-            filter: $filter
-          ) @connection(key: "EvaluatorsTable_evaluators") {
-            edges {
-              evaluator: node {
-                id
-                name
-                createdAt
-                updatedAt
-                description
-                kind
-              }
-            }
-          }
-        }
-      `,
-      query
-    );
-  const tableData = useMemo(
-    () => data.evaluators.edges.map((edge) => edge.evaluator),
-    [data]
-  );
-  type TableRow = (typeof tableData)[number];
+  const tableData = useMemo(() => {
+    return rowReferences.map(readRow);
+  }, [rowReferences]);
   const columns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
       {
@@ -239,16 +263,9 @@ export const EvaluatorsTable = ({ query }: EvaluatorsTableProps) => {
         !isLoadingNext &&
         hasNext
       ) {
-        loadNext(PAGE_SIZE, {
-          UNSTABLE_extraVariables: {
-            sort: sort,
-            filter: filter
-              ? {
-                  col: "name",
-                  value: filter,
-                }
-              : null,
-          },
+        loadNext({
+          sort: sort,
+          filter: filter ? { col: "name", value: filter } : null,
         });
       }
     }
@@ -256,18 +273,15 @@ export const EvaluatorsTable = ({ query }: EvaluatorsTableProps) => {
   // Refetch the data when the filter or sort changes
   useEffect(() => {
     startTransition(() => {
-      refetch(
-        {
-          sort: sort,
-          filter: filter
-            ? {
-                col: "name",
-                value: filter,
-              }
-            : null,
-        },
-        { fetchPolicy: "store-and-network" }
-      );
+      refetch({
+        sort: sort,
+        filter: filter
+          ? {
+              col: "name",
+              value: filter,
+            }
+          : null,
+      });
     });
   }, [sort, filter, refetch]);
 
@@ -275,20 +289,7 @@ export const EvaluatorsTable = ({ query }: EvaluatorsTableProps) => {
   const isEmpty = rows.length === 0;
 
   if (isEmpty) {
-    return (
-      <View width="100%" paddingY="size-400">
-        <Flex
-          direction="column"
-          width="100%"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <Text size="XL">
-            Create and manage evaluators for your AI applications.
-          </Text>
-        </Flex>
-      </View>
-    );
+    return emptyState || <EmptyState />;
   }
 
   return (

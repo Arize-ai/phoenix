@@ -201,13 +201,7 @@ function DatasetPageContent({
         }
       />
       <Tabs
-        defaultSelectedKey={
-          initialIndex === 0
-            ? "experiments"
-            : initialIndex === 1
-              ? "examples"
-              : "versions"
-        }
+        selectedKey={TABS_CONFIG[initialIndex as keyof typeof TABS_CONFIG]}
         onSelectionChange={(key) => {
           if (isTabName(key)) {
             onTabChange(TABS_LIST.indexOf(key));
