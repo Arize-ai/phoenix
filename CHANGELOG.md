@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.11.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.11.0...arize-phoenix-v12.11.1) (2025-11-07)
+
+
+### Bug Fixes
+
+* timezone selector on safari and firefox ([#10168](https://github.com/Arize-ai/phoenix/issues/10168)) ([09f5369](https://github.com/Arize-ai/phoenix/commit/09f5369cc8509dab76e87fc46255f1c0270d9e23))
+
 ## [12.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.10.0...arize-phoenix-v12.11.0) (2025-11-07)
 
 
