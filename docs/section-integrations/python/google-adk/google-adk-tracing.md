@@ -145,7 +145,7 @@ remote_agent = agent_engines.create(
     extra_packages=["adk_agent.py"],
     "env_vars": {
         "OTEL_LOG_LEVEL": "DEBUG",
-        "NO_PROXY": "otlp.arize.com",
+        "NO_PROXY": "app.phoenix.arize.com",
         "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp.arize.com",
         "OTEL_EXPORTER_OTLP_TIMEOUT": "60000",  # 60 seconds,
         "ARIZE_API_KEY": "YOUR_ARIZE_API_KEY",
