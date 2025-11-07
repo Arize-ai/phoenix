@@ -8,8 +8,7 @@ import {
   useState,
 } from "react";
 
-import { ProviderTheme } from "@arizeai/components";
-
+export type ProviderTheme = "light" | "dark";
 /**
  * The theme mode selected by the user.
  * Distinct from ProviderTheme, which is the actual theme that is applied to the app,

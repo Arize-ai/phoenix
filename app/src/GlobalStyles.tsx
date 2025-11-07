@@ -667,10 +667,6 @@ export const darkThemeCSS = css`
     --ac-global-color-severe-700: rgba(var(--ac-global-color-severe-rgb), 0.7);
     --ac-global-color-severe-500: rgba(var(--ac-global-color-severe-rgb), 0.5);
 
-    // Designation colors
-    --ac-global-color-designation-purple: #bb9ff9;
-    --ac-global-color-designation-turquoise: #9efcfd;
-
     --ac-global-text-color-900: rgba(255, 255, 255, 0.9);
     --ac-global-text-color-700: rgba(255, 255, 255, 0.7);
     --ac-global-text-color-500: rgba(255, 255, 255, 0.5);
@@ -921,10 +917,6 @@ export const lightThemeCSS = css`
     --ac-global-color-severe-900: rgba(188, 76, 0, 0.9);
     --ac-global-color-severe-700: rgba(188, 76, 0, 0.7);
     --ac-global-color-severe-500: rgba(188, 76, 0, 0.5);
-
-    // Designation colors
-    --ac-global-color-designation-purple: #4500d9;
-    --ac-global-color-designation-turquoise: #00add0;
 
     --ac-global-text-color-900: rgba(0, 0, 0, 0.9);
     --ac-global-text-color-700: rgba(0, 0, 0, 0.7);

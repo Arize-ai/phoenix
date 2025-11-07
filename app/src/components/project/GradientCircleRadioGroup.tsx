@@ -4,7 +4,7 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@phoenix/components";
+import { classNames } from "@phoenix/utils";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { StylableProps } from "@phoenix/components/types";
 

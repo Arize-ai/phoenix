@@ -2,8 +2,8 @@ import { forwardRef, ReactNode, Ref, useCallback } from "react";
 import { Button as AriaButton, ButtonRenderProps } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@phoenix/components";
 import { useSize } from "@phoenix/contexts";
+import { classNames } from "@phoenix/utils";
 
 import { buttonCSS } from "./styles";
 import { ButtonProps } from "./types";
