@@ -8,7 +8,7 @@ import {
 } from "react";
 import invariant from "tiny-invariant";
 
-import { EvaluatorSort } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTableEvaluatorsQuery.graphql";
+import { EvaluatorSort } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
 
 export type EvaluatorsFilterContext = {
   filter: string;
