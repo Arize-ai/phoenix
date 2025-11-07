@@ -2,17 +2,16 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { LLMEvaluatorTemplate } from "@phoenix/pages/evaluators/templates/types";
 import {
   generateInstanceId,
-  PlaygroundChatTemplate,
+  generateMessageId,
   PlaygroundInstance,
 } from "@phoenix/store";
 
-export function transformEvaluatorTemplateToPlaygroundInstance({
-  template,
-}: {
-  template: Readonly<PlaygroundChatTemplate>;
-}): PlaygroundInstance {
+export function transformEvaluatorTemplateToPlaygroundInstance(
+  template: LLMEvaluatorTemplate
+): PlaygroundInstance {
   return {
     id: generateInstanceId(),
     tools: [],
@@ -24,6 +23,20 @@ export function transformEvaluatorTemplateToPlaygroundInstance({
     },
     spanId: null,
     activeRunId: null,
-    template,
+    template: {
+      __type: "chat",
+      messages: [
+        {
+          id: generateMessageId(),
+          role: "system",
+          content: template.systemPrompt,
+        },
+        {
+          id: generateMessageId(),
+          role: "user",
+          content: template.userPrompt,
+        },
+      ],
+    },
   };
 }

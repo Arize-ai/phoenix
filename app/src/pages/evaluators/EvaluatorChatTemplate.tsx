@@ -7,7 +7,7 @@ import {
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorChatTemplateQuery } from "@phoenix/pages/evaluators/__generated__/EvaluatorChatTemplateQuery.graphql";
-import { CORRECTNESS_EVALUATOR_TEMPLATE } from "@phoenix/pages/evaluators/templates/correctnessEvaluatorTemplate";
+import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/pages/evaluators/templates/defaultEvaluatorTemplate";
 import { transformEvaluatorTemplateToPlaygroundInstance } from "@phoenix/pages/evaluators/templates/evaluatorTemplateUtils";
 import { NoInstalledProvider } from "@phoenix/pages/playground/NoInstalledProvider";
 import { PlaygroundTemplate } from "@phoenix/pages/playground/PlaygroundTemplate";
@@ -43,9 +43,9 @@ export const EvaluatorChatTemplateProvider = ({
     <PlaygroundProvider
       modelConfigByProvider={modelConfigByProvider}
       instances={[
-        transformEvaluatorTemplateToPlaygroundInstance({
-          template: CORRECTNESS_EVALUATOR_TEMPLATE,
-        }),
+        transformEvaluatorTemplateToPlaygroundInstance(
+          DEFAULT_EVALUATOR_TEMPLATE
+        ),
       ]}
     >
       {children}
