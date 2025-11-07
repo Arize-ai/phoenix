@@ -281,7 +281,7 @@ const NewEvaluatorPageContent = () => {
           <PanelContainer>
             <Flex
               direction="row"
-              alignItems="center"
+              alignItems="baseline"
               width="100%"
               gap="size-100"
               marginTop="size-100"
@@ -290,7 +290,6 @@ const NewEvaluatorPageContent = () => {
                 name="name"
                 control={nameControl}
                 rules={{
-                  required: "Name is required",
                   validate: validateIdentifier,
                 }}
                 render={({ field, fieldState: { error } }) => (
