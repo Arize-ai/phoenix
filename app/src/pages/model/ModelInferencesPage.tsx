@@ -2,9 +2,8 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
-import { TabbedCard } from "@arizeai/components";
-
 import {
+  Card,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -68,11 +67,7 @@ export function ModelInferencesPage(_props: ModelInferencesPageProps) {
           margin: var(--ac-global-dimension-static-size-200);
         `}
       >
-        <TabbedCard
-          title="Model Schema"
-          variant="compact"
-          bodyStyle={{ padding: 0 }}
-        >
+        <Card title="Model Schema" titleSeparator={false}>
           <Tabs>
             <TabList>
               <Tab id="all">All</Tab>
@@ -104,7 +99,7 @@ export function ModelInferencesPage(_props: ModelInferencesPageProps) {
               <ModelSchemaTable model={data} />
             </LazyTabPanel>
           </Tabs>
-        </TabbedCard>
+        </Card>
       </section>
       <Outlet />
     </main>

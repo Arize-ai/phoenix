@@ -1,5 +1,3 @@
-import { TabbedCard } from "@arizeai/components";
-
 import {
   ExternalLink,
   Heading,
@@ -167,7 +165,7 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
           is traced.
         </Text>
       </View>
-      <TabbedCard variant="compact">
+      <View borderColor="dark" borderWidth="thin" borderRadius="medium">
         <Tabs>
           <TabList>
             <Tab id="integrations">Integrations</Tab>
@@ -221,7 +219,7 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
             </View>
           </TabPanel>
         </Tabs>
-      </TabbedCard>
+      </View>
     </div>
   );
 }

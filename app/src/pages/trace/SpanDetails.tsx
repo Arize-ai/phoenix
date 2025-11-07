@@ -16,7 +16,6 @@ import CodeMirror, {
 } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { TabbedCard } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
@@ -810,7 +809,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         </Tabs>
       </Card>
       {hasOutput || hasOutputMessages ? (
-        <TabbedCard {...defaultCardProps}>
+        <Card {...defaultCardProps} title="Output" titleSeparator={false}>
           <Tabs>
             <TabList>
               {hasOutputMessages && (
@@ -845,7 +844,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
               </LazyTabPanel>
             )}
           </Tabs>
-        </TabbedCard>
+        </Card>
       ) : null}
     </Flex>
   );

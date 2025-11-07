@@ -2,10 +2,9 @@ import { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { getLocalTimeZone } from "@internationalized/date";
 
-import { TabbedCard } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   DialogTrigger,
   Icon,
   Icons,
@@ -117,9 +116,9 @@ export function APIKeysCard() {
 
   return (
     <div>
-      <TabbedCard
+      <Card
+        titleSeparator={false}
         title="API Keys"
-        variant="compact"
         extra={
           <DialogTrigger
             isOpen={showCreateAPIKeyDialog}
@@ -153,7 +152,7 @@ export function APIKeysCard() {
         >
           <APIKeysCardContent fetchKey={fetchKey} />
         </Suspense>
-      </TabbedCard>
+      </Card>
       <DialogTrigger
         isOpen={!!showOneTimeAPIKeyJwt}
         onOpenChange={() => setShowOneTimeAPIKeyJwt(null)}

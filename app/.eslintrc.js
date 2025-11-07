@@ -297,6 +297,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { Form } from '@phoenix/components'",
       },
+      {
+        name: "TabbedCard",
+        module: "@arizeai/components",
+        use: "import { Card } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },
