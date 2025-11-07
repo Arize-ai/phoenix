@@ -1,19 +1,18 @@
-import {
-  DebouncedSearch,
-  Flex,
-  Icon,
-  Icons,
-  LinkButton,
-  View,
-} from "@phoenix/components";
+import { DebouncedSearch, Flex, View, ViewProps } from "@phoenix/components";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 
-export const EvaluatorsFilterBar = () => {
+export const EvaluatorsFilterBar = ({
+  extraActions,
+  padding = "size-200",
+}: {
+  extraActions?: React.ReactNode;
+  padding?: ViewProps["padding"];
+}) => {
   const { setFilter, filter } = useEvaluatorsFilterContext();
 
   return (
     <View
-      padding="size-200"
+      padding={padding}
       borderBottomWidth="thin"
       borderBottomColor="grey-200"
       flex="none"
@@ -30,16 +29,11 @@ export const EvaluatorsFilterBar = () => {
           defaultValue={filter}
           placeholder="Search evaluators by name"
         />
-        <Flex direction="row" alignItems="center" gap="size-100" flex="none">
-          <LinkButton
-            size="M"
-            leadingVisual={<Icon svg={<Icons.Scale />} />}
-            variant="primary"
-            to="/evaluators/new"
-          >
-            New Evaluator
-          </LinkButton>
-        </Flex>
+        {!!extraActions && (
+          <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+            {extraActions}
+          </Flex>
+        )}
       </Flex>
     </View>
   );
