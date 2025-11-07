@@ -47,6 +47,7 @@ export function SettingsPage() {
   }
   return (
     <main css={settingsPageCSS}>
+      <title>Settings - Phoenix</title>
       <div css={settingsPageInnerCSS}>
         <Tabs selectedKey={tab} onSelectionChange={onChangeTab}>
           <TabList items={tabs}>

@@ -19,6 +19,7 @@ export function PromptsPage() {
 
   return (
     <PromptsFilterProvider>
+      <title>Prompts - Phoenix</title>
       <Flex direction="column" height="100%">
         <PromptsFilterBar />
         <PromptsTable query={data} />

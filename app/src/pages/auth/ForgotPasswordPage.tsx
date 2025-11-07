@@ -39,6 +39,7 @@ export function ForgotPasswordPage() {
   );
   return (
     <AuthLayout>
+      <title>Forgot Password - Phoenix</title>
       <div
         css={css`
           & a {

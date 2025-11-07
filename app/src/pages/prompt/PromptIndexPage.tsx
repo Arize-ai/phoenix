@@ -28,7 +28,12 @@ import { usePromptIdLoader } from "./usePromptIdLoader";
 
 export function PromptIndexPage() {
   const loaderData = usePromptIdLoader();
-  return <PromptIndexPageContent prompt={loaderData.prompt} />;
+  return (
+    <>
+      <title>{`${loaderData.prompt.name} - Prompt - Phoenix`}</title>
+      <PromptIndexPageContent prompt={loaderData.prompt} />
+    </>
+  );
 }
 
 export function PromptIndexPageContent({

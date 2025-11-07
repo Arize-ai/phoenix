@@ -51,6 +51,7 @@ export function ModelInferencesPage(_props: ModelInferencesPageProps) {
   );
   return (
     <main>
+      <title>Model Inferences - Phoenix</title>
       <Toolbar>
         <PrimaryInferencesTimeRange />
         {referenceInferences ? (

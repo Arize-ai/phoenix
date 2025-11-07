@@ -249,6 +249,7 @@ export function EmbeddingPage() {
   }, [corpusInferences, referenceInferences]);
   return (
     <TimeSliceContextProvider initialTimestamp={timeRange.end}>
+      <title>Embedding - Phoenix</title>
       <PointCloudProvider {...defaultPointCloudProps}>
         <EmbeddingMain />
       </PointCloudProvider>

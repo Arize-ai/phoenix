@@ -32,6 +32,7 @@ export function ProfilePage() {
 
   return (
     <main css={profilePageCSS}>
+      <title>Profile - Phoenix</title>
       <div css={profilePageInnerCSS}>
         <Flex direction="column" gap="size-200">
           {viewer && <ViewerProfileCard />}

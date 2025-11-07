@@ -73,7 +73,6 @@ export function ProjectPage() {
   const { timeRange } = useTimeRange();
   return (
     <Suspense fallback={<Loading />}>
-      <title>Project - Phoenix</title>
       <ProjectPageContent
         projectId={projectId as string}
         timeRange={timeRange}

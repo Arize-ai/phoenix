@@ -16,6 +16,7 @@ export function ResetPasswordWithTokenPage() {
   }
   return (
     <AuthLayout>
+      <title>Reset Password - Phoenix</title>
       <Flex direction="column" gap="size-200" alignItems="center">
         <View paddingBottom="size-200">
           <PhoenixLogo />

@@ -13,6 +13,7 @@ const supportItemsCSS = css`
 export function SupportPage() {
   return (
     <main>
+      <title>Support - Phoenix</title>
       <Flex direction="column" width="100%">
         <View
           padding="size-200"

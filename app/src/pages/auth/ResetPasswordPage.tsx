@@ -11,6 +11,7 @@ export function ResetPasswordPage() {
   const loaderData = useLoaderData<typeof resetPasswordLoader>();
   return (
     <AuthLayout>
+      <title>Reset Password - Phoenix</title>
       <Flex direction="column" gap="size-200" alignItems="center">
         <View paddingBottom="size-200">
           <PhoenixLogo />
