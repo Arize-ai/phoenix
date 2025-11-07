@@ -11,6 +11,7 @@ import {
   NavBreadcrumb,
   NavButton,
   NavLink,
+  NavTitle,
   SideNavbar,
   SideNavToggleButton,
   ThemeSelector,
@@ -65,6 +66,7 @@ const sideLinksCSS = css`
 export function Layout() {
   return (
     <div css={layoutCSS} data-testid="layout">
+      <NavTitle />
       <SideNav />
       <div css={mainViewCSS}>
         <TopNavbar>

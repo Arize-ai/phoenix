@@ -1,35 +1,18 @@
-import { Link, useMatches } from "react-router";
+import { Link } from "react-router";
 
 import { Breadcrumb, Breadcrumbs } from "@phoenix/components";
-
-export type CrumbFn = (data: unknown) => string;
-type Matches = ReturnType<typeof useMatches>;
-type Match = Matches[number];
-type RouteMatchWithCrumb = Match & {
-  handle: {
-    crumb: CrumbFn;
-  };
-};
-
-function isRouteMatchWithCrumb(match: Match): match is RouteMatchWithCrumb {
-  return (
-    typeof match.handle == "object" &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    typeof (match.handle as any)?.crumb === "function"
-  );
-}
+import { useMatchesWithCrumb } from "@phoenix/hooks/useMatchesWithCrumb";
 
 export function NavBreadcrumb() {
-  const matches = useMatches();
-  // Get rid of any matches that don't have handle and crumb
-  const matchesWithCrumb = matches.filter(isRouteMatchWithCrumb);
-
+  const matchesWithCrumb = useMatchesWithCrumb();
   return (
     <Breadcrumbs size="L">
       {matchesWithCrumb.map((match, index) => {
         return (
           <Breadcrumb key={index}>
-            <Link to={match.pathname}>{match.handle.crumb(match.data)}</Link>
+            <Link to={match.pathname}>
+              {match.handle.crumb(match.loaderData)}
+            </Link>
           </Breadcrumb>
         );
       })}
