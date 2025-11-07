@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   Icon,
   Icons,
   Menu,
@@ -74,86 +73,82 @@ export function NewDatasetActionMenu({
           </Menu>
         </Popover>
       </MenuTrigger>
-      <DialogTrigger
+      <ModalOverlay
         isOpen={createDatasetDialogOpen}
         onOpenChange={setCreateDatasetDialogOpen}
       >
-        <ModalOverlay>
-          <Modal>
-            <Dialog>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>New Dataset</DialogTitle>
-                </DialogHeader>
-                <CreateDatasetForm
-                  onDatasetCreated={(newDataset) => {
-                    notifySuccess({
-                      title: "Dataset created",
-                      message: `${newDataset.name} has been successfully created.`,
-                      action: {
-                        text: "Go to Dataset",
-                        onClick: () => {
-                          navigate(`/datasets/${newDataset.id}`);
-                        },
+        <Modal>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>New Dataset</DialogTitle>
+              </DialogHeader>
+              <CreateDatasetForm
+                onDatasetCreated={(newDataset) => {
+                  notifySuccess({
+                    title: "Dataset created",
+                    message: `${newDataset.name} has been successfully created.`,
+                    action: {
+                      text: "Go to Dataset",
+                      onClick: () => {
+                        navigate(`/datasets/${newDataset.id}`);
                       },
-                    });
-                    setCreateDatasetDialogOpen(false);
-                    onDatasetCreated();
-                  }}
-                  onDatasetCreateError={(error) => {
-                    const formattedError =
-                      getErrorMessagesFromRelayMutationError(error);
-                    notifyError({
-                      title: "Dataset creation failed",
-                      message: formattedError?.[0] ?? error.message,
-                    });
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
-      <DialogTrigger
+                    },
+                  });
+                  setCreateDatasetDialogOpen(false);
+                  onDatasetCreated();
+                }}
+                onDatasetCreateError={(error) => {
+                  const formattedError =
+                    getErrorMessagesFromRelayMutationError(error);
+                  notifyError({
+                    title: "Dataset creation failed",
+                    message: formattedError?.[0] ?? error.message,
+                  });
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+      <ModalOverlay
         isOpen={datasetFromCSVDialogOpen}
         onOpenChange={setDatasetFromCSVDialogOpen}
       >
-        <ModalOverlay>
-          <Modal>
-            <Dialog>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>New Dataset from CSV</DialogTitle>
-                </DialogHeader>
-                <DatasetFromCSVForm
-                  onDatasetCreated={(newDataset) => {
-                    notifySuccess({
-                      title: "Dataset created",
-                      message: `${newDataset.name} has been successfully created.`,
-                      action: {
-                        text: "Go to Dataset",
-                        onClick: () => {
-                          navigate(`/datasets/${newDataset.id}`);
-                        },
+        <Modal>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>New Dataset from CSV</DialogTitle>
+              </DialogHeader>
+              <DatasetFromCSVForm
+                onDatasetCreated={(newDataset) => {
+                  notifySuccess({
+                    title: "Dataset created",
+                    message: `${newDataset.name} has been successfully created.`,
+                    action: {
+                      text: "Go to Dataset",
+                      onClick: () => {
+                        navigate(`/datasets/${newDataset.id}`);
                       },
-                    });
-                    setDatasetFromCSVDialogOpen(false);
-                    onDatasetCreated();
-                  }}
-                  onDatasetCreateError={(error) => {
-                    const formattedError =
-                      getErrorMessagesFromRelayMutationError(error);
-                    notifyError({
-                      title: "Dataset creation failed",
-                      message: formattedError?.[0] ?? error.message,
-                    });
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
+                    },
+                  });
+                  setDatasetFromCSVDialogOpen(false);
+                  onDatasetCreated();
+                }}
+                onDatasetCreateError={(error) => {
+                  const formattedError =
+                    getErrorMessagesFromRelayMutationError(error);
+                  notifyError({
+                    title: "Dataset creation failed",
+                    message: formattedError?.[0] ?? error.message,
+                  });
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </StopPropagation>
   );
 }

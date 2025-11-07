@@ -1,7 +1,5 @@
 import { css } from "@emotion/react";
 
-import { FieldColorDesignation } from "@arizeai/components";
-
 import {
   Input,
   Label,
@@ -36,25 +34,23 @@ export function ReferenceInferencesTimeRange({
         }
       `}
     >
-      <FieldColorDesignation color={"designationPurple"}>
-        <TooltipTrigger>
-          <TextField
-            size="S"
-            isReadOnly
-            aria-label={"reference inferences time range"}
-            value={`${fullTimeFormatter(timeRange.start)} - ${fullTimeFormatter(
-              timeRange.end
-            )}`}
-          >
-            <Label>{`${nameAbbr} inferences`}</Label>
-            <Input />
-          </TextField>
-          <Tooltip>
-            <TooltipArrow />
-            The static time range of the reference inferences
-          </Tooltip>
-        </TooltipTrigger>
-      </FieldColorDesignation>
+      <TooltipTrigger>
+        <TextField
+          size="S"
+          isReadOnly
+          aria-label={"reference inferences time range"}
+          value={`${fullTimeFormatter(timeRange.start)} - ${fullTimeFormatter(
+            timeRange.end
+          )}`}
+        >
+          <Label>{`${nameAbbr} inferences`}</Label>
+          <Input />
+        </TextField>
+        <Tooltip>
+          <TooltipArrow />
+          The static time range of the reference inferences
+        </Tooltip>
+      </TooltipTrigger>
     </div>
   );
 }

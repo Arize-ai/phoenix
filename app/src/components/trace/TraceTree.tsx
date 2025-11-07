@@ -294,8 +294,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   const { name, latencyMs, statusCode, tokenCountTotal } = node.span;
   return (
     <div ref={itemRef}>
-      <button
-        className="button--reset"
+      <div
+        role="button"
+        tabIndex={0}
         css={css`
           width: 100%;
           overflow: hidden;
@@ -375,7 +376,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             ) : null}
           </div>
         </SpanNodeWrap>
-      </button>
+      </div>
       {childNodes.length ? (
         <ul
           css={css`
