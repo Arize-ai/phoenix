@@ -20,11 +20,11 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { DatasetSelectQuery } from "./__generated__/DatasetSelectQuery.graphql";
 
 type DatasetSelectProps = {
-  onSelectionChange?: (key: string) => void;
+  onChange?: (key: string) => void;
   onBlur?: () => void;
   validationState?: "valid" | "invalid";
   errorMessage?: string;
-  selectedKey?: string | null;
+  value?: string | null;
   placeholder?: string;
   size?: "S" | "M";
   label?: string;
@@ -61,15 +61,15 @@ export function DatasetSelect(props: DatasetSelectProps) {
       size={props.size}
       className="dataset-picker"
       aria-label={`select a dataset`}
-      onSelectionChange={(key) => {
+      onChange={(key) => {
         if (key) {
-          props.onSelectionChange?.(key.toString());
+          props.onChange?.(key.toString());
         }
       }}
       placeholder={props.placeholder ?? "Select a dataset"}
       onBlur={props.onBlur}
       isRequired={props.isRequired}
-      selectedKey={props.selectedKey}
+      value={props.value}
     >
       {props.label && <Label>{props.label}</Label>}
       <Button className="dataset-picker-button">

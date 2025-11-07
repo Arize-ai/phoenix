@@ -26,9 +26,9 @@ export function ColoringStrategyPicker(props: ColoringStrategyPickerProps) {
   const { strategy, onChange } = props;
   return (
     <Select
-      defaultSelectedKey={strategy}
+      defaultValue={strategy}
       aria-label="Coloring strategy"
-      onSelectionChange={(key) => {
+      onChange={(key) => {
         if (isColoringStrategy(key)) {
           onChange(key);
         }
