@@ -23,7 +23,6 @@ module.exports = {
     "simple-import-sort",
     "@typescript-eslint",
     "eslint-plugin-react-compiler",
-    "deprecate",
   ],
   rules: {
     "react/no-unknown-property": ["error", { ignore: ["css"] }],
