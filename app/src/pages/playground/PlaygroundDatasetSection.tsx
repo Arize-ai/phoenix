@@ -12,8 +12,8 @@ import {
 } from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
-import { EvaluatorSelect } from "@phoenix/components/evaluators/EvaluatorSelect";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { Mutable } from "@phoenix/typeUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
@@ -140,7 +140,7 @@ export function PlaygroundDatasetSection({
                     : []),
                 ])}
             </Flex>
-            <EvaluatorSelect
+            <PlaygroundEvaluatorSelect
               evaluators={evaluators as Mutable<(typeof evaluators)[number]>[]}
               selectedIds={selectedEvaluatorIds}
               onSelectionChange={(id: string) => {
@@ -154,8 +154,6 @@ export function PlaygroundDatasetSection({
               addNewEvaluatorLink={prependBasename(
                 `/datasets/${datasetId}/evaluators`
               )}
-              addNewEvaluatorText="Add evaluator to dataset"
-              placement="top end"
             />
             {experimentIds.length > 0 && (
               <LinkButton

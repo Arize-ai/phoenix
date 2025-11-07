@@ -1,15 +1,15 @@
 import { ComponentProps, useState } from "react";
 import type { Meta } from "@storybook/react";
 
-import { EvaluatorSelect } from "@phoenix/components/evaluators/EvaluatorSelect";
+import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 
 /**
- * A select component for choosing evaluators with search functionality.
+ * A select component for choosing evaluators in the playground.
  * Supports multiple selection and displays different evaluator types.
  */
 const meta = {
-  title: "EvaluatorSelect",
-  component: EvaluatorSelect,
+  title: "Playground/PlaygroundEvaluatorSelect",
+  component: PlaygroundEvaluatorSelect,
   parameters: {
     layout: "centered",
   },
@@ -33,11 +33,13 @@ const meta = {
       description: "Link to the new evaluator page",
     },
   },
-} satisfies Meta<typeof EvaluatorSelect>;
+} satisfies Meta<typeof PlaygroundEvaluatorSelect>;
 
 export default meta;
 
-const sampleEvaluators: ComponentProps<typeof EvaluatorSelect>["evaluators"] = [
+const sampleEvaluators: ComponentProps<
+  typeof PlaygroundEvaluatorSelect
+>["evaluators"] = [
   {
     id: "1",
     name: "Correctness Evaluator",
@@ -90,7 +92,7 @@ const DefaultComponent = () => {
   };
 
   return (
-    <EvaluatorSelect
+    <PlaygroundEvaluatorSelect
       evaluators={sampleEvaluators}
       selectedIds={selectedIds}
       onSelectionChange={handleSelectionChange}
@@ -111,7 +113,7 @@ const NoEvaluatorsComponent = () => {
   };
 
   return (
-    <EvaluatorSelect
+    <PlaygroundEvaluatorSelect
       evaluators={[]}
       selectedIds={selectedIds}
       onSelectionChange={handleSelectionChange}
@@ -137,7 +139,7 @@ const WithAlreadyAddedEvaluatorsComponent = () => {
   }));
 
   return (
-    <EvaluatorSelect
+    <PlaygroundEvaluatorSelect
       evaluators={evaluatorsWithSomeAdded}
       selectedIds={selectedIds}
       onSelectionChange={handleSelectionChange}
