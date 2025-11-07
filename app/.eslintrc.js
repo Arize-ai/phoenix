@@ -292,6 +292,11 @@ module.exports = {
         name: "Field",
         module: "@arizeai/components",
       },
+      {
+        name: "Form",
+        module: "@arizeai/components",
+        use: "import { Form } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },

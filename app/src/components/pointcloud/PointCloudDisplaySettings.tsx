@@ -1,7 +1,5 @@
 import { css } from "@emotion/react";
 
-import { Form } from "@arizeai/components";
-
 import { Alert } from "@phoenix/components";
 import { ConnectedDimensionPicker } from "@phoenix/components/form";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
@@ -46,33 +44,26 @@ export function PointCloudDisplaySettings() {
   return (
     <section
       css={css`
-        & > .ac-form {
-          padding: var(--ac-global-dimension-static-size-100)
-            var(--ac-global-dimension-static-size-100) 0
-            var(--ac-global-dimension-static-size-100);
-        }
+        padding: var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-100) 0
+          var(--ac-global-dimension-static-size-100);
         & > .ac-alert {
           margin: var(--ac-global-dimension-static-size-100);
         }
       `}
     >
-      <Form>
-        <>
-          <ColoringStrategyPicker
-            strategy={coloringStrategy}
-            onChange={setColoringStrategy}
-          />
-          {coloringStrategy === ColoringStrategy.dimension ? (
-            <ConnectedDimensionPicker
-              selectedDimension={null}
-              onChange={(dimension) => {
-                setDimension(dimension);
-              }}
-            />
-          ) : null}
-        </>
-      </Form>
-
+      <ColoringStrategyPicker
+        strategy={coloringStrategy}
+        onChange={setColoringStrategy}
+      />
+      {coloringStrategy === ColoringStrategy.dimension ? (
+        <ConnectedDimensionPicker
+          selectedDimension={null}
+          onChange={(dimension) => {
+            setDimension(dimension);
+          }}
+        />
+      ) : null}
       {showInferencesVisibilitySettings ? (
         <InferencesVisibilitySettings
           hasReference={referenceInferences != null}
