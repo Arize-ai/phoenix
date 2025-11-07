@@ -298,6 +298,13 @@ const TYPESCRIPT_PLATFORM_INTEGRATIONS: IntegrationLinkProps[] = [
     githubHref: "https://github.com/vercel/otel",
     icon: <VercelSVG />,
   },
+  {
+    name: "Mastra",
+    docsHref: "https://mastra.ai/docs/observability/ai-tracing/exporters/arize",
+    githubHref:
+      "https://github.com/mastra-ai/mastra/tree/main/observability/arize",
+    icon: <MastraSVG />,
+  },
 ];
 export function TypeScriptPlatformIntegrations() {
   return (

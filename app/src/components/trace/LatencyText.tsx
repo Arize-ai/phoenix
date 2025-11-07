@@ -49,7 +49,7 @@ export function LatencyText({
         return "danger";
       }
     }
-    return "text-700";
+    return "text-900";
   }, [latencyMs, latencyThresholds]);
 
   const latencyText = useMemo(() => latencyMsFormatter(latencyMs), [latencyMs]);
