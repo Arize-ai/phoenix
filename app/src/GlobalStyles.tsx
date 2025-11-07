@@ -1,8 +1,6 @@
 import { css, Global } from "@emotion/react";
 
-import { useProvider } from "@arizeai/components";
-
-import { ThemeContextType } from "./contexts";
+import { ThemeContextType, useTheme } from "./contexts";
 
 /**
  * Medium size root CSS variables
@@ -1296,7 +1294,7 @@ const fontFamilyCSS = css`
 `;
 
 export function GlobalStyles() {
-  const { theme = "dark" } = useProvider();
+  const { theme } = useTheme();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
   return (
     <Global

@@ -1,7 +1,6 @@
 import type { Preview } from "@storybook/react";
-import { Provider, ProviderTheme } from "@arizeai/components";
 import { GlobalStyles } from "../src/GlobalStyles";
-import { ThemeProvider } from "../src/contexts";
+import { ProviderTheme, ThemeProvider } from "../src/contexts";
 import { MemoryRouter } from "react-router";
 import React, { PropsWithChildren } from "react";
 
@@ -71,21 +70,19 @@ const preview: Preview = {
       const numThemes = themes.length;
 
       const contents = themes.map((theme) => (
-        <Provider theme={theme} mountGlobalStyles={false}>
-          <ThemeProvider theme={theme}>
-            <MemoryRouter initialEntries={["/"]}>
-              <GlobalStyles />
-              <StoryBackground
-                padding={
-                  // Add padding to the story entries if we have multiple themes so that we can see a background color
-                  numThemes < 1 ? "0" : "var(--ac-global-dimension-size-500)"
-                }
-              >
-                <Story />
-              </StoryBackground>
-            </MemoryRouter>
-          </ThemeProvider>
-        </Provider>
+        <ThemeProvider themeMode={theme}>
+          <MemoryRouter initialEntries={["/"]}>
+            <GlobalStyles />
+            <StoryBackground
+              padding={
+                // Add padding to the story entries if we have multiple themes so that we can see a background color
+                numThemes < 1 ? "0" : "var(--ac-global-dimension-size-500)"
+              }
+            >
+              <Story />
+            </StoryBackground>
+          </MemoryRouter>
+        </ThemeProvider>
       ));
 
       // If we only have one theme, we can just return the story
