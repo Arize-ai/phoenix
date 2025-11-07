@@ -1,7 +1,5 @@
 import { useMemo } from "react";
 
-import { Form } from "@arizeai/components";
-
 import {
   Counter,
   Disclosure,
@@ -61,22 +59,20 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
       <DisclosurePanel>
         <View padding="size-200">
           <Flex direction="column" gap="size-200">
-            <Form>
-              <ToolChoiceSelector
-                provider={provider}
-                choice={instance.toolChoice}
-                onChange={(choice) => {
-                  updateInstance({
-                    instanceId,
-                    patch: {
-                      toolChoice: choice,
-                    },
-                    dirty: true,
-                  });
-                }}
-                toolNames={toolNames}
-              />
-            </Form>
+            <ToolChoiceSelector
+              provider={provider}
+              choice={instance.toolChoice}
+              onChange={(choice) => {
+                updateInstance({
+                  instanceId,
+                  patch: {
+                    toolChoice: choice,
+                  },
+                  dirty: true,
+                });
+              }}
+              toolNames={toolNames}
+            />
             <Flex direction={"column"} gap="size-200">
               {tools.map((tool) => {
                 return (

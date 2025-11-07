@@ -15,14 +15,13 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
-import { Form } from "@arizeai/components";
-
 import {
   Button,
   Card,
   CopyToClipboardButton,
   DisclosureGroup,
   Flex,
+  Form,
   Icon,
   Icons,
   Input,
