@@ -28,6 +28,7 @@ def run_experiment(
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     client: Optional["Client"] = None,
     repetitions: int = 1,
+    retries: int = 3,
 ) -> RanExperiment:
     """
     Run an experiment using a given dataset of examples.
@@ -113,6 +114,7 @@ def run_experiment(
             variables. Defaults to None.
         repetitions (int): The number of times the task will be run on each example.
             Defaults to 1.
+        retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
     Returns:
         RanExperiment: A dictionary containing the experiment results.
@@ -218,6 +220,7 @@ def run_experiment(
         print_summary=print_summary,
         timeout=timeout,
         repetitions=repetitions,
+        retries=retries,
     )
 
 
@@ -236,6 +239,7 @@ async def async_run_experiment(
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     client: Optional["AsyncClient"] = None,
     repetitions: int = 1,
+    retries: int = 3,
 ) -> RanExperiment:
     """
     Run an experiment using a given dataset of examples (async version).
@@ -322,6 +326,7 @@ async def async_run_experiment(
             will be configured from environment variables. Defaults to None.
         repetitions (int): The number of times the task will be run on each example.
             Defaults to 1.
+        retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
     Returns:
         RanExperiment: A dictionary containing the experiment results.
@@ -429,6 +434,7 @@ async def async_run_experiment(
         concurrency=concurrency,
         timeout=timeout,
         repetitions=repetitions,
+        retries=retries,
     )
 
 

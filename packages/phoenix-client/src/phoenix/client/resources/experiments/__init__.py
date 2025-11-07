@@ -635,6 +635,7 @@ class Experiments:
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         repetitions: int = 1,
+        retries: int = 3,
     ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples.
@@ -701,6 +702,7 @@ class Experiments:
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
             repetitions (int): The number of times the task will be run on each example.
                 Defaults to 1.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             RanExperiment: A dictionary containing the experiment results.
@@ -812,7 +814,7 @@ class Experiments:
         executor = SyncExecutor(
             generation_fn=rate_limited_sync_run_task,
             tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
-            max_retries=0,
+            max_retries=retries,
             exit_on_error=False,
             fallback_return_value=None,
         )
@@ -855,6 +857,7 @@ class Experiments:
                 print_summary=False,  # We'll handle summary printing in run_experiment
                 timeout=timeout,
                 rate_limit_errors=rate_limit_errors,
+                retries=retries,
             )
             evaluation_runs_list = eval_result["evaluation_runs"]
 
@@ -1068,6 +1071,7 @@ class Experiments:
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> None:
         """
         Resume an incomplete experiment by running only the missing or failed runs.
@@ -1093,6 +1097,7 @@ class Experiments:
             timeout (Optional[int]): The timeout for task execution in seconds. Defaults to 60.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
                 to adaptively throttle on. Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             None
@@ -1218,7 +1223,7 @@ class Experiments:
                 executor = SyncExecutor(
                     generation_fn=rate_limited_sync_run_task,
                     tqdm_bar_format=get_tqdm_progress_bar_formatter("resuming tasks"),
-                    max_retries=0,
+                    max_retries=retries,
                     exit_on_error=False,
                     fallback_return_value=None,
                 )
@@ -1274,6 +1279,7 @@ class Experiments:
                 print_summary=False,  # We'll print our own summary
                 timeout=timeout,
                 rate_limit_errors=rate_limit_errors,
+                retries=retries,
             )
 
         # Print summary if requested
@@ -1294,6 +1300,7 @@ class Experiments:
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> None:
         """
         Resume incomplete evaluations for an experiment.
@@ -1327,6 +1334,7 @@ class Experiments:
                 Defaults to 60.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of
                 exceptions to adaptively throttle on. Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Raises:
             ValueError: If the experiment is not found or no evaluators are provided.
@@ -1419,6 +1427,7 @@ class Experiments:
                     False,  # dry_run
                     timeout,
                     rate_limit_errors,
+                    retries=retries,
                 )
 
                 total_completed += len([r for r in batch_eval_runs if r.error is None])
@@ -1479,6 +1488,7 @@ class Experiments:
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> RanExperiment:
         """
         Run evaluators on a completed experiment.
@@ -1507,6 +1517,7 @@ class Experiments:
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
                 to adaptively throttle on.
                 Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             RanExperiment: A dictionary containing the evaluation results with the same format
@@ -1607,6 +1618,7 @@ class Experiments:
             dry_run,
             timeout,
             rate_limit_errors,
+            retries=retries,
         )
 
         all_evaluation_runs = eval_runs
@@ -1785,6 +1797,7 @@ class Experiments:
         dry_run: bool,
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
+        retries: int = 3,
     ) -> list[ExperimentEvaluationRun]:
         """
         Execute evaluation tasks.
@@ -1830,7 +1843,7 @@ class Experiments:
         # Use sync executor for sync operation
         executor = SyncExecutor(
             generation_fn=rate_limited_sync_evaluate_run,
-            max_retries=0,
+            max_retries=retries,
             exit_on_error=False,
             fallback_return_value=None,
             tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
@@ -2330,6 +2343,7 @@ class AsyncExperiments:
         concurrency: int = 3,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         repetitions: int = 1,
+        retries: int = 3,
     ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples (async version).
@@ -2396,6 +2410,7 @@ class AsyncExperiments:
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
             repetitions (int): The number of times the task will be run on each example.
                 Defaults to 1.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             RanExperiment: A dictionary containing the experiment results.
@@ -2508,7 +2523,7 @@ class AsyncExperiments:
             generation_fn=rate_limited_async_run_task,
             concurrency=concurrency,
             tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
-            max_retries=0,
+            max_retries=retries,
             exit_on_error=False,
             fallback_return_value=None,
             timeout=timeout,
@@ -2553,6 +2568,7 @@ class AsyncExperiments:
                 timeout=timeout,
                 concurrency=concurrency,
                 rate_limit_errors=rate_limit_errors,
+                retries=retries,
             )
             evaluation_runs_list = eval_result["evaluation_runs"]
 
@@ -2765,6 +2781,7 @@ class AsyncExperiments:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> None:
         """
         Resume an incomplete experiment by running only the missing or failed runs.
@@ -2791,6 +2808,7 @@ class AsyncExperiments:
             concurrency (int): The number of concurrent tasks to run. Defaults to 3.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
                 to adaptively throttle on. Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             None
@@ -2917,7 +2935,7 @@ class AsyncExperiments:
                     generation_fn=rate_limited_async_run_task,
                     concurrency=concurrency,
                     tqdm_bar_format=get_tqdm_progress_bar_formatter("resuming tasks"),
-                    max_retries=0,
+                    max_retries=retries,
                     exit_on_error=False,
                     fallback_return_value=None,
                 )
@@ -2974,6 +2992,7 @@ class AsyncExperiments:
                 timeout=timeout,
                 concurrency=concurrency,
                 rate_limit_errors=rate_limit_errors,
+                retries=retries,
             )
 
         # Print summary if requested
@@ -2995,6 +3014,7 @@ class AsyncExperiments:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> None:
         """
         Resume incomplete evaluations for an experiment (async version).
@@ -3029,6 +3049,7 @@ class AsyncExperiments:
             concurrency (int): The number of concurrent evaluations to run. Defaults to 3.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of
                 exceptions to adaptively throttle on. Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Raises:
             ValueError: If the experiment is not found or no evaluators are provided.
@@ -3122,6 +3143,7 @@ class AsyncExperiments:
                     timeout,
                     rate_limit_errors,
                     concurrency,
+                    retries=retries,
                 )
 
                 total_completed += len([r for r in batch_eval_runs if r.error is None])
@@ -3183,6 +3205,7 @@ class AsyncExperiments:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> RanExperiment:
         """
         Run evaluators on a completed experiment.
@@ -3212,6 +3235,7 @@ class AsyncExperiments:
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
                 to adaptively throttle on.
                 Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             RanExperiment: A dictionary containing the evaluation results with the same format
@@ -3313,6 +3337,7 @@ class AsyncExperiments:
             timeout,
             rate_limit_errors,
             concurrency,
+            retries=retries,
         )
 
         all_evaluation_runs = eval_runs
@@ -3489,6 +3514,7 @@ class AsyncExperiments:
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
         concurrency: int,
+        retries: int = 3,
     ) -> list[ExperimentEvaluationRun]:
         """
         Execute evaluation tasks asynchronously.
@@ -3501,6 +3527,7 @@ class AsyncExperiments:
             timeout: Timeout for evaluations
             rate_limit_errors: Errors to rate limit on
             concurrency: Number of concurrent evaluations
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             List of evaluation run results
@@ -3536,7 +3563,7 @@ class AsyncExperiments:
             generation_fn=rate_limited_async_evaluate_run,
             concurrency=concurrency,
             tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
-            max_retries=0,
+            max_retries=retries,
             exit_on_error=False,
             fallback_return_value=None,
             timeout=timeout,
