@@ -152,8 +152,8 @@ const ProjectConfigCard = ({
                 <CopyToClipboardButton text={data.name} size="M" />
               </Flex>
               <Select
-                selectedKey={defaultTab}
-                onSelectionChange={(key) => {
+                value={defaultTab}
+                onChange={(key) => {
                   if (typeof key === "string" && isProjectTab(key)) {
                     setDefaultTab(key);
                   }

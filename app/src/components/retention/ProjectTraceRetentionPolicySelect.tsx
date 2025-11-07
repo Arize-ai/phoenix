@@ -60,8 +60,8 @@ export function ProjectTraceRetentionPolicySelect({
   return (
     <Select
       size="S"
-      defaultSelectedKey={defaultValue}
-      onSelectionChange={(key) => {
+      defaultValue={defaultValue}
+      onChange={(key) => {
         if (key) {
           onChange?.(key.toString());
         }

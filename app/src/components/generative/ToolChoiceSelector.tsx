@@ -233,9 +233,9 @@ export function ToolChoiceSelector<
     : addToolNamePrefix(findToolChoiceName(choice) ?? "");
   return (
     <Select
-      selectedKey={currentKey}
+      value={currentKey}
       aria-label="Tool Choice for an LLM"
-      onSelectionChange={(choice) => {
+      onChange={(choice) => {
         if (typeof choice !== "string") {
           return;
         }
