@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.11.1...arize-phoenix-v12.12.0) (2025-11-07)
+
+
+### Features
+
+* page titles derived from navw ([#10172](https://github.com/Arize-ai/phoenix/issues/10172)) ([3716944](https://github.com/Arize-ai/phoenix/commit/3716944e818ffab646892a250d3529c2bb01bb6a))
+
 ## [12.11.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.11.0...arize-phoenix-v12.11.1) (2025-11-07)
 
 
