@@ -1,6 +1,6 @@
 import { generateMessageId, PlaygroundChatTemplate } from "@phoenix/store";
 
-// TODO(ehutt): create a benchmarked correctness evaluator template
+// TODO(ehutt): create a benchmarked correctness evaluator template #10186
 export const CORRECTNESS_EVALUATOR_TEMPLATE: Readonly<PlaygroundChatTemplate> =
   {
     __type: "chat",
