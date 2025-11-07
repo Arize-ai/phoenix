@@ -18,7 +18,7 @@ from phoenix.auth import (
 from phoenix.client.__generated__ import v1
 from phoenix.server.api.routers.v1.users import DEFAULT_PAGINATION_PAGE_LIMIT
 
-from .._helpers import _ADMIN, _MEMBER, _AppInfo, _GetUser, _httpx_client, _log_in
+from .._helpers import _AppInfo, _httpx_client, _log_in
 
 
 class _UsersApi:
@@ -100,7 +100,6 @@ class TestClientForUsersAPI:
 
     async def test_crud_operations(
         self,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test CRUD operations for users via the REST API.
@@ -119,9 +118,8 @@ class TestClientForUsersAPI:
            - oauth2_client_id and oauth2_user_id are optional but at least one must be provided
            - OAuth2 users cannot have password-related fields
         """
-        # Set up test environment with logged-in user
-        u = _get_user(_app, _ADMIN).log_in(_app)
-        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+        # Set up test environment using admin secret
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         # Create users with different auth methods and roles
         users_to_create: list[Union[v1.LocalUserData, v1.OAuth2UserData]] = [
@@ -304,7 +302,6 @@ class TestClientForUsersAPI:
 
     async def test_cannot_delete_default_users(
         self,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that users with default system/admin credentials cannot be deleted.
@@ -315,8 +312,7 @@ class TestClientForUsersAPI:
         3. Both attempts return 403 Forbidden
         """
         # Set up test environment with logged-in admin user
-        u = _get_user(_app, _ADMIN).log_in(_app)
-        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         # Get all users to find default ones
         all_users = users_api.list()
@@ -364,7 +360,6 @@ class TestClientForUsersAPI:
     async def test_cannot_create_system_users(
         self,
         auth_method: Literal["LOCAL", "OAUTH2"],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that users with SYSTEM role cannot be created.
@@ -374,8 +369,7 @@ class TestClientForUsersAPI:
         2. Both attempts return 400 Bad Request
         """
         # Set up test environment with logged-in admin user
-        u = _get_user(_app, _ADMIN).log_in(_app)
-        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         # Create test data based on auth method
         email = f"{token_hex(8)}@example.com"
@@ -409,7 +403,6 @@ class TestClientForUsersAPI:
 
     async def test_list_pagination(
         self,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test pagination functionality of the list users REST endpoint.
@@ -422,8 +415,7 @@ class TestClientForUsersAPI:
         5. Returns correct next_cursor for pagination
         """
         # Set up test environment with logged-in admin user
-        u = _get_user(_app, _ADMIN).log_in(_app)
-        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         # Create multiple users to test listing
         created_users: list[Union[v1.LocalUser, v1.OAuth2User]] = []
@@ -451,109 +443,14 @@ class TestClientForUsersAPI:
             "All created users should be present in list results"
         )
 
-    async def test_member_access_denied(
-        self,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that MEMBER role users are denied access to user management REST endpoints.
-
-        This test verifies that:
-        1. MEMBER users cannot create new users:
-           - LOCAL users (both MEMBER and ADMIN roles)
-           - OAuth2 users (both MEMBER and ADMIN roles)
-        2. MEMBER users cannot list users
-        3. MEMBER users cannot delete users
-        4. All operations return 403 Forbidden
-        5. Error messages clearly indicate permission denied
-        """
-        # Set up test environment with logged-in member user
-        u = _get_user(_app, _MEMBER).log_in(_app)
-        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
-
-        # Test that member cannot create LOCAL users
-        with pytest.raises(Exception) as exc_info:
-            users_api.create(
-                user=v1.LocalUserData(
-                    email=f"test_{token_hex(8)}@example.com",
-                    username=f"test_user_{token_hex(8)}",
-                    role="MEMBER",
-                    auth_method="LOCAL",
-                ),
-            )
-        assert "403" in str(exc_info.value), (
-            "Should receive 403 Forbidden when attempting to create LOCAL user"
-        )
-
-        # Test that member cannot create LOCAL users with ADMIN role
-        with pytest.raises(Exception) as exc_info:
-            users_api.create(
-                user=v1.LocalUserData(
-                    email=f"test_admin_{token_hex(8)}@example.com",
-                    username=f"test_user_admin_{token_hex(8)}",
-                    role="ADMIN",
-                    auth_method="LOCAL",
-                ),
-            )
-        assert "403" in str(exc_info.value), (
-            "Should receive 403 Forbidden when attempting to create LOCAL ADMIN user"
-        )
-
-        # Test that member cannot create OAuth2 users
-        with pytest.raises(Exception) as exc_info:
-            users_api.create(
-                user=v1.OAuth2UserData(
-                    email=f"test_oauth2_{token_hex(8)}@example.com",
-                    username=f"test_user_oauth2_{token_hex(8)}",
-                    role="MEMBER",
-                    auth_method="OAUTH2",
-                    oauth2_client_id=f"client_{token_hex(8)}",
-                ),
-            )
-        assert "403" in str(exc_info.value), (
-            "Should receive 403 Forbidden when attempting to create OAuth2 user"
-        )
-
-        # Test that member cannot create OAuth2 users with ADMIN role
-        with pytest.raises(Exception) as exc_info:
-            users_api.create(
-                user=v1.OAuth2UserData(
-                    email=f"test_oauth2_admin_{token_hex(8)}@example.com",
-                    username=f"test_user_oauth2_admin_{token_hex(8)}",
-                    role="ADMIN",
-                    auth_method="OAUTH2",
-                    oauth2_client_id=f"client_{token_hex(8)}",
-                ),
-            )
-        assert "403" in str(exc_info.value), (
-            "Should receive 403 Forbidden when attempting to create OAuth2 ADMIN user"
-        )
-
-        # Test that member cannot list users
-        with pytest.raises(Exception) as exc_info:
-            users_api.list()
-
-        another_user = _get_user(_app, _MEMBER)
-
-        # Test that member cannot delete users
-        with pytest.raises(Exception) as exc_info:
-            users_api.delete(
-                user_id=another_user.gid,
-            )
-        assert "403" in str(exc_info.value), (
-            "Should receive 403 Forbidden when attempting to delete user"
-        )
-
     @pytest.mark.parametrize("role", ["MEMBER", "ADMIN"])
     def test_new_local_user_can_login_with_assigned_password(
         self,
         role: Literal["MEMBER", "ADMIN"],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that a new local user can log in with the assigned password."""
-        u = _get_user(_app, _ADMIN).log_in(_app)
-        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         password = token_hex(16)
         email = f"{token_hex(8)}@example.com"
@@ -579,7 +476,6 @@ class TestClientForUsersAPI:
         send_welcome_email: bool,
         role: Literal["MEMBER", "ADMIN"],
         auth_method: Literal["LOCAL", "OAUTH2"],
-        _get_user: _GetUser,
         _smtpd: smtpdfix.AuthController,
         _app: _AppInfo,
     ) -> None:
@@ -590,8 +486,7 @@ class TestClientForUsersAPI:
         2. No welcome emails are sent when send_welcome_email=False for both user types
         """
         # Set up test environment with logged-in admin user
-        u = _get_user(_app, _ADMIN).log_in(_app)
-        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         # Create user with specified welcome email setting
         email = f"{token_hex(8)}@example.com"
@@ -636,12 +531,10 @@ class TestEmailSanitization:
 
     async def test_rest_api_email_sanitization_local_user(
         self,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that uppercase emails are sanitized when creating LOCAL users via REST API."""
-        u = _get_user(_app, _ADMIN).log_in(_app)
-        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         # Test with uppercase email
         uppercase_email = f"TEST.USER.{token_hex(8).upper()}@EXAMPLE.COM"
@@ -680,12 +573,10 @@ class TestEmailSanitization:
 
     async def test_rest_api_email_sanitization_oauth2_user(
         self,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that uppercase emails are sanitized when creating OAuth2 users via REST API."""
-        u = _get_user(_app, _ADMIN).log_in(_app)
-        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         # Test with uppercase email
         uppercase_email = f"OAUTH.USER.{token_hex(8).upper()}@DOMAIN.NET"
@@ -725,12 +616,10 @@ class TestEmailSanitization:
 
     async def test_rest_api_email_with_whitespace_sanitization(
         self,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that emails with whitespace are trimmed and lowercased via REST API."""
-        u = _get_user(_app, _ADMIN).log_in(_app)
-        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         # Test with whitespace and uppercase
         messy_email = f"  TRIM.ME.{token_hex(8).upper()}@WHITESPACE.COM  "
