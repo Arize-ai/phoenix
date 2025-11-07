@@ -8,8 +8,8 @@ export function NavTitle() {
   const titleText = useMemo(
     () =>
       matchesWithCrumb
-        .reverse()
         .map((match) => match.handle.crumb(match.loaderData))
+        .reverse()
         .join(" - ") || "Phoenix",
     [matchesWithCrumb]
   );
