@@ -123,8 +123,6 @@ def build_instrumentor(project_id):
 
     # Configure instrumentation within the remote agent
     tracer_provider = register(
-        api_key=os.environ['ARIZE_API_KEY'],
-        space_id=os.environ['ARIZE_SPACE_ID'],
         project_name=project_id,
     )
     GoogleADKInstrumentor().instrument(tracer_provider=tracer_provider)
