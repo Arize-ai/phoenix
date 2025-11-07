@@ -1,5 +1,19 @@
 # Changelog
 
+## [12.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.10.0...arize-phoenix-v12.11.0) (2025-11-07)
+
+
+### Features
+
+* user display timezone preference ([#10133](https://github.com/Arize-ai/phoenix/issues/10133)) ([e4d0174](https://github.com/Arize-ai/phoenix/commit/e4d01748e228129de027b2ec239981f50dee74bd))
+
+
+### Bug Fixes
+
+* bump minimum version of client ([#10165](https://github.com/Arize-ai/phoenix/issues/10165)) ([396cac1](https://github.com/Arize-ai/phoenix/commit/396cac190db35aee9c3dd64437c476759fc3b3fd))
+* improve identifier form validation ([#10149](https://github.com/Arize-ai/phoenix/issues/10149)) ([d4a4111](https://github.com/Arize-ai/phoenix/commit/d4a411142322089bed42c3b2ab347c03d5b1afa7))
+* make lastN time ranges work for metrics page ([#10154](https://github.com/Arize-ai/phoenix/issues/10154)) ([72e5068](https://github.com/Arize-ai/phoenix/commit/72e5068a597631a60015246c51f2d2017e59f7a1))
+
 ## [12.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.9.0...arize-phoenix-v12.10.0) (2025-11-05)
 
 
