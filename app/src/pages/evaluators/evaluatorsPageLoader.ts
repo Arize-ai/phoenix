@@ -5,7 +5,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 export const evaluatorsPageLoaderGql = graphql`
   query evaluatorsPageLoaderQuery {
-    ...EvaluatorsTable_evaluators
+    ...GlobalEvaluatorsTable_evaluators
   }
 `;
 

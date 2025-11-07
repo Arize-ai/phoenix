@@ -67,8 +67,11 @@ class Evaluator(Node):
     async def is_assigned_to_dataset(
         self,
         info: Info[Context, None],
-        dataset_id: GlobalID,
+        dataset_id: Optional[GlobalID] = None,
     ) -> bool:
+        if dataset_id is None:
+            return False
+
         from phoenix.server.api.types.Dataset import Dataset
 
         try:

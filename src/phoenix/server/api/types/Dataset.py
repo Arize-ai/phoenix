@@ -3,9 +3,11 @@ from datetime import datetime
 from typing import Optional, cast
 
 import strawberry
-from sqlalchemy import Text, and_, func, or_, select
+from sqlalchemy import Text, and_, case, func, or_, select
+from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.orm import with_polymorphic
 from sqlalchemy.sql.functions import count
+from sqlalchemy.sql.sqltypes import String
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
@@ -15,6 +17,8 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
+from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
+from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
     DatasetExperimentAnnotationSummary,
@@ -464,6 +468,8 @@ class Dataset(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        sort: Optional[EvaluatorSort] = UNSET,
+        filter: Optional[EvaluatorFilter] = UNSET,
     ) -> Connection[Evaluator]:
         """Returns all evaluators associated with this dataset."""
         args = ConnectionArgs(
@@ -482,8 +488,29 @@ class Dataset(Node):
             select(PolymorphicEvaluator)
             .join(models.DatasetsEvaluators)
             .where(models.DatasetsEvaluators.dataset_id == self.id)
-            .order_by(PolymorphicEvaluator.name.asc())
         )
+        if filter:
+            column = getattr(PolymorphicEvaluator, filter.col.value)
+            # Cast Identifier columns to String for ilike operations
+            if filter.col.value == "name":
+                column = sqlalchemy_cast(column, String)
+            stmt = stmt.where(column.ilike(f"%{filter.value}%"))
+        if sort:
+            if sort.col.value == "updated_at":
+                # updated_at exists in sub-tables, not base table
+                # Use case to pick the value based on kind
+                # this special case can be removed if we add updated_at to the base table
+                sort_col = case(
+                    (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
+                    else_=None,
+                )
+            else:
+                sort_col = getattr(PolymorphicEvaluator, sort.col.value)
+            stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        else:
+            stmt = stmt.order_by(PolymorphicEvaluator.name.asc())
+
         async with info.context.db() as session:
             evaluators = await session.scalars(stmt)
         data: list[Evaluator] = []

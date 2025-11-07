@@ -13,6 +13,7 @@ export const datasetEvaluatorsLoaderGQL = graphql`
       ... on Dataset {
         id
         ...EvaluatorConfigDialog_dataset
+        ...DatasetEvaluatorsTable_evaluators @arguments(datasetId: $id)
       }
     }
     ...DatasetEvaluatorsPage_evaluators @arguments(datasetId: $id)

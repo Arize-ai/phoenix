@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<877c0c967502375f56b260b753fdd6e0>>
+ * @generated SignedSource<<8ead34cf61c9ea8b57082052bcaaa95d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ReaderFragment } from 'relay-runtime';
 export type EvaluatorKind = "CODE" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsPage_evaluators$data = {
-  readonly evaluators: {
+  readonly globalEvaluators: {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly id: string;
@@ -53,7 +53,7 @@ return {
   "name": "DatasetEvaluatorsPage_evaluators",
   "selections": [
     {
-      "alias": null,
+      "alias": "globalEvaluators",
       "args": [
         {
           "kind": "Literal",
@@ -144,6 +144,6 @@ return {
 };
 })();
 
-(node as any).hash = "3430cbfa4722b958f449a992e37c2098";
+(node as any).hash = "c8c555e1032017d5ac3931c429b6af36";
 
 export default node;

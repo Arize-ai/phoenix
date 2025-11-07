@@ -9,6 +9,7 @@ import { css } from "@emotion/react";
 
 import {
   Button,
+  ButtonProps,
   Flex,
   Icon,
   Icons,
@@ -40,6 +41,7 @@ type EvaluatorSelectProps = {
   onSelectionChange: (id: string) => void;
   addNewEvaluatorLink: string;
   selectionMode?: SelectionMode;
+  size?: ButtonProps["size"];
 };
 
 export function EvaluatorSelect(props: EvaluatorSelectProps) {
@@ -49,12 +51,13 @@ export function EvaluatorSelect(props: EvaluatorSelectProps) {
     onSelectionChange,
     addNewEvaluatorLink,
     selectionMode = "multiple",
+    size = "S",
   } = props;
   const { contains } = useFilter({ sensitivity: "base" });
 
   return (
     <MenuTrigger>
-      <Button size="S" leadingVisual={<Icon svg={<Icons.PlusOutline />} />}>
+      <Button size={size} leadingVisual={<Icon svg={<Icons.PlusOutline />} />}>
         Add evaluator
       </Button>
       <MenuContainer>
