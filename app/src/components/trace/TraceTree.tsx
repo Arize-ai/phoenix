@@ -296,6 +296,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     <div ref={itemRef}>
       <div
         role="button"
+        tabIndex={0}
         css={css`
           width: 100%;
           overflow: hidden;
