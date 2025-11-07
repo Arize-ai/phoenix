@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<41914ae7a234c01d2d170c22734367ef>>
+ * @generated SignedSource<<8548e1c07bad11efdd3563c8fc923ec2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type evaluatorsPageLoaderQuery$variables = Record<PropertyKey, never>;
 export type evaluatorsPageLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"EvaluatorsTable_evaluators">;
+  readonly " $fragmentSpreads": FragmentRefs<"GlobalEvaluatorsTable_evaluators">;
 };
 export type evaluatorsPageLoaderQuery = {
   response: evaluatorsPageLoaderQuery$data;
@@ -26,21 +26,7 @@ var v0 = [
     "name": "first",
     "value": 100
   }
-],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-};
+];
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -51,7 +37,7 @@ return {
       {
         "args": null,
         "kind": "FragmentSpread",
-        "name": "EvaluatorsTable_evaluators"
+        "name": "GlobalEvaluatorsTable_evaluators"
       }
     ],
     "type": "Query",
@@ -80,20 +66,50 @@ return {
             "plural": true,
             "selections": [
               {
-                "alias": "evaluator",
+                "alias": null,
                 "args": null,
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
-                  (v2/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
+                    "storageKey": null
+                  },
+                  {
+                    "kind": "TypeDiscriminator",
+                    "abstractKey": "__isEvaluator"
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "id",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
                     "name": "name",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "kind",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "description",
                     "storageKey": null
                   },
                   {
@@ -114,14 +130,7 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "description",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "kind",
+                    "name": "isAssignedToDataset",
                     "storageKey": null
                   }
                 ],
@@ -132,19 +141,6 @@ return {
                 "args": null,
                 "kind": "ScalarField",
                 "name": "cursor",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": null,
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  (v1/*: any*/),
-                  (v2/*: any*/)
-                ],
                 "storageKey": null
               }
             ],
@@ -174,6 +170,18 @@ return {
               }
             ],
             "storageKey": null
+          },
+          {
+            "kind": "ClientExtension",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "__id",
+                "storageKey": null
+              }
+            ]
           }
         ],
         "storageKey": "evaluators(first:100)"
@@ -193,16 +201,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6115814a02dcccb166c5da3689d8c835",
+    "cacheID": "5e2ec74ed7ad846ca03f5d2e53605eaf",
     "id": null,
     "metadata": {},
     "name": "evaluatorsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query evaluatorsPageLoaderQuery {\n  ...EvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        createdAt\n        updatedAt\n        description\n        kind\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row_1f0XAO on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1f0XAO\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "631bd9c969dabcf7c831ac495683adc3";
+(node as any).hash = "53b1973dff23e5476cd644dee57048fb";
 
 export default node;
