@@ -118,7 +118,7 @@ For Agent Engine deployment, include the instrumentation packages in your requir
 # Builds instrumentor inside agent engine setup
 def build_instrumentor(project_id):
     import os
-    from arize.otel import register
+    from phoenix.otel import register
     from openinference.instrumentation.google_adk import GoogleADKInstrumentor
 
     # Configure instrumentation within the remote agent
