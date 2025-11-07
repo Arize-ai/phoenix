@@ -1,8 +1,6 @@
 import { Suspense } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
 
-import { Provider } from "@arizeai/components";
-
 import { CredentialsProvider } from "./contexts/CredentialsContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
@@ -25,21 +23,18 @@ export function App() {
 }
 
 export function AppContent() {
-  const { theme: componentsTheme } = useTheme();
   return (
-    <Provider theme={componentsTheme} mountGlobalStyles={false}>
-      <RelayEnvironmentProvider environment={RelayEnvironment}>
-        <GlobalStyles />
-        <FeatureFlagsProvider>
-          <PreferencesProvider>
-            <CredentialsProvider>
-              <Suspense>
-                <AppRoutes />
-              </Suspense>
-            </CredentialsProvider>
-          </PreferencesProvider>
-        </FeatureFlagsProvider>
-      </RelayEnvironmentProvider>
-    </Provider>
+    <RelayEnvironmentProvider environment={RelayEnvironment}>
+      <GlobalStyles />
+      <FeatureFlagsProvider>
+        <PreferencesProvider>
+          <CredentialsProvider>
+            <Suspense>
+              <AppRoutes />
+            </Suspense>
+          </CredentialsProvider>
+        </PreferencesProvider>
+      </FeatureFlagsProvider>
+    </RelayEnvironmentProvider>
   );
 }
