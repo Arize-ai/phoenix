@@ -20,7 +20,7 @@ export function getTimeZone(): string {
 
 /*
  * A function that returns a full list of timezones supported by the browser
- * Uses dymic programming to avoid re-calcumating and giving the browser to resolve the list of timezones.
+ * Uses dynamic programming in order to avoid re-calculating and allows the browser to resolve the list of timezones.
  */
 export function getSupportedTimezones(): ReadonlyArray<string> {
   if (_supportedTimezones.length === 0) {
