@@ -1,6 +1,9 @@
 import { Meta, StoryFn } from "@storybook/react";
 
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import {
+  LatencyText,
+  LatencyThresholds,
+} from "@phoenix/components/trace/LatencyText";
 
 const meta: Meta = {
   title: "Trace/LatencyText",
@@ -25,12 +28,18 @@ const meta: Meta = {
   },
 };
 
+const latencyThresholds: LatencyThresholds = {
+  fast: 3000,
+  moderate: 8000,
+};
+
 export default meta;
 
 const Template: StoryFn<{
   latencyMs: number;
   size?: "S" | "M" | "L" | "XL";
   showIcon?: boolean;
+  latencyThresholds?: LatencyThresholds;
 }> = (args) => <LatencyText {...args} />;
 
 /**
@@ -41,6 +50,7 @@ Default.args = {
   latencyMs: 1500,
   size: "M",
   showIcon: true,
+  latencyThresholds,
 };
 
 /**
@@ -91,6 +101,7 @@ SmallSize.args = {
   latencyMs: 2500,
   size: "S",
   showIcon: true,
+  latencyThresholds,
 };
 
 /**
@@ -101,6 +112,7 @@ LargeSize.args = {
   latencyMs: 2500,
   size: "L",
   showIcon: true,
+  latencyThresholds,
 };
 
 /**
@@ -111,6 +123,7 @@ ExtraLargeSize.args = {
   latencyMs: 2500,
   size: "XL",
   showIcon: true,
+  latencyThresholds,
 };
 
 /**
@@ -121,6 +134,7 @@ WithoutIcon.args = {
   latencyMs: 3500,
   size: "M",
   showIcon: false,
+  latencyThresholds,
 };
 
 /**
@@ -131,6 +145,7 @@ VeryFastMs.args = {
   latencyMs: 5.7,
   size: "M",
   showIcon: true,
+  latencyThresholds,
 };
 
 /**
@@ -141,6 +156,7 @@ LargeLatency.args = {
   latencyMs: 45000,
   size: "M",
   showIcon: true,
+  latencyThresholds,
 };
 
 /**
