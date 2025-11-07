@@ -66,9 +66,6 @@ export default defineConfig(() => {
               if (id.includes("codemirror")) {
                 return "vendor-codemirror";
               }
-              if (id.includes("@arizeai/components")) {
-                return "vendor-arizeai";
-              }
               return "vendor";
             }
             if (id.includes("src/components")) {

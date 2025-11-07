@@ -7,7 +7,6 @@
   "private": true,
   "dependencies": {
     "@apollo/client": "^3.13.9",
-    "@arizeai/components": "2.0.0-0",
     "@arizeai/openinference-semantic-conventions": "^1.1.0",
     "@arizeai/point-cloud": "^4.1.0",
     "@codemirror/autocomplete": "6.12.0",
@@ -98,7 +97,6 @@
     "chromatic": "^11.29.0",
     "cpy-cli": "^5.0.0",
     "eslint": "^8.57.1",
-    "eslint-plugin-deprecate": "^0.8.7",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-compiler": "19.1.0-rc.1",
     "eslint-plugin-react-hooks": "^7.0.1",
