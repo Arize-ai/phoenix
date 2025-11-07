@@ -164,9 +164,29 @@ LargeLatency.args = {
  */
 export const ColorRanges: StoryFn = () => (
   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-    <LatencyText latencyMs={1000} size="M" showIcon={true} />
-    <LatencyText latencyMs={5000} size="M" showIcon={true} />
-    <LatencyText latencyMs={10000} size="M" showIcon={true} />
-    <LatencyText latencyMs={15000} size="M" showIcon={true} />
+    <LatencyText
+      latencyMs={1000}
+      size="M"
+      showIcon={true}
+      latencyThresholds={latencyThresholds}
+    />
+    <LatencyText
+      latencyMs={5000}
+      size="M"
+      showIcon={true}
+      latencyThresholds={latencyThresholds}
+    />
+    <LatencyText
+      latencyMs={10000}
+      size="M"
+      showIcon={true}
+      latencyThresholds={latencyThresholds}
+    />
+    <LatencyText
+      latencyMs={15000}
+      size="M"
+      showIcon={true}
+      latencyThresholds={latencyThresholds}
+    />
   </div>
 );
