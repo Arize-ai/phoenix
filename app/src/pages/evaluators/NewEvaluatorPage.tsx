@@ -39,7 +39,7 @@ import {
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { identifierPattern } from "@phoenix/utils/identifierUtils";
+import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 export const NewEvaluatorPage = () => {
   return (
@@ -281,7 +281,7 @@ const NewEvaluatorPageContent = () => {
           <PanelContainer>
             <Flex
               direction="row"
-              alignItems="center"
+              alignItems="baseline"
               width="100%"
               gap="size-100"
               marginTop="size-100"
@@ -290,14 +290,7 @@ const NewEvaluatorPageContent = () => {
                 name="name"
                 control={nameControl}
                 rules={{
-                  required: "Name is required",
-                  pattern: {
-                    value: identifierPattern.value,
-                    message: identifierPattern.message.replace(
-                      "identifier",
-                      "evaluator name"
-                    ),
-                  },
+                  validate: validateIdentifier,
                 }}
                 render={({ field, fieldState: { error } }) => (
                   <TextField {...field} autoComplete="off" isInvalid={!!error}>
