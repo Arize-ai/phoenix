@@ -146,7 +146,7 @@ remote_agent = agent_engines.create(
     "env_vars": {
         "OTEL_LOG_LEVEL": "DEBUG",
         "NO_PROXY": "app.phoenix.arize.com",
-        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp.arize.com",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://app.phoenix.arize.com/s/your-space",
         "OTEL_EXPORTER_OTLP_TIMEOUT": "60000",  # 60 seconds,
         "ARIZE_API_KEY": "YOUR_ARIZE_API_KEY",
         "ARIZE_SPACE_ID": "YOUR_ARIZE_SPACE_ID",
