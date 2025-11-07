@@ -11,6 +11,7 @@ import { NewDatasetActionMenu } from "./NewDatasetActionMenu";
 export function DatasetsPage() {
   return (
     <Suspense fallback={<Loading />}>
+      <title>Datasets - Phoenix</title>
       <DatasetsPageContent />
     </Suspense>
   );

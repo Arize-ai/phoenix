@@ -94,6 +94,7 @@ export function DatasetPage() {
       datasetName={data.dataset.name as string}
       latestVersion={latestVersion}
     >
+      <title>{`${data.dataset.name} - Dataset - Phoenix`}</title>
       <Suspense fallback={<Loading />}>
         <DatasetPageContent dataset={data.dataset} />
       </Suspense>

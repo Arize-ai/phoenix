@@ -27,6 +27,7 @@ export function LoggedOutPage() {
   const errorMessage = getAuthErrorMessage(errorCode);
   return (
     <AuthLayout>
+      <title>Logged Out - Phoenix</title>
       <Flex direction="column" gap="size-200" alignItems="center">
         <View paddingBottom="size-200">
           <PhoenixLogo />

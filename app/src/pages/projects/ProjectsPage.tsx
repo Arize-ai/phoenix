@@ -123,6 +123,7 @@ export function ProjectsPage() {
 
   return (
     <Suspense fallback={<Loading />}>
+      <title>Projects - Phoenix</title>
       <ProjectsPageContent timeRange={timeRange} query={data} />
     </Suspense>
   );
