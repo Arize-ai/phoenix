@@ -23,9 +23,14 @@ export function ViewerPreferences() {
   );
 
   const timeZoneOptions = useMemo(() => {
-    const supportedTimezones = getSupportedTimezones();
+    const supportedTimezones = [...getSupportedTimezones()];
     const locale = getLocale();
-
+    // Sort the timezones so that UTC is first
+    supportedTimezones.sort((a, b) => {
+      if (a === "UTC") return -1;
+      if (b === "UTC") return 1;
+      return 0;
+    });
     return [
       {
         value: "local" as const,
