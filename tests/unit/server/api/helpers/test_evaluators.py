@@ -1,4 +1,4 @@
-from contextlib import nullcontext
+from contextlib import ExitStack
 from typing import Any, Optional
 
 import pytest
@@ -56,16 +56,14 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
 
 
 @pytest.mark.parametrize(
-    "evaluator_patches,prompt_version_patches,expected_error",
+    "patch_evaluator_params,patch_prompt_version_params,expected_error",
     [
-        # Happy path - valid configuration
         pytest.param(
             {},
             {},
             None,
             id="valid-configuration",
         ),
-        # Happy path - both descriptions are None
         pytest.param(
             {"description": None},
             {
@@ -76,7 +74,6 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                             type="function",
                             function=PromptToolFunctionDefinition(
                                 name="correctness_evaluator",
-                                # Omit description field entirely
                                 parameters={
                                     "type": "object",
                                     "properties": {
@@ -296,7 +293,6 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                             type="function",
                             function=PromptToolFunctionDefinition(
                                 name="correctness_evaluator",
-                                # Omit description field entirely
                                 parameters={
                                     "type": "object",
                                     "properties": {
@@ -491,8 +487,8 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
     ],
 )
 def test_validate_consistent_llm_evaluator_and_prompt_version(
-    evaluator_patches: dict[str, Any],
-    prompt_version_patches: dict[str, Any],
+    patch_evaluator_params: dict[str, Any],
+    patch_prompt_version_params: dict[str, Any],
     expected_error: Optional[str],
 ) -> None:
     base_tools = PromptTools(
@@ -521,8 +517,7 @@ def test_validate_consistent_llm_evaluator_and_prompt_version(
             function_name="correctness_evaluator",
         ),
     )
-
-    prompt_version_params = {
+    base_prompt_version_params = {
         "prompt_id": 1,
         "template_type": PromptTemplateType.CHAT,
         "template_format": PromptTemplateFormat.MUSTACHE,
@@ -550,10 +545,17 @@ def test_validate_consistent_llm_evaluator_and_prompt_version(
         "model_name": "gpt-4",
         "metadata_": {},
     }
-    prompt_version_params.update(prompt_version_patches)
-    prompt_version = models.PromptVersion(**prompt_version_params)
+    assert all(
+        base_prompt_version_params[key] != patch_prompt_version_params[key]
+        for key in patch_prompt_version_params
+    ), (
+        "Each patch prompt version parameter should differ from the corresponding base prompt version parameter"
+    )
+    prompt_version = models.PromptVersion(
+        **{**base_prompt_version_params, **patch_prompt_version_params}
+    )
 
-    evaluator_params = {
+    base_evaluator_params = {
         "name": Identifier("correctness_evaluator"),
         "description": "evaluates the correctness of the output",
         "kind": "LLM",
@@ -569,11 +571,14 @@ def test_validate_consistent_llm_evaluator_and_prompt_version(
             ],
         ),
     }
-    evaluator_params.update(evaluator_patches)
-    evaluator = models.LLMEvaluator(**evaluator_params)
-
-    expectation = (
-        pytest.raises(ValueError, match=expected_error) if expected_error else nullcontext()
+    assert all(
+        base_evaluator_params[key] != patch_evaluator_params[key] for key in patch_evaluator_params
+    ), (
+        "Each patch evaluator parameter should differ from the corresponding base evaluator parameter"
     )
-    with expectation:
+    evaluator = models.LLMEvaluator(**{**base_evaluator_params, **patch_evaluator_params})
+
+    with ExitStack() as stack:
+        if expected_error:
+            stack.enter_context(pytest.raises(ValueError, match=expected_error))
         validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
