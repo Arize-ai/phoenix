@@ -1,7 +1,6 @@
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
 import pluginReact from "eslint-plugin-react";
-import pluginReactCompiler from "eslint-plugin-react-compiler";
 import pluginReactHooks from "eslint-plugin-react-hooks";
 // @ts-expect-error - No types available for this plugin
 import pluginSimpleImportSort from "eslint-plugin-simple-import-sort";
@@ -14,7 +13,6 @@ export default defineConfig([
     plugins: {
       js,
       react: pluginReact,
-      "react-compiler": pluginReactCompiler,
       "simple-import-sort": pluginSimpleImportSort,
     },
     languageOptions: {
@@ -34,10 +32,6 @@ export default defineConfig([
       "react/no-unknown-property": ["error", { ignore: ["css"] }],
       "react/jsx-uses-react": "off", // Not needed with new JSX transform
       "react/react-in-jsx-scope": "off", // Not needed with new JSX transform
-
-      // React compiler rules
-      ...pluginReactCompiler.configs.recommended.rules,
-      "react-compiler/react-compiler": "error",
 
       // General rules
       "no-console": "error",
