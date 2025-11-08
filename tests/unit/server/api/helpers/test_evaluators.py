@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from typing import Any
 
 import pytest
@@ -33,9 +34,10 @@ from phoenix.server.api.helpers.prompts.models import (
     TextContentPart,
 )
 
+_NO_ERROR = nullcontext()
 
-def _make_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
-    """Helper to create PromptTools with specific function parameters."""
+
+def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
     return PromptTools(
         type="tools",
         tools=[
@@ -140,7 +142,6 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
     @pytest.mark.parametrize(
         "evaluator_patches,prompt_version_patches,expected_error",
         [
-            # Response format validation
             pytest.param(
                 {},
                 {
@@ -155,14 +156,12 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 _LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED.value,
                 id="response-format-not-none",
             ),
-            # Tools validation - None
             pytest.param(
                 {},
                 {"tools": None},
                 _LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED.value,
                 id="tools-is-none",
             ),
-            # Tools validation - empty list
             pytest.param(
                 {},
                 {
@@ -178,7 +177,6 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 _LLMEvaluatorPromptErrorMessage.TOOLS_MUST_BE_ONE.value,
                 id="tools-list-empty",
             ),
-            # Tools validation - multiple tools
             pytest.param(
                 {},
                 {
@@ -229,7 +227,6 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 _LLMEvaluatorPromptErrorMessage.TOOLS_MUST_BE_ONE.value,
                 id="tools-list-has-multiple",
             ),
-            # Tool choice validation - none
             pytest.param(
                 {},
                 {
@@ -260,7 +257,6 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value,
                 id="tool-choice-is-none",
             ),
-            # Tool choice validation - zero_or_more
             pytest.param(
                 {},
                 {
@@ -291,7 +287,6 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value,
                 id="tool-choice-is-zero-or-more",
             ),
-            # Tool choice validation - one_or_more
             pytest.param(
                 {},
                 {
@@ -322,21 +317,18 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value,
                 id="tool-choice-is-one-or-more",
             ),
-            # Name matching
             pytest.param(
                 {"name": Identifier("different_name")},
                 {},
                 _LLMEvaluatorPromptErrorMessage.EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME.value,
                 id="name-mismatch",
             ),
-            # Description matching - both strings but different
             pytest.param(
                 {"description": "a different description"},
                 {},
                 _LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION.value,
                 id="description-both-strings-different",
             ),
-            # Description matching - evaluator string, function None
             pytest.param(
                 {},
                 {
@@ -370,18 +362,16 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 _LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION.value,
                 id="description-evaluator-string-function-none",
             ),
-            # Description matching - evaluator None, function string
             pytest.param(
                 {"description": None},
                 {},
                 _LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION.value,
                 id="description-evaluator-none-function-string",
             ),
-            # Function parameters - type not object
             pytest.param(
                 {},
                 {
-                    "tools": _make_tools_with_params(
+                    "tools": _prompt_tools_with_params(
                         {
                             "type": "array",
                             "items": {"type": "string"},
@@ -391,11 +381,10 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 "validation error",
                 id="parameters-type-not-object",
             ),
-            # Function parameters - empty properties
             pytest.param(
                 {},
                 {
-                    "tools": _make_tools_with_params(
+                    "tools": _prompt_tools_with_params(
                         {
                             "type": "object",
                             "properties": {},
@@ -406,11 +395,10 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 "validation error",
                 id="parameters-properties-empty",
             ),
-            # Function parameters - multiple properties
             pytest.param(
                 {},
                 {
-                    "tools": _make_tools_with_params(
+                    "tools": _prompt_tools_with_params(
                         {
                             "type": "object",
                             "properties": {
@@ -430,11 +418,10 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 "validation error",
                 id="parameters-multiple-properties",
             ),
-            # Function parameters - property type not string
             pytest.param(
                 {},
                 {
-                    "tools": _make_tools_with_params(
+                    "tools": _prompt_tools_with_params(
                         {
                             "type": "object",
                             "properties": {
@@ -450,11 +437,10 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 "validation error",
                 id="parameters-property-type-not-string",
             ),
-            # Function parameters - enum with less than 2 items
             pytest.param(
                 {},
                 {
-                    "tools": _make_tools_with_params(
+                    "tools": _prompt_tools_with_params(
                         {
                             "type": "object",
                             "properties": {
@@ -470,11 +456,10 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 "validation error",
                 id="parameters-enum-less-than-two-items",
             ),
-            # Function parameters - missing enum field
             pytest.param(
                 {},
                 {
-                    "tools": _make_tools_with_params(
+                    "tools": _prompt_tools_with_params(
                         {
                             "type": "object",
                             "properties": {
@@ -489,11 +474,10 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 "validation error",
                 id="parameters-missing-enum-field",
             ),
-            # Function parameters - duplicate required values
             pytest.param(
                 {},
                 {
-                    "tools": _make_tools_with_params(
+                    "tools": _prompt_tools_with_params(
                         {
                             "type": "object",
                             "properties": {
@@ -509,11 +493,10 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 _LLMEvaluatorPromptErrorMessage.REQUIRED_VALUES_MUST_BE_UNIQUE.value,
                 id="parameters-duplicate-required-values",
             ),
-            # Function parameters - defined property not in required
             pytest.param(
                 {},
                 {
-                    "tools": _make_tools_with_params(
+                    "tools": _prompt_tools_with_params(
                         {
                             "type": "object",
                             "properties": {
@@ -529,11 +512,10 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 _LLMEvaluatorPromptErrorMessage.ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED.value,
                 id="parameters-defined-property-not-required",
             ),
-            # Function parameters - required property not defined
             pytest.param(
                 {},
                 {
-                    "tools": _make_tools_with_params(
+                    "tools": _prompt_tools_with_params(
                         {
                             "type": "object",
                             "properties": {
