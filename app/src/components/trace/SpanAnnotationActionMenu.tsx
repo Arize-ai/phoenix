@@ -51,6 +51,8 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
     buttonVariant,
     buttonSize,
   } = props;
+  const [deleting, setDeleting] = useState(false);
+
   const [commitDelete] = useMutation<SpanAnnotationActionMenuDeleteMutation>(
     graphql`
       mutation SpanAnnotationActionMenuDeleteMutation(
@@ -100,7 +102,6 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
   ]);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [deleting, setDeleting] = useState(false);
 
   return (
     <>
