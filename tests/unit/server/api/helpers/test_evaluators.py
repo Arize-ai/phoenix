@@ -75,7 +75,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                             type="function",
                             function=PromptToolFunctionDefinition(
                                 name="correctness_evaluator",
-                                description=UNDEFINED,
+                                description=UNDEFINED,  # description is undefined
                                 parameters={
                                     "type": "object",
                                     "properties": {
