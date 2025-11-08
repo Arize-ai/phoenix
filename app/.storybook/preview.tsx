@@ -1,8 +1,9 @@
-import type { Preview } from "@storybook/react";
-import { GlobalStyles } from "../src/GlobalStyles";
-import { ProviderTheme, ThemeProvider } from "../src/contexts";
+import React from "react";
 import { MemoryRouter } from "react-router";
-import React, { PropsWithChildren } from "react";
+import type { Preview } from "@storybook/react";
+
+import { ProviderTheme, ThemeProvider } from "../src/contexts";
+import { GlobalStyles } from "../src/GlobalStyles";
 
 /**
  * A Component that renders a background for the story based on the theme
@@ -59,7 +60,7 @@ const preview: Preview = {
   },
   decorators: [
     // 👇 Defining the decorator in the preview file applies it to all stories
-    (Story, { parameters, globals }) => {
+    (Story, { parameters: _parameters, globals }) => {
       let themes: ProviderTheme[] = ["light"];
       if (globals.theme === "all") {
         themes = ["light", "dark"];
@@ -70,7 +71,7 @@ const preview: Preview = {
       const numThemes = themes.length;
 
       const contents = themes.map((theme) => (
-        <ThemeProvider themeMode={theme}>
+        <ThemeProvider key={theme} themeMode={theme}>
           <MemoryRouter initialEntries={["/"]}>
             <GlobalStyles />
             <StoryBackground

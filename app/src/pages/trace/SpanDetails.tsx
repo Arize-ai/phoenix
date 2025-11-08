@@ -1877,7 +1877,7 @@ function JSONBlock({
         value: JSON.stringify(JSON.parse(children), null, 2),
         mimeType: "json" as const,
       };
-    } catch (e) {
+    } catch (_e) {
       // Fall back to string
       return { value: children, mimeType: "text" as const };
     }

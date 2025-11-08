@@ -127,7 +127,7 @@ export const UpsertPromptFromTemplateDialog = ({
       if (params.metadata && params.metadata.trim() !== "") {
         try {
           metadata = JSON.parse(params.metadata);
-        } catch (error) {
+        } catch (_error) {
           notifyError({
             title: "Invalid metadata",
             message: "Failed to parse metadata as JSON",

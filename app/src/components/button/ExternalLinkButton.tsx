@@ -5,16 +5,10 @@ import { buttonCSS } from "./styles";
 import { ButtonProps } from "./types";
 
 // Custom props for the button styling and visuals
-interface ExternalLinkButtonCustomProps
-  extends Pick<
-    ButtonProps,
-    | "size"
-    | "variant"
-    | "leadingVisual"
-    | "trailingVisual"
-    | "css"
-    | "isDisabled"
-  > {}
+type ExternalLinkButtonCustomProps = Pick<
+  ButtonProps,
+  "size" | "variant" | "leadingVisual" | "trailingVisual" | "css" | "isDisabled"
+>;
 
 // Main props type: all anchor props + custom button props
 export type ExternalLinkButtonProps =

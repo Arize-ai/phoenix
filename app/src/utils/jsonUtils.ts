@@ -29,7 +29,7 @@ export function isJSONString({
     if (excludeNull && parsed === null) {
       return false;
     }
-  } catch (e) {
+  } catch {
     return false;
   }
   return true;
@@ -95,7 +95,7 @@ export function jsonStringToFlatObject(
     }
     // Flatten the parsed object
     return flattenObject(parsedObj, "", separator);
-  } catch (e) {
+  } catch {
     // The parsing failed, do nothing
   }
   return {} satisfies Record<string, string | boolean | number>;

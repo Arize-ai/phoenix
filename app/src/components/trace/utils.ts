@@ -23,12 +23,12 @@ export function createSpanTree<TSpan extends ISpanItem>(
   for (const span of spans) {
     const spanTreeItem = spanMap.get(span.spanId);
     if (span.parentId === null || !spanMap.has(span.parentId)) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+       
       rootSpans.push(spanTreeItem!);
     } else {
       const parentSpanNode = spanMap.get(span.parentId);
       if (parentSpanNode) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+         
         parentSpanNode.children.push(spanTreeItem!);
       }
     }

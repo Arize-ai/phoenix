@@ -7,7 +7,7 @@ import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@phoenix/components";
 
-interface BreadcrumbProps extends AriaBreadcrumbProps {}
+type BreadcrumbProps = AriaBreadcrumbProps;
 
 const breadcrumbCSS = css`
   display: flex;

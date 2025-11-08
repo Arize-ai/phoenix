@@ -42,12 +42,12 @@ export const createPolicyScheduleSummaryText = ({
   let scheduleString = "unknown";
   try {
     CronExpressionParser.parse(schedule);
-  } catch (error) {
+  } catch {
     return "invalid schedule";
   }
   try {
     scheduleString = cronstrue.toString(schedule);
-  } catch (error) {
+  } catch {
     return "invalid schedule";
   }
   return `${scheduleString} (UTC)`;

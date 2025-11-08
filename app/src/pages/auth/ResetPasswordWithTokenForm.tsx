@@ -53,7 +53,7 @@ export function ResetPasswordWithTokenForm({
           setError(text);
           return;
         }
-      } catch (error) {
+      } catch (_error) {
         setError(DEFAULT_ERROR_MESSAGE);
         return;
       } finally {

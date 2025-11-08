@@ -244,7 +244,7 @@ export const safelyConvertToolChoiceToProvider = <T extends ModelProvider>({
       toolChoice: openAIToolChoice,
       targetProvider,
     });
-  } catch (e) {
+  } catch (_e) {
     return null;
   }
 };

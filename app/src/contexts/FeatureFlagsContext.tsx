@@ -33,7 +33,7 @@ function getFeatureFlags(): Record<FeatureFlag, boolean> {
   try {
     const parsedFeatureFlags = JSON.parse(featureFlagsFromLocalStorage);
     return Object.assign({}, DEFAULT_FEATURE_FLAGS, parsedFeatureFlags);
-  } catch (e) {
+  } catch (_e) {
     return DEFAULT_FEATURE_FLAGS;
   }
 }
