@@ -4,7 +4,7 @@ import {
   type ColorFieldProps as AriaColorFieldProps,
 } from "react-aria-components";
 
-export type ColorFieldProps = AriaColorFieldProps;
+export interface ColorFieldProps extends AriaColorFieldProps {}
 
 export const ColorField = forwardRef<HTMLDivElement, ColorFieldProps>(
   (props: ColorFieldProps, ref) => {

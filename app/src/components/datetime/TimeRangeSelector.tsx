@@ -107,11 +107,12 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                         initialValue={{ start, end }}
                         timeZone={displayTimezone}
                         onSubmit={(timeRange) => {
-                          onChange &&
+                          if (onChange) {
                             onChange({
                               timeRangeKey: "custom",
                               ...timeRange,
                             });
+                          }
                           close();
                         }}
                       />

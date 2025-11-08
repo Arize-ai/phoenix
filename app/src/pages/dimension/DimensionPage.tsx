@@ -78,7 +78,6 @@ export function DimensionPage() {
       }
     `,
     {
-       
       dimensionId: dimensionId!,
       timeRange: {
         start: timeRange.start.toISOString(),

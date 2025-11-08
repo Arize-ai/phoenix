@@ -413,9 +413,7 @@ function EventPreview({ event }: { event: ModelEvent }) {
       </DisclosureGroup>
     );
   } else if (event.rawData) {
-    {
-      event.rawData ? <TextPre>{event.rawData}</TextPre> : null;
-    }
+    content = <TextPre>{event.rawData}</TextPre>;
   }
   return content;
 }

@@ -23,12 +23,10 @@ export function createSpanTree<TSpan extends ISpanItem>(
   for (const span of spans) {
     const spanTreeItem = spanMap.get(span.spanId);
     if (span.parentId === null || !spanMap.has(span.parentId)) {
-       
       rootSpans.push(spanTreeItem!);
     } else {
       const parentSpanNode = spanMap.get(span.parentId);
       if (parentSpanNode) {
-         
         parentSpanNode.children.push(spanTreeItem!);
       }
     }

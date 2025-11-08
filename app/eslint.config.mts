@@ -98,6 +98,12 @@ export default defineConfig([
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+      "@typescript-eslint/no-empty-object-type": [
+        "error",
+        {
+          allowInterfaces: "with-single-extends",
+        },
+      ],
     },
   },
   {

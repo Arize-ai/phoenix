@@ -5,7 +5,7 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-export type ColorSwatchPickerProps = AriaColorSwatchPickerProps;
+export interface ColorSwatchPickerProps extends AriaColorSwatchPickerProps {}
 
 const colorSwatchPickerCSS = css`
   display: flex;

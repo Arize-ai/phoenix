@@ -125,7 +125,9 @@ function EditModelDialogContent({
           },
           onCompleted: () => {
             onClose();
-            onModelEdited && onModelEdited(params);
+            if (onModelEdited) {
+              onModelEdited(params);
+            }
             notifySuccess({
               title: `Model Updated`,
               message: `Model "${params.name}" updated successfully`,
