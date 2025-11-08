@@ -4,13 +4,17 @@ permissions:
 
 on:
   push:
-    branches: [main, feat/annotations]
+    branches:
+      - main
+      - version-13
     paths:
       - "src/**"
       - "app/**"
       - ".github/workflows/playwright.yaml"
   pull_request:
-    branches: [main, feat/annotations]
+    branches:
+      - main
+      - version-13
     paths:
       - "src/**"
       - "app/**"
