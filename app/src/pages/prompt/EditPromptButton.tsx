@@ -83,7 +83,7 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
       if (promptPatch.metadata && promptPatch.metadata.trim() !== "") {
         try {
           metadata = JSON.parse(promptPatch.metadata);
-        } catch (error) {
+        } catch (_error) {
           notifyError({
             title: "Invalid metadata",
             message: "Failed to parse metadata as JSON",

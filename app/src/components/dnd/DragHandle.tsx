@@ -4,7 +4,7 @@ import { css } from "@emotion/react";
 
 // This is the type of the listeners object from useSortable
 // However it is not exported from @dnd-kit/core so we have to redefine it here
-// eslint-disable-next-line @typescript-eslint/ban-types
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 type Listeners = Record<string, Function>;
 
 function DragHandle(

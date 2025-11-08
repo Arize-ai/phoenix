@@ -155,7 +155,7 @@ export const stringToHttpHeadersSchema = z.string().transform((input, ctx) => {
     }
 
     return Object.keys(result.data).length > 0 ? result.data : null;
-  } catch (error) {
+  } catch (_error) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Invalid JSON format",

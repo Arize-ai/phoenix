@@ -90,7 +90,6 @@ const SettingsAnnotations = ({
       onError,
     }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
   ) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _, annotationType, ...config } = _config;
     const key = annotationType.toLowerCase();
     createAnnotationConfig({
@@ -122,7 +121,6 @@ const SettingsAnnotations = ({
       onError,
     }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
   ) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, annotationType, ...config } = _config;
     const key = annotationType.toLowerCase();
     updateAnnotationConfig({

@@ -1177,7 +1177,7 @@ export function ExperimentCompareListPage({
         header.column.getSize();
     }
     return colSizes;
-    // eslint-disable-next-line react-compiler/react-compiler
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     tableState.columnSizingInfo,

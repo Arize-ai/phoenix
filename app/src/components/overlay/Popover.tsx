@@ -119,7 +119,6 @@ function Popover(props: PopoverProps, ref: Ref<HTMLDivElement>) {
     />
   );
 }
-popoverCSS;
 
 const _Popover = forwardRef(Popover);
 export { _Popover as Popover };

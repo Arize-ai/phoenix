@@ -81,7 +81,7 @@ const Template: StoryFn<StoryArgs> = ({ placement = "bottom", ...args }) => (
 
 export const Default = Template.bind({});
 
-// eslint-disable-next-line react/prop-types
+ 
 const ControlledTemplate: StoryFn<StoryArgs> = ({
   placement = "bottom",
   ...args

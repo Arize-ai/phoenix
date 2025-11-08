@@ -1186,7 +1186,6 @@ export const denormalizePlaygroundInstance = (
   allInstanceMessages: Record<number, ChatMessage>
 ): PlaygroundInstance => {
   if (instance.template.__type === "chat") {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { messageIds: _, ...rest } = instance.template;
     return {
       ...instance,

@@ -74,7 +74,7 @@ export const ClonePromptDialog = ({
       if (data.metadata && data.metadata.trim() !== "") {
         try {
           metadata = JSON.parse(data.metadata);
-        } catch (error) {
+        } catch (_error) {
           setError("metadata", {
             message: "Failed to parse metadata as JSON",
           });

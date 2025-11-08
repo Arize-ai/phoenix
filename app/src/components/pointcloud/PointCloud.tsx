@@ -358,6 +358,7 @@ const Projection = memo(function Projection() {
 
   return (
     <ThreeDimensionalCanvas camera={{ position: [3, 3, 3] }}>
+      {/* eslint-disable-next-line react-hooks/static-components */}
       <ContextBridge>
         <ThreeDimensionalControls
           autoRotate={autoRotate}

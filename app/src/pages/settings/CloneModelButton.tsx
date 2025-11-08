@@ -140,7 +140,9 @@ function CloneModelDialogContent({
           },
           onCompleted: () => {
             onClose();
-            onModelCloned && onModelCloned(params);
+            if (onModelCloned) {
+              onModelCloned(params);
+            }
             notifySuccess({
               title: `Model Cloned`,
               message: `Model "${params.name}" cloned successfully`,

@@ -304,7 +304,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
         `}
         onClick={() => {
           startTransition(() => {
-            onSpanClick && onSpanClick(node.span);
+            if (onSpanClick) {
+              onSpanClick(node.span);
+            }
           });
         }}
       >
