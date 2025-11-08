@@ -79,13 +79,13 @@ import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareD
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
 
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
-import PlaygroundDatasetExamplesTableMutation, {
+import {
   PlaygroundDatasetExamplesTableMutation as PlaygroundDatasetExamplesTableMutationType,
   PlaygroundDatasetExamplesTableMutation$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
-import PlaygroundDatasetExamplesTableSubscription, {
+import {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
@@ -666,9 +666,54 @@ export function PlaygroundDatasetExamplesTable({
   );
 
   const [generateChatCompletion] =
-    useMutation<PlaygroundDatasetExamplesTableMutationType>(
-      PlaygroundDatasetExamplesTableMutation
-    );
+    useMutation<PlaygroundDatasetExamplesTableMutationType>(graphql`
+      mutation PlaygroundDatasetExamplesTableMutation(
+        $input: ChatCompletionOverDatasetInput!
+      ) {
+        chatCompletionOverDataset(input: $input) {
+          __typename
+          experimentId
+          examples {
+            datasetExampleId
+            experimentRunId
+            repetitionNumber
+            result {
+              __typename
+              ... on ChatCompletionMutationError {
+                message
+              }
+              ... on ChatCompletionMutationPayload {
+                content
+                errorMessage
+                span {
+                  id
+                  tokenCountTotal
+                  costSummary {
+                    total {
+                      cost
+                    }
+                  }
+                  latencyMs
+                  project {
+                    id
+                  }
+                  context {
+                    traceId
+                  }
+                }
+                toolCalls {
+                  id
+                  function {
+                    name
+                    arguments
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `);
 
   const onCompleted = useCallback(
     (instanceId: number) =>
@@ -738,7 +783,62 @@ export function PlaygroundDatasetExamplesTable({
         };
         const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
           {
-            subscription: PlaygroundDatasetExamplesTableSubscription,
+            subscription: graphql`
+              subscription PlaygroundDatasetExamplesTableSubscription(
+                $input: ChatCompletionOverDatasetInput!
+              ) {
+                chatCompletionOverDataset(input: $input) {
+                  __typename
+                  ... on TextChunk {
+                    content
+                    datasetExampleId
+                    repetitionNumber
+                  }
+                  ... on ToolCallChunk {
+                    id
+                    datasetExampleId
+                    repetitionNumber
+                    function {
+                      name
+                      arguments
+                    }
+                  }
+                  ... on ChatCompletionSubscriptionExperiment {
+                    experiment {
+                      id
+                    }
+                  }
+                  ... on ChatCompletionSubscriptionResult {
+                    datasetExampleId
+                    repetitionNumber
+                    span {
+                      id
+                      tokenCountTotal
+                      costSummary {
+                        total {
+                          cost
+                        }
+                      }
+                      latencyMs
+                      project {
+                        id
+                      }
+                      context {
+                        traceId
+                      }
+                    }
+                    experimentRun {
+                      id
+                    }
+                  }
+                  ... on ChatCompletionSubscriptionError {
+                    datasetExampleId
+                    repetitionNumber
+                    message
+                  }
+                }
+              }
+            `,
             variables,
             onNext: onNext(instance.id),
             onCompleted: () => {
@@ -1227,109 +1327,3 @@ export function PlaygroundDatasetExamplesTable({
     </div>
   );
 }
-
-graphql`
-  subscription PlaygroundDatasetExamplesTableSubscription(
-    $input: ChatCompletionOverDatasetInput!
-  ) {
-    chatCompletionOverDataset(input: $input) {
-      __typename
-      ... on TextChunk {
-        content
-        datasetExampleId
-        repetitionNumber
-      }
-      ... on ToolCallChunk {
-        id
-        datasetExampleId
-        repetitionNumber
-        function {
-          name
-          arguments
-        }
-      }
-      ... on ChatCompletionSubscriptionExperiment {
-        experiment {
-          id
-        }
-      }
-      ... on ChatCompletionSubscriptionResult {
-        datasetExampleId
-        repetitionNumber
-        span {
-          id
-          tokenCountTotal
-          costSummary {
-            total {
-              cost
-            }
-          }
-          latencyMs
-          project {
-            id
-          }
-          context {
-            traceId
-          }
-        }
-        experimentRun {
-          id
-        }
-      }
-      ... on ChatCompletionSubscriptionError {
-        datasetExampleId
-        repetitionNumber
-        message
-      }
-    }
-  }
-`;
-
-graphql`
-  mutation PlaygroundDatasetExamplesTableMutation(
-    $input: ChatCompletionOverDatasetInput!
-  ) {
-    chatCompletionOverDataset(input: $input) {
-      __typename
-      experimentId
-      examples {
-        datasetExampleId
-        experimentRunId
-        repetitionNumber
-        result {
-          __typename
-          ... on ChatCompletionMutationError {
-            message
-          }
-          ... on ChatCompletionMutationPayload {
-            content
-            errorMessage
-            span {
-              id
-              tokenCountTotal
-              costSummary {
-                total {
-                  cost
-                }
-              }
-              latencyMs
-              project {
-                id
-              }
-              context {
-                traceId
-              }
-            }
-            toolCalls {
-              id
-              function {
-                name
-                arguments
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`;

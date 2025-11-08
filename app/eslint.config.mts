@@ -80,6 +80,10 @@ export default defineConfig([
       // This rule prevents calling impure functions like Date.now() during component render
       // which can cause unstable results when components re-render
       "react-hooks/purity": "off",
+
+      // TODO: Re-enable this rule once we've addressed the issue with setState in useEffect
+      // This rule prevents calling setState in useEffect which can cause unstable results when components re-render
+      "react-hooks/set-state-in-effect": "off",
     },
   },
   ...tseslint.configs.recommended,

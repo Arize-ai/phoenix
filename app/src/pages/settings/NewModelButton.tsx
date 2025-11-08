@@ -118,7 +118,9 @@ export function NewModelButton({
                       connectionId,
                     },
                     onCompleted: () => {
-                      onModelCreated && onModelCreated(params);
+                      if (onModelCreated) {
+                        onModelCreated(params);
+                      }
                       notifySuccess({
                         title: `Model Created`,
                         message: `Model "${params.name}" added successfully`,

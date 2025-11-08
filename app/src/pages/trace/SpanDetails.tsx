@@ -1385,7 +1385,7 @@ function DocumentItem({
                               </Token>
                             )}
                           </Flex>
-                          {typeof documentEvaluation.explanation && (
+                          {documentEvaluation.explanation ? (
                             <p
                               css={css`
                                 margin-top: var(
@@ -1396,7 +1396,7 @@ function DocumentItem({
                             >
                               {documentEvaluation.explanation}
                             </p>
-                          )}
+                          ) : null}
                         </Flex>
                       </View>
                     </li>
