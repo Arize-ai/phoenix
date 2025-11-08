@@ -62,7 +62,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
             {},
             {},
             None,
-            id="valid-configuration",
+            id="valid-configuration-does-not-raise",
         ),
         pytest.param(
             {"description": None},
@@ -94,7 +94,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             None,
-            id="valid-both-descriptions-none",
+            id="both-descriptions-none-does-not-raise",
         ),
         pytest.param(
             {},
@@ -108,13 +108,13 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 ),
             },
             _LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED.value,
-            id="response-format-not-none",
+            id="non-null-response-format-raises",
         ),
         pytest.param(
             {},
             {"tools": None},
             _LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED.value,
-            id="tools-is-none",
+            id="null-tools-raises",
         ),
         pytest.param(
             {},
@@ -129,7 +129,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             _LLMEvaluatorPromptErrorMessage.TOOLS_MUST_BE_ONE.value,
-            id="tools-list-empty",
+            id="empty-tools-list-raises",
         ),
         pytest.param(
             {},
@@ -179,7 +179,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             _LLMEvaluatorPromptErrorMessage.TOOLS_MUST_BE_ONE.value,
-            id="tools-list-has-multiple",
+            id="multiple-tools-raises",
         ),
         pytest.param(
             {},
@@ -209,7 +209,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value,
-            id="tool-choice-is-none",
+            id="null-tool-choice-raises",
         ),
         pytest.param(
             {},
@@ -239,7 +239,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value,
-            id="tool-choice-is-zero-or-more",
+            id="zero-or-more-tool-choice-raises",
         ),
         pytest.param(
             {},
@@ -269,19 +269,19 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value,
-            id="tool-choice-is-one-or-more",
+            id="one-or-more-tool-choice-raises",
         ),
         pytest.param(
             {"name": Identifier("different_name")},
             {},
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME.value,
-            id="name-mismatch",
+            id="evaluator-and-function-name-mismatch-raises",
         ),
         pytest.param(
             {"description": "a different description"},
             {},
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION.value,
-            id="description-both-strings-different",
+            id="evaluator-and-function-description-mismatch-raises",
         ),
         pytest.param(
             {},
@@ -313,13 +313,13 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION.value,
-            id="description-evaluator-string-function-none",
+            id="non-null-evaluator-description-and-null-function-description-raises",
         ),
         pytest.param(
             {"description": None},
             {},
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION.value,
-            id="description-evaluator-none-function-string",
+            id="null-evaluator-description-and-non-null-function-description-raises",
         ),
         pytest.param(
             {},
@@ -332,7 +332,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             "validation error",
-            id="parameters-type-not-object",
+            id="function-parameters-type-not-object-raises",
         ),
         pytest.param(
             {},
@@ -346,7 +346,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             "validation error",
-            id="parameters-properties-empty",
+            id="empty-function-parameters-properties-raises",
         ),
         pytest.param(
             {},
@@ -369,7 +369,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             "validation error",
-            id="parameters-multiple-properties",
+            id="multiple-function-parameters-properties-raises",
         ),
         pytest.param(
             {},
@@ -388,7 +388,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             "validation error",
-            id="parameters-property-type-not-string",
+            id="function-parameters-property-type-not-string-raises",
         ),
         pytest.param(
             {},
@@ -407,7 +407,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             "validation error",
-            id="parameters-enum-less-than-two-items",
+            id="function-parameters-enum-less-than-two-items-raises",
         ),
         pytest.param(
             {},
@@ -425,7 +425,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             "validation error",
-            id="parameters-missing-enum-field",
+            id="function-parameters-missing-enum-field-raises",
         ),
         pytest.param(
             {},
@@ -444,7 +444,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             _LLMEvaluatorPromptErrorMessage.REQUIRED_VALUES_MUST_BE_UNIQUE.value,
-            id="parameters-duplicate-required-values",
+            id="duplicate-function-parameters-required-values-raises",
         ),
         pytest.param(
             {},
@@ -463,7 +463,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             _LLMEvaluatorPromptErrorMessage.ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED.value,
-            id="parameters-defined-property-not-required",
+            id="defined-but-not-required-function-parameters-property-raises",
         ),
         pytest.param(
             {},
@@ -482,7 +482,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                 )
             },
             _LLMEvaluatorPromptErrorMessage.ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED.value,
-            id="parameters-required-property-not-defined",
+            id="required-but-not-defined-function-parameters-property-raises",
         ),
     ],
 )
