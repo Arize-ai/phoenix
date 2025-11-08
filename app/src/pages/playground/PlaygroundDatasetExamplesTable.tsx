@@ -1190,13 +1190,12 @@ export function PlaygroundDatasetExamplesTable({
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-    // eslint-disable-next-line react-compiler/react-compiler
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
     table.getState().columnSizingInfo,
-    // eslint-disable-next-line react-compiler/react-compiler
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     table.getState().columnSizing,
     columns.length,

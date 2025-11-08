@@ -100,11 +100,4 @@ export default defineConfig([
       ],
     },
   },
-  {
-    files: ["**/*.stories.@(js|jsx|ts|tsx)"],
-    rules: {
-      // Basic storybook rules without plugin complexity
-      "import/no-anonymous-default-export": "off",
-    },
-  },
 ]);
