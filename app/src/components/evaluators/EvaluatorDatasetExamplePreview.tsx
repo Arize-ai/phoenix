@@ -110,13 +110,11 @@ const EvaluatorDatasetExamplePreviewContent = ({
   useEffect(() => {
     onSelectExampleId(example?.id ?? null);
     // These can be removed once the rules of hooks plugin is updated to support useEffectEvent
-    // eslint-disable-next-line react-compiler/react-compiler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [example]);
   const value = useMemo(() => {
     try {
       return JSON.stringify(example?.revision, null, 2);
-    } catch (error) {
+    } catch {
       return null;
     }
   }, [example]);
