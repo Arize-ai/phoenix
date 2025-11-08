@@ -89,7 +89,6 @@ const createEvaluatorPayload = ({
   instanceId,
   name,
   description,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   choiceConfig,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   inputMapping,
