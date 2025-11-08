@@ -54,10 +54,6 @@ export const VariableEditor = ({
   const [version, setVersion] = useState(0);
   const [initialValue, setInitialValue] = useState(() => defaultValue);
   useEffect(() => {
-    if (defaultValue == null) {
-      setInitialValue("");
-      setVersion((prev) => prev + 1);
-    }
     valueRef.current = defaultValue;
   }, [defaultValue]);
   useEffect(() => {
