@@ -9,6 +9,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
+from phoenix.db.types.db_models import UNDEFINED
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.evaluators import (
@@ -56,13 +57,13 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
 
 
 @pytest.mark.parametrize(
-    "patch_evaluator_params,patch_prompt_version_params,expected_error",
-    [
+    ("patch_evaluator_params", "patch_prompt_version_params", "expected_error"),
+    (
         pytest.param(
             {},
             {},
             None,
-            id="valid-configuration-does-not-raise",
+            id="consistent-evaluator-and-prompt-version-does-not-raise",
         ),
         pytest.param(
             {"description": None},
@@ -74,6 +75,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
                             type="function",
                             function=PromptToolFunctionDefinition(
                                 name="correctness_evaluator",
+                                description=UNDEFINED,
                                 parameters={
                                     "type": "object",
                                     "properties": {
@@ -484,7 +486,7 @@ def _prompt_tools_with_params(parameters: dict[str, Any]) -> PromptTools:
             _LLMEvaluatorPromptErrorMessage.ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED.value,
             id="required-but-not-defined-function-parameters-property-raises",
         ),
-    ],
+    ),
 )
 def test_validate_consistent_llm_evaluator_and_prompt_version(
     patch_evaluator_params: dict[str, Any],
