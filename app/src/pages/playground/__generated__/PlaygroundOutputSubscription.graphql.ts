@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ff9f93560025e5ca8dea31c92ab4c9a>>
+ * @generated SignedSource<<28d3f0d16f47874933c1bd456882db7c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -62,27 +62,18 @@ export type PlaygroundOutputSubscription$variables = {
 };
 export type PlaygroundOutputSubscription$data = {
   readonly chatCompletion: {
-    readonly __typename: "ChatCompletionSubscriptionError";
-    readonly message: string;
-  } | {
-    readonly __typename: "ChatCompletionSubscriptionResult";
-    readonly span: {
-      readonly id: string;
-    } | null;
-  } | {
-    readonly __typename: "TextChunk";
-    readonly content: string;
-  } | {
-    readonly __typename: "ToolCallChunk";
-    readonly function: {
+    readonly __typename: string;
+    readonly content?: string;
+    readonly function?: {
       readonly arguments: string;
       readonly name: string;
     };
-    readonly id: string;
-  } | {
-    // This will never be '%other', but we need some
-    // value in case none of the concrete values match.
-    readonly __typename: "%other";
+    readonly id?: string;
+    readonly message?: string;
+    readonly repetitionNumber: number | null;
+    readonly span?: {
+      readonly id: string;
+    } | null;
   };
 };
 export type PlaygroundOutputSubscription = {
@@ -125,6 +116,13 @@ v2 = [
         "args": null,
         "kind": "ScalarField",
         "name": "__typename",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "repetitionNumber",
         "storageKey": null
       },
       {
@@ -229,16 +227,16 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "aca7bf342ad2dc5db66b07e236a68268",
+    "cacheID": "e74612af0887018cc61d185ed2105c5c",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    repetitionNumber\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bb5936a61a0e99dbb4a298a6e552a01c";
+(node as any).hash = "964992cecd018dc17131050b7553a3d1";
 
 export default node;
