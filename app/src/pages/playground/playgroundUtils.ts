@@ -1172,6 +1172,7 @@ const getBaseChatCompletionInput = ({
       : undefined,
     credentials: getCredentials(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
+    repetitions: playgroundStore.getState().repetitions,
   } satisfies Partial<ChatCompletionInput>;
 };
 
@@ -1262,7 +1263,6 @@ export const getChatCompletionInput = ({
 
   return {
     ...baseChatCompletionVariables,
-    repetitions: 1, // configurable repetitions aren't currently supported for variable input
     template: {
       variables: variablesMap,
       format: templateFormat,
