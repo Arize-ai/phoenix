@@ -21,6 +21,13 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     prompt_version: models.PromptVersion,
     evaluator: models.LLMEvaluator,
 ) -> None:
+    """
+    Checks that the LLM evaluator and prompt version are consistent, e.g., that corresponding fields
+    between the ORMs match. Also checks that the prompt is a valid evaluator prompt, e.g., by
+    checking that it has exactly one tool. Intended to be run before inserting the validated ORMs
+    into the database.
+    """
+
     if prompt_version.response_format is not None:
         raise ValueError(_LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED.value)
     if prompt_version.tools is None:
@@ -117,7 +124,7 @@ def _parse_pydantic_validation_error(
 
 
 class _LLMEvaluatorPromptErrorMessage(Enum):
-    RESPONSE_FORMAT_NOT_SUPPORTED = "Response format is not supported for evaluator prompt"
+    RESPONSE_FORMAT_NOT_SUPPORTED = "Response format is not supported for evaluator prompts"
     TOOLS_REQUIRED = "Evaluator prompts require tools"
     EXACTLY_ONE_TOOL_REQUIRED = "Evaluator prompts require exactly one tool"
     TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL = (
