@@ -138,8 +138,8 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
-    output: undefined,
-    spanId: null,
+    outputByRepetitionNumber: {},
+    spanIdByRepetitionNumber: {},
     activeRunId: null,
   }) satisfies Partial<PlaygroundInstance>;
 
@@ -156,6 +156,7 @@ export function createNormalizedPlaygroundInstance() {
     instance: {
       id: generateInstanceId(),
       template: normalizedTemplate.template,
+      repetitions: 1,
       ...DEFAULT_INSTANCE_PARAMS(),
     } as PlaygroundNormalizedInstance,
     instanceMessages: normalizedTemplate.messages,
@@ -333,7 +334,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             id: generateInstanceId(),
             activeRunId: null,
             experimentId: null,
-            spanId: null,
+            spanIdByRepetitionNumber: {},
           },
         ],
       });
@@ -655,11 +656,16 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     runPlaygroundInstances: () => {
       const instances = get().instances;
+      const repetitions = get().repetitions;
       set({
         instances: instances.map((instance) => ({
           ...instance,
           activeRunId: generateRunId(),
           spanId: null, // Clear out the span when (re)running
+          repetitions,
+          outputByRepetitionNumber: Object.fromEntries(
+            Array.from({ length: repetitions }, (_, i) => [i + 1, undefined]) // initialize all outputs to undefined
+          ),
         })),
       });
     },

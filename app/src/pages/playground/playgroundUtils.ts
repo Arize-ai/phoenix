@@ -649,7 +649,9 @@ export function transformSpanAttributesToPlaygroundInstance(
     return {
       playgroundInstance: {
         ...basePlaygroundInstance,
-        spanId: span?.id ?? null,
+        spanIdByRepetitionNumber: {
+          1: span?.id ?? null,
+        },
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     };
@@ -730,8 +732,13 @@ export function transformSpanAttributesToPlaygroundInstance(
               messages,
             }
           : basePlaygroundInstance.template,
-      output,
-      spanId: span.id,
+      outputByRepetitionNumber: {
+        ...basePlaygroundInstance.outputByRepetitionNumber,
+        ...(output != null && { 1: output }), // set the output for the first repetition
+      },
+      spanIdByRepetitionNumber: {
+        1: span.id,
+      },
       tools: tools ?? basePlaygroundInstance.tools,
     },
     playgroundInput:
@@ -1172,6 +1179,7 @@ const getBaseChatCompletionInput = ({
       : undefined,
     credentials: getCredentials(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
+    repetitions: playgroundStore.getState().repetitions,
   } satisfies Partial<ChatCompletionInput>;
 };
 
@@ -1262,7 +1270,6 @@ export const getChatCompletionInput = ({
 
   return {
     ...baseChatCompletionVariables,
-    repetitions: 1, // configurable repetitions aren't currently supported for variable input
     template: {
       variables: variablesMap,
       format: templateFormat,

@@ -23,11 +23,13 @@ export const PlaygroundOutputMoveButton = ({
   outputContent,
   toolCalls,
   cleanupOutput,
+  isDisabled,
 }: {
   instance: PlaygroundNormalizedInstance;
   outputContent?: string | ChatMessage[];
   toolCalls: PartialOutputToolCall[];
   cleanupOutput: () => void;
+  isDisabled: boolean;
 }) => {
   const instanceId = instance.id;
   const addMessage = usePlaygroundContext((state) => state.addMessage);
@@ -35,6 +37,7 @@ export const PlaygroundOutputMoveButton = ({
     <TooltipTrigger delay={500}>
       <Button
         size="S"
+        isDisabled={isDisabled}
         leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         aria-label="Move the output message to the end of the prompt"
         onPress={() => {
