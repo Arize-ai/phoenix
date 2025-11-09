@@ -27,7 +27,7 @@ def validate_consistent_llm_evaluator_and_prompt_version(
         raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED.value)
     prompt_tools = prompt_version.tools
     if len(prompt_tools.tools) != 1:
-        raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOLS_MUST_BE_ONE.value)
+        raise ValueError(_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED.value)
     if not isinstance(prompt_tools.tool_choice, PromptToolChoiceSpecificFunctionTool):
         raise ValueError(
             _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value
@@ -56,7 +56,12 @@ def validate_consistent_llm_evaluator_and_prompt_version(
             prompt_tool_function_definition.parameters
         )
     except ValidationError as error:
-        raise ValueError(str(error))
+        raise ValueError(
+            _parse_pydantic_validation_error(
+                function_name=prompt_tool_function_definition.name,
+                validation_error=error,
+            )
+        )
 
 
 class _EvaluatorPromptToolFunctionParametersProperty(BaseModel):
@@ -98,10 +103,23 @@ class _EvaluatorPromptToolFunctionParameters(BaseModel):
         return self
 
 
+def _parse_pydantic_validation_error(
+    function_name: str,
+    validation_error: ValidationError,
+) -> str:
+    error_messages = [f"'{function_name}' function has errors."]
+    for error_details in validation_error.errors():
+        path = ".".join(map(str, error_details["loc"]))
+        error_details_message = error_details["msg"]
+        error_message = f"At '{path}': {error_details_message}."
+        error_messages.append(error_message)
+    return " ".join(error_messages)
+
+
 class _LLMEvaluatorPromptErrorMessage(Enum):
     RESPONSE_FORMAT_NOT_SUPPORTED = "Response format is not supported for evaluator prompt"
     TOOLS_REQUIRED = "Evaluator prompts require tools"
-    TOOLS_MUST_BE_ONE = "Evaluator prompts require exactly one tool"
+    EXACTLY_ONE_TOOL_REQUIRED = "Evaluator prompts require exactly one tool"
     TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL = (
         "Evaluator prompts require a particular function to be specified in the tool choice"
     )
