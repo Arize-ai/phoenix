@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
 
 import { CredentialsProvider } from "./contexts/CredentialsContext";
-import { CurrentTimeProvider } from "./contexts/CurrentTimeContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
@@ -27,17 +26,15 @@ export function AppContent() {
   return (
     <RelayEnvironmentProvider environment={RelayEnvironment}>
       <GlobalStyles />
-      <CurrentTimeProvider>
-        <FeatureFlagsProvider>
-          <PreferencesProvider>
-            <CredentialsProvider>
-              <Suspense>
-                <AppRoutes />
-              </Suspense>
-            </CredentialsProvider>
-          </PreferencesProvider>
-        </FeatureFlagsProvider>
-      </CurrentTimeProvider>
+      <FeatureFlagsProvider>
+        <PreferencesProvider>
+          <CredentialsProvider>
+            <Suspense>
+              <AppRoutes />
+            </Suspense>
+          </CredentialsProvider>
+        </PreferencesProvider>
+      </FeatureFlagsProvider>
     </RelayEnvironmentProvider>
   );
 }
