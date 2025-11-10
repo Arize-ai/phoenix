@@ -1009,6 +1009,10 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-menu-item-background-color-hover: var(
       --ac-global-color-grey-300
     );
+    --ac-global-menu-split-item-content-gap: var(
+      --ac-global-dimension-static-size-300
+    );
+    --ac-global-menu-item-gap: var(--ac-global-dimension-static-size-50);
 
     // Styles for buttons
     --ac-global-button-primary-background-color: var(
