@@ -62,6 +62,15 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT_IN_SECONDS = 60
 
 
+class _TaskFailure:
+    """Sentinel value indicating a task execution failed and should be retried."""
+
+    pass
+
+
+_TASK_FAILURE = _TaskFailure()
+
+
 class SpanModifier:
     """A class that modifies spans with the specified resource attributes."""
 
@@ -1671,30 +1680,19 @@ class Experiments:
 
         # Check if we have a cached result
         if cache_key in task_result_cache:
-            output = task_result_cache[cache_key]
-            cached_exp_run: ExperimentRun = {
-                "dataset_example_id": example["id"],
-                "output": output,
-                "repetition_number": repetition_number,
-                "start_time": datetime.now(timezone.utc).isoformat(),
-                "end_time": datetime.now(timezone.utc).isoformat(),
-                "id": f"temp-{random.randint(1000, 9999)}",
-                "experiment_id": experiment["id"],
-            }
-            if not dry_run:
-                try:
-                    resp = self._client.post(
-                        f"v1/experiments/{experiment['id']}/runs",
-                        json=cached_exp_run,
-                        timeout=timeout,
-                    )
-                    resp.raise_for_status()
-                    cached_exp_run = {**cached_exp_run, "id": resp.json()["data"]["id"]}
-                except HTTPStatusError as e:
-                    if e.response.status_code == 409:
-                        return None
-                    raise
-            return cached_exp_run
+            cached_value = task_result_cache[cache_key]
+            if cached_value is not _TASK_FAILURE:
+                output = cached_value
+                cached_exp_run: ExperimentRun = {
+                    "dataset_example_id": example["id"],
+                    "output": output,
+                    "repetition_number": repetition_number,
+                    "start_time": datetime.now(timezone.utc).isoformat(),
+                    "end_time": datetime.now(timezone.utc).isoformat(),
+                    "id": f"temp-{random.randint(1000, 9999)}",
+                    "experiment_id": experiment["id"],
+                }
+                return cached_exp_run
 
         output = None
         error: Optional[BaseException] = None
@@ -1727,6 +1725,7 @@ class Experiments:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
+                task_result_cache[cache_key] = _TASK_FAILURE
                 _print_experiment_error(
                     exc,
                     example_id=example["id"],
@@ -1784,8 +1783,14 @@ class Experiments:
                     task_result_cache[cache_key] = output
             except HTTPStatusError as e:
                 if e.response.status_code == 409:
-                    return None
-                raise
+                    # Run already exists on server, but our local data is valid
+                    pass
+                else:
+                    raise
+
+        # Re-raise exception if task failed
+        if error is not None:
+            raise error
 
         return exp_run
 
@@ -3390,30 +3395,19 @@ class AsyncExperiments:
 
         # Check if we have a cached result
         if cache_key in task_result_cache:
-            output = task_result_cache[cache_key]
-            cached_exp_run: ExperimentRun = {
-                "dataset_example_id": example["id"],
-                "output": output,
-                "repetition_number": repetition_number,
-                "start_time": datetime.now(timezone.utc).isoformat(),
-                "end_time": datetime.now(timezone.utc).isoformat(),
-                "id": f"temp-{random.randint(1000, 9999)}",
-                "experiment_id": experiment["id"],
-            }
-            if not dry_run:
-                try:
-                    resp = await self._client.post(
-                        f"v1/experiments/{experiment['id']}/runs",
-                        json=cached_exp_run,
-                        timeout=timeout,
-                    )
-                    resp.raise_for_status()
-                    cached_exp_run = {**cached_exp_run, "id": resp.json()["data"]["id"]}
-                except HTTPStatusError as e:
-                    if e.response.status_code == 409:
-                        return None
-                    raise
-            return cached_exp_run
+            cached_value = task_result_cache[cache_key]
+            if cached_value is not _TASK_FAILURE:
+                output = cached_value
+                cached_exp_run: ExperimentRun = {
+                    "dataset_example_id": example["id"],
+                    "output": output,
+                    "repetition_number": repetition_number,
+                    "start_time": datetime.now(timezone.utc).isoformat(),
+                    "end_time": datetime.now(timezone.utc).isoformat(),
+                    "id": f"temp-{random.randint(1000, 9999)}",
+                    "experiment_id": experiment["id"],
+                }
+                return cached_exp_run
 
         output = None
         error: Optional[BaseException] = None
@@ -3443,6 +3437,7 @@ class AsyncExperiments:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
+                task_result_cache[cache_key] = _TASK_FAILURE
                 _print_experiment_error(
                     exc,
                     example_id=example["id"],
@@ -3500,8 +3495,14 @@ class AsyncExperiments:
                     task_result_cache[cache_key] = output
             except HTTPStatusError as e:
                 if e.response.status_code == 409:
-                    return None
-                raise
+                    # Run already exists on server, but our local data is valid
+                    pass
+                else:
+                    raise
+
+        # Re-raise exception if task failed
+        if error is not None:
+            raise error
 
         return exp_run
 
