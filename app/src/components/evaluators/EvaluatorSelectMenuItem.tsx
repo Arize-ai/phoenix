@@ -27,7 +27,9 @@ export function EvaluatorSelectMenuItem({
   const { name, kind, alreadyAdded } = evaluator;
 
   const [isHovered, setIsHovered] = useState(false);
-  const showAlreadyAddedState = alreadyAdded && isHovered && !isSelected;
+  const showAlreadyAddedState = Boolean(
+    alreadyAdded && isHovered && !isSelected
+  );
 
   const onMouseEnter = () => {
     setIsHovered(true);
@@ -80,17 +82,78 @@ export function EvaluatorSelectMenuItem({
         `}
       >
         {icon}
-        <Text
-          color="inherit"
-          css={css`
-            overflow: hidden;
-          `}
-        >
-          <Truncate maxWidth="100%">
-            {showAlreadyAddedState ? "Already added" : name}
-          </Truncate>
-        </Text>
+        <StableWidthText
+          primaryText={name}
+          secondaryText="Already added"
+          showSecondary={showAlreadyAddedState}
+        />
       </Flex>
     </MenuItem>
+  );
+}
+
+/**
+ * Prevents menu flicker when toggling between two text values by maintaining a stable width.
+ * Uses absolute positioning to swap visibility, with a hidden grid underneath to reserve
+ * space for whichever text is wider.
+ */
+function StableWidthText({
+  primaryText,
+  secondaryText,
+  showSecondary,
+}: {
+  primaryText: string;
+  secondaryText: string;
+  showSecondary: boolean;
+}) {
+  return (
+    <Text
+      color="inherit"
+      css={css`
+        overflow: hidden;
+        position: relative;
+      `}
+    >
+      <span
+        css={css`
+          position: absolute;
+          max-width: 100%;
+          visibility: ${showSecondary ? "hidden" : "visible"};
+        `}
+      >
+        <Truncate maxWidth="100%">{primaryText}</Truncate>
+      </span>
+      <span
+        css={css`
+          position: absolute;
+          max-width: 100%;
+          visibility: ${showSecondary ? "visible" : "hidden"};
+        `}
+      >
+        <Truncate maxWidth="100%">{secondaryText}</Truncate>
+      </span>
+      <span
+        aria-hidden="true"
+        css={css`
+          display: grid;
+          visibility: hidden;
+        `}
+      >
+        <span
+          css={css`
+            grid-area: 1 / 1;
+          `}
+        >
+          <Truncate maxWidth="100%">{primaryText}</Truncate>
+        </span>
+        <span
+          css={css`
+            grid-area: 1 / 1;
+          `}
+        >
+          <Truncate maxWidth="100%">{secondaryText}</Truncate>
+        </span>
+      </span>
+    </Text>
   );
 }

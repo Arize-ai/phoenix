@@ -102,8 +102,33 @@ export const WithAlreadyAddedEvaluators = {
   args: {
     evaluators: sampleEvaluators.map((evaluator) => ({
       ...evaluator,
-      alreadyAdded: evaluator.id === "2" || evaluator.id === "5",
+      alreadyAdded: evaluator.id === "2" || evaluator.id === "4",
     })),
+    addNewEvaluatorLink: "",
+  },
+};
+
+/**
+ * Story showing evaluators with very short names
+ */
+export const WithVeryShortNames = {
+  args: {
+    evaluators: [
+      {
+        id: "1",
+        name: "A",
+        kind: "CODE",
+        alreadyAdded: true,
+        annotationName: "A",
+      },
+      {
+        id: "2",
+        name: "B",
+        kind: "CODE",
+        alreadyAdded: false,
+        annotationName: "B",
+      },
+    ],
     addNewEvaluatorLink: "",
   },
 };
