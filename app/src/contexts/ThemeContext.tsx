@@ -125,8 +125,10 @@ export function ThemeProvider(
   useEffect(() => {
     // When the theme changes, set a class on the body to override the default theme
     document.body.classList.add(`ac-theme--${theme}`);
+    document.body.classList.add(`ac-theme`);
     return () => {
       document.body.classList.remove(`ac-theme--${theme}`);
+      document.body.classList.remove(`ac-theme`);
     };
   }, [theme]);
 
