@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ff9f93560025e5ca8dea31c92ab4c9a>>
+ * @generated SignedSource<<e5fbd224a4e034821524e620f8ec2c2a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -64,14 +64,17 @@ export type PlaygroundOutputSubscription$data = {
   readonly chatCompletion: {
     readonly __typename: "ChatCompletionSubscriptionError";
     readonly message: string;
+    readonly repetitionNumber: number | null;
   } | {
     readonly __typename: "ChatCompletionSubscriptionResult";
+    readonly repetitionNumber: number | null;
     readonly span: {
       readonly id: string;
     } | null;
   } | {
     readonly __typename: "TextChunk";
     readonly content: string;
+    readonly repetitionNumber: number | null;
   } | {
     readonly __typename: "ToolCallChunk";
     readonly function: {
@@ -79,6 +82,7 @@ export type PlaygroundOutputSubscription$data = {
       readonly name: string;
     };
     readonly id: string;
+    readonly repetitionNumber: number | null;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -102,10 +106,17 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "repetitionNumber",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v2 = [
+v3 = [
   {
     "alias": null,
     "args": [
@@ -130,6 +141,7 @@ v2 = [
       {
         "kind": "InlineFragment",
         "selections": [
+          (v1/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -144,6 +156,7 @@ v2 = [
       {
         "kind": "InlineFragment",
         "selections": [
+          (v2/*: any*/),
           (v1/*: any*/),
           {
             "alias": null,
@@ -177,6 +190,7 @@ v2 = [
       {
         "kind": "InlineFragment",
         "selections": [
+          (v1/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -185,7 +199,7 @@ v2 = [
             "name": "span",
             "plural": false,
             "selections": [
-              (v1/*: any*/)
+              (v2/*: any*/)
             ],
             "storageKey": null
           }
@@ -196,6 +210,7 @@ v2 = [
       {
         "kind": "InlineFragment",
         "selections": [
+          (v1/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -217,7 +232,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundOutputSubscription",
-    "selections": (v2/*: any*/),
+    "selections": (v3/*: any*/),
     "type": "Subscription",
     "abstractKey": null
   },
@@ -226,19 +241,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "PlaygroundOutputSubscription",
-    "selections": (v2/*: any*/)
+    "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "aca7bf342ad2dc5db66b07e236a68268",
+    "cacheID": "17c4f2d8937217a1c3aa5eb74609947c",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    ... on TextChunk {\n      repetitionNumber\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      repetitionNumber\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      repetitionNumber\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bb5936a61a0e99dbb4a298a6e552a01c";
+(node as any).hash = "028f9b2c8720676ee8f3deee276d1fe4";
 
 export default node;

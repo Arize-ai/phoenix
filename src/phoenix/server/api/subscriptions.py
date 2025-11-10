@@ -68,7 +68,6 @@ from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
-from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.template_formatters import (
@@ -93,6 +92,109 @@ ChatCompletionResult: TypeAlias = tuple[
     DatasetExampleID, Optional[models.Span], models.ExperimentRun
 ]
 ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
+
+
+async def _stream_single_chat_completion(
+    *,
+    input: ChatCompletionInput,
+    llm_client: PlaygroundStreamingClient,
+    info: Info[Context, None],
+    project_id: int,
+    repetition_number: int,
+    results: asyncio.Queue[tuple[Optional[models.Span], int]],
+) -> ChatStream:
+    """
+    Streams a single chat completion and queues the result for batch writing.
+    """
+    messages = [
+        (
+            message.role,
+            message.content,
+            message.tool_call_id if isinstance(message.tool_call_id, str) else None,
+            message.tool_calls if isinstance(message.tool_calls, list) else None,
+        )
+        for message in input.messages
+    ]
+    attributes = None
+    if template_options := input.template:
+        messages = list(
+            _formatted_messages(
+                messages=messages,
+                template_format=template_options.format,
+                template_variables=template_options.variables,
+            )
+        )
+        attributes = {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
+    invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
+    async with streaming_llm_span(
+        input=input,
+        messages=messages,
+        invocation_parameters=invocation_parameters,
+        attributes=attributes,
+    ) as span:
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages, tools=input.tools or [], **invocation_parameters
+        ):
+            span.add_response_chunk(chunk)
+            chunk.repetition_number = repetition_number
+            yield chunk
+        span.set_attributes(llm_client.attributes)
+    if span.status_message is not None:
+        yield ChatCompletionSubscriptionError(
+            message=span.status_message,
+            repetition_number=repetition_number,
+        )
+
+    db_trace = get_db_trace(span, project_id)
+    db_span = get_db_span(span, db_trace)
+    await results.put((db_span, repetition_number))
+
+
+async def _chat_completion_span_result_payloads(
+    *,
+    db: DbSessionFactory,
+    results: Sequence[tuple[Optional[models.Span], int]],
+    span_cost_calculator: SpanCostCalculator,
+) -> ChatStream:
+    """
+    Batch writes spans from chat_completion repetitions.
+    """
+    if not results:
+        return
+    async with db() as session:
+        for span, repetition_number in results:
+            if span:
+                session.add(span)
+                await session.flush()
+                try:
+                    span_cost = span_cost_calculator.calculate_cost(
+                        start_time=span.start_time,
+                        attributes=span.attributes,
+                    )
+                except Exception as e:
+                    logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
+                    span_cost = None
+                if span_cost:
+                    span_cost.span_rowid = span.id
+                    span_cost.trace_rowid = span.trace_rowid
+                    session.add(span_cost)
+        await session.flush()
+    for span, repetition_number in results:
+        if span:
+            yield ChatCompletionSubscriptionResult(
+                span=Span(id=span.id, db_record=span),
+                repetition_number=repetition_number,
+            )
+
+
+def _is_span_result_payloads_stream(
+    stream: ChatStream,
+) -> bool:
+    """
+    Checks if the given generator was instantiated from
+    `_chat_completion_span_result_payloads`
+    """
+    return stream.ag_code == _chat_completion_span_result_payloads.__code__  # type: ignore
 
 
 @strawberry.type
@@ -126,42 +228,6 @@ class Subscription:
                 f"{str(error)}"
             )
 
-        messages = [
-            (
-                message.role,
-                message.content,
-                message.tool_call_id if isinstance(message.tool_call_id, str) else None,
-                message.tool_calls if isinstance(message.tool_calls, list) else None,
-            )
-            for message in input.messages
-        ]
-        attributes = None
-        if template_options := input.template:
-            messages = list(
-                _formatted_messages(
-                    messages=messages,
-                    template_format=template_options.format,
-                    template_variables=template_options.variables,
-                )
-            )
-            attributes = {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
-        invocation_parameters = llm_client.construct_invocation_parameters(
-            input.invocation_parameters
-        )
-        async with streaming_llm_span(
-            input=input,
-            messages=messages,
-            invocation_parameters=invocation_parameters,
-            attributes=attributes,
-        ) as span:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                span.add_response_chunk(chunk)
-                yield chunk
-        span.set_attributes(llm_client.attributes)
-        if span.status_message is not None:
-            yield ChatCompletionSubscriptionError(message=span.status_message)
         async with info.context.db() as session:
             if (
                 playground_project_id := await session.scalar(
@@ -176,25 +242,93 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
-            db_trace = get_db_trace(span, playground_project_id)
-            db_span = get_db_span(span, db_trace)
-            session.add(db_span)
-            await session.flush()
-            try:
-                span_cost = info.context.span_cost_calculator.calculate_cost(
-                    start_time=db_span.start_time,
-                    attributes=span.attributes,
-                )
-            except Exception as e:
-                logger.exception(f"Failed to calculate cost for span {db_span.id}: {e}")
-                span_cost = None
-            if span_cost:
-                span_cost.span_rowid = db_span.id
-                span_cost.trace_rowid = db_span.trace_rowid
-                session.add(span_cost)
 
-        info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
-        yield ChatCompletionSubscriptionResult(span=Span(id=db_span.id, db_record=db_span))
+        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        not_started: list[tuple[int, ChatStream]] = [
+            (
+                repetition_number,
+                _stream_single_chat_completion(
+                    input=input,
+                    llm_client=llm_client,
+                    info=info,
+                    project_id=playground_project_id,
+                    repetition_number=repetition_number,
+                    results=results,
+                ),
+            )
+            for repetition_number in range(1, input.repetitions + 1)
+        ]
+        in_progress: list[
+            tuple[
+                Optional[int],
+                ChatStream,
+                asyncio.Task[ChatCompletionSubscriptionPayload],
+            ]
+        ] = []
+        max_in_progress = 3
+        write_batch_size = 10
+        write_interval = timedelta(seconds=10)
+        last_write_time = datetime.now()
+        while not_started or in_progress:
+            while not_started and len(in_progress) < max_in_progress:
+                rep_num, stream = not_started.pop()
+                task = _create_task_with_timeout(stream)
+                in_progress.append((rep_num, stream, task))
+            async_tasks_to_run = [task for _, _, task in in_progress]
+            completed_tasks, _ = await asyncio.wait(
+                async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
+            )
+            for completed_task in completed_tasks:
+                idx = [task for _, _, task in in_progress].index(completed_task)
+                repetition_number, stream, _ = in_progress[idx]
+                try:
+                    yield completed_task.result()
+                except StopAsyncIteration:
+                    del in_progress[idx]  # removes exhausted stream
+                except asyncio.TimeoutError:
+                    del in_progress[idx]  # removes timed-out stream
+                    if repetition_number is not None:
+                        yield ChatCompletionSubscriptionError(
+                            message="Playground task timed out",
+                            repetition_number=repetition_number,
+                        )
+                except Exception as error:
+                    del in_progress[idx]  # removes failed stream
+                    if repetition_number is not None:
+                        yield ChatCompletionSubscriptionError(
+                            message="An unexpected error occurred",
+                            repetition_number=repetition_number,
+                        )
+                    logger.exception(error)
+                else:
+                    task = _create_task_with_timeout(stream)
+                    in_progress[idx] = (repetition_number, stream, task)
+
+                exceeded_write_batch_size = results.qsize() >= write_batch_size
+                exceeded_write_interval = datetime.now() - last_write_time > write_interval
+                write_already_in_progress = any(
+                    _is_span_result_payloads_stream(stream) for _, stream, _ in in_progress
+                )
+                if (
+                    not results.empty()
+                    and (exceeded_write_batch_size or exceeded_write_interval)
+                    and not write_already_in_progress
+                ):
+                    result_payloads_stream = _chat_completion_span_result_payloads(
+                        db=info.context.db,
+                        results=_drain_no_wait(results),
+                        span_cost_calculator=info.context.span_cost_calculator,
+                    )
+                    task = _create_task_with_timeout(result_payloads_stream)
+                    in_progress.append((None, result_payloads_stream, task))
+                    last_write_time = datetime.now()
+        if remaining_results := await _drain(results):
+            async for result_payload in _chat_completion_span_result_payloads(
+                db=info.context.db,
+                results=remaining_results,
+                span_cost_calculator=info.context.span_cost_calculator,
+            ):
+                yield result_payload
 
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def chat_completion_over_dataset(

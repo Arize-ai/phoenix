@@ -730,7 +730,10 @@ export function transformSpanAttributesToPlaygroundInstance(
               messages,
             }
           : basePlaygroundInstance.template,
-      output,
+      outputByRepetitionNumber: {
+        ...basePlaygroundInstance.outputByRepetitionNumber,
+        ...(output != null && { 1: output }), // set the output for the first repetition
+      },
       spanId: span.id,
       tools: tools ?? basePlaygroundInstance.tools,
     },

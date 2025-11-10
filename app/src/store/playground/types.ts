@@ -128,7 +128,7 @@ export interface PlaygroundInstance {
    */
   toolChoice?: OpenaiToolChoice | AnthropicToolChoice;
   model: ModelConfig;
-  output?: ChatMessage[] | string;
+  outputByRepetitionNumber: Record<number, ChatMessage[] | string | undefined>;
   spanId: string | null;
   activeRunId: number | null;
   /**
@@ -139,6 +139,10 @@ export interface PlaygroundInstance {
    * Details about the prompt hub prompt associated with the instance, if any
    */
   prompt?: PlaygroundInstancePrompt | null;
+  /**
+   * The number of repetitions for the instance
+   */
+  repetitions: number;
 }
 
 /**

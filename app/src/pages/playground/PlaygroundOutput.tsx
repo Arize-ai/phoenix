@@ -7,7 +7,7 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Card, Loading, View } from "@phoenix/components";
+import { Card, Flex, Loading, View } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeSelect,
@@ -30,6 +30,8 @@ import {
   getErrorMessagesFromRelayMutationError,
   getErrorMessagesFromRelaySubscriptionError,
 } from "@phoenix/utils/errorUtils";
+
+import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
 
 import PlaygroundOutputMutation, {
   PlaygroundOutputMutation as PlaygroundOutputMutationType,
@@ -146,22 +148,30 @@ function PlaygroundOutputContent({
   return "click run to see output";
 }
 
-type OutputContent = PlaygroundInstance["output"];
+type OutputContentByRepetitionNumber =
+  PlaygroundInstance["outputByRepetitionNumber"];
+type OutputContent = OutputContentByRepetitionNumber[number];
 
 export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const instanceId = props.playgroundInstanceId;
   const instances = usePlaygroundContext((state) => state.instances);
   const streaming = usePlaygroundContext((state) => state.streaming);
+  const repetitions = usePlaygroundContext((state) => state.repetitions);
   const credentials = useCredentialsContext((state) => state);
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
   );
   const instance = instances.find((instance) => instance.id === instanceId);
+  if (!instance) {
+    throw new Error(`No instance found for id ${instanceId}`);
+  }
+  const instanceHasMultipleRepetitions = instance.repetitions > 1;
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const [outputError, setOutputError] = useState<{
     title: string;
     message?: string;
   } | null>(null);
+  const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
@@ -169,10 +179,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const environment = useRelayEnvironment();
 
   const playgroundStore = usePlaygroundStore();
-
-  if (!instance) {
-    throw new Error(`No instance found for id ${instanceId}`);
-  }
 
   if (instance.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
@@ -199,9 +205,26 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     [notifyErrorToast]
   );
 
-  const [outputContent, setOutputContent] = useState<OutputContent>(
-    instance.output
+  const [outputContentByRepetitionNumber, setOutputContentByRepetitionNumber] =
+    useState<OutputContentByRepetitionNumber>(
+      instance.outputByRepetitionNumber
+    );
+  const outputContent =
+    outputContentByRepetitionNumber[selectedRepetitionNumber];
+
+  const appendOutputContent = useCallback(
+    (repetitionNumber: number, content: string) => {
+      setOutputContentByRepetitionNumber((prev) => {
+        const previousContent = prev[repetitionNumber] ?? "";
+        return {
+          ...prev,
+          [repetitionNumber]: previousContent + content,
+        };
+      });
+    },
+    []
   );
+
   const [toolCalls, setToolCalls] = useState<readonly PartialOutputToolCall[]>(
     []
   );
@@ -211,10 +234,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       setLoading(false);
       if (chatCompletion.__typename === "TextChunk") {
         const content = chatCompletion.content;
-        setOutputContent((prev) => {
-          const newOutput = prev != null ? prev + content : content;
-          return newOutput;
-        });
+        appendOutputContent(chatCompletion.repetitionNumber ?? 1, content);
         return;
       } else if (chatCompletion.__typename === "ToolCallChunk") {
         setToolCalls((toolCalls) => {
@@ -275,6 +295,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       instanceId,
       markPlaygroundInstanceComplete,
       notifyError,
+      appendOutputContent,
       props.playgroundInstanceId,
       updateInstance,
     ]
@@ -308,7 +329,12 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         });
         return;
       }
-      setOutputContent(response.chatCompletion.content ?? undefined);
+      if (response.chatCompletion.content != null) {
+        appendOutputContent(
+          1, // handle repetitions in mutation
+          response.chatCompletion.content
+        );
+      }
       setToolCalls(response.chatCompletion.toolCalls);
     },
     [
@@ -316,12 +342,13 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       markPlaygroundInstanceComplete,
       notifyError,
       props.playgroundInstanceId,
+      appendOutputContent,
       updateInstance,
     ]
   );
 
   const cleanup = useCallback(() => {
-    setOutputContent(undefined);
+    setOutputContentByRepetitionNumber({});
     setToolCalls([]);
     setOutputError(null);
     updateInstance({
@@ -419,24 +446,35 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     notifyError,
     onCompleted,
     onNext,
+    repetitions,
     playgroundStore,
     props.playgroundInstanceId,
     streaming,
     updateInstance,
   ]);
-
+  // console.log({loading, outputError});
   return (
     <Card
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
       extra={
-        outputContent != null || toolCalls?.length > 0 ? (
-          <PlaygroundOutputMoveButton
-            outputContent={outputContent}
-            toolCalls={toolCalls as Mutable<typeof toolCalls>}
-            instance={instance}
-            cleanupOutput={cleanup}
-          />
-        ) : null
+        <Flex direction="row" gap="size-150" alignItems="center">
+          {instanceHasMultipleRepetitions && (
+            <ExperimentRepetitionSelector
+              repetitionNumber={selectedRepetitionNumber}
+              totalRepetitions={instance.repetitions}
+              setRepetitionNumber={setSelectedRepetitionNumber}
+            />
+          )}
+          {(outputContentByRepetitionNumber[selectedRepetitionNumber] != null ||
+            toolCalls?.length > 0) && (
+            <PlaygroundOutputMoveButton
+              outputContent={outputContent}
+              toolCalls={toolCalls as Mutable<typeof toolCalls>}
+              instance={instance}
+              cleanupOutput={cleanup}
+            />
+          )}
+        </Flex>
       }
       collapsible
     >
@@ -475,21 +513,25 @@ graphql`
     chatCompletion(input: $input) {
       __typename
       ... on TextChunk {
+        repetitionNumber
         content
       }
       ... on ToolCallChunk {
         id
+        repetitionNumber
         function {
           name
           arguments
         }
       }
       ... on ChatCompletionSubscriptionResult {
+        repetitionNumber
         span {
           id
         }
       }
       ... on ChatCompletionSubscriptionError {
+        repetitionNumber
         message
       }
     }
