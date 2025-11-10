@@ -39,6 +39,21 @@ export function PlaygroundDatasetSection({
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
       query PlaygroundDatasetSectionQuery($datasetId: ID!, $splitIds: [ID!]) {
+        evaluators {
+          edges {
+            evaluator: node {
+              id
+              name
+              kind
+              isAssignedToDataset(datasetId: $datasetId)
+              ... on LLMEvaluator {
+                outputConfig {
+                  name
+                }
+              }
+            }
+          }
+        }
         dataset: node(id: $datasetId) {
           ... on Dataset {
             name
@@ -47,20 +62,6 @@ export function PlaygroundDatasetSection({
               id
               name
               color
-            }
-            evaluators {
-              edges {
-                evaluator: node {
-                  id
-                  name
-                  kind
-                  ... on LLMEvaluator {
-                    outputConfig {
-                      name
-                    }
-                  }
-                }
-              }
             }
           }
         }
@@ -87,7 +88,7 @@ export function PlaygroundDatasetSection({
   }, [data, splitIds]);
 
   const evaluators =
-    data.dataset.evaluators?.edges?.map((edge) => ({
+    data.evaluators?.edges?.map((edge) => ({
       ...edge.evaluator,
       annotationName: edge.evaluator.outputConfig?.name,
     })) ?? [];
@@ -151,9 +152,7 @@ export function PlaygroundDatasetSection({
                   return [...prev, id];
                 });
               }}
-              addNewEvaluatorLink={prependBasename(
-                `/datasets/${datasetId}/evaluators`
-              )}
+              addNewEvaluatorLink={prependBasename(`/evaluators/new`)}
             />
             {experimentIds.length > 0 && (
               <LinkButton

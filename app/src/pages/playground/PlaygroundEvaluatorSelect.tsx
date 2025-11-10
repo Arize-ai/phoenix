@@ -1,4 +1,11 @@
-import { Autocomplete, Input, useFilter } from "react-aria-components";
+import { useMemo } from "react";
+import {
+  Autocomplete,
+  Collection,
+  Input,
+  MenuSection,
+  useFilter,
+} from "react-aria-components";
 import { css } from "@emotion/react";
 
 import {
@@ -10,6 +17,7 @@ import {
   MenuContainer,
   MenuFooter,
   MenuHeader,
+  MenuSectionTitle,
   MenuTrigger,
   SearchField,
   SearchIcon,
@@ -21,7 +29,7 @@ import {
 } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 
 type PlaygroundEvaluatorSelectProps = {
-  evaluators: EvaluatorItem[];
+  evaluators: (EvaluatorItem & { isAssignedToDataset: boolean })[];
   selectedIds?: string[];
   onSelectionChange: (id: string) => void;
   addNewEvaluatorLink: string;
@@ -33,6 +41,31 @@ export function PlaygroundEvaluatorSelect(
   const { evaluators, selectedIds, onSelectionChange, addNewEvaluatorLink } =
     props;
   const { contains } = useFilter({ sensitivity: "base" });
+
+  const evaluatorSections = useMemo(() => {
+    return evaluators.reduce(
+      (acc, evaluator) => {
+        if (evaluator.isAssignedToDataset) {
+          acc[0].children.push(evaluator);
+        } else {
+          acc[1].children.push(evaluator);
+        }
+        return acc;
+      },
+      [
+        {
+          name: "Mapped to this dataset",
+          id: "mapped",
+          children: [] as EvaluatorItem[],
+        },
+        {
+          name: "Not yet mapped",
+          id: "unmapped",
+          children: [] as EvaluatorItem[],
+        },
+      ]
+    );
+  }, [evaluators]);
 
   return (
     <MenuTrigger>
@@ -50,7 +83,7 @@ export function PlaygroundEvaluatorSelect(
           <Menu
             selectionMode="multiple"
             selectedKeys={selectedIds}
-            items={evaluators}
+            items={evaluatorSections}
             renderEmptyState={() => (
               <Text color="grey-300" size="S">
                 No evaluators found
@@ -60,12 +93,19 @@ export function PlaygroundEvaluatorSelect(
               max-width: 600px;
             `}
           >
-            {(evaluator) => (
-              <EvaluatorSelectMenuItem
-                evaluator={evaluator}
-                onSelectionChange={() => onSelectionChange(evaluator.id)}
-                isSelected={selectedIds?.includes(evaluator.id) ?? false}
-              />
+            {(section) => (
+              <MenuSection aria-label={section.name}>
+                <MenuSectionTitle title={section.name} />
+                <Collection items={section.children}>
+                  {(item) => (
+                    <EvaluatorSelectMenuItem
+                      evaluator={item}
+                      onSelectionChange={() => onSelectionChange(item.id)}
+                      isSelected={selectedIds?.includes(item.id) ?? false}
+                    />
+                  )}
+                </Collection>
+              </MenuSection>
             )}
           </Menu>
         </Autocomplete>

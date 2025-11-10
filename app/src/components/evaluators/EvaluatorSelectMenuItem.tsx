@@ -54,40 +54,8 @@ export function EvaluatorSelectMenuItem({
       isDisabled={alreadyAdded}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-    >
-      <Flex
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        gap="size-300"
-        minWidth={0}
-        flex={1}
-        css={css`
-          opacity: ${alreadyAdded ? "0.25" : 1};
-        `}
-      >
-        <Flex
-          alignItems="center"
-          gap="size-100"
-          css={css`
-            color: var(--ac-global-color-grey-700);
-            font-size: var(--ac-global-font-size-s);
-            overflow: hidden;
-          `}
-        >
-          {icon}
-          <Text
-            color="inherit"
-            css={css`
-              overflow: hidden;
-            `}
-          >
-            <Truncate maxWidth="100%">
-              {showAlreadyAddedState ? "Already added" : name}
-            </Truncate>
-          </Text>
-        </Flex>
-        {evaluator.annotationName && (
+      trailingContent={
+        evaluator.annotationName ? (
           <div
             css={css`
               color: var(--ac-global-color-grey-600);
@@ -99,7 +67,29 @@ export function EvaluatorSelectMenuItem({
               size="XS"
             />
           </div>
-        )}
+        ) : undefined
+      }
+    >
+      <Flex
+        alignItems="center"
+        gap="size-100"
+        css={css`
+          color: var(--ac-global-color-grey-700);
+          font-size: var(--ac-global-font-size-s);
+          overflow: hidden;
+        `}
+      >
+        {icon}
+        <Text
+          color="inherit"
+          css={css`
+            overflow: hidden;
+          `}
+        >
+          <Truncate maxWidth="100%">
+            {showAlreadyAddedState ? "Already added" : name}
+          </Truncate>
+        </Text>
       </Flex>
     </MenuItem>
   );
