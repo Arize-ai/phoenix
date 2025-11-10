@@ -7,3 +7,4 @@ export * from "./SizeContext";
 export * from "./ProjectContext";
 export * from "./PreferencesContext";
 export * from "./ViewerContext";
+export * from "./CurrentTimeContext";

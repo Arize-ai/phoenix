@@ -12,6 +12,7 @@ import {
 } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
+import { useCurrentTime } from "@phoenix/contexts";
 import { TopModelsByCost } from "@phoenix/pages/project/metrics/TopModelsByCost";
 import { TopModelsByToken } from "@phoenix/pages/project/metrics/TopModelsByToken";
 import { TraceErrorsTimeSeries } from "@phoenix/pages/project/metrics/TraceErrorsTimeSeries";
@@ -129,6 +130,7 @@ function useClosedTimeRange(): EpochTimeRange {
 
   // Use a ref to freeze "now" until the context time range actually changes
   const lastTimestampsRef = useRef({ startMs, endMs });
+  // eslint-disable-next-line react-hooks/purity
   const frozenNowMsRef = useRef<number>(Date.now());
 
   // Only update frozen "now" when timestamps actually change
@@ -137,6 +139,7 @@ function useClosedTimeRange(): EpochTimeRange {
     lastTimestampsRef.current.endMs !== endMs
   ) {
     lastTimestampsRef.current = { startMs, endMs };
+    // eslint-disable-next-line react-hooks/purity
     frozenNowMsRef.current = Date.now();
   }
 
