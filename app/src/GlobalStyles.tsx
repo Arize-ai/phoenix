@@ -1100,13 +1100,6 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
   }
 `;
 
-const opacitiesCSS = css`
-  :root,
-  .ac-theme {
-    --ac-opacity-disabled: 0.6;
-  }
-`;
-
 const appGlobalStylesCSS = css`
   body,
   input,
@@ -1195,7 +1188,7 @@ const appGlobalStylesCSS = css`
     --px-nav-collapsed-width: 52px;
     --px-nav-expanded-width: 230px;
 
-    --ac-global-opacity-disabled: 0.6;
+    --ac-global-opacity-disabled: 0.4;
 
     /* Text */
     --ac-global-font-size-xxs: 10px;
@@ -1304,7 +1297,6 @@ export function GlobalStyles() {
         themeCSS,
         derivedCSS(theme),
         mediumRootCSS,
-        opacitiesCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
         chartCSS,

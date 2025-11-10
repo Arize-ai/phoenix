@@ -228,9 +228,6 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         justifyContent="space-between"
                         width="100%"
                         css={css`
-                          opacity: ${isDisabled
-                            ? "var(--ac-global-opacity-disabled)"
-                            : 1};
                           padding-right: ${atLeastOneDatasetHasSplits
                             ? "28px"
                             : undefined}; // right align the examples text if a submenu chevron is present
