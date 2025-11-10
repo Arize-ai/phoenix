@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d6fd217ea6bf4df9220f59dcc472356e>>
+ * @generated SignedSource<<85a064b84ed0ee92989369da9b475952>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ import { FragmentRefs } from "relay-runtime";
 export type UsersTable_users$data = {
   readonly users: {
     readonly edges: ReadonlyArray<{
+      readonly cursor: string;
       readonly user: {
         readonly authMethod: AuthMethod;
         readonly createdAt: string;
@@ -26,6 +27,12 @@ export type UsersTable_users$data = {
         readonly username: string;
       };
     }>;
+    readonly pageInfo: {
+      readonly endCursor: string | null;
+      readonly hasNextPage: boolean;
+      readonly hasPreviousPage: boolean;
+      readonly startCursor: string | null;
+    };
   };
   readonly " $fragmentType": "UsersTable_users";
 };
@@ -36,12 +43,42 @@ export type UsersTable_users$key = {
 
 import UsersTableQuery_graphql from './UsersTableQuery.graphql';
 
-const node: ReaderFragment = {
-  "argumentDefinitions": [],
+const node: ReaderFragment = (function(){
+var v0 = [
+  "users"
+];
+return {
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "after"
+    },
+    {
+      "defaultValue": 10000,
+      "kind": "LocalArgument",
+      "name": "first"
+    }
+  ],
   "kind": "Fragment",
   "metadata": {
+    "connection": [
+      {
+        "count": "first",
+        "cursor": "after",
+        "direction": "forward",
+        "path": (v0/*: any*/)
+      }
+    ],
     "refetch": {
-      "connection": null,
+      "connection": {
+        "forward": {
+          "count": "first",
+          "cursor": "after"
+        },
+        "backward": null,
+        "path": (v0/*: any*/)
+      },
       "fragmentPathInResult": [],
       "operation": UsersTableQuery_graphql
     }
@@ -49,11 +86,11 @@ const node: ReaderFragment = {
   "name": "UsersTable_users",
   "selections": [
     {
-      "alias": null,
+      "alias": "users",
       "args": null,
       "concreteType": "UserConnection",
       "kind": "LinkedField",
-      "name": "users",
+      "name": "__UsersTable_users_connection",
       "plural": false,
       "selections": [
         {
@@ -134,6 +171,70 @@ const node: ReaderFragment = {
                 }
               ],
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "cursor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "User",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "__typename",
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PageInfo",
+          "kind": "LinkedField",
+          "name": "pageInfo",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "endCursor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "hasNextPage",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "hasPreviousPage",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "startCursor",
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -145,7 +246,8 @@ const node: ReaderFragment = {
   "type": "Query",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "acd5e44c43deb927fea733697593c97d";
+(node as any).hash = "d6e2e9ebf1ce3189d71149199a6e7c6c";
 
 export default node;

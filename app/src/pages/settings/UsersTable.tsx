@@ -58,8 +58,13 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
   >(
     graphql`
       fragment UsersTable_users on Query
-      @refetchable(queryName: "UsersTableQuery") {
-        users {
+      @refetchable(queryName: "UsersTableQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 10000 }
+      ) {
+        users(first: $first, after: $after)
+          @connection(key: "UsersTable_users") {
           edges {
             user: node {
               id
@@ -72,6 +77,13 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                 name
               }
             }
+            cursor
+          }
+          pageInfo {
+            endCursor
+            hasNextPage
+            hasPreviousPage
+            startCursor
           }
         }
       }
