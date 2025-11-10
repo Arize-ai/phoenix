@@ -2,7 +2,12 @@
  * A function that converts it to a python friendly string
  */
 function sanitizePythonStr(value: string) {
-  return value.replaceAll("\n", "\\n").replaceAll('"', '\\"');
+  // Escape backslashes FIRST before other escape sequences
+  // Otherwise we would double-escape the backslashes we add for \n and \"
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll("\n", "\\n")
+    .replaceAll('"', '\\"');
 }
 
 /**
