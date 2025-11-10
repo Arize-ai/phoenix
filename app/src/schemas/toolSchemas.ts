@@ -150,6 +150,11 @@ export const awsToolDefinitionJSONSchema = zodToJsonSchema(
   }
 );
 
+export type AnyProviderToolDefinition =
+  | OpenAIToolDefinition
+  | AnthropicToolDefinition
+  | AwsToolDefinition;
+
 /**
  * --------------------------------
  * Conversion Schemas

@@ -6,9 +6,8 @@ import {
   PlaygroundProvider,
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
-import { EvaluatorChatTemplateQuery } from "@phoenix/pages/evaluators/__generated__/EvaluatorChatTemplateQuery.graphql";
-import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/pages/evaluators/templates/defaultEvaluatorTemplate";
-import { transformEvaluatorTemplateToPlaygroundInstance } from "@phoenix/pages/evaluators/templates/evaluatorTemplateUtils";
+import { EvaluatorChatTemplateQuery } from "@phoenix/pages/evaluators/EvaluatorChatTemplate/__generated__/EvaluatorChatTemplateQuery.graphql";
+import { makeLLMEvaluatorInstance } from "@phoenix/pages/evaluators/EvaluatorChatTemplate/utils";
 import { NoInstalledProvider } from "@phoenix/pages/playground/NoInstalledProvider";
 import { PlaygroundTemplate } from "@phoenix/pages/playground/PlaygroundTemplate";
 
@@ -35,18 +34,19 @@ export const EvaluatorChatTemplateProvider = ({
     (provider) => provider.dependenciesInstalled
   );
 
+  const defaultInstances = useMemo(
+    () => makeLLMEvaluatorInstance(modelConfigByProvider),
+    [modelConfigByProvider]
+  );
+
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
   }
 
   return (
     <PlaygroundProvider
+      instances={defaultInstances}
       modelConfigByProvider={modelConfigByProvider}
-      instances={[
-        transformEvaluatorTemplateToPlaygroundInstance(
-          DEFAULT_EVALUATOR_TEMPLATE
-        ),
-      ]}
     >
       {children}
     </PlaygroundProvider>
@@ -61,8 +61,8 @@ export const EvaluatorChatTemplate = () => {
       playgroundInstanceId={instanceId}
       disablePromptSave
       disableResponseFormat
-      disableTools
       disablePromptMenu
+      disableNewTool
     />
   );
 };
