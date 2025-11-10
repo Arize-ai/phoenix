@@ -58,16 +58,27 @@ def validate_consistent_llm_evaluator_and_prompt_version(
         raise ValueError(
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION.value
         )
+
+    function_parameters = prompt_tool_function_definition.parameters
     try:
-        _EvaluatorPromptToolFunctionParameters.model_validate(
-            prompt_tool_function_definition.parameters
-        )
+        _EvaluatorPromptToolFunctionParameters.model_validate(function_parameters)
     except ValidationError as error:
         raise ValueError(
             _parse_pydantic_validation_error(
                 function_name=prompt_tool_function_definition.name,
                 validation_error=error,
             )
+        )
+    function_property_name = next(iter(function_parameters["properties"].keys()))
+    if function_property_name != evaluator.annotation_name:
+        raise ValueError(
+            _LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME.value
+        )
+    function_property_choices = function_parameters["properties"][function_property_name]["enum"]
+    evaluator_choices = [value.label for value in evaluator.output_config.values]
+    if set(function_property_choices) != set(evaluator_choices):
+        raise ValueError(
+            _LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM.value
         )
 
 
@@ -116,9 +127,11 @@ def _parse_pydantic_validation_error(
 ) -> str:
     error_messages = [f"'{function_name}' function has errors."]
     for error_details in validation_error.errors():
-        path = ".".join(map(str, error_details["loc"]))
+        error_message = ""
+        if path := ".".join(map(str, error_details["loc"])):
+            error_message = f"At '{path}': "
         error_details_message = error_details["msg"]
-        error_message = f"At '{path}': {error_details_message}."
+        error_message += f"{error_details_message}."
         error_messages.append(error_message)
     return " ".join(error_messages)
 
@@ -139,3 +152,9 @@ class _LLMEvaluatorPromptErrorMessage(Enum):
     REQUIRED_VALUES_MUST_BE_UNIQUE = "Required values must be unique"
     ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED = "All defined properties must be required"
     ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED = "All required properties must be defined"
+    EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME = (
+        "Evaluator annotation name must match function parameters property name"
+    )
+    EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM = (
+        "Evaluator choices must match function parameters property enum"
+    )

@@ -381,6 +381,43 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
+    def test_annotation_name_mismatch_raises(
+        self,
+        llm_evaluator: models.LLMEvaluator,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        assert prompt_version.tools is not None
+        prompt_version.tools.tools[0].function.parameters = {
+            "type": "object",
+            "properties": {
+                "different_name": {
+                    "type": "string",
+                    "enum": ["correct", "incorrect"],
+                }
+            },
+            "required": ["different_name"],
+        }
+        with pytest.raises(
+            ValueError,
+            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME.value,
+        ):
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+
+    def test_choices_mismatch_raises(
+        self,
+        llm_evaluator: models.LLMEvaluator,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        assert prompt_version.tools is not None
+        prompt_version.tools.tools[0].function.parameters["properties"]["correctness"][
+            "enum"
+        ].append("neutral")
+        with pytest.raises(
+            ValueError,
+            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM.value,
+        ):
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+
 
 @pytest.fixture
 def llm_evaluator() -> models.LLMEvaluator:
