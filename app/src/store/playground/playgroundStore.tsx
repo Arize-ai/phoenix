@@ -33,6 +33,7 @@ import {
   PlaygroundInstance,
   PlaygroundNormalizedChatTemplate,
   PlaygroundNormalizedInstance,
+  PlaygroundRepetitionOutput,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
 } from "./types";
@@ -139,7 +140,6 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
     outputByRepetitionNumber: {},
-    spanIdByRepetitionNumber: {},
     activeRunId: null,
   }) satisfies Partial<PlaygroundInstance>;
 
@@ -334,7 +334,10 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             id: generateInstanceId(),
             activeRunId: null,
             experimentId: null,
-            spanIdByRepetitionNumber: {},
+            outputByRepetitionNumber: {} as Record<
+              number,
+              PlaygroundRepetitionOutput
+            >,
           },
         ],
       });
@@ -664,7 +667,10 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           spanId: null, // Clear out the span when (re)running
           repetitions,
           outputByRepetitionNumber: Object.fromEntries(
-            Array.from({ length: repetitions }, (_, i) => [i + 1, undefined]) // initialize all outputs to undefined
+            Array.from({ length: repetitions }, (_, i) => [
+              i + 1,
+              { output: null, spanId: null },
+            ])
           ),
         })),
       });

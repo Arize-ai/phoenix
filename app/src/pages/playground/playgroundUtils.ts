@@ -34,6 +34,7 @@ import {
   PlaygroundInput,
   PlaygroundInstance,
   PlaygroundNormalizedInstance,
+  PlaygroundRepetitionOutput,
   PlaygroundStore,
   Tool,
 } from "@phoenix/store/playground";
@@ -616,6 +617,15 @@ export function getPromptTemplateVariablesFromAttributes(
   };
 }
 
+function getRepetitionOutputFromOutput(
+  output: string | ChatMessage[] | null | undefined
+): PlaygroundRepetitionOutput {
+  return {
+    output: output ?? null,
+    spanId: null,
+  };
+}
+
 /**
  * Takes a  {@link PlaygroundSpan|Span} and attempts to transform it's attributes into various fields on a {@link PlaygroundInstance}.
  * @param span the {@link PlaygroundSpan|Span} to transform into a playground instance
@@ -649,8 +659,8 @@ export function transformSpanAttributesToPlaygroundInstance(
     return {
       playgroundInstance: {
         ...basePlaygroundInstance,
-        spanIdByRepetitionNumber: {
-          1: span?.id ?? null,
+        outputByRepetitionNumber: {
+          1: { output: null, spanId: span?.id ?? null },
         },
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
@@ -720,7 +730,7 @@ export function transformSpanAttributesToPlaygroundInstance(
   });
 
   // TODO(parker): add support for prompt template variables
-  // https://github.com/Arize-ai/phoenix/issues/4886
+  // https://github.com/Arize-ai/phoenix/issues/4886:w
   return {
     playgroundInstance: {
       ...basePlaygroundInstance,
@@ -734,10 +744,9 @@ export function transformSpanAttributesToPlaygroundInstance(
           : basePlaygroundInstance.template,
       outputByRepetitionNumber: {
         ...basePlaygroundInstance.outputByRepetitionNumber,
-        ...(output != null && { 1: output }), // set the output for the first repetition
-      },
-      spanIdByRepetitionNumber: {
-        1: span.id,
+        ...(output != null
+          ? { 1: getRepetitionOutputFromOutput(output) }
+          : { 1: { output: null, spanId: null } }),
       },
       tools: tools ?? basePlaygroundInstance.tools,
     },

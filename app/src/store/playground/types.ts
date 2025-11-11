@@ -109,6 +109,10 @@ export type PlaygroundInstancePrompt = {
   tag: string | null;
 };
 
+export type PlaygroundRepetitionOutput = {
+  output: ChatMessage[] | string | null;
+  spanId: string | null;
+};
 /**
  * A single instance of the playground that has
  * - a template
@@ -128,8 +132,10 @@ export interface PlaygroundInstance {
    */
   toolChoice?: OpenaiToolChoice | AnthropicToolChoice;
   model: ModelConfig;
-  outputByRepetitionNumber: Record<number, ChatMessage[] | string | undefined>;
-  spanIdByRepetitionNumber: Record<number, string | null>;
+  outputByRepetitionNumber: Record<
+    number,
+    PlaygroundRepetitionOutput | undefined
+  >;
   activeRunId: number | null;
   /**
    * The id of the experiment associated with the last playground run on the instance if any
