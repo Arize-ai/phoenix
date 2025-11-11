@@ -20,13 +20,13 @@ import { getChatRole } from "./playgroundUtils";
 
 export const PlaygroundOutputMoveButton = ({
   instance,
-  outputContent,
+  output,
   toolCalls,
   cleanupOutput,
   isDisabled,
 }: {
   instance: PlaygroundNormalizedInstance;
-  outputContent?: string | ChatMessage[];
+  output?: string | ChatMessage[] | null | undefined;
   toolCalls: PartialOutputToolCall[];
   cleanupOutput: () => void;
   isDisabled: boolean;
@@ -44,14 +44,14 @@ export const PlaygroundOutputMoveButton = ({
           if (instance.template.__type !== "chat") {
             return;
           }
-          const messages = Array.isArray(outputContent)
-            ? outputContent
-            : outputContent
+          const messages = Array.isArray(output)
+            ? output
+            : output
               ? [
                   {
                     id: generateMessageId(),
                     role: getChatRole("ai"),
-                    content: outputContent,
+                    content: output,
                   },
                 ]
               : [];
