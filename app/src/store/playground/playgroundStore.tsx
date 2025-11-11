@@ -138,7 +138,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
-    outputByRepetitionNumber: { 1: undefined },
+    outputByRepetitionNumber: {},
     spanIdByRepetitionNumber: {},
     activeRunId: null,
   }) satisfies Partial<PlaygroundInstance>;
