@@ -56,7 +56,6 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
           >
             {/* eslint-disable-next-line react-hooks/incompatible-library */}
             <Token color={watch("color")}>
-              {}
               {watch("name") || "label preview"}
             </Token>
           </Flex>
