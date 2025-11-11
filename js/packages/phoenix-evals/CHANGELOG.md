@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.3.1
+
+### Patch Changes
+
+- a756a95: fix Mustache.render by disabling HTML escape
+
 ## 0.3.0
 
 ### Minor Changes
