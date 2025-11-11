@@ -172,6 +172,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     message?: string;
   } | null>(null);
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
+  const spanId: string | null | undefined =
+    instance.spanIdByRepetitionNumber[selectedRepetitionNumber];
 
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
@@ -300,10 +302,19 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         chatCompletion.__typename === "ChatCompletionSubscriptionResult" &&
         chatCompletion.span != null
       ) {
+        const instance = playgroundStore
+          .getState()
+          .instances.find((inst) => inst.id === instanceId);
+        if (instance == null || chatCompletion.repetitionNumber == null) {
+          return;
+        }
         updateInstance({
           instanceId,
           patch: {
-            spanId: chatCompletion.span.id,
+            spanIdByRepetitionNumber: {
+              ...instance.spanIdByRepetitionNumber,
+              [chatCompletion.repetitionNumber]: chatCompletion.span.id,
+            },
           },
           dirty: null,
         });
@@ -323,6 +334,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       instanceId,
       markPlaygroundInstanceComplete,
       notifyError,
+      playgroundStore,
       appendOutputContent,
       props.playgroundInstanceId,
       setLoading,
@@ -337,10 +349,19 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     ) => {
       setLoading(1, false); // handle repetitions in mutation
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
+      const instance = playgroundStore
+        .getState()
+        .instances.find((inst) => inst.id === instanceId);
+      if (instance == null) {
+        return;
+      }
       updateInstance({
         instanceId,
         patch: {
-          spanId: response.chatCompletion.span.id,
+          spanIdByRepetitionNumber: {
+            ...instance.spanIdByRepetitionNumber,
+            [1]: response.chatCompletion.span.id,
+          },
         },
         dirty: null,
       });
@@ -373,6 +394,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       instanceId,
       markPlaygroundInstanceComplete,
       notifyError,
+      playgroundStore,
       props.playgroundInstanceId,
       appendOutputContent,
       setLoading,
@@ -384,14 +406,23 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     setOutputContentByRepetitionNumber({});
     setToolCallsByRepetitionNumber({});
     setOutputError(null);
+    const instance = playgroundStore
+      .getState()
+      .instances.find((inst) => inst.id === instanceId);
+    if (instance == null) {
+      return;
+    }
     updateInstance({
       instanceId,
       patch: {
-        spanId: null,
+        spanIdByRepetitionNumber: {
+          ...instance.spanIdByRepetitionNumber,
+          [1]: null,
+        },
       },
       dirty: null,
     });
-  }, [instanceId, updateInstance]);
+  }, [instanceId, playgroundStore, updateInstance]);
 
   useEffect(() => {
     if (!runInProgress) {
@@ -547,9 +578,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             </MarkdownDisplayProvider>
           </View>
           <Suspense>
-            {instance.spanId ? (
-              <RunMetadataFooter spanId={instance.spanId} />
-            ) : null}
+            {spanId ? <RunMetadataFooter spanId={spanId} /> : null}
           </Suspense>
         </>
       )}

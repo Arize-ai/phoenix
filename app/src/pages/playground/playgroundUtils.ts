@@ -649,7 +649,9 @@ export function transformSpanAttributesToPlaygroundInstance(
     return {
       playgroundInstance: {
         ...basePlaygroundInstance,
-        spanId: span?.id ?? null,
+        spanIdByRepetitionNumber: {
+          1: span?.id ?? null,
+        },
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     };
@@ -734,7 +736,9 @@ export function transformSpanAttributesToPlaygroundInstance(
         ...basePlaygroundInstance.outputByRepetitionNumber,
         ...(output != null && { 1: output }), // set the output for the first repetition
       },
-      spanId: span.id,
+      spanIdByRepetitionNumber: {
+        1: span.id,
+      },
       tools: tools ?? basePlaygroundInstance.tools,
     },
     playgroundInput:

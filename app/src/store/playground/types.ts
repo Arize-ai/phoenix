@@ -129,7 +129,7 @@ export interface PlaygroundInstance {
   toolChoice?: OpenaiToolChoice | AnthropicToolChoice;
   model: ModelConfig;
   outputByRepetitionNumber: Record<number, ChatMessage[] | string | undefined>;
-  spanId: string | null;
+  spanIdByRepetitionNumber: Record<number, string | null>;
   activeRunId: number | null;
   /**
    * The id of the experiment associated with the last playground run on the instance if any

@@ -139,7 +139,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
     outputByRepetitionNumber: { 1: undefined },
-    spanId: null,
+    spanIdByRepetitionNumber: {},
     activeRunId: null,
   }) satisfies Partial<PlaygroundInstance>;
 
@@ -334,7 +334,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             id: generateInstanceId(),
             activeRunId: null,
             experimentId: null,
-            spanId: null,
+            spanIdByRepetitionNumber: {},
           },
         ],
       });
