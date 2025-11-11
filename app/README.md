@@ -34,7 +34,7 @@ Depending on what flows you are trying to build features for, you may want to ad
 
 The following environment variables can be configured in your `.env` file:
 
-- **`PHOENIX_USE_REACT_COMPILER`**: Enable or disable the React Compiler for improved performance. Set to `True` (capital T) to enable, or omit/leave unset to disable. The React Compiler can improve performance but may introduce new errors, so proceed with caution when enabling it.
+- **`PHOENIX_ENABLE_REACT_COMPILER`**: Enable or disable the React Compiler for improved performance. Set to `True` (capital T) to enable, or omit/leave unset to disable. The React Compiler can improve performance but may introduce new errors, so proceed with caution when enabling it.
 
 ### Authentication
 
