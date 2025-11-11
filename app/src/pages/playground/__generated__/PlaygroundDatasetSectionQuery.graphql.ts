@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<090bc329ecc0c1b009f22576d3bd23f8>>
+ * @generated SignedSource<<d7ab6bbbc5b5209d5d24ab1d2b6edf1e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type EvaluatorKind = "CODE" | "LLM";
 export type PlaygroundDatasetSectionQuery$variables = {
   datasetId: string;
@@ -23,6 +24,7 @@ export type PlaygroundDatasetSectionQuery$data = {
       readonly id: string;
       readonly name: string;
     }>;
+    readonly " $fragmentSpreads": FragmentRefs<"EvaluatorConfigDialog_dataset">;
   };
   readonly evaluators: {
     readonly edges: ReadonlyArray<{
@@ -216,7 +218,12 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*: any*/)
+          (v6/*: any*/),
+          {
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "EvaluatorConfigDialog_dataset"
+          }
         ],
         "storageKey": null
       }
@@ -297,24 +304,24 @@ return {
         "plural": false,
         "selections": [
           (v7/*: any*/),
-          (v6/*: any*/),
-          (v1/*: any*/)
+          (v1/*: any*/),
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "51a9e0a0760c4f5f14b6f79e54469009",
+    "cacheID": "4882eb588fc8b57622cf0ff0ea645eb2",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  evaluators {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $datasetId)\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  evaluators {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $datasetId)\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n    }\n    ...EvaluatorConfigDialog_dataset\n    id\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n"
   }
 };
 })();
 
-(node as any).hash = "db2cdff964023d6d85e6a8bc412374ed";
+(node as any).hash = "2f503a4a49b55157153d6e457a836c8b";
 
 export default node;

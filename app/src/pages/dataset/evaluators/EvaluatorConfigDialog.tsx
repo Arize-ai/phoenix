@@ -7,8 +7,6 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
-import { useLoaderData } from "react-router";
-import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
@@ -36,7 +34,6 @@ import {
   EvaluatorConfigDialog_evaluatorQuery$data,
 } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_evaluatorQuery.graphql";
 import { EvaluatorConfigDialogAssignEvaluatorToDatasetMutation } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialogAssignEvaluatorToDatasetMutation.graphql";
-import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import {
   EvaluatorInputMapping,
   InputMapping,
@@ -49,13 +46,16 @@ type OutputConfig = NonNullable<
   EvaluatorConfigDialog_evaluatorQuery$data["evaluator"]["outputConfig"]
 >;
 
+// TODO: move to components
 export function EvaluatorConfigDialog({
   evaluatorId,
   onClose,
+  onEvaluatorAssigned,
   datasetRef,
 }: {
   evaluatorId: string;
   onClose: () => void;
+  onEvaluatorAssigned?: () => void;
   datasetRef: EvaluatorConfigDialog_dataset$key;
 }) {
   return (
@@ -71,6 +71,7 @@ export function EvaluatorConfigDialog({
           <EvaluatorConfigDialogContent
             evaluatorId={evaluatorId}
             onClose={onClose}
+            onEvaluatorAssigned={onEvaluatorAssigned}
             datasetRef={datasetRef}
           />
         </Suspense>
@@ -79,19 +80,19 @@ export function EvaluatorConfigDialog({
   );
 }
 
-export function EvaluatorConfigDialogContent({
+function EvaluatorConfigDialogContent({
   evaluatorId,
   onClose,
+  onEvaluatorAssigned,
   datasetRef,
 }: {
   evaluatorId: string;
   onClose: () => void;
+  onEvaluatorAssigned?: () => void;
   datasetRef: EvaluatorConfigDialog_dataset$key;
 }) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
-  const loaderData = useLoaderData<typeof datasetEvaluatorsLoader>();
-  invariant(loaderData, "loaderData is required");
 
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     null
@@ -215,6 +216,7 @@ export function EvaluatorConfigDialogContent({
         datasetId: dataset.id,
       },
       onCompleted: () => {
+        onEvaluatorAssigned?.();
         notifySuccess({
           title: "Evaluator added",
           message: "The evaluator has been added to the dataset.",
