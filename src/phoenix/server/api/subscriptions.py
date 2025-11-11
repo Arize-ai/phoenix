@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections import deque
 from collections.abc import AsyncIterator, Iterator
 from datetime import datetime, timedelta, timezone
 from typing import (
@@ -243,7 +244,7 @@ class Subscription:
                 )
 
         results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
-        not_started: list[tuple[int, ChatStream]] = [
+        not_started: deque[tuple[int, ChatStream]] = deque(
             (
                 repetition_number,
                 _stream_single_chat_completion(
@@ -255,7 +256,7 @@ class Subscription:
                 ),
             )
             for repetition_number in range(1, input.repetitions + 1)
-        ]
+        )
         in_progress: list[
             tuple[
                 Optional[int],
@@ -269,7 +270,7 @@ class Subscription:
         last_write_time = datetime.now()
         while not_started or in_progress:
             while not_started and len(in_progress) < max_in_progress:
-                rep_num, stream = not_started.pop()
+                rep_num, stream = not_started.popleft()
                 task = _create_task_with_timeout(stream)
                 in_progress.append((rep_num, stream, task))
             async_tasks_to_run = [task for _, _, task in in_progress]
@@ -457,7 +458,7 @@ class Subscription:
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
         results: asyncio.Queue[ChatCompletionResult] = asyncio.Queue()
-        not_started: list[tuple[DatasetExampleID, ChatStream]] = [
+        not_started: deque[tuple[DatasetExampleID, ChatStream]] = deque(
             (
                 GlobalID(DatasetExample.__name__, str(revision.dataset_example_id)),
                 _stream_chat_completion_over_dataset_example(
@@ -472,7 +473,7 @@ class Subscription:
             )
             for revision in revisions
             for repetition_number in range(1, input.repetitions + 1)
-        ]
+        )
         in_progress: list[
             tuple[
                 Optional[DatasetExampleID],
@@ -486,7 +487,7 @@ class Subscription:
         last_write_time = datetime.now()
         while not_started or in_progress:
             while not_started and len(in_progress) < max_in_progress:
-                ex_id, stream = not_started.pop()
+                ex_id, stream = not_started.popleft()
                 task = _create_task_with_timeout(stream)
                 in_progress.append((ex_id, stream, task))
             async_tasks_to_run = [task for _, _, task in in_progress]
