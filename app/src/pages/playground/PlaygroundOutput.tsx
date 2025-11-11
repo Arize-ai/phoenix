@@ -241,8 +241,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   const [toolCallsByRepetitionNumber, setToolCallsByRepetitionNumber] =
     useState<Record<number, readonly PartialOutputToolCall[]>>({});
-  const toolCalls: readonly PartialOutputToolCall[] | undefined =
-    toolCallsByRepetitionNumber[selectedRepetitionNumber];
+  const toolCalls: readonly PartialOutputToolCall[] =
+    toolCallsByRepetitionNumber[selectedRepetitionNumber] || {};
 
   const onNext = useCallback(
     ({ chatCompletion }: PlaygroundOutputSubscription$data) => {
