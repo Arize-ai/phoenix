@@ -1,4 +1,5 @@
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { useMemo } from "react";
+import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
@@ -17,6 +18,7 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
+import { DatasetSelect_dataset$key } from "./__generated__/DatasetSelect_dataset.graphql";
 import { DatasetSelectQuery } from "./__generated__/DatasetSelectQuery.graphql";
 
 type DatasetSelectProps = {
@@ -31,6 +33,19 @@ type DatasetSelectProps = {
   isRequired?: boolean;
 };
 
+const DATASET_SELECT_FRAGMENT = graphql`
+  fragment DatasetSelect_dataset on Dataset @inline {
+    id
+    name
+    exampleCount
+    labels {
+      id
+      name
+      color
+    }
+  }
+`;
+
 export function DatasetSelect(props: DatasetSelectProps) {
   const data = useLazyLoadQuery<DatasetSelectQuery>(
     graphql`
@@ -39,14 +54,7 @@ export function DatasetSelect(props: DatasetSelectProps) {
           @connection(key: "DatasetPicker__datasets") {
           edges {
             dataset: node {
-              id
-              name
-              exampleCount
-              labels {
-                id
-                name
-                color
-              }
+              ...DatasetSelect_dataset
             }
           }
         }
@@ -55,6 +63,18 @@ export function DatasetSelect(props: DatasetSelectProps) {
     {},
     { fetchPolicy: "store-and-network" }
   );
+
+  const datasets = useMemo(
+    () =>
+      data.datasets.edges.map(({ dataset }) => {
+        return readInlineData<DatasetSelect_dataset$key>(
+          DATASET_SELECT_FRAGMENT,
+          dataset
+        );
+      }),
+    [data]
+  );
+
   return (
     <Select
       data-testid="dataset-picker"
@@ -85,7 +105,7 @@ export function DatasetSelect(props: DatasetSelectProps) {
             min-height: auto;
           `}
         >
-          {data.datasets.edges.map(({ dataset }) => {
+          {datasets.map((dataset) => {
             return (
               <SelectItem key={dataset.id} id={dataset.id}>
                 <Flex direction="column" gap="size-100" width="100%">

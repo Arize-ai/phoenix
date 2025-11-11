@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<742edb27afdd72f66674aa13bd453e37>>
+ * @generated SignedSource<<263be913bbcc445382e4982594b21d47>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,19 +9,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type DatasetSelectQuery$variables = Record<PropertyKey, never>;
 export type DatasetSelectQuery$data = {
   readonly datasets: {
     readonly edges: ReadonlyArray<{
       readonly dataset: {
-        readonly exampleCount: number;
-        readonly id: string;
-        readonly labels: ReadonlyArray<{
-          readonly color: string;
-          readonly id: string;
-          readonly name: string;
-        }>;
-        readonly name: string;
+        readonly " $fragmentSpreads": FragmentRefs<"DatasetSelect_dataset">;
       };
     }>;
   };
@@ -46,46 +40,37 @@ v1 = {
   "name": "name",
   "storageKey": null
 },
-v2 = {
-  "alias": "dataset",
-  "args": null,
-  "concreteType": "Dataset",
-  "kind": "LinkedField",
-  "name": "node",
-  "plural": false,
-  "selections": [
-    (v0/*: any*/),
-    (v1/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "exampleCount",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DatasetLabel",
-      "kind": "LinkedField",
-      "name": "labels",
-      "plural": true,
-      "selections": [
-        (v0/*: any*/),
-        (v1/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "color",
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
+v2 = [
+  (v0/*: any*/),
+  (v1/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "exampleCount",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "DatasetLabel",
+    "kind": "LinkedField",
+    "name": "labels",
+    "plural": true,
+    "selections": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "color",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+],
 v3 = {
   "alias": null,
   "args": null,
@@ -155,7 +140,24 @@ return {
             "name": "edges",
             "plural": true,
             "selections": [
-              (v2/*: any*/),
+              {
+                "alias": "dataset",
+                "args": null,
+                "concreteType": "Dataset",
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": [
+                  {
+                    "kind": "InlineDataFragmentSpread",
+                    "name": "DatasetSelect_dataset",
+                    "selections": (v2/*: any*/),
+                    "args": null,
+                    "argumentDefinitions": []
+                  }
+                ],
+                "storageKey": null
+              },
               (v3/*: any*/),
               {
                 "alias": null,
@@ -202,7 +204,16 @@ return {
             "name": "edges",
             "plural": true,
             "selections": [
-              (v2/*: any*/),
+              {
+                "alias": "dataset",
+                "args": null,
+                "concreteType": "Dataset",
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": (v2/*: any*/),
+                "storageKey": null
+              },
               (v3/*: any*/),
               {
                 "alias": null,
@@ -236,7 +247,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e93c9a6139e4afa7840eb6f1318f2f7f",
+    "cacheID": "fff04130b98b951a22dd558022ce4745",
     "id": null,
     "metadata": {
       "connection": [
@@ -252,11 +263,11 @@ return {
     },
     "name": "DatasetSelectQuery",
     "operationKind": "query",
-    "text": "query DatasetSelectQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n        exampleCount\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetSelectQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        ...DatasetSelect_dataset\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment DatasetSelect_dataset on Dataset {\n  id\n  name\n  exampleCount\n  labels {\n    id\n    name\n    color\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0bc5073a96b85b3783e4c23379337775";
+(node as any).hash = "c50a9ca70f0f2beee00480213fef8b58";
 
 export default node;
