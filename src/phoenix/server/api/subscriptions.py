@@ -458,7 +458,7 @@ class Subscription:
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
         results: asyncio.Queue[ChatCompletionResult] = asyncio.Queue()
-        not_started: deque[tuple[DatasetExampleID, ChatStream]] = deque(
+        not_started: list[tuple[DatasetExampleID, ChatStream]] = [
             (
                 GlobalID(DatasetExample.__name__, str(revision.dataset_example_id)),
                 _stream_chat_completion_over_dataset_example(
@@ -472,8 +472,10 @@ class Subscription:
                 ),
             )
             for revision in revisions
-            for repetition_number in range(1, input.repetitions + 1)
-        )
+            for repetition_number in reversed(
+                range(1, input.repetitions + 1)
+            )  # since we pop right, this runs the repetitions in increasing order
+        ]
         in_progress: list[
             tuple[
                 Optional[DatasetExampleID],
@@ -487,7 +489,7 @@ class Subscription:
         last_write_time = datetime.now()
         while not_started or in_progress:
             while not_started and len(in_progress) < max_in_progress:
-                ex_id, stream = not_started.popleft()
+                ex_id, stream = not_started.pop()
                 task = _create_task_with_timeout(stream)
                 in_progress.append((ex_id, stream, task))
             async_tasks_to_run = [task for _, _, task in in_progress]
