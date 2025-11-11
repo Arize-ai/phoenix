@@ -269,6 +269,7 @@ function SimpleExperimentTable({
   experiments?: MockExperiment[];
   displayFullText?: boolean;
 }) {
+  "use no memo";
   const [columnSizing, setColumnSizing] = useState({});
 
   const baseColumns: ColumnDef<MockExperiment>[] = useMemo(
@@ -474,6 +475,7 @@ function SimpleExperimentTable({
     return [...baseColumns, ...experimentColumns];
   }, [baseColumns, experimentColumns]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<MockExperiment>({
     columns,
     data: experiments,

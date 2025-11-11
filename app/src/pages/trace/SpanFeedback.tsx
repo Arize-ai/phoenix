@@ -168,6 +168,7 @@ function SpanAnnotationsTable({
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
   ]);
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
@@ -255,6 +256,7 @@ function SpanAnnotationsTable({
 }
 
 export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
+  "use no memo";
   const data = useFragment(
     graphql`
       fragment SpanFeedback_annotations on Span {

@@ -41,6 +41,7 @@ export function ExamplesTable({
 }: {
   dataset: examplesLoaderQuery$data["dataset"];
 }) {
+  "use no memo";
   const {
     filter,
     selectedExampleIds,
@@ -223,6 +224,7 @@ export function ExamplesTable({
     return cols;
   }, []);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

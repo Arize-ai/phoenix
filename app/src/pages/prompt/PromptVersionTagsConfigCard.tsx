@@ -21,6 +21,7 @@ export function PromptVersionTagsConfigCard({
 }: {
   prompt: PromptVersionTagsConfigCard_data$key;
 }) {
+  "use no memo";
   const data = useFragment(
     graphql`
       fragment PromptVersionTagsConfigCard_data on Prompt {
@@ -96,6 +97,7 @@ export function PromptVersionTagsConfigCard({
     }));
   }, [data]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns,
     data: tableData,

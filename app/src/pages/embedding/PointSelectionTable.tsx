@@ -30,6 +30,7 @@ export function PointSelectionTable({
   data: ModelEvent[];
   onPointSelected: (pointId: string) => void;
 }) {
+  "use no memo";
   const { primaryInferences, referenceInferences } = useInferences();
   const metric = usePointCloudContext((state) => state.metric);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -179,6 +180,7 @@ export function PointSelectionTable({
     return { columns, tableData };
   }, [data, onPointSelected, primaryInferences, referenceInferences, metric]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableDataItem>({
     columns,
     data: tableData,

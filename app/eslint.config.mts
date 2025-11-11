@@ -65,10 +65,8 @@ export default defineConfig([
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
-      // TODO: Re-enable this rule once we've addressed the incompatible library warnings
-      // This rule warns about using APIs from libraries like React Hook Form and TanStack Table
-      // that return functions which cannot be safely memoized by React Compiler
-      "react-hooks/incompatible-library": "off",
+      // this is made an error so that it forces us to validate it works with the react compiler
+      "react-hooks/incompatible-library": "error",
       // TODO: Re-enable this rule once we've addressed the issue with setState in useEffect
       // This rule prevents calling setState in useEffect which can cause unstable results when components re-render
       "react-hooks/set-state-in-effect": "off",

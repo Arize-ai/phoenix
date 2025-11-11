@@ -30,6 +30,7 @@ type NewLabelFormProps = {
   isSubmitting: boolean;
 };
 export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
+  "use no memo";
   const {
     control,
     handleSubmit,
@@ -53,6 +54,7 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
             justifyContent="center"
             width="100%"
           >
+            {/* eslint-disable-next-line react-hooks/incompatible-library */}
             <Token color={watch("color")}>
               {watch("name") || "label preview"}
             </Token>

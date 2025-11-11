@@ -117,6 +117,7 @@ export function ModelsTable({
   kindFilter,
   search,
 }: ModelsTableProps) {
+  "use no memo";
   const data = useFragment(
     graphql`
       fragment ModelsTable_generativeModels on Query
@@ -441,6 +442,7 @@ export function ModelsTable({
     ];
   }, [kindFilter]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

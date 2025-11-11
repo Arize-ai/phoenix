@@ -51,6 +51,7 @@ const isDefaultAdminUser = (user: { email: string; username: string }) =>
   user.email === "admin@localhost" || user.username === "admin";
 
 export function UsersTable({ query }: { query: UsersTable_users$key }) {
+  "use no memo";
   const [dialog, setDialog] = useState<ReactNode>(null);
   const [data, refetch] = useRefetchableFragment<
     UsersTableQuery,
@@ -189,6 +190,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
     ];
   }, [refetchTableData, viewer]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
