@@ -29,7 +29,7 @@ const jsonSchemaPropertiesSchema = z
 
 export const jsonSchemaZodSchema = z
   .object({
-    type: z.literal("object"),
+    type: z.enum(["object", "string", "number", "boolean"]),
     properties: z
       .record(
         z.union([
