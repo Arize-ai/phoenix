@@ -1,6 +1,16 @@
 import { graphql, useFragment } from "react-relay";
 
 import { Card, Flex, Text, View } from "@phoenix/components";
+import {
+  PromptChatMessagesCard__main$data,
+  PromptChatMessagesCard__main$key,
+} from "@phoenix/components/prompt/__generated__/PromptChatMessagesCard__main.graphql";
+import {
+  ChatTemplateMessageCard,
+  ChatTemplateMessageTextPart,
+  ChatTemplateMessageToolCallPart,
+  ChatTemplateMessageToolResultPart,
+} from "@phoenix/components/prompt/ChatTemplateMessageCard";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
@@ -10,17 +20,6 @@ import {
   asToolCallPart,
   asToolResultPart,
 } from "@phoenix/utils/promptUtils";
-
-import {
-  PromptChatMessagesCard__main$data,
-  PromptChatMessagesCard__main$key,
-} from "./__generated__/PromptChatMessagesCard__main.graphql";
-import {
-  ChatTemplateMessageCard,
-  ChatTemplateMessageTextPart,
-  ChatTemplateMessageToolCallPart,
-  ChatTemplateMessageToolResultPart,
-} from "./ChatTemplateMessageCard";
 
 export function PromptChatMessages({
   promptVersion,

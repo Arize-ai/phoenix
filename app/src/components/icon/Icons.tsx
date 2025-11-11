@@ -216,6 +216,21 @@ export const ArrowHeadRight = () => (
   </svg>
 );
 
+export const ArrowRightWithStem = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 18 18"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M3.75 9.74957L12.645 9.74958L9.9225 13.0196C9.7952 13.1727 9.73395 13.3702 9.75224 13.5685C9.77052 13.7668 9.86684 13.9498 10.02 14.0771C10.1732 14.2044 10.3706 14.2656 10.5689 14.2473C10.7673 14.2291 10.9502 14.1327 11.0775 13.9796L14.8275 9.47958C14.8527 9.44378 14.8753 9.40618 14.895 9.36708C14.895 9.32958 14.895 9.30708 14.9475 9.26958C14.9815 9.18358 14.9993 9.09204 15 8.99958C14.9993 8.90711 14.9815 8.81557 14.9475 8.72958C14.9475 8.69208 14.9475 8.66958 14.895 8.63208C14.8753 8.59297 14.8527 8.55537 14.8275 8.51958L11.0775 4.01958C11.007 3.93491 10.9187 3.86683 10.8189 3.82016C10.7191 3.7735 10.6102 3.7494 10.5 3.74958C10.3248 3.74923 10.1549 3.81026 10.02 3.92207C9.94406 3.98504 9.88128 4.06236 9.83527 4.14962C9.78925 4.23688 9.76091 4.33236 9.75185 4.4306C9.74279 4.52883 9.7532 4.62788 9.78249 4.72209C9.81177 4.81629 9.85935 4.90379 9.9225 4.97957L12.645 8.24958L3.75 8.24957C3.55109 8.24957 3.36032 8.32859 3.21967 8.46924C3.07902 8.6099 3 8.80066 3 8.99957C3 9.19849 3.07902 9.38925 3.21967 9.5299C3.36032 9.67056 3.55109 9.74957 3.75 9.74957Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 export const ArrowUp = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -2006,6 +2021,31 @@ export const RepeatOutline = () => (
   </svg>
 );
 
+export const Robot = () => (
+  <svg
+    width="17"
+    height="14"
+    viewBox="0 0 17 14"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M6 6.75C6.41421 6.75 6.75 7.08579 6.75 7.5V9C6.75 9.41421 6.41421 9.75 6 9.75C5.58579 9.75 5.25 9.41421 5.25 9V7.5C5.25 7.08579 5.58579 6.75 6 6.75Z"
+      fill="currentColor"
+    />
+    <path
+      d="M10.5 6.75C10.9142 6.75 11.25 7.08579 11.25 7.5V9C11.25 9.41421 10.9142 9.75 10.5 9.75C10.0858 9.75 9.75 9.41421 9.75 9V7.5C9.75 7.08579 10.0858 6.75 10.5 6.75Z"
+      fill="currentColor"
+    />
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M8.25 0C8.66421 0 9 0.335786 9 0.75V3H12.75C13.9926 3 15 4.00736 15 5.25V7.5H15.75C16.1642 7.5 16.5 7.83579 16.5 8.25C16.5 8.66421 16.1642 9 15.75 9H15V11.25C15 12.4926 13.9926 13.5 12.75 13.5H3.75C2.50736 13.5 1.5 12.4926 1.5 11.25V9H0.75C0.335786 9 0 8.66421 0 8.25C0 7.83579 0.335786 7.5 0.75 7.5H1.5V5.25C1.5 4.00736 2.50736 3 3.75 3H7.5V1.5H5.25C4.83579 1.5 4.5 1.16421 4.5 0.75C4.5 0.335786 4.83579 0 5.25 0H8.25ZM3.75 4.5C3.33579 4.5 3 4.83579 3 5.25V11.25C3 11.6642 3.33579 12 3.75 12H12.75C13.1642 12 13.5 11.6642 13.5 11.25V5.25C13.5 4.83579 13.1642 4.5 12.75 4.5H3.75Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 // @src: lucide
 export const Rocket = () => (
   <svg
@@ -2112,6 +2152,54 @@ export const SaveOutline = () => {
     </svg>
   );
 };
+
+export const Scale = () => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M16 16L19 8L22 16C21.13 16.65 20.08 17 19 17C17.92 17 16.87 16.65 16 16Z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+    <path
+      d="M2 16L5 8L8 16C7.13 16.65 6.08 17 5 17C3.92 17 2.87 16.65 2 16Z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+    <path
+      d="M7 21H17"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M12 3V21"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M3 7H5C7 7 10 6 12 5C14 6 17 7 19 7H21"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 
 export const Search = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">

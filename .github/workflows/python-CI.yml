@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - main
-      - feat/version-12
+      - version-13
   pull_request:
     paths:
       - "**/*.py"
@@ -186,7 +186,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [3.9]
+        py: ["3.10"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -215,7 +215,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [3.9]
+        py: ["3.10"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -243,7 +243,7 @@ jobs:
     if: ${{ needs.changes.outputs.proto == 'true' }}
     strategy:
       matrix:
-        py: [3.9]
+        py: ["3.10"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -297,7 +297,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.13]
+        py: ["3.10", "3.13"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -335,7 +335,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.13]
+        py: ["3.10", "3.13"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -374,7 +374,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.13]
+        py: ["3.10", "3.13"]
         os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
         exclude:
           - py: 3.13
@@ -422,7 +422,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.13]
+        py: ["3.10", "3.13"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -460,7 +460,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.13]
+        py: ["3.10", "3.13"]
         db: [sqlite, postgresql]
         os: [ubuntu-latest, windows-latest]
         exclude:

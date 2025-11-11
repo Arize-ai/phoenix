@@ -1,9 +1,21 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Flex, Icon, Icons, LinkButton, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  LinkButton,
+  Text,
+  Token,
+  View,
+} from "@phoenix/components";
+import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
+import { EvaluatorSelect } from "@phoenix/components/evaluators/EvaluatorSelect";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { Mutable } from "@phoenix/typeUtils";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
@@ -24,9 +36,22 @@ export function PlaygroundDatasetSection({
       .filter((id) => id != null);
   }, [instances]);
 
+  // eslint-disable-next-line no-console
+  console.warn(
+    "Using global evaluators. Use dataset evaluators when assignment becomes available."
+  );
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
       query PlaygroundDatasetSectionQuery($datasetId: ID!, $splitIds: [ID!]) {
+        evaluators {
+          edges {
+            evaluator: node {
+              id
+              name
+              kind
+            }
+          }
+        }
         dataset: node(id: $datasetId) {
           ... on Dataset {
             name
@@ -36,6 +61,16 @@ export function PlaygroundDatasetSection({
               name
               color
             }
+            # TODO: uncomment this when you can assign evaluators to datasets
+            # evaluators {
+            #   edges {
+            #     evaluator: node {
+            #       id
+            #       name
+            #       kind
+            #     }
+            #   }
+            # }
           }
         }
       }
@@ -59,6 +94,13 @@ export function PlaygroundDatasetSection({
         color: split.color ?? "#808080",
       }));
   }, [data, splitIds]);
+
+  const evaluators =
+    data.evaluators?.edges?.map((edge) => edge.evaluator) ?? [];
+  const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
+    () => evaluators.map((evaluator) => evaluator.id) ?? []
+  );
+
   return (
     <Flex direction={"column"} height={"100%"}>
       <View
@@ -82,32 +124,69 @@ export function PlaygroundDatasetSection({
               </Text>
             ) : null}
           </Flex>
-          {experimentIds.length > 0 && (
-            <LinkButton
-              size="S"
-              isDisabled={isRunning}
-              leadingVisual={
-                <Icon
-                  svg={
-                    isRunning ? (
-                      <Icons.LoadingOutline />
-                    ) : (
-                      <Icons.ExperimentOutline />
-                    )
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {evaluators
+                .filter((e) => selectedEvaluatorIds.includes(e.id))
+                .slice(0, 3)
+                .flatMap((e, index, array) => [
+                  <AnnotationNameAndValue
+                    key={e.id}
+                    annotation={e}
+                    displayPreference="none"
+                    minWidth="auto"
+                  />,
+                  ...(index === array.length - 1 &&
+                  selectedEvaluatorIds.length > 3
+                    ? [
+                        <Token key={`more`}>
+                          <Text>+ {selectedEvaluatorIds.length - 3} more</Text>
+                        </Token>,
+                      ]
+                    : []),
+                ])}
+            </Flex>
+            <EvaluatorSelect
+              evaluators={evaluators as Mutable<(typeof evaluators)[number]>[]}
+              selectedIds={selectedEvaluatorIds}
+              onSelectionChange={(id: string) => {
+                setSelectedEvaluatorIds((prev) => {
+                  if (prev.includes(id)) {
+                    return prev.filter((evaluatorId) => evaluatorId !== id);
                   }
-                />
-              }
-              to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
-            >
-              View Experiment{instances.length > 1 ? "s" : ""}
-            </LinkButton>
-          )}
+                  return [...prev, id];
+                });
+              }}
+              addNewEvaluatorLink={prependBasename("/evaluators/new")}
+            />
+            {experimentIds.length > 0 && (
+              <LinkButton
+                size="S"
+                isDisabled={isRunning}
+                leadingVisual={
+                  <Icon
+                    svg={
+                      isRunning ? (
+                        <Icons.LoadingOutline />
+                      ) : (
+                        <Icons.ExperimentOutline />
+                      )
+                    }
+                  />
+                }
+                to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
+              >
+                View Experiment{instances.length > 1 ? "s" : ""}
+              </LinkButton>
+            )}
+          </Flex>
         </Flex>
       </View>
       <PlaygroundDatasetExamplesTableProvider>
         <PlaygroundDatasetExamplesTable
           datasetId={datasetId}
           splitIds={splitIds}
+          evaluatorIds={selectedEvaluatorIds}
         />
       </PlaygroundDatasetExamplesTableProvider>
     </Flex>

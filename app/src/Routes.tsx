@@ -6,7 +6,11 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
+import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
+import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import { NewEvaluatorPage } from "@phoenix/pages/evaluators/NewEvaluatorPage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
@@ -217,7 +221,11 @@ const router = createBrowserRouter(
                   element={<DatasetVersionsPage />}
                   loader={datasetVersionsLoader}
                 />
-                <Route path="evaluators" element={<DatasetEvaluatorsPage />} />
+                <Route
+                  path="evaluators"
+                  element={<DatasetEvaluatorsPage />}
+                  loader={datasetEvaluatorsLoader}
+                />
               </Route>
               <Route
                 path="compare"
@@ -245,6 +253,18 @@ const router = createBrowserRouter(
                   return "span unknown";
                 },
               }}
+            />
+          </Route>
+          <Route path="/evaluators" handle={{ crumb: () => "Evaluators" }}>
+            <Route
+              index
+              element={<EvaluatorsPage />}
+              loader={evaluatorsPageLoader}
+            />
+            <Route
+              path="new"
+              element={<NewEvaluatorPage />}
+              handle={{ crumb: () => "New evaluator" }}
             />
           </Route>
           <Route
