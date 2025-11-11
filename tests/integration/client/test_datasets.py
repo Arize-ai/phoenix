@@ -10,25 +10,20 @@ import pytest
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
-from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser, _gql
+from .._helpers import _AppInfo, _await_or_return, _gql
 
 
 class TestDatasetIntegration:
     """Integration tests for dataset operations against a real Phoenix server."""
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_create_and_get_dataset(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -66,16 +61,12 @@ class TestDatasetIntegration:
         assert len(retrieved) == 2
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_add_examples_to_dataset(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -109,16 +100,12 @@ class TestDatasetIntegration:
         assert updated.version_id != dataset.version_id  # New version
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_dataset_versions(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -160,12 +147,10 @@ class TestDatasetIntegration:
     async def test_create_dataset_from_csv(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
         tmp_path: Path,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -202,11 +187,9 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_create_dataset_from_dataframe(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -242,11 +225,9 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_dataset_to_dataframe_round_trip(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -305,11 +286,9 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_dataset_examples_parameter(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -354,11 +333,9 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_dataset_identifier_flexibility(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -408,11 +385,9 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_error_handling(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -438,17 +413,13 @@ Who wrote Hamlet?,Shakespeare,literature
             )
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_dataset_examples_direct_pass(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that dataset.examples can be passed directly to add_examples_to_dataset."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -530,12 +501,10 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_legacy_experiments_compatibility(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
         monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
@@ -604,12 +573,10 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_dataset_json_round_trip(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that Dataset.to_dict() and Dataset.from_dict() work correctly for round-tripping."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -711,12 +678,9 @@ Who wrote Hamlet?,Shakespeare,literature
             Dataset.from_dict(invalid_json)
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_list_datasets_with_pagination(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """
@@ -739,8 +703,7 @@ Who wrote Hamlet?,Shakespeare,literature
         - Consistency between list and get_dataset APIs
         - Type safety with proper v1.Dataset annotations
         """  # noqa: E501
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -952,17 +915,13 @@ Who wrote Hamlet?,Shakespeare,literature
         assert test_dataset_from_list["metadata"] == individual_dataset.metadata
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_dataset_with_splits(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test dataset splits functionality including creating splits and filtering by splits."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = user.create_api_key(_app)
+        api_key = _app.admin_secret
         api_key_str = str(api_key)
 
         from phoenix.client import AsyncClient
@@ -1026,7 +985,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Split 2: Examples 2 and 3
         split2_result, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=split1_mutation,
             variables={
                 "input": {
@@ -1106,17 +1065,13 @@ Who wrote Hamlet?,Shakespeare,literature
         )
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_dataset_splits_no_duplicates(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that filtering by multiple splits returns distinct examples (no duplicates)."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = user.create_api_key(_app)
+        api_key = _app.admin_secret
         api_key_str = str(api_key)
 
         from phoenix.client import AsyncClient
@@ -1162,7 +1117,7 @@ Who wrote Hamlet?,Shakespeare,literature
         """
         split1_result, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=split1_mutation,
             variables={
                 "input": {
@@ -1179,7 +1134,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Create split 2: Examples 0, 2, 3 (examples 0 and 3 overlap with split 1)
         split2_result, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=split1_mutation,
             variables={
                 "input": {
