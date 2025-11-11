@@ -1686,7 +1686,7 @@ class Experiments:
 
         # Check if we have a cached result
         if cache_key in task_result_cache:
-            cached_value = task_result_cache[cache_key]
+            cached_value = cast(ExperimentRun, task_result_cache[cache_key])
             # we only get to this point if the previous post to the sever was cancelled, so we
             # re-try the post
             try:
@@ -3423,7 +3423,7 @@ class AsyncExperiments:
 
         # Check if we have a cached result
         if cache_key in task_result_cache:
-            cached_value = task_result_cache[cache_key]
+            cached_value = cast(ExperimentRun, task_result_cache[cache_key])
             # we only get to this point if the previous post to the sever was cancelled, so we
             # re-try the post
             try:
