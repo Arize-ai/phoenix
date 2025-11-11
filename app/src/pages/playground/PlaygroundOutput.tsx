@@ -239,9 +239,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     []
   );
 
-  const [toolCalls, setToolCalls] = useState<readonly PartialOutputToolCall[]>(
-    []
-  );
+  const [toolCallsByRepetitionNumber, setToolCallsByRepetitionNumber] =
+    useState<Record<number, readonly PartialOutputToolCall[]>>({});
+  const toolCalls: readonly PartialOutputToolCall[] | undefined =
+    toolCallsByRepetitionNumber[selectedRepetitionNumber];
 
   const onNext = useCallback(
     ({ chatCompletion }: PlaygroundOutputSubscription$data) => {
@@ -259,9 +260,11 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         if (chatCompletionFunction == null || chatCompletionId == null) {
           return;
         }
-        setToolCalls((toolCalls) => {
+        setToolCallsByRepetitionNumber((prev) => {
+          const repetitionNumber = chatCompletion.repetitionNumber ?? 1;
+          const toolCallsList = prev[repetitionNumber] ?? [];
           let toolCallExists = false;
-          const updated = toolCalls.map((toolCall) => {
+          const updated = toolCallsList.map((toolCall) => {
             if (toolCall.id === chatCompletion.id) {
               toolCallExists = true;
               return {
@@ -286,7 +289,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
               },
             });
           }
-          return updated;
+          return {
+            ...prev,
+            [repetitionNumber]: updated,
+          };
         });
         return;
       }
@@ -358,7 +364,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           response.chatCompletion.content
         );
       }
-      setToolCalls(response.chatCompletion.toolCalls);
+      setToolCallsByRepetitionNumber((prev) => ({
+        ...prev,
+        [1]: response.chatCompletion.toolCalls, // handle repetitions in mutation
+      }));
     },
     [
       instanceId,
@@ -373,7 +382,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   const cleanup = useCallback(() => {
     setOutputContentByRepetitionNumber({});
-    setToolCalls([]);
+    setToolCallsByRepetitionNumber({});
     setOutputError(null);
     updateInstance({
       instanceId,
