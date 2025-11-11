@@ -86,13 +86,8 @@ export function DatasetSelect(props: DatasetSelectProps) {
           `}
         >
           {data.datasets.edges.map(({ dataset }) => {
-            const isDisabled = dataset.exampleCount === 0;
             return (
-              <SelectItem
-                key={dataset.id}
-                id={dataset.id}
-                isDisabled={isDisabled}
-              >
+              <SelectItem key={dataset.id} id={dataset.id}>
                 <Flex direction="column" gap="size-100" width="100%">
                   <Flex
                     direction="row"
@@ -100,11 +95,6 @@ export function DatasetSelect(props: DatasetSelectProps) {
                     gap="size-200"
                     justifyContent="space-between"
                     width="100%"
-                    css={css`
-                      opacity: ${isDisabled
-                        ? "var(--ac-global-opacity-disabled)"
-                        : 1};
-                    `}
                   >
                     <Text>{dataset.name}</Text>
                     <Text color="text-700" size="XS">
