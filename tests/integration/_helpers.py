@@ -682,7 +682,7 @@ class _LogTransport(httpx.BaseTransport):
 
 def _httpx_client(
     app: _AppInfo,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     headers: Optional[_Headers] = None,
     cookies: Optional[dict[str, Any]] = None,
     transport: Optional[httpx.BaseTransport] = None,
@@ -709,8 +709,6 @@ def _httpx_client(
     elif isinstance(auth, _ApiKey):
         headers = {**(headers or {}), "authorization": f"Bearer {auth}"}
     elif isinstance(auth, _AdminSecret):
-        headers = {**(headers or {}), "authorization": f"Bearer {auth}"}
-    elif isinstance(auth, str):
         headers = {**(headers or {}), "authorization": f"Bearer {auth}"}
     elif auth is None:
         pass
@@ -832,7 +830,7 @@ def _random_schema(
 
 def _gql(
     app: _AppInfo,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     /,
     *,
     query: str,
@@ -846,7 +844,7 @@ def _gql(
 
 def _get_gql_spans(
     app: _AppInfo,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     /,
     *fields: str,
 ) -> dict[_ProjectName, list[dict[str, Any]]]:
@@ -863,7 +861,7 @@ def _get_gql_spans(
 
 def _list_users(
     app: _AppInfo,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     /,
 ) -> list[_User]:
     all_users = []
@@ -905,7 +903,7 @@ def _list_users(
 
 def _create_user(
     app: _AppInfo,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     /,
     *,
     role: UserRoleInput,
@@ -936,7 +934,7 @@ def _create_user(
 
 def _delete_users(
     app: _AppInfo,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     /,
     *,
     users: Iterable[Union[_GqlId, _User]],
@@ -950,7 +948,7 @@ def _delete_users(
 def _patch_user_gid(
     app: _AppInfo,
     gid: _GqlId,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     /,
     *,
     new_username: Optional[_Username] = None,
@@ -980,7 +978,7 @@ def _patch_user_gid(
 def _patch_user(
     app: _AppInfo,
     user: _User,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     /,
     *,
     new_username: Optional[_Username] = None,
@@ -1006,7 +1004,7 @@ def _patch_user(
 
 def _patch_viewer(
     app: _AppInfo,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     current_password: Optional[_Password] = None,
     /,
     *,
@@ -1035,7 +1033,7 @@ def _patch_viewer(
 
 def _create_api_key(
     app: _AppInfo,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     kind: _ApiKeyKind = "User",
     /,
     *,
@@ -1061,7 +1059,7 @@ def _create_api_key(
 def _delete_api_key(
     app: _AppInfo,
     api_key: _ApiKey,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     /,
 ) -> None:
     kind = api_key.kind
@@ -1101,7 +1099,7 @@ def _log_in(
 
 def _log_out(
     app: _AppInfo,
-    auth: Optional[Union[_SecurityArtifact, str]] = None,
+    auth: Optional[_SecurityArtifact] = None,
     /,
 ) -> None:
     resp = _httpx_client(app, auth).get("auth/logout", follow_redirects=False)
@@ -1149,7 +1147,7 @@ def _reset_password(
 
 
 def _export_embeddings(
-    app: _AppInfo, auth: Optional[Union[_SecurityArtifact, str]] = None, /, *, filename: str
+    app: _AppInfo, auth: Optional[_SecurityArtifact] = None, /, *, filename: str
 ) -> None:
     resp = _httpx_client(app, auth).get("/exports", params={"filename": filename})
     resp.raise_for_status()

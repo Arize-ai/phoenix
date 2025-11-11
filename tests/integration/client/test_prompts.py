@@ -14,6 +14,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    Union,
     cast,
 )
 
@@ -52,7 +53,16 @@ from ...__generated__.graphql import (
     TextContentValueInput,
     ToolDefinitionInput,
 )
-from .._helpers import _MEMBER, _SYSTEM_USER_GID, _AppInfo, _await_or_return, _GetUser, _gql
+from .._helpers import (
+    _MEMBER,
+    _SYSTEM_USER_GID,
+    _AdminSecret,
+    _ApiKey,
+    _AppInfo,
+    _await_or_return,
+    _GetUser,
+    _gql,
+)
 
 
 class TestUserMessage:
@@ -384,7 +394,7 @@ def _can_recreate_via_client(_app: _AppInfo, version: PromptVersion, api_key: st
 
 def _create_chat_prompt(
     app: _AppInfo,
-    api_key: str,
+    api_key: Union[_ApiKey, _AdminSecret],
     /,
     *,
     messages: Sequence[PromptMessageInput] = (),
