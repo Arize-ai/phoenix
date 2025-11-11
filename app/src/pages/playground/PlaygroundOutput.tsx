@@ -403,26 +403,18 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
 
   const cleanup = useCallback(() => {
+    setSelectedRepetitionNumber(1);
     setOutputContentByRepetitionNumber({});
     setToolCallsByRepetitionNumber({});
     setOutputError(null);
-    const instance = playgroundStore
-      .getState()
-      .instances.find((inst) => inst.id === instanceId);
-    if (instance == null) {
-      return;
-    }
     updateInstance({
       instanceId,
       patch: {
-        spanIdByRepetitionNumber: {
-          ...instance.spanIdByRepetitionNumber,
-          [1]: null,
-        },
+        spanIdByRepetitionNumber: {},
       },
       dirty: null,
     });
-  }, [instanceId, playgroundStore, updateInstance]);
+  }, [instanceId, updateInstance]);
 
   useEffect(() => {
     if (!runInProgress) {
