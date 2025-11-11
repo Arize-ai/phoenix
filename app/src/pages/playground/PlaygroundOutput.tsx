@@ -529,7 +529,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             />
           )}
           <PlaygroundOutputMoveButton
-            isDisabled={isLoading || !hasContent}
+            isDisabled={!hasContent}
             outputContent={outputContent}
             toolCalls={toolCalls as Mutable<typeof toolCalls>}
             instance={instance}
