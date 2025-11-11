@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8dc5f83d19ba609a2104e1732839e016>>
+ * @generated SignedSource<<0a2ddfcbb816054402a5bdb642bec1a7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type CreateDatasetFormMutation$variables = {
   description?: string | null;
   metadata?: any | null;
@@ -17,13 +18,9 @@ export type CreateDatasetFormMutation$variables = {
 export type CreateDatasetFormMutation$data = {
   readonly createDataset: {
     readonly dataset: {
-      readonly createdAt: string;
-      readonly description: string | null;
-      readonly exampleCount: number;
-      readonly experimentCount: number;
       readonly id: string;
-      readonly metadata: any;
       readonly name: string;
+      readonly " $fragmentSpreads": FragmentRefs<"DatasetSelect_dataset">;
     };
   };
 };
@@ -50,93 +47,66 @@ v2 = {
 },
 v3 = [
   {
-    "alias": null,
-    "args": [
+    "fields": [
       {
-        "fields": [
-          {
-            "kind": "Variable",
-            "name": "description",
-            "variableName": "description"
-          },
-          {
-            "kind": "Variable",
-            "name": "metadata",
-            "variableName": "metadata"
-          },
-          {
-            "kind": "Variable",
-            "name": "name",
-            "variableName": "name"
-          }
-        ],
-        "kind": "ObjectValue",
-        "name": "input"
+        "kind": "Variable",
+        "name": "description",
+        "variableName": "description"
+      },
+      {
+        "kind": "Variable",
+        "name": "metadata",
+        "variableName": "metadata"
+      },
+      {
+        "kind": "Variable",
+        "name": "name",
+        "variableName": "name"
       }
     ],
-    "concreteType": "DatasetMutationPayload",
+    "kind": "ObjectValue",
+    "name": "input"
+  }
+],
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v6 = [
+  (v4/*: any*/),
+  (v5/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "exampleCount",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "DatasetLabel",
     "kind": "LinkedField",
-    "name": "createDataset",
-    "plural": false,
+    "name": "labels",
+    "plural": true,
     "selections": [
+      (v4/*: any*/),
+      (v5/*: any*/),
       {
         "alias": null,
         "args": null,
-        "concreteType": "Dataset",
-        "kind": "LinkedField",
-        "name": "dataset",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "description",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "metadata",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "createdAt",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "exampleCount",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "experimentCount",
-            "storageKey": null
-          }
-        ],
+        "kind": "ScalarField",
+        "name": "color",
         "storageKey": null
       }
     ],
@@ -153,7 +123,39 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "CreateDatasetFormMutation",
-    "selections": (v3/*: any*/),
+    "selections": [
+      {
+        "alias": null,
+        "args": (v3/*: any*/),
+        "concreteType": "DatasetMutationPayload",
+        "kind": "LinkedField",
+        "name": "createDataset",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Dataset",
+            "kind": "LinkedField",
+            "name": "dataset",
+            "plural": false,
+            "selections": [
+              (v4/*: any*/),
+              (v5/*: any*/),
+              {
+                "kind": "InlineDataFragmentSpread",
+                "name": "DatasetSelect_dataset",
+                "selections": (v6/*: any*/),
+                "args": null,
+                "argumentDefinitions": []
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Mutation",
     "abstractKey": null
   },
@@ -166,19 +168,41 @@ return {
     ],
     "kind": "Operation",
     "name": "CreateDatasetFormMutation",
-    "selections": (v3/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v3/*: any*/),
+        "concreteType": "DatasetMutationPayload",
+        "kind": "LinkedField",
+        "name": "createDataset",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Dataset",
+            "kind": "LinkedField",
+            "name": "dataset",
+            "plural": false,
+            "selections": (v6/*: any*/),
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "6aa615e27e1ccaa5431ba481842b43d0",
+    "cacheID": "e795a4b8ebb795f93dea507cba2eef83",
     "id": null,
     "metadata": {},
     "name": "CreateDatasetFormMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetFormMutation(\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  createDataset(input: {name: $name, description: $description, metadata: $metadata}) {\n    dataset {\n      id\n      name\n      description\n      metadata\n      createdAt\n      exampleCount\n      experimentCount\n    }\n  }\n}\n"
+    "text": "mutation CreateDatasetFormMutation(\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  createDataset(input: {name: $name, description: $description, metadata: $metadata}) {\n    dataset {\n      id\n      name\n      ...DatasetSelect_dataset\n    }\n  }\n}\n\nfragment DatasetSelect_dataset on Dataset {\n  id\n  name\n  exampleCount\n  labels {\n    id\n    name\n    color\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5921369d33cc0fb1dffb5d943469a378";
+(node as any).hash = "1948aa8344d9c6feab99a0c18f2a6988";
 
 export default node;
