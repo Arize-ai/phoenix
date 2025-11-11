@@ -47,6 +47,7 @@ export function GenerativeProvidersCard({
 }: {
   query: GenerativeProvidersCard_data$key;
 }) {
+  "use no memo";
   const data = useFragment<GenerativeProvidersCard_data$key>(
     graphql`
       fragment GenerativeProvidersCard_data on Query {
@@ -140,6 +141,7 @@ export function GenerativeProvidersCard({
     ] satisfies ColumnDef<DataRow>[];
   }, []);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns,
     data: tableData,

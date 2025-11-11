@@ -32,6 +32,7 @@ type RetentionPolicyFormProps = {
   onCancel?: () => void;
 };
 export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
+  "use no memo";
   const { onSubmit, mode, isSubmitting, defaultValues } = props;
   const { control, watch, handleSubmit } = useForm<RetentionPolicyFormParams>({
     defaultValues: defaultValues ?? {
@@ -43,6 +44,7 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
     mode: "onChange",
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const [numberOfDays, numberOfTraces, schedule] = watch([
     "numberOfDays",
     "numberOfTraces",

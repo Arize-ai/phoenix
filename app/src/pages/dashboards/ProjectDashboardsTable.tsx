@@ -22,6 +22,7 @@ export function ProjectDashboardsTable({
 }: {
   query: ProjectDashboardsTable_projects$key;
 }) {
+  "use no memo";
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment(
     graphql`
@@ -84,6 +85,7 @@ export function ProjectDashboardsTable({
     ],
     []
   );
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: projects,

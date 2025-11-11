@@ -147,6 +147,7 @@ interface ProjectAnnotationConfigCardContentProps {
 const ProjectAnnotationConfigCardContent = (
   props: ProjectAnnotationConfigCardContentProps
 ) => {
+  "use no memo";
   const { projectId } = props;
   // Keep track of the loading state for each annotation config
   const [loadingConfigs, setLoadingConfigs] = useState<Record<string, boolean>>(
@@ -349,6 +350,7 @@ const ProjectAnnotationConfigCardContent = (
     removeAnnotationConfigFromProject,
   ]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: tableData,
     columns,
