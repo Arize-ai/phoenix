@@ -98,7 +98,6 @@ async def _stream_single_chat_completion(
     *,
     input: ChatCompletionInput,
     llm_client: PlaygroundStreamingClient,
-    info: Info[Context, None],
     project_id: int,
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
@@ -250,7 +249,6 @@ class Subscription:
                 _stream_single_chat_completion(
                     input=input,
                     llm_client=llm_client,
-                    info=info,
                     project_id=playground_project_id,
                     repetition_number=repetition_number,
                     results=results,
