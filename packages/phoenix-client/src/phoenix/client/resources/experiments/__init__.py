@@ -62,15 +62,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT_IN_SECONDS = 60
 
 
-class _TaskFailure:
-    """Sentinel value indicating a task execution failed and should be retried."""
-
-    pass
-
-
-_TASK_FAILURE = _TaskFailure()
-
-
 class SpanModifier:
     """A class that modifies spans with the specified resource attributes."""
 
@@ -1675,24 +1666,42 @@ class Experiments:
         timeout: Optional[int],
         task_result_cache: dict[tuple[str, int], Any],
     ) -> Optional[ExperimentRun]:
+        """
+        This function wraps the user task to make it robust to task cancellations.
+
+        This function will be called more than once in the following cases:
+            1. The task is cancelled due to an *executor-level* timeout.
+              - In the event where the user task has completed, but the timeout cancels the
+                POST to the Phoenix server, we will re-run this function with the memoized result,
+                regardless of whether the task failed or was successful
+            2. The task fails, raises an exception, and is requeued by the executor if there are
+                retries remaining
+              - This only happens if a timeout did not occur and the error has been persisted to the
+                Phoenix server. The Phoenix server allows resubmission of failed tasks. So in this
+                case we erase the error from the cache to force a re-run
+        """
+
         example, repetition_number = test_case.example, test_case.repetition_number
         cache_key = (example["id"], repetition_number)
 
         # Check if we have a cached result
         if cache_key in task_result_cache:
             cached_value = task_result_cache[cache_key]
-            if cached_value is not _TASK_FAILURE:
-                output = cached_value
-                cached_exp_run: ExperimentRun = {
-                    "dataset_example_id": example["id"],
-                    "output": output,
-                    "repetition_number": repetition_number,
-                    "start_time": datetime.now(timezone.utc).isoformat(),
-                    "end_time": datetime.now(timezone.utc).isoformat(),
-                    "id": f"temp-{random.randint(1000, 9999)}",
-                    "experiment_id": experiment["id"],
-                }
-                return cached_exp_run
+            # we only get to this point if the previous post to the sever was cancelled, so we
+            # re-try the post
+            try:
+                resp = self._client.post(
+                    f"v1/experiments/{experiment['id']}/runs",
+                    json=cached_value,
+                    timeout=timeout,
+                )
+                resp.raise_for_status()
+            except HTTPStatusError as e:
+                if e.response.status_code == 409:
+                    pass
+                else:
+                    raise
+            return cached_value
 
         output = None
         error: Optional[BaseException] = None
@@ -1725,7 +1734,6 @@ class Experiments:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
-                task_result_cache[cache_key] = _TASK_FAILURE
                 _print_experiment_error(
                     exc,
                     example_id=example["id"],
@@ -1770,6 +1778,9 @@ class Experiments:
         if error:
             exp_run["error"] = repr(error)
 
+        # here we cache the result because the post to the server may be cancelled
+        task_result_cache[cache_key] = exp_run
+
         if not dry_run:
             try:
                 resp = self._client.post(
@@ -1779,8 +1790,6 @@ class Experiments:
                 )
                 resp.raise_for_status()
                 exp_run = {**exp_run, "id": resp.json()["data"]["id"]}
-                if error is None:
-                    task_result_cache[cache_key] = output
             except HTTPStatusError as e:
                 if e.response.status_code == 409:
                     # Run already exists on server, but our local data is valid
@@ -1790,6 +1799,10 @@ class Experiments:
 
         # Re-raise exception if task failed
         if error is not None:
+            # we can delete the task result from the cache because the result has been
+            # successfully submitted to the server, however we will leave the error check in place
+            # just in case our assumption is wrong
+            del task_result_cache[cache_key]
             raise error
 
         return exp_run
@@ -3390,24 +3403,42 @@ class AsyncExperiments:
         timeout: Optional[int],
         task_result_cache: dict[tuple[str, int], Any],
     ) -> Optional[ExperimentRun]:
+        """
+        This function wraps the user task to make it robust to task cancellations.
+
+        This function will be called more than once in the following cases:
+            1. The task is cancelled due to an *executor-level* timeout.
+              - In the event where the user task has completed, but the timeout cancels the
+                POST to the Phoenix server, we will re-run this function with the memoized result,
+                regardless of whether the task failed or was successful
+            2. The task fails, raises an exception, and is requeued by the executor if there are
+                retries remaining
+              - This only happens if a timeout did not occur and the error has been persisted to the
+                Phoenix server. The Phoenix server allows resubmission of failed tasks. So in this
+                case we erase the error from the cache to force a re-run
+        """
+
         example, repetition_number = test_case.example, test_case.repetition_number
         cache_key = (example["id"], repetition_number)
 
         # Check if we have a cached result
         if cache_key in task_result_cache:
             cached_value = task_result_cache[cache_key]
-            if cached_value is not _TASK_FAILURE:
-                output = cached_value
-                cached_exp_run: ExperimentRun = {
-                    "dataset_example_id": example["id"],
-                    "output": output,
-                    "repetition_number": repetition_number,
-                    "start_time": datetime.now(timezone.utc).isoformat(),
-                    "end_time": datetime.now(timezone.utc).isoformat(),
-                    "id": f"temp-{random.randint(1000, 9999)}",
-                    "experiment_id": experiment["id"],
-                }
-                return cached_exp_run
+            # we only get to this point if the previous post to the sever was cancelled, so we
+            # re-try the post
+            try:
+                resp = await self._client.post(
+                    f"v1/experiments/{experiment['id']}/runs",
+                    json=cached_value,
+                    timeout=timeout,
+                )
+                resp.raise_for_status()
+            except HTTPStatusError as e:
+                if e.response.status_code == 409:
+                    pass
+                else:
+                    raise
+            return cached_value
 
         output = None
         error: Optional[BaseException] = None
@@ -3437,7 +3468,6 @@ class AsyncExperiments:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
-                task_result_cache[cache_key] = _TASK_FAILURE
                 _print_experiment_error(
                     exc,
                     example_id=example["id"],
@@ -3482,6 +3512,9 @@ class AsyncExperiments:
         if error:
             exp_run["error"] = repr(error)
 
+        # here we cache the result because the post to the server may be cancelled
+        task_result_cache[cache_key] = exp_run
+
         if not dry_run:
             try:
                 resp = await self._client.post(
@@ -3491,8 +3524,6 @@ class AsyncExperiments:
                 )
                 resp.raise_for_status()
                 exp_run = {**exp_run, "id": resp.json()["data"]["id"]}
-                if error is None:
-                    task_result_cache[cache_key] = output
             except HTTPStatusError as e:
                 if e.response.status_code == 409:
                     # Run already exists on server, but our local data is valid
@@ -3502,6 +3533,10 @@ class AsyncExperiments:
 
         # Re-raise exception if task failed
         if error is not None:
+            # we can delete the task result from the cache because the result has been
+            # successfully submitted to the server, however we will leave the error check in place
+            # just in case our assumption is wrong
+            del task_result_cache[cache_key]
             raise error
 
         return exp_run
