@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import (
     Any,
     AsyncGenerator,
+    Callable,
     Coroutine,
     Iterable,
     Mapping,
@@ -69,6 +70,7 @@ from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.template_formatters import (
@@ -103,9 +105,6 @@ async def _stream_single_chat_completion(
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
 ) -> ChatStream:
-    """
-    Streams a single chat completion and queues the result for batch writing.
-    """
     messages = [
         (
             message.role,
@@ -155,10 +154,8 @@ async def _chat_completion_span_result_payloads(
     db: DbSessionFactory,
     results: Sequence[tuple[Optional[models.Span], int]],
     span_cost_calculator: SpanCostCalculator,
+    on_span_insertion: Callable[[], None],
 ) -> ChatStream:
-    """
-    Batch writes spans from chat_completion repetitions.
-    """
     if not results:
         return
     async with db() as session:
@@ -185,6 +182,7 @@ async def _chat_completion_span_result_payloads(
                 span=Span(id=span.id, db_record=span),
                 repetition_number=repetition_number,
             )
+            on_span_insertion()
 
 
 def _is_span_result_payloads_stream(
@@ -317,6 +315,9 @@ class Subscription:
                         db=info.context.db,
                         results=_drain_no_wait(results),
                         span_cost_calculator=info.context.span_cost_calculator,
+                        on_span_insertion=lambda: info.context.event_queue.put(
+                            SpanInsertEvent(ids=(playground_project_id,))
+                        ),
                     )
                     task = _create_task_with_timeout(result_payloads_stream)
                     in_progress.append((None, result_payloads_stream, task))
@@ -326,6 +327,9 @@ class Subscription:
                 db=info.context.db,
                 results=remaining_results,
                 span_cost_calculator=info.context.span_cost_calculator,
+                on_span_insertion=lambda: info.context.event_queue.put(
+                    SpanInsertEvent(ids=(playground_project_id,))
+                ),
             ):
                 yield result_payload
 
