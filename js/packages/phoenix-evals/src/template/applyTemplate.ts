@@ -11,5 +11,6 @@ export function formatTemplate(args: {
   variables: Record<string, unknown>;
 }) {
   const { template, variables } = args;
-  return Mustache.render(template, variables);
+  // Disable HTML escaping by providing a custom escape function that returns text as-is
+  return Mustache.render(template, variables, {}, { escape: (text) => text });
 }
