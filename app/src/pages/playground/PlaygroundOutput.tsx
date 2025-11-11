@@ -521,6 +521,9 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     streaming,
     updateInstance,
   ]);
+  const hasContent =
+    outputContentByRepetitionNumber[selectedRepetitionNumber] != null ||
+    toolCalls.length > 0;
   return (
     <Card
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
@@ -534,12 +537,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             />
           )}
           <PlaygroundOutputMoveButton
-            isDisabled={
-              !(
-                outputContentByRepetitionNumber[selectedRepetitionNumber] !=
-                  null || toolCalls?.length > 0
-              )
-            }
+            isDisabled={isLoading || !hasContent}
             outputContent={outputContent}
             toolCalls={toolCalls as Mutable<typeof toolCalls>}
             instance={instance}
