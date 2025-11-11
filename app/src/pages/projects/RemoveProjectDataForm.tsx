@@ -23,7 +23,7 @@ import {
   View,
 } from "@phoenix/components";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
-import { useLocalTimeFormatPattern } from "@phoenix/hooks";
+import { useCurrentTime, useLocalTimeFormatPattern } from "@phoenix/hooks";
 
 import { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjectDataFormMutation.graphql";
 
@@ -37,6 +37,7 @@ type RemoveProjectDataFormParams = {
 };
 
 export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
+  const { nowEpochMs } = useCurrentTime();
   const { projectId } = props;
   const dateFormatPattern = useLocalTimeFormatPattern();
   const formRef = useRef<HTMLFormElement>(null);
@@ -59,7 +60,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
     defaultValues: {
       // Need to remove the offset to be able to set the defaultValue
       endDate: parseAbsoluteToLocal(
-        new Date(Date.now() - ONE_MONTH_MS).toISOString()
+        new Date(nowEpochMs - ONE_MONTH_MS).toISOString()
       ),
     },
   });

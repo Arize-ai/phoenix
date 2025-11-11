@@ -129,6 +129,7 @@ function useClosedTimeRange(): EpochTimeRange {
 
   // Use a ref to freeze "now" until the context time range actually changes
   const lastTimestampsRef = useRef({ startMs, endMs });
+  // eslint-disable-next-line react-hooks/purity
   const frozenNowMsRef = useRef<number>(Date.now());
 
   // Only update frozen "now" when timestamps actually change
@@ -137,6 +138,7 @@ function useClosedTimeRange(): EpochTimeRange {
     lastTimestampsRef.current.endMs !== endMs
   ) {
     lastTimestampsRef.current = { startMs, endMs };
+    // eslint-disable-next-line react-hooks/purity
     frozenNowMsRef.current = Date.now();
   }
 

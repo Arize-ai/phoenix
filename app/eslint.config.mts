@@ -61,7 +61,7 @@ export default defineConfig([
       ],
     },
   },
-  pluginReactHooks.configs.flat.recommended,
+  pluginReactHooks.configs.flat["recommended-latest"],
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
@@ -69,12 +69,6 @@ export default defineConfig([
       // This rule warns about using APIs from libraries like React Hook Form and TanStack Table
       // that return functions which cannot be safely memoized by React Compiler
       "react-hooks/incompatible-library": "off",
-
-      // TODO: Re-enable this rule once we've addressed impure function calls during render
-      // This rule prevents calling impure functions like Date.now() during component render
-      // which can cause unstable results when components re-render
-      "react-hooks/purity": "off",
-
       // TODO: Re-enable this rule once we've addressed the issue with setState in useEffect
       // This rule prevents calling setState in useEffect which can cause unstable results when components re-render
       "react-hooks/set-state-in-effect": "off",
