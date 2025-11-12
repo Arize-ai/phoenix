@@ -38,13 +38,13 @@ import {
 } from "@phoenix/pages/evaluators/EvaluatorLLMChoice";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { validateIdentifier } from "@phoenix/utils/identifierUtils";
+import { fromOpenAIToolDefinition } from "@phoenix/schemas";
 import {
   CategoricalChoiceToolType,
   CategoricalChoiceToolTypeSchema,
 } from "@phoenix/schemas/phoenixToolTypeSchemas";
-import { fromOpenAIToolDefinition } from "@phoenix/schemas";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 export const NewEvaluatorPage = () => {
   return (
