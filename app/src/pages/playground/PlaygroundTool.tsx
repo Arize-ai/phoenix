@@ -8,24 +8,16 @@ import {
   Flex,
   Icon,
   Icons,
-  ListBox,
-  Popover,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectItem,
-  SelectValue,
   Text,
 } from "@phoenix/components";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { CategoricalChoiceTool } from "@phoenix/pages/playground/PlaygroundToolType/CategoricalChoiceTool";
 import { JSONTool } from "@phoenix/pages/playground/PlaygroundToolType/JSONTool";
 import {
   anthropicToolDefinitionJSONSchema,
   awsToolDefinitionJSONSchema,
   openAIToolDefinitionJSONSchema,
 } from "@phoenix/schemas";
-import { PhoenixToolTypeTypeSchema } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
 import { Tool } from "@phoenix/store";
 
@@ -43,8 +35,7 @@ export type BaseToolEditorProps = {
 
 const ToolEditor = (props: BaseToolEditorProps) => {
   switch (props.tool.type) {
-    case "categorical_choice":
-      return <CategoricalChoiceTool {...props} />;
+    // TODO: add support for other tool types
     case "json":
     default:
       return <JSONTool {...props} />;
@@ -137,25 +128,6 @@ export function PlaygroundTool({
     updateInstance,
   ]);
 
-  const changeToolType = useCallback(
-    (maybeType: unknown) => {
-      const type = PhoenixToolTypeTypeSchema.safeParse(maybeType);
-      if (!type.success) {
-        return;
-      }
-      updateInstance({
-        instanceId: playgroundInstanceId,
-        patch: {
-          tools: instanceTools.map((t) =>
-            t.id === toolId ? { ...t, type: type.data } : t
-          ),
-        },
-        dirty: true,
-      });
-    },
-    [instanceTools, playgroundInstanceId, toolId, updateInstance]
-  );
-
   const toolDefinitionString = useMemo(() => {
     return JSON.stringify(toolDefinition, null, 2);
   }, [toolDefinition]);
@@ -190,20 +162,6 @@ export function PlaygroundTool({
       }
       extra={
         <Flex direction="row" gap="size-100">
-          <Select size="S" value={tool.type} onChange={changeToolType}>
-            <Button>
-              <SelectValue />
-              <SelectChevronUpDownIcon />
-            </Button>
-            <Popover>
-              <ListBox>
-                <SelectItem id="json">JSON</SelectItem>
-                <SelectItem id="categorical_choice">
-                  Categorical Choice
-                </SelectItem>
-              </ListBox>
-            </Popover>
-          </Select>
           <CopyToClipboardButton text={toolDefinitionString} />
           <Button
             aria-label="Delete tool"

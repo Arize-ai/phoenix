@@ -63,6 +63,7 @@ export const EvaluatorChatTemplate = () => {
       disableResponseFormat
       disablePromptMenu
       disableNewTool
+      disableTools
     />
   );
 };
