@@ -1689,18 +1689,20 @@ class Experiments:
             cached_value = cast(ExperimentRun, task_result_cache[cache_key])
             # we only get to this point if the previous post to the sever was cancelled, so we
             # re-try the post
-            try:
-                resp = self._client.post(
-                    f"v1/experiments/{experiment['id']}/runs",
-                    json=cached_value,
-                    timeout=timeout,
-                )
-                resp.raise_for_status()
-            except HTTPStatusError as e:
-                if e.response.status_code == 409:
-                    pass
-                else:
-                    raise
+            if not dry_run:
+                try:
+                    resp = self._client.post(
+                        f"v1/experiments/{experiment['id']}/runs",
+                        json=cached_value,
+                        timeout=timeout,
+                    )
+                    resp.raise_for_status()
+                except HTTPStatusError as e:
+                    if e.response.status_code == 409:
+                        pass
+                    else:
+                        task_result_cache.pop(cache_key, None)
+                        raise
             return cached_value
 
         output = None
@@ -1795,6 +1797,7 @@ class Experiments:
                     # Run already exists on server, but our local data is valid
                     pass
                 else:
+                    task_result_cache.pop(cache_key, None)
                     raise
 
         # Re-raise exception if task failed
@@ -1802,7 +1805,7 @@ class Experiments:
             # we can delete the task result from the cache because the result has been
             # successfully submitted to the server, however we will leave the error check in place
             # just in case our assumption is wrong
-            del task_result_cache[cache_key]
+            task_result_cache.pop(cache_key, None)
             raise error
 
         return exp_run
@@ -2956,6 +2959,7 @@ class AsyncExperiments:
                     max_retries=retries,
                     exit_on_error=False,
                     fallback_return_value=None,
+                    timeout=timeout
                 )
 
                 batch_results, _ = await executor.execute(batch_test_cases)
@@ -3426,18 +3430,20 @@ class AsyncExperiments:
             cached_value = cast(ExperimentRun, task_result_cache[cache_key])
             # we only get to this point if the previous post to the sever was cancelled, so we
             # re-try the post
-            try:
-                resp = await self._client.post(
-                    f"v1/experiments/{experiment['id']}/runs",
-                    json=cached_value,
-                    timeout=timeout,
-                )
-                resp.raise_for_status()
-            except HTTPStatusError as e:
-                if e.response.status_code == 409:
-                    pass
-                else:
-                    raise
+            if not dry_run:
+                try:
+                    resp = await self._client.post(
+                        f"v1/experiments/{experiment['id']}/runs",
+                        json=cached_value,
+                        timeout=timeout,
+                    )
+                    resp.raise_for_status()
+                except HTTPStatusError as e:
+                    if e.response.status_code == 409:
+                        pass
+                    else:
+                        task_result_cache.pop(cache_key, None)
+                        raise
             return cached_value
 
         output = None
@@ -3529,6 +3535,7 @@ class AsyncExperiments:
                     # Run already exists on server, but our local data is valid
                     pass
                 else:
+                    task_result_cache.pop(cache_key, None)
                     raise
 
         # Re-raise exception if task failed
@@ -3536,7 +3543,7 @@ class AsyncExperiments:
             # we can delete the task result from the cache because the result has been
             # successfully submitted to the server, however we will leave the error check in place
             # just in case our assumption is wrong
-            del task_result_cache[cache_key]
+            task_result_cache.pop(cache_key, None)
             raise error
 
         return exp_run
