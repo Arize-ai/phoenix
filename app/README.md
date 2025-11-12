@@ -92,3 +92,15 @@ Within the [react](https://react.dev) app, there is additional `state` and `cont
 The phoenix app is a client-side only SPA (single-page application), meaning that it entirely manages the routing of the pages via [react-router](https://reactrouter.com/en/main). `react-router` is leveraged to provide nested routing (e.g. rendering different parts of the UI based on the path) and is also utilized to load data as routes change (see [loaders](https://reactrouter.com/en/main/route/loader)).
 
 Phoenix uses `react-aria-components` for it's components. Arize also maintains `@arizeai/point-cloud` a 3D visualization library built on top of [threejs](https://threejs.org/) and [react-three-fiber](https://docs.pmnd.rs/react-three-fiber/getting-started/introduction).
+
+## Dev Tools
+
+The following browser extensions are recommended for developing the Phoenix app:
+
+- **[Redux DevTools](https://chromewebstore.google.com/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd?hl=en&pli=1)** - For debugging application state changes. Works with any state management architecture, including Zustand which is used in Phoenix for managing playground state and more.
+
+- **[React Developer Tools](https://react.dev/learn/react-developer-tools)** - For inspecting React components, editing props and state, and identifying performance problems. Essential for debugging performance issues and react compiler optimizations.
+
+- **[GraphQL Network Inspector](https://chromewebstore.google.com/detail/graphql-network-inspector/ndlbedplllcgconngcnfmkadhokfaaln)** - For inspecting GraphQL requests, including support for query batching. Useful for debugging the GraphQL API interactions between the Phoenix app and server.
+
+- **[Relay Developer Tools](https://chromewebstore.google.com/detail/relay-developer-tools/ncedobpgnmkhcmnnkcimnobpfepidadl)** - For inspecting data in the Relay store and how data changes over time in response to GraphQL queries and mutations. Essential for debugging the React Relay data-fetching layer used throughout Phoenix.
