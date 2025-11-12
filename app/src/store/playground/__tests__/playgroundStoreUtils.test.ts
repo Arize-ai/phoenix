@@ -231,7 +231,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestOpenAIToolDefinition({
               function: {
                 name: "my test func",
@@ -251,7 +251,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestAnthropicToolDefinition({
               name: "my test func",
               description: "This is a test function",
@@ -273,7 +273,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestAnthropicToolDefinition({
               name: "my test func",
               description: "This is a test function",
@@ -291,7 +291,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestAnthropicToolDefinition({
               name: "my test func",
               description: "This is a test function",
@@ -310,8 +310,8 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are if unknown schema for anthropic",
         "ANTHROPIC",
-        [{ id: 1, type: "json", definition: { test: "test" } }],
-        [{ id: 1, type: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
       ],
     ],
     OPENAI: [
@@ -321,7 +321,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestAnthropicToolDefinition({
               name: "my test func",
               description: "This is a test function",
@@ -339,7 +339,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestOpenAIToolDefinition({
               function: {
                 name: "my test func",
@@ -363,7 +363,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestOpenAIToolDefinition({
               function: {
                 name: "my test func",
@@ -383,7 +383,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestOpenAIToolDefinition({
               function: {
                 name: "my test func",
@@ -404,40 +404,40 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are if unknown schema for azure_openai",
         "OPENAI",
-        [{ id: 1, type: "json", definition: { test: "test" } }],
-        [{ id: 1, type: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
       ],
     ],
     DEEPSEEK: [
       [
         "return tools as they are for deepseek",
         "DEEPSEEK",
-        [{ id: 1, type: "json", definition: { test: "test" } }],
-        [{ id: 1, type: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
       ],
     ],
     XAI: [
       [
         "return tools as they are for xai",
         "XAI",
-        [{ id: 1, type: "json", definition: { test: "test" } }],
-        [{ id: 1, type: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
       ],
     ],
     OLLAMA: [
       [
         "return tools as they are for ollama",
         "OLLAMA",
-        [{ id: 1, type: "json", definition: { test: "test" } }],
-        [{ id: 1, type: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
       ],
     ],
     AWS: [
       [
         "return tools as they are for aws",
         "AWS",
-        [{ id: 1, type: "json", definition: { test: "test" } }],
-        [{ id: 1, type: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
       ],
     ],
     AZURE_OPENAI: [
@@ -447,7 +447,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestAnthropicToolDefinition({
               name: "my test func",
               description: "This is a test function",
@@ -465,7 +465,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestOpenAIToolDefinition({
               function: {
                 name: "my test func",
@@ -489,7 +489,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestOpenAIToolDefinition({
               function: {
                 name: "my test func",
@@ -509,7 +509,7 @@ describe("convertMessageToolCallsToProvider", () => {
         [
           {
             id: 1,
-            type: "json",
+            editorType: "json",
             definition: getTestOpenAIToolDefinition({
               function: {
                 name: "my test func",
@@ -530,8 +530,8 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are if unknown schema for azure_openai",
         "AZURE_OPENAI",
-        [{ id: 1, type: "json", definition: { test: "test" } }],
-        [{ id: 1, type: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
       ],
     ],
     // TODO(apowell): #5348 Add Google tool tests
@@ -539,8 +539,8 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are for google",
         "GOOGLE",
-        [{ id: 1, type: "json", definition: { test: "test" } }],
-        [{ id: 1, type: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
       ],
     ],
   };

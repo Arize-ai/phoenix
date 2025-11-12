@@ -290,7 +290,7 @@ export const promptVersionToInstance = ({
     },
     tools: promptVersion.tools.map((t) => ({
       id: generateToolId(),
-      type: "json",
+      editorType: "json",
       definition: t.definition,
     })),
     toolChoice,

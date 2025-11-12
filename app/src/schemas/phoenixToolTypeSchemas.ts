@@ -10,12 +10,12 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 
 import { openAIToolDefinitionSchema } from "@phoenix/schemas/toolSchemas";
 
-export const PhoenixToolTypeTypeSchema = z.union([
+export const PhoenixToolEditorTypeSchema = z.union([
   z.literal("json"),
   z.literal("categorical_choice"),
 ]);
 
-export type PhoenixToolTypeType = z.infer<typeof PhoenixToolTypeTypeSchema>;
+export type PhoenixToolEditorType = z.infer<typeof PhoenixToolEditorTypeSchema>;
 
 export const CategoricalChoiceToolTypeSchema =
   openAIToolDefinitionSchema.extend({

@@ -34,7 +34,7 @@ export type BaseToolEditorProps = {
 };
 
 const ToolEditor = (props: BaseToolEditorProps) => {
-  switch (props.tool.type) {
+  switch (props.tool.editorType) {
     // TODO: add support for other tool types
     case "json":
     default:

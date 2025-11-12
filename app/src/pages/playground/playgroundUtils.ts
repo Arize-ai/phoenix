@@ -16,7 +16,7 @@ import {
   OpenAIToolDefinition,
 } from "@phoenix/schemas";
 import { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
-import { PhoenixToolTypeType } from "@phoenix/schemas/phoenixToolTypeSchemas";
+import { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import {
   AnthropicToolCall,
   createAnthropicToolCall,
@@ -561,7 +561,7 @@ function processAttributeTools(tools: LlmToolSchema): Tool[] {
       }
       return {
         id: generateToolId(),
-        type: "json",
+        editorType: "json",
         definition: tool.tool.json_schema,
       } satisfies Tool;
     })
@@ -962,7 +962,7 @@ export const createToolForProvider = ({
 }: {
   provider: ModelProvider;
   toolNumber: number;
-  type?: PhoenixToolTypeType;
+  type?: PhoenixToolEditorType;
   definition?: OpenAIToolDefinition;
 }): Tool => {
   const defaultDefinition = fromOpenAIToolDefinition({
@@ -972,7 +972,7 @@ export const createToolForProvider = ({
 
   return {
     id: generateToolId(),
-    type,
+    editorType: type,
     definition: defaultDefinition,
   };
 };
