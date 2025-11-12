@@ -63,7 +63,9 @@ export function NewDatasetButton({
               onDatasetCreated={({ id, name }) => {
                 setError(null);
                 setIsOpen(false);
-                onDatasetCreated && onDatasetCreated(id);
+                if (onDatasetCreated) {
+                  onDatasetCreated(id);
+                }
                 notifySuccess({
                   title: `Dataset Created`,
                   message: `Dataset "${name}" created successfully`,

@@ -1,5 +1,98 @@
 # @arizeai/phoenix-client
 
+## 5.3.0
+
+### Minor Changes
+
+- 557865c: Add experiment resume and management features
+
+  **New APIs:**
+  - `createExperiment()` - Create an experiment without running it
+  - `resumeExperiment()` - Resume incomplete experiment runs (handles failed or missing runs)
+  - `resumeEvaluation()` - Add evaluations to completed experiments or retry failed evaluations
+  - `listExperiments()` - List experiments with filtering and pagination
+  - `deleteExperiment()` - Delete experiments
+
+### Patch Changes
+
+- b000189: fix bug with channel error
+- 0c92232: allow metadata when creating prompts
+
+## 5.2.1
+
+### Patch Changes
+
+- Updated dependencies [419ea76]
+  - @arizeai/phoenix-otel@0.3.0
+
+## 5.2.0
+
+### Minor Changes
+
+- f9d8b06: switch licensing to apache 2
+
+## 5.1.1
+
+### Patch Changes
+
+- Updated dependencies [8bbff3a]
+  - @arizeai/phoenix-otel@0.2.1
+
+## 5.1.0
+
+### Minor Changes
+
+- de6f111: refactor to use phoenix-otel across the client
+
+### Patch Changes
+
+- Updated dependencies [de6f111]
+  - @arizeai/phoenix-otel@0.2.0
+
+## 5.0.0
+
+### Major Changes
+
+- 950fda5: feat: Add support for dataset splits
+
+  This release introduces support for dataset splits, enabling you to segment and query specific portions of your dataset examples. The `DatasetSelector` interface has been enhanced to support filtering by splits, allowing for more granular dataset management and experimentation.
+
+  ## New Features
+  - **Dataset Splits Support**: Query dataset examples by split using the enhanced `DatasetSelector` interface
+  - **Split-based Experimentation**: Run experiments on specific dataset splits for targeted evaluation
+  - **Enhanced Dataset Types**: Updated type definitions to support split-based dataset operations
+
+  ## Breaking Changes
+  - **`runExperiment` API Changes**:
+    - The `datasetVersionId` parameter has been removed from `runExperiment`
+    - Version selection is now handled through the `DatasetSelector` interface
+    - Pass `versionId` and `splits` as properties of the `DatasetSelector` argument instead
+
+  ## Migration Guide
+
+  **Before:**
+
+  ```typescript
+  runExperiment({
+    dataset: { datasetId: "my-dataset" },
+    datasetVersionId: "version-123",
+    // ... other params
+  });
+  ```
+
+  **After:**
+
+  ```typescript
+  runExperiment({
+    dataset: {
+      datasetId: "my-dataset",
+      versionId: "version-123",
+      splits: ["train", "test"],
+    },
+    // ... other params
+  });
+  ```
+
 ## 4.2.0
 
 ### Minor Changes

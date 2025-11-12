@@ -55,6 +55,7 @@ export const RetentionPoliciesTable = ({
 }: {
   query: RetentionPoliciesTable_policies$key;
 }) => {
+  "use no memo";
   const notifySuccess = useNotifySuccess();
   const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
   const { data } = usePaginationFragment<
@@ -72,7 +73,6 @@ export const RetentionPoliciesTable = ({
           @connection(
             key: "RetentionPoliciesTable_projectTraceRetentionPolicies"
           ) {
-          __id
           edges {
             node {
               ...RetentionPoliciesTable_retentionPolicy
@@ -84,7 +84,6 @@ export const RetentionPoliciesTable = ({
     query
   );
 
-  const connectionId = data.projectTraceRetentionPolicies.__id;
   const tableData = useMemo(
     () =>
       data.projectTraceRetentionPolicies.edges.map((edge) => {
@@ -171,7 +170,6 @@ export const RetentionPoliciesTable = ({
             <RetentionPolicyActionMenu
               policyId={row.original.id}
               policyName={row.original.name}
-              connectionId={connectionId}
               projectNames={row.original.projects.edges.map(
                 (edge) => edge.node.name
               )}
@@ -193,8 +191,9 @@ export const RetentionPoliciesTable = ({
       });
     }
     return columns;
-  }, [canManageRetentionPolicy, notifySuccess, connectionId]);
+  }, [canManageRetentionPolicy, notifySuccess]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

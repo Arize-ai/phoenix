@@ -1,10 +1,9 @@
-import { Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback } from "react";
 import { Collection, Key } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 const settingsPageCSS = css`
   overflow-y: auto;
@@ -34,14 +33,7 @@ const tabs: { id: string; label: string }[] = [
 export function SettingsPage() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const isDatasetLabelEnabled = useFeatureFlag("datasetLabel");
   const tab = pathname.split("/settings")[1].replace("/", "");
-  const itemsWithFeatureFlags = useMemo(() => {
-    if (isDatasetLabelEnabled) {
-      return tabs;
-    }
-    return tabs.filter((item) => item.id !== "datasets");
-  }, [isDatasetLabelEnabled]);
   const onChangeTab = useCallback(
     (tab: Key) => {
       if (typeof tab === "string") {
@@ -57,10 +49,10 @@ export function SettingsPage() {
     <main css={settingsPageCSS}>
       <div css={settingsPageInnerCSS}>
         <Tabs selectedKey={tab} onSelectionChange={onChangeTab}>
-          <TabList items={itemsWithFeatureFlags}>
+          <TabList items={tabs}>
             {(item) => <Tab id={item.id}>{item.label}</Tab>}
           </TabList>
-          <Collection items={itemsWithFeatureFlags}>
+          <Collection items={tabs}>
             {(item) => (
               <TabPanel id={item.id} padded>
                 <Suspense fallback={<Loading />}>

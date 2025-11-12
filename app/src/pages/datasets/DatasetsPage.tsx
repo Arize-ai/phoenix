@@ -2,13 +2,12 @@ import { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { DebouncedSearch, Flex, Loading, View } from "@phoenix/components";
+import { CanModify } from "@phoenix/components/auth";
 import { DatasetLabelFilterButton } from "@phoenix/components/dataset/DatasetLabelFilterButton";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
 import { DatasetsTable } from "./DatasetsTable";
 import { NewDatasetActionMenu } from "./NewDatasetActionMenu";
-
 export function DatasetsPage() {
   return (
     <Suspense fallback={<Loading />}>
@@ -19,7 +18,6 @@ export function DatasetsPage() {
 
 export function DatasetsPageContent() {
   const [fetchKey, setFetchKey] = useState(0);
-  const isDatasetLabelEnabled = useFeatureFlag("datasetLabel");
   const data = useLazyLoadQuery<DatasetsPageQuery>(
     graphql`
       query DatasetsPageQuery {
@@ -61,13 +59,13 @@ export function DatasetsPageContent() {
             />
           </View>
           <Flex direction="row" alignItems="center" gap="size-100" flex="none">
-            {isDatasetLabelEnabled && (
-              <DatasetLabelFilterButton
-                selectedLabelIds={selectedLabelIds}
-                onSelectionChange={setSelectedLabelIds}
-              />
-            )}
-            <NewDatasetActionMenu onDatasetCreated={onDatasetCreated} />
+            <DatasetLabelFilterButton
+              selectedLabelIds={selectedLabelIds}
+              onSelectionChange={setSelectedLabelIds}
+            />
+            <CanModify>
+              <NewDatasetActionMenu onDatasetCreated={onDatasetCreated} />
+            </CanModify>
           </Flex>
         </Flex>
       </View>

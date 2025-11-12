@@ -11,7 +11,8 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames, Flex, Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons } from "@phoenix/components";
+import { classNames } from "@phoenix/utils";
 
 import { FlexStyleProps, SizingProps, StylableProps } from "../types";
 
@@ -83,7 +84,7 @@ export const DisclosurePanel = ({
 };
 
 export type DisclosureTriggerProps = PropsWithChildren<{
-  arrowPosition?: "start" | "end";
+  arrowPosition?: "start" | "end" | "none";
   justifyContent?: FlexStyleProps["justifyContent"];
   asHeading?: boolean;
   width?: CSSProperties["width"];
@@ -115,7 +116,9 @@ export const DisclosureTrigger = ({
         >
           {children}
         </Flex>
-        <Icon svg={<Icons.ArrowIosForwardOutline />} />
+        {arrowPosition !== "none" ? (
+          <Icon svg={<Icons.ArrowIosForwardOutline />} />
+        ) : null}
       </Button>
     </Heading>
   );

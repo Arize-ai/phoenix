@@ -49,7 +49,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
     Examples::
 
         from phoenix.evals.metrics.hallucination import HallucinationEvaluator
-        from phoenix.evals.llm import LLM
+        from phoenix.evals import LLM
         llm = LLM(provider="openai", model="gpt-4o-mini")
         hallucination_eval = HallucinationEvaluator(llm=llm)
         eval_input = {
@@ -61,7 +61,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
         print(scores)
         [Score(name='hallucination', score=1.0, label='factual',
             explanation='Information is supported by context', metadata={'model': 'gpt-4o-mini'},
-            source="llm", direction="maximize")]
+            kind="llm", direction="maximize")]
 
     """
 

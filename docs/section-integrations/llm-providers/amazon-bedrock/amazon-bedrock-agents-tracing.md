@@ -14,8 +14,6 @@ This instrumentation will capture data on LLM calls, action group invocations (a
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

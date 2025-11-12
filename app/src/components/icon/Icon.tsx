@@ -1,10 +1,9 @@
 import { HTMLAttributes, ReactNode } from "react";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
-
 import { ColorValue, StylableProps } from "@phoenix/components/types";
 import { colorValue } from "@phoenix/components/utils";
+import { classNames } from "@phoenix/utils";
 
 interface IconProps extends StylableProps, HTMLAttributes<HTMLElement> {
   svg: ReactNode;

@@ -1,5 +1,5 @@
-import invariant from "tiny-invariant";
 import { assertUnreachable } from "../../../utils/assertUnreachable";
+import { isObject } from "../../../utils/isObject";
 import {
   AnthropicImageBlock,
   AnthropicMessagePart,
@@ -7,28 +7,30 @@ import {
   AnthropicToolUseBlock,
 } from "../anthropic/messagePartSchemas";
 import { AnthropicMessage } from "../anthropic/messageSchemas";
-import { openaiChatPartSchema } from "./messagePartSchemas";
-import { openAIMessageSchema } from "./messageSchemas";
-import {
-  PhoenixMessage,
-  PhoenixMessageRole,
-} from "../phoenixPrompt/messageSchemas";
+import { AnthropicToolCall } from "../anthropic/toolCallSchemas";
+import { AnthropicToolChoice } from "../anthropic/toolChoiceSchemas";
+import { AnthropicToolDefinition } from "../anthropic/toolSchemas";
 import {
   makeTextPart,
   makeToolResultPart,
   PhoenixContentPart,
   ToolCallPart,
 } from "../phoenixPrompt/messagePartSchemas";
+import {
+  PhoenixMessage,
+  PhoenixMessageRole,
+} from "../phoenixPrompt/messageSchemas";
 import { VercelAIMessage } from "../vercel/messageSchemas";
-import { openAIToolCallSchema } from "./toolCallSchemas";
-import { AnthropicToolCall } from "../anthropic/toolCallSchemas";
-import { AnthropicToolChoice } from "../anthropic/toolChoiceSchemas";
-import { openAIToolChoiceSchema } from "./toolChoiceSchemas";
-import { isObject } from "../../../utils/isObject";
 import { VercelAIToolChoice } from "../vercel/toolChoiceSchemas";
-import { openAIToolDefinitionSchema } from "./toolSchemas";
-import { AnthropicToolDefinition } from "../anthropic/toolSchemas";
 import { VercelAIToolDefinition } from "../vercel/toolSchemas";
+
+import { openaiChatPartSchema } from "./messagePartSchemas";
+import { openAIMessageSchema } from "./messageSchemas";
+import { openAIToolCallSchema } from "./toolCallSchemas";
+import { openAIToolChoiceSchema } from "./toolChoiceSchemas";
+import { openAIToolDefinitionSchema } from "./toolSchemas";
+
+import invariant from "tiny-invariant";
 
 export const openAIChatPartToAnthropic = openaiChatPartSchema.transform(
   (openai) => {

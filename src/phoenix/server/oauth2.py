@@ -1,5 +1,6 @@
-from collections.abc import Iterable
-from typing import Any, Iterator, Optional
+import logging
+from collections.abc import Iterable, Mapping
+from typing import Any, Iterator, Optional, get_args
 
 import jmespath
 from authlib.integrations.base_client import BaseApp
@@ -7,7 +8,9 @@ from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
 from authlib.integrations.base_client.async_openid import AsyncOpenIDMixin
 from authlib.integrations.httpx_client import AsyncOAuth2Client as AsyncHttpxOAuth2Client
 
-from phoenix.config import OAuth2ClientConfig
+from phoenix.config import OAuth2ClientConfig, OAuth2UserRoleName
+
+logger = logging.getLogger(__name__)
 
 
 class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[misc]
@@ -29,6 +32,9 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         use_pkce: bool = False,
         groups_attribute_path: Optional[str] = None,
         allowed_groups: Optional[list[str]] = None,
+        role_attribute_path: Optional[str] = None,
+        role_mapping: Optional[Mapping[str, OAuth2UserRoleName]] = None,
+        role_attribute_strict: bool = False,
         **kwargs: Any,
     ) -> None:
         self._display_name = display_name
@@ -60,11 +66,28 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
                 "If you don't need group-based access control, remove groups_attribute_path."
             )
 
-        self._compiled_groups_path = self._compile_jmespath_expression(self._groups_attribute_path)
+        self._compiled_groups_path = self._compile_jmespath_expression(
+            self._groups_attribute_path, "GROUPS_ATTRIBUTE_PATH"
+        )
+
+        # Role mapping configuration
+        self._role_attribute_path = (
+            role_attribute_path.strip()
+            if role_attribute_path and role_attribute_path.strip()
+            else None
+        )
+        self._role_mapping = role_mapping
+        self._role_attribute_strict = role_attribute_strict
+        self._compiled_role_path = self._compile_jmespath_expression(
+            self._role_attribute_path, "ROLE_ATTRIBUTE_PATH"
+        )
+
         super().__init__(framework=None, *args, **kwargs)
 
     @staticmethod
-    def _compile_jmespath_expression(path: Optional[str]) -> Optional[jmespath.parser.ParsedResult]:
+    def _compile_jmespath_expression(
+        path: Optional[str], attribute_name: str
+    ) -> Optional[jmespath.parser.ParsedResult]:
         """Validate and compile JMESPath expression at startup for fail-fast behavior."""
         if not path:
             return None
@@ -73,7 +96,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
             return jmespath.compile(path)
         except (jmespath.exceptions.JMESPathError, jmespath.exceptions.ParseError) as e:
             raise ValueError(
-                f"Invalid JMESPath expression in GROUPS_ATTRIBUTE_PATH: '{path}'. Error: {e}. "
+                f"Invalid JMESPath expression in {attribute_name}: '{path}'. Error: {e}. "
                 "Hint: Claim keys with special characters (colons, dots, slashes, hyphens) "
                 "must be enclosed in double quotes. "
                 "Examples: '\"cognito:groups\"', '\"https://myapp.com/groups\"'"
@@ -100,13 +123,14 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         Check if the ID token contains all application-required claims.
 
         OIDC Core §2 mandates that ID tokens contain authentication claims (iss, sub, aud,
-        exp, iat), but user profile claims (email, name, groups) are optional and may only
-        be available via UserInfo endpoint (§5.4, §5.5). This method determines if we need
-        to call UserInfo.
+        exp, iat), but user profile claims (email, name, groups, roles) are optional and may
+        only be available via UserInfo endpoint (§5.4, §5.5). This method determines if we
+        need to call UserInfo.
 
         Application-required claims:
         - email: Required for user identification and account creation
         - groups: Required if group-based access control is configured
+        - roles: Required if role mapping is configured
 
         If any required claim is missing, returns False to trigger UserInfo endpoint call.
 
@@ -129,6 +153,19 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
             if len(groups) == 0:
                 # Groups required but not present, need UserInfo
                 return False
+
+        # Check for role claims if role mapping is configured
+        if self._compiled_role_path:
+            # Check if role claim EXISTS (not whether it maps successfully)
+            # Optimization: If the claim exists but doesn't map, UserInfo won't help
+            result = self._compiled_role_path.search(claims)
+            role_value = self._normalize_to_single_string(result)
+            if not role_value:
+                # Role claim missing - UserInfo might have a mappable role
+                # (could upgrade from default VIEWER to ADMIN/MEMBER)
+                return False
+            # Role exists - UserInfo won't help even if role doesn't map
+            # (UserInfo will have the same unmappable role)
 
         # All required claims present
         return True
@@ -198,6 +235,119 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
 
         return []
 
+    def extract_and_map_role(self, user_claims: dict[str, Any]) -> Optional[OAuth2UserRoleName]:
+        """
+        Extract and map user role from OIDC claims.
+
+        This method extracts the role claim using the configured JMESPath expression,
+        optionally applies role mapping to translate IDP role values to Phoenix roles,
+        and handles missing/invalid roles based on the strict mode setting.
+
+        Role Mapping Flow:
+        1. Extract role claim using ROLE_ATTRIBUTE_PATH (JMESPath)
+           - Supports simple paths: "role", "user.org.role"
+           - Supports conditional logic: "contains(groups[*], 'admin') && 'ADMIN' || 'VIEWER'"
+        2. Apply ROLE_MAPPING (if configured) to translate IDP role → Phoenix role
+           - If ROLE_MAPPING not set, use extracted value directly if valid (ADMIN/MEMBER/VIEWER)
+           - This allows JMESPath expressions to return Phoenix roles directly
+        3. Validate Phoenix role (ADMIN, MEMBER, VIEWER - SYSTEM excluded for OAuth)
+        4. Handle missing/invalid roles:
+           - strict=True: Raise PermissionError (deny access)
+           - strict=False: Return "VIEWER" (default, least privilege)
+
+        IMPORTANT: Backward Compatibility
+        - If ROLE_ATTRIBUTE_PATH is NOT configured, returns None
+        - This preserves existing users' roles (no unwanted downgrades)
+        - Caller should only apply "VIEWER" default for NEW users
+
+        Args:
+            user_claims: Claims from the OIDC ID token or userinfo endpoint
+
+        Returns:
+            Phoenix role name (ADMIN, MEMBER, or VIEWER), or None if role attribute
+            path is not configured (to preserve existing user roles)
+
+        Raises:
+            PermissionError: If strict mode is enabled and role cannot be determined
+        """
+        # If no role mapping configured, return None to preserve existing user roles
+        if not self._compiled_role_path:
+            return None
+
+        # Extract role from claims
+        result = self._compiled_role_path.search(user_claims)
+        role_value = self._normalize_to_single_string(result)
+
+        # If role claim is missing or empty
+        if not role_value:
+            if self._role_attribute_strict:
+                raise PermissionError(
+                    f"Access denied: Role claim not found in user claims. "
+                    f"Role attribute path '{self._role_attribute_path}' is configured with "
+                    f"strict mode enabled."
+                )
+            return "VIEWER"  # Non-strict: default to least privilege
+
+        # Apply role mapping if configured
+        if self._role_mapping:
+            mapped_role = self._role_mapping.get(role_value)
+            if not mapped_role:
+                # Role value doesn't match any mapping
+                if self._role_attribute_strict:
+                    raise PermissionError(
+                        f"Access denied: Role '{role_value}' is not mapped to a Phoenix role. "
+                        f"Role mapping is configured with strict mode enabled."
+                    )
+                return "VIEWER"  # Non-strict: default to least privilege
+            return mapped_role
+
+        # No role mapping configured, but role path exists
+        # Try to use the raw role value directly if it's a valid Phoenix role
+        # Note: SYSTEM is excluded from valid roles for OIDC (validated at config parsing)
+        role_upper = role_value.upper()
+        if role_upper in get_args(OAuth2UserRoleName):
+            return role_upper  # type: ignore[return-value]
+
+        # Role value is not a valid Phoenix role
+        if self._role_attribute_strict:
+            raise PermissionError(
+                f"Access denied: Role '{role_value}' is not a valid Phoenix role "
+                f"(expected ADMIN, MEMBER, or VIEWER). Strict mode is enabled."
+            )
+        return "VIEWER"  # Non-strict: default to least privilege
+
+    @staticmethod
+    def _normalize_to_single_string(value: Any) -> Optional[str]:
+        """
+        Normalize a JMESPath result to a single string value.
+
+        Handles common OIDC claim formats for single-value fields like role.
+        If the result is a list, takes the first element.
+
+        Args:
+            value: Result from JMESPath query
+
+        Returns:
+            String value or None if value cannot be normalized
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, str):
+            return value.strip() or None
+
+        if isinstance(value, (int, float, bool)):
+            return str(value)
+
+        if isinstance(value, list) and len(value) > 0:
+            first = value[0]
+            if isinstance(first, str):
+                return first.strip() or None
+            if isinstance(first, (int, float, bool)):
+                return str(first)
+
+        return None
+
 
 class OAuth2Clients:
     def __init__(self) -> None:
@@ -242,6 +392,9 @@ class OAuth2Clients:
             use_pkce=config.use_pkce,
             groups_attribute_path=config.groups_attribute_path,
             allowed_groups=config.allowed_groups,
+            role_attribute_path=config.role_attribute_path,
+            role_mapping=config.role_mapping,
+            role_attribute_strict=config.role_attribute_strict,
         )
 
         if config.auto_login:

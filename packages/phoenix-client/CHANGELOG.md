@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.22.0...arize-phoenix-client-v1.23.0) (2025-11-12)
+
+
+### Features
+
+* Experiment retries ([#10179](https://github.com/Arize-ai/phoenix/issues/10179)) ([e05fbe9](https://github.com/Arize-ai/phoenix/commit/e05fbe9f3279a5b872cb7cc905a58e6e6aa397a3))
+
+## [1.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.21.0...arize-phoenix-client-v1.22.0) (2025-11-05)
+
+
+### Features
+
+* Bind example to evaluators ([#9036](https://github.com/Arize-ai/phoenix/issues/9036)) ([04d2708](https://github.com/Arize-ai/phoenix/commit/04d270843a0e1c35aa8c55e78ee5d3adb6baabc8))
+* metadata for prompts ([#10097](https://github.com/Arize-ai/phoenix/issues/10097)) ([0c92232](https://github.com/Arize-ai/phoenix/commit/0c92232a91679d1b8146167a26aecd20326fce9c))
+* query examples by splits ([#9762](https://github.com/Arize-ai/phoenix/issues/9762)) ([e698c9f](https://github.com/Arize-ai/phoenix/commit/e698c9f573e8022eff28c4cc4591c65ab5b39109))
+* resume experiment and evaluation ([#9994](https://github.com/Arize-ai/phoenix/issues/9994)) ([557865c](https://github.com/Arize-ai/phoenix/commit/557865c60b08dee5b09912bd09dfd2593231f713))
+
+
+### Bug Fixes
+
+* Clear error message for non-existent prompts instead of HTTP 404 ([#9931](https://github.com/Arize-ai/phoenix/issues/9931)) ([b31be10](https://github.com/Arize-ai/phoenix/commit/b31be10220d02dc63dfd0027efdd627f30178812))
+* **client:** soften input type to create_dataset method ([#9995](https://github.com/Arize-ai/phoenix/issues/9995)) ([02dc536](https://github.com/Arize-ai/phoenix/commit/02dc53652eb7463be47728fb983e4aee8c5215c1))
+
+
+### Documentation
+
+* **client:** fix docstring for get_dataset ([#9728](https://github.com/Arize-ai/phoenix/issues/9728)) ([2d330f1](https://github.com/Arize-ai/phoenix/commit/2d330f1ff8ca45f0c462c9050723bbae6e792fd7))
+* migrate to client.spans.log_ ([#9757](https://github.com/Arize-ai/phoenix/issues/9757)) ([aecb5fb](https://github.com/Arize-ai/phoenix/commit/aecb5fbbfb1ae6938b8d91ac0a1ff6f3a51113a9))
+* sync main to docs ([65a68f4](https://github.com/Arize-ai/phoenix/commit/65a68f4c05635e76068b2c85b2929b4d13ca2668))
+
 ## [1.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.20.0...arize-phoenix-client-v1.21.0) (2025-09-29)
 
 

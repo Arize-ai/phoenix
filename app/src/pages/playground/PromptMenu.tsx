@@ -15,9 +15,10 @@ import {
   Flex,
   LazyTabPanel,
   Menu,
+  MenuContainer,
+  MenuHeader,
   MenuItem,
   MenuTrigger,
-  Popover,
   SearchField,
   SelectChevronUpDownIcon,
   Tab,
@@ -28,12 +29,12 @@ import {
   View,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import { useTimeFormatters } from "@phoenix/hooks";
 import {
   PromptMenuQuery,
   PromptMenuQuery$data,
 } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 type PromptItem = {
   type: "prompt" | "version" | "tag";
@@ -114,6 +115,7 @@ export const PromptMenu = <T extends object>({
   onChange,
   ...props
 }: PromptMenuProps<T>) => {
+  const { fullTimeFormatter } = useTimeFormatters();
   const { promptId, promptVersionId, promptTagName } = value || {};
   const fetchKey = promptVersionId
     ? `PromptMenu:${promptId}:${promptVersionId}`
@@ -223,17 +225,13 @@ export const PromptMenu = <T extends object>({
           <Text color="text-300">Select a prompt</Text>
         )}
       </Button>
-      <Popover
-        css={css`
-          overflow: auto;
-        `}
-      >
+      <MenuContainer>
         <Autocomplete filter={contains}>
-          <View paddingX="size-100" marginTop="size-100">
+          <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
               <Input placeholder="Search prompts" />
             </SearchField>
-          </View>
+          </MenuHeader>
           <Menu
             {...props}
             selectionMode="single"
@@ -246,156 +244,149 @@ export const PromptMenu = <T extends object>({
               return (
                 <SubmenuTrigger>
                   <MenuItem>{name}</MenuItem>
-                  <Popover
-                    css={css`
-                      overflow: auto;
-                    `}
+                  <MenuContainer
+                    placement="end"
+                    containerPadding={8}
+                    shouldFlip
                   >
-                    <View width="100%">
-                      <Tabs
-                        defaultSelectedKey={
-                          selectedPromptTagNameKey && (tags?.length ?? 0) > 0
-                            ? "tags"
-                            : "versions"
-                        }
-                      >
-                        <TabList>
-                          <Tab id="versions">Versions</Tab>
-                          <Tab id="tags">Tags</Tab>
-                        </TabList>
-                        <LazyTabPanel id="versions">
-                          <Autocomplete filter={contains}>
-                            <View paddingX="size-100" marginTop="size-100">
-                              <SearchField aria-label="Search" autoFocus>
-                                <Input placeholder="Search prompt versions" />
-                              </SearchField>
-                            </View>
-                            <Menu
-                              items={versions}
-                              renderEmptyState={() => (
-                                <View padding="size-200">
-                                  <Text color="text-700">
-                                    No prompt versions found
-                                  </Text>
-                                </View>
-                              )}
-                              selectionMode="single"
-                              selectedKeys={selectedPromptVersionIdKey}
-                              onSelectionChange={(keys) => {
-                                const newSelection =
-                                  keys instanceof Set
-                                    ? keys.values().next().value
-                                    : null;
-                                onChange(
-                                  newSelection == null
-                                    ? {
-                                        promptId: null,
-                                        promptVersionId: null,
-                                        promptTagName: null,
-                                      }
-                                    : {
-                                        promptId: id,
-                                        promptVersionId: newSelection as string,
-                                        promptTagName: null,
-                                      }
-                                );
-                              }}
-                            >
-                              {({ createdAt, name, description }) => (
-                                <MenuItem
-                                  textValue={`${name}\n${description}\n${createdAt}`}
-                                >
-                                  <Flex direction="column" gap="size-100">
-                                    <Truncate maxWidth="100%">
-                                      {description ? (
-                                        <Text>{description}</Text>
-                                      ) : (
-                                        <Text
-                                          fontStyle="italic"
-                                          color="text-300"
-                                        >
-                                          No change description
-                                        </Text>
-                                      )}
-                                    </Truncate>
-                                    <Flex alignItems="center" gap="size-100">
-                                      <IdTruncate
-                                        id={name}
-                                        textProps={{ size: "S" }}
-                                      />
-                                      {createdAt && (
-                                        <Text size="XS" color="text-300">
-                                          {fullTimeFormatter(
-                                            new Date(createdAt)
-                                          )}
-                                        </Text>
-                                      )}
-                                    </Flex>
+                    <Tabs
+                      defaultSelectedKey={
+                        selectedPromptTagNameKey && (tags?.length ?? 0) > 0
+                          ? "tags"
+                          : "versions"
+                      }
+                    >
+                      <TabList>
+                        <Tab id="versions">Versions</Tab>
+                        <Tab id="tags">Tags</Tab>
+                      </TabList>
+                      <LazyTabPanel id="versions">
+                        <Autocomplete filter={contains}>
+                          <MenuHeader>
+                            <SearchField aria-label="Search" autoFocus>
+                              <Input placeholder="Search prompt versions" />
+                            </SearchField>
+                          </MenuHeader>
+                          <Menu
+                            items={versions}
+                            renderEmptyState={() => (
+                              <View padding="size-200">
+                                <Text color="text-700">
+                                  No prompt versions found
+                                </Text>
+                              </View>
+                            )}
+                            selectionMode="single"
+                            selectedKeys={selectedPromptVersionIdKey}
+                            onSelectionChange={(keys) => {
+                              const newSelection =
+                                keys instanceof Set
+                                  ? keys.values().next().value
+                                  : null;
+                              onChange(
+                                newSelection == null
+                                  ? {
+                                      promptId: null,
+                                      promptVersionId: null,
+                                      promptTagName: null,
+                                    }
+                                  : {
+                                      promptId: id,
+                                      promptVersionId: newSelection as string,
+                                      promptTagName: null,
+                                    }
+                              );
+                            }}
+                          >
+                            {({ createdAt, name, description }) => (
+                              <MenuItem
+                                textValue={`${name}\n${description}\n${createdAt}`}
+                              >
+                                <Flex direction="column" gap="size-100">
+                                  <Truncate maxWidth="100%">
+                                    {description ? (
+                                      <Text>{description}</Text>
+                                    ) : (
+                                      <Text fontStyle="italic" color="text-300">
+                                        No change description
+                                      </Text>
+                                    )}
+                                  </Truncate>
+                                  <Flex alignItems="center" gap="size-100">
+                                    <IdTruncate
+                                      id={name}
+                                      textProps={{ size: "S" }}
+                                    />
+                                    {createdAt && (
+                                      <Text size="XS" color="text-300">
+                                        {fullTimeFormatter(new Date(createdAt))}
+                                      </Text>
+                                    )}
                                   </Flex>
-                                </MenuItem>
-                              )}
-                            </Menu>
-                          </Autocomplete>
-                        </LazyTabPanel>
-                        <LazyTabPanel id="tags">
-                          <Autocomplete filter={contains}>
-                            <View paddingX="size-100" marginTop="size-100">
-                              <SearchField aria-label="Search" autoFocus>
-                                <Input placeholder="Search prompt tags" />
-                              </SearchField>
-                            </View>
-                            <Menu
-                              items={tags}
-                              renderEmptyState={() => (
-                                <View padding="size-200">
-                                  <Text color="text-700">
-                                    No prompt tags found
-                                  </Text>
-                                </View>
-                              )}
-                              selectionMode="single"
-                              selectedKeys={
-                                selectedPromptDatum?.promptId === id
-                                  ? selectedPromptTagNameKey
-                                  : undefined
-                              }
-                              onSelectionChange={(keys) => {
-                                const newSelection =
-                                  keys instanceof Set
-                                    ? keys.values().next().value
-                                    : null;
-                                onChange(
-                                  newSelection == null
-                                    ? {
-                                        promptId: null,
-                                        promptVersionId: null,
-                                        promptTagName: null,
-                                      }
-                                    : {
-                                        promptId: id,
-                                        promptTagName: newSelection as string,
-                                        promptVersionId: null,
-                                      }
-                                );
-                              }}
-                            >
-                              {({ name }) => (
-                                <MenuItem textValue={name}>
-                                  <TagVersionLabel>{name}</TagVersionLabel>
-                                </MenuItem>
-                              )}
-                            </Menu>
-                          </Autocomplete>
-                        </LazyTabPanel>
-                      </Tabs>
-                    </View>
-                  </Popover>
+                                </Flex>
+                              </MenuItem>
+                            )}
+                          </Menu>
+                        </Autocomplete>
+                      </LazyTabPanel>
+                      <LazyTabPanel id="tags">
+                        <Autocomplete filter={contains}>
+                          <MenuHeader>
+                            <SearchField aria-label="Search" autoFocus>
+                              <Input placeholder="Search prompt tags" />
+                            </SearchField>
+                          </MenuHeader>
+                          <Menu
+                            items={tags}
+                            renderEmptyState={() => (
+                              <View padding="size-200">
+                                <Text color="text-700">
+                                  No prompt tags found
+                                </Text>
+                              </View>
+                            )}
+                            selectionMode="single"
+                            selectedKeys={
+                              selectedPromptDatum?.promptId === id
+                                ? selectedPromptTagNameKey
+                                : undefined
+                            }
+                            onSelectionChange={(keys) => {
+                              const newSelection =
+                                keys instanceof Set
+                                  ? keys.values().next().value
+                                  : null;
+                              onChange(
+                                newSelection == null
+                                  ? {
+                                      promptId: null,
+                                      promptVersionId: null,
+                                      promptTagName: null,
+                                    }
+                                  : {
+                                      promptId: id,
+                                      promptTagName: newSelection as string,
+                                      promptVersionId: null,
+                                    }
+                              );
+                            }}
+                          >
+                            {({ name }) => (
+                              <MenuItem textValue={name}>
+                                <TagVersionLabel>{name}</TagVersionLabel>
+                              </MenuItem>
+                            )}
+                          </Menu>
+                        </Autocomplete>
+                      </LazyTabPanel>
+                    </Tabs>
+                  </MenuContainer>
                 </SubmenuTrigger>
               );
             }}
           </Menu>
         </Autocomplete>
-      </Popover>
+      </MenuContainer>
     </MenuTrigger>
   );
 };

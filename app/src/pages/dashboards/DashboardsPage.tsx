@@ -68,6 +68,7 @@ function DashboardsTable({ dashboards }: { dashboards: Dashboard[] }) {
     ],
     []
   );
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: dashboards,
@@ -135,6 +136,7 @@ function DashboardsTable({ dashboards }: { dashboards: Dashboard[] }) {
 }
 
 export function DashboardsPage() {
+  "use no memo";
   const loaderData = useLoaderData<typeof dashboardsLoader>();
   // For now, use mock data for dashboards
   const dashboards = [

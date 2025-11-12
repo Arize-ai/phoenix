@@ -280,7 +280,7 @@ function BaseTable<T>({
     }
     return colSizes;
     // Disabled lint as per tanstack docs - dependencies are necessary for column resizing
-    // eslint-disable-next-line react-compiler/react-compiler
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
 

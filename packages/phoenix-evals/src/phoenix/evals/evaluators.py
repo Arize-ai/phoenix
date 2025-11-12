@@ -3,6 +3,7 @@ import copy
 import inspect
 import itertools
 import json
+import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -37,12 +38,17 @@ from .legacy.evaluators import (
 from .llm import LLM
 from .llm.types import ObjectGenerationMethod
 from .templating import Template
-from .utils import remap_eval_input
+from .utils import (
+    _deprecate_positional_args,
+    _deprecate_source_and_heuristic,
+    default_tqdm_progress_bar_formatter,
+    remap_eval_input,
+)
 
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
 ToolSchema = Optional[Dict[str, Any]]
-SourceType = Literal["human", "llm", "heuristic"]
+KindType = Literal["human", "llm", "heuristic", "code"]
 DirectionType = Literal["maximize", "minimize"]
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
@@ -55,7 +61,7 @@ EnforcedString = Annotated[str, BeforeValidator(_coerce_to_str)]
 
 
 # --- Score model ---
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class Score:
     """
     Represents the result of an evaluation.
@@ -72,7 +78,7 @@ class Score:
             numeric_score = Score(
                 name="accuracy",
                 score=0.85,
-                source="llm",
+                kind="llm",
                 direction="maximize"
             )
 
@@ -80,7 +86,7 @@ class Score:
             label_score = Score(
                 name="sentiment",
                 label="positive",
-                source="llm",
+                kind="llm",
                 direction="maximize"
             )
 
@@ -91,7 +97,7 @@ class Score:
                 label="highly_relevant",
                 explanation="The answer directly addresses all aspects of the question",
                 metadata={"model": "gpt-4", "confidence": 0.95},
-                source="llm",
+                kind="llm",
                 direction="maximize"
             )
 
@@ -101,7 +107,7 @@ class Score:
                 score=1.0,
                 label="true",
                 explanation="Found 3 citations in the text",
-                source="heuristic",
+                kind="code",
                 direction="maximize"
             )
     """
@@ -111,8 +117,39 @@ class Score:
     label: Optional[str] = None
     explanation: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
-    source: Optional[SourceType] = None
+    kind: Optional[KindType] = None
     direction: DirectionType = "maximize"
+
+    @_deprecate_source_and_heuristic
+    def __init__(
+        self,
+        *,
+        name: Optional[str] = None,
+        score: Optional[Union[float, int]] = None,
+        label: Optional[str] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        direction: DirectionType = "maximize",
+        kind: Optional[KindType] = None,
+    ) -> None:
+        object.__setattr__(self, "name", name)
+        object.__setattr__(self, "score", score)
+        object.__setattr__(self, "label", label)
+        object.__setattr__(self, "explanation", explanation)
+        object.__setattr__(self, "metadata", {} if metadata is None else metadata)
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(self, "direction", direction)
+
+    @property
+    def source(self) -> Optional[KindType]:
+        """The source of this score (deprecated)."""
+        # TODO: Remove this once we deprecate the source attribute
+        warnings.warn(
+            "Score.source is deprecated; use Score.kind instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.kind
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -126,7 +163,6 @@ class Score:
         for field_name, field_value in self.__dict__.items():
             if field_value is not None:
                 result[field_name] = field_value
-
         return result
 
     def pretty_print(self, indent: int = 2) -> None:
@@ -162,7 +198,7 @@ class Evaluator(ABC):
 
     Args:
         name: The name of this evaluator, used for identification and Score naming.
-        source: The source of this evaluator (human, llm, or heuristic).
+        kind: The kind of this evaluator (human, llm, or code).
         input_schema: Optional Pydantic BaseModel for input typing and validation. If None,
             subclasses infer fields from prompts or function signatures and may construct a
             model dynamically.
@@ -170,15 +206,17 @@ class Evaluator(ABC):
             to "maximize".
     """
 
+    @_deprecate_source_and_heuristic
     def __init__(
         self,
+        *,
         name: str,
-        source: SourceType,
+        kind: KindType,
         direction: DirectionType = "maximize",
         input_schema: Optional[type[BaseModel]] = None,
     ):
         self._name = name
-        self._source = source
+        self._kind = kind
         self._direction = direction
         self._input_schema: Optional[type[BaseModel]] = input_schema
         self._input_mapping: Optional[InputMappingType] = None
@@ -189,9 +227,20 @@ class Evaluator(ABC):
         return self._name
 
     @property
-    def source(self) -> SourceType:
-        """The source of this evaluator."""
-        return self._source
+    def source(self) -> KindType:
+        # TODO: Remove this once we deprecate the source attribute
+        """The source of this evaluator (deprecated)."""
+        warnings.warn(
+            "Evaluator.source is deprecated; use Evaluator.kind instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._kind
+
+    @property
+    def kind(self) -> KindType:
+        """The kind of this evaluator."""
+        return self._kind
 
     @property
     def direction(self) -> DirectionType:
@@ -231,9 +280,9 @@ class Evaluator(ABC):
         input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
-            eval_input,
-            required_fields,
-            input_mapping,
+            eval_input=eval_input,
+            required_fields=required_fields,
+            input_mapping=input_mapping,
         )
         if self.input_schema is not None:
             try:
@@ -255,9 +304,9 @@ class Evaluator(ABC):
         input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
-            eval_input,
-            required_fields,
-            input_mapping,
+            eval_input=eval_input,
+            required_fields=required_fields,
+            input_mapping=input_mapping,
         )
         if self.input_schema is not None:
             try:
@@ -300,7 +349,7 @@ class Evaluator(ABC):
     def describe(self) -> Dict[str, Any]:
         """
         Return a JSON-serializable description of the evaluator, including
-        its name, source, direction, and input fields derived from the
+        its name, kind, direction, and input fields derived from the
         Pydantic input schema when available.
         """
         # TODO add other serializable properties from subclasses
@@ -310,7 +359,7 @@ class Evaluator(ABC):
             schema = {"unspecified": {"type": "any", "required": False}}
         return {
             "name": self.name,
-            "source": self.source,
+            "kind": self.kind,
             "direction": self.direction,
             "input_schema": schema,
         }
@@ -340,6 +389,7 @@ class LLMEvaluator(Evaluator):
 
     def __init__(
         self,
+        *,
         name: str,
         llm: LLM,
         prompt_template: Union[str, Template],
@@ -368,7 +418,7 @@ class LLMEvaluator(Evaluator):
 
         super().__init__(
             name=name,
-            source="llm",
+            kind="llm",
             direction=direction,
             input_schema=input_schema,
         )
@@ -385,12 +435,12 @@ class LLMEvaluator(Evaluator):
     def evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
-        return super().evaluate(eval_input, input_mapping)
+        return super().evaluate(eval_input=eval_input, input_mapping=input_mapping)
 
     async def async_evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
-        return await super().async_evaluate(eval_input, input_mapping)
+        return await super().async_evaluate(eval_input=eval_input, input_mapping=input_mapping)
 
 
 # --- LLM ClassificationEvaluator ---
@@ -431,8 +481,7 @@ class ClassificationEvaluator(LLMEvaluator):
     Examples:
         Classification with labels only::
 
-            from phoenix.evals import ClassificationEvaluator
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import ClassificationEvaluator, LLM
 
             evaluator = ClassificationEvaluator(
                 name="sentiment",
@@ -492,6 +541,7 @@ class ClassificationEvaluator(LLMEvaluator):
 
     def __init__(
         self,
+        *,
         name: str,
         llm: LLM,
         prompt_template: Union[str, Template],
@@ -570,7 +620,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 label=label,
                 explanation=explanation,
                 metadata={"model": self.llm.model},  # could add more metadata here
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
             )
         ]
@@ -610,25 +660,17 @@ class ClassificationEvaluator(LLMEvaluator):
                 label=label,
                 explanation=explanation,
                 metadata={"model": self.llm.model},  # could add more metadata here
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
             )
         ]
 
 
-# --- Registry & simple evaluator decorator ---
-_registry: Dict[str, Callable[..., List[Score]]] = {}
-
-
-def list_evaluators() -> List[str]:
-    """
-    Return a list of names of all registered evaluators.
-    """
-    return list(_registry.keys())
-
-
 def create_evaluator(
-    name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
+    name: str,
+    source: Optional[KindType] = None,
+    direction: DirectionType = "maximize",
+    kind: Optional[KindType] = None,
 ) -> Callable[[Callable[..., Any]], Evaluator]:
     """
     Decorator that turns a simple function into an Evaluator instance.
@@ -639,8 +681,8 @@ def create_evaluator(
 
     Args:
         name: Identifier for the evaluator and the name used in produced Scores.
-        source: The source of this evaluator ("human", "llm", or "heuristic"). Defaults to
-            "heuristic".
+        kind: The kind of this evaluator ("human", "llm", or "code"). Defaults to
+            "code".
         direction: The score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
 
@@ -706,7 +748,7 @@ def create_evaluator(
                 "text": ["Hello world", "This is a longer sentence", "Short"]
             })
 
-            results_df = evaluate_dataframe(df, [word_count])
+            results_df = evaluate_dataframe(dataframe=df, evaluators=[word_count])
             print(results_df["word_count_score"])  # JSON scores for each row
 
     Notes:
@@ -725,9 +767,31 @@ def create_evaluator(
 
         The decorator automatically handles conversion to a valid Score object.
     """
+    # TODO: Remove this once we deprecate the source attribute
+    if kind is not None and source is not None and kind != source:
+        raise ValueError("Provide only one of 'kind' or 'source' (they differ). Use 'kind'.")
+    # If neither is provided, default to "code".
+    resolved_kind: KindType = (
+        kind if kind is not None else (source if source is not None else "code")
+    )
+    if source is not None and (kind is None or kind == source):
+        warnings.warn(
+            "'source' is deprecated; next time, use 'kind' instead. This time, \
+            we'll automatically convert it for you.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    if resolved_kind == "heuristic":
+        warnings.warn(
+            "kind='heuristic' is deprecated; next time, use kind='code' instead. This time, we'll \
+                automatically convert it for you.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        resolved_kind = "code"
 
     def _convert_to_score(
-        result: Any, name: str, source: SourceType, direction: DirectionType
+        result: Any, name: str, kind: KindType, direction: DirectionType
     ) -> Score:
         """Convert various return types to a Score object."""
         LABEL_WORD_COUNT_THRESHOLD = 3  # ≤3 words = label, ≥4 words = explanation
@@ -737,16 +801,16 @@ def create_evaluator(
             f"tuples of numbers, booleans, and strings. "
             f"Got: {repr(result)}"
         )
-        # If already a Score object, ensure name, source, and direction are set correctly
+        # If already a Score object, ensure name, kind, and direction are set correctly
         if isinstance(result, Score):
-            # Create a new Score with the correct name, source, and direction
+            # Create a new Score with the correct name, kind, and direction
             return Score(
                 score=result.score,
                 name=name,
                 label=result.label,
                 explanation=result.explanation,
                 metadata=result.metadata,
-                source=source,
+                kind=kind,
                 direction=direction,
             )
 
@@ -765,7 +829,7 @@ def create_evaluator(
                         tuple_score_data["explanation"] = item
                 else:
                     raise ValueError(ERROR_MESSAGE)
-            return Score(name=name, source=source, direction=direction, **tuple_score_data)
+            return Score(name=name, kind=kind, direction=direction, **tuple_score_data)
 
         # Handle dictionaries
         if isinstance(result, dict):
@@ -773,7 +837,7 @@ def create_evaluator(
             for key, value in result.items():
                 if key in ["score", "label", "explanation"]:
                     dict_score_data[key] = value
-            return Score(name=name, source=source, direction=direction, **dict_score_data)
+            return Score(name=name, kind=kind, direction=direction, **dict_score_data)
 
         # Handle numbers and booleans
         if isinstance(result, (int, float, bool)):
@@ -781,7 +845,7 @@ def create_evaluator(
                 score=float(result) if isinstance(result, bool) else result,
                 label=str(result) if isinstance(result, bool) else None,
                 name=name,
-                source=source,
+                kind=kind,
                 direction=direction,
             )
 
@@ -791,14 +855,14 @@ def create_evaluator(
                 return Score(
                     label=result,
                     name=name,
-                    source=source,
+                    kind=kind,
                     direction=direction,
                 )
             else:
                 return Score(
                     explanation=result,
                     name=name,
-                    source=source,
+                    kind=kind,
                     direction=direction,
                 )
 
@@ -816,7 +880,7 @@ def create_evaluator(
                 def __init__(self) -> None:
                     super().__init__(
                         name=name,
-                        source=source,
+                        kind=resolved_kind,
                         direction=direction,
                         input_schema=create_model(
                             f"{name.capitalize()}Input",
@@ -848,7 +912,7 @@ def create_evaluator(
 
                 async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
                     result = await self._fn(**eval_input)
-                    score = _convert_to_score(result, name, source, direction)
+                    score = _convert_to_score(result, name, resolved_kind, direction)
                     return [score]
 
                 async def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -856,7 +920,6 @@ def create_evaluator(
 
             _AsyncFunctionEvaluator.__doc__ = original_docstring
             evaluator_instance = _AsyncFunctionEvaluator()
-            _registry[name] = evaluator_instance.evaluate
             return evaluator_instance
         else:
 
@@ -864,7 +927,7 @@ def create_evaluator(
                 def __init__(self) -> None:
                     super().__init__(
                         name=name,
-                        source=source,
+                        kind=resolved_kind,
                         direction=direction,
                         input_schema=create_model(
                             f"{name.capitalize()}Input",
@@ -893,7 +956,7 @@ def create_evaluator(
 
                 def _evaluate(self, eval_input: EvalInput) -> List[Score]:
                     result = self._fn(**eval_input)
-                    score = _convert_to_score(result, name, source, direction)
+                    score = _convert_to_score(result, name, resolved_kind, direction)
                     return [score]
 
                 def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -901,13 +964,13 @@ def create_evaluator(
 
             _FunctionEvaluator.__doc__ = original_docstring
             evaluator_instance = _FunctionEvaluator()  # pyright: ignore
-            _registry[name] = evaluator_instance.evaluate
             return evaluator_instance
 
     return deco
 
 
 # --- Factory functions ---
+@_deprecate_positional_args("create_classifier")
 def create_classifier(
     name: str,
     prompt_template: str,
@@ -937,8 +1000,7 @@ def create_classifier(
     Examples:
         Creating a simple sentiment classifier::
 
-            from phoenix.evals import create_classifier
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import create_classifier, LLM
 
             llm = LLM(provider="openai", model="gpt-4")
 
@@ -997,6 +1059,7 @@ def create_classifier(
 
 
 # --- Bound Evaluator ---
+@_deprecate_positional_args("bind_evaluator")
 def bind_evaluator(
     evaluator: Evaluator,
     input_mapping: InputMappingType,
@@ -1028,7 +1091,7 @@ def bind_evaluator(
 
             # Map 'message' field to 'content' parameter
             mapping = {"content": "message"}
-            bound_evaluator = bind_evaluator(text_length, mapping)
+            bound_evaluator = bind_evaluator(evaluator=text_length, input_mapping=mapping)
 
             # Now we can use 'message' instead of 'content'
             result = bound_evaluator.evaluate({"message": "Hello world"})
@@ -1047,7 +1110,7 @@ def bind_evaluator(
                 "retrieved_docs": "retrieved_documents",
                 "relevant_docs": lambda x: [x["expected_document"]]
             }
-            bound_evaluator = bind_evaluator(precision, mapping)
+            bound_evaluator = bind_evaluator(evaluator=precision, input_mapping=mapping)
 
             data = {
                 "retrieved_documents": [1, 2, 3],
@@ -1074,7 +1137,7 @@ def bind_evaluator(
                 "answer": "response.text",
                 "context": lambda x: " ".join(x["documents"])
             }
-            bound_evaluator = bind_evaluator(response_quality, mapping)
+            bound_evaluator = bind_evaluator(evaluator=response_quality, input_mapping=mapping)
 
             data = {
                 "query": "What is the capital?",
@@ -1083,8 +1146,11 @@ def bind_evaluator(
             }
             result = bound_evaluator.evaluate(data)
     """
-    evaluator_copy = copy.deepcopy(evaluator)
-    evaluator_copy.bind(input_mapping=input_mapping)
+    # Create a shallow copy of the evaluator to avoid deepcopying LLM (contains locks)
+    evaluator_copy = copy.copy(evaluator)
+    # Deep copy the input mapping so the bound copy is fully independent
+    mapping_copy = copy.deepcopy(input_mapping) if input_mapping is not None else None
+    evaluator_copy.bind(input_mapping=mapping_copy)
     return evaluator_copy
 
 
@@ -1125,14 +1191,14 @@ def _prepare_dataframe_evaluation(
     return result_df, eval_inputs, task_inputs
 
 
-def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
-    """Process execution details into JSON string."""
+def _process_execution_details(eval_execution_details: ExecutionDetails) -> Dict[str, Any]:
+    """Process execution details into a JSON-serializable dict."""
     result: Dict[str, Any] = {
         "status": eval_execution_details.status.value,
         "exceptions": [repr(exc) for exc in eval_execution_details.exceptions],
         "execution_seconds": eval_execution_details.execution_seconds,
     }
-    return json.dumps(result)
+    return result
 
 
 def _process_results_and_add_to_dataframe(
@@ -1151,14 +1217,15 @@ def _process_results_and_add_to_dataframe(
         for evaluator in evaluators
     }
 
-    # Pre-allocate score dictionaries
-    score_dicts: DefaultDict[str, Dict[int, Optional[str]]] = defaultdict(dict)
+    # Pre-allocate score dictionaries - store dicts for each row index
+    score_dicts: DefaultDict[str, Dict[int, Dict[str, Any]]] = defaultdict(dict)
     for i, (eval_input_index, evaluator_index) in enumerate(task_inputs):
         # Process and add execution details to dataframe
         details = execution_details[i]
         evaluator_name = evaluators[evaluator_index].name
         col_idx = execution_details_cols[evaluator_name]
-        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)
+        #  use iat to avoid Series alignment on dict
+        result_df.iat[eval_input_index, col_idx] = _process_execution_details(details)
 
         # Process scores
         if results is None:
@@ -1170,7 +1237,7 @@ def _process_results_and_add_to_dataframe(
             if not score.name:
                 raise ValueError(f"Score has no name: {score}")
             score_col = f"{score.name}_score"
-            score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
+            score_dicts[score_col][eval_input_index] = score.to_dict()
 
     # Add scores to dataframe
     for score_col, score_dict in score_dicts.items():
@@ -1179,10 +1246,12 @@ def _process_results_and_add_to_dataframe(
         result_df[score_col] = score_list
 
 
+@_deprecate_positional_args("evaluate_dataframe")
 def evaluate_dataframe(
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     tqdm_bar_format: Optional[str] = None,
+    hide_tqdm_bar: bool = False,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -1196,8 +1265,10 @@ def evaluate_dataframe(
             to each evaluator.
         evaluators: List of evaluators to apply to each row. Input mapping should be
             already bound via `bind_evaluator` or column names should match evaluator input fields.
-        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
-            disabled.
+        tqdm_bar_format: Optional format string for the progress bar. If None and hide_tqdm_bar is
+            False, the default progress bar formatter is used.
+        hide_tqdm_bar: Optional flag to control whether to hide the progress bar. If None, the
+            progress bar is shown. Defaults to False.
         exit_on_error: Optional flag to control whether execution should stop on the first error.
             If None, uses SyncExecutor's default (True).
         max_retries: Optional number of times to retry on exceptions. If None, uses SyncExecutor's
@@ -1233,7 +1304,7 @@ def evaluate_dataframe(
             })
 
             evaluators = [word_count, has_question]
-            results_df = evaluate_dataframe(df, evaluators)
+            results_df = evaluate_dataframe(dataframe=df, evaluators=evaluators, hide_tqdm_bar=True)
 
             # Results include original columns plus score columns
             print(results_df.columns)
@@ -1250,7 +1321,7 @@ def evaluate_dataframe(
 
             # Data has 'answer' column but evaluator expects 'response'
             mapping = {"response": "answer"}
-            bound_evaluator = bind_evaluator(response_length, mapping)
+            bound_evaluator = bind_evaluator(evaluator=response_length, input_mapping=mapping)
 
             df = pd.DataFrame({
                 "question": ["What is AI?", "How does ML work?"],
@@ -1258,13 +1329,13 @@ def evaluate_dataframe(
                           "ML uses algorithms to learn patterns"]
             })
 
-            results_df = evaluate_dataframe(df, [bound_evaluator])
+            results_df = evaluate_dataframe(dataframe=df, evaluators=[bound_evaluator])
 
         With progress bar and error handling::
 
             results_df = evaluate_dataframe(
-                df,
-                evaluators,
+                dataframe=df,
+                evaluators=evaluators,
                 tqdm_bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
                 exit_on_error=False,  # Continue on errors
                 max_retries=3
@@ -1286,6 +1357,7 @@ def evaluate_dataframe(
         - Failed evaluations: If an evaluation fails, the failure details will be recorded
           in the execution_details column and the score will be None.
     """
+
     # Prepare common data structures
     result_df, eval_inputs, task_inputs = _prepare_dataframe_evaluation(dataframe, evaluators)
 
@@ -1294,13 +1366,20 @@ def evaluate_dataframe(
         eval_input_index, evaluator_index = task_input
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
-        scores = evaluator.evaluate(eval_input)
+        scores = evaluator.evaluate(eval_input=eval_input)
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
-    if tqdm_bar_format is not None:
-        executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
+    if hide_tqdm_bar:
+        executor_kwargs["tqdm_bar_format"] = None
+    else:
+        if tqdm_bar_format is None:
+            executor_kwargs["tqdm_bar_format"] = default_tqdm_progress_bar_formatter(
+                "Evaluating Dataframe"
+            )
+        else:
+            executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
     if exit_on_error is not None:
         executor_kwargs["exit_on_error"] = exit_on_error
     if max_retries is not None:
@@ -1317,11 +1396,13 @@ def evaluate_dataframe(
     return result_df
 
 
+@_deprecate_positional_args("async_evaluate_dataframe")
 async def async_evaluate_dataframe(
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
     concurrency: Optional[int] = None,
     tqdm_bar_format: Optional[str] = None,
+    hide_tqdm_bar: Optional[bool] = False,
     exit_on_error: Optional[bool] = None,
     max_retries: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -1337,8 +1418,10 @@ async def async_evaluate_dataframe(
             already bound via `bind_evaluator` or column names should match evaluator input fields.
         concurrency: Optional number of concurrent consumers. If None, uses AsyncExecutor's default
             (3).
-        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
-            disabled.
+        tqdm_bar_format: Optional format string for the progress bar. If None, use the default
+            formatter.
+        hide_tqdm_bar: Optional flag to control whether to hide the progress bar. If None, the
+            progress bar is shown. Defaults to False.
         exit_on_error: Optional flag to control whether execution should stop on the first
             error. If None, uses AsyncExecutor's default (True).
         max_retries: Optional number of times to retry on exceptions. If None, uses
@@ -1375,9 +1458,10 @@ async def async_evaluate_dataframe(
 
             async def main():
                 results_df = await async_evaluate_dataframe(
-                    df,
-                    [text_analysis],
+                    dataframe=df,
+                    evaluators=[text_analysis],
                     concurrency=5  # Process up to 5 rows concurrently
+                    hide_tqdm_bar=True,
                 )
                 return results_df
 
@@ -1386,8 +1470,7 @@ async def async_evaluate_dataframe(
 
         With LLM evaluators::
 
-            from phoenix.evals import create_classifier
-            from phoenix.evals.llm import LLM
+            from phoenix.evals import create_classifier, LLM
 
             llm = LLM(provider="openai", model="gpt-4")
 
@@ -1408,8 +1491,8 @@ async def async_evaluate_dataframe(
 
             async def evaluate_sentiment():
                 results_df = await async_evaluate_dataframe(
-                    df,
-                    [sentiment_evaluator],
+                    dataframe=df,
+                    evaluators=[sentiment_evaluator],
                     concurrency=2,  # Limit concurrent LLM calls
                     tqdm_bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}"
                 )
@@ -1421,8 +1504,8 @@ async def async_evaluate_dataframe(
 
             async def robust_evaluation():
                 results_df = await async_evaluate_dataframe(
-                    df,
-                    evaluators,
+                    dataframe=df,
+                    evaluators=evaluators,
                     concurrency=3,
                     exit_on_error=False,  # Continue despite errors
                     max_retries=5,        # Retry failed evaluations
@@ -1459,13 +1542,20 @@ async def async_evaluate_dataframe(
         eval_input_index, evaluator_index = task_input
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
-        scores = await evaluator.async_evaluate(eval_input)
+        scores = await evaluator.async_evaluate(eval_input=eval_input)
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults
     executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
-    if tqdm_bar_format is not None:
-        executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
+    if hide_tqdm_bar:
+        executor_kwargs["tqdm_bar_format"] = None
+    else:
+        if tqdm_bar_format is None:
+            executor_kwargs["tqdm_bar_format"] = default_tqdm_progress_bar_formatter(
+                "Evaluating Dataframe"
+            )
+        else:
+            executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
     if exit_on_error is not None:
         executor_kwargs["exit_on_error"] = exit_on_error
     if max_retries is not None:
@@ -1499,7 +1589,6 @@ __all__ = [
     "Evaluator",
     "LLMEvaluator",
     "ClassificationEvaluator",
-    "list_evaluators",
     "create_evaluator",
     "create_classifier",
     "bind_evaluator",

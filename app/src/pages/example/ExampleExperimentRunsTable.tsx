@@ -56,6 +56,7 @@ export function ExampleExperimentRunsTable({
 }: {
   example: ExampleExperimentRunsTableFragment$key;
 }) {
+  "use no memo";
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
@@ -91,6 +92,7 @@ export function ExampleExperimentRunsTable({
                     label
                     score
                     explanation
+                    metadata
                     annotatorKind
                     trace {
                       id
@@ -217,6 +219,7 @@ export function ExampleExperimentRunsTable({
       },
     },
   ];
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

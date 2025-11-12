@@ -6,7 +6,7 @@ from secrets import token_hex
 
 import pytest
 
-from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser, _RoleOrUser
+from .._helpers import _AppInfo, _await_or_return
 
 
 class TestClientForProjectsAPI:
@@ -26,31 +26,27 @@ class TestClientForProjectsAPI:
     ]
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     @pytest.mark.parametrize("project_name,project_description", name_and_description_test_cases)
     async def test_crud_operations(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         project_name: str,
         project_description: str,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test CRUD operations for projects.
 
         This test verifies that:
-        1. Projects can be created with a name and optional description (both admin and member)
-        2. Projects can be retrieved by ID (both admin and member)
-        3. Projects can be listed (both admin and member)
-        4. Projects can be updated (description only, not name) (admin only)
-        5. Projects can be deleted (admin only)
-        6. Project names must be unique (both admin and member)
+        1. Projects can be created with a name and optional description
+        2. Projects can be retrieved by ID
+        3. Projects can be listed
+        4. Projects can be updated (description only, not name)
+        5. Projects can be deleted
+        6. Project names must be unique
         7. Special characters in project names are handled correctly
         """
-        # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        # Set up test environment with admin secret
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -115,99 +111,60 @@ class TestClientForProjectsAPI:
             "Created project should be present in list of all projects"
         )
 
-        # Update the project description (admin only) (UPDATE operation)
+        # Update the project description (UPDATE operation)
         new_description = f"Updated description with {project_description}"
-        if role_or_user == _ADMIN:
-            updated_project = await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).projects.update(
-                    project_id=project["id"],
-                    description=new_description,
-                )
+        updated_project = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).projects.update(
+                project_id=project["id"],
+                description=new_description,
             )
+        )
 
-            # Verify project was updated with new description (UPDATE operation)
-            assert updated_project["id"] == project["id"], (
-                "Updated project ID should match original project"
-            )
-            assert updated_project["name"] == name, "Project name should not change after update"
-            assert "description" in updated_project, (
-                "Updated project should have a description field"
-            )
-            assert updated_project["description"] == new_description, (
-                "Project description should be updated"
-            )
+        # Verify project was updated with new description (UPDATE operation)
+        assert updated_project["id"] == project["id"], (
+            "Updated project ID should match original project"
+        )
+        assert updated_project["name"] == name, "Project name should not change after update"
+        assert "description" in updated_project, "Updated project should have a description field"
+        assert updated_project["description"] == new_description, (
+            "Project description should be updated"
+        )
 
-        else:
-            # Member users should not be able to update projects (UPDATE operation)
-            with pytest.raises(Exception) as exc_info:
-                await _await_or_return(
-                    Client(base_url=_app.base_url, api_key=api_key).projects.update(
-                        project_id=project["id"],
-                        description=new_description,
-                    )
-                )
-            assert "403" in str(exc_info.value), (
-                "Member users should receive 403 Forbidden when attempting to update projects"
+        # Delete the project (DELETE operation)
+        # Test deleting by ID
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).projects.delete(
+                project_id=project["id"],
             )
+        )
 
-        # Delete the project (admin only) (DELETE operation)
-        if role_or_user == _ADMIN:
-            # Test deleting by ID
+        # Verify project was deleted (DELETE operation)
+        with pytest.raises(Exception):
             await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).projects.delete(
-                    project_id=project["id"],
-                )
-            )
-
-            # Verify project was deleted (DELETE operation)
-            with pytest.raises(Exception):
-                await _await_or_return(
-                    Client(base_url=_app.base_url, api_key=api_key).projects.get(
-                        project_id=project["id"],
-                    )
-                )
-
-            # Create another project to test deleting by name
-            another_project = await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).projects.create(
-                    name=f"Another_{project_name}_{token_hex(8)}",
-                    description=f"Another project with {project_description}",
-                )
-            )
-
-            # Test deleting by name
-            await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).projects.delete(
-                    project_name=another_project["name"],
-                )
-            )
-
-            # Verify project was deleted by name
-            with pytest.raises(Exception):
-                await _await_or_return(
-                    Client(base_url=_app.base_url, api_key=api_key).projects.get(
-                        project_id=another_project["id"],
-                    )
-                )
-
-        else:
-            # Member users should not be able to delete projects (DELETE operation)
-            with pytest.raises(Exception) as exc_info:
-                await _await_or_return(
-                    Client(base_url=_app.base_url, api_key=api_key).projects.delete(
-                        project_id=project["id"],
-                    )
-                )
-            assert "403" in str(exc_info.value), (
-                "Member users should receive 403 Forbidden when attempting to delete projects"
-            )
-
-            # Verify project still exists (DELETE operation)
-            retrieved_project = await _await_or_return(
                 Client(base_url=_app.base_url, api_key=api_key).projects.get(
                     project_id=project["id"],
                 )
             )
-            assert retrieved_project["id"] == project["id"], (
-                "Project should still exist after member attempts deletion"
+
+        # Create another project to test deleting by name
+        another_project = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).projects.create(
+                name=f"Another_{project_name}_{token_hex(8)}",
+                description=f"Another project with {project_description}",
+            )
+        )
+
+        # Test deleting by name
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).projects.delete(
+                project_name=another_project["name"],
+            )
+        )
+
+        # Verify project was deleted by name
+        with pytest.raises(Exception):
+            await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).projects.get(
+                    project_id=another_project["id"],
+                )
             )

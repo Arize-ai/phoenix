@@ -7,8 +7,6 @@ import {
 } from "react";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
-
 import {
   Button,
   Flex,
@@ -26,6 +24,7 @@ import {
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { classNames } from "@phoenix/utils";
 
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
@@ -295,8 +294,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   const { name, latencyMs, statusCode, tokenCountTotal } = node.span;
   return (
     <div ref={itemRef}>
-      <button
-        className="button--reset"
+      <div
+        role="button"
+        tabIndex={0}
         css={css`
           width: 100%;
           overflow: hidden;
@@ -304,7 +304,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
         `}
         onClick={() => {
           startTransition(() => {
-            onSpanClick && onSpanClick(node.span);
+            if (onSpanClick) {
+              onSpanClick(node.span);
+            }
           });
         }}
       >
@@ -376,7 +378,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             ) : null}
           </div>
         </SpanNodeWrap>
-      </button>
+      </div>
       {childNodes.length ? (
         <ul
           css={css`

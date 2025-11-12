@@ -206,6 +206,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                           label
                           annotatorKind
                           explanation
+                          metadata
                           trace {
                             traceId
                             projectId
@@ -477,7 +478,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         header.column.getSize();
     }
     return colSizes;
-    // eslint-disable-next-line react-compiler/react-compiler
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
 
@@ -717,7 +718,9 @@ function TableBody<T>({
   table: Table<T>;
   tableContainerRef: RefObject<HTMLDivElement | null>;
 }) {
+  "use no memo";
   const rows = table.getRowModel().rows;
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,

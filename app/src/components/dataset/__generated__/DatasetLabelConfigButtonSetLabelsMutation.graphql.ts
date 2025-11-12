@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e64d18392a9006b865b730eace50bf9e>>
+ * @generated SignedSource<<6387ad8b67e7dbd322304ecae291b1ff>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,24 +10,18 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type DatasetLabelConfigButtonSetLabelsMutation$variables = {
-  datasetIds: ReadonlyArray<string>;
+  datasetId: string;
   datasetLabelIds: ReadonlyArray<string>;
 };
 export type DatasetLabelConfigButtonSetLabelsMutation$data = {
   readonly setDatasetLabels: {
-    readonly query: {
-      readonly datasets: {
-        readonly edges: ReadonlyArray<{
-          readonly node: {
-            readonly id: string;
-            readonly labels: ReadonlyArray<{
-              readonly color: string;
-              readonly id: string;
-              readonly name: string;
-            }>;
-          };
-        }>;
-      };
+    readonly dataset: {
+      readonly id: string;
+      readonly labels: ReadonlyArray<{
+        readonly color: string;
+        readonly id: string;
+        readonly name: string;
+      }>;
     };
   };
 };
@@ -41,7 +35,7 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "datasetIds"
+    "name": "datasetId"
   },
   {
     "defaultValue": null,
@@ -49,49 +43,48 @@ var v0 = [
     "name": "datasetLabelIds"
   }
 ],
-v1 = [
-  {
-    "fields": [
-      {
-        "kind": "Variable",
-        "name": "datasetIds",
-        "variableName": "datasetIds"
-      },
-      {
-        "kind": "Variable",
-        "name": "datasetLabelIds",
-        "variableName": "datasetLabelIds"
-      }
-    ],
-    "kind": "ObjectValue",
-    "name": "input"
-  }
-],
-v2 = {
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = [
+v2 = [
   {
     "alias": null,
-    "args": null,
-    "concreteType": "DatasetEdge",
+    "args": [
+      {
+        "fields": [
+          {
+            "kind": "Variable",
+            "name": "datasetId",
+            "variableName": "datasetId"
+          },
+          {
+            "kind": "Variable",
+            "name": "datasetLabelIds",
+            "variableName": "datasetLabelIds"
+          }
+        ],
+        "kind": "ObjectValue",
+        "name": "input"
+      }
+    ],
+    "concreteType": "SetDatasetLabelsMutationPayload",
     "kind": "LinkedField",
-    "name": "edges",
-    "plural": true,
+    "name": "setDatasetLabels",
+    "plural": false,
     "selections": [
       {
         "alias": null,
         "args": null,
         "concreteType": "Dataset",
         "kind": "LinkedField",
-        "name": "node",
+        "name": "dataset",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v1/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -100,7 +93,7 @@ v3 = [
             "name": "labels",
             "plural": true,
             "selections": [
-              (v2/*: any*/),
+              (v1/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -117,58 +110,12 @@ v3 = [
               }
             ],
             "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
           }
         ],
         "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "cursor",
-        "storageKey": null
       }
     ],
     "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "PageInfo",
-    "kind": "LinkedField",
-    "name": "pageInfo",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "endCursor",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "hasNextPage",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
-],
-v4 = [
-  {
-    "kind": "Literal",
-    "name": "first",
-    "value": 100
   }
 ];
 return {
@@ -177,40 +124,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "DatasetLabelConfigButtonSetLabelsMutation",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v1/*: any*/),
-        "concreteType": "SetDatasetLabelsMutationPayload",
-        "kind": "LinkedField",
-        "name": "setDatasetLabels",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "alias": "datasets",
-                "args": null,
-                "concreteType": "DatasetConnection",
-                "kind": "LinkedField",
-                "name": "__DatasetsTable_datasets_connection",
-                "plural": false,
-                "selections": (v3/*: any*/),
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ],
+    "selections": (v2/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -219,74 +133,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "DatasetLabelConfigButtonSetLabelsMutation",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v1/*: any*/),
-        "concreteType": "SetDatasetLabelsMutationPayload",
-        "kind": "LinkedField",
-        "name": "setDatasetLabels",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": (v4/*: any*/),
-                "concreteType": "DatasetConnection",
-                "kind": "LinkedField",
-                "name": "datasets",
-                "plural": false,
-                "selections": (v3/*: any*/),
-                "storageKey": "datasets(first:100)"
-              },
-              {
-                "alias": null,
-                "args": (v4/*: any*/),
-                "filters": null,
-                "handle": "connection",
-                "key": "DatasetsTable_datasets",
-                "kind": "LinkedHandle",
-                "name": "datasets"
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ]
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "d0b48583ca2e9d007af0d361e771961e",
+    "cacheID": "2578453afc9307312ce6d800e272e7fd",
     "id": null,
-    "metadata": {
-      "connection": [
-        {
-          "count": null,
-          "cursor": null,
-          "direction": "forward",
-          "path": [
-            "setDatasetLabels",
-            "query",
-            "datasets"
-          ]
-        }
-      ]
-    },
+    "metadata": {},
     "name": "DatasetLabelConfigButtonSetLabelsMutation",
     "operationKind": "mutation",
-    "text": "mutation DatasetLabelConfigButtonSetLabelsMutation(\n  $datasetIds: [ID!]!\n  $datasetLabelIds: [ID!]!\n) {\n  setDatasetLabels(input: {datasetIds: $datasetIds, datasetLabelIds: $datasetLabelIds}) {\n    query {\n      datasets(first: 100) {\n        edges {\n          node {\n            id\n            labels {\n              id\n              name\n              color\n            }\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation DatasetLabelConfigButtonSetLabelsMutation(\n  $datasetId: ID!\n  $datasetLabelIds: [ID!]!\n) {\n  setDatasetLabels(input: {datasetId: $datasetId, datasetLabelIds: $datasetLabelIds}) {\n    dataset {\n      id\n      labels {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "478f39f175e06a2f8697c5b16d38adfa";
+(node as any).hash = "c3b75ee3be0ec65cbebd4a7b7a9b770c";
 
 export default node;

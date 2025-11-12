@@ -1,18 +1,18 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
 import {
-  PromptData,
-  PromptVersionData,
-  PromptVersion,
-  OpenAIInvocationParameters,
-  AzureOpenAIInvocationParameters,
   AnthropicInvocationParameters,
-  GoogleInvocationParameters,
-  DeepSeekInvocationParameters,
-  XAIInvocationParameters,
-  OllamaInvocationParameters,
   AwsInvocationParameters,
+  AzureOpenAIInvocationParameters,
+  DeepSeekInvocationParameters,
+  GoogleInvocationParameters,
+  OllamaInvocationParameters,
+  OpenAIInvocationParameters,
   PromptChatMessage,
+  PromptData,
+  PromptVersion,
+  PromptVersionData,
+  XAIInvocationParameters,
 } from "../types/prompts";
 import { assertUnreachable } from "../utils/assertUnreachable";
 
@@ -29,6 +29,11 @@ export interface CreatePromptParams extends ClientFn, PromptData {
    */
   description?: string;
   /**
+   * Optional metadata for the prompt as a JSON object
+   * @example { "environment": "production", "version": "1.0" }
+   */
+  metadata?: Record<string, unknown>;
+  /**
    * The prompt version to push onto the history of the prompt
    */
   version: PromptVersionData;
@@ -39,8 +44,21 @@ export interface CreatePromptParams extends ClientFn, PromptData {
  *
  * If a prompt with the same name exists, a new version of the prompt will be appended to the history.
  *
- * @param params - The parameters to create a prompt.
+ * @param params - The parameters to create a prompt, including optional metadata.
  * @returns The created prompt version.
+ * @example
+ * ```typescript
+ * await createPrompt({
+ *   name: "my-prompt",
+ *   description: "A helpful prompt",
+ *   metadata: { environment: "production", team: "ai" },
+ *   version: promptVersion({
+ *     modelProvider: "OPENAI",
+ *     modelName: "gpt-4",
+ *     template: [{ role: "user", content: "Hello {{name}}" }]
+ *   })
+ * });
+ * ```
  */
 export async function createPrompt({
   client: _client,

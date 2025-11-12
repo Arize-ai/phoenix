@@ -1,16 +1,18 @@
 /* eslint-disable no-console */
-import { OpenAI } from "openai";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+
 import { createClient } from "../src";
+import { createDataset } from "../src/datasets/createDataset";
 import {
-  runExperiment,
   asEvaluator,
+  runExperiment,
   RunExperimentParams,
 } from "../src/experiments";
 import { AnnotatorKind } from "../src/types/annotations";
 import { Example } from "../src/types/datasets";
-import { createDataset } from "../src/datasets/createDataset";
-import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+
 import { openai as aiOpenAI } from "@ai-sdk/openai";
+import { OpenAI } from "openai";
 
 // Replace with your actual OpenAI API key
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;

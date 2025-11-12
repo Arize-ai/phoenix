@@ -1,5 +1,6 @@
-import { LanguageModel } from "ai";
 import { WithTelemetry } from "./otel";
+
+import { LanguageModel } from "ai";
 
 /**
  * A specific AI example that is under evaluation
@@ -101,9 +102,9 @@ export type EvaluatorFn<ExampleType extends Record<string, unknown>> = (
 ) => Promise<EvaluationResult>;
 
 /**
- * The source of the evaluation
+ * The kind of the evaluation
  */
-export type EvaluationSource = "LLM" | "CODE";
+export type EvaluationKind = "LLM" | "CODE";
 
 /**
  * The direction to optimize the numeric evaluation score
@@ -120,9 +121,9 @@ interface EvaluatorDescription {
    */
   name: string;
   /**
-   * The source of the evaluation. Also known as the "kind" of evaluator.
+   * The kind of the evaluation. Also known as the "kind" of evaluator.
    */
-  source: EvaluationSource;
+  kind: EvaluationKind;
   /**
    * The direction to optimize the numeric evaluation score
    * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation

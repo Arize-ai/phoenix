@@ -8,12 +8,33 @@ import { defineConfig } from "vite";
 import reactFallbackThrottlePlugin from "vite-plugin-react-fallback-throttle";
 import relay from "vite-plugin-relay";
 
+const useReactCompiler = process.env.PHOENIX_ENABLE_REACT_COMPILER === "True";
+
+if (useReactCompiler) {
+  // eslint-disable-next-line no-console
+  console.log(
+    "🔥 Using React Compiler. This will improve performance but also may introduce new errors. Proceed with caution."
+  );
+} else {
+  // eslint-disable-next-line no-console
+  console.log("⏼ React compiler is disabled.");
+}
 export default defineConfig(() => {
   const plugins = [
     // disable react's built-in 300ms suspense fallback timer
     // without this build plugin we see a 300ms delay on most UI interactions
     reactFallbackThrottlePlugin(),
-    react(),
+    react(
+      useReactCompiler
+        ? {
+            babel: {
+              plugins: [
+                ["babel-plugin-react-compiler", { panicThreshold: "none" }],
+              ],
+            },
+          }
+        : {}
+    ),
     relay,
     lezer(),
   ];
@@ -65,9 +86,6 @@ export default defineConfig(() => {
               }
               if (id.includes("codemirror")) {
                 return "vendor-codemirror";
-              }
-              if (id.includes("@arizeai/components")) {
-                return "vendor-arizeai";
               }
               return "vendor";
             }

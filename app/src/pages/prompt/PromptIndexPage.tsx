@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { JSONBlock } from "@phoenix/components/code";
 import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 import { PromptLabelConfigButton } from "@phoenix/pages/prompt/PromptLabelConfigButton";
 import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
@@ -100,6 +101,7 @@ function PromptIndexPageAside({
         id
         name
         description
+        metadata
         ...PromptLatestVersionsListFragment
         ...EditPromptButton_data
         ...PromptLabels
@@ -130,6 +132,7 @@ function PromptIndexPageAside({
                   promptId={data.id}
                   promptName={data.name}
                   promptDescription={data.description ?? undefined}
+                  promptMetadata={data.metadata ?? undefined}
                 />
               </Modal>
             </ModalOverlay>
@@ -166,6 +169,21 @@ function PromptIndexPageAside({
             <PromptLabelConfigButton promptId={data.id} />
           </Flex>
           <PromptLabels prompt={data} />
+        </section>
+        <section>
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={3}>Metadata</Heading>
+            <EditPromptButton prompt={data} />
+          </Flex>
+          <JSONBlock
+            value={
+              data.metadata ? JSON.stringify(data.metadata, null, 2) : "{}"
+            }
+          />
         </section>
         <section>
           <Heading level={3}>Latest Versions</Heading>

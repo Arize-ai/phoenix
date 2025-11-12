@@ -11,8 +11,6 @@ import { JSONSchema7 } from "json-schema";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
 
-import { Field } from "@arizeai/components";
-
 import {
   Button,
   ComboBox,
@@ -37,6 +35,7 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
@@ -91,10 +90,8 @@ function providerSupportsOpenAIConfig(provider: ModelProvider) {
 
 function OpenAiModelConfigFormField({
   instance,
-  container,
 }: {
   instance: PlaygroundNormalizedInstance;
-  container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateModelConfig = useCallback(
@@ -146,7 +143,6 @@ function OpenAiModelConfigFormField({
         onChange={(value) => {
           debouncedUpdateModelName(value);
         }}
-        container={container ?? undefined}
       />
       <TextField
         key="base-url"
@@ -164,10 +160,8 @@ function OpenAiModelConfigFormField({
 
 function AzureOpenAiModelConfigFormField({
   instance,
-  container,
 }: {
   instance: PlaygroundNormalizedInstance;
-  container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateModelConfig = useCallback(
@@ -234,7 +228,6 @@ function AzureOpenAiModelConfigFormField({
         <Input placeholder="e.x. https://my.openai.azure.com" />
       </TextField>
       <ComboBox
-        container={container ?? undefined}
         size="L"
         label="API Version"
         data-testid="azure-api-version-combobox"
@@ -270,10 +263,8 @@ function AzureOpenAiModelConfigFormField({
 
 function AwsModelConfigFormField({
   instance,
-  container,
 }: {
   instance: PlaygroundNormalizedInstance;
-  container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateModelConfig = useCallback(
@@ -298,7 +289,6 @@ function AwsModelConfigFormField({
   return (
     <>
       <ComboBox
-        container={container ?? undefined}
         size="L"
         label="Region"
         data-testid="bedrock-region-combobox"
@@ -407,7 +397,6 @@ function AwsModelConfigFormField({
         </ComboBoxItem>
       </ComboBox>
       <ComboBox
-        container={container ?? undefined}
         size="L"
         label="API"
         data-testid="bedrock-api-combobox"
@@ -441,11 +430,9 @@ const formatHeadersForEditor = (
 
 function CustomHeadersModelConfigFormField({
   instance,
-  container: _container,
   onErrorChange,
 }: {
   instance: PlaygroundNormalizedInstance;
-  container: HTMLElement | null;
   onErrorChange?: (hasError: boolean) => void;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
@@ -488,12 +475,8 @@ function CustomHeadersModelConfigFormField({
 
   return (
     <div css={fieldContainerCSS}>
-      <Field
-        label={<div css={labelCSS}>Custom Headers</div>}
-        description="Custom HTTP headers to send with requests to the LLM provider"
-        errorMessage={errorMessage}
-        validationState={errorMessage ? "invalid" : undefined}
-      >
+      <div css={fieldBaseCSS}>
+        <Label>Custom Headers</Label>
         <CodeWrap>
           <JSONEditor
             value={editorValue}
@@ -503,7 +486,17 @@ function CustomHeadersModelConfigFormField({
             placeholder={`{"X-Custom-Header": "custom-value"}`}
           />
         </CodeWrap>
-      </Field>
+        {errorMessage ? (
+          <Text slot="errorMessage" color="danger">
+            {errorMessage}
+          </Text>
+        ) : null}
+        {!errorMessage ? (
+          <Text slot="description">
+            Custom HTTP headers to send with requests to the LLM provider
+          </Text>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -514,13 +507,7 @@ const fieldContainerCSS = css`
   }
 `;
 
-const labelCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--ac-global-dimension-size-75);
-`;
-
-interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
+type ModelConfigButtonProps = PlaygroundInstanceProps;
 
 function ModelConfigButton(props: ModelConfigButtonProps) {
   const instance = usePlaygroundContext((state) =>
@@ -580,7 +567,7 @@ function ModelConfigButton(props: ModelConfigButtonProps) {
   );
 }
 
-interface ModelConfigDialogProps extends ModelConfigButtonProps {}
+type ModelConfigDialogProps = ModelConfigButtonProps;
 function ModelConfigDialog(props: ModelConfigDialogProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find(
@@ -603,7 +590,7 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
   const onSaveConfig = useCallback(() => {
     const {
       // Strip out the supported invocation parameters from the model config before saving it as the default these are used for validation and should not be saved
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       supportedInvocationParameters: _,
       ...modelConfigWithoutSupportedParams
     } = instance.model;
@@ -709,8 +696,6 @@ function ModelConfigDialogContent(
     [playgroundInstanceId, updateModel]
   );
 
-  const [container, setContainer] = useState<HTMLElement | null>();
-
   return (
     <form css={modelConfigFormCSS}>
       {!requiredInvocationParametersConfigured ? (
@@ -733,28 +718,18 @@ function ModelConfigDialogContent(
         }}
       />
       {providerSupportsOpenAIConfig(instance.model.provider) ? (
-        <OpenAiModelConfigFormField
-          instance={instance}
-          container={container ?? null}
-        />
+        <OpenAiModelConfigFormField instance={instance} />
       ) : instance.model.provider === "AZURE_OPENAI" ? (
-        <AzureOpenAiModelConfigFormField
-          instance={instance}
-          container={container ?? null}
-        />
+        <AzureOpenAiModelConfigFormField instance={instance} />
       ) : (
         <ModelComboBox
           modelName={instance.model.modelName}
           provider={instance.model.provider}
           onChange={onModelNameChange}
-          container={container ?? undefined}
         />
       )}
       {instance.model.provider === "AWS" ? (
-        <AwsModelConfigFormField
-          instance={instance}
-          container={container ?? null}
-        />
+        <AwsModelConfigFormField instance={instance} />
       ) : null}
       <Suspense>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />
@@ -764,12 +739,9 @@ function ModelConfigDialogContent(
         <CustomHeadersModelConfigFormField
           key={instance.model.provider}
           instance={instance}
-          container={container ?? null}
           onErrorChange={onCustomHeadersErrorChange}
         />
       )}
-
-      <div ref={setContainer} />
     </form>
   );
 }

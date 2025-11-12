@@ -44,17 +44,17 @@ def get_openai_langchain_rate_limit_errors() -> list[Type[Exception]]:
     provider="openai",
     client_factory=create_openai_langchain_client,  # pyright: ignore
     get_rate_limit_errors=get_openai_langchain_rate_limit_errors,
-    dependencies=["langchain", "langchain_openai"],
+    dependencies=["langchain", "langchain-openai"],
 )
 @register_provider(
     provider="anthropic",
     client_factory=create_anthropic_langchain_client,  # pyright: ignore
     get_rate_limit_errors=get_anthropic_langchain_rate_limit_errors,
-    dependencies=["langchain", "langchain_anthropic"],
+    dependencies=["langchain", "langchain-anthropic"],
 )
 class LangChainModelAdapter(BaseLLMAdapter):
-    def __init__(self, client: Any):
-        self.client = client
+    def __init__(self, client: Any, model: str):
+        super().__init__(client, model)
         self._validate_client()
 
     @classmethod

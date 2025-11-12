@@ -1,10 +1,9 @@
 import { LabelProps } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
-
 import { Label } from "@phoenix/components";
 import { ANNOTATION_INPUT_LABEL_WIDTH } from "@phoenix/components/annotation/constants";
+import { classNames } from "@phoenix/utils";
 
 export const AnnotationInputLabel = (props: LabelProps) => {
   return (

@@ -1,5 +1,17 @@
 # @arizeai/phoenix-evals
 
+## 0.3.1
+
+### Patch Changes
+
+- a756a95: fix Mustache.render by disabling HTML escape
+
+## 0.3.0
+
+### Minor Changes
+
+- f66c5b6: refactor: change source to kind for evaluators
+
 ## 0.2.2
 
 ### Patch Changes

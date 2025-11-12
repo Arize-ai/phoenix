@@ -23,7 +23,7 @@ import {
 } from "@phoenix/components/chart";
 import { useInferences } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks";
 
 import { DimensionDriftBreakdownSegmentBarChartQuery } from "./__generated__/DimensionDriftBreakdownSegmentBarChartQuery.graphql";
 // Type interfaces to conform to
@@ -91,6 +91,7 @@ function TooltipContent({
 export function DimensionDriftBreakdownSegmentBarChart(props: {
   dimensionId: string;
 }) {
+  const { fullTimeFormatter } = useTimeFormatters();
   const { primaryInferences, referenceInferences } = useInferences();
   const primaryName = primaryInferences.name;
   const referenceName = referenceInferences?.name || "reference";

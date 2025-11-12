@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2021",
-    "lib": ["ES2021", "DOM"],
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
     "jsx": "react-jsx",
     "jsxImportSource": "@emotion/react",
     "module": "ES6",
@@ -18,7 +18,7 @@
         "name": "ts-plugin-sort-import-suggestions",
         // Matches `@/`, `../` and `./`, move them up in the suggestions (This is the default config if you leave it empty)
         "moveUpPatterns": ["@/", "\\.{1,2}/", "@phoenix/components"],
-        // Move `dist` down in the suggestions, by deafult it's `[]`
+        // Move `dist` down in the suggestions, by default it's `[]`
         "moveDownPatterns": [
           "recharts",
           "dist",

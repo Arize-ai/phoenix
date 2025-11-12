@@ -21,7 +21,7 @@
     </a>
 </p>
 
-This package provides a TypeSript client for the [Arize Phoenix](https://github.com/Arize-ai/phoenix) API. It is still under active development and is subject to change.
+This package provides a TypeScript client for the [Arize Phoenix](https://github.com/Arize-ai/phoenix) API. It is still under active development and is subject to change.
 
 ## Installation
 

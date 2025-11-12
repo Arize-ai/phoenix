@@ -8,8 +8,6 @@ MistralAI is a leading provider for state-of-the-art LLMs. The MistralAI SDK can
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

@@ -14,8 +14,6 @@ Any calls made to the following functions will be automatically captured by this
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

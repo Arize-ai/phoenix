@@ -171,6 +171,7 @@ export const AnnotationConfigTable = ({
     }?: { onCompleted?: () => void; onError?: () => void }
   ) => void;
 }) => {
+  "use no memo";
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const data = useFragment(
     graphql`
@@ -215,6 +216,7 @@ export const AnnotationConfigTable = ({
     () => data.annotationConfigs.edges.map((edge) => edge.annotationConfig),
     [data.annotationConfigs.edges]
   ) as AnnotationConfig[]; // cast to AnnotationConfig[] because otherwise 'name' and 'annotationType' are optional
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: configs,
     columns,

@@ -8,7 +8,7 @@
 
 * Learn how you can use basic OpenTelemetry to instrument your application.
 
-[instrument-python.md](instrument-python.md "mention")
+[instrument.md](instrument.md "mention")
 
 * Learn how to use Phoenix's decorators to easily instrument specific methods or code blocks in your application.
 
@@ -23,4 +23,3 @@
 [setup-sessions.md](setup-sessions.md "mention")
 
 * Understand Sessions and how they can be used to group user conversations.
-

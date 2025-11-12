@@ -5,10 +5,9 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
-
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { SizingProps } from "@phoenix/components/types";
+import { classNames } from "@phoenix/utils";
 
 import { textFieldCSS } from "./styles";
 

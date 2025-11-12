@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Optional
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues
-from sqlalchemy import inspect
 from strawberry.relay import Node, NodeID
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -37,19 +36,97 @@ CachedCostSummaryKey: TypeAlias = tuple[Optional[ProjectId], TimeRangeKey]
 
 @strawberry.type
 class GenerativeModel(Node, ModelInterface):
-    id_attr: NodeID[int]
-    name: str
-    provider: Optional[str]
-    name_pattern: str
-    kind: GenerativeModelKind
-    created_at: datetime
-    updated_at: datetime
-    provider_key: Optional[GenerativeProviderKey]
-    costs: strawberry.Private[Optional[list[models.TokenPrice]]] = None
-    start_time: Optional[datetime] = None
+    id: NodeID[int]
+    db_record: strawberry.Private[Optional[models.GenerativeModel]] = None
     cached_cost_summary: strawberry.Private[
         Optional[dict[CachedCostSummaryKey, SpanCostSummary]]
     ] = None
+
+    def __post_init__(self) -> None:
+        if self.db_record and self.id != self.db_record.id:
+            raise ValueError("GenerativeModel ID mismatch")
+
+    @strawberry.field
+    async def name(self, info: Info[Context, None]) -> str:
+        if self.db_record:
+            val = self.db_record.name
+        else:
+            val = await info.context.data_loaders.generative_model_fields.load(
+                (self.id, models.GenerativeModel.name),
+            )
+        return val
+
+    @strawberry.field
+    async def provider(self, info: Info[Context, None]) -> Optional[str]:
+        if self.db_record:
+            provider = self.db_record.provider
+        else:
+            provider = await info.context.data_loaders.generative_model_fields.load(
+                (self.id, models.GenerativeModel.provider),
+            )
+        return provider or None
+
+    @strawberry.field
+    async def name_pattern(self, info: Info[Context, None]) -> str:
+        if self.db_record:
+            pattern = self.db_record.name_pattern.pattern
+        else:
+            name_pattern_obj = await info.context.data_loaders.generative_model_fields.load(
+                (self.id, models.GenerativeModel.name_pattern),
+            )
+            pattern = name_pattern_obj.pattern
+        assert isinstance(pattern, str)
+        return pattern
+
+    @strawberry.field
+    async def kind(self, info: Info[Context, None]) -> GenerativeModelKind:
+        if self.db_record:
+            is_built_in = self.db_record.is_built_in
+        else:
+            is_built_in = await info.context.data_loaders.generative_model_fields.load(
+                (self.id, models.GenerativeModel.is_built_in),
+            )
+        return GenerativeModelKind.BUILT_IN if is_built_in else GenerativeModelKind.CUSTOM
+
+    @strawberry.field
+    async def created_at(self, info: Info[Context, None]) -> datetime:
+        if self.db_record:
+            val = self.db_record.created_at
+        else:
+            val = await info.context.data_loaders.generative_model_fields.load(
+                (self.id, models.GenerativeModel.created_at),
+            )
+        return val
+
+    @strawberry.field
+    async def updated_at(self, info: Info[Context, None]) -> datetime:
+        if self.db_record:
+            val = self.db_record.updated_at
+        else:
+            val = await info.context.data_loaders.generative_model_fields.load(
+                (self.id, models.GenerativeModel.updated_at),
+            )
+        return val
+
+    @strawberry.field
+    async def provider_key(self, info: Info[Context, None]) -> Optional[GenerativeProviderKey]:
+        if self.db_record:
+            provider = self.db_record.provider
+        else:
+            provider = await info.context.data_loaders.generative_model_fields.load(
+                (self.id, models.GenerativeModel.provider),
+            )
+        return _semconv_provider_to_gql_generative_provider_key(provider) if provider else None
+
+    @strawberry.field
+    async def start_time(self, info: Info[Context, None]) -> Optional[datetime]:
+        if self.db_record:
+            val = self.db_record.start_time
+        else:
+            val = await info.context.data_loaders.generative_model_fields.load(
+                (self.id, models.GenerativeModel.start_time),
+            )
+        return val
 
     def add_cached_cost_summary(
         self, project_id: Optional[int], time_range: TimeRange, cost_summary: SpanCostSummary
@@ -61,11 +138,10 @@ class GenerativeModel(Node, ModelInterface):
         self.cached_cost_summary[cache_key] = cost_summary
 
     @strawberry.field
-    async def token_prices(self) -> list[TokenPrice]:
-        if self.costs is None:
-            raise NotImplementedError
-        token_prices: list[TokenPrice] = list()
-        for cost in self.costs:
+    async def token_prices(self, info: Info[Context, None]) -> list[TokenPrice]:
+        costs = await info.context.data_loaders.token_prices_by_model.load(self.id)
+        token_prices: list[TokenPrice] = []
+        for cost in costs:
             token_prices.append(
                 TokenPrice(
                     token_type=cost.token_type,
@@ -100,7 +176,7 @@ class GenerativeModel(Node, ModelInterface):
             )
 
         loader = info.context.data_loaders.span_cost_summary_by_generative_model
-        summary = await loader.load(self.id_attr)
+        summary = await loader.load(self.id)
         return SpanCostSummary(
             prompt=CostBreakdown(
                 tokens=summary.prompt.tokens,
@@ -122,7 +198,7 @@ class GenerativeModel(Node, ModelInterface):
         info: Info[Context, None],
     ) -> list[SpanCostDetailSummaryEntry]:
         loader = info.context.data_loaders.span_cost_detail_summary_entries_by_generative_model
-        summary = await loader.load(self.id_attr)
+        summary = await loader.load(self.id)
         return [
             SpanCostDetailSummaryEntry(
                 token_type=entry.token_type,
@@ -137,30 +213,7 @@ class GenerativeModel(Node, ModelInterface):
 
     @strawberry.field
     async def last_used_at(self, info: Info[Context, None]) -> Optional[datetime]:
-        model_id = self.id_attr
-        return await info.context.data_loaders.last_used_times_by_generative_model_id.load(model_id)
-
-
-def to_gql_generative_model(
-    model: models.GenerativeModel,
-) -> GenerativeModel:
-    costs_are_loaded = isinstance(inspect(model).attrs.token_prices.loaded_value, list)
-    name_pattern = model.name_pattern.pattern
-    assert isinstance(name_pattern, str)
-    return GenerativeModel(
-        id_attr=model.id,
-        name=model.name,
-        provider=model.provider or None,
-        name_pattern=name_pattern,
-        kind=GenerativeModelKind.BUILT_IN if model.is_built_in else GenerativeModelKind.CUSTOM,
-        created_at=model.created_at,
-        updated_at=model.updated_at,
-        start_time=model.start_time,
-        provider_key=_semconv_provider_to_gql_generative_provider_key(model.provider)
-        if model.provider
-        else None,
-        costs=model.token_prices if costs_are_loaded else None,
-    )
+        return await info.context.data_loaders.last_used_times_by_generative_model_id.load(self.id)
 
 
 def _semconv_provider_to_gql_generative_provider_key(

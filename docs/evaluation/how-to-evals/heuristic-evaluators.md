@@ -1,2 +1,0 @@
-# Heuristic Evaluators
-

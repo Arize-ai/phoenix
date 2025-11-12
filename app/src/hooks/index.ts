@@ -6,3 +6,5 @@ export * from "./useInterval";
 export * from "./useWordColor";
 export * from "./useLocalTimeFormatPattern";
 export * from "./useDimensions";
+export * from "./useTimeFormatters";
+export * from "./useCurrentTime";

@@ -28,6 +28,8 @@ import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useViewerCanModify } from "@phoenix/contexts";
+import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 
 import { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
 import { PromptsTablePromptsQuery } from "./__generated__/PromptsTablePromptsQuery.graphql";
@@ -38,22 +40,22 @@ const PAGE_SIZE = 100;
 
 type PromptsTableProps = {
   query: PromptsTable_prompts$key;
-  searchFilter: string;
 };
 
 export function PromptsTable(props: PromptsTableProps) {
-  const { searchFilter } = props;
+  "use no memo";
+  const { filter, selectedPromptLabelIds } = usePromptsFilterContext();
   const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const queryArgs = useMemo(
     () => ({
-      filter: searchFilter.trim()
-        ? { value: searchFilter, col: "name" as const }
-        : null,
+      filter: filter.trim() ? { value: filter, col: "name" as const } : null,
+      labelIds:
+        selectedPromptLabelIds.length > 0 ? selectedPromptLabelIds : null,
     }),
-    [searchFilter]
+    [filter, selectedPromptLabelIds]
   );
 
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -65,9 +67,14 @@ export function PromptsTable(props: PromptsTableProps) {
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
           filter: { type: "PromptFilter", defaultValue: null }
+          labelIds: { type: "[ID!]", defaultValue: null }
         ) {
-          prompts(first: $first, after: $after, filter: $filter)
-            @connection(key: "PromptsTable_prompts") {
+          prompts(
+            first: $first
+            after: $after
+            filter: $filter
+            labelIds: $labelIds
+          ) @connection(key: "PromptsTable_prompts") {
             edges {
               prompt: node {
                 id
@@ -125,6 +132,7 @@ export function PromptsTable(props: PromptsTableProps) {
     },
     [hasNext, isLoadingNext, loadNext, queryArgs]
   );
+  const canModify = useViewerCanModify();
 
   type TableRow = (typeof tableData)[number];
   const columns = useMemo(() => {
@@ -168,7 +176,9 @@ export function PromptsTable(props: PromptsTableProps) {
         accessorKey: "lastUpdatedAt",
         cell: TimestampCell,
       },
-      {
+    ];
+    if (canModify) {
+      cols.push({
         id: "actions",
         header: "",
         size: 5,
@@ -200,11 +210,12 @@ export function PromptsTable(props: PromptsTableProps) {
             </Flex>
           );
         },
-      },
-    ];
+      });
+    }
     return cols;
-  }, [refetch, queryArgs]);
+  }, [refetch, queryArgs, canModify]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

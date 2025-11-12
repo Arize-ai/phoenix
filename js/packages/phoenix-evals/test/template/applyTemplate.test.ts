@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
 import { formatTemplate } from "../../src/template/applyTemplate";
+
+import { describe, expect, it } from "vitest";
 
 describe("formatTemplate", () => {
   it("should render template with multiple variables", () => {
@@ -106,5 +107,28 @@ describe("formatTemplate", () => {
     });
 
     expect(result).toBe("Items: Apple Banana Cherry ");
+  });
+
+  it("should not HTML-escape special characters in code snippets", () => {
+    const result = formatTemplate({
+      template: "Code: {{code}}",
+      variables: { code: "if (a > b && c < d)" },
+    });
+
+    expect(result).toBe("Code: if (a > b && c < d)");
+  });
+
+  it("should preserve code in evaluation templates", () => {
+    const result = formatTemplate({
+      template: "[Query]: {{input}}\n[Answer]: {{output}}",
+      variables: {
+        input: "How do I check if x > 5?",
+        output: "Use: if (x > 5) { }",
+      },
+    });
+
+    expect(result).toBe(
+      "[Query]: How do I check if x > 5?\n[Answer]: Use: if (x > 5) { }"
+    );
   });
 });

@@ -1,12 +1,9 @@
 import { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
-import {
-  classNames,
-  Field,
-  FieldProps,
-  ValidationState,
-} from "@arizeai/components";
+import { Label, Text } from "@phoenix/components";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
+import { classNames } from "@phoenix/utils";
 
 const codeEditorFormWrapperCSS = css`
   &.is-hovered {
@@ -37,17 +34,21 @@ const codeEditorFormWrapperCSS = css`
  */
 export function CodeEditorFieldWrapper({
   children,
-  validationState,
-  ...fieldProps
+  label,
+  errorMessage,
+  description,
 }: {
   children: ReactNode;
-  validationState: ValidationState;
-} & FieldProps) {
+  label: string;
+  errorMessage?: string | null;
+  description?: string | null;
+}) {
   const [isFocused, setIsFocused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const isInvalid = validationState === "invalid";
+  const isInvalid = !!errorMessage;
   return (
-    <Field {...fieldProps} validationState={isInvalid ? "invalid" : "valid"}>
+    <div css={fieldBaseCSS}>
+      <Label>{label}</Label>
       <div
         className={classNames("json-editor-wrap", {
           "is-hovered": isHovered,
@@ -62,6 +63,14 @@ export function CodeEditorFieldWrapper({
       >
         {children}
       </div>
-    </Field>
+      {errorMessage ? (
+        <Text slot="errorMessage" color="danger">
+          {errorMessage}
+        </Text>
+      ) : null}
+      {description && !errorMessage ? (
+        <Text slot="description">{description}</Text>
+      ) : null}
+    </div>
   );
 }

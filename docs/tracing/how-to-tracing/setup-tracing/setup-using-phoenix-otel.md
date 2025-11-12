@@ -1,6 +1,6 @@
 # Setup using Phoenix OTEL
 
-`phoenix.otel`  is a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.
+`phoenix.otel` is a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.
 
 ```bash
 pip install arize-phoenix-otel
@@ -12,9 +12,9 @@ These defaults are aware of environment variables you may have set to configure 
 * `PHOENIX_PROJECT_NAME`
 * `PHOENIX_CLIENT_HEADERS`
 * `PHOENIX_API_KEY`
-* `PHOENIX_GRPC_PORT`&#x20;
+* `PHOENIX_GRPC_PORT`
 
-## Quickstart: `phoenix.otel.register`&#x20;
+## Quickstart: `phoenix.otel.register`
 
 The `phoenix.otel` module provides a high-level `register` function to configure OpenTelemetry tracing by setting a global `TracerProvider`. The register function can also configure headers and whether or not to process spans one by one or by batch.
 
@@ -129,5 +129,5 @@ tracer_provider = register(
 Once you've connected your application to your Phoenix instance using `phoenix.otel.register`, you need to instrument your application. You have a few options to do this:
 
 1. **Using OpenInference auto-instrumentors**. If you've used the `auto_instrument` flag above, then any instrumentor packages in your environment will be called automatically. For a full list of OpenInference packages, see [https://arize.com/docs/phoenix/integrations](https://arize.com/docs/phoenix/integrations "mention")
-2. Using [Phoenix Decorators](instrument-python.md).
+2. Using [Phoenix Decorators](instrument.md).
 3. Using [Base OTEL](custom-spans.md).

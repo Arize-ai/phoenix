@@ -13,7 +13,7 @@ import {
   TimeRangeFormProps,
   View,
 } from "@phoenix/components";
-import { timeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { createTimeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 const meta: Meta = {
   title: "TimeRangeForm",
@@ -36,6 +36,10 @@ export const Default = Template.bind({});
 
 Default.args = {};
 
+const timeRangeFormatter = createTimeRangeFormatter({
+  locale: "en-US",
+  timeZone: "UTC",
+});
 export const InAPopOver = () => {
   const [timeRange, setTimeRange] = useState<OpenTimeRange>({
     start: new Date("2024-01-15T10:00:00Z"),

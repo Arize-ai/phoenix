@@ -5,8 +5,6 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
-
 import {
   ColorValue,
   DOMProps,
@@ -14,6 +12,7 @@ import {
   TextColorValue,
   TextSize,
 } from "@phoenix/components/types";
+import { classNames } from "@phoenix/utils";
 
 import { colorValue, useStyleProps } from "../utils";
 
@@ -95,11 +94,12 @@ function Text(props: TextProps, ref: Ref<HTMLElement>) {
     ...rest
   } = props;
   const { styleProps, otherProps } = useStyleProps(rest);
+  const { className, ...restProps } = otherProps;
 
   return (
     <AriaText
-      className={classNames("ac-text", `font-${fontFamily}`)}
-      {...otherProps}
+      className={classNames("ac-text", `font-${fontFamily}`, className)}
+      {...restProps}
       {...styleProps}
       css={css`
         ${textCSS(color)};

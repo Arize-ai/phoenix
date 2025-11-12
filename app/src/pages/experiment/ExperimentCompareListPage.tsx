@@ -371,6 +371,15 @@ export function ExperimentCompareListPage({
           if (!compareExperimentRunAnnotationsByName[annotationName]) {
             compareExperimentRunAnnotationsByName[annotationName] = [];
           }
+          if (
+            !compareExperimentRunAnnotationsByNameAndExperimentId[
+              annotationName
+            ]
+          ) {
+            compareExperimentRunAnnotationsByNameAndExperimentId[
+              annotationName
+            ] = {};
+          }
           compareExperimentIds.forEach((experimentId) => {
             const annotation =
               compareExperimentRunAnnotationsByNameAndExperimentId[
@@ -1168,7 +1177,7 @@ export function ExperimentCompareListPage({
         header.column.getSize();
     }
     return colSizes;
-    // eslint-disable-next-line react-compiler/react-compiler
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     tableState.columnSizingInfo,
@@ -1376,7 +1385,7 @@ function TableBody<T>({
             height: `${spacerRowHeight}px`,
             padding: 0,
           }}
-          colSpan={table.getAllColumns().length}
+          colSpan={table.getVisibleLeafColumns().length}
         />
       </tr>
     </tbody>

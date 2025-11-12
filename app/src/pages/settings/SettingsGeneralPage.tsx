@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
@@ -41,11 +40,6 @@ export function SettingsGeneralPage() {
     settingsGeneralPageLoaderGQL,
     loaderData
   );
-  useEffect(() => {
-    return () => {
-      loaderData.dispose();
-    };
-  }, [loaderData]);
   return (
     <Flex direction="column" gap="size-200" width="100%">
       <Flex direction="row" gap="size-200" alignItems="baseline">

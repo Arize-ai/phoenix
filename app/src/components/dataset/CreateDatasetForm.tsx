@@ -29,11 +29,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
         dataset {
           id
           name
-          description
-          metadata
-          createdAt
-          exampleCount
-          experimentCount
+          ...DatasetSelect_dataset
         }
       }
     }

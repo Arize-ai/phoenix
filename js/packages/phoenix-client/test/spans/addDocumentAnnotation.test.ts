@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { addDocumentAnnotation } from "../../src/spans/addDocumentAnnotation";
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Create mock POST function
 const mockPOST = vi.fn();

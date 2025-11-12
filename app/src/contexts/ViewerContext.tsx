@@ -1,4 +1,4 @@
-import React, { startTransition } from "react";
+import React, { startTransition, useCallback } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 
 import {
@@ -22,6 +22,17 @@ export function useViewer() {
     throw new Error("useViewer must be used within a ViewerProvider");
   }
   return context;
+}
+
+/**
+ * Returns true if the viewer can modify entities in the application
+ */
+export function useViewerCanModify() {
+  const { viewer } = useViewer();
+  if (viewer && viewer.role.name === "VIEWER") {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -62,7 +73,7 @@ export function ViewerProvider({
     `,
     query
   );
-  const refetchViewer = () => {
+  const refetchViewer = useCallback(() => {
     startTransition(() => {
       _refetch(
         {},
@@ -71,7 +82,7 @@ export function ViewerProvider({
         }
       );
     });
-  };
+  }, [_refetch]);
   return (
     <ViewerContext.Provider value={{ viewer: data.viewer, refetchViewer }}>
       {children}

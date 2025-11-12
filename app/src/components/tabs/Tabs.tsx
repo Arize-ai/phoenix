@@ -11,9 +11,8 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
-
 import { StylableProps } from "@phoenix/components/types";
+import { classNames } from "@phoenix/utils";
 
 const tabsCSS = css`
   display: flex;
@@ -50,7 +49,7 @@ export function Tabs({
   return (
     <AriaTabs
       css={css(tabsCSS, _css)}
-      className={classNames("react-aria-Tabs", className)}
+      className={classNames("react-aria-Tabs", "ac-tabs", className)}
       orientation={orientation}
       {...props}
     >
