@@ -142,14 +142,19 @@ export interface PreferencesState extends PreferencesProps {
 export const createPreferencesStore = (
   initialProps?: Partial<PreferencesProps>
 ) => {
-  const preferencesStore: StateCreator<PreferencesState> = (set) => ({
+  const preferencesStore: StateCreator<
+    PreferencesState,
+    [["zustand/devtools", unknown]]
+  > = (set) => ({
     markdownDisplayMode: "text",
     setMarkdownDisplayMode: (markdownDisplayMode) => {
-      set({ markdownDisplayMode });
+      set({ markdownDisplayMode }, false, { type: "setMarkdownDisplayMode" });
     },
     traceStreamingEnabled: true,
     setTraceStreamingEnabled: (traceStreamingEnabled) => {
-      set({ traceStreamingEnabled });
+      set({ traceStreamingEnabled }, false, {
+        type: "setTraceStreamingEnabled",
+      });
     },
     lastNTimeRangeKey: "7d",
     setLastNTimeRangeKey: (lastNTimeRangeKey) => {
@@ -157,45 +162,55 @@ export const createPreferencesStore = (
     },
     projectsAutoRefreshEnabled: true,
     setProjectAutoRefreshEnabled: (projectsAutoRefreshEnabled) => {
-      set({ projectsAutoRefreshEnabled });
+      set({ projectsAutoRefreshEnabled }, false, {
+        type: "setProjectAutoRefreshEnabled",
+      });
     },
     showMetricsInTraceTree: true,
     setShowMetricsInTraceTree: (showMetricsInTraceTree) => {
-      set({ showMetricsInTraceTree });
+      set({ showMetricsInTraceTree }, false, {
+        type: "setShowMetricsInTraceTree",
+      });
     },
     modelConfigByProvider: {},
     setModelConfigForProvider: ({ provider, modelConfig }) => {
-      set((state) => {
-        return {
-          modelConfigByProvider: {
-            ...state.modelConfigByProvider,
-            [provider]: modelConfig,
-          },
-        };
-      });
+      set(
+        (state) => {
+          return {
+            modelConfigByProvider: {
+              ...state.modelConfigByProvider,
+              [provider]: modelConfig,
+            },
+          };
+        },
+        false,
+        { type: "setModelConfigForProvider" }
+      );
     },
     playgroundStreamingEnabled: true,
     setPlaygroundStreamingEnabled: (playgroundStreamingEnabled) => {
-      set({ playgroundStreamingEnabled });
+      set({ playgroundStreamingEnabled }, false, {
+        type: "setPlaygroundStreamingEnabled",
+      });
     },
     isAnnotatingSpans: true,
     setIsAnnotatingSpans: (isAnnotatingSpans) => {
-      set({ isAnnotatingSpans });
+      set({ isAnnotatingSpans }, false, { type: "setIsAnnotatingSpans" });
     },
     projectViewMode: "grid",
     setProjectViewMode: (projectViewMode) => {
-      set({ projectViewMode });
+      set({ projectViewMode }, false, { type: "setProjectViewMode" });
     },
     projectSortOrder: {
       column: "endTime",
       direction: "desc",
     },
     setProjectSortOrder: (projectSortOrder) => {
-      set({ projectSortOrder });
+      set({ projectSortOrder }, false, { type: "setProjectSortOrder" });
     },
     isSideNavExpanded: true,
     setIsSideNavExpanded: (isSideNavExpanded) => {
-      set({ isSideNavExpanded });
+      set({ isSideNavExpanded }, false, { type: "setIsSideNavExpanded" });
     },
     setDisplayTimezone: (displayTimezone) => {
       // Just to be extra safe of what we store in local storage.
@@ -205,12 +220,12 @@ export const createPreferencesStore = (
       ) {
         throw new Error(`Invalid timezone: ${displayTimezone}`);
       }
-      set({ displayTimezone });
+      set({ displayTimezone }, false, { type: "setDisplayTimezone" });
     },
     ...initialProps,
   });
   return create<PreferencesState>()(
-    persist(devtools(preferencesStore), {
+    persist(devtools(preferencesStore, { name: "preferencesStore" }), {
       name: "arize-phoenix-preferences",
     })
   );
