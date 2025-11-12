@@ -12,7 +12,7 @@ import {
 } from "@phoenix/components";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { JSONTool } from "@phoenix/pages/playground/PlaygroundToolType/JSONTool";
+import { JSONToolEditor } from "@phoenix/pages/playground/PlaygroundToolType/JSONToolEditor";
 import {
   anthropicToolDefinitionJSONSchema,
   awsToolDefinitionJSONSchema,
@@ -38,7 +38,7 @@ const ToolEditor = (props: BaseToolEditorProps) => {
     // TODO: add support for other tool types
     case "json":
     default:
-      return <JSONTool {...props} />;
+      return <JSONToolEditor {...props} />;
   }
 };
 

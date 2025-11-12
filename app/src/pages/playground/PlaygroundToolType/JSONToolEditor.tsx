@@ -17,7 +17,7 @@ const TOOL_EDITOR_PRE_INIT_HEIGHT = 400;
 
 type JSONToolProps = BaseToolEditorProps;
 
-export const JSONTool = ({
+export const JSONToolEditor = ({
   playgroundInstanceId,
   tool,
   updateTool,
