@@ -30,11 +30,20 @@ Before running the script above you should configure your running environment by
 
 Depending on what flows you are trying to build features for, you may want to adjust the scripts block within the [package.json](./package.json) file so that the server is serving the appropriate fixture data.
 
+## Production
+
+The phoenix UI is packaged into a bundle that is served by the python back-end. To simulate this you can run:
+
+```shell
+pnpm run prod
+```
+
 ### Environment Variables
 
 The following environment variables can be configured in your `.env` file:
 
 - **`PHOENIX_ENABLE_REACT_COMPILER`**: Enable or disable the React Compiler for improved performance. Set to `True` (capital T) to enable, or omit/leave unset to disable. The React Compiler can improve performance but may introduce new errors, so proceed with caution when enabling it.
+- **`PHOENIX_ENABLE_SOURCE_MAP`**: This enables source maps during Vite builds. It's useful for when you want a production build but still have debug capabilities for the JS bundles.
 
 ### Authentication
 
