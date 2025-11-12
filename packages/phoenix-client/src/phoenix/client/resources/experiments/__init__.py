@@ -635,6 +635,7 @@ class Experiments:
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         repetitions: int = 1,
+        retries: int = 3,
     ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples.
@@ -701,6 +702,7 @@ class Experiments:
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
             repetitions (int): The number of times the task will be run on each example.
                 Defaults to 1.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             RanExperiment: A dictionary containing the experiment results.
@@ -812,7 +814,7 @@ class Experiments:
         executor = SyncExecutor(
             generation_fn=rate_limited_sync_run_task,
             tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
-            max_retries=0,
+            max_retries=retries,
             exit_on_error=False,
             fallback_return_value=None,
         )
@@ -855,6 +857,7 @@ class Experiments:
                 print_summary=False,  # We'll handle summary printing in run_experiment
                 timeout=timeout,
                 rate_limit_errors=rate_limit_errors,
+                retries=retries,
             )
             evaluation_runs_list = eval_result["evaluation_runs"]
 
@@ -1068,6 +1071,7 @@ class Experiments:
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> None:
         """
         Resume an incomplete experiment by running only the missing or failed runs.
@@ -1093,6 +1097,7 @@ class Experiments:
             timeout (Optional[int]): The timeout for task execution in seconds. Defaults to 60.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
                 to adaptively throttle on. Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             None
@@ -1218,7 +1223,7 @@ class Experiments:
                 executor = SyncExecutor(
                     generation_fn=rate_limited_sync_run_task,
                     tqdm_bar_format=get_tqdm_progress_bar_formatter("resuming tasks"),
-                    max_retries=0,
+                    max_retries=retries,
                     exit_on_error=False,
                     fallback_return_value=None,
                 )
@@ -1274,6 +1279,7 @@ class Experiments:
                 print_summary=False,  # We'll print our own summary
                 timeout=timeout,
                 rate_limit_errors=rate_limit_errors,
+                retries=retries,
             )
 
         # Print summary if requested
@@ -1294,6 +1300,7 @@ class Experiments:
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> None:
         """
         Resume incomplete evaluations for an experiment.
@@ -1327,6 +1334,7 @@ class Experiments:
                 Defaults to 60.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of
                 exceptions to adaptively throttle on. Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Raises:
             ValueError: If the experiment is not found or no evaluators are provided.
@@ -1419,6 +1427,7 @@ class Experiments:
                     False,  # dry_run
                     timeout,
                     rate_limit_errors,
+                    retries=retries,
                 )
 
                 total_completed += len([r for r in batch_eval_runs if r.error is None])
@@ -1479,6 +1488,7 @@ class Experiments:
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> RanExperiment:
         """
         Run evaluators on a completed experiment.
@@ -1507,6 +1517,7 @@ class Experiments:
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
                 to adaptively throttle on.
                 Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             RanExperiment: A dictionary containing the evaluation results with the same format
@@ -1607,6 +1618,7 @@ class Experiments:
             dry_run,
             timeout,
             rate_limit_errors,
+            retries=retries,
         )
 
         all_evaluation_runs = eval_runs
@@ -1654,35 +1666,44 @@ class Experiments:
         timeout: Optional[int],
         task_result_cache: dict[tuple[str, int], Any],
     ) -> Optional[ExperimentRun]:
+        """
+        This function wraps the user task to make it robust to task cancellations.
+
+        This function will be called more than once in the following cases:
+            1. The task is cancelled due to an *executor-level* timeout.
+              - In the event where the user task has completed, but the timeout cancels the
+                POST to the Phoenix server, we will re-run this function with the memoized result,
+                regardless of whether the task failed or was successful
+            2. The task fails, raises an exception, and is requeued by the executor if there are
+                retries remaining
+              - This only happens if a timeout did not occur and the error has been persisted to the
+                Phoenix server. The Phoenix server allows resubmission of failed tasks. So in this
+                case we erase the error from the cache to force a re-run
+        """
+
         example, repetition_number = test_case.example, test_case.repetition_number
         cache_key = (example["id"], repetition_number)
 
         # Check if we have a cached result
         if cache_key in task_result_cache:
-            output = task_result_cache[cache_key]
-            cached_exp_run: ExperimentRun = {
-                "dataset_example_id": example["id"],
-                "output": output,
-                "repetition_number": repetition_number,
-                "start_time": datetime.now(timezone.utc).isoformat(),
-                "end_time": datetime.now(timezone.utc).isoformat(),
-                "id": f"temp-{random.randint(1000, 9999)}",
-                "experiment_id": experiment["id"],
-            }
+            cached_value = cast(ExperimentRun, task_result_cache[cache_key])
+            # we only get to this point if the previous post to the sever was cancelled, so we
+            # re-try the post
             if not dry_run:
                 try:
                     resp = self._client.post(
                         f"v1/experiments/{experiment['id']}/runs",
-                        json=cached_exp_run,
+                        json=cached_value,
                         timeout=timeout,
                     )
                     resp.raise_for_status()
-                    cached_exp_run = {**cached_exp_run, "id": resp.json()["data"]["id"]}
                 except HTTPStatusError as e:
                     if e.response.status_code == 409:
-                        return None
-                    raise
-            return cached_exp_run
+                        pass
+                    else:
+                        task_result_cache.pop(cache_key, None)
+                        raise
+            return cached_value
 
         output = None
         error: Optional[BaseException] = None
@@ -1759,6 +1780,9 @@ class Experiments:
         if error:
             exp_run["error"] = repr(error)
 
+        # here we cache the result because the post to the server may be cancelled
+        task_result_cache[cache_key] = exp_run
+
         if not dry_run:
             try:
                 resp = self._client.post(
@@ -1768,12 +1792,21 @@ class Experiments:
                 )
                 resp.raise_for_status()
                 exp_run = {**exp_run, "id": resp.json()["data"]["id"]}
-                if error is None:
-                    task_result_cache[cache_key] = output
             except HTTPStatusError as e:
                 if e.response.status_code == 409:
-                    return None
-                raise
+                    # Run already exists on server, but our local data is valid
+                    pass
+                else:
+                    task_result_cache.pop(cache_key, None)
+                    raise
+
+        # Re-raise exception if task failed
+        if error is not None:
+            # we can delete the task result from the cache because the result has been
+            # successfully submitted to the server, however we will leave the error check in place
+            # just in case our assumption is wrong
+            task_result_cache.pop(cache_key, None)
+            raise error
 
         return exp_run
 
@@ -1785,6 +1818,7 @@ class Experiments:
         dry_run: bool,
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
+        retries: int = 3,
     ) -> list[ExperimentEvaluationRun]:
         """
         Execute evaluation tasks.
@@ -1830,7 +1864,7 @@ class Experiments:
         # Use sync executor for sync operation
         executor = SyncExecutor(
             generation_fn=rate_limited_sync_evaluate_run,
-            max_retries=0,
+            max_retries=retries,
             exit_on_error=False,
             fallback_return_value=None,
             tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
@@ -2330,6 +2364,7 @@ class AsyncExperiments:
         concurrency: int = 3,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         repetitions: int = 1,
+        retries: int = 3,
     ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples (async version).
@@ -2396,6 +2431,7 @@ class AsyncExperiments:
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
             repetitions (int): The number of times the task will be run on each example.
                 Defaults to 1.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             RanExperiment: A dictionary containing the experiment results.
@@ -2508,7 +2544,7 @@ class AsyncExperiments:
             generation_fn=rate_limited_async_run_task,
             concurrency=concurrency,
             tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
-            max_retries=0,
+            max_retries=retries,
             exit_on_error=False,
             fallback_return_value=None,
             timeout=timeout,
@@ -2553,6 +2589,7 @@ class AsyncExperiments:
                 timeout=timeout,
                 concurrency=concurrency,
                 rate_limit_errors=rate_limit_errors,
+                retries=retries,
             )
             evaluation_runs_list = eval_result["evaluation_runs"]
 
@@ -2765,6 +2802,7 @@ class AsyncExperiments:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> None:
         """
         Resume an incomplete experiment by running only the missing or failed runs.
@@ -2791,6 +2829,7 @@ class AsyncExperiments:
             concurrency (int): The number of concurrent tasks to run. Defaults to 3.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
                 to adaptively throttle on. Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             None
@@ -2917,9 +2956,10 @@ class AsyncExperiments:
                     generation_fn=rate_limited_async_run_task,
                     concurrency=concurrency,
                     tqdm_bar_format=get_tqdm_progress_bar_formatter("resuming tasks"),
-                    max_retries=0,
+                    max_retries=retries,
                     exit_on_error=False,
                     fallback_return_value=None,
+                    timeout=timeout,
                 )
 
                 batch_results, _ = await executor.execute(batch_test_cases)
@@ -2974,6 +3014,7 @@ class AsyncExperiments:
                 timeout=timeout,
                 concurrency=concurrency,
                 rate_limit_errors=rate_limit_errors,
+                retries=retries,
             )
 
         # Print summary if requested
@@ -2995,6 +3036,7 @@ class AsyncExperiments:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> None:
         """
         Resume incomplete evaluations for an experiment (async version).
@@ -3029,6 +3071,7 @@ class AsyncExperiments:
             concurrency (int): The number of concurrent evaluations to run. Defaults to 3.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of
                 exceptions to adaptively throttle on. Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Raises:
             ValueError: If the experiment is not found or no evaluators are provided.
@@ -3122,6 +3165,7 @@ class AsyncExperiments:
                     timeout,
                     rate_limit_errors,
                     concurrency,
+                    retries=retries,
                 )
 
                 total_completed += len([r for r in batch_eval_runs if r.error is None])
@@ -3183,6 +3227,7 @@ class AsyncExperiments:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
         rate_limit_errors: Optional[RateLimitErrors] = None,
+        retries: int = 3,
     ) -> RanExperiment:
         """
         Run evaluators on a completed experiment.
@@ -3212,6 +3257,7 @@ class AsyncExperiments:
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
                 to adaptively throttle on.
                 Defaults to None.
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             RanExperiment: A dictionary containing the evaluation results with the same format
@@ -3313,6 +3359,7 @@ class AsyncExperiments:
             timeout,
             rate_limit_errors,
             concurrency,
+            retries=retries,
         )
 
         all_evaluation_runs = eval_runs
@@ -3360,35 +3407,44 @@ class AsyncExperiments:
         timeout: Optional[int],
         task_result_cache: dict[tuple[str, int], Any],
     ) -> Optional[ExperimentRun]:
+        """
+        This function wraps the user task to make it robust to task cancellations.
+
+        This function will be called more than once in the following cases:
+            1. The task is cancelled due to an *executor-level* timeout.
+              - In the event where the user task has completed, but the timeout cancels the
+                POST to the Phoenix server, we will re-run this function with the memoized result,
+                regardless of whether the task failed or was successful
+            2. The task fails, raises an exception, and is requeued by the executor if there are
+                retries remaining
+              - This only happens if a timeout did not occur and the error has been persisted to the
+                Phoenix server. The Phoenix server allows resubmission of failed tasks. So in this
+                case we erase the error from the cache to force a re-run
+        """
+
         example, repetition_number = test_case.example, test_case.repetition_number
         cache_key = (example["id"], repetition_number)
 
         # Check if we have a cached result
         if cache_key in task_result_cache:
-            output = task_result_cache[cache_key]
-            cached_exp_run: ExperimentRun = {
-                "dataset_example_id": example["id"],
-                "output": output,
-                "repetition_number": repetition_number,
-                "start_time": datetime.now(timezone.utc).isoformat(),
-                "end_time": datetime.now(timezone.utc).isoformat(),
-                "id": f"temp-{random.randint(1000, 9999)}",
-                "experiment_id": experiment["id"],
-            }
+            cached_value = cast(ExperimentRun, task_result_cache[cache_key])
+            # we only get to this point if the previous post to the sever was cancelled, so we
+            # re-try the post
             if not dry_run:
                 try:
                     resp = await self._client.post(
                         f"v1/experiments/{experiment['id']}/runs",
-                        json=cached_exp_run,
+                        json=cached_value,
                         timeout=timeout,
                     )
                     resp.raise_for_status()
-                    cached_exp_run = {**cached_exp_run, "id": resp.json()["data"]["id"]}
                 except HTTPStatusError as e:
                     if e.response.status_code == 409:
-                        return None
-                    raise
-            return cached_exp_run
+                        pass
+                    else:
+                        task_result_cache.pop(cache_key, None)
+                        raise
+            return cached_value
 
         output = None
         error: Optional[BaseException] = None
@@ -3462,6 +3518,9 @@ class AsyncExperiments:
         if error:
             exp_run["error"] = repr(error)
 
+        # here we cache the result because the post to the server may be cancelled
+        task_result_cache[cache_key] = exp_run
+
         if not dry_run:
             try:
                 resp = await self._client.post(
@@ -3471,12 +3530,21 @@ class AsyncExperiments:
                 )
                 resp.raise_for_status()
                 exp_run = {**exp_run, "id": resp.json()["data"]["id"]}
-                if error is None:
-                    task_result_cache[cache_key] = output
             except HTTPStatusError as e:
                 if e.response.status_code == 409:
-                    return None
-                raise
+                    # Run already exists on server, but our local data is valid
+                    pass
+                else:
+                    task_result_cache.pop(cache_key, None)
+                    raise
+
+        # Re-raise exception if task failed
+        if error is not None:
+            # we can delete the task result from the cache because the result has been
+            # successfully submitted to the server, however we will leave the error check in place
+            # just in case our assumption is wrong
+            task_result_cache.pop(cache_key, None)
+            raise error
 
         return exp_run
 
@@ -3489,6 +3557,7 @@ class AsyncExperiments:
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
         concurrency: int,
+        retries: int = 3,
     ) -> list[ExperimentEvaluationRun]:
         """
         Execute evaluation tasks asynchronously.
@@ -3501,6 +3570,7 @@ class AsyncExperiments:
             timeout: Timeout for evaluations
             rate_limit_errors: Errors to rate limit on
             concurrency: Number of concurrent evaluations
+            retries (int): The number of times to retry a task if it fails. Defaults to 3.
 
         Returns:
             List of evaluation run results
@@ -3536,7 +3606,7 @@ class AsyncExperiments:
             generation_fn=rate_limited_async_evaluate_run,
             concurrency=concurrency,
             tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
-            max_retries=0,
+            max_retries=retries,
             exit_on_error=False,
             fallback_return_value=None,
             timeout=timeout,

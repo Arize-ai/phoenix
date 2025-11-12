@@ -117,7 +117,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
             else:
                 data_bytes: typing.Optional[bytes] = message.get("bytes")
                 if data_bytes is not None:
-                    event = wsproto.events.BytesMessage(data_bytes)
+                    event = wsproto.events.BytesMessage(bytearray(data_bytes))
                 else:
                     # If neither text nor bytes are provided, raise an error
                     raise ValueError("websocket.send message missing 'text' or 'bytes'")

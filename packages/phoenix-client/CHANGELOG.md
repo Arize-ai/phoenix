@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.22.0...arize-phoenix-client-v1.23.0) (2025-11-12)
+
+
+### Features
+
+* Experiment retries ([#10179](https://github.com/Arize-ai/phoenix/issues/10179)) ([e05fbe9](https://github.com/Arize-ai/phoenix/commit/e05fbe9f3279a5b872cb7cc905a58e6e6aa397a3))
+
 ## [1.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.21.0...arize-phoenix-client-v1.22.0) (2025-11-05)
 
 
