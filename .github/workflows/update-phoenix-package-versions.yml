@@ -54,20 +54,25 @@ jobs:
             # Release trigger - extract from tag
             TAG_NAME="${{ github.event.release.tag_name }}"
             
-            # Determine which package from tag
-            if [[ "$TAG_NAME" == arize-phoenix-client-v* ]]; then
-              PACKAGE="client"
-              VERSION=${TAG_NAME#arize-phoenix-client-v}
-            elif [[ "$TAG_NAME" == arize-phoenix-evals-v* ]]; then
-              PACKAGE="evals"
-              VERSION=${TAG_NAME#arize-phoenix-evals-v}
-            elif [[ "$TAG_NAME" == arize-phoenix-otel-v* ]]; then
-              PACKAGE="otel"
-              VERSION=${TAG_NAME#arize-phoenix-otel-v}
-            else
-              echo "❌ Error: Unknown package from tag $TAG_NAME"
-              exit 1
-            fi
+            # Determine which package from tag (using case for clarity and POSIX compatibility)
+            case "$TAG_NAME" in
+              arize-phoenix-client-v*)
+                PACKAGE="client"
+                VERSION=${TAG_NAME#arize-phoenix-client-v}
+                ;;
+              arize-phoenix-evals-v*)
+                PACKAGE="evals"
+                VERSION=${TAG_NAME#arize-phoenix-evals-v}
+                ;;
+              arize-phoenix-otel-v*)
+                PACKAGE="otel"
+                VERSION=${TAG_NAME#arize-phoenix-otel-v}
+                ;;
+              *)
+                echo "❌ Error: Unknown package from tag $TAG_NAME"
+                exit 1
+                ;;
+            esac
             
             TRIGGER="automatic"
             echo "Release tag: $TAG_NAME"
@@ -75,9 +80,17 @@ jobs:
             echo "Extracted version: $VERSION"
           fi
           
+          # Validate version format (basic semver check)
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$'; then
+            echo "❌ Error: Invalid version format: $VERSION"
+            echo "Expected semantic version (e.g., 1.2.3, 1.2.3-alpha.1, 1.2.3+build.1)"
+            exit 1
+          fi
+          
           echo "package=$PACKAGE" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "trigger=$TRIGGER" >> $GITHUB_OUTPUT
+          echo "tag_name=${TAG_NAME:-manual}" >> $GITHUB_OUTPUT
 
       - name: Check if update is needed
         id: check-update
@@ -111,8 +124,8 @@ jobs:
           PACKAGE_NAME="arize-phoenix-$PACKAGE"
           
           # Surgically replace only the version number, preserving all formatting
-          # Escape special chars in version for sed (though semver shouldn't have any)
-          ESCAPED_VERSION=$(printf '%s\n' "$NEW_VERSION" | sed 's/[[\.*^$/]/\\&/g')
+          # Escape special chars in version for sed (periods, forward slashes, etc.)
+          ESCAPED_VERSION=$(printf '%s\n' "$NEW_VERSION" | sed 's/[.[\*^$/]/\\&/g')
           
           if ! sed -i.bak "s/\($PACKAGE_NAME>=\)[0-9.]*/\1$ESCAPED_VERSION/" pyproject.toml; then
             echo "❌ Error: Failed to update pyproject.toml"
@@ -149,7 +162,7 @@ jobs:
             
             Updates `arize-phoenix-${{ steps.extract-version.outputs.package }}` to version **${{ steps.extract-version.outputs.version }}**
             
-            **Trigger:** ${{ steps.extract-version.outputs.trigger == 'manual' && 'Manual workflow dispatch' || format('Release {0}', github.event.release.tag_name) }}
+            **Trigger:** ${{ steps.extract-version.outputs.trigger == 'manual' && 'Manual workflow dispatch' || format('Release {0}', steps.extract-version.outputs.tag_name) }}
             
             ---
             
