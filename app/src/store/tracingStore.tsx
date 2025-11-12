@@ -83,7 +83,7 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
           { type: "setColumnSizing" }
         );
       } else {
-        set({ columnSizing }, false, "setColumnSizing");
+        set({ columnSizing }, false, { type: "setColumnSizing" });
       }
     },
   });
