@@ -48,7 +48,6 @@ export default defineConfig(() => {
     root: resolve(__dirname, "src"),
     plugins,
     publicDir: resolve(__dirname, "static"),
-    sourcemap: enableSourceMap,
     preview: {
       port: 6006,
     },
@@ -75,7 +74,7 @@ export default defineConfig(() => {
       manifest: true,
       outDir: resolve(__dirname, "../src/phoenix/server/static"),
       emptyOutDir: true,
-      sourcemap: true,
+      sourcemap: enableSourceMap,
       rollupOptions: {
         input: resolve(__dirname, "src/index.tsx"),
         output: {
