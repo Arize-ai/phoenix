@@ -93,7 +93,7 @@ export const _resetToolId = () => {
   playgroundToolId = 0;
 };
 
-const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
+export const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
   __type: "chat",
   messages: [
     {

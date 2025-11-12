@@ -111,7 +111,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
     })
   );
 
-  const { disableResponseFormat, disableTools } = props;
+  const { disableResponseFormat, disableNewTool } = props;
 
   return (
     <DndContext
@@ -164,7 +164,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           instanceId={id}
           hasResponseFormat={hasResponseFormat}
           disableResponseFormat={disableResponseFormat}
-          disableTools={disableTools}
+          disableNewTool={disableNewTool}
         />
       </View>
       {hasTools || hasResponseFormat ? (

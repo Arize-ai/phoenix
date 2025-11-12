@@ -22,7 +22,7 @@ type PlaygroundChatTemplateFooterProps = {
   instanceId: number;
   hasResponseFormat: boolean;
   disableResponseFormat?: boolean;
-  disableTools?: boolean;
+  disableNewTool?: boolean;
 };
 
 const FOOTER_MIN_HEIGHT = 32;
@@ -31,7 +31,7 @@ export function PlaygroundChatTemplateFooter({
   instanceId,
   hasResponseFormat,
   disableResponseFormat,
-  disableTools,
+  disableNewTool,
 }: PlaygroundChatTemplateFooterProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
@@ -62,7 +62,7 @@ export function PlaygroundChatTemplateFooter({
       })
     );
   const supportsToolChoice =
-    !disableTools &&
+    !disableNewTool &&
     supportedModelInvocationParameters?.some((p) =>
       areInvocationParamsEqual(p, {
         canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,

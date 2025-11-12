@@ -38,6 +38,11 @@ import {
 } from "@phoenix/pages/evaluators/EvaluatorLLMChoice";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
+import { fromOpenAIToolDefinition } from "@phoenix/schemas";
+import {
+  CategoricalChoiceToolType,
+  CategoricalChoiceToolTypeSchema,
+} from "@phoenix/schemas/phoenixToolTypeSchemas";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
@@ -108,7 +113,26 @@ const createEvaluatorPayload = ({
   const prunedPromptInput = {
     ...promptInput,
     templateFormat,
-    tools: undefined,
+    tools: [
+      // replace whatever tools exist in the prompt with a categorical choice tool
+      {
+        definition: fromOpenAIToolDefinition({
+          toolDefinition: CategoricalChoiceToolTypeSchema.parse({
+            type: "function",
+            function: {
+              name: choiceConfig.name,
+              description: description,
+              parameters: {
+                type: "string",
+                enum: choiceConfig.choices.map((choice) => choice.label),
+                required: [],
+              },
+            },
+          } satisfies CategoricalChoiceToolType),
+          targetProvider: promptInput.modelProvider,
+        }),
+      },
+    ],
     responseFormat: undefined,
   };
 
