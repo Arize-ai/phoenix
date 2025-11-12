@@ -3,7 +3,6 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/pages/evaluators/templates/defaultEvaluatorTemplate";
-import { createToolForProvider } from "@phoenix/pages/playground/playgroundUtils";
 import {
   generateInstanceId,
   generateMessageId,
@@ -33,30 +32,7 @@ export const makeLLMEvaluatorInstance = (
         },
       ],
     },
-    tools: [
-      createToolForProvider({
-        provider: DEFAULT_MODEL_PROVIDER,
-        toolNumber: 0,
-        type: "categorical_choice",
-        definition: {
-          type: "function",
-          function: {
-            name: "categorical_choice",
-            description: "A categorical choice tool",
-            parameters: {
-              type: "object",
-              properties: {
-                choice: {
-                  type: "string",
-                  enum: ["choice1", "choice2", "choice3"],
-                },
-              },
-              required: ["choice"],
-            },
-          },
-        },
-      }),
-    ],
+    tools: [],
     model: {
       ...(modelConfigByProvider[DEFAULT_MODEL_PROVIDER] ?? {
         provider: DEFAULT_MODEL_PROVIDER,
