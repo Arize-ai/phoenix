@@ -2959,7 +2959,7 @@ class AsyncExperiments:
                     max_retries=retries,
                     exit_on_error=False,
                     fallback_return_value=None,
-                    timeout=timeout
+                    timeout=timeout,
                 )
 
                 batch_results, _ = await executor.execute(batch_test_cases)
