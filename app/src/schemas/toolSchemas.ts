@@ -29,7 +29,7 @@ const jsonSchemaPropertiesSchema = z
 
 export const jsonSchemaZodSchema = z
   .object({
-    type: z.literal("object"),
+    type: z.enum(["object", "string", "number", "boolean"]),
     properties: z
       .record(
         z.union([
@@ -149,6 +149,11 @@ export const awsToolDefinitionJSONSchema = zodToJsonSchema(
     removeAdditionalStrategy: "passthrough",
   }
 );
+
+export type AnyProviderToolDefinition =
+  | OpenAIToolDefinition
+  | AnthropicToolDefinition
+  | AwsToolDefinition;
 
 /**
  * --------------------------------

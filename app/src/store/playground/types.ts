@@ -5,6 +5,7 @@ import { InvocationParameterInput } from "@phoenix/pages/playground/__generated_
 import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersFormFields";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
 import { LlmProviderToolDefinition } from "@phoenix/schemas";
+import { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import {
   AnthropicToolChoice,
   OpenaiToolChoice,
@@ -87,6 +88,7 @@ export type ModelConfig = {
  */
 export type Tool = {
   id: number;
+  editorType: PhoenixToolEditorType;
   definition: LlmProviderToolDefinition;
 };
 

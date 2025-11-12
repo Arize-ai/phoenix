@@ -9,14 +9,7 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import {
-  Flex,
-  Heading,
-  Icon,
-  Icons,
-  Popover,
-  Text,
-} from "@phoenix/components";
+import { Flex, Heading, Icon, Icons, Popover, Text } from "@phoenix/components";
 import { classNames } from "@phoenix/utils";
 
 const menuCss = css`
