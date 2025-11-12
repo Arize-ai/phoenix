@@ -1,5 +1,28 @@
 # Changelog
 
+## [12.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.12.0...arize-phoenix-v12.13.0) (2025-11-12)
+
+
+### Features
+
+* make render only contain pure functions ([#10210](https://github.com/Arize-ai/phoenix/issues/10210)) ([2ac490e](https://github.com/Arize-ai/phoenix/commit/2ac490ea5d60397288edeaac5c879de38dcdbe3f))
+* move off @arizeai/components" ([#10191](https://github.com/Arize-ai/phoenix/issues/10191)) ([08bc957](https://github.com/Arize-ai/phoenix/commit/08bc957192c728c03f88efb0f872ac5b6bccd414))
+
+
+### Bug Fixes
+
+* charting colors restored ([#10208](https://github.com/Arize-ai/phoenix/issues/10208)) ([4525082](https://github.com/Arize-ai/phoenix/commit/4525082086045df676034fb5c6c9768abd105ffb))
+* **cost:** update built-in model token prices ([#10201](https://github.com/Arize-ai/phoenix/issues/10201)) ([eef565c](https://github.com/Arize-ai/phoenix/commit/eef565c83d9a7eca9c9a170bb8528f965ca38639))
+* enable adding span to empty dataset ([#10213](https://github.com/Arize-ai/phoenix/issues/10213)) ([63a30db](https://github.com/Arize-ai/phoenix/commit/63a30dbfd94f1b326321467121d83727f987426c))
+* remove default color thresholds for latency ([#10175](https://github.com/Arize-ai/phoenix/issues/10175)) ([3fbbb39](https://github.com/Arize-ai/phoenix/commit/3fbbb39a2f32ba5fb894d735330504ed57de10f8))
+* type error during mustache substitution ([#10232](https://github.com/Arize-ai/phoenix/issues/10232)) ([f36dfed](https://github.com/Arize-ai/phoenix/commit/f36dfed3065ee1982c643089dc852d2746043044))
+
+
+### Documentation
+
+* add extensions to dev tools ([#10222](https://github.com/Arize-ai/phoenix/issues/10222)) ([c8f9cc0](https://github.com/Arize-ai/phoenix/commit/c8f9cc0289d7673ebef82ea1805c46951f8b8edb))
+* update typescript guide ([#10177](https://github.com/Arize-ai/phoenix/issues/10177)) ([f321dd5](https://github.com/Arize-ai/phoenix/commit/f321dd58b8767fba835b23d43f5cb137094295b2))
+
 ## [12.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.11.1...arize-phoenix-v12.12.0) (2025-11-07)
 
 
