@@ -13,11 +13,16 @@ export interface PlaygroundInstanceProps {
    */
   disablePromptSave?: boolean;
   /**
-   * Whether to disable the tools.
+   * Whether to disable the new tool button.
+   * Tools will still be rendered if available and disableTools is false.
+   */
+  disableNewTool?: boolean;
+  /**
+   * Whether to disable rendering tools.
    */
   disableTools?: boolean;
   /**
-   * Whether to disable the response format.
+   * Whether to disable rendering response format.
    */
   disableResponseFormat?: boolean;
 }
