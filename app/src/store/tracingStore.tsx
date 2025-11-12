@@ -88,9 +88,14 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
     },
   });
   return create<TracingState>()(
-    persist(devtools(tracingStore), {
-      name: makeTracingStoreKey(initialProps),
-    })
+    persist(
+      devtools(tracingStore, {
+        name: "tracingStore",
+      }),
+      {
+        name: makeTracingStoreKey(initialProps),
+      }
+    )
   );
 };
 

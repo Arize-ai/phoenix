@@ -213,7 +213,7 @@ export const createPreferencesStore = (
     ...initialProps,
   });
   return create<PreferencesState>()(
-    persist(devtools(preferencesStore), {
+    persist(devtools(preferencesStore, { name: "preferencesStore" }), {
       name: "arize-phoenix-preferences",
     })
   );
