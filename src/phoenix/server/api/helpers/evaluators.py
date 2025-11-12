@@ -12,6 +12,7 @@ from typing_extensions import Self, assert_never
 
 from phoenix.db import models
 from phoenix.server.api.helpers.prompts.models import (
+    PromptToolChoiceOneOrMore,
     PromptToolChoiceSpecificFunctionTool,
     PromptToolFunction,
 )
@@ -35,7 +36,9 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     prompt_tools = prompt_version.tools
     if len(prompt_tools.tools) != 1:
         raise ValueError(_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED.value)
-    if not isinstance(prompt_tools.tool_choice, PromptToolChoiceSpecificFunctionTool):
+    if not isinstance(
+        prompt_tools.tool_choice, (PromptToolChoiceSpecificFunctionTool, PromptToolChoiceOneOrMore)
+    ):
         raise ValueError(
             _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value
         )
