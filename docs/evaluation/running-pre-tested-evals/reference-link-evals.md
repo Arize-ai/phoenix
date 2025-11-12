@@ -68,7 +68,7 @@ relevance_classifications = llm_classify(
 
 ## Benchmark Results
 
-This benchmark was obtained using notebook below. It was run using a handcrafted ground truth dataset consisting of questions on the Arize platform. That [dataset is available here](https://storage.googleapis.com/arize-assets/phoenix/evals/ref-link-classification/ref_link_golden_test_data.csv).
+This benchmark was obtained using notebook below. It was run using a handcrafted ground truth dataset consisting of questions on the Arize AX platform. That [dataset is available here](https://storage.googleapis.com/arize-assets/phoenix/evals/ref-link-classification/ref_link_golden_test_data.csv).
 
 Each example in the dataset was evaluating using the `REF_LINK_EVAL_PROMPT_TEMPLATE_STR` above, then the resulting labels were compared against the ground truth label in the benchmark dataset to generate the confusion matrices below.
 

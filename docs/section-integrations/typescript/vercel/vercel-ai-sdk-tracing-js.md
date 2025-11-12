@@ -4,7 +4,7 @@
 
 [![npm version](https://badge.fury.io/js/@arizeai%2Fopeninference-vercel.svg)](https://badge.fury.io/js/@arizeai%2Fopeninference-vercel)
 
-This package provides a set of utilities to ingest [Vercel AI SDK](https://github.com/vercel/ai)(>= 3.3) spans into platforms like [Arize](https://arize.com/) and [Phoenix](https://phoenix.arize.com/).
+This package provides a set of utilities to ingest [Vercel AI SDK](https://github.com/vercel/ai)(>= 3.3) spans into platforms like [Arize AX](https://arize.com/) and [Phoenix](https://phoenix.arize.com/).
 
 > Note: This package requires you to be using the Vercel AI SDK version 3.3 or higher.
 

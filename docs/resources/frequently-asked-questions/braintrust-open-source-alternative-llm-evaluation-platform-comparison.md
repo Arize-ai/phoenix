@@ -94,7 +94,7 @@ Phoenix deploys with one Docker command and is free/unlimited to run on-prem or 
 
 #### Instrumentation & Agent Tracing
 
-Phoenix ships OpenInference—an OTel-compatible auto-instrumentation layer that captures every prompt, tool call and agent step with sub-second latency. Braintrust has 5 instrumentation options supported versus Arize Ax & Phoenix who have 50+ instrumentations.
+Phoenix ships OpenInference—an OTel-compatible auto-instrumentation layer that captures every prompt, tool call and agent step with sub-second latency. Braintrust has 5 instrumentation options supported versus Arize AX and Phoenix who have 50+ instrumentations.
 
 Arize AX and Phoenix are the leaders in agent tracing solutions. Brainstrust does not trace agents today. Braintrust accepts OTel spans but has no auto-instrumentors or semantic conventions; most teams embed an SDK or proxy into their code, adding dev effort and potential latency.
 
@@ -110,7 +110,7 @@ Phoenix and Arize AX include annotation queues that let reviewers label any trac
 
 #### Agent Evaluation
 
-Phoenix and AX have released extensive Agent evaluation including path evaluations, convergence evaluations and session level evaluations. The investment in research, material and technology spans over a year of work from the Arize team. Arize is the leading company thinking and working on Agent evaluation.
+Phoenix and Arize AX have released extensive Agent evaluation including path evaluations, convergence evaluations and session level evaluations. The investment in research, material and technology spans over a year of work from the Arize team. Arize is the leading company thinking and working on Agent evaluation.
 
 {% embed url="https://www.youtube.com/watch?v=Qvp9vw4jJQ8" %}
 

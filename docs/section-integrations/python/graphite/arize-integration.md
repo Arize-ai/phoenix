@@ -1,6 +1,6 @@
-# Arize & Phoenix Integration Guide
+# Arize AX & Phoenix Integration Guide
 
-This document provides comprehensive guidance on integrating Graphite with Arize and Phoenix for distributed tracing and observability.
+This document provides comprehensive guidance on integrating Graphite with Arize AX and Phoenix for distributed tracing and observability.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ This document provides comprehensive guidance on integrating Graphite with Arize
 
 Graphite integrates with OpenTelemetry to provide distributed tracing through multiple backends:
 
-- **Arize**: Production-grade monitoring and observability platform for AI applications
+- **Arize AX**: Production-grade monitoring and observability platform for AI applications
 - **Phoenix**: Local/remote tracing solution ideal for development and debugging
 - **Auto**: Automatic detection of available tracing endpoints
 - **In-Memory**: Testing mode without external dependencies
@@ -86,9 +86,9 @@ services:
 
 ### Environment Variables
 
-#### Arize Configuration
+#### Arize AX Configuration
 
-Set these environment variables when using Arize:
+Set these environment variables when using Arize AX:
 
 ```bash
 # Required for Arize
@@ -130,9 +130,9 @@ def setup_tracing(
 
 Grafi provides four tracing backend options through the `TracingOptions` enum:
 
-### 1. ARIZE - Production Monitoring
+### 1. ARIZE AX - Production Monitoring
 
-Use Arize for production environments with enterprise-grade observability:
+Use Arize AX for production environments with enterprise-grade observability:
 
 ```python
 from grafi.common.instrumentations.tracing import TracingOptions, setup_tracing
@@ -225,7 +225,7 @@ container.register_tracer(tracer)
 # Your assistant code here
 ```
 
-### Example 2: Production Setup with Arize
+### Example 2: Production Setup with Arize AX
 
 ```python
 from grafi.common.containers.container import container
@@ -485,9 +485,9 @@ def setup_test_tracing():
    tracer = setup_tracing(tracing_options=TracingOptions.AUTO)
    ```
 
-### Issue: Arize traces not appearing
+### Issue: Arize AX traces not appearing
 
-**Symptom**: No traces visible in Arize dashboard
+**Symptom**: No traces visible in the Arize AX dashboard
 
 **Solution**:
 1. Verify environment variables are set:
@@ -565,10 +565,10 @@ tracer = setup_tracing(tracing_options=TracingOptions.AUTO)
 
 ## Additional Resources
 
-### Arize Resources
-- [Arize Platform Documentation](https://docs.arize.com/)
-- [Arize OpenTelemetry Integration](https://arize.com/docs/ax/integrations/opentelemetry/opentelemetry-arize-otel)
-- [Arize Python SDK](https://arize-client-python.readthedocs.io/en/latest/)
+### Arize AX Resources
+- [Arize AX Platform Documentation](https://docs.arize.com/)
+- [Arize AX OpenTelemetry Integration](https://arize.com/docs/ax/integrations/opentelemetry/opentelemetry-arize-otel)
+- [Arize AX Python SDK](https://arize-client-python.readthedocs.io/en/latest/)
 
 ### Phoenix Resources
 - [Phoenix Documentation](https://docs.arize.com/phoenix)
@@ -585,6 +585,5 @@ tracer = setup_tracing(tracing_options=TracingOptions.AUTO)
 For issues related to:
 
 - **Graphite tracing integration**: Open an issue on the Grafi repository
-- **Arize platform**: Contact Arize support or consult their documentation
+- **Arize AX platform**: Contact Arize support or consult their documentation
 - **Phoenix**: Check the Phoenix GitHub issues or documentation
-
