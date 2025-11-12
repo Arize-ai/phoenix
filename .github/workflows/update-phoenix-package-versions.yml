@@ -155,7 +155,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore(deps): update arize-phoenix-${{ steps.extract-version.outputs.package }} to ${{ steps.extract-version.outputs.version }}"
+          commit-message: "fix(deps): update arize-phoenix-${{ steps.extract-version.outputs.package }} to ${{ steps.extract-version.outputs.version }}"
           title: "fix(deps): update arize-phoenix-${{ steps.extract-version.outputs.package }} to ${{ steps.extract-version.outputs.version }}"
           body: |
             ## 📦 Dependency Update
