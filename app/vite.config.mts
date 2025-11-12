@@ -70,6 +70,7 @@ export default defineConfig(() => {
       manifest: true,
       outDir: resolve(__dirname, "../src/phoenix/server/static"),
       emptyOutDir: true,
+      sourcemap: true,
       rollupOptions: {
         input: resolve(__dirname, "src/index.tsx"),
         output: {

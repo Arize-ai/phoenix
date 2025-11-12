@@ -133,6 +133,8 @@
     "dev:ui": "source ./.env && pnpm run build:static && pnpm run build:relay && vite",
     "dev:server": "source ./.env && uv run --compile --with-requirements=../requirements/dev.txt phoenix --dev serve",
     "dev:server:offline": "python -m phoenix.server.main --dev serve",
+    "prod": "pnpm run build:static && pnpm run build && pnpm run prod:server",
+    "prod:server": "source ./.env && uv run --compile --with-requirements=../requirements/dev.txt phoenix serve",
     "dev:server:embeddings": "pnpm dev:server --with-fixture=fashion_mnist",
     "dev:server:test": "node ./tests/utils/testServer.mjs",
     "dev:server:init": "pnpm dev:server --with-trace-fixtures=llama_index_rag --with-projects=SESSIONS-DEMO --force-fixture-ingestion",
