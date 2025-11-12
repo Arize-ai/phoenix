@@ -1,5 +1,13 @@
 # Changelog
 
+## [12.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.13.0...arize-phoenix-v12.13.1) (2025-11-12)
+
+
+### Bug Fixes
+
+* backslashes were not escaped in py str sanitization ([#10199](https://github.com/Arize-ai/phoenix/issues/10199)) ([694d9b3](https://github.com/Arize-ai/phoenix/commit/694d9b327c90e68f63bd3291c1c345630068f7b5))
+* **deps:** update arize-phoenix-evals to 2.6.0 ([#10240](https://github.com/Arize-ai/phoenix/issues/10240)) ([ada4aa4](https://github.com/Arize-ai/phoenix/commit/ada4aa4e54493f3889d24851f919a9b5ed9b4f04))
+
 ## [12.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.12.0...arize-phoenix-v12.13.0) (2025-11-12)
 
 
