@@ -53,7 +53,10 @@ export type CreateTracingStoreProps = {
 } & Partial<TracingProps>;
 
 export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
-  const tracingStore: StateCreator<TracingState> = (set) => ({
+  const tracingStore: StateCreator<
+    TracingState,
+    [["zustand/devtools", unknown]]
+  > = (set) => ({
     ...initialProps,
     columnVisibility: {
       metadata: false,
@@ -63,18 +66,24 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
     },
     annotationColumnVisibility: {},
     setColumnVisibility: (columnVisibility) => {
-      set({ columnVisibility });
+      set({ columnVisibility }, false, { type: "setColumnVisibility" });
     },
     setAnnotationColumnVisibility: (annotationColumnVisibility) => {
-      set({ annotationColumnVisibility });
+      set({ annotationColumnVisibility }, false, {
+        type: "setAnnotationColumnVisibility",
+      });
     },
     setColumnSizing: (columnSizing) => {
       if (typeof columnSizing === "function") {
-        set((state) => ({
-          columnSizing: columnSizing(state.columnSizing),
-        }));
+        set(
+          (state) => ({
+            columnSizing: columnSizing(state.columnSizing),
+          }),
+          false,
+          { type: "setColumnSizing" }
+        );
       } else {
-        set({ columnSizing });
+        set({ columnSizing }, false, "setColumnSizing");
       }
     },
   });

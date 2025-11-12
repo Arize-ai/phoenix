@@ -71,14 +71,21 @@ export interface CredentialsState extends CredentialsProps {
 export const createCredentialsStore = (
   initialProps: Partial<CredentialsProps>
 ) => {
-  const credentialsStore: StateCreator<CredentialsState> = (set) => ({
+  const credentialsStore: StateCreator<
+    CredentialsState,
+    [["zustand/devtools", unknown]]
+  > = (set) => ({
     setCredential: ({ provider, envVarName, value }) => {
-      set((state) => ({
-        [provider]: {
-          ...state[provider],
-          [envVarName]: value,
-        },
-      }));
+      set(
+        (state) => ({
+          [provider]: {
+            ...state[provider],
+            [envVarName]: value,
+          },
+        }),
+        false,
+        { type: "setCredential" }
+      );
     },
     ...initialProps,
   });

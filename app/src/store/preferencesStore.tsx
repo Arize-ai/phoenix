@@ -142,7 +142,10 @@ export interface PreferencesState extends PreferencesProps {
 export const createPreferencesStore = (
   initialProps?: Partial<PreferencesProps>
 ) => {
-  const preferencesStore: StateCreator<PreferencesState> = (set) => ({
+  const preferencesStore: StateCreator<
+    PreferencesState,
+    [["zustand/devtools", unknown]]
+  > = (set) => ({
     markdownDisplayMode: "text",
     setMarkdownDisplayMode: (markdownDisplayMode) => {
       set({ markdownDisplayMode });

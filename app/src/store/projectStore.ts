@@ -1,5 +1,5 @@
 import { create, StoreApi } from "zustand";
-import { persist } from "zustand/middleware";
+import { devtools, persist } from "zustand/middleware";
 
 import { ProjectTab } from "@phoenix/pages/project/constants";
 
@@ -33,16 +33,18 @@ export function createProjectStore({
 }: CreateProjectStoreProps): ProjectStore {
   const state = create<ProjectState>()(
     persist(
-      (set) => ({
+      devtools((set) => ({
         defaultTab: "spans",
         setDefaultTab: (tab: ProjectTab) => {
-          set({ defaultTab: tab });
+          set({ defaultTab: tab }, false, { type: "setDefaultTab" });
         },
         treatOrphansAsRoots: false,
         setTreatOrphansAsRoots: (treatOrphansAsRoots: boolean) => {
-          set({ treatOrphansAsRoots });
+          set({ treatOrphansAsRoots }, false, {
+            type: "setTreatOrphansAsRoots",
+          });
         },
-      }),
+      })),
       {
         name: makeProjectStoreKey(projectId),
       }
