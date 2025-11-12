@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Literal
 
 from pydantic import (
@@ -13,7 +12,6 @@ from typing_extensions import Self, assert_never
 from phoenix.db import models
 from phoenix.server.api.helpers.prompts.models import (
     PromptToolChoiceOneOrMore,
-    PromptToolChoiceSpecificFunctionTool,
     PromptToolFunction,
 )
 
@@ -30,18 +28,14 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     """
 
     if prompt_version.response_format is not None:
-        raise ValueError(_LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED.value)
+        raise ValueError(_LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED)
     if prompt_version.tools is None:
-        raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED.value)
+        raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED)
     prompt_tools = prompt_version.tools
     if len(prompt_tools.tools) != 1:
-        raise ValueError(_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED.value)
-    if not isinstance(
-        prompt_tools.tool_choice, (PromptToolChoiceSpecificFunctionTool, PromptToolChoiceOneOrMore)
-    ):
-        raise ValueError(
-            _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value
-        )
+        raise ValueError(_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED)
+    if not isinstance(prompt_tools.tool_choice, PromptToolChoiceOneOrMore):
+        raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL)
     prompt_tool = prompt_tools.tools[0]
     if not isinstance(prompt_tool, PromptToolFunction):
         assert_never(prompt_tool)
@@ -54,17 +48,16 @@ def validate_consistent_llm_evaluator_and_prompt_version(
         else None
     )
     if evaluator_name != prompt_tool_function_definition.name:
-        raise ValueError(
-            _LLMEvaluatorPromptErrorMessage.EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME.value
-        )
+        raise ValueError(_LLMEvaluatorPromptErrorMessage.EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME)
     if evaluator_description != prompt_tool_function_definition_description:
         raise ValueError(
-            _LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION.value
+            _LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION
         )
 
-    function_parameters = prompt_tool_function_definition.parameters
     try:
-        _EvaluatorPromptToolFunctionParameters.model_validate(function_parameters)
+        function_parameters = _EvaluatorPromptToolFunctionParameters.model_validate(
+            prompt_tool_function_definition.parameters
+        )
     except ValidationError as error:
         raise ValueError(
             _parse_pydantic_validation_error(
@@ -72,16 +65,16 @@ def validate_consistent_llm_evaluator_and_prompt_version(
                 validation_error=error,
             )
         )
-    function_property_name = next(iter(function_parameters["properties"].keys()))
+    function_property_name = next(iter(function_parameters.properties.keys()))
     if function_property_name != evaluator.annotation_name:
         raise ValueError(
-            _LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME.value
+            _LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME
         )
-    function_property_choices = function_parameters["properties"][function_property_name]["enum"]
+    function_property_choices = function_parameters.properties[function_property_name].enum
     evaluator_choices = [value.label for value in evaluator.output_config.values]
     if set(function_property_choices) != set(evaluator_choices):
         raise ValueError(
-            _LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM.value
+            _LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM
         )
 
 
@@ -106,7 +99,7 @@ class _EvaluatorPromptToolFunctionParameters(BaseModel):
     @classmethod
     def check_required_values_are_unique(cls, values: list[str]) -> list[str]:
         if len(values) != len(set(values)):
-            raise ValueError(_LLMEvaluatorPromptErrorMessage.REQUIRED_VALUES_MUST_BE_UNIQUE.value)
+            raise ValueError(_LLMEvaluatorPromptErrorMessage.REQUIRED_VALUES_MUST_BE_UNIQUE)
         return values
 
     @model_validator(mode="after")
@@ -115,11 +108,11 @@ class _EvaluatorPromptToolFunctionParameters(BaseModel):
         required_properties = set(self.required)
         if defined_properties - required_properties:
             raise ValueError(
-                _LLMEvaluatorPromptErrorMessage.ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED.value
+                _LLMEvaluatorPromptErrorMessage.ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED
             )
         if required_properties - defined_properties:
             raise ValueError(
-                _LLMEvaluatorPromptErrorMessage.ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED.value
+                _LLMEvaluatorPromptErrorMessage.ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED
             )
         return self
 
@@ -139,13 +132,11 @@ def _parse_pydantic_validation_error(
     return " ".join(error_messages)
 
 
-class _LLMEvaluatorPromptErrorMessage(Enum):
+class _LLMEvaluatorPromptErrorMessage:
     RESPONSE_FORMAT_NOT_SUPPORTED = "Response format is not supported for evaluator prompts"
     TOOLS_REQUIRED = "Evaluator prompts require tools"
     EXACTLY_ONE_TOOL_REQUIRED = "Evaluator prompts require exactly one tool"
-    TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL = (
-        "Evaluator prompts require a particular function to be specified in the tool choice"
-    )
+    TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL = "Evaluator prompts must require a tool choice"
     TOOL_MUST_BE_FUNCTION = "Evaluator prompts require a function tool"
     EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME = "Evaluator name must match the function name"
     EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION = (

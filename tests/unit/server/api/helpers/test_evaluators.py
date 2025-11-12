@@ -25,7 +25,6 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptToolChoiceNone,
     PromptToolChoiceOneOrMore,
     PromptToolChoiceSpecificFunctionTool,
-    PromptToolChoiceZeroOrMore,
     PromptToolFunction,
     PromptToolFunctionDefinition,
     PromptTools,
@@ -60,7 +59,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         llm_evaluator.description = "a string description"
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION.value,
+            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -73,7 +72,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.description = "a string description"
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION.value,
+            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -91,7 +90,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         )
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED.value,
+            match=_LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -103,7 +102,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools = None
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED.value,
+            match=_LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -118,7 +117,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         ] = []  # skips validation for empty tools list on PromptTools type
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED.value,
+            match=_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -149,7 +148,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         )
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED.value,
+            match=_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -162,7 +161,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tool_choice = PromptToolChoiceNone(type="none")
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value,
+            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -172,23 +171,27 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
-        prompt_version.tools.tool_choice = PromptToolChoiceZeroOrMore(type="zero_or_more")
+        prompt_version.tools.tool_choice = PromptToolChoiceSpecificFunctionTool(
+            type="specific_function", function_name="correctness_evaluator"
+        )
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value,
+            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
-    def test_one_or_more_tool_choice_raises(
+    def test_specific_function_tool_choice_raises(
         self,
         llm_evaluator: models.LLMEvaluator,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
-        prompt_version.tools.tool_choice = PromptToolChoiceOneOrMore(type="one_or_more")
+        prompt_version.tools.tool_choice = PromptToolChoiceSpecificFunctionTool(
+            type="specific_function", function_name="correctness_evaluator"
+        )
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL.value,
+            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -200,7 +203,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         llm_evaluator.name = Identifier("different_name")
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME.value,
+            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -333,7 +336,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         ]
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.REQUIRED_VALUES_MUST_BE_UNIQUE.value,
+            match=_LLMEvaluatorPromptErrorMessage.REQUIRED_VALUES_MUST_BE_UNIQUE,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -355,7 +358,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         }
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED.value,
+            match=_LLMEvaluatorPromptErrorMessage.ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -377,7 +380,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         }
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED.value,
+            match=_LLMEvaluatorPromptErrorMessage.ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -399,7 +402,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         }
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME.value,
+            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -414,7 +417,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         ].append("neutral")
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM.value,
+            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -484,9 +487,8 @@ def prompt_version() -> models.PromptVersion:
                     ),
                 )
             ],
-            tool_choice=PromptToolChoiceSpecificFunctionTool(
-                type="specific_function",
-                function_name="correctness_evaluator",
+            tool_choice=PromptToolChoiceOneOrMore(
+                type="one_or_more",
             ),
         ),
         response_format=None,
