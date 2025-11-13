@@ -8,7 +8,7 @@ A movie recommendation agent built with Mastra and traced with Arize Phoenix.
 
 Get started with Phoenix here: https://arize.com/docs/phoenix/get-started
 
-If running locally, Phoenix will be available at `http://localhost:6006`. 
+If running locally, Phoenix will be available at `http://localhost:6006`.
 
 ### 2. Install Dependencies
 
@@ -17,11 +17,14 @@ npm install
 ```
 
 This will install all required dependencies including:
+
 - `@ai-sdk/openai` - OpenAI SDK for AI SDK
 - `@mastra/core` - Mastra core framework
 - `@mastra/arize` - Arize Phoenix Tracing integration
 - `zod` - Schema validation
 - `dotenv` - Environment variable management
+- `@arizeai/phoenix-evals` - Arize Phoenix Evals TS Library
+- `@arizeai/phoenix-client/spans` - Arize Phoenix Client library
 
 ### 3. Configure Environment
 
@@ -37,6 +40,7 @@ PHOENIX_PROJECT_NAME=mastra-project
 ```
 
 If you are using Phoenix Cloud
+
 1. Be sure to include: PHOENIX_API_KEY=your-api-key
 2. Add "/v1/traces" at the end of your endpoint
 
@@ -54,6 +58,14 @@ Navigate to the Mastra Playground to interact with the movie recommendation agen
 
 Once you've run the agent, open Phoenix. You'll see all agent runs, tool calls, and model interactions traced and visualized.
 
+## Running Evals
+
+Once you're ready to run Evals, navigate up to the example-agent directory and run:
+
+```bash
+npm run eval
+```
+
 ## Project Structure
 
 ```
@@ -66,6 +78,8 @@ src/
       reviewer-tool.ts         # Reviews and rates movies
       preview-summarizer-tool.ts # Summarizes movies
     index.ts                   # Mastra configuration with Arize Phoenix tracing
+  eval/
+    evals.ts                   # Tool Correctness & Goal Completion evals
 ```
 
 ## What's Included
@@ -75,4 +89,4 @@ src/
   - Reviewer: Reviews and sorts movies by rating
   - PreviewSummarizer: Provides movie summaries
 - **Arize Phoenix Tracing**: All agent interactions are automatically traced and sent to Phoenix
-
+- **Arize Phoenix Evals**: Run Tool Correctness & Agent Goal Completetion Evals using Phoenix Evals TS
