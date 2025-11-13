@@ -23,7 +23,6 @@ import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
   generateMessageId,
-  PlaygroundInstance,
   PlaygroundRepetitionOutput,
 } from "@phoenix/store";
 import { isStringKeyedObject, Mutable } from "@phoenix/typeUtils";
@@ -159,9 +158,6 @@ function PlaygroundOutputContent({
   return "click run to see output";
 }
 
-type OutputContentByRepetitionNumber =
-  PlaygroundInstance["outputByRepetitionNumber"];
-
 export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const instanceId = props.playgroundInstanceId;
   const instances = usePlaygroundContext((state) => state.instances);
@@ -179,6 +175,11 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     instance.outputByRepetitionNumber
   ).length;
   const selectedRepetitionNumber = instance.selectedRepetitionNumber;
+  const outputContent =
+    instance.outputByRepetitionNumber[selectedRepetitionNumber];
+  const appendOutputContentChunk = usePlaygroundContext(
+    (state) => state.appendOutputContentChunk
+  );
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const setSelectedRepetitionNumber = usePlaygroundContext(
     (state) => state.setSelectedRepetitionNumber
@@ -222,33 +223,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     [notifyErrorToast]
   );
 
-  const [outputContentByRepetitionNumber, setOutputContentByRepetitionNumber] =
-    useState<OutputContentByRepetitionNumber>(
-      instance.outputByRepetitionNumber
-    );
-  const outputContent =
-    outputContentByRepetitionNumber[selectedRepetitionNumber];
-
-  const appendOutputContent = useCallback(
-    (repetitionNumber: number, content: string) => {
-      setOutputContentByRepetitionNumber((prev) => {
-        const previousContent = prev[repetitionNumber] ?? {
-          output: null,
-          spanId: null,
-        };
-        return {
-          ...prev,
-          [repetitionNumber]: {
-            ...previousContent,
-            output: (previousContent.output || "") + content,
-            spanId: previousContent.spanId,
-          },
-        };
-      });
-    },
-    []
-  );
-
   const [toolCallsByRepetitionNumber, setToolCallsByRepetitionNumber] =
     useState<Record<number, readonly PartialOutputToolCall[]>>({});
   const toolCalls: readonly PartialOutputToolCall[] =
@@ -261,7 +235,11 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         if (content == null || chatCompletion.repetitionNumber == null) {
           return;
         }
-        appendOutputContent(chatCompletion.repetitionNumber, content);
+        appendOutputContentChunk(
+          instanceId,
+          chatCompletion.repetitionNumber,
+          content
+        );
         return;
       } else if (chatCompletion.__typename === "ToolCallChunk") {
         const chatCompletionId = chatCompletion.id;
@@ -348,7 +326,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       markPlaygroundInstanceComplete,
       notifyError,
       playgroundStore,
-      appendOutputContent,
+      appendOutputContentChunk,
       props.playgroundInstanceId,
       updateInstance,
     ]
@@ -394,7 +372,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         return;
       }
       if (response.chatCompletion.content != null) {
-        appendOutputContent(
+        appendOutputContentChunk(
+          instanceId,
           1, // handle repetitions in mutation
           response.chatCompletion.content
         );
@@ -410,14 +389,13 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       notifyError,
       playgroundStore,
       props.playgroundInstanceId,
-      appendOutputContent,
+      appendOutputContentChunk,
       updateInstance,
     ]
   );
 
   const cleanup = useCallback(() => {
     setSelectedRepetitionNumber(instanceId, 1);
-    setOutputContentByRepetitionNumber({});
     setToolCallsByRepetitionNumber({});
     setOutputError(null);
     updateInstance({
@@ -514,9 +492,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     streaming,
     updateInstance,
   ]);
-  const hasContent =
-    outputContentByRepetitionNumber[selectedRepetitionNumber]?.output != null ||
-    toolCalls.length > 0;
+  const hasContent = outputContent?.output != null || toolCalls.length > 0;
   const isRepetitionLoading = runInProgress && !hasContent;
   return (
     <Card

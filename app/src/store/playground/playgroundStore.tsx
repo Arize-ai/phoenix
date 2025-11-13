@@ -705,6 +705,42 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setSelectedRepetitionNumber" }
       );
     },
+    appendOutputContentChunk: (
+      instanceId: number,
+      repetitionNumber: number,
+      contentChunk: string
+    ) => {
+      const instances = get().instances;
+      const instance = instances.find((instance) => instance.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set(
+        {
+          instances: instances.map((instance) => {
+            if (instance.id === instanceId) {
+              const existingOutput =
+                instance.outputByRepetitionNumber[repetitionNumber];
+              return {
+                ...instance,
+                outputByRepetitionNumber: {
+                  ...instance.outputByRepetitionNumber,
+                  [repetitionNumber]: existingOutput
+                    ? {
+                        ...existingOutput,
+                        output: (existingOutput.output || "") + contentChunk,
+                      }
+                    : undefined,
+                },
+              };
+            }
+            return instance;
+          }),
+        },
+        false,
+        { type: "appendOutputContent" }
+      );
+    },
     updateInstance: ({ instanceId, patch, dirty }) => {
       const instances = get().instances;
       set(
