@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.14.0...arize-phoenix-v12.14.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* add type safety to loader data ([#10245](https://github.com/Arize-ai/phoenix/issues/10245)) ([e6f89ce](https://github.com/Arize-ai/phoenix/commit/e6f89cece9ad1cec4cd94fc1258d8d9d5a06a0ca))
+
 ## [12.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.13.1...arize-phoenix-v12.14.0) (2025-11-12)
 
 
