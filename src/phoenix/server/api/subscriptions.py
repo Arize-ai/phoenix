@@ -35,6 +35,7 @@ from phoenix.db.helpers import (
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
+from phoenix.server.api.evaluators import get_builtin_evaluator_by_id
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundClientCredential,
@@ -200,6 +201,10 @@ def _is_span_result_payloads_stream(
     return stream.ag_code == _chat_completion_span_result_payloads.__code__  # type: ignore
 
 
+def _is_builtin_evaluator(evaluator_id: int) -> bool:
+    return evaluator_id < 0
+
+
 @strawberry.type
 class Subscription:
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -342,10 +347,14 @@ class Subscription:
             async with info.context.db() as session:
                 for ii, evaluator in enumerate(input.evaluators):
                     _, db_id = from_global_id(evaluator.id)
-                    evaluator_record = await session.get(models.Evaluator, db_id)
-                    if evaluator_record is None:
-                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
-                    evaluator_name = evaluator_record.name.root
+                    if _is_builtin_evaluator(db_id):
+                        builtin_def = get_builtin_evaluator_by_id(db_id)
+                        evaluator_name = builtin_def.name if builtin_def else ""
+                    else:
+                        evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
+                        if evaluator_record is None:
+                            raise NotFound(f"Could not find evaluator with ID {db_id}")
+                        evaluator_name = evaluator_record.name.root if evaluator_record else ""  # pyright: ignore
                     dummy_annotation = ExperimentRunAnnotation.from_dict(
                         {
                             "name": evaluator_name,
@@ -585,12 +594,16 @@ class Subscription:
                     for repetition_number in range(1, input.repetitions + 1):
                         for ii, evaluator in enumerate(input.evaluators):
                             _, db_id = from_global_id(evaluator.id)
-                            evaluator_record = await session.get(models.Evaluator, db_id)
-                            if evaluator_record is None:
-                                raise BadRequest(
-                                    f"Could not find evaluator with ID '{evaluator.id}'"
-                                )
-                            evaluator_name = evaluator_record.name.root
+                            if _is_builtin_evaluator(db_id):
+                                builtin_def = get_builtin_evaluator_by_id(db_id)
+                                evaluator_name = builtin_def.name if builtin_def else ""
+                            else:
+                                evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
+                                if evaluator_record is None:
+                                    raise NotFound(f"Could not find evaluator with ID {db_id}")
+                                evaluator_name = (
+                                    evaluator_record.name.root if evaluator_record else ""
+                                )  # pyright: ignore
                             dummy_annotation = ExperimentRunAnnotation.from_dict(
                                 {
                                     "name": evaluator_name,
