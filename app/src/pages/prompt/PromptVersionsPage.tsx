@@ -1,16 +1,23 @@
 import { useCallback } from "react";
-import { useFragment } from "react-relay";
+import { useFragment, usePreloadedQuery } from "react-relay";
 import { Outlet, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 
 import { Flex, View } from "@phoenix/components";
 
+import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
 import { PromptVersionsPageContent__main$key } from "./__generated__/PromptVersionsPageContent__main.graphql";
+import { promptLoaderQuery } from "./promptLoader";
 import { PromptVersionsList } from "./PromptVersionsList";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 export function PromptVersionsPage() {
-  const { prompt } = usePromptIdLoader();
+  const loaderData = usePromptIdLoader();
+  const data = usePreloadedQuery<promptLoaderQueryType>(
+    promptLoaderQuery,
+    loaderData.queryRef
+  );
+  const prompt = data.prompt;
   const { versionId } = useParams();
   return (
     <PromptVersionsPageContent prompt={prompt} promptVersionId={versionId} />
