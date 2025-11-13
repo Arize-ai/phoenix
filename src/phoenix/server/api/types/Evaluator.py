@@ -13,6 +13,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
 )
 from phoenix.server.api.context import Context
+from phoenix.server.api.evaluators import get_builtin_evaluator_by_id
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
@@ -380,6 +381,68 @@ class LLMEvaluator(Evaluator, Node):
         from .PromptVersion import to_gql_prompt_version
 
         return to_gql_prompt_version(prompt_version)
+
+
+@strawberry.type
+class BuiltInEvaluator(Evaluator, Node):
+    id: NodeID[int]
+
+    @strawberry.field
+    async def name(
+        self,
+        info: Info[Context, None],
+    ) -> Identifier:
+        evaluator_def = get_builtin_evaluator_by_id(self.id)
+        if evaluator_def is None:
+            raise NotFound(f"Built-in evaluator not found: {self.id}")
+        return evaluator_def.name
+
+    @strawberry.field
+    async def description(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        evaluator_def = get_builtin_evaluator_by_id(self.id)
+        if evaluator_def is None:
+            raise NotFound(f"Built-in evaluator not found: {self.id}")
+        return evaluator_def.description
+
+    @strawberry.field
+    async def metadata(
+        self,
+        info: Info[Context, None],
+    ) -> JSON:
+        evaluator_def = get_builtin_evaluator_by_id(self.id)
+        if evaluator_def is None:
+            raise NotFound(f"Built-in evaluator not found: {self.id}")
+        return evaluator_def.metadata
+
+    @strawberry.field
+    async def kind(
+        self,
+        info: Info[Context, None],
+    ) -> EvaluatorKind:
+        return EvaluatorKind.CODE
+
+    @strawberry.field
+    async def created_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        return datetime.fromtimestamp(0)
+
+    @strawberry.field
+    async def updated_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        return datetime.fromtimestamp(0)
+
+    @strawberry.field
+    async def user(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        return None
 
 
 def _to_gql_categorical_annotation_config(
