@@ -12,6 +12,7 @@ from typing_extensions import Self, assert_never
 from phoenix.db import models
 from phoenix.server.api.helpers.prompts.models import (
     PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
     PromptToolFunction,
 )
 
@@ -34,8 +35,15 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     prompt_tools = prompt_version.tools
     if len(prompt_tools.tools) != 1:
         raise ValueError(_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED)
-    if not isinstance(prompt_tools.tool_choice, PromptToolChoiceOneOrMore):
-        raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL)
+    if not isinstance(
+        prompt_tools.tool_choice, (PromptToolChoiceOneOrMore, PromptToolChoiceSpecificFunctionTool)
+    ):
+        raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED)
+    if isinstance(prompt_tools.tool_choice, PromptToolChoiceSpecificFunctionTool):
+        if prompt_tools.tool_choice.function_name != prompt_tools.tools[0].function.name:
+            raise ValueError(
+                _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME
+            )
     prompt_tool = prompt_tools.tools[0]
     if not isinstance(prompt_tool, PromptToolFunction):
         assert_never(prompt_tool)
@@ -136,7 +144,10 @@ class _LLMEvaluatorPromptErrorMessage:
     RESPONSE_FORMAT_NOT_SUPPORTED = "Response format is not supported for evaluator prompts"
     TOOLS_REQUIRED = "Evaluator prompts require tools"
     EXACTLY_ONE_TOOL_REQUIRED = "Evaluator prompts require exactly one tool"
-    TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL = "Evaluator prompts must require a tool choice"
+    TOOL_CHOICE_REQUIRED = "Evaluator prompts must require a tool choice"
+    TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME = (
+        "Evaluator tool choice specific function name must match defined function name"
+    )
     TOOL_MUST_BE_FUNCTION = "Evaluator prompts require a function tool"
     EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME = "Evaluator name must match the function name"
     EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION = (

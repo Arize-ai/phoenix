@@ -25,6 +25,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptToolChoiceNone,
     PromptToolChoiceOneOrMore,
     PromptToolChoiceSpecificFunctionTool,
+    PromptToolChoiceZeroOrMore,
     PromptToolFunction,
     PromptToolFunctionDefinition,
     PromptTools,
@@ -161,7 +162,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tool_choice = PromptToolChoiceNone(type="none")
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL,
+            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -171,16 +172,14 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
-        prompt_version.tools.tool_choice = PromptToolChoiceSpecificFunctionTool(
-            type="specific_function", function_name="correctness_evaluator"
-        )
+        prompt_version.tools.tool_choice = PromptToolChoiceZeroOrMore(type="zero_or_more")
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL,
+            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
-    def test_specific_function_tool_choice_raises(
+    def test_specific_function_tool_choice_with_matching_name_does_not_raise(
         self,
         llm_evaluator: models.LLMEvaluator,
         prompt_version: models.PromptVersion,
@@ -189,9 +188,20 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tool_choice = PromptToolChoiceSpecificFunctionTool(
             type="specific_function", function_name="correctness_evaluator"
         )
+        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+
+    def test_specific_function_tool_choice_with_mismatched_name_raises(
+        self,
+        llm_evaluator: models.LLMEvaluator,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        assert prompt_version.tools is not None
+        prompt_version.tools.tool_choice = PromptToolChoiceSpecificFunctionTool(
+            type="specific_function", function_name="different_function_name"
+        )
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_MUST_BE_SPECIFIC_FUNCTION_TOOL,
+            match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
