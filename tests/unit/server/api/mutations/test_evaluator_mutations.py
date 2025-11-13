@@ -81,7 +81,34 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="Eval {{input}}"))])]
                 ),
-                invocationParameters=dict(temperature=0.0),
+                invocationParameters=dict(
+                    temperature=0.0,
+                    tool_choice=dict(
+                        type="function",
+                        function=dict(name="test-evaluator"),
+                    ),
+                ),
+                tools=[
+                    dict(
+                        definition=dict(
+                            type="function",
+                            function=dict(
+                                name="test-evaluator",
+                                description="test description",
+                                parameters=dict(
+                                    type="object",
+                                    properties=dict(
+                                        correctness=dict(
+                                            type="string",
+                                            enum=["correct", "incorrect"],
+                                        )
+                                    ),
+                                    required=["correctness"],
+                                ),
+                            ),
+                        )
+                    )
+                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -115,7 +142,6 @@ class TestDatasetLLMEvaluatorMutations:
             )
             assert dataset_evaluator and dataset_evaluator.input_config == {}
 
-        # Success: Anthropic provider
         result = await self._create(
             gql_client,
             datasetId=dataset_id,
@@ -125,7 +151,32 @@ class TestDatasetLLMEvaluatorMutations:
                 description="anthropic version",
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Rate"))])]),
-                invocationParameters=dict(temperature=0.7, max_tokens=50),
+                invocationParameters=dict(
+                    temperature=0.7,
+                    max_tokens=50,
+                    tool_choice=dict(
+                        type="tool",
+                        name="anthropic",
+                    ),
+                ),
+                tools=[
+                    dict(
+                        definition=dict(
+                            name="anthropic",
+                            description="anthropic",
+                            input_schema=dict(
+                                type="object",
+                                properties=dict(
+                                    correctness=dict(
+                                        type="string",
+                                        enum=["correct", "incorrect"],
+                                    )
+                                ),
+                                required=["correctness"],
+                            ),
+                        )
+                    )
+                ],
                 modelProvider="ANTHROPIC",
                 modelName="claude-3-opus-20240229",
             ),
@@ -156,7 +207,32 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="Second"))])]
                 ),
-                invocationParameters=dict(temperature=0.5, max_tokens=100),
+                invocationParameters=dict(
+                    temperature=0.5,
+                    max_tokens=100,
+                    tool_choice=dict(
+                        type="tool",
+                        name="second",
+                    ),
+                ),
+                tools=[
+                    dict(
+                        definition=dict(
+                            name="second",
+                            description="second",
+                            input_schema=dict(
+                                type="object",
+                                properties=dict(
+                                    correctness=dict(
+                                        type="string",
+                                        enum=["correct", "incorrect"],
+                                    )
+                                ),
+                                required=["correctness"],
+                            ),
+                        )
+                    )
+                ],
                 modelProvider="ANTHROPIC",
                 modelName="claude-3-opus-20240229",
             ),
@@ -188,10 +264,38 @@ class TestDatasetLLMEvaluatorMutations:
             gql_client,
             datasetId=str(GlobalID("Dataset", "999")),
             name="test",
+            description="test",
             promptVersion=dict(
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Test"))])]),
-                invocationParameters=dict(temperature=0.5),
+                invocationParameters=dict(
+                    temperature=0.5,
+                    tool_choice=dict(
+                        type="function",
+                        function=dict(name="test"),
+                    ),
+                ),
+                tools=[
+                    dict(
+                        definition=dict(
+                            type="function",
+                            function=dict(
+                                name="test",
+                                description="test",
+                                parameters=dict(
+                                    type="object",
+                                    properties=dict(
+                                        correctness=dict(
+                                            type="string",
+                                            enum=["correct", "incorrect"],
+                                        )
+                                    ),
+                                    required=["correctness"],
+                                ),
+                            ),
+                        )
+                    )
+                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -268,7 +372,34 @@ class TestCreateEvaluatorsWithoutDataset:
                         template=dict(
                             messages=[dict(role="USER", content=[dict(text=dict(text="Hello"))])]
                         ),
-                        invocationParameters=dict(temperature=0.0),
+                        invocationParameters=dict(
+                            temperature=0.0,
+                            tool_choice=dict(
+                                type="function",
+                                function=dict(name="llm-no-dataset"),
+                            ),
+                        ),
+                        tools=[
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="llm-no-dataset",
+                                        description="llm eval without dataset relation",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                correctness=dict(
+                                                    type="string",
+                                                    enum=["correct", "incorrect"],
+                                                )
+                                            ),
+                                            required=["correctness"],
+                                        ),
+                                    ),
+                                )
+                            )
+                        ],
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
