@@ -20,6 +20,9 @@ from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.evaluators import (
+    validate_consistent_llm_evaluator_and_prompt_version,
+)
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.mutations.annotation_config_mutations import (
     CategoricalAnnotationConfigInput,
@@ -218,6 +221,10 @@ class EvaluatorMutationMixin:
             else [],
         )
         try:
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+        except ValueError as error:
+            raise BadRequest(str(error))
+        try:
             async with info.context.db() as session:
                 session.add(llm_evaluator)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
@@ -284,6 +291,11 @@ class EvaluatorMutationMixin:
             )
             if create_new_prompt_version:
                 llm_evaluator.prompt.prompt_versions.append(prompt_version)
+
+            try:
+                validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            except ValueError as error:
+                raise BadRequest(str(error))
 
             try:
                 await session.flush()
