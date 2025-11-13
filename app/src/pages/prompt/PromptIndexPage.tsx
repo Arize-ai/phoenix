@@ -1,5 +1,5 @@
 import { DialogTrigger, Heading } from "react-aria-components";
-import { graphql, useFragment } from "react-relay";
+import { graphql, useFragment, usePreloadedQuery } from "react-relay";
 
 import {
   Button,
@@ -20,15 +20,21 @@ import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelC
 
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
+import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
 import { EditPromptButton } from "./EditPromptButton";
 import { PromptChatMessagesCard } from "./PromptChatMessagesCard";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
+import { promptLoaderQuery } from "./promptLoader";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 export function PromptIndexPage() {
   const loaderData = usePromptIdLoader();
-  return <PromptIndexPageContent prompt={loaderData.prompt} />;
+  const data = usePreloadedQuery<promptLoaderQueryType>(
+    promptLoaderQuery,
+    loaderData.queryRef
+  );
+  return <PromptIndexPageContent prompt={data.prompt} />;
 }
 
 export function PromptIndexPageContent({

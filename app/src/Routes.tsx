@@ -262,7 +262,10 @@ const router = createBrowserRouter(
               shouldRevalidate={() => true}
               handle={{
                 crumb: (data: PromptLoaderData) => {
-                  return data?.prompt?.name;
+                  if (data?.prompt?.__typename === "Prompt") {
+                    return data?.prompt?.name;
+                  }
+                  return "prompt unknown";
                 },
               }}
             >
