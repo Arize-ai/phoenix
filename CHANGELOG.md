@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.13.1...arize-phoenix-v12.14.0) (2025-11-12)
+
+
+### Features
+
+* Add react compiler behind a config ([#9782](https://github.com/Arize-ai/phoenix/issues/9782)) ([2f1de04](https://github.com/Arize-ai/phoenix/commit/2f1de04f09d7d3de6ced5a9c4a7fa11eb71bb9cb))
+
 ## [12.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.13.0...arize-phoenix-v12.13.1) (2025-11-12)
 
 
