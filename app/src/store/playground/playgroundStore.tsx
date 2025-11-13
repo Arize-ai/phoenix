@@ -25,7 +25,7 @@ import {
   convertInstanceToolsToProvider,
   convertMessageToolCallsToProvider,
 } from "./playgroundStoreUtils";
-import {
+import type {
   ChatMessage,
   GenAIOperationType,
   InitialPlaygroundState,
