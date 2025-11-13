@@ -7,7 +7,7 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Card, Loading, View } from "@phoenix/components";
+import { Card, Flex, Loading, View } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeSelect,
@@ -30,6 +30,8 @@ import {
   getErrorMessagesFromRelayMutationError,
   getErrorMessagesFromRelaySubscriptionError,
 } from "@phoenix/utils/errorUtils";
+
+import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
 
 import PlaygroundOutputMutation, {
   PlaygroundOutputMutation as PlaygroundOutputMutationType,
@@ -146,22 +148,32 @@ function PlaygroundOutputContent({
   return "click run to see output";
 }
 
-type OutputContent = PlaygroundInstance["output"];
+type OutputContentByRepetitionNumber =
+  PlaygroundInstance["outputByRepetitionNumber"];
+type OutputContent = OutputContentByRepetitionNumber[number];
 
 export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const instanceId = props.playgroundInstanceId;
   const instances = usePlaygroundContext((state) => state.instances);
   const streaming = usePlaygroundContext((state) => state.streaming);
+  const repetitions = usePlaygroundContext((state) => state.repetitions);
   const credentials = useCredentialsContext((state) => state);
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
   );
   const instance = instances.find((instance) => instance.id === instanceId);
+  if (!instance) {
+    throw new Error(`No instance found for id ${instanceId}`);
+  }
+  const instanceHasMultipleRepetitions = instance.repetitions > 1;
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const [outputError, setOutputError] = useState<{
     title: string;
     message?: string;
   } | null>(null);
+  const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
+  const spanId: string | null | undefined =
+    instance.spanIdByRepetitionNumber[selectedRepetitionNumber];
 
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
@@ -170,21 +182,31 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   const playgroundStore = usePlaygroundStore();
 
-  if (!instance) {
-    throw new Error(`No instance found for id ${instanceId}`);
-  }
-
   if (instance.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
   }
 
-  const [loading, setLoading] = useState(false);
+  const [isLoadingByRepetitionNumber, setIsLoadingByRepetitionNumber] =
+    useState<Record<number, boolean>>({});
+  const setLoading = useCallback(
+    (repetitionNumber: number, isLoading: boolean) => {
+      setIsLoadingByRepetitionNumber((prev) => ({
+        ...prev,
+        [repetitionNumber]: isLoading,
+      }));
+    },
+    []
+  );
+  const isLoading =
+    isLoadingByRepetitionNumber[selectedRepetitionNumber] ?? false;
 
   const [generateChatCompletion] = useMutation<PlaygroundOutputMutationType>(
     PlaygroundOutputMutation
   );
 
-  const hasRunId = instance?.activeRunId != null;
+  const runInProgress = instances.some(
+    (instance) => instance.activeRunId != null
+  );
   const notifyErrorToast = useNotifyError();
 
   const notifyError = useCallback(
@@ -199,27 +221,52 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     [notifyErrorToast]
   );
 
-  const [outputContent, setOutputContent] = useState<OutputContent>(
-    instance.output
-  );
-  const [toolCalls, setToolCalls] = useState<readonly PartialOutputToolCall[]>(
+  const [outputContentByRepetitionNumber, setOutputContentByRepetitionNumber] =
+    useState<OutputContentByRepetitionNumber>(
+      instance.outputByRepetitionNumber
+    );
+  const outputContent =
+    outputContentByRepetitionNumber[selectedRepetitionNumber];
+
+  const appendOutputContent = useCallback(
+    (repetitionNumber: number, content: string) => {
+      setOutputContentByRepetitionNumber((prev) => {
+        const previousContent = prev[repetitionNumber] ?? "";
+        return {
+          ...prev,
+          [repetitionNumber]: previousContent + content,
+        };
+      });
+    },
     []
   );
 
+  const [toolCallsByRepetitionNumber, setToolCallsByRepetitionNumber] =
+    useState<Record<number, readonly PartialOutputToolCall[]>>({});
+  const toolCalls: readonly PartialOutputToolCall[] =
+    toolCallsByRepetitionNumber[selectedRepetitionNumber] || {};
+
   const onNext = useCallback(
     ({ chatCompletion }: PlaygroundOutputSubscription$data) => {
-      setLoading(false);
+      setLoading(chatCompletion.repetitionNumber ?? 1, false);
       if (chatCompletion.__typename === "TextChunk") {
         const content = chatCompletion.content;
-        setOutputContent((prev) => {
-          const newOutput = prev != null ? prev + content : content;
-          return newOutput;
-        });
+        if (content == null || chatCompletion.repetitionNumber == null) {
+          return;
+        }
+        appendOutputContent(chatCompletion.repetitionNumber, content);
         return;
       } else if (chatCompletion.__typename === "ToolCallChunk") {
-        setToolCalls((toolCalls) => {
+        const chatCompletionId = chatCompletion.id;
+        const chatCompletionFunction = chatCompletion.function;
+        if (chatCompletionFunction == null || chatCompletionId == null) {
+          return;
+        }
+        setToolCallsByRepetitionNumber((prev) => {
+          const repetitionNumber = chatCompletion.repetitionNumber ?? 1;
+          const toolCallsList = prev[repetitionNumber] ?? [];
           let toolCallExists = false;
-          const updated = toolCalls.map((toolCall) => {
+          const updated = toolCallsList.map((toolCall) => {
             if (toolCall.id === chatCompletion.id) {
               toolCallExists = true;
               return {
@@ -228,7 +275,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
                   ...toolCall.function,
                   arguments:
                     toolCall.function.arguments +
-                    chatCompletion.function.arguments,
+                    chatCompletionFunction.arguments,
                 },
               };
             } else {
@@ -237,14 +284,17 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           });
           if (!toolCallExists) {
             updated.push({
-              id: chatCompletion.id,
+              id: chatCompletionId,
               function: {
-                name: chatCompletion.function.name,
-                arguments: chatCompletion.function.arguments,
+                name: chatCompletionFunction.name,
+                arguments: chatCompletionFunction.arguments,
               },
             });
           }
-          return updated;
+          return {
+            ...prev,
+            [repetitionNumber]: updated,
+          };
         });
         return;
       }
@@ -252,10 +302,19 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         chatCompletion.__typename === "ChatCompletionSubscriptionResult" &&
         chatCompletion.span != null
       ) {
+        const instance = playgroundStore
+          .getState()
+          .instances.find((inst) => inst.id === instanceId);
+        if (instance == null || chatCompletion.repetitionNumber == null) {
+          return;
+        }
         updateInstance({
           instanceId,
           patch: {
-            spanId: chatCompletion.span.id,
+            spanIdByRepetitionNumber: {
+              ...instance.spanIdByRepetitionNumber,
+              [chatCompletion.repetitionNumber]: chatCompletion.span.id,
+            },
           },
           dirty: null,
         });
@@ -275,7 +334,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       instanceId,
       markPlaygroundInstanceComplete,
       notifyError,
+      playgroundStore,
+      appendOutputContent,
       props.playgroundInstanceId,
+      setLoading,
       updateInstance,
     ]
   );
@@ -285,12 +347,21 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       response: PlaygroundOutputMutation$data,
       errors: PayloadError[] | null
     ) => {
-      setLoading(false);
+      setLoading(1, false); // handle repetitions in mutation
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
+      const instance = playgroundStore
+        .getState()
+        .instances.find((inst) => inst.id === instanceId);
+      if (instance == null) {
+        return;
+      }
       updateInstance({
         instanceId,
         patch: {
-          spanId: response.chatCompletion.span.id,
+          spanIdByRepetitionNumber: {
+            ...instance.spanIdByRepetitionNumber,
+            [1]: response.chatCompletion.span.id,
+          },
         },
         dirty: null,
       });
@@ -308,37 +379,53 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         });
         return;
       }
-      setOutputContent(response.chatCompletion.content ?? undefined);
-      setToolCalls(response.chatCompletion.toolCalls);
+      if (response.chatCompletion.content != null) {
+        appendOutputContent(
+          1, // handle repetitions in mutation
+          response.chatCompletion.content
+        );
+      }
+      setToolCallsByRepetitionNumber((prev) => ({
+        ...prev,
+        [1]: response.chatCompletion.toolCalls, // handle repetitions in mutation
+      }));
     },
     [
       instanceId,
       markPlaygroundInstanceComplete,
       notifyError,
+      playgroundStore,
       props.playgroundInstanceId,
+      appendOutputContent,
+      setLoading,
       updateInstance,
     ]
   );
 
   const cleanup = useCallback(() => {
-    setOutputContent(undefined);
-    setToolCalls([]);
+    setSelectedRepetitionNumber(1);
+    setOutputContentByRepetitionNumber({});
+    setToolCallsByRepetitionNumber({});
     setOutputError(null);
     updateInstance({
       instanceId,
       patch: {
-        spanId: null,
+        spanIdByRepetitionNumber: {},
       },
       dirty: null,
     });
   }, [instanceId, updateInstance]);
 
   useEffect(() => {
-    if (!hasRunId) {
-      setLoading(false);
+    if (!runInProgress) {
+      setIsLoadingByRepetitionNumber({});
       return;
     }
-    setLoading(true);
+    setIsLoadingByRepetitionNumber(
+      Object.fromEntries(
+        Array.from({ length: repetitions }, (_, i) => [i + 1, true])
+      )
+    );
     cleanup();
     const input = getChatCompletionInput({
       playgroundStore,
@@ -359,11 +446,11 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             }
           },
           onCompleted: () => {
-            setLoading(false);
+            setIsLoadingByRepetitionNumber({});
             markPlaygroundInstanceComplete(props.playgroundInstanceId);
           },
           onError: (error) => {
-            setLoading(false);
+            setIsLoadingByRepetitionNumber({});
             markPlaygroundInstanceComplete(props.playgroundInstanceId);
             const errorMessages =
               getErrorMessagesFromRelaySubscriptionError(error);
@@ -390,7 +477,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       },
       onCompleted,
       onError(error) {
-        setLoading(false);
+        setLoading(1, false); // handle repetitions in mutation
         markPlaygroundInstanceComplete(props.playgroundInstanceId);
         const errorMessages = getErrorMessagesFromRelayMutationError(error);
         if (errorMessages != null && errorMessages.length > 0) {
@@ -413,34 +500,56 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     credentials,
     environment,
     generateChatCompletion,
-    hasRunId,
     instanceId,
     markPlaygroundInstanceComplete,
     notifyError,
     onCompleted,
     onNext,
+    repetitions,
+    runInProgress,
     playgroundStore,
     props.playgroundInstanceId,
+    setLoading,
     streaming,
     updateInstance,
   ]);
-
+  const hasContent =
+    outputContentByRepetitionNumber[selectedRepetitionNumber] != null ||
+    toolCalls.length > 0;
   return (
     <Card
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
       extra={
-        outputContent != null || toolCalls?.length > 0 ? (
+        <Flex direction="row" gap="size-150" alignItems="center">
+          {instanceHasMultipleRepetitions && (
+            <ExperimentRepetitionSelector
+              repetitionNumber={selectedRepetitionNumber}
+              totalRepetitions={instance.repetitions}
+              setRepetitionNumber={setSelectedRepetitionNumber}
+            />
+          )}
           <PlaygroundOutputMoveButton
+            isDisabled={!hasContent}
             outputContent={outputContent}
             toolCalls={toolCalls as Mutable<typeof toolCalls>}
             instance={instance}
-            cleanupOutput={cleanup}
+            cleanupOutput={() => {
+              cleanup();
+              updateInstance({
+                instanceId,
+                patch: {
+                  repetitions: 1,
+                  outputByRepetitionNumber: { 1: undefined },
+                },
+                dirty: null,
+              });
+            }}
           />
-        ) : null
+        </Flex>
       }
       collapsible
     >
-      {loading ? (
+      {isLoading ? (
         <View padding="size-200">
           <Loading message="Running..." />
         </View>
@@ -459,9 +568,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             </MarkdownDisplayProvider>
           </View>
           <Suspense>
-            {instance.spanId ? (
-              <RunMetadataFooter spanId={instance.spanId} />
-            ) : null}
+            {spanId ? <RunMetadataFooter spanId={spanId} /> : null}
           </Suspense>
         </>
       )}
@@ -474,6 +581,7 @@ graphql`
   subscription PlaygroundOutputSubscription($input: ChatCompletionInput!) {
     chatCompletion(input: $input) {
       __typename
+      repetitionNumber
       ... on TextChunk {
         content
       }
