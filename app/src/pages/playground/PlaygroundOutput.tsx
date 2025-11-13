@@ -559,14 +559,12 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       ) : (
         <>
           <View padding="size-200">
-            {outputContent?.output != null ? (
-              <MarkdownDisplayProvider>
-                <PlaygroundOutputContent
-                  output={outputContent?.output}
-                  partialToolCalls={toolCalls}
-                />
-              </MarkdownDisplayProvider>
-            ) : null}
+            <MarkdownDisplayProvider>
+              <PlaygroundOutputContent
+                output={outputContent?.output ?? null}
+                partialToolCalls={toolCalls}
+              />
+            </MarkdownDisplayProvider>
           </View>
           <Suspense>
             {spanId ? <RunMetadataFooter spanId={spanId} /> : null}
