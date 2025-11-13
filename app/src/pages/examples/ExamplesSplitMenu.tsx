@@ -174,28 +174,12 @@ const SplitMenu = ({
     // fetch when menu is opened, but show cache data first to prevent flickering
     { fetchPolicy: "store-and-network" }
   );
-  const [addExamplesToSplits] = useMutation(graphql`
-    mutation ExamplesSplitMenuAddDatasetExamplesToDatasetSplitsMutation(
-      $input: AddDatasetExamplesToDatasetSplitsInput!
+  const [setExampleSplits] = useMutation(graphql`
+    mutation ExamplesSplitMenuSetDatasetExampleSplitsMutation(
+      $input: SetDatasetExampleSplitsInput!
     ) {
-      addDatasetExamplesToDatasetSplits(input: $input) {
-        examples {
-          id
-          datasetSplits {
-            id
-            name
-            color
-          }
-        }
-      }
-    }
-  `);
-  const [removeExamplesFromSplit] = useMutation(graphql`
-    mutation ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation(
-      $input: RemoveDatasetExamplesFromDatasetSplitsInput!
-    ) {
-      removeDatasetExamplesFromDatasetSplits(input: $input) {
-        examples {
+      setDatasetExampleSplits(input: $input) {
+        example {
           id
           datasetSplits {
             id
@@ -207,33 +191,17 @@ const SplitMenu = ({
     }
   `);
   const onUpdateSplits = useCallback(
-    (changes: {
-      selectedExampleIds: string[];
-      addSplitIds?: string[];
-      removeSplitIds?: string[];
-    }) => {
-      if (changes.addSplitIds) {
-        addExamplesToSplits({
-          variables: {
-            input: {
-              exampleIds: changes.selectedExampleIds,
-              datasetSplitIds: changes.addSplitIds,
-            },
+    (changes: { exampleId: string; splitIds: string[] }) => {
+      setExampleSplits({
+        variables: {
+          input: {
+            exampleId: changes.exampleId,
+            datasetSplitIds: changes.splitIds,
           },
-        });
-      }
-      if (changes.removeSplitIds) {
-        removeExamplesFromSplit({
-          variables: {
-            input: {
-              exampleIds: changes.selectedExampleIds,
-              datasetSplitIds: changes.removeSplitIds,
-            },
-          },
-        });
-      }
+        },
+      });
     },
-    [addExamplesToSplits, removeExamplesFromSplit]
+    [setExampleSplits]
   );
   const splits = useMemo(() => {
     return data.datasetSplits.edges.map((edge) => edge.split);
@@ -333,9 +301,8 @@ const SplitMenuApplyContent = ({
   selectedPartialExamples,
 }: {
   onSelectionChange: (changes: {
-    selectedExampleIds: string[];
-    addSplitIds?: string[];
-    removeSplitIds?: string[];
+    exampleId: string;
+    splitIds: string[];
   }) => void;
   splits: { id: string; name: string; color: string }[];
   selectedPartialExamples: {
@@ -380,17 +347,24 @@ const SplitMenuApplyContent = ({
       // update selection state externally, the menu does not actually know what is selected
       onSelectionChange={(keys) => {
         const selectedId = Array.from(keys as Set<string>)[0];
-        if (splitStates[selectedId] === "checked") {
-          // remove split from all selected examples
+        // For each example, calculate the new complete set of splits
+        for (const example of selectedPartialExamples) {
+          const currentSplitIds = example.datasetSplits.map((s) => s.id);
+          let newSplitIds: string[];
+
+          if (splitStates[selectedId] === "checked") {
+            // Remove split from this example
+            newSplitIds = currentSplitIds.filter((id) => id !== selectedId);
+          } else {
+            // Add split to this example (if not already present)
+            newSplitIds = currentSplitIds.includes(selectedId)
+              ? currentSplitIds
+              : [...currentSplitIds, selectedId];
+          }
+
           onSelectionChange({
-            selectedExampleIds: selectedPartialExamples.map((e) => e.id),
-            removeSplitIds: [selectedId],
-          });
-        } else {
-          // state is indeterminate or unchecked, add split to all selected examples
-          onSelectionChange({
-            selectedExampleIds: selectedPartialExamples.map((e) => e.id),
-            addSplitIds: [selectedId],
+            exampleId: example.id,
+            splitIds: newSplitIds,
           });
         }
       }}
