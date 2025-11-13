@@ -1,5 +1,13 @@
 # Changelog
 
+## [12.14.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.14.1...arize-phoenix-v12.14.2) (2025-11-13)
+
+
+### Bug Fixes
+
+* bump playwright ([#10250](https://github.com/Arize-ai/phoenix/issues/10250)) ([6602f22](https://github.com/Arize-ai/phoenix/commit/6602f228b526458e6b02a3f6e9d15ffba6797c17))
+* use loadQuery for prompts ([#10247](https://github.com/Arize-ai/phoenix/issues/10247)) ([4d48301](https://github.com/Arize-ai/phoenix/commit/4d483013c80b2221d7a6d77d842bc6c6b2d81dd3))
+
 ## [12.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.14.0...arize-phoenix-v12.14.1) (2025-11-13)
 
 
