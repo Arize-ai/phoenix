@@ -33,3 +33,5 @@ export async function datasetLoader(args: LoaderFunctionArgs) {
     dataset: data?.dataset,
   };
 }
+
+export type DatasetLoaderData = Awaited<ReturnType<typeof datasetLoader>>;

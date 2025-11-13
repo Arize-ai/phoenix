@@ -36,9 +36,7 @@ export async function promptLoader(args: LoaderFunctionArgs) {
     {
       id: promptId as string,
     }
-  )
-    .toPromise()
-    .catch(() => {
-      throw new Error("Prompt not found");
-    });
+  ).toPromise();
 }
+
+export type PromptLoaderData = Awaited<ReturnType<typeof promptLoader>>;

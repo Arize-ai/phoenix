@@ -45,7 +45,7 @@ export function ExperimentsEmpty() {
               >
                 Example
               </ExternalLinkButton>
-              <RunExperimentButton variant="primary" />
+              <RunExperimentButton variant="primary" size="M" />
             </Flex>
           </Flex>
         </View>

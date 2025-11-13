@@ -43,7 +43,7 @@ import {
 } from "@phoenix/utils/promptUtils";
 
 import {
-  fetchPlaygroundPromptQuery,
+  fetchPlaygroundPromptQuery as fetchPlaygroundPromptQueryType,
   fetchPlaygroundPromptQuery$data,
   PromptMessageRole,
 } from "./__generated__/fetchPlaygroundPromptQuery.graphql";
@@ -577,7 +577,7 @@ export const fetchPlaygroundPrompt = async ({
   promptVersionId?: string | null;
   tagName?: string | null;
 }) => {
-  return fetchQuery<fetchPlaygroundPromptQuery>(
+  return fetchQuery<fetchPlaygroundPromptQueryType>(
     RelayEnvironment,
     fetchPlaygroundPromptQuery,
     {
