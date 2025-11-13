@@ -21,9 +21,14 @@ export const CategoricalChoiceToolTypeSchema =
   openAIToolDefinitionSchema.extend({
     function: openAIToolDefinitionSchema.shape.function.extend({
       parameters: z.object({
-        type: z.literal("string"),
-        enum: z.array(z.string()),
-        description: z.string().optional(),
+        type: z.literal("object"),
+        properties: z.record(
+          z.string(),
+          z.object({
+            type: z.literal("string"),
+            enum: z.array(z.string()),
+          })
+        ),
         required: z.array(z.string()),
       }),
     }),

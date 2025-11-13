@@ -92,8 +92,8 @@ const panelStyle = {
 const createEvaluatorPayload = ({
   store,
   instanceId,
-  name,
-  description,
+  name: rawName,
+  description: rawDescription,
   choiceConfig,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   inputMapping,
@@ -109,6 +109,8 @@ const createEvaluatorPayload = ({
     instanceId,
     store
   );
+  const name = rawName.trim();
+  const description = rawDescription.trim() || undefined;
 
   const prunedPromptInput = {
     ...promptInput,
@@ -120,12 +122,17 @@ const createEvaluatorPayload = ({
           toolDefinition: CategoricalChoiceToolTypeSchema.parse({
             type: "function",
             function: {
-              name: choiceConfig.name,
-              description: description,
+              name,
+              description,
               parameters: {
-                type: "string",
-                enum: choiceConfig.choices.map((choice) => choice.label),
-                required: [],
+                type: "object",
+                properties: {
+                  [choiceConfig.name]: {
+                    type: "string",
+                    enum: choiceConfig.choices.map((choice) => choice.label),
+                  },
+                },
+                required: [choiceConfig.name],
               },
             },
           } satisfies CategoricalChoiceToolType),
