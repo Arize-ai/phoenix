@@ -381,4 +381,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     instanceId: number,
     repetitionNumber: number
   ) => void;
+  /**
+   * Append a content chunk to the output of an instance
+   */
+  appendOutputContentChunk: (
+    instanceId: number,
+    repetitionNumber: number,
+    contentChunk: string
+  ) => void;
 }
