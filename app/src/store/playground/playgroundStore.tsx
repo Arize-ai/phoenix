@@ -156,8 +156,8 @@ export function createNormalizedPlaygroundInstance() {
     instance: {
       id: generateInstanceId(),
       template: normalizedTemplate.template,
-      repetitions: 1,
       ...DEFAULT_INSTANCE_PARAMS(),
+      selectedRepetitionNumber: 1,
     } as PlaygroundNormalizedInstance,
     instanceMessages: normalizedTemplate.messages,
   };
@@ -680,6 +680,29 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         },
         false,
         { type: "deleteMessage" }
+      );
+    },
+    setSelectedRepetitionNumber: (
+      instanceId: number,
+      repetitionNumber: number
+    ) => {
+      const instances = get().instances;
+      const instanceIndex = instances.findIndex(
+        (instance) => instance.id === instanceId
+      );
+      if (instanceIndex === -1) {
+        return;
+      }
+      set(
+        {
+          instances: instances.map((instance, idx) =>
+            idx === instanceIndex
+              ? { ...instance, selectedRepetitionNumber: repetitionNumber }
+              : instance
+          ),
+        },
+        false,
+        { type: "setSelectedRepetitionNumber" }
       );
     },
     updateInstance: ({ instanceId, patch, dirty }) => {

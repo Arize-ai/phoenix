@@ -146,9 +146,9 @@ export interface PlaygroundInstance {
    */
   prompt?: PlaygroundInstancePrompt | null;
   /**
-   * The number of repetitions for the instance
+   * The selected repetition number for the instance
    */
-  repetitions: number;
+  selectedRepetitionNumber: number;
 }
 
 /**
@@ -374,4 +374,11 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Set the dirty state of an instance
    */
   setDirty: (instanceId: number, dirty: boolean) => void;
+  /**
+   * Set the selected repetition number for an instance, which controls the currently displayed repetition
+   */
+  setSelectedRepetitionNumber: (
+    instanceId: number,
+    repetitionNumber: number
+  ) => void;
 }

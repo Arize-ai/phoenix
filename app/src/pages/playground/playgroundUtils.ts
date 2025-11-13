@@ -744,9 +744,7 @@ export function transformSpanAttributesToPlaygroundInstance(
           : basePlaygroundInstance.template,
       outputByRepetitionNumber: {
         ...basePlaygroundInstance.outputByRepetitionNumber,
-        ...(output != null
-          ? { 1: getRepetitionOutputFromOutput(output) }
-          : { 1: { output: null, spanId: null } }),
+        ...{ 1: getRepetitionOutputFromOutput(output) },
       },
       tools: tools ?? basePlaygroundInstance.tools,
     },
