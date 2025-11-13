@@ -61,7 +61,6 @@ export const EvaluatorChatTemplate = () => {
       playgroundInstanceId={instanceId}
       disablePromptSave
       disableResponseFormat
-      disablePromptMenu
       disableNewTool
       disableTools
     />

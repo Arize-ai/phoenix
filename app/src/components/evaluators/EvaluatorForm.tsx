@@ -139,6 +139,9 @@ export const EvaluatorForm = () => {
       </Flex>
       <Flex direction="column" gap="size-100">
         <Heading level={3}>Prompt</Heading>
+        <Text color="text-500">
+          Define or load a prompt for your evaluator.
+        </Text>
         <EvaluatorChatTemplate />
       </Flex>
     </>
