@@ -210,7 +210,6 @@ const NewEvaluatorPageContent = () => {
                 border-radius: var(--ac-global-rounding-medium);
                 padding: var(--ac-global-dimension-static-size-200);
                 border: 1px solid var(--ac-global-border-color-default);
-                margin-top: var(--ac-global-dimension-static-size-400);
               `}
             >
               <Flex direction="column" gap="size-100">
