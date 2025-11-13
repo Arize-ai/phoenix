@@ -47,6 +47,7 @@ import {
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { CellTop } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -296,8 +297,14 @@ function ExampleOutputContent({
   onViewExperimentRunDetailsPress: () => void;
   onViewExperimentRunTracePress: (traceId: string, projectId: string) => void;
 }) {
-  const { span, content, toolCalls, errorMessage, experimentRunId } =
-    exampleData;
+  const {
+    span,
+    content,
+    toolCalls,
+    errorMessage,
+    experimentRunId,
+    evaluations,
+  } = exampleData;
   const hasSpan = span != null;
   const hasExperimentRun = experimentRunId != null;
   const spanControls = useMemo(() => {
@@ -403,6 +410,33 @@ function ExampleOutputContent({
             : null}
         </Flex>
       </View>
+      {evaluations != null && evaluations.length > 0 && (
+        <ul
+          css={css`
+            display: flex;
+            flex-direction: column;
+            flex: none;
+            padding: 0 var(--ac-global-dimension-static-size-100)
+              var(--ac-global-dimension-static-size-100)
+              var(--ac-global-dimension-static-size-100);
+          `}
+        >
+          {evaluations.map((evaluation) => (
+            <li
+              key={evaluation.id}
+              css={css`
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: var(--ac-global-dimension-static-size-50);
+              `}
+            >
+              <ExperimentAnnotationButton annotation={evaluation} />
+            </li>
+          ))}
+        </ul>
+      )}
     </Flex>
   );
 }
@@ -569,6 +603,10 @@ export function PlaygroundDatasetExamplesTable({
   const appendExampleDataTextChunk = usePlaygroundDatasetExamplesTableContext(
     (state) => state.appendExampleDataTextChunk
   );
+  const appendExampleDataEvaluationChunk =
+    usePlaygroundDatasetExamplesTableContext(
+      (state) => state.appendExampleDataEvaluationChunk
+    );
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
   );
@@ -655,8 +693,12 @@ export function PlaygroundDatasetExamplesTable({
               return;
             }
             const evaluation = chatCompletion.evaluation;
-            // eslint-disable-next-line no-console
-            console.log({ evaluation }); // todo: display evaluations
+            appendExampleDataEvaluationChunk({
+              instanceId,
+              exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
+              evaluationChunk: evaluation,
+            });
             break;
           }
           // This should never happen
@@ -670,6 +712,7 @@ export function PlaygroundDatasetExamplesTable({
     [
       appendExampleDataTextChunk,
       appendExampleDataToolCallChunk,
+      appendExampleDataEvaluationChunk,
       updateExampleData,
       updateInstance,
     ]
@@ -1296,6 +1339,8 @@ graphql`
         datasetExampleId
         repetitionNumber
         evaluation {
+          id
+          name
           label
           score
         }
