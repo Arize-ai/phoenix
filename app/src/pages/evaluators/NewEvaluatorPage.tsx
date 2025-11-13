@@ -1,54 +1,33 @@
 import { PropsWithChildren, useCallback, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm, useFormContext } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import {
-  Alert,
-  Button,
-  FieldError,
-  Flex,
-  Heading,
-  Input,
-  Label,
-  Text,
-  TextField,
-  View,
-} from "@phoenix/components";
+import { Button, Flex, Heading, Text, View } from "@phoenix/components";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
+import {
+  EvaluatorForm,
+  EvaluatorFormProvider,
+  EvaluatorFormValues,
+  useEvaluatorForm,
+} from "@phoenix/components/evaluators/EvaluatorForm";
+import { createEvaluatorPayload } from "@phoenix/components/evaluators/utils";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import {
-  CreateLLMEvaluatorInput,
-  NewEvaluatorPageContentMutation,
-} from "@phoenix/pages/evaluators/__generated__/NewEvaluatorPageContentMutation.graphql";
-import {
-  EvaluatorChatTemplate,
-  EvaluatorChatTemplateProvider,
-} from "@phoenix/pages/evaluators/EvaluatorChatTemplate";
+import { NewEvaluatorPageContentMutation } from "@phoenix/pages/evaluators/__generated__/NewEvaluatorPageContentMutation.graphql";
 import {
   EvaluatorInputMapping,
   InputMapping,
 } from "@phoenix/pages/evaluators/EvaluatorInputMapping";
-import {
-  ChoiceConfig,
-  EvaluatorLLMChoice,
-} from "@phoenix/pages/evaluators/EvaluatorLLMChoice";
-import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
-import { fromOpenAIToolDefinition } from "@phoenix/schemas";
-import {
-  CategoricalChoiceToolType,
-  CategoricalChoiceToolTypeSchema,
-} from "@phoenix/schemas/phoenixToolTypeSchemas";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 export const NewEvaluatorPage = () => {
+  const form = useEvaluatorForm();
   return (
-    <EvaluatorChatTemplateProvider>
+    <EvaluatorFormProvider form={form}>
       <main
         css={css`
           display: flex;
@@ -61,7 +40,7 @@ export const NewEvaluatorPage = () => {
       >
         <NewEvaluatorPageContent />
       </main>
-    </EvaluatorChatTemplateProvider>
+    </EvaluatorFormProvider>
   );
 };
 
@@ -89,76 +68,6 @@ const panelStyle = {
   overflowY: "auto",
 } as const;
 
-const createEvaluatorPayload = ({
-  store,
-  instanceId,
-  name: rawName,
-  description: rawDescription,
-  choiceConfig,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  inputMapping,
-}: {
-  store: ReturnType<typeof usePlaygroundStore>;
-  instanceId: number;
-  name: string;
-  description: string;
-  choiceConfig: ChoiceConfig;
-  inputMapping: InputMapping;
-}): CreateLLMEvaluatorInput => {
-  const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
-    instanceId,
-    store
-  );
-  const name = rawName.trim();
-  const description = rawDescription.trim() || undefined;
-
-  const prunedPromptInput = {
-    ...promptInput,
-    templateFormat,
-    tools: [
-      // replace whatever tools exist in the prompt with a categorical choice tool
-      {
-        definition: fromOpenAIToolDefinition({
-          toolDefinition: CategoricalChoiceToolTypeSchema.parse({
-            type: "function",
-            function: {
-              name,
-              description,
-              parameters: {
-                type: "object",
-                properties: {
-                  [choiceConfig.name]: {
-                    type: "string",
-                    enum: choiceConfig.choices.map((choice) => choice.label),
-                  },
-                },
-                required: [choiceConfig.name],
-              },
-            },
-          } satisfies CategoricalChoiceToolType),
-          targetProvider: promptInput.modelProvider,
-        }),
-      },
-    ],
-    responseFormat: undefined,
-  };
-
-  return {
-    name,
-    description,
-    // TODO: add input mapping
-    promptVersion: prunedPromptInput,
-    outputConfig: {
-      name: choiceConfig.name,
-      optimizationDirection: "MAXIMIZE",
-      values: choiceConfig.choices.map((choice) => ({
-        label: choice.label,
-        score: choice.score,
-      })),
-    },
-  };
-};
-
 const NewEvaluatorPageContent = () => {
   const store = usePlaygroundStore();
   const { variableKeys: variables } = useDerivedPlaygroundVariables();
@@ -171,41 +80,17 @@ const NewEvaluatorPageContent = () => {
   );
   const navigate = useNavigate();
   const {
-    control: nameControl,
-    getValues: getNameValues,
-    formState: { isValid: isNameValid },
-  } = useForm<{
-    name: string;
-    description: string;
-  }>({
-    defaultValues: {
-      name: "",
-      description: "",
-    },
-    mode: "onChange",
-  });
-  const {
-    control: choiceConfigControl,
-    getValues: getChoiceConfigValues,
-    formState: { isValid: isChoiceConfigValid },
-  } = useForm<ChoiceConfig>({
-    defaultValues: {
-      name: "",
-      choices: [
-        { label: "", score: undefined },
-        { label: "", score: undefined },
-      ],
-    },
-  });
-  const {
     control: inputMappingControl,
     getValues: getInputMappingValues,
     formState: { isValid: isInputMappingValid },
   } = useForm<InputMapping>({
     defaultValues: {},
   });
-  const areFormsValid =
-    isNameValid && isChoiceConfigValid && isInputMappingValid;
+  const {
+    formState: { isValid: isEvaluatorValid },
+    getValues,
+  } = useFormContext<EvaluatorFormValues>();
+  const areFormsValid = isEvaluatorValid && isInputMappingValid;
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [createEvaluator, isCreatingEvaluator] =
@@ -225,8 +110,10 @@ const NewEvaluatorPageContent = () => {
     if (!areFormsValid) {
       return;
     }
-    const { name, description } = getNameValues();
-    const choiceConfig = getChoiceConfigValues();
+    const {
+      evaluator: { name, description },
+      choiceConfig,
+    } = getValues();
     const inputMapping = getInputMappingValues();
     const instance = store.getState().instances[0];
     if (!instance) {
@@ -267,13 +154,12 @@ const NewEvaluatorPageContent = () => {
   }, [
     areFormsValid,
     createEvaluator,
-    getNameValues,
-    getChoiceConfigValues,
     getInputMappingValues,
+    getValues,
+    navigate,
     notifyError,
     notifySuccess,
     store,
-    navigate,
   ]);
 
   return (
@@ -309,58 +195,7 @@ const NewEvaluatorPageContent = () => {
       <PanelGroup direction="horizontal">
         <Panel defaultSize={65} css={panelCSS} style={panelStyle}>
           <PanelContainer>
-            <Flex
-              direction="row"
-              alignItems="baseline"
-              width="100%"
-              gap="size-100"
-              marginTop="size-100"
-            >
-              <Controller
-                name="name"
-                control={nameControl}
-                rules={{
-                  validate: validateIdentifier,
-                }}
-                render={({ field, fieldState: { error } }) => (
-                  <TextField {...field} autoComplete="off" isInvalid={!!error}>
-                    <Label>Name</Label>
-                    <Input placeholder="e.g. correctness_evaluator" autoFocus />
-                    <FieldError>{error?.message}</FieldError>
-                  </TextField>
-                )}
-              />
-              <Controller
-                name="description"
-                control={nameControl}
-                render={({ field, fieldState: { error } }) => (
-                  <TextField {...field} autoComplete="off" isInvalid={!!error}>
-                    <Label>Description (optional)</Label>
-                    <Input
-                      placeholder="e.g. rate the response on correctness"
-                      autoFocus
-                    />
-                    <FieldError>{error?.message}</FieldError>
-                  </TextField>
-                )}
-              />
-            </Flex>
-            <Flex direction="column" gap="size-100">
-              <Heading level={3}>Eval</Heading>
-              <Text color="text-500">
-                Define the eval annotation returned by your evaluator.
-              </Text>
-              <EvaluatorLLMChoice control={choiceConfigControl} />
-            </Flex>
-            <Flex direction="column" gap="size-100">
-              <Heading level={3}>Prompt</Heading>
-              <Alert showIcon={false} variant="success">
-                Tip: Your eval categories are visible to the LLM, so don&apos;t
-                redefine them in your prompt. This needs to be phrased better,
-                but generally we should explain what not to do for this.
-              </Alert>
-              <EvaluatorChatTemplate />
-            </Flex>
+            <EvaluatorForm />
           </PanelContainer>
         </Panel>
         <PanelResizeHandle disabled />

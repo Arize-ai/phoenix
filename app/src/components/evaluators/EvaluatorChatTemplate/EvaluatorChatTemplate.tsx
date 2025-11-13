@@ -1,13 +1,13 @@
 import { PropsWithChildren, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
+import { EvaluatorChatTemplateQuery } from "@phoenix/components/evaluators/EvaluatorChatTemplate/__generated__/EvaluatorChatTemplateQuery.graphql";
+import { makeLLMEvaluatorInstance } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { usePreferencesContext } from "@phoenix/contexts";
 import {
   PlaygroundProvider,
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
-import { EvaluatorChatTemplateQuery } from "@phoenix/pages/evaluators/EvaluatorChatTemplate/__generated__/EvaluatorChatTemplateQuery.graphql";
-import { makeLLMEvaluatorInstance } from "@phoenix/pages/evaluators/EvaluatorChatTemplate/utils";
 import { NoInstalledProvider } from "@phoenix/pages/playground/NoInstalledProvider";
 import { PlaygroundTemplate } from "@phoenix/pages/playground/PlaygroundTemplate";
 
