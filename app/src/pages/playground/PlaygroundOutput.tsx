@@ -175,13 +175,18 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   if (!instance) {
     throw new Error(`No instance found for id ${instanceId}`);
   }
-  const instanceHasMultipleRepetitions = instance.repetitions > 1;
+  const numInstanceRepetitions = Object.keys(
+    instance.outputByRepetitionNumber
+  ).length;
+  const selectedRepetitionNumber = instance.selectedRepetitionNumber;
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const setSelectedRepetitionNumber = usePlaygroundContext(
+    (state) => state.setSelectedRepetitionNumber
+  );
   const [outputError, setOutputError] = useState<{
     title: string;
     message?: string;
   } | null>(null);
-  const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
   const spanId: string | null | undefined =
     instance.outputByRepetitionNumber[selectedRepetitionNumber]?.spanId;
 
@@ -411,7 +416,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
 
   const cleanup = useCallback(() => {
-    setSelectedRepetitionNumber(1);
     setOutputContentByRepetitionNumber({});
     setToolCallsByRepetitionNumber({});
     setOutputError(null);
@@ -518,11 +522,19 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
       extra={
         <Flex direction="row" gap="size-150" alignItems="center">
-          {instanceHasMultipleRepetitions && (
+          {numInstanceRepetitions > 1 && (
             <ExperimentRepetitionSelector
               repetitionNumber={selectedRepetitionNumber}
-              totalRepetitions={instance.repetitions}
-              setRepetitionNumber={setSelectedRepetitionNumber}
+              totalRepetitions={numInstanceRepetitions}
+              setRepetitionNumber={(n) => {
+                let repetitionNumber: number;
+                if (typeof n === "function") {
+                  repetitionNumber = n(selectedRepetitionNumber);
+                } else {
+                  repetitionNumber = n;
+                }
+                setSelectedRepetitionNumber(instanceId, repetitionNumber);
+              }}
             />
           )}
           <PlaygroundOutputMoveButton
@@ -535,7 +547,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
               updateInstance({
                 instanceId,
                 patch: {
-                  repetitions: 1,
                   outputByRepetitionNumber: {
                     1: { output: null, spanId: null },
                   },
