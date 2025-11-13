@@ -206,8 +206,8 @@ importers:
         specifier: ^1.8.0
         version: 1.8.0
       '@playwright/test':
-        specifier: ^1.54.2
-        version: 1.54.2
+        specifier: ^1.56.1
+        version: 1.56.1
       '@storybook/addon-designs':
         specifier: ^8.2.1
         version: 8.2.1(@storybook/blocks@8.6.14(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(storybook@8.6.14(prettier@3.6.2)))(@storybook/components@8.6.14(storybook@8.6.14(prettier@3.6.2)))(@storybook/theming@8.6.14(storybook@8.6.14(prettier@3.6.2)))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -997,8 +997,8 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
-  '@playwright/test@1.54.2':
-    resolution: {integrity: sha512-A+znathYxPf+72riFd1r1ovOLqsIIB0jKIoPjyK2kqEIe30/6jF6BC7QNluHuwUmsD2tv1XZVugN8GqfTMOxsA==}
+  '@playwright/test@1.56.1':
+    resolution: {integrity: sha512-vSMYtL/zOcFpvJCW71Q/OEGQb7KYBPAdKh35WNSkaZA75JlAO8ED8UN6GUNTm3drWomcbcqRPFqQbLae8yBTdg==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -4038,13 +4038,13 @@ packages:
     resolution: {integrity: sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==}
     engines: {node: '>=12'}
 
-  playwright-core@1.54.2:
-    resolution: {integrity: sha512-n5r4HFbMmWsB4twG7tJLDN9gmBUeSPcsBZiWSE4DnYz9mJMAFqr2ID7+eGC9kpEnxExJ1epttwR59LEWCk8mtA==}
+  playwright-core@1.56.1:
+    resolution: {integrity: sha512-hutraynyn31F+Bifme+Ps9Vq59hKuUCz7H1kDOcBs+2oGguKkWTU50bBWrtz34OUWmIwpBTWDxaRPXrIXkgvmQ==}
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright@1.54.2:
-    resolution: {integrity: sha512-Hu/BMoA1NAdRUuulyvQC0pEqZ4vQbGfn8f7wPXcnqQmM+zct9UliKxsIkLNmz/ku7LElUNqmaiv1TG/aL5ACsw==}
+  playwright@1.56.1:
+    resolution: {integrity: sha512-aFi5B0WovBHTEvpM3DzXTUaeN6eN0qWnTkKx4NQaH4Wvcmc153PdaY2UBdSYKaGYw+UyWXSVyxDUg5DoPEttjw==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -5872,9 +5872,9 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@playwright/test@1.54.2':
+  '@playwright/test@1.56.1':
     dependencies:
-      playwright: 1.54.2
+      playwright: 1.56.1
 
   '@react-aria/autocomplete@3.0.0-rc.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
@@ -9885,11 +9885,11 @@ snapshots:
 
   picomatch@4.0.3: {}
 
-  playwright-core@1.54.2: {}
+  playwright-core@1.56.1: {}
 
-  playwright@1.54.2:
+  playwright@1.56.1:
     dependencies:
-      playwright-core: 1.54.2
+      playwright-core: 1.56.1
     optionalDependencies:
       fsevents: 2.3.2
 
