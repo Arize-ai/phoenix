@@ -282,6 +282,7 @@ class EvaluatorMutationMixin:
                 input.description if isinstance(input.description, str) else None
             )
             llm_evaluator.output_config = output_config
+            llm_evaluator.annotation_name = input.output_config.name
 
             # todo: compare against active prompt version as determined by prompt tag or version
             # https://github.com/Arize-ai/phoenix/issues/10142
@@ -296,6 +297,10 @@ class EvaluatorMutationMixin:
                 validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
             except ValueError as error:
                 raise BadRequest(str(error))
+
+            # add the updated evaluator back to the session in order to refresh
+            # lazy fields like updated_at
+            session.add(llm_evaluator)
 
             try:
                 await session.flush()

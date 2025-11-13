@@ -23,6 +23,7 @@ import {
   ChoiceConfig,
   EvaluatorLLMChoice,
 } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
+import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 export type EvaluatorFormValues = {
@@ -73,9 +74,24 @@ export type EvaluatorFormController = ReturnType<typeof useEvaluatorForm>;
 export const EvaluatorFormProvider = ({
   children,
   form,
-}: PropsWithChildren<{ form: EvaluatorFormController }>) => {
+  promptId,
+  promptName,
+  promptVersionRef,
+  promptVersionTag,
+}: PropsWithChildren<{
+  form: EvaluatorFormController;
+  promptId?: string;
+  promptName?: string;
+  promptVersionRef?: fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key;
+  promptVersionTag?: string;
+}>) => {
   return (
-    <EvaluatorChatTemplateProvider>
+    <EvaluatorChatTemplateProvider
+      promptId={promptId}
+      promptName={promptName}
+      promptVersionRef={promptVersionRef}
+      promptVersionTag={promptVersionTag}
+    >
       <FormProvider {...form}>{children}</FormProvider>
     </EvaluatorChatTemplateProvider>
   );

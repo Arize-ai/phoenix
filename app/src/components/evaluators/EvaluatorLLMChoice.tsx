@@ -23,7 +23,7 @@ type Choice = {
 
 export type ChoiceConfig = {
   name: string;
-  choices: [Choice, Choice, ...Choice[]];
+  choices: Choice[];
 };
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");

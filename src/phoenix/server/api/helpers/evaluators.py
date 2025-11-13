@@ -74,6 +74,8 @@ def validate_consistent_llm_evaluator_and_prompt_version(
             )
         )
     function_property_name = next(iter(function_parameters.properties.keys()))
+    print(f"{function_property_name=}")
+    print(f"{evaluator.annotation_name=}")
     if function_property_name != evaluator.annotation_name:
         raise ValueError(
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME

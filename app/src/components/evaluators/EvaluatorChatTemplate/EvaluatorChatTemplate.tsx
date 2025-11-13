@@ -8,12 +8,24 @@ import {
   PlaygroundProvider,
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
+import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
+import { promptVersionToInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { NoInstalledProvider } from "@phoenix/pages/playground/NoInstalledProvider";
 import { PlaygroundTemplate } from "@phoenix/pages/playground/PlaygroundTemplate";
+import { generateInstanceId } from "@phoenix/store";
 
 export const EvaluatorChatTemplateProvider = ({
   children,
-}: PropsWithChildren) => {
+  promptVersionRef,
+  promptVersionTag,
+  promptName,
+  promptId,
+}: PropsWithChildren<{
+  promptId?: string;
+  promptName?: string;
+  promptVersionRef?: fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key;
+  promptVersionTag?: string;
+}>) => {
   const { modelProviders } = useLazyLoadQuery<EvaluatorChatTemplateQuery>(
     graphql`
       query EvaluatorChatTemplateQuery {
@@ -34,10 +46,29 @@ export const EvaluatorChatTemplateProvider = ({
     (provider) => provider.dependenciesInstalled
   );
 
-  const defaultInstances = useMemo(
-    () => makeLLMEvaluatorInstance(modelConfigByProvider),
-    [modelConfigByProvider]
-  );
+  const defaultInstances = useMemo(() => {
+    if (promptId && promptName && promptVersionRef) {
+      return [
+        {
+          ...promptVersionToInstance({
+            promptId,
+            promptName,
+            promptVersionRef,
+            promptVersionTag: promptVersionTag ?? null,
+            supportedInvocationParameters: [],
+          }),
+          id: generateInstanceId(),
+        },
+      ];
+    }
+    return makeLLMEvaluatorInstance(modelConfigByProvider);
+  }, [
+    modelConfigByProvider,
+    promptId,
+    promptName,
+    promptVersionRef,
+    promptVersionTag,
+  ]);
 
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;

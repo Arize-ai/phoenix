@@ -8,6 +8,7 @@ import {
   CategoricalChoiceToolType,
   CategoricalChoiceToolTypeSchema,
 } from "@phoenix/schemas/phoenixToolTypeSchemas";
+import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
 
 /**
  * Create a payload for the createLLMEvaluator or updateLLMEvaluator mutations.
@@ -53,9 +54,17 @@ export const createLLMEvaluatorPayload = ({
   const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
 
-  const prunedPromptInput = {
+  const prunedPromptInput: CreateLLMEvaluatorInput["promptVersion"] = {
     ...promptInput,
     templateFormat,
+    invocationParameters: {
+      ...promptInput.invocationParameters,
+      // add a required tool choice to the invocation parameters
+      tool_choice: fromOpenAIToolChoice({
+        toolChoice: "required",
+        targetProvider: promptInput.modelProvider,
+      }),
+    },
     tools: [
       // replace whatever tools exist in the prompt with a categorical choice tool
       {
