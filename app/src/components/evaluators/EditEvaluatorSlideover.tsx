@@ -132,11 +132,13 @@ const EditEvaluatorDialog = ({
       },
       choiceConfig: {
         name: evaluator.outputConfig?.name ?? "",
-        choices:
-          evaluator.outputConfig?.values.map((value) => ({
-            label: value.label,
-            score: value.score ?? undefined,
-          })) ?? [],
+        choices: evaluator.outputConfig?.values.map((value) => ({
+          label: value.label,
+          score: value.score ?? undefined,
+        })) ?? [
+          { label: "", score: undefined },
+          { label: "", score: undefined },
+        ],
       },
     };
   }, [evaluator]);
@@ -168,7 +170,7 @@ const EditEvaluatorDialogContent = ({
   const playgroundStore = usePlaygroundStore();
   const instances = usePlaygroundContext((state) => state.instances);
   const instanceId = useMemo(() => instances[0].id, [instances]);
-  invariant(instanceId, "instanceId is required");
+  invariant(instanceId != null, "instanceId is required");
   const [updateLlmEvaluator, isUpdating] =
     useMutation<EditEvaluatorSlideover_updateLLMEvaluatorMutation>(graphql`
       mutation EditEvaluatorSlideover_updateLLMEvaluatorMutation(
