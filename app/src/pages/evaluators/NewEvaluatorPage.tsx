@@ -13,7 +13,7 @@ import {
   EvaluatorFormValues,
   useEvaluatorForm,
 } from "@phoenix/components/evaluators/EvaluatorForm";
-import { createEvaluatorPayload } from "@phoenix/components/evaluators/utils";
+import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { NewEvaluatorPageContentMutation } from "@phoenix/pages/evaluators/__generated__/NewEvaluatorPageContentMutation.graphql";
@@ -124,8 +124,8 @@ const NewEvaluatorPageContent = () => {
       });
       return;
     }
-    const input = createEvaluatorPayload({
-      store,
+    const input = createLLMEvaluatorPayload({
+      playgroundStore: store,
       instanceId: instance.id,
       name,
       description,

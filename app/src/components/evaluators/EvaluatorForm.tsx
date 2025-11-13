@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import {
   Controller,
   FormProvider,
@@ -33,6 +33,11 @@ export type EvaluatorFormValues = {
   choiceConfig: ChoiceConfig;
 };
 
+/**
+ * Create a react-hook-form instance for all non-chat-template values the evaluator form.
+ * @param defaultValues - The default values for the form. Useful for editing an existing evaluator.
+ * @returns A react-hook-form instance for the evaluator form.
+ */
 export const useEvaluatorForm = (
   defaultValues?: Partial<EvaluatorFormValues>
 ) => {
@@ -58,6 +63,13 @@ export const useEvaluatorForm = (
 
 export type EvaluatorFormController = ReturnType<typeof useEvaluatorForm>;
 
+/**
+ * Provide the given react-hook-form instance for the evaluator form and new
+ * default playground state for the evaluator chat template.
+ *
+ * @param props.children - The children to render.
+ * @param props.form - The react-hook-form instance for the evaluator form.
+ */
 export const EvaluatorFormProvider = ({
   children,
   form,
@@ -69,6 +81,21 @@ export const EvaluatorFormProvider = ({
   );
 };
 
+/**
+ * A form for configuring evaluators.
+ * Depends on the EvaluatorFormProvider to provide the react-hook-form instance for the evaluator form and new
+ * default playground state for the evaluator chat template.
+ *
+ * @example
+ * ```tsx
+ * const form = useEvaluatorForm();
+ * return (
+ *   <EvaluatorFormProvider form={form}>
+ *     <EvaluatorForm />
+ *   </EvaluatorFormProvider>
+ * );
+ * ```
+ */
 export const EvaluatorForm = () => {
   const { control } = useFormContext<EvaluatorFormValues>();
   return (
