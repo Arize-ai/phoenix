@@ -7,7 +7,12 @@ import {
 } from "react";
 import { DialogTrigger, DialogTriggerProps } from "react-aria-components";
 import { useFormContext } from "react-hook-form";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import {
+  graphql,
+  useFragment,
+  useLazyLoadQuery,
+  useMutation,
+} from "react-relay";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
@@ -20,6 +25,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { EditEvaluatorSlideover_evaluator$key } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_evaluator.graphql";
 import { EditEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditEvaluatorSlideover_updateLLMEvaluatorMutation } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import {
@@ -76,38 +82,46 @@ const EditEvaluatorDialog = ({
   evaluatorId: string;
   onClose: () => void;
 }) => {
-  const data = useLazyLoadQuery<EditEvaluatorSlideover_evaluatorQuery>(
+  const query = useLazyLoadQuery<EditEvaluatorSlideover_evaluatorQuery>(
     graphql`
       query EditEvaluatorSlideover_evaluatorQuery($evaluatorId: ID!) {
         evaluator: node(id: $evaluatorId) {
           ... on Evaluator {
-            id
-            name
-            description
-            kind
-            ... on LLMEvaluator {
-              prompt {
-                id
-                name
-              }
-              promptVersion {
-                ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
-              }
-              outputConfig {
-                name
-                values {
-                  label
-                  score
-                }
-              }
-            }
+            ...EditEvaluatorSlideover_evaluator
           }
         }
       }
     `,
     { evaluatorId }
   );
-  const evaluator = data.evaluator as Mutable<typeof data.evaluator>;
+  const evaluatorFragment = useFragment<EditEvaluatorSlideover_evaluator$key>(
+    graphql`
+      fragment EditEvaluatorSlideover_evaluator on Evaluator {
+        id
+        name
+        description
+        kind
+        ... on LLMEvaluator {
+          prompt {
+            id
+            name
+          }
+          promptVersion {
+            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
+          }
+          outputConfig {
+            name
+            values {
+              label
+              score
+            }
+          }
+        }
+      }
+    `,
+    query.evaluator
+  );
+  const evaluator = evaluatorFragment as Mutable<typeof evaluatorFragment>;
   invariant(evaluator, "evaluator is required");
 
   const defaultValues: EvaluatorFormValues = useMemo(() => {
@@ -164,6 +178,7 @@ const EditEvaluatorDialogContent = ({
           evaluator {
             name
             ...EvaluatorsTable_row
+            ...EditEvaluatorSlideover_evaluator
           }
         }
       }
