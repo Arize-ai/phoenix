@@ -19,9 +19,15 @@ type ToolCallChunk = Extract<
   { __typename: "ToolCallChunk" }
 >;
 
+type Evaluation = Extract<
+  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  { __typename: "EvaluationChunk" }
+>["evaluation"];
+
 export type ExampleRunData = {
   content?: string | null;
   toolCalls?: Record<string, PartialOutputToolCall | undefined>;
+  evaluations?: Evaluation[];
   span?: Span | null;
   errorMessage?: string | null;
   experimentRunId?: string | null;
@@ -55,6 +61,12 @@ type PlaygroundDatasetExamplesTableActions = {
     exampleId: ExampleId;
     repetitionNumber: RepetitionNumber;
     toolCallChunk: ToolCallChunk;
+  }) => void;
+  appendExampleDataEvaluationChunk: (args: {
+    instanceId: InstanceId;
+    exampleId: ExampleId;
+    repetitionNumber: RepetitionNumber;
+    evaluationChunk: Evaluation;
   }) => void;
   setExampleDataForInstance: (args: {
     data: InstanceResponses;
@@ -160,6 +172,34 @@ const createPlaygroundDatasetExamplesTableStore = () => {
                   ...currentToolCalls,
                   [id]: updatedToolCall,
                 },
+              },
+            },
+          },
+        },
+      });
+    },
+    appendExampleDataEvaluationChunk: ({
+      instanceId,
+      exampleId,
+      repetitionNumber,
+      evaluationChunk,
+    }) => {
+      const exampleResponsesMap = get().exampleResponsesMap;
+      const instance = exampleResponsesMap[instanceId] ?? {};
+      const examplesByRepetitionNumber = instance[exampleId] ?? {};
+      const example = examplesByRepetitionNumber[repetitionNumber] ?? {};
+      const currentEvaluations = example.evaluations ?? [];
+      const updatedEvaluations = [...currentEvaluations, evaluationChunk];
+      set({
+        exampleResponsesMap: {
+          ...exampleResponsesMap,
+          [instanceId]: {
+            ...instance,
+            [exampleId]: {
+              ...examplesByRepetitionNumber,
+              [repetitionNumber]: {
+                ...example,
+                evaluations: updatedEvaluations,
               },
             },
           },
