@@ -416,6 +416,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
 
   const cleanup = useCallback(() => {
+    setSelectedRepetitionNumber(instanceId, 1);
     setOutputContentByRepetitionNumber({});
     setToolCallsByRepetitionNumber({});
     setOutputError(null);
@@ -424,7 +425,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       patch: {},
       dirty: null,
     });
-  }, [instanceId, updateInstance]);
+  }, [instanceId, setSelectedRepetitionNumber, updateInstance]);
 
   useEffect(() => {
     if (!runInProgress) {
