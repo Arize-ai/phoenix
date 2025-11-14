@@ -239,20 +239,19 @@ class DatasetSplitMutationMixin:
                 if dataset_split_dataset_example.dataset_split_id not in dataset_split_ids
             ]
             if dataset_splits_dataset_examples_to_delete:
+                delete_pairs = [
+                    (
+                        dataset_split_dataset_example.dataset_split_id,
+                        dataset_split_dataset_example.dataset_example_id,
+                    )
+                    for dataset_split_dataset_example in dataset_splits_dataset_examples_to_delete
+                ]
                 await session.execute(
                     delete(models.DatasetSplitDatasetExample).where(
                         tuple_(
                             models.DatasetSplitDatasetExample.dataset_split_id,
                             models.DatasetSplitDatasetExample.dataset_example_id,
-                        ).in_(
-                            [
-                                (
-                                    dataset_split_dataset_example.dataset_split_id,
-                                    dataset_split_dataset_example.dataset_example_id,
-                                )
-                                for dataset_split_dataset_example in dataset_splits_dataset_examples_to_delete
-                            ]
-                        )
+                        ).in_(delete_pairs)
                     )
                 )
                 await session.flush()
