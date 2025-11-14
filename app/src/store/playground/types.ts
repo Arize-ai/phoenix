@@ -407,7 +407,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   /**
    * Set the error for a repetition
    */
-  setError: (
+  setRepetitionError: (
     instanceId: number,
     repetitionNumber: number,
     error: PlaygroundError
@@ -415,7 +415,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   /**
    * Set the span id for a repetition
    */
-  setSpanId: (
+  setRepetitionSpanId: (
     instanceId: number,
     repetitionNumber: number,
     spanId: string
@@ -423,7 +423,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   /**
    * Set the status for a repetition
    */
-  setStatus: (
+  setRepetitionStatus: (
     instanceId: number,
     repetitionNumber: number,
     status: PlaygroundRepetitionStatus
@@ -433,7 +433,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * If the tool call already exists, it will be updated with the new arguments
    * If the tool call does not exist, it will be added
    */
-  addPartialToolCall: (
+  addRepetitionPartialToolCall: (
     instanceId: number,
     repetitionNumber: number,
     toolCall: PartialOutputToolCall
