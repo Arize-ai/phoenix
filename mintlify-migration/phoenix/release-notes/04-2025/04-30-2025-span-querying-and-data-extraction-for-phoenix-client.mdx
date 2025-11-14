@@ -1,0 +1,35 @@
+---
+title: "04.30.2025: Span querying & data extraction for Phoenix client 📊"
+description: Available in Phoenix 8.30+
+---
+
+<Update label="04.30.2025">
+
+## Span Querying & Data Extraction For Phoenix Client
+
+<Frame>
+  <iframe 
+    src="https://cdn.iframe.ly/SKzAJon" 
+    width={1000} 
+    height={400}
+    allowFullScreen
+  />
+</Frame>
+
+The Phoenix client now includes the **`SpanQuery` DSL**, enabling more advanced and flexible span querying for distributed tracing and telemetry data. This allows users to perform complex queries on span data, improving trace analysis and debugging.
+
+In addition, the **`get_spans_dataframe`** method has been migrated, offering an easy-to-use way to extract span-related information as a Pandas DataFrame. This simplifies data processing and visualization, making it easier to analyze trace data within Python-based environments.
+
+<Card title="feat: Add `SpanQuery` DSL to phoenix client and include `get_spans_dataframe` to client by anticorrelator · Pull Request #7071 · Arize-ai/phoenix" icon="github" href="https://github.com/Arize-ai/phoenix/pull/7071" horizontal>
+  GitHub
+</Card>
+
+### Improvements and Bug Fixes 🐛
+
+* [**Projects**](https://github.com/Arize-ai/phoenix/pull/7358): Add "Copy Name" button to project menu
+* [**TLS**](https://github.com/Arize-ai/phoenix/pull/7370): Add independent flags for whether TLS is enabled for HTTP and gRPC servers
+* [**Playground**](https://github.com/Arize-ai/phoenix/pull/7353): Log playground subscription errors
+* [**API**](https://github.com/Arize-ai/phoenix/pull/7349): New RBAC primitives have been introduced for FastAPI and REST APIs
+</Update>
+
+
