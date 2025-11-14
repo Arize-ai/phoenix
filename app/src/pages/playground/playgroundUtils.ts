@@ -34,7 +34,6 @@ import {
   PlaygroundInput,
   PlaygroundInstance,
   PlaygroundNormalizedInstance,
-  PlaygroundRepetitionOutput,
   PlaygroundStore,
   Tool,
 } from "@phoenix/store/playground";
@@ -617,15 +616,6 @@ export function getPromptTemplateVariablesFromAttributes(
   };
 }
 
-function getRepetitionOutputFromOutput(
-  output: string | ChatMessage[] | null | undefined
-): PlaygroundRepetitionOutput {
-  return {
-    output: output ?? null,
-    spanId: null,
-  };
-}
-
 /**
  * Takes a  {@link PlaygroundSpan|Span} and attempts to transform it's attributes into various fields on a {@link PlaygroundInstance}.
  * @param span the {@link PlaygroundSpan|Span} to transform into a playground instance
@@ -660,7 +650,12 @@ export function transformSpanAttributesToPlaygroundInstance(
       playgroundInstance: {
         ...basePlaygroundInstance,
         outputByRepetitionNumber: {
-          1: { output: null, spanId: span?.id ?? null },
+          1: {
+            output: null,
+            spanId: null,
+            error: null,
+            status: "notStarted",
+          },
         },
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
@@ -744,7 +739,14 @@ export function transformSpanAttributesToPlaygroundInstance(
           : basePlaygroundInstance.template,
       outputByRepetitionNumber: {
         ...basePlaygroundInstance.outputByRepetitionNumber,
-        ...{ 1: getRepetitionOutputFromOutput(output) },
+        ...{
+          [1]: {
+            output: output ?? null,
+            spanId: span.id,
+            error: null, // todo: handle error parsing
+            status: "completed",
+          },
+        },
       },
       tools: tools ?? basePlaygroundInstance.tools,
     },

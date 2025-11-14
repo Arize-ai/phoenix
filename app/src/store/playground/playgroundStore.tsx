@@ -30,10 +30,12 @@ import type {
   GenAIOperationType,
   InitialPlaygroundState,
   PlaygroundChatTemplate,
+  PlaygroundError,
   PlaygroundInstance,
   PlaygroundNormalizedChatTemplate,
   PlaygroundNormalizedInstance,
   PlaygroundRepetitionOutput,
+  PlaygroundRepetitionStatus,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
 } from "./types";
@@ -139,7 +141,14 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
-    outputByRepetitionNumber: {},
+    outputByRepetitionNumber: {
+      1: {
+        output: null,
+        spanId: null,
+        error: null,
+        status: "notStarted",
+      },
+    },
     activeRunId: null,
   }) satisfies Partial<PlaygroundInstance>;
 
@@ -776,7 +785,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             outputByRepetitionNumber: Object.fromEntries(
               Array.from({ length: repetitions }, (_, i) => [
                 i + 1,
-                { output: null, spanId: null },
+                {
+                  output: null,
+                  spanId: null,
+                  error: null,
+                  status: "pending",
+                },
               ])
             ),
           })),
@@ -982,6 +996,101 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         },
         false,
         { type: "setDirty" }
+      );
+    },
+    setError: (
+      instanceId: number,
+      repetitionNumber: number,
+      error: PlaygroundError
+    ) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const existingOutput =
+              instance.outputByRepetitionNumber[repetitionNumber];
+            const updated = {
+              ...instance,
+              outputByRepetitionNumber: {
+                ...instance.outputByRepetitionNumber,
+                [repetitionNumber]: existingOutput
+                  ? {
+                      ...existingOutput,
+                      error,
+                    }
+                  : undefined,
+              },
+            };
+            return updated;
+          }),
+        },
+        false,
+        { type: "setError" }
+      );
+    },
+    setStatus: (
+      instanceId: number,
+      repetitionNumber: number,
+      status: PlaygroundRepetitionStatus
+    ) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const existingOutput =
+              instance.outputByRepetitionNumber[repetitionNumber];
+            const updated = {
+              ...instance,
+              outputByRepetitionNumber: {
+                ...instance.outputByRepetitionNumber,
+                [repetitionNumber]: existingOutput
+                  ? {
+                      ...existingOutput,
+                      status,
+                    }
+                  : undefined,
+              },
+            };
+            return updated;
+          }),
+        },
+        false,
+        { type: "setStatus" }
+      );
+    },
+    setSpanId: (
+      instanceId: number,
+      repetitionNumber: number,
+      spanId: string
+    ) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const existingOutput =
+              instance.outputByRepetitionNumber[repetitionNumber];
+            return {
+              ...instance,
+              outputByRepetitionNumber: {
+                ...instance.outputByRepetitionNumber,
+                [repetitionNumber]: existingOutput
+                  ? {
+                      ...existingOutput,
+                      spanId,
+                    }
+                  : undefined,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "setSpanId" }
       );
     },
   });
