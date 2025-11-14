@@ -64,9 +64,9 @@ console.log(
 
 ## Support
 
-Instrumentation version >=4.0.0 supports LangChain 1.0 and above.This package does support earlier versions of LangChain, however it is not tested.
+Instrumentation version >=4.0.0 supports LangChain 1.0 and above.&#x20;
 
-If you are still using older versions, The [`@arizeai/openinference-instrumentation-langchain-v0`](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain-v0) package is used to maintain support for LangChain 0.X versions and will recieve patches for the older versions.
+If you are still using older versions of LangChain we recommend using the dedicated package [`@arizeai/openinference-instrumentation-langchain-v0`](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain-v0)  which will receive patches for the older versions.
 
 ## Resources
 
