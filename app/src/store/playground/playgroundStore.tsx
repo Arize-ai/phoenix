@@ -1127,6 +1127,19 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       }
       throw new Error("Not implemented");
     },
+    clearRepetitions: (instanceId: number) => {
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id !== instanceId) {
+            return instance;
+          }
+          return {
+            ...instance,
+            outputByRepetitionNumber: {},
+          };
+        }),
+      });
+    },
     setSpanId: (
       instanceId: number,
       repetitionNumber: number,

@@ -209,6 +209,9 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const addPartialToolCall = usePlaygroundContext(
     (state) => state.addPartialToolCall
   );
+  const clearRepetitions = usePlaygroundContext(
+    (state) => state.clearRepetitions
+  );
   const spanId: string | null | undefined =
     instance.outputByRepetitionNumber[selectedRepetitionNumber]?.spanId;
 
@@ -380,20 +383,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     ]
   );
 
-  const cleanup = useCallback(() => {
-    setSelectedRepetitionNumber(instanceId, 1);
-    updateInstance({
-      instanceId,
-      patch: {},
-      dirty: null,
-    });
-  }, [instanceId, setSelectedRepetitionNumber, updateInstance]);
-
   useEffect(() => {
     if (!runInProgress) {
       return;
     }
-    cleanup();
     const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
@@ -460,7 +453,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
     return disposable.dispose;
   }, [
-    cleanup,
     credentials,
     environment,
     generateChatCompletion,
@@ -517,22 +509,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             toolCalls={toolCalls}
             instance={instance}
             cleanupOutput={() => {
-              cleanup();
-              updateInstance({
-                instanceId,
-                patch: {
-                  outputByRepetitionNumber: {
-                    1: {
-                      output: null,
-                      spanId: null,
-                      error: null,
-                      status: "notStarted",
-                      toolCalls: {},
-                    },
-                  },
-                },
-                dirty: null,
-              });
+              clearRepetitions(instanceId);
             }}
           />
         </Flex>

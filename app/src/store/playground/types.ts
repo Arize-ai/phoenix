@@ -448,4 +448,8 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     repetitionNumber: number,
     toolCalls: PartialOutputToolCall[]
   ) => void;
+  /**
+   * Clears all repetitions for an instance
+   */
+  clearRepetitions: (instanceId: number) => void;
 }
