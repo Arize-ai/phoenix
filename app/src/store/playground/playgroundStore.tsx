@@ -35,7 +35,7 @@ import type {
   PlaygroundInstance,
   PlaygroundNormalizedChatTemplate,
   PlaygroundNormalizedInstance,
-  PlaygroundRepetitionOutput,
+  PlaygroundRepetition,
   PlaygroundRepetitionStatus,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
@@ -142,7 +142,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
-    outputByRepetitionNumber: {
+    repetitions: {
       1: {
         output: null,
         spanId: null,
@@ -357,10 +357,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
               id: generateInstanceId(),
               activeRunId: null,
               experimentId: null,
-              outputByRepetitionNumber: {} as Record<
-                number,
-                PlaygroundRepetitionOutput
-              >,
+              repetitions: {} as Record<number, PlaygroundRepetition>,
             },
           ],
         },
@@ -730,16 +727,15 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         {
           instances: instances.map((instance) => {
             if (instance.id === instanceId) {
-              const existingOutput =
-                instance.outputByRepetitionNumber[repetitionNumber];
+              const repetition = instance.repetitions[repetitionNumber];
               return {
                 ...instance,
-                outputByRepetitionNumber: {
-                  ...instance.outputByRepetitionNumber,
-                  [repetitionNumber]: existingOutput
+                repetitions: {
+                  ...instance.repetitions,
+                  [repetitionNumber]: repetition
                     ? {
-                        ...existingOutput,
-                        output: (existingOutput.output || "") + contentChunk,
+                        ...repetition,
+                        output: (repetition.output || "") + contentChunk,
                       }
                     : undefined,
                 },
@@ -783,8 +779,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...instance,
             activeRunId: generateRunId(),
             spanId: null, // Clear out the span when (re)running
-            repetitions,
-            outputByRepetitionNumber: Object.fromEntries(
+            repetitions: Object.fromEntries(
               Array.from({ length: repetitions }, (_, i) => [
                 i + 1,
                 {
@@ -1012,15 +1007,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             if (instance.id !== instanceId) {
               return instance;
             }
-            const existingOutput =
-              instance.outputByRepetitionNumber[repetitionNumber];
+            const repetition = instance.repetitions[repetitionNumber];
             const updated = {
               ...instance,
-              outputByRepetitionNumber: {
-                ...instance.outputByRepetitionNumber,
-                [repetitionNumber]: existingOutput
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
                   ? {
-                      ...existingOutput,
+                      ...repetition,
                       error,
                     }
                   : undefined,
@@ -1044,15 +1038,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             if (instance.id !== instanceId) {
               return instance;
             }
-            const existingOutput =
-              instance.outputByRepetitionNumber[repetitionNumber];
+            const repetition = instance.repetitions[repetitionNumber];
             const updated = {
               ...instance,
-              outputByRepetitionNumber: {
-                ...instance.outputByRepetitionNumber,
-                [repetitionNumber]: existingOutput
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
                   ? {
-                      ...existingOutput,
+                      ...repetition,
                       status,
                     }
                   : undefined,
@@ -1075,8 +1068,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           if (instance.id !== instanceId) {
             return instance;
           }
-          const repetition =
-            instance.outputByRepetitionNumber[repetitionNumber];
+          const repetition = instance.repetitions[repetitionNumber];
           const toolCalls = repetition?.toolCalls ?? {};
           const updatedToolCalls =
             partialToolCall.id in toolCalls
@@ -1098,8 +1090,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 };
           return {
             ...instance,
-            outputByRepetitionNumber: {
-              ...instance.outputByRepetitionNumber,
+            repetitions: {
+              ...instance.repetitions,
               [repetitionNumber]: repetition
                 ? {
                     ...repetition,
@@ -1135,7 +1127,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           }
           return {
             ...instance,
-            outputByRepetitionNumber: {},
+            repetitions: {},
           };
         }),
       });
@@ -1151,15 +1143,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             if (instance.id !== instanceId) {
               return instance;
             }
-            const existingOutput =
-              instance.outputByRepetitionNumber[repetitionNumber];
+            const repetition = instance.repetitions[repetitionNumber];
             return {
               ...instance,
-              outputByRepetitionNumber: {
-                ...instance.outputByRepetitionNumber,
-                [repetitionNumber]: existingOutput
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
                   ? {
-                      ...existingOutput,
+                      ...repetition,
                       spanId,
                     }
                   : undefined,
