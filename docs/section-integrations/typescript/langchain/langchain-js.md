@@ -60,9 +60,11 @@ console.log(
 );
 ```
 
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/langgraphjs.png" alt=""><figcaption></figcaption></figure>
+
 ## Support
 
-Instrumentation version >=4.0.0 supports LangChain 1.0 and above.This package does support earlier versions of LangChain, however it is not tested. 
+Instrumentation version >=4.0.0 supports LangChain 1.0 and above.This package does support earlier versions of LangChain, however it is not tested.
 
 If you are still using older versions, The [`@arizeai/openinference-instrumentation-langchain-v0`](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain-v0) package is used to maintain support for LangChain 0.X versions and will recieve patches for the older versions.
 
