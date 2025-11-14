@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.14.2...arize-phoenix-v12.15.0) (2025-11-13)
+
+
+### Features
+
+* Update Anthropic model list ([#10255](https://github.com/Arize-ai/phoenix/issues/10255)) ([2fdd305](https://github.com/Arize-ai/phoenix/commit/2fdd30517ce829a6b73d441da344059e6494d1ff))
+
 ## [12.14.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.14.1...arize-phoenix-v12.14.2) (2025-11-13)
 
 
