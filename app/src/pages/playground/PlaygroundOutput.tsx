@@ -243,7 +243,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const toolCalls: readonly PartialOutputToolCall[] =
     toolCallsByRepetitionNumber[selectedRepetitionNumber] || {};
 
-  const onNext = useCallback(
+  const handleChatCompletionSubscriptionPayload = useCallback(
     ({ chatCompletion }: PlaygroundOutputSubscription$data) => {
       if (chatCompletion.__typename === "TextChunk") {
         const content = chatCompletion.content;
@@ -420,7 +420,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           },
           onNext: (response) => {
             if (response) {
-              onNext(response);
+              handleChatCompletionSubscriptionPayload(response);
             }
           },
           onCompleted: () => {
@@ -479,7 +479,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     markPlaygroundInstanceComplete,
     notifyError,
     onCompleted,
-    onNext,
+    handleChatCompletionSubscriptionPayload,
     repetitions,
     runInProgress,
     playgroundStore,
