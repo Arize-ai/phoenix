@@ -14,6 +14,7 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
+import type { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 
 type Choice = {
   label: string;
@@ -22,19 +23,19 @@ type Choice = {
 
 export type ChoiceConfig = {
   name: string;
-  choices: [Choice, Choice, ...Choice[]];
+  choices: Choice[];
 };
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 type EvaluatorLLMChoiceProps = {
-  control: Control<ChoiceConfig, unknown, ChoiceConfig>;
+  control: Control<EvaluatorFormValues, unknown>;
 };
 
 export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "choices",
+    name: "choiceConfig.choices",
   });
   return (
     <div
@@ -49,7 +50,7 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
       <Flex direction="column" gap="size-200">
         <Controller
           control={control}
-          name="name"
+          name="choiceConfig.name"
           rules={{
             required: "Name is required",
           }}
@@ -71,7 +72,7 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
             <GridRow key={item.id}>
               <Controller
                 control={control}
-                name={`choices.${index}.label`}
+                name={`choiceConfig.choices.${index}.label`}
                 rules={{
                   required: "Choice label is required",
                 }}
@@ -96,7 +97,7 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
               <Flex direction="row" gap="size-100" alignItems="center">
                 <Controller
                   control={control}
-                  name={`choices.${index}.score`}
+                  name={`choiceConfig.choices.${index}.score`}
                   render={({ field, fieldState: { error } }) => (
                     <NumberField
                       {...field}
