@@ -12,6 +12,7 @@ import {
 
 import { ModelConfigByProvider } from "../preferencesStore";
 export type GenAIOperationType = "chat" | "text_completion";
+import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 
 /**
  * A chat message with a role and content
@@ -120,8 +121,11 @@ export type PlaygroundRepetitionStatus =
   | "streamInProgress" // only in streaming mode
   | "completed"; // includes failed states
 
+type ToolCallId = string;
+
 export type PlaygroundRepetitionOutput = {
   output: ChatMessage[] | string | null;
+  toolCalls: Record<ToolCallId, PartialOutputToolCall>;
   spanId: string | null;
   error: PlaygroundError | null;
   status: PlaygroundRepetitionStatus;
@@ -419,12 +423,29 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     spanId: string
   ) => void;
   /**
-  /**
    * Set the status for a repetition
    */
   setStatus: (
     instanceId: number,
     repetitionNumber: number,
     status: PlaygroundRepetitionStatus
+  ) => void;
+  /**
+   * Add a partial tool call to a repetition
+   * If the tool call already exists, it will be updated with the new arguments
+   * If the tool call does not exist, it will be added
+   */
+  addPartialToolCall: (
+    instanceId: number,
+    repetitionNumber: number,
+    toolCall: PartialOutputToolCall
+  ) => void;
+  /**
+   * Set the tool calls for a repetition
+   */
+  setRepetitionToolCalls: (
+    instanceId: number,
+    repetitionNumber: number,
+    toolCalls: PartialOutputToolCall[]
   ) => void;
 }

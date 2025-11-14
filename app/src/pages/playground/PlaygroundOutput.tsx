@@ -1,4 +1,4 @@
-import { Key, Suspense, useCallback, useEffect, useState } from "react";
+import { Key, Suspense, useCallback, useEffect } from "react";
 import { useMutation, useRelayEnvironment } from "react-relay";
 import {
   graphql,
@@ -36,7 +36,7 @@ import {
   generateMessageId,
   PlaygroundRepetitionOutput,
 } from "@phoenix/store";
-import { isStringKeyedObject, Mutable } from "@phoenix/typeUtils";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   getErrorMessagesFromRelayMutationError,
   getErrorMessagesFromRelaySubscriptionError,
@@ -203,6 +203,12 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     instance.outputByRepetitionNumber[selectedRepetitionNumber]?.error ?? null;
   const setError = usePlaygroundContext((state) => state.setError);
   const setStatus = usePlaygroundContext((state) => state.setStatus);
+  const setRepetitionToolCalls = usePlaygroundContext(
+    (state) => state.setRepetitionToolCalls
+  );
+  const addPartialToolCall = usePlaygroundContext(
+    (state) => state.addPartialToolCall
+  );
   const spanId: string | null | undefined =
     instance.outputByRepetitionNumber[selectedRepetitionNumber]?.spanId;
 
@@ -238,10 +244,9 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     [notifyErrorToast, instanceId, selectedRepetitionNumber, setError]
   );
 
-  const [toolCallsByRepetitionNumber, setToolCallsByRepetitionNumber] =
-    useState<Record<number, readonly PartialOutputToolCall[]>>({});
-  const toolCalls: readonly PartialOutputToolCall[] =
-    toolCallsByRepetitionNumber[selectedRepetitionNumber] || {};
+  const toolCalls = Object.values(
+    instance.outputByRepetitionNumber[selectedRepetitionNumber]?.toolCalls ?? {}
+  );
 
   const handleChatCompletionSubscriptionPayload = useCallback(
     ({ chatCompletion }: PlaygroundOutputSubscription$data) => {
@@ -259,44 +264,20 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       } else if (chatCompletion.__typename === "ToolCallChunk") {
         const chatCompletionId = chatCompletion.id;
         const chatCompletionFunction = chatCompletion.function;
-        if (chatCompletionFunction == null || chatCompletionId == null) {
+        if (
+          chatCompletionFunction == null ||
+          chatCompletionId == null ||
+          chatCompletion.repetitionNumber == null
+        ) {
           return;
         }
-        setToolCallsByRepetitionNumber((prev) => {
-          const repetitionNumber = chatCompletion.repetitionNumber ?? 1;
-          const toolCallsList = prev[repetitionNumber] ?? [];
-          let toolCallExists = false;
-          const updated = toolCallsList.map((toolCall) => {
-            if (toolCall.id === chatCompletion.id) {
-              toolCallExists = true;
-              return {
-                ...toolCall,
-                function: {
-                  ...toolCall.function,
-                  arguments:
-                    toolCall.function.arguments +
-                    chatCompletionFunction.arguments,
-                },
-              };
-            } else {
-              return toolCall;
-            }
-          });
-          if (!toolCallExists) {
-            updated.push({
-              id: chatCompletionId,
-              function: {
-                name: chatCompletionFunction.name,
-                arguments: chatCompletionFunction.arguments,
-              },
-            });
-          }
-          return {
-            ...prev,
-            [repetitionNumber]: updated,
-          };
+        addPartialToolCall(instanceId, chatCompletion.repetitionNumber, {
+          id: chatCompletionId,
+          function: {
+            name: chatCompletionFunction.name,
+            arguments: chatCompletionFunction.arguments,
+          },
         });
-        return;
       }
       if (chatCompletion.__typename === "ChatCompletionSubscriptionResult") {
         if (chatCompletion.repetitionNumber == null) {
@@ -323,7 +304,14 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         });
       }
     },
-    [instanceId, appendOutputContentChunk, setSpanId, setStatus, setError]
+    [
+      addPartialToolCall,
+      instanceId,
+      appendOutputContentChunk,
+      setSpanId,
+      setStatus,
+      setError,
+    ]
   );
 
   const onCompleted = useCallback(
@@ -348,6 +336,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
               spanId: response.chatCompletion.span.id,
               error: null,
               status: "completed",
+              toolCalls: {}, // todo: handle tool calls parsing
             },
           },
         },
@@ -374,15 +363,16 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           response.chatCompletion.content
         );
       }
-      setToolCallsByRepetitionNumber((prev) => ({
-        ...prev,
-        [1]: response.chatCompletion.toolCalls, // handle repetitions in mutation
-      }));
+      // handle repetitions in mutation
+      setRepetitionToolCalls(instanceId, 1, [
+        ...response.chatCompletion.toolCalls,
+      ]);
     },
     [
       instanceId,
       markPlaygroundInstanceComplete,
       notifyError,
+      setRepetitionToolCalls,
       playgroundStore,
       props.playgroundInstanceId,
       appendOutputContentChunk,
@@ -392,7 +382,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   const cleanup = useCallback(() => {
     setSelectedRepetitionNumber(instanceId, 1);
-    setToolCallsByRepetitionNumber({});
     updateInstance({
       instanceId,
       patch: {},
@@ -525,7 +514,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           <PlaygroundOutputMoveButton
             isDisabled={!selectedRepetitionSuccessfullyCompleted}
             output={outputContent?.output}
-            toolCalls={toolCalls as Mutable<typeof toolCalls>}
+            toolCalls={toolCalls}
             instance={instance}
             cleanupOutput={() => {
               cleanup();
@@ -538,6 +527,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
                       spanId: null,
                       error: null,
                       status: "notStarted",
+                      toolCalls: {},
                     },
                   },
                 },
