@@ -1,4 +1,4 @@
-import { LLMEvaluatorTemplate } from "@phoenix/pages/evaluators/templates/types";
+import { LLMEvaluatorTemplate } from "@phoenix/components/evaluators/templates/types";
 
 const SYSTEM_PROMPT = `
 You are evaluating the correctness of a model's response. Assess whether the output accurately answers the input query.
