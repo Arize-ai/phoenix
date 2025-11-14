@@ -124,8 +124,13 @@ const createExampleResponsesForInstance = (
 ): InstanceResponses => {
   return response.examples.reduce<InstanceResponses>(
     (instanceResponses, example) => {
-      const { datasetExampleId, repetitionNumber, result, experimentRunId } =
-        example;
+      const {
+        datasetExampleId,
+        repetitionNumber,
+        result,
+        experimentRunId,
+        evaluations,
+      } = example;
       switch (result.__typename) {
         case "ChatCompletionMutationError": {
           const updatedInstanceResponses: InstanceResponses = {
@@ -159,6 +164,7 @@ const createExampleResponsesForInstance = (
                   map[toolCall.id] = toolCall;
                   return map;
                 }, {}),
+                evaluations: [...evaluations],
               },
             },
           };
@@ -1455,10 +1461,20 @@ graphql`
                 arguments
               }
             }
-            evaluations {
-              label
-              score
-            }
+          }
+        }
+        evaluations {
+          id
+          name
+          label
+          score
+          annotatorKind
+          explanation
+          metadata
+          startTime
+          trace {
+            traceId
+            projectId
           }
         }
       }
