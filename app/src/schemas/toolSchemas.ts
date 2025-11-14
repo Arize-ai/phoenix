@@ -204,7 +204,7 @@ export const anthropicToolToOpenAI = anthropicToolDefinitionSchema.transform(
 export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
   (openai): AnthropicToolDefinition => ({
     name: openai.function.name,
-    description: openai.function.description ?? openai.function.name,
+    description: openai.function.description ?? "",
     input_schema: openai.function.parameters,
   })
 );
