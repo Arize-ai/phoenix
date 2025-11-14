@@ -27,14 +27,6 @@ export function ExperimentRepetitionSelector({
   );
   return (
     <Flex direction="row" alignItems="center">
-      <IconButton
-        size="S"
-        isDisabled={repetitionNumber === 1}
-        onPress={() => setRepetitionNumber((prev) => prev - 1)}
-        aria-label="Previous repetition"
-      >
-        <Icon svg={<Icons.ChevronLeft />} />
-      </IconButton>
       <TooltipTrigger>
         <TriggerWrap>
           <Flex direction="row" alignItems="center">
@@ -55,6 +47,14 @@ export function ExperimentRepetitionSelector({
           {`repetition ${repetitionNumber} of ${totalRepetitions}`}
         </Tooltip>
       </TooltipTrigger>
+      <IconButton
+        size="S"
+        isDisabled={repetitionNumber === 1}
+        onPress={() => setRepetitionNumber((prev) => prev - 1)}
+        aria-label="Previous repetition"
+      >
+        <Icon svg={<Icons.ChevronLeft />} />
+      </IconButton>
       <IconButton
         size="S"
         isDisabled={repetitionNumber === totalRepetitions}

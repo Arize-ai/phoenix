@@ -30,6 +30,7 @@ import {
   createNormalizedPlaygroundInstance,
   generateMessageId,
   generateToolId,
+  getDefaultRepetition,
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
@@ -649,7 +650,9 @@ export function transformSpanAttributesToPlaygroundInstance(
     return {
       playgroundInstance: {
         ...basePlaygroundInstance,
-        spanId: span?.id ?? null,
+        repetitions: {
+          1: getDefaultRepetition(),
+        },
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     };
@@ -730,8 +733,18 @@ export function transformSpanAttributesToPlaygroundInstance(
               messages,
             }
           : basePlaygroundInstance.template,
-      output,
-      spanId: span.id,
+      repetitions: {
+        ...basePlaygroundInstance.repetitions,
+        ...{
+          1: {
+            output: output ?? null,
+            spanId: span.id,
+            error: null, // todo: handle error parsing
+            toolCalls: {}, // todo: handle tool calls parsing
+            status: "finished",
+          },
+        },
+      },
       tools: tools ?? basePlaygroundInstance.tools,
     },
     playgroundInput:
@@ -1172,6 +1185,7 @@ const getBaseChatCompletionInput = ({
       : undefined,
     credentials: getCredentials(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
+    repetitions: playgroundStore.getState().repetitions,
   } satisfies Partial<ChatCompletionInput>;
 };
 
@@ -1262,7 +1276,6 @@ export const getChatCompletionInput = ({
 
   return {
     ...baseChatCompletionVariables,
-    repetitions: 1, // configurable repetitions aren't currently supported for variable input
     template: {
       variables: variablesMap,
       format: templateFormat,
