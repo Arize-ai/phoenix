@@ -30,12 +30,41 @@ const lcInstrumentation = new LangChainInstrumentation();
 lcInstrumentation.manuallyInstrument(CallbackManagerModule);
 ```
 
+Once instrumentation is setup, your agent will automatically export traces to Phoenix.
+
+```typescript
+import * as z from "zod";
+// npm install @langchain/anthropic to call the model
+import { createAgent, tool } from "langchain";
+
+const getWeather = tool(
+  ({ city }) => `It's always sunny in ${city}!`,
+  {
+    name: "get_weather",
+    description: "Get the weather for a given city",
+    schema: z.object({
+      city: z.string(),
+    }),
+  },
+);
+
+const agent = createAgent({
+  model: "claude-sonnet-4-5-20250929",
+  tools: [getWeather],
+});
+
+console.log(
+  await agent.invoke({
+    messages: [{ role: "user", content: "What's the weather in Tokyo?" }],
+  })
+);
+```
+
 ## Support
 
-Instrumentation version >1.0.0 supports both attribute masking and context attribute propagation to spans.
+Instrumentation version >=4.0.0 supports LangChain 1.0 and above.This package does support earlier versions of LangChain, however it is not tested. 
 
-<table data-full-width="false"><thead><tr><th width="226">Instrumentation Version</th><th width="177" align="center">LangChain ^0.3.0</th><th width="181" align="center">LangChain ^0.2.0</th><th align="center">LangChain ^0.1.0</th></tr></thead><tbody><tr><td>>1.0.0</td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td></tr><tr><td>>0.2.0</td><td align="center">❌</td><td align="center">✅</td><td align="center">✅</td></tr><tr><td>>0.1.0</td><td align="center">❌</td><td align="center">❌</td><td align="center">✅</td></tr></tbody></table>
-
+If you are still using older versions, The [`@arizeai/openinference-instrumentation-langchain-v0`](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain-v0) package is used to maintain support for LangChain 0.X versions and will recieve patches for the older versions.
 
 ## Resources
 
