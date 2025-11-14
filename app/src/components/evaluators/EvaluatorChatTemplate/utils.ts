@@ -1,8 +1,8 @@
+import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/defaultEvaluatorTemplate";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/pages/evaluators/templates/defaultEvaluatorTemplate";
 import {
   generateInstanceId,
   generateMessageId,
