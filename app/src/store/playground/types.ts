@@ -119,17 +119,18 @@ export type PlaygroundRepetitionStatus =
   | "notStarted"
   | "pending" // awaiting first token in streaming mode or awaiting response in non-streaming mode
   | "streamInProgress" // only in streaming mode
-  | "completed"; // includes failed states
+  | "finished"; // includes error states
 
 type ToolCallId = string;
 
-export type PlaygroundRepetitionOutput = {
+export type PlaygroundRepetition = {
   output: ChatMessage[] | string | null;
   toolCalls: Record<ToolCallId, PartialOutputToolCall>;
   spanId: string | null;
   error: PlaygroundError | null;
   status: PlaygroundRepetitionStatus;
 };
+
 /**
  * A single instance of the playground that has
  * - a template
@@ -149,10 +150,7 @@ export interface PlaygroundInstance {
    */
   toolChoice?: OpenaiToolChoice | AnthropicToolChoice;
   model: ModelConfig;
-  outputByRepetitionNumber: Record<
-    number,
-    PlaygroundRepetitionOutput | undefined
-  >;
+  repetitions: Record<number, PlaygroundRepetition | undefined>;
   activeRunId: number | null;
   /**
    * The id of the experiment associated with the last playground run on the instance if any

@@ -649,7 +649,7 @@ export function transformSpanAttributesToPlaygroundInstance(
     return {
       playgroundInstance: {
         ...basePlaygroundInstance,
-        outputByRepetitionNumber: {
+        repetitions: {
           1: {
             output: null,
             spanId: null,
@@ -738,15 +738,15 @@ export function transformSpanAttributesToPlaygroundInstance(
               messages,
             }
           : basePlaygroundInstance.template,
-      outputByRepetitionNumber: {
-        ...basePlaygroundInstance.outputByRepetitionNumber,
+      repetitions: {
+        ...basePlaygroundInstance.repetitions,
         ...{
           [1]: {
             output: output ?? null,
             spanId: span.id,
             error: null, // todo: handle error parsing
             toolCalls: {}, // todo: handle tool calls parsing
-            status: "completed",
+            status: "finished",
           },
         },
       },
