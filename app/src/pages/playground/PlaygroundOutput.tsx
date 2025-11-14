@@ -213,6 +213,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const clearRepetitions = usePlaygroundContext(
     (state) => state.clearRepetitions
   );
+
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
   );
@@ -226,9 +227,13 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const selectedRepetitionNumber = instance.selectedRepetitionNumber;
   const selectedRepetition = instance.repetitions[selectedRepetitionNumber];
   const selectedRepetitionError = selectedRepetition?.error ?? null;
-
-  const spanId: string | null | undefined =
-    instance.repetitions[selectedRepetitionNumber]?.spanId;
+  const selectedRepetitionToolCalls = Object.values(
+    selectedRepetition?.toolCalls ?? {}
+  );
+  const selectedRepetitionSpanId = selectedRepetition?.spanId;
+  const selectedRepetitionSuccessfullyCompleted =
+    selectedRepetition?.status === "finished" &&
+    selectedRepetition?.error == null;
 
   const [generateChatCompletion] = useMutation<PlaygroundOutputMutationType>(
     PlaygroundOutputMutation
@@ -252,10 +257,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       });
     },
     [notifyErrorToast, instanceId, selectedRepetitionNumber, setRepetitionError]
-  );
-
-  const toolCalls = Object.values(
-    instance.repetitions[selectedRepetitionNumber]?.toolCalls ?? {}
   );
 
   const handleChatCompletionSubscriptionPayload = useCallback(
@@ -487,15 +488,13 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     setRepetitionError,
     setRepetitionStatus,
   ]);
-  const selectedRepetitionSuccessfullyCompleted =
-    selectedRepetition?.status === "finished" &&
-    selectedRepetition?.error == null;
+
   return (
     <Card
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
       extra={
         <Flex direction="row" gap="size-150" alignItems="center">
-          {numRepetitions > 1 && numRepetitionErrors > 0 && (
+          {numInstanceRepetitions > 1 && numRepetitionErrors > 0 && (
             <TooltipTrigger>
               <TriggerWrap>
                 <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
@@ -523,7 +522,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           <PlaygroundOutputMoveButton
             isDisabled={!selectedRepetitionSuccessfullyCompleted}
             output={selectedRepetition?.output}
-            toolCalls={toolCalls}
+            toolCalls={selectedRepetitionToolCalls}
             instance={instance}
             cleanupOutput={() => {
               clearRepetitions(instanceId);
@@ -549,12 +548,14 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             <MarkdownDisplayProvider>
               <PlaygroundOutputContent
                 output={selectedRepetition?.output ?? null}
-                partialToolCalls={toolCalls}
+                partialToolCalls={selectedRepetitionToolCalls}
               />
             </MarkdownDisplayProvider>
           </View>
           <Suspense>
-            {spanId ? <RunMetadataFooter spanId={spanId} /> : null}
+            {selectedRepetitionSpanId ? (
+              <RunMetadataFooter spanId={selectedRepetitionSpanId} />
+            ) : null}
           </Suspense>
         </>
       )}
