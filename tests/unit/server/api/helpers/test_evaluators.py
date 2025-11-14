@@ -70,6 +70,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
+        llm_evaluator.description = "my different description"
         prompt_version.tools.tools[0].function.description = "a string description"
         with pytest.raises(
             ValueError,

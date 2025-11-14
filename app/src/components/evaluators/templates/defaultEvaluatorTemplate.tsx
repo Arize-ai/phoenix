@@ -1,4 +1,4 @@
-import { LLMEvaluatorTemplate } from "@phoenix/pages/evaluators/templates/types";
+import { LLMEvaluatorTemplate } from "@phoenix/components/evaluators/templates/types";
 
 const SYSTEM_PROMPT = `
 First, describe the persona of your evaluator (e.g. "You are an expert at evaluating the correctness of a model's response").
