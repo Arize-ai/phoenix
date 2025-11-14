@@ -131,6 +131,16 @@ const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   prompt: "{{question}}",
 };
 
+export function getDefaultRepetition(): PlaygroundRepetition {
+  return {
+    output: null,
+    spanId: null,
+    error: null,
+    status: "notStarted",
+    toolCalls: {},
+  };
+}
+
 export const DEFAULT_INSTANCE_PARAMS = () =>
   ({
     model: {
@@ -143,13 +153,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
     repetitions: {
-      1: {
-        output: null,
-        spanId: null,
-        error: null,
-        status: "notStarted",
-        toolCalls: {},
-      },
+      1: getDefaultRepetition(),
     },
     activeRunId: null,
   }) satisfies Partial<PlaygroundInstance>;
@@ -713,41 +717,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setSelectedRepetitionNumber" }
       );
     },
-    appendOutputContentChunk: (
-      instanceId: number,
-      repetitionNumber: number,
-      contentChunk: string
-    ) => {
-      const instances = get().instances;
-      const instance = instances.find((instance) => instance.id === instanceId);
-      if (!instance) {
-        return;
-      }
-      set(
-        {
-          instances: instances.map((instance) => {
-            if (instance.id === instanceId) {
-              const repetition = instance.repetitions[repetitionNumber];
-              return {
-                ...instance,
-                repetitions: {
-                  ...instance.repetitions,
-                  [repetitionNumber]: repetition
-                    ? {
-                        ...repetition,
-                        output: (repetition.output || "") + contentChunk,
-                      }
-                    : undefined,
-                },
-              };
-            }
-            return instance;
-          }),
-        },
-        false,
-        { type: "appendOutputContent" }
-      );
-    },
+
     updateInstance: ({ instanceId, patch, dirty }) => {
       const instances = get().instances;
       set(
@@ -996,6 +966,41 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setDirty" }
       );
     },
+    appendRepetitionOutput: (
+      instanceId: number,
+      repetitionNumber: number,
+      content: string
+    ) => {
+      const instances = get().instances;
+      const instance = instances.find((instance) => instance.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set(
+        {
+          instances: instances.map((instance) => {
+            if (instance.id === instanceId) {
+              const repetition = instance.repetitions[repetitionNumber];
+              return {
+                ...instance,
+                repetitions: {
+                  ...instance.repetitions,
+                  [repetitionNumber]: repetition
+                    ? {
+                        ...repetition,
+                        output: (repetition.output || "") + content,
+                      }
+                    : undefined,
+                },
+              };
+            }
+            return instance;
+          }),
+        },
+        false,
+        { type: "appendRepetitionOutput" }
+      );
+    },
     setRepetitionError: (
       instanceId: number,
       repetitionNumber: number,
@@ -1024,7 +1029,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           }),
         },
         false,
-        { type: "setError" }
+        { type: "setRepetitionError" }
       );
     },
     setRepetitionStatus: (
@@ -1055,7 +1060,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           }),
         },
         false,
-        { type: "setStatus" }
+        { type: "setRepetitionStatus" }
       );
     },
     addRepetitionPartialToolCall: (
@@ -1063,45 +1068,49 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       repetitionNumber: number,
       partialToolCall: PartialOutputToolCall
     ) => {
-      set({
-        instances: get().instances.map((instance) => {
-          if (instance.id !== instanceId) {
-            return instance;
-          }
-          const repetition = instance.repetitions[repetitionNumber];
-          const toolCalls = repetition?.toolCalls ?? {};
-          const updatedToolCalls =
-            partialToolCall.id in toolCalls
-              ? {
-                  ...toolCalls,
-                  [partialToolCall.id]: {
-                    ...toolCalls[partialToolCall.id],
-                    function: {
-                      ...partialToolCall.function,
-                      arguments:
-                        toolCalls[partialToolCall.id].function.arguments +
-                        partialToolCall.function.arguments,
-                    },
-                  },
-                }
-              : {
-                  ...toolCalls,
-                  [partialToolCall.id]: partialToolCall,
-                };
-          return {
-            ...instance,
-            repetitions: {
-              ...instance.repetitions,
-              [repetitionNumber]: repetition
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const repetition = instance.repetitions[repetitionNumber];
+            const toolCalls = repetition?.toolCalls ?? {};
+            const updatedToolCalls =
+              partialToolCall.id in toolCalls
                 ? {
-                    ...repetition,
-                    toolCalls: updatedToolCalls,
+                    ...toolCalls,
+                    [partialToolCall.id]: {
+                      ...toolCalls[partialToolCall.id],
+                      function: {
+                        ...partialToolCall.function,
+                        arguments:
+                          toolCalls[partialToolCall.id].function.arguments +
+                          partialToolCall.function.arguments,
+                      },
+                    },
                   }
-                : undefined,
-            },
-          };
-        }),
-      });
+                : {
+                    ...toolCalls,
+                    [partialToolCall.id]: partialToolCall,
+                  };
+            return {
+              ...instance,
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
+                  ? {
+                      ...repetition,
+                      toolCalls: updatedToolCalls,
+                    }
+                  : undefined,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "addRepetitionPartialToolCall" }
+      );
     },
     setRepetitionToolCalls: (
       instanceId: number,
@@ -1120,17 +1129,21 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       throw new Error("Not implemented");
     },
     clearRepetitions: (instanceId: number) => {
-      set({
-        instances: get().instances.map((instance) => {
-          if (instance.id !== instanceId) {
-            return instance;
-          }
-          return {
-            ...instance,
-            repetitions: {},
-          };
-        }),
-      });
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            return {
+              ...instance,
+              repetitions: {},
+            };
+          }),
+        },
+        false,
+        { type: "clearRepetitions" }
+      );
     },
     setRepetitionSpanId: (
       instanceId: number,
@@ -1159,7 +1172,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           }),
         },
         false,
-        { type: "setSpanId" }
+        { type: "setRepetitionSpanId" }
       );
     },
   });

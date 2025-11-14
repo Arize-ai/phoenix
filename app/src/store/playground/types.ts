@@ -399,10 +399,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   /**
    * Append a content chunk to the output of an instance
    */
-  appendOutputContentChunk: (
+  appendRepetitionOutput: (
     instanceId: number,
     repetitionNumber: number,
-    contentChunk: string
+    content: string
   ) => void;
   /**
    * Set the error for a repetition
