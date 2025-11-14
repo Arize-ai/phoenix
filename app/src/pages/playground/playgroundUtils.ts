@@ -30,6 +30,7 @@ import {
   createNormalizedPlaygroundInstance,
   generateMessageId,
   generateToolId,
+  getDefaultRepetition,
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
@@ -650,13 +651,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       playgroundInstance: {
         ...basePlaygroundInstance,
         repetitions: {
-          1: {
-            output: null,
-            spanId: null,
-            error: null,
-            toolCalls: {},
-            status: "notStarted",
-          },
+          1: getDefaultRepetition(),
         },
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
@@ -726,7 +721,7 @@ export function transformSpanAttributesToPlaygroundInstance(
   });
 
   // TODO(parker): add support for prompt template variables
-  // https://github.com/Arize-ai/phoenix/issues/4886:w
+  // https://github.com/Arize-ai/phoenix/issues/4886
   return {
     playgroundInstance: {
       ...basePlaygroundInstance,
@@ -741,7 +736,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       repetitions: {
         ...basePlaygroundInstance.repetitions,
         ...{
-          [1]: {
+          1: {
             output: output ?? null,
             spanId: span.id,
             error: null, // todo: handle error parsing
