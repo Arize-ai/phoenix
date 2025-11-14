@@ -7,7 +7,18 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Card, Flex, Loading, View } from "@phoenix/components";
+import {
+  Card,
+  Flex,
+  Icon,
+  Icons,
+  Loading,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeSelect,
@@ -174,6 +185,9 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const numInstanceRepetitions = Object.keys(
     instance.outputByRepetitionNumber
   ).length;
+  const numRepetitionErrors = Object.values(
+    instance.outputByRepetitionNumber
+  ).filter((output) => output?.error != null).length;
   const selectedRepetitionNumber = instance.selectedRepetitionNumber;
   const outputContent =
     instance.outputByRepetitionNumber[selectedRepetitionNumber];
@@ -184,10 +198,11 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const setSelectedRepetitionNumber = usePlaygroundContext(
     (state) => state.setSelectedRepetitionNumber
   );
-  const [outputError, setOutputError] = useState<{
-    title: string;
-    message?: string;
-  } | null>(null);
+  const setSpanId = usePlaygroundContext((state) => state.setSpanId);
+  const outputError =
+    instance.outputByRepetitionNumber[selectedRepetitionNumber]?.error ?? null;
+  const setError = usePlaygroundContext((state) => state.setError);
+  const setStatus = usePlaygroundContext((state) => state.setStatus);
   const spanId: string | null | undefined =
     instance.outputByRepetitionNumber[selectedRepetitionNumber]?.spanId;
 
@@ -213,14 +228,14 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   const notifyError = useCallback(
     ({ title, message, ...rest }: Parameters<typeof notifyErrorToast>[0]) => {
-      setOutputError({ title, message });
+      setError(instanceId, selectedRepetitionNumber, { title, message });
       notifyErrorToast({
         title,
         message,
         ...rest,
       });
     },
-    [notifyErrorToast]
+    [notifyErrorToast, instanceId, selectedRepetitionNumber, setError]
   );
 
   const [toolCallsByRepetitionNumber, setToolCallsByRepetitionNumber] =
@@ -283,53 +298,32 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         });
         return;
       }
-      if (
-        chatCompletion.__typename === "ChatCompletionSubscriptionResult" &&
-        chatCompletion.span != null
-      ) {
-        const instance = playgroundStore
-          .getState()
-          .instances.find((inst) => inst.id === instanceId);
-        if (instance == null || chatCompletion.repetitionNumber == null) {
+      if (chatCompletion.__typename === "ChatCompletionSubscriptionResult") {
+        if (chatCompletion.repetitionNumber == null) {
           return;
         }
-        const previousOutput = instance.outputByRepetitionNumber[
-          chatCompletion.repetitionNumber
-        ] ?? { output: null, spanId: null };
-        updateInstance({
-          instanceId,
-          patch: {
-            outputByRepetitionNumber: {
-              ...instance.outputByRepetitionNumber,
-              [chatCompletion.repetitionNumber]: {
-                output: previousOutput.output,
-                spanId: chatCompletion.span.id,
-              },
-            },
-          },
-          dirty: null,
-        });
+        setStatus(instanceId, chatCompletion.repetitionNumber, "completed");
+        if (chatCompletion.span != null) {
+          setSpanId(
+            instanceId,
+            chatCompletion.repetitionNumber,
+            chatCompletion.span.id
+          );
+        }
         return;
       }
       if (chatCompletion.__typename === "ChatCompletionSubscriptionError") {
-        markPlaygroundInstanceComplete(props.playgroundInstanceId);
-        if (chatCompletion.message != null) {
-          notifyError({
-            title: "Chat completion failed",
-            message: chatCompletion.message,
-          });
+        if (chatCompletion.repetitionNumber == null) {
+          return;
         }
+        setStatus(instanceId, chatCompletion.repetitionNumber, "completed");
+        setError(instanceId, chatCompletion.repetitionNumber, {
+          title: "Chat completion failed",
+          message: chatCompletion.message,
+        });
       }
     },
-    [
-      instanceId,
-      markPlaygroundInstanceComplete,
-      notifyError,
-      playgroundStore,
-      appendOutputContentChunk,
-      props.playgroundInstanceId,
-      updateInstance,
-    ]
+    [instanceId, appendOutputContentChunk, setSpanId, setStatus, setError]
   );
 
   const onCompleted = useCallback(
@@ -352,6 +346,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             [1]: {
               output: response.chatCompletion.content,
               spanId: response.chatCompletion.span.id,
+              error: null,
+              status: "completed",
             },
           },
         },
@@ -397,7 +393,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const cleanup = useCallback(() => {
     setSelectedRepetitionNumber(instanceId, 1);
     setToolCallsByRepetitionNumber({});
-    setOutputError(null);
     updateInstance({
       instanceId,
       patch: {},
@@ -491,14 +486,27 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     props.playgroundInstanceId,
     streaming,
     updateInstance,
+    selectedRepetitionNumber,
+    setError,
+    setStatus,
   ]);
-  const hasContent = outputContent?.output != null || toolCalls.length > 0;
-  const isRepetitionLoading = runInProgress && !hasContent;
+  const selectedRepetitionSuccessfullyCompleted =
+    outputContent?.status === "completed" && outputContent?.error == null;
   return (
     <Card
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
       extra={
         <Flex direction="row" gap="size-150" alignItems="center">
+          {repetitions > 1 && numRepetitionErrors > 0 && (
+            <TooltipTrigger>
+              <TriggerWrap>
+                <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
+              </TriggerWrap>
+              <Tooltip>
+                <Text>{`${numRepetitionErrors} repetition ${numRepetitionErrors > 1 ? "s" : ""} failed`}</Text>
+              </Tooltip>
+            </TooltipTrigger>
+          )}
           {numInstanceRepetitions > 1 && (
             <ExperimentRepetitionSelector
               repetitionNumber={selectedRepetitionNumber}
@@ -515,7 +523,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             />
           )}
           <PlaygroundOutputMoveButton
-            isDisabled={!hasContent}
+            isDisabled={!selectedRepetitionSuccessfullyCompleted}
             output={outputContent?.output}
             toolCalls={toolCalls as Mutable<typeof toolCalls>}
             instance={instance}
@@ -525,7 +533,12 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
                 instanceId,
                 patch: {
                   outputByRepetitionNumber: {
-                    1: { output: null, spanId: null },
+                    1: {
+                      output: null,
+                      spanId: null,
+                      error: null,
+                      status: "notStarted",
+                    },
                   },
                 },
                 dirty: null,
@@ -536,7 +549,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       }
       collapsible
     >
-      {isRepetitionLoading ? (
+      {outputContent?.status === "pending" ? (
         <View padding="size-200">
           <Loading message="Running..." />
         </View>

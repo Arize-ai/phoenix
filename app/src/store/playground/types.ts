@@ -64,6 +64,11 @@ export type PlaygroundInput = {
   variablesValueCache?: Record<string, string | undefined>;
 };
 
+export type PlaygroundError = {
+  title: string;
+  message?: string;
+};
+
 export type ModelConfig = {
   provider: ModelProvider;
   modelName: string | null;
@@ -109,9 +114,17 @@ export type PlaygroundInstancePrompt = {
   tag: string | null;
 };
 
+export type PlaygroundRepetitionStatus =
+  | "notStarted"
+  | "pending" // awaiting first token in streaming mode or awaiting response in non-streaming mode
+  | "streamInProgress" // only in streaming mode
+  | "completed"; // includes failed states
+
 export type PlaygroundRepetitionOutput = {
   output: ChatMessage[] | string | null;
   spanId: string | null;
+  error: PlaygroundError | null;
+  status: PlaygroundRepetitionStatus;
 };
 /**
  * A single instance of the playground that has
@@ -388,5 +401,30 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     instanceId: number,
     repetitionNumber: number,
     contentChunk: string
+  ) => void;
+  /**
+   * Set the error for a repetition
+   */
+  setError: (
+    instanceId: number,
+    repetitionNumber: number,
+    error: PlaygroundError
+  ) => void;
+  /**
+   * Set the span id for a repetition
+   */
+  setSpanId: (
+    instanceId: number,
+    repetitionNumber: number,
+    spanId: string
+  ) => void;
+  /**
+  /**
+   * Set the status for a repetition
+   */
+  setStatus: (
+    instanceId: number,
+    repetitionNumber: number,
+    status: PlaygroundRepetitionStatus
   ) => void;
 }
