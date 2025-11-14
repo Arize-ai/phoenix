@@ -6,7 +6,6 @@ import {
   useRef,
 } from "react";
 import { graphql, readInlineData } from "react-relay";
-import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -101,7 +100,7 @@ const readRow = (row: EvaluatorsTable_row$key) => {
   );
 };
 
-type TableRow = ReturnType<typeof readRow>;
+export type TableRow = ReturnType<typeof readRow>;
 
 type EvaluatorsTableProps = {
   /**
@@ -122,6 +121,7 @@ type EvaluatorsTableProps = {
     sort?: EvaluatorSort | null;
     filter?: EvaluatorFilter | null;
   }) => void;
+  onRowClick?: (row: TableRow) => void;
 };
 
 export const EvaluatorsTable = ({
@@ -131,6 +131,7 @@ export const EvaluatorsTable = ({
   hasNext,
   loadNext,
   refetch,
+  onRowClick,
 }: EvaluatorsTableProps) => {
   const {
     selectedEvaluatorIds,
@@ -140,7 +141,6 @@ export const EvaluatorsTable = ({
     filter,
   } = useEvaluatorsFilterContext();
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
   const sorting = useMemo(
     () => convertEvaluatorSortToTanstackSort(sort),
     [sort]
@@ -349,7 +349,7 @@ export const EvaluatorsTable = ({
               <tr
                 key={row.id}
                 onClick={() => {
-                  navigate(`${row.original.id}`);
+                  onRowClick?.(row.original);
                 }}
               >
                 {row.getVisibleCells().map((cell) => (

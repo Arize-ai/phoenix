@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Optional
 
@@ -282,6 +283,11 @@ class EvaluatorMutationMixin:
                 input.description if isinstance(input.description, str) else None
             )
             llm_evaluator.output_config = output_config
+            llm_evaluator.annotation_name = input.output_config.name
+            # manually update the updated_at field since updating the description or other fields
+            # solely on the parent record Evaluator does not trigger an update of the updated_at
+            # field on the LLMEvaluator record
+            llm_evaluator.updated_at = datetime.now(timezone.utc)
 
             # todo: compare against active prompt version as determined by prompt tag or version
             # https://github.com/Arize-ai/phoenix/issues/10142
