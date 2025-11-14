@@ -121,14 +121,13 @@ class PostgreSQLDDLExtractor:
     def connect(self) -> bool:
         """Establish database connection."""
         try:
-            conn_dict = {
-                "host": self.conn_params.host,
-                "port": self.conn_params.port,
-                "dbname": self.conn_params.database,
-                "user": self.conn_params.user,
-                "password": self.conn_params.password,
-            }
-            self.conn = psycopg.connect(**conn_dict)
+            self.conn = psycopg.connect(
+                host=self.conn_params.host,
+                port=self.conn_params.port,
+                dbname=self.conn_params.database,
+                user=self.conn_params.user,
+                password=self.conn_params.password,
+            )
             return True
         except psycopg.Error as e:
             print(f"Error connecting to database: {e}", file=sys.stderr)
