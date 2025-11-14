@@ -996,7 +996,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setDirty" }
       );
     },
-    setError: (
+    setRepetitionError: (
       instanceId: number,
       repetitionNumber: number,
       error: PlaygroundError
@@ -1027,7 +1027,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setError" }
       );
     },
-    setStatus: (
+    setRepetitionStatus: (
       instanceId: number,
       repetitionNumber: number,
       status: PlaygroundRepetitionStatus
@@ -1058,7 +1058,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setStatus" }
       );
     },
-    addPartialToolCall: (
+    addRepetitionPartialToolCall: (
       instanceId: number,
       repetitionNumber: number,
       partialToolCall: PartialOutputToolCall
@@ -1132,7 +1132,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         }),
       });
     },
-    setSpanId: (
+    setRepetitionSpanId: (
       instanceId: number,
       repetitionNumber: number,
       spanId: string

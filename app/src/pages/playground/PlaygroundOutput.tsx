@@ -195,14 +195,20 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const setSelectedRepetitionNumber = usePlaygroundContext(
     (state) => state.setSelectedRepetitionNumber
   );
-  const setSpanId = usePlaygroundContext((state) => state.setSpanId);
-  const setError = usePlaygroundContext((state) => state.setError);
-  const setStatus = usePlaygroundContext((state) => state.setStatus);
+  const setRepetitionSpanId = usePlaygroundContext(
+    (state) => state.setRepetitionSpanId
+  );
+  const setRepetitionError = usePlaygroundContext(
+    (state) => state.setRepetitionError
+  );
+  const setRepetitionStatus = usePlaygroundContext(
+    (state) => state.setRepetitionStatus
+  );
   const setRepetitionToolCalls = usePlaygroundContext(
     (state) => state.setRepetitionToolCalls
   );
-  const addPartialToolCall = usePlaygroundContext(
-    (state) => state.addPartialToolCall
+  const addRepetitionPartialToolCall = usePlaygroundContext(
+    (state) => state.addRepetitionPartialToolCall
   );
   const clearRepetitions = usePlaygroundContext(
     (state) => state.clearRepetitions
@@ -235,14 +241,17 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   const notifyError = useCallback(
     ({ title, message, ...rest }: Parameters<typeof notifyErrorToast>[0]) => {
-      setError(instanceId, selectedRepetitionNumber, { title, message });
+      setRepetitionError(instanceId, selectedRepetitionNumber, {
+        title,
+        message,
+      });
       notifyErrorToast({
         title,
         message,
         ...rest,
       });
     },
-    [notifyErrorToast, instanceId, selectedRepetitionNumber, setError]
+    [notifyErrorToast, instanceId, selectedRepetitionNumber, setRepetitionError]
   );
 
   const toolCalls = Object.values(
@@ -272,21 +281,29 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         ) {
           return;
         }
-        addPartialToolCall(instanceId, chatCompletion.repetitionNumber, {
-          id: chatCompletionId,
-          function: {
-            name: chatCompletionFunction.name,
-            arguments: chatCompletionFunction.arguments,
-          },
-        });
+        addRepetitionPartialToolCall(
+          instanceId,
+          chatCompletion.repetitionNumber,
+          {
+            id: chatCompletionId,
+            function: {
+              name: chatCompletionFunction.name,
+              arguments: chatCompletionFunction.arguments,
+            },
+          }
+        );
       }
       if (chatCompletion.__typename === "ChatCompletionSubscriptionResult") {
         if (chatCompletion.repetitionNumber == null) {
           return;
         }
-        setStatus(instanceId, chatCompletion.repetitionNumber, "finished");
+        setRepetitionStatus(
+          instanceId,
+          chatCompletion.repetitionNumber,
+          "finished"
+        );
         if (chatCompletion.span != null) {
-          setSpanId(
+          setRepetitionSpanId(
             instanceId,
             chatCompletion.repetitionNumber,
             chatCompletion.span.id
@@ -298,20 +315,24 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         if (chatCompletion.repetitionNumber == null) {
           return;
         }
-        setStatus(instanceId, chatCompletion.repetitionNumber, "finished");
-        setError(instanceId, chatCompletion.repetitionNumber, {
+        setRepetitionStatus(
+          instanceId,
+          chatCompletion.repetitionNumber,
+          "finished"
+        );
+        setRepetitionError(instanceId, chatCompletion.repetitionNumber, {
           title: "Chat completion failed",
           message: chatCompletion.message,
         });
       }
     },
     [
-      addPartialToolCall,
+      addRepetitionPartialToolCall,
       instanceId,
       appendOutputContentChunk,
-      setSpanId,
-      setStatus,
-      setError,
+      setRepetitionSpanId,
+      setRepetitionStatus,
+      setRepetitionError,
     ]
   );
 
@@ -327,7 +348,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       if (instance == null) {
         return;
       }
-      setStatus(instanceId, 1, "finished");
+      setRepetitionStatus(instanceId, 1, "finished");
       if (response.chatCompletion.content != null) {
         appendOutputContentChunk(
           instanceId,
@@ -341,7 +362,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         ]);
       }
       if (response.chatCompletion.span.id != null) {
-        setSpanId(instanceId, 1, response.chatCompletion.span.id);
+        setRepetitionSpanId(instanceId, 1, response.chatCompletion.span.id);
       }
       if (errors) {
         notifyError({
@@ -377,8 +398,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       playgroundStore,
       props.playgroundInstanceId,
       appendOutputContentChunk,
-      setSpanId,
-      setStatus,
+      setRepetitionSpanId,
+      setRepetitionStatus,
     ]
   );
 
@@ -467,8 +488,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     streaming,
     updateInstance,
     selectedRepetitionNumber,
-    setError,
-    setStatus,
+    setRepetitionError,
+    setRepetitionStatus,
   ]);
   const selectedRepetitionSuccessfullyCompleted =
     selectedRepetition?.status === "finished" &&
