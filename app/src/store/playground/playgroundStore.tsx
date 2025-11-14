@@ -13,6 +13,7 @@ import {
   RESPONSE_FORMAT_PARAM_NAME,
   TOOL_CHOICE_PARAM_CANONICAL_NAME,
 } from "@phoenix/pages/playground/constants";
+import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 import {
   areInvocationParamsEqual,
   constrainInvocationParameterInputsToDefinition,
@@ -147,6 +148,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
         spanId: null,
         error: null,
         status: "notStarted",
+        toolCalls: {},
       },
     },
     activeRunId: null,
@@ -790,6 +792,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   spanId: null,
                   error: null,
                   status: "pending",
+                  toolCalls: {},
                 },
               ])
             ),
@@ -1061,6 +1064,68 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         false,
         { type: "setStatus" }
       );
+    },
+    addPartialToolCall: (
+      instanceId: number,
+      repetitionNumber: number,
+      partialToolCall: PartialOutputToolCall
+    ) => {
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id !== instanceId) {
+            return instance;
+          }
+          const repetition =
+            instance.outputByRepetitionNumber[repetitionNumber];
+          const toolCalls = repetition?.toolCalls ?? {};
+          const updatedToolCalls =
+            partialToolCall.id in toolCalls
+              ? {
+                  ...toolCalls,
+                  [partialToolCall.id]: {
+                    ...toolCalls[partialToolCall.id],
+                    function: {
+                      ...partialToolCall.function,
+                      arguments:
+                        toolCalls[partialToolCall.id].function.arguments +
+                        partialToolCall.function.arguments,
+                    },
+                  },
+                }
+              : {
+                  ...toolCalls,
+                  [partialToolCall.id]: partialToolCall,
+                };
+          return {
+            ...instance,
+            outputByRepetitionNumber: {
+              ...instance.outputByRepetitionNumber,
+              [repetitionNumber]: repetition
+                ? {
+                    ...repetition,
+                    toolCalls: updatedToolCalls,
+                  }
+                : undefined,
+            },
+          };
+        }),
+      });
+    },
+    setRepetitionToolCalls: (
+      instanceId: number,
+      repetitionNumber: number,
+      toolCalls: PartialOutputToolCall[]
+    ) => {
+      if (
+        !(
+          Array.isArray(toolCalls) &&
+          typeof repetitionNumber === "number" &&
+          typeof instanceId === "number"
+        )
+      ) {
+        throw new Error("use arguments to pass linter");
+      }
+      throw new Error("Not implemented");
     },
     setSpanId: (
       instanceId: number,
