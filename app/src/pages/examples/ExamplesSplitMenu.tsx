@@ -82,8 +82,8 @@ export const ExamplesSplitMenu = ({
   const [mode, setMode] = useState<"filter" | "apply" | "create">(() =>
     getInitialMode(selectedExampleIds)
   );
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const shouldKeepMenuOpenRef = useRef(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // used to keep the menu open when a split is applied
+  const shouldKeepMenuOpenRef = useRef(false); // required as menu is no longer multi-select
   useEffect(() => {
     setMode(getInitialMode(selectedExampleIds));
   }, [selectedExampleIds]);
@@ -363,6 +363,7 @@ const SplitMenuApplyContent = ({
   }, [splits, selectedPartialExamples]);
   const handleSplitToggle = useCallback(
     (selectedId: string) => {
+      // because the menu is no longer multi-select, we need to keep the menu open when a split is applied
       onRequestKeepMenuOpen();
       for (const example of selectedPartialExamples) {
         const currentSplitIds = example.datasetSplits.map((s) => s.id);
@@ -393,6 +394,7 @@ const SplitMenuApplyContent = ({
     <Menu
       items={splits}
       renderEmptyState={() => "No splits found"}
+      // NOTE: Menu is no longer multi-select, so we track the menu open state manually
       selectionMode="none"
       // ensure that menu items are re-rendered when splitStates changes
       dependencies={[splitStates]}
