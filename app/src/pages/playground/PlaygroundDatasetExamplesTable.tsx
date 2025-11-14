@@ -141,6 +141,7 @@ const createExampleResponsesForInstance = (
                 ...instanceResponses[datasetExampleId]?.[repetitionNumber],
                 errorMessage: result.message,
                 experimentRunId,
+                evaluations: [...evaluations],
               },
             },
           };
