@@ -188,8 +188,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
 
   // read zustand actions
-  const appendOutputContentChunk = usePlaygroundContext(
-    (state) => state.appendOutputContentChunk
+  const appendRepetitionOutput = usePlaygroundContext(
+    (state) => state.appendRepetitionOutput
   );
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const setSelectedRepetitionNumber = usePlaygroundContext(
@@ -265,7 +265,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         if (content == null || chatCompletion.repetitionNumber == null) {
           return;
         }
-        appendOutputContentChunk(
+        appendRepetitionOutput(
           instanceId,
           chatCompletion.repetitionNumber,
           content
@@ -329,7 +329,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     [
       addRepetitionPartialToolCall,
       instanceId,
-      appendOutputContentChunk,
+      appendRepetitionOutput,
       setRepetitionSpanId,
       setRepetitionStatus,
       setRepetitionError,
@@ -350,11 +350,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       }
       setRepetitionStatus(instanceId, 1, "finished");
       if (response.chatCompletion.content != null) {
-        appendOutputContentChunk(
-          instanceId,
-          1,
-          response.chatCompletion.content
-        );
+        appendRepetitionOutput(instanceId, 1, response.chatCompletion.content);
       }
       if (response.chatCompletion.toolCalls.length > 0) {
         setRepetitionToolCalls(instanceId, 1, [
@@ -379,7 +375,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         return;
       }
       if (response.chatCompletion.content != null) {
-        appendOutputContentChunk(
+        appendRepetitionOutput(
           instanceId,
           1, // handle repetitions in mutation
           response.chatCompletion.content
@@ -397,7 +393,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       setRepetitionToolCalls,
       playgroundStore,
       props.playgroundInstanceId,
-      appendOutputContentChunk,
+      appendRepetitionOutput,
       setRepetitionSpanId,
       setRepetitionStatus,
     ]
