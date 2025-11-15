@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4dcf2db3d7fea5a9191c8aa767d414d4>>
+ * @generated SignedSource<<8cc1f95c9b2589e7628b1c99bf5a7cd7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,28 +9,28 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type RemoveDatasetExamplesFromDatasetSplitsInput = {
+export type SetDatasetExampleSplitsInput = {
   datasetSplitIds: ReadonlyArray<string>;
-  exampleIds: ReadonlyArray<string>;
+  exampleId: string;
 };
-export type ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation$variables = {
-  input: RemoveDatasetExamplesFromDatasetSplitsInput;
+export type ExamplesSplitMenuSetDatasetExampleSplitsMutation$variables = {
+  input: SetDatasetExampleSplitsInput;
 };
-export type ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation$data = {
-  readonly removeDatasetExamplesFromDatasetSplits: {
-    readonly examples: ReadonlyArray<{
+export type ExamplesSplitMenuSetDatasetExampleSplitsMutation$data = {
+  readonly setDatasetExampleSplits: {
+    readonly example: {
       readonly datasetSplits: ReadonlyArray<{
         readonly color: string;
         readonly id: string;
         readonly name: string;
       }>;
       readonly id: string;
-    }>;
+    };
   };
 };
-export type ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation = {
-  response: ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation$data;
-  variables: ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation$variables;
+export type ExamplesSplitMenuSetDatasetExampleSplitsMutation = {
+  response: ExamplesSplitMenuSetDatasetExampleSplitsMutation$data;
+  variables: ExamplesSplitMenuSetDatasetExampleSplitsMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -58,9 +58,9 @@ v2 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "RemoveDatasetExamplesFromDatasetSplitsMutationPayload",
+    "concreteType": "SetDatasetExampleSplitsMutationPayload",
     "kind": "LinkedField",
-    "name": "removeDatasetExamplesFromDatasetSplits",
+    "name": "setDatasetExampleSplits",
     "plural": false,
     "selections": [
       {
@@ -68,8 +68,8 @@ v2 = [
         "args": null,
         "concreteType": "DatasetExample",
         "kind": "LinkedField",
-        "name": "examples",
-        "plural": true,
+        "name": "example",
+        "plural": false,
         "selections": [
           (v1/*: any*/),
           {
@@ -110,7 +110,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation",
+    "name": "ExamplesSplitMenuSetDatasetExampleSplitsMutation",
     "selections": (v2/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -119,20 +119,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation",
+    "name": "ExamplesSplitMenuSetDatasetExampleSplitsMutation",
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "e3b2e6bd616848c2f27e740723215994",
+    "cacheID": "1e889bb8ef7a5895e99805253ee885bd",
     "id": null,
     "metadata": {},
-    "name": "ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation",
+    "name": "ExamplesSplitMenuSetDatasetExampleSplitsMutation",
     "operationKind": "mutation",
-    "text": "mutation ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation(\n  $input: RemoveDatasetExamplesFromDatasetSplitsInput!\n) {\n  removeDatasetExamplesFromDatasetSplits(input: $input) {\n    examples {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "mutation ExamplesSplitMenuSetDatasetExampleSplitsMutation(\n  $input: SetDatasetExampleSplitsInput!\n) {\n  setDatasetExampleSplits(input: $input) {\n    example {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "25d8da010b909c6ad9fcecef89e0c0ea";
+(node as any).hash = "dcb82815c764b4e4f0636a7cfd8c7761";
 
 export default node;
