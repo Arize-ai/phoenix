@@ -174,3 +174,44 @@ describe("appendRepetitionOutput", () => {
     expect(store.getState().instances[0].repetitions[2]!.output).toBe(null);
   });
 });
+
+describe("setRepetitionError", () => {
+  it("should set repetition error and preserve other repetition properties", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().runPlaygroundInstances();
+    const instanceId = store.getState().instances[0].id;
+
+    // set up some properties on the repetition
+    store.getState().appendRepetitionOutput(instanceId, 1, "Some output");
+    store.getState().setRepetitionSpanId(instanceId, 1, "span-123");
+    store.getState().setRepetitionStatus(instanceId, 1, "streamInProgress");
+
+    // verify initial state
+    let repetition = store.getState().instances[0].repetitions[1];
+    expect(repetition!.output).toBe("Some output");
+    expect(repetition!.spanId).toBe("span-123");
+    expect(repetition!.status).toBe("streamInProgress");
+    expect(repetition!.error).toBe(null);
+
+    // set an error
+    store.getState().setRepetitionError(instanceId, 1, {
+      title: "API Error",
+      message: "Rate limit exceeded",
+    });
+
+    // verify error is set
+    repetition = store.getState().instances[0].repetitions[1];
+    expect(repetition!.error).toEqual({
+      title: "API Error",
+      message: "Rate limit exceeded",
+    });
+
+    // verify other properties are preserved
+    expect(repetition!.output).toBe("Some output");
+    expect(repetition!.spanId).toBe("span-123");
+    expect(repetition!.status).toBe("streamInProgress");
+  });
+});
