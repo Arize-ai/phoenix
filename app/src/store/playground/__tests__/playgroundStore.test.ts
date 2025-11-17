@@ -215,3 +215,51 @@ describe("setRepetitionError", () => {
     expect(repetition!.status).toBe("streamInProgress");
   });
 });
+
+describe("setRepetitionStatus", () => {
+  it("should set repetition status", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().runPlaygroundInstances();
+    const instanceId = store.getState().instances[0].id;
+
+    // verify initial status is pending
+    expect(store.getState().instances[0].repetitions[1]!.status).toBe(
+      "pending"
+    );
+
+    // set to streamInProgress
+    store.getState().setRepetitionStatus(instanceId, 1, "streamInProgress");
+    expect(store.getState().instances[0].repetitions[1]!.status).toBe(
+      "streamInProgress"
+    );
+
+    // set to finished
+    store.getState().setRepetitionStatus(instanceId, 1, "finished");
+    expect(store.getState().instances[0].repetitions[1]!.status).toBe(
+      "finished"
+    );
+  });
+});
+
+describe("setRepetitionSpanId", () => {
+  it("should set repetition span id", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().runPlaygroundInstances();
+    const instanceId = store.getState().instances[0].id;
+
+    // verify initial spanId is null
+    expect(store.getState().instances[0].repetitions[1]!.spanId).toBe(null);
+
+    // set span id
+    store.getState().setRepetitionSpanId(instanceId, 1, "span-abc-123");
+    expect(store.getState().instances[0].repetitions[1]!.spanId).toBe(
+      "span-abc-123"
+    );
+  });
+});
