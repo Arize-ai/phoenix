@@ -757,6 +757,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 },
               ])
             ),
+            selectedRepetitionNumber: 1,
           })),
         },
         false,
