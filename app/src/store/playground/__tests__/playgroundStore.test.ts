@@ -6,6 +6,7 @@ import {
 import {
   _resetInstanceId,
   createNormalizedPlaygroundInstance,
+  createPlaygroundStore,
   getInitialInstances,
 } from "../playgroundStore";
 import type { InitialPlaygroundState } from "../types";
@@ -123,5 +124,21 @@ describe("getInitialInstances", () => {
     expect(instances).toHaveLength(1);
     expect(instances[0].model.provider).toBe("ANTHROPIC");
     expect(instances[0].model.modelName).toBe("test-model-anthropic");
+  });
+});
+
+describe("setSelectedRepetitionNumber", () => {
+  it("should set selected repetition number for an instance", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().addInstance();
+    const instanceId = store.getState().instances[1].id; // update second instance
+    expect(store.getState().instances[0].selectedRepetitionNumber).toBe(1);
+    expect(store.getState().instances[1].selectedRepetitionNumber).toBe(1);
+    store.getState().setSelectedRepetitionNumber(instanceId, 2);
+    expect(store.getState().instances[0].selectedRepetitionNumber).toBe(1); // first instance should not be updated
+    expect(store.getState().instances[1].selectedRepetitionNumber).toBe(2); // second instance should be updated
   });
 });
