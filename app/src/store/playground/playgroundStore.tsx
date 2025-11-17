@@ -131,16 +131,6 @@ const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   prompt: "{{question}}",
 };
 
-export function getDefaultRepetition(): PlaygroundRepetition {
-  return {
-    output: null,
-    spanId: null,
-    error: null,
-    status: "notStarted",
-    toolCalls: {},
-  };
-}
-
 export const DEFAULT_INSTANCE_PARAMS = () =>
   ({
     model: {
@@ -153,7 +143,13 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
     repetitions: {
-      1: getDefaultRepetition(),
+      1: {
+        output: null,
+        spanId: null,
+        error: null,
+        status: "notStarted",
+        toolCalls: {},
+      },
     },
     activeRunId: null,
   }) satisfies Partial<PlaygroundInstance>;
