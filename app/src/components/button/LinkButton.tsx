@@ -23,7 +23,7 @@ const linkButtonCSS = css`
   &[data-disabled="true"] {
     pointer-events: none;
     cursor: default;
-    opacity: var(--ac-opacity-disabled);
+    opacity: var(--ac-global-opacity-disabled);
   }
 `;
 /**
