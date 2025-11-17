@@ -188,11 +188,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
 
   // read zustand actions
-  const appendRepetitionOutput = usePlaygroundContext(
-    (state) => state.appendRepetitionOutput
-  );
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const {
+    appendRepetitionOutput,
     setSelectedRepetitionNumber,
     setRepetitionSpanId,
     setRepetitionError,
@@ -201,6 +198,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     addRepetitionPartialToolCall,
     clearRepetitions,
   } = usePlaygroundContext((state) => ({
+    appendRepetitionOutput: state.appendRepetitionOutput,
     setSelectedRepetitionNumber: state.setSelectedRepetitionNumber,
     setRepetitionSpanId: state.setRepetitionSpanId,
     setRepetitionError: state.setRepetitionError,
@@ -475,7 +473,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     playgroundStore,
     props.playgroundInstanceId,
     streaming,
-    updateInstance,
     selectedRepetitionNumber,
     setRepetitionError,
     setRepetitionStatus,
