@@ -524,33 +524,42 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       }
       collapsible
     >
-      {selectedRepetition?.status === "pending" ? (
-        <View padding="size-200">
-          <Loading message="Running..." />
-        </View>
-      ) : selectedRepetitionError ? (
-        <View padding="size-200">
-          <PlaygroundErrorWrap>
-            {selectedRepetitionError.message}
-          </PlaygroundErrorWrap>
-        </View>
-      ) : (
-        <>
-          <View padding="size-200">
-            <MarkdownDisplayProvider>
-              <PlaygroundOutputContent
-                output={selectedRepetition?.output ?? null}
-                partialToolCalls={selectedRepetitionToolCalls}
-              />
-            </MarkdownDisplayProvider>
-          </View>
-          <Suspense>
-            {selectedRepetitionSpanId ? (
-              <RunMetadataFooter spanId={selectedRepetitionSpanId} />
-            ) : null}
-          </Suspense>
-        </>
-      )}
+      {(() => {
+        switch (true) {
+          case selectedRepetition?.status === "pending":
+            return (
+              <View padding="size-200">
+                <Loading message="Running..." />
+              </View>
+            );
+          case selectedRepetitionError != null:
+            return (
+              <View padding="size-200">
+                <PlaygroundErrorWrap>
+                  {selectedRepetitionError.message}
+                </PlaygroundErrorWrap>
+              </View>
+            );
+          default:
+            return (
+              <>
+                <View padding="size-200">
+                  <MarkdownDisplayProvider>
+                    <PlaygroundOutputContent
+                      output={selectedRepetition?.output ?? null}
+                      partialToolCalls={selectedRepetitionToolCalls}
+                    />
+                  </MarkdownDisplayProvider>
+                </View>
+                <Suspense>
+                  {selectedRepetitionSpanId ? (
+                    <RunMetadataFooter spanId={selectedRepetitionSpanId} />
+                  ) : null}
+                </Suspense>
+              </>
+            );
+        }
+      })()}
     </Card>
   );
 }

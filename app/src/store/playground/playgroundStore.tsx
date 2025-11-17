@@ -772,6 +772,19 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...instance,
             activeRunId: null,
             spanId: null,
+            repetitions: Object.fromEntries(
+              Object.entries(instance.repetitions).map(
+                ([repetitionNumber, repetition]) => [
+                  repetitionNumber,
+                  repetition
+                    ? {
+                        ...repetition,
+                        status: "finished",
+                      }
+                    : undefined,
+                ]
+              )
+            ),
           })),
         },
         false,
