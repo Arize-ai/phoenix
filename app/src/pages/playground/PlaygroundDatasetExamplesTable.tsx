@@ -108,61 +108,37 @@ import {
 
 const PAGE_SIZE = 10;
 
-type ChatCompletionOverDatasetMutationPayload = Extract<
-  PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"],
-  { __typename: "ChatCompletionOverDatasetMutationPayload" }
->;
+type ChatCompletionOverDatasetMutationPayload =
+  PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"];
 
 const createExampleResponsesForInstance = (
   response: ChatCompletionOverDatasetMutationPayload
 ): InstanceResponses => {
   return response.examples.reduce<InstanceResponses>(
     (instanceResponses, example) => {
-      const { datasetExampleId, repetitionNumber, result, experimentRunId } =
-        example;
-      switch (result.__typename) {
-        case "ChatCompletionMutationError": {
-          const updatedInstanceResponses: InstanceResponses = {
-            ...instanceResponses,
-            [datasetExampleId]: {
-              ...instanceResponses[datasetExampleId],
-              [repetitionNumber]: {
-                ...instanceResponses[datasetExampleId]?.[repetitionNumber],
-                errorMessage: result.message,
-                experimentRunId,
+      const { datasetExampleId, repetitionNumber, experimentRunId } = example;
+      const { errorMessage, content, span, toolCalls } = example.repetition;
+      const updatedInstanceResponses: InstanceResponses = {
+        ...instanceResponses,
+        [datasetExampleId]: {
+          ...instanceResponses[datasetExampleId],
+          [repetitionNumber]: {
+            ...instanceResponses[datasetExampleId]?.[repetitionNumber],
+            experimentRunId,
+            span,
+            content,
+            errorMessage,
+            toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
+              (map, toolCall) => {
+                map[toolCall.id] = toolCall;
+                return map;
               },
-            },
-          };
-          return updatedInstanceResponses;
-        }
-        case "ChatCompletionMutationPayload": {
-          const { errorMessage, content, span, toolCalls } = result;
-          const updatedInstanceResponses: InstanceResponses = {
-            ...instanceResponses,
-            [datasetExampleId]: {
-              ...instanceResponses[datasetExampleId],
-              [repetitionNumber]: {
-                ...instanceResponses[datasetExampleId]?.[repetitionNumber],
-                experimentRunId,
-                span,
-                content,
-                errorMessage,
-                toolCalls: toolCalls.reduce<
-                  Record<string, PartialOutputToolCall>
-                >((map, toolCall) => {
-                  map[toolCall.id] = toolCall;
-                  return map;
-                }, {}),
-              },
-            },
-          };
-          return updatedInstanceResponses;
-        }
-        case "%other":
-          return instanceResponses;
-        default:
-          assertUnreachable(result);
-      }
+              {}
+            ),
+          },
+        },
+      };
+      return updatedInstanceResponses;
     },
     {}
   );
@@ -671,42 +647,35 @@ export function PlaygroundDatasetExamplesTable({
         $input: ChatCompletionOverDatasetInput!
       ) {
         chatCompletionOverDataset(input: $input) {
-          __typename
           experimentId
           examples {
             datasetExampleId
             experimentRunId
             repetitionNumber
-            result {
-              __typename
-              ... on ChatCompletionMutationError {
-                message
-              }
-              ... on ChatCompletionMutationPayload {
-                content
-                errorMessage
-                span {
-                  id
-                  tokenCountTotal
-                  costSummary {
-                    total {
-                      cost
-                    }
-                  }
-                  latencyMs
-                  project {
-                    id
-                  }
-                  context {
-                    traceId
+            repetition {
+              content
+              errorMessage
+              span {
+                id
+                tokenCountTotal
+                costSummary {
+                  total {
+                    cost
                   }
                 }
-                toolCalls {
+                latencyMs
+                project {
                   id
-                  function {
-                    name
-                    arguments
-                  }
+                }
+                context {
+                  traceId
+                }
+              }
+              toolCalls {
+                id
+                function {
+                  name
+                  arguments
                 }
               }
             }

@@ -343,49 +343,44 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       errors: PayloadError[] | null
     ) => {
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
-      const instance = playgroundStore
-        .getState()
-        .instances.find((inst) => inst.id === instanceId);
-      if (instance == null) {
-        return;
-      }
-      setRepetitionStatus(instanceId, 1, "finished");
-      if (response.chatCompletion.content != null) {
-        appendRepetitionOutput(instanceId, 1, response.chatCompletion.content);
-      }
-      if (response.chatCompletion.toolCalls.length > 0) {
-        setRepetitionToolCalls(instanceId, 1, [
-          ...response.chatCompletion.toolCalls,
-        ]);
-      }
-      if (response.chatCompletion.span.id != null) {
-        setRepetitionSpanId(instanceId, 1, response.chatCompletion.span.id);
-      }
-      if (errors) {
+      if (errors != null && errors.length > 0) {
         notifyError({
           title: "Chat completion failed",
           message: errors[0].message,
         });
         return;
       }
-      if (response.chatCompletion.errorMessage != null) {
-        notifyError({
-          title: "Chat completion failed",
-          message: response.chatCompletion.errorMessage,
-        });
+      const instance = playgroundStore
+        .getState()
+        .instances.find((inst) => inst.id === instanceId);
+      if (instance == null) {
         return;
       }
-      if (response.chatCompletion.content != null) {
-        appendRepetitionOutput(
-          instanceId,
-          1, // handle repetitions in mutation
-          response.chatCompletion.content
-        );
-      }
-      // handle repetitions in mutation
-      setRepetitionToolCalls(instanceId, 1, [
-        ...response.chatCompletion.toolCalls,
-      ]);
+      response.chatCompletion.repetitions.forEach((repetition) => {
+        const repetitionNumber = repetition.repetitionNumber;
+        setRepetitionStatus(instanceId, repetitionNumber, "finished");
+        if (repetition.content != null) {
+          appendRepetitionOutput(
+            instanceId,
+            repetitionNumber,
+            repetition.content
+          );
+        }
+        if (repetition.toolCalls.length > 0) {
+          setRepetitionToolCalls(instanceId, repetitionNumber, [
+            ...repetition.toolCalls,
+          ]);
+        }
+        if (repetition.span != null) {
+          setRepetitionSpanId(instanceId, repetitionNumber, repetition.span.id);
+        }
+        if (repetition.errorMessage != null) {
+          setRepetitionError(instanceId, repetitionNumber, {
+            title: "Chat completion failed",
+            message: repetition.errorMessage,
+          });
+        }
+      });
     },
     [
       instanceId,
@@ -397,6 +392,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       appendRepetitionOutput,
       setRepetitionSpanId,
       setRepetitionStatus,
+      setRepetitionError,
     ]
   );
 
@@ -596,16 +592,19 @@ graphql`
   mutation PlaygroundOutputMutation($input: ChatCompletionInput!) {
     chatCompletion(input: $input) {
       __typename
-      content
-      errorMessage
-      span {
-        id
-      }
-      toolCalls {
-        id
-        function {
-          name
-          arguments
+      repetitions {
+        repetitionNumber
+        content
+        errorMessage
+        span {
+          id
+        }
+        toolCalls {
+          id
+          function {
+            name
+            arguments
+          }
         }
       }
     }

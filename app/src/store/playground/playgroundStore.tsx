@@ -1117,16 +1117,43 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       repetitionNumber: number,
       toolCalls: PartialOutputToolCall[]
     ) => {
-      if (
-        !(
-          Array.isArray(toolCalls) &&
-          typeof repetitionNumber === "number" &&
-          typeof instanceId === "number"
-        )
-      ) {
-        throw new Error("use arguments to pass linter");
+      if (toolCalls.length === 0) {
+        return;
       }
-      throw new Error("Not implemented");
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const repetition = instance.repetitions[repetitionNumber];
+            const toolCallsById = toolCalls.reduce(
+              (acc, toolCall) => {
+                acc[toolCall.id] = toolCall;
+                return acc;
+              },
+              {} as Record<string, PartialOutputToolCall>
+            );
+            return {
+              ...instance,
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
+                  ? {
+                      ...repetition,
+                      toolCalls: {
+                        ...repetition.toolCalls,
+                        ...toolCallsById,
+                      },
+                    }
+                  : undefined,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "setRepetitionToolCalls" }
+      );
     },
     clearRepetitions: (instanceId: number) => {
       set(
