@@ -16,6 +16,7 @@ import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
+  View,
 } from "@phoenix/components";
 import {
   TimelineBar,
@@ -129,6 +130,14 @@ export function TraceTree(props: TraceTreeProps) {
             />
           ))}
         </ul>
+        <View
+          padding="size-100"
+          borderTopColor="grey-300"
+          borderTopWidth="thin"
+          flex="none"
+        >
+          Viewing {spans.length} spans
+        </View>
       </div>
     </TraceTreeProvider>
   );

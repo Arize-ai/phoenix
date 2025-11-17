@@ -103,6 +103,10 @@ export function TraceDetails(props: TraceDetailsProps) {
                     }
                   }
                 }
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
               }
               latencyMs
               costSummary {

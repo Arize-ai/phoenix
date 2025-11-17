@@ -12,12 +12,12 @@ export type TraceTreeContextType = {
   setIsCollapsed: (collapsed: boolean) => void;
 };
 
-export const TraceTreeConnext = createContext<TraceTreeContextType | null>(
+export const TraceTreeContext = createContext<TraceTreeContextType | null>(
   null
 );
 
 export function useTraceTree() {
-  const context = useContext(TraceTreeConnext);
+  const context = useContext(TraceTreeContext);
   if (context === null) {
     throw new Error("useTraceTree must be used within a TraceTreeProvider");
   }
@@ -33,8 +33,8 @@ export function TraceTreeProvider(props: PropsWithChildren) {
   }, []);
 
   return (
-    <TraceTreeConnext.Provider value={{ isCollapsed, setIsCollapsed }}>
+    <TraceTreeContext.Provider value={{ isCollapsed, setIsCollapsed }}>
       {props.children}
-    </TraceTreeConnext.Provider>
+    </TraceTreeContext.Provider>
   );
 }
