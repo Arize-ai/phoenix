@@ -65,6 +65,10 @@ class Evaluator(Node):
         raise NotImplementedError
 
     @strawberry.field
+    async def input_schema(self) -> Optional[JSON]:
+        raise NotImplementedError
+
+    @strawberry.field
     async def is_assigned_to_dataset(
         self,
         info: Info[Context, None],
@@ -170,6 +174,13 @@ class CodeEvaluator(Evaluator, Node):
                 (self.id, models.CodeEvaluator.updated_at),
             )
         return val
+
+    @strawberry.field
+    async def input_schema(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[JSON]:
+        ...  # TODO: Implement
 
     @strawberry.field
     async def user(
@@ -327,6 +338,13 @@ class LLMEvaluator(Evaluator, Node):
         return PromptVersionTag(id=prompt_version_tag_id)
 
     @strawberry.field
+    async def input_schema(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[JSON]:
+        ...  # TODO: Implement
+
+    @strawberry.field
     async def user(
         self, info: Info[Context, None]
     ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
@@ -437,6 +455,16 @@ class BuiltInEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> datetime:
         return datetime.fromtimestamp(0)
+
+    @strawberry.field
+    async def input_schema(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[JSON]:
+        evaluator = get_builtin_evaluator_by_id(self.id)
+        if evaluator is None:
+            raise NotFound(f"Built-in evaluator not found: {self.id}")
+        return evaluator.input_schema
 
     @strawberry.field
     async def user(
