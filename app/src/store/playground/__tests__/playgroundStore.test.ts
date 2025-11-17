@@ -263,3 +263,81 @@ describe("setRepetitionSpanId", () => {
     );
   });
 });
+
+describe("addRepetitionPartialToolCall", () => {
+  it("should add new tool call and concatenate arguments to existing tool call", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().runPlaygroundInstances();
+    const instanceId = store.getState().instances[0].id;
+
+    // verify initial toolCalls is empty
+    expect(store.getState().instances[0].repetitions[1]!.toolCalls).toEqual({});
+
+    // add a new partial tool call
+    store.getState().addRepetitionPartialToolCall(instanceId, 1, {
+      id: "call_1",
+      function: {
+        name: "get_weather",
+        arguments: '{"location":',
+      },
+    });
+
+    expect(store.getState().instances[0].repetitions[1]!.toolCalls).toEqual({
+      call_1: {
+        id: "call_1",
+        function: {
+          name: "get_weather",
+          arguments: '{"location":',
+        },
+      },
+    });
+
+    // concatenate arguments to existing tool call
+    store.getState().addRepetitionPartialToolCall(instanceId, 1, {
+      id: "call_1",
+      function: {
+        name: "get_weather",
+        arguments: ' "Paris"}',
+      },
+    });
+
+    expect(store.getState().instances[0].repetitions[1]!.toolCalls).toEqual({
+      call_1: {
+        id: "call_1",
+        function: {
+          name: "get_weather",
+          arguments: '{"location": "Paris"}',
+        },
+      },
+    });
+
+    // add a second tool call to ensure it doesn't clobber the first
+    store.getState().addRepetitionPartialToolCall(instanceId, 1, {
+      id: "call_2",
+      function: {
+        name: "get_temperature",
+        arguments: '{"unit": "celsius"}',
+      },
+    });
+
+    expect(store.getState().instances[0].repetitions[1]!.toolCalls).toEqual({
+      call_1: {
+        id: "call_1",
+        function: {
+          name: "get_weather",
+          arguments: '{"location": "Paris"}',
+        },
+      },
+      call_2: {
+        id: "call_2",
+        function: {
+          name: "get_temperature",
+          arguments: '{"unit": "celsius"}',
+        },
+      },
+    });
+  });
+});
