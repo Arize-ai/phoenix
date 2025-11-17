@@ -30,7 +30,6 @@ import {
   createNormalizedPlaygroundInstance,
   generateMessageId,
   generateToolId,
-  getDefaultRepetition,
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
@@ -651,7 +650,13 @@ export function transformSpanAttributesToPlaygroundInstance(
       playgroundInstance: {
         ...basePlaygroundInstance,
         repetitions: {
-          1: getDefaultRepetition(),
+          1: {
+            output: null,
+            spanId: span.id,
+            error: null, // todo: handle error parsing
+            toolCalls: {}, // todo: handle tool calls parsing
+            status: "notStarted",
+          },
         },
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
