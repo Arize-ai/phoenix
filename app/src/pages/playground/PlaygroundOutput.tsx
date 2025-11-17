@@ -260,6 +260,11 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         if (content == null || chatCompletion.repetitionNumber == null) {
           return;
         }
+        setRepetitionStatus(
+          instanceId,
+          chatCompletion.repetitionNumber,
+          "streamInProgress"
+        );
         appendRepetitionOutput(
           instanceId,
           chatCompletion.repetitionNumber,
@@ -276,6 +281,11 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         ) {
           return;
         }
+        setRepetitionStatus(
+          instanceId,
+          chatCompletion.repetitionNumber,
+          "streamInProgress"
+        );
         addRepetitionPartialToolCall(
           instanceId,
           chatCompletion.repetitionNumber,
