@@ -410,30 +410,30 @@ class BuiltInEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> Identifier:
-        evaluator_def = get_builtin_evaluator_by_id(self.id)
-        if evaluator_def is None:
+        evaluator_class = get_builtin_evaluator_by_id(self.id)
+        if evaluator_class is None:
             raise NotFound(f"Built-in evaluator not found: {self.id}")
-        return evaluator_def.name
+        return evaluator_class.name
 
     @strawberry.field
     async def description(
         self,
         info: Info[Context, None],
     ) -> Optional[str]:
-        evaluator_def = get_builtin_evaluator_by_id(self.id)
-        if evaluator_def is None:
+        evaluator_class = get_builtin_evaluator_by_id(self.id)
+        if evaluator_class is None:
             raise NotFound(f"Built-in evaluator not found: {self.id}")
-        return evaluator_def.description
+        return evaluator_class.description
 
     @strawberry.field
     async def metadata(
         self,
         info: Info[Context, None],
     ) -> JSON:
-        evaluator_def = get_builtin_evaluator_by_id(self.id)
-        if evaluator_def is None:
+        evaluator_class = get_builtin_evaluator_by_id(self.id)
+        if evaluator_class is None:
             raise NotFound(f"Built-in evaluator not found: {self.id}")
-        return evaluator_def.metadata
+        return evaluator_class.metadata
 
     @strawberry.field
     async def kind(
@@ -461,10 +461,10 @@ class BuiltInEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> Optional[JSON]:
-        evaluator = get_builtin_evaluator_by_id(self.id)
-        if evaluator is None:
+        evaluator_class = get_builtin_evaluator_by_id(self.id)
+        if evaluator_class is None:
             raise NotFound(f"Built-in evaluator not found: {self.id}")
-        return evaluator.input_schema
+        return evaluator_class.input_schema
 
     @strawberry.field
     async def user(

@@ -1160,8 +1160,8 @@ class Query:
                 raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 
         builtin_evaluators = get_builtin_evaluators()
-        for builtin in builtin_evaluators:
-            data.append(BuiltInEvaluator(id=builtin.id))
+        for builtin_id, _ in builtin_evaluators:
+            data.append(BuiltInEvaluator(id=builtin_id))
 
         return connection_from_list(data=data, args=args)
 

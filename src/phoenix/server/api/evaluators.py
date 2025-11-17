@@ -1,6 +1,5 @@
 import zlib
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Any, Optional, TypeVar
 
 
@@ -16,30 +15,8 @@ class BuiltInEvaluator(ABC):
         ...
 
 
-@dataclass
-class BuiltInEvaluatorInfo:
-    id: int
-    evaluator_class: type[BuiltInEvaluator]
-
-    @property
-    def name(self) -> str:
-        return self.evaluator_class.name
-
-    @property
-    def description(self) -> Optional[str]:
-        return self.evaluator_class.description
-
-    @property
-    def metadata(self) -> dict[str, Any]:
-        return self.evaluator_class.metadata
-
-    @property
-    def input_schema(self) -> dict[str, Any]:
-        return self.evaluator_class.input_schema
-
-
-_BUILTIN_EVALUATORS: dict[str, BuiltInEvaluatorInfo] = {}
-_BUILTIN_EVALUATORS_BY_ID: dict[int, BuiltInEvaluatorInfo] = {}
+_BUILTIN_EVALUATORS: dict[str, type[BuiltInEvaluator]] = {}
+_BUILTIN_EVALUATORS_BY_ID: dict[int, type[BuiltInEvaluator]] = {}
 
 T = TypeVar("T", bound=BuiltInEvaluator)
 
@@ -51,20 +28,20 @@ def _generate_builtin_evaluator_id(name: str) -> int:
 
 def register_builtin_evaluator(cls: type[T]) -> type[T]:
     evaluator_id = _generate_builtin_evaluator_id(cls.name)
-    definition = BuiltInEvaluatorInfo(
-        id=evaluator_id,
-        evaluator_class=cls,
-    )
-    _BUILTIN_EVALUATORS[cls.name] = definition
-    _BUILTIN_EVALUATORS_BY_ID[evaluator_id] = definition
+    _BUILTIN_EVALUATORS[cls.name] = cls
+    _BUILTIN_EVALUATORS_BY_ID[evaluator_id] = cls
     return cls
 
 
-def get_builtin_evaluators() -> list[BuiltInEvaluatorInfo]:
-    return list(_BUILTIN_EVALUATORS.values())
+def get_builtin_evaluators() -> list[tuple[int, type[BuiltInEvaluator]]]:
+    """Returns list of (id, evaluator_class) tuples."""
+    return [
+        (_generate_builtin_evaluator_id(cls.name), cls)
+        for cls in _BUILTIN_EVALUATORS.values()
+    ]
 
 
-def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[BuiltInEvaluatorInfo]:
+def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvaluator]]:
     return _BUILTIN_EVALUATORS_BY_ID.get(evaluator_id)
 
 
