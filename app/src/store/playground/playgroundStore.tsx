@@ -1113,9 +1113,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       repetitionNumber: number,
       toolCalls: PartialOutputToolCall[]
     ) => {
-      if (toolCalls.length === 0) {
-        return;
-      }
       set(
         {
           instances: get().instances.map((instance) => {
@@ -1137,10 +1134,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 [repetitionNumber]: repetition
                   ? {
                       ...repetition,
-                      toolCalls: {
-                        ...repetition.toolCalls,
-                        ...toolCallsById,
-                      },
+                      toolCalls: toolCallsById,
                     }
                   : undefined,
               },

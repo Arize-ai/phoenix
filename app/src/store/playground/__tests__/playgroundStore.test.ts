@@ -341,3 +341,75 @@ describe("addRepetitionPartialToolCall", () => {
     });
   });
 });
+
+describe("setRepetitionToolCalls", () => {
+  it("should set the tool calls for a repetition and replace existing tool calls if present", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().runPlaygroundInstances();
+    const instanceId = store.getState().instances[0].id;
+
+    // verify initial tool calls are empty
+    expect(store.getState().instances[0].repetitions[1]!.toolCalls).toEqual({});
+
+    // set tools calls
+    store.getState().setRepetitionToolCalls(instanceId, 1, [
+      {
+        id: "call_1",
+        function: {
+          name: "get_time",
+          arguments: '{"timezone": "UTC"}',
+        },
+      },
+    ]);
+
+    // verify tool calls are set
+    expect(store.getState().instances[0].repetitions[1]!.toolCalls).toEqual({
+      call_3: {
+        id: "call_1",
+        function: {
+          name: "get_time",
+          arguments: '{"timezone": "UTC"}',
+        },
+      },
+    });
+
+    // reset tools calls
+    store.getState().setRepetitionToolCalls(instanceId, 1, [
+      {
+        id: "call_2",
+        function: {
+          name: "get_weather",
+          arguments: '{"location": "Paris"}',
+        },
+      },
+      {
+        id: "call_3",
+        function: {
+          name: "get_temperature",
+          arguments: '{"unit": "celsius"}',
+        },
+      },
+    ]);
+
+    // verify tool calls are replaced
+    expect(store.getState().instances[0].repetitions[1]!.toolCalls).toEqual({
+      call_2: {
+        id: "call_2",
+        function: {
+          name: "get_weather",
+          arguments: '{"location": "Paris"}',
+        },
+      },
+      call_3: {
+        id: "call_3",
+        function: {
+          name: "get_temperature",
+          arguments: '{"unit": "celsius"}',
+        },
+      },
+    });
+  });
+});
