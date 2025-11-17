@@ -134,11 +134,43 @@ describe("setSelectedRepetitionNumber", () => {
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().addInstance();
-    const instanceId = store.getState().instances[1].id; // update second instance
+    const instanceId = store.getState().instances[1].id; // id of second instance
+
+    // verify initial selected repetition numbers
     expect(store.getState().instances[0].selectedRepetitionNumber).toBe(1);
     expect(store.getState().instances[1].selectedRepetitionNumber).toBe(1);
+
+    // set selected repetition number of second instance to 2
     store.getState().setSelectedRepetitionNumber(instanceId, 2);
+
+    // verify
     expect(store.getState().instances[0].selectedRepetitionNumber).toBe(1); // first instance should not be updated
     expect(store.getState().instances[1].selectedRepetitionNumber).toBe(2); // second instance should be updated
+  });
+});
+
+describe("appendRepetitionOutput", () => {
+  it("should append content to null and existing output and preserve other repetitions", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().setRepetitions(2);
+    store.getState().runPlaygroundInstances();
+    const instanceId = store.getState().instances[0].id;
+
+    // append to null output of first repetition
+    expect(store.getState().instances[0].repetitions[1]!.output).toBe(null);
+    store.getState().appendRepetitionOutput(instanceId, 1, "Hello");
+    expect(store.getState().instances[0].repetitions[1]!.output).toBe("Hello");
+
+    // append to existing output of first repetition
+    store.getState().appendRepetitionOutput(instanceId, 1, " World");
+    expect(store.getState().instances[0].repetitions[1]!.output).toBe(
+      "Hello World"
+    );
+
+    // verify null output of second repetition is not affected
+    expect(store.getState().instances[0].repetitions[2]!.output).toBe(null);
   });
 });
