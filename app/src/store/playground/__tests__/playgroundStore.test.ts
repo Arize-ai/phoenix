@@ -367,7 +367,7 @@ describe("setRepetitionToolCalls", () => {
 
     // verify tool calls are set
     expect(store.getState().instances[0].repetitions[1]!.toolCalls).toEqual({
-      call_3: {
+      call_1: {
         id: "call_1",
         function: {
           name: "get_time",
@@ -411,5 +411,48 @@ describe("setRepetitionToolCalls", () => {
         },
       },
     });
+  });
+});
+
+describe("clearRepetitions", () => {
+  it("should clear repetitions for one instance without affecting other instances", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().addInstance();
+    store.getState().setRepetitions(2);
+    store.getState().runPlaygroundInstances();
+
+    const firstInstanceId = store.getState().instances[0].id;
+    const secondInstanceId = store.getState().instances[1].id;
+
+    // add some output to both instances
+    store.getState().appendRepetitionOutput(firstInstanceId, 1, "First output");
+    store
+      .getState()
+      .appendRepetitionOutput(secondInstanceId, 1, "Second output");
+
+    // verify both instances have repetitions
+    expect(store.getState().instances[0].repetitions[1]!.output).toBe(
+      "First output"
+    );
+    expect(store.getState().instances[0].repetitions[2]!.output).toBe(null);
+    expect(store.getState().instances[1].repetitions[1]!.output).toBe(
+      "Second output"
+    );
+    expect(store.getState().instances[1].repetitions[2]!.output).toBe(null);
+
+    // clear repetitions for first instance only
+    store.getState().clearRepetitions(firstInstanceId);
+
+    // verify first instance repetitions are cleared
+    expect(store.getState().instances[0].repetitions).toEqual({});
+
+    // verify second instance repetitions are not affected
+    expect(store.getState().instances[1].repetitions[1]!.output).toBe(
+      "Second output"
+    );
+    expect(store.getState().instances[1].repetitions[2]!.output).toBe(null);
   });
 });
