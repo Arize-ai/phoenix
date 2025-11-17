@@ -1009,6 +1009,10 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-menu-item-background-color-hover: var(
       --ac-global-color-grey-300
     );
+    --ac-global-menu-split-item-content-gap: var(
+      --ac-global-dimension-static-size-300
+    );
+    --ac-global-menu-item-gap: var(--ac-global-dimension-static-size-50);
 
     // Styles for buttons
     --ac-global-button-primary-background-color: var(
@@ -1100,13 +1104,6 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
   }
 `;
 
-const opacitiesCSS = css`
-  :root,
-  .ac-theme {
-    --ac-opacity-disabled: 0.6;
-  }
-`;
-
 const appGlobalStylesCSS = css`
   body,
   input,
@@ -1195,7 +1192,7 @@ const appGlobalStylesCSS = css`
     --px-nav-collapsed-width: 52px;
     --px-nav-expanded-width: 230px;
 
-    --ac-global-opacity-disabled: 0.6;
+    --ac-global-opacity-disabled: 0.4;
 
     /* Text */
     --ac-global-font-size-xxs: 10px;
@@ -1304,7 +1301,6 @@ export function GlobalStyles() {
         themeCSS,
         derivedCSS(theme),
         mediumRootCSS,
-        opacitiesCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
         chartCSS,

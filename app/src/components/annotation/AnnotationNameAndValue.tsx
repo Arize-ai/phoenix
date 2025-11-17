@@ -12,6 +12,7 @@ import type { Annotation, AnnotationDisplayPreference } from "./types";
 const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
   display: flex;
   align-items: center;
+  overflow: hidden;
   .ac-text {
     display: inline-block;
     max-width: ${maxWidth};

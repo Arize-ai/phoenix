@@ -137,7 +137,7 @@ const panelTitleCSS = css`
     background-color: unset;
   }
   &[disabled] {
-    opacity: var(--ac-opacity-disabled);
+    opacity: var(--ac-global-opacity-disabled);
   }
   display: flex;
   align-items: center;
