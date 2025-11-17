@@ -155,12 +155,15 @@ class ModelMutationMixin:
             model.name_pattern = name_pattern
             model.token_prices = token_prices
             model.start_time = input.start_time
+            # Use application-generated timestamp with microsecond resolution.
+            # Explicitly set updated_at so the GenerativeModelStore daemon picks up this
+            # change (SQLAlchemy's onupdate may not trigger for relationship-only changes).
+            model.updated_at = datetime.now(timezone.utc)
             session.add(model)
             try:
                 await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"Model with name '{input.name}' already exists")
-            await session.refresh(model)
 
         return UpdateModelMutationPayload(
             model=GenerativeModel(id=model.id, db_record=model),
