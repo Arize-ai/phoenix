@@ -35,27 +35,22 @@ class TestChatCompletionMutationMixin:
               examples {
                 datasetExampleId
                 experimentRunId
-                result {
-                  __typename
-                  ... on ChatCompletionMutationPayload {
-                    content
-                    span {
-                      cumulativeTokenCountTotal
-                      input {
-                        value
-                      }
-                      output {
-                        value
-                      }
-                      trace {
-                        project {
-                          name
-                        }
+                repetition {
+                  content
+                  errorMessage
+                  span {
+                    cumulativeTokenCountTotal
+                    input {
+                      value
+                    }
+                    output {
+                      value
+                    }
+                    trace {
+                      project {
+                        name
                       }
                     }
-                  }
-                  ... on ChatCompletionMutationError {
-                    message
                   }
                 }
               }
@@ -105,16 +100,15 @@ class TestChatCompletionMutationMixin:
                 assert example["experimentRunId"] == str(
                     GlobalID(type_name=ExperimentRun.__name__, node_id=str(i))
                 )
-                assert (result := example["result"])
-                if result["__typename"] == "ChatCompletionMutationError":
-                    assert result["message"]
+                assert (repetition := example["repetition"])
+                if repetition["errorMessage"]:
+                    assert repetition["errorMessage"]
                     continue
-                assert result["__typename"] == "ChatCompletionMutationPayload"
-                assert result["content"]
-                assert result["span"]["input"]["value"]
-                assert result["span"]["output"]["value"]
-                assert result["span"]["cumulativeTokenCountTotal"]
-                project_name = result["span"]["trace"]["project"]["name"]
+                assert repetition["content"]
+                assert repetition["span"]["input"]["value"]
+                assert repetition["span"]["output"]["value"]
+                assert repetition["span"]["cumulativeTokenCountTotal"]
+                project_name = repetition["span"]["trace"]["project"]["name"]
                 assert is_experiment_project_name(project_name)
                 if common_project_name:
                     assert project_name == common_project_name
