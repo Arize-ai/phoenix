@@ -2,6 +2,11 @@ import zlib
 from abc import ABC, abstractmethod
 from typing import Any, Optional, TypeVar
 
+from jsonpath_ng import parse as parse_jsonpath
+from jsonschema import ValidationError, validate
+
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMapping
+
 
 class BuiltInEvaluator(ABC):
     name: str
@@ -35,14 +40,40 @@ def register_builtin_evaluator(cls: type[T]) -> type[T]:
 
 def get_builtin_evaluators() -> list[tuple[int, type[BuiltInEvaluator]]]:
     """Returns list of (id, evaluator_class) tuples."""
-    return [
-        (_generate_builtin_evaluator_id(cls.name), cls)
-        for cls in _BUILTIN_EVALUATORS.values()
-    ]
+    return [(_generate_builtin_evaluator_id(cls.name), cls) for cls in _BUILTIN_EVALUATORS.values()]
 
 
 def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvaluator]]:
     return _BUILTIN_EVALUATORS_BY_ID.get(evaluator_id)
+
+
+def apply_input_mapping(
+    input_schema: dict[str, Any],
+    input_mapping: "EvaluatorInputMapping",
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    # apply literal mappings
+    if hasattr(input_mapping, "literal_mapping"):
+        for key, value in input_mapping.literal_mapping.items():
+            result[key] = value
+
+    if hasattr(input_mapping, "path_mapping"):
+        for key, path_expr in input_mapping.path_mapping.items():
+            try:
+                jsonpath = parse_jsonpath(path_expr)
+                matches = jsonpath.find(context)
+                if matches:
+                    result[key] = matches[0].value
+            except Exception:
+                pass
+
+    try:
+        validate(instance=result, schema=input_schema)
+    except ValidationError as e:
+        raise ValueError(f"Input validation failed: {e.message}")
+
+    return result
 
 
 @register_builtin_evaluator
