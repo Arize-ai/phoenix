@@ -42,22 +42,24 @@ export function PlaygroundDatasetSection({
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
       query PlaygroundDatasetSectionQuery($datasetId: ID!) {
-        evaluators {
-          edges {
-            evaluator: node {
-              id
-              name
-              kind
-              isAssignedToDataset(datasetId: $datasetId)
-              ... on LLMEvaluator {
-                outputConfig {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            evaluators {
+              edges {
+                evaluator: node {
+                  id
                   name
+                  kind
+                  isAssignedToDataset(datasetId: $datasetId)
+                  ... on LLMEvaluator {
+                    outputConfig {
+                      name
+                    }
+                  }
                 }
               }
             }
           }
-        }
-        dataset: node(id: $datasetId) {
           ...EvaluatorConfigDialog_dataset
         }
       }
@@ -68,7 +70,7 @@ export function PlaygroundDatasetSection({
   );
 
   const evaluators =
-    data.evaluators?.edges?.map((edge) => ({
+    data.dataset.evaluators?.edges?.map((edge) => ({
       ...edge.evaluator,
       annotationName: edge.evaluator.outputConfig?.name,
     })) ?? [];
