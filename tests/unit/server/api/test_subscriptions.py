@@ -224,10 +224,10 @@ class TestChatCompletionSubscription:
             cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), float
         )
         assert isinstance(
-            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), float
         )
         assert isinstance(
-            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), float
         )
         assert cumulative_token_count_total == token_count_total
         assert cumulative_token_count_prompt == token_count_prompt
@@ -363,10 +363,10 @@ class TestChatCompletionSubscription:
             cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), float
         )
         assert isinstance(
-            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), float
         )
         assert isinstance(
-            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), float
         )
         assert cumulative_token_count_total == token_count_total
         assert cumulative_token_count_prompt == token_count_prompt
@@ -503,10 +503,10 @@ class TestChatCompletionSubscription:
             cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), float
         )
         assert isinstance(
-            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), float
         )
         assert isinstance(
-            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), float
         )
         assert cumulative_token_count_total == token_count_total
         assert cumulative_token_count_prompt == token_count_prompt
@@ -659,10 +659,10 @@ class TestChatCompletionSubscription:
             cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), float
         )
         assert isinstance(
-            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), float
         )
         assert isinstance(
-            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), float
         )
         assert cumulative_token_count_total == token_count_total
         assert cumulative_token_count_prompt == token_count_prompt
@@ -813,10 +813,10 @@ class TestChatCompletionSubscription:
             cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), float
         )
         assert isinstance(
-            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), float
         )
         assert isinstance(
-            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), float
         )
         assert cumulative_token_count_total == token_count_total
         assert cumulative_token_count_prompt == token_count_prompt
@@ -1128,10 +1128,10 @@ class TestChatCompletionOverDatasetSubscription:
             cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), float
         )
         assert isinstance(
-            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), float
         )
         assert isinstance(
-            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), float
         )
         assert cumulative_token_count_total == token_count_total
         assert cumulative_token_count_prompt == token_count_prompt
@@ -1217,10 +1217,10 @@ class TestChatCompletionOverDatasetSubscription:
             cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), float
         )
         assert isinstance(
-            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), float
         )
         assert isinstance(
-            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), float
         )
         assert cumulative_token_count_total == token_count_total
         assert cumulative_token_count_prompt == token_count_prompt
