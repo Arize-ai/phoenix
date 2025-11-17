@@ -131,13 +131,15 @@ async def _stream_single_chat_completion(
         invocation_parameters=invocation_parameters,
         attributes=attributes,
     ) as span:
-        async for chunk in llm_client.chat_completion_create(
-            messages=messages, tools=input.tools or [], **invocation_parameters
-        ):
-            span.add_response_chunk(chunk)
-            chunk.repetition_number = repetition_number
-            yield chunk
-        span.set_attributes(llm_client.attributes)
+        try:
+            async for chunk in llm_client.chat_completion_create(
+                messages=messages, tools=input.tools or [], **invocation_parameters
+            ):
+                span.add_response_chunk(chunk)
+                chunk.repetition_number = repetition_number
+                yield chunk
+        finally:
+            span.set_attributes(llm_client.attributes)
     if span.status_message is not None:
         yield ChatCompletionSubscriptionError(
             message=span.status_message,
@@ -612,14 +614,16 @@ async def _stream_chat_completion_over_dataset_example(
         invocation_parameters=invocation_parameters,
         attributes={PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(revision.input)},
     ) as span:
-        async for chunk in llm_client.chat_completion_create(
-            messages=messages, tools=input.tools or [], **invocation_parameters
-        ):
-            span.add_response_chunk(chunk)
-            chunk.dataset_example_id = example_id
-            chunk.repetition_number = repetition_number
-            yield chunk
-        span.set_attributes(llm_client.attributes)
+        try:
+            async for chunk in llm_client.chat_completion_create(
+                messages=messages, tools=input.tools or [], **invocation_parameters
+            ):
+                span.add_response_chunk(chunk)
+                chunk.dataset_example_id = example_id
+                chunk.repetition_number = repetition_number
+                yield chunk
+        finally:
+            span.set_attributes(llm_client.attributes)
     db_trace = get_db_trace(span, project_id)
     db_span = get_db_span(span, db_trace)
     db_run = get_db_experiment_run(
