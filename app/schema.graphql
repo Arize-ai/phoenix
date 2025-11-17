@@ -2661,17 +2661,17 @@ type Span implements Node {
   """
   Cumulative (prompt plus completion) token count from self and all descendant spans (children, grandchildren, etc.)
   """
-  cumulativeTokenCountTotal: Int
+  cumulativeTokenCountTotal: Float
 
   """
   Cumulative (prompt) token count from self and all descendant spans (children, grandchildren, etc.)
   """
-  cumulativeTokenCountPrompt: Int
+  cumulativeTokenCountPrompt: Float
 
   """
   Cumulative (completion) token count from self and all descendant spans (children, grandchildren, etc.)
   """
-  cumulativeTokenCountCompletion: Int
+  cumulativeTokenCountCompletion: Float
 
   """
   Propagated status code that percolates up error status codes from descendant spans (children, grandchildren, etc.)
