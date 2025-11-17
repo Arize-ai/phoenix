@@ -155,7 +155,6 @@ class ModelMutationMixin:
             model.name_pattern = name_pattern
             model.token_prices = token_prices
             model.start_time = input.start_time
-            # Use application-generated timestamp with microsecond resolution.
             # Explicitly set updated_at so the GenerativeModelStore daemon picks up this
             # change (SQLAlchemy's onupdate may not trigger for relationship-only changes).
             model.updated_at = datetime.now(timezone.utc)
