@@ -456,3 +456,77 @@ describe("clearRepetitions", () => {
     expect(store.getState().instances[1].repetitions[2]!.output).toBe(null);
   });
 });
+
+describe("runPlaygroundInstances", () => {
+  it("should create repetitions, set activeRunId, initialize status, and clear previous data", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().addInstance();
+
+    // set to 3 repetitions
+    store.getState().setRepetitions(3);
+
+    // run instances for the first time
+    store.getState().runPlaygroundInstances();
+
+    // verify repetitions are created based on repetitions count (3)
+    expect(Object.keys(store.getState().instances[0].repetitions)).toHaveLength(
+      3
+    );
+
+    // verify all repetitions are initialized with pending status
+    expect(
+      Object.values(store.getState().instances[0].repetitions).every(
+        (repetition) => repetition!.status === "pending"
+      )
+    ).toBe(true);
+
+    // verify activeRunId is set for all instances
+    const firstRunId = store.getState().instances[0].activeRunId;
+    const secondRunId = store.getState().instances[1].activeRunId;
+    expect(firstRunId).not.toBe(null);
+    expect(secondRunId).not.toBe(null);
+    expect(firstRunId).not.toBe(secondRunId);
+
+    // add some data to first repetition
+    store
+      .getState()
+      .appendRepetitionOutput(store.getState().instances[0].id, 1, "Output 1");
+    store
+      .getState()
+      .setRepetitionSpanId(store.getState().instances[0].id, 1, "span-123");
+
+    // verify data was added
+    expect(store.getState().instances[0].repetitions[1]!.output).toBe(
+      "Output 1"
+    );
+    expect(store.getState().instances[0].repetitions[1]!.spanId).toBe(
+      "span-123"
+    );
+
+    // rerun instances
+    store.getState().runPlaygroundInstances();
+
+    // verify previous repetition data is cleared
+    expect(
+      Object.values(store.getState().instances[0].repetitions).every(
+        (repetition) => repetition!.output === null
+      )
+    ).toBe(true);
+    expect(
+      Object.values(store.getState().instances[0].repetitions).every(
+        (repetition) => repetition!.status === "pending"
+      )
+    ).toBe(true);
+
+    // verify new run IDs were generated
+    const newFirstRunId = store.getState().instances[0].activeRunId;
+    const newSecondRunId = store.getState().instances[1].activeRunId;
+    expect(newFirstRunId).not.toBe(null);
+    expect(newSecondRunId).not.toBe(null);
+    expect(newFirstRunId).not.toBe(firstRunId);
+    expect(newSecondRunId).not.toBe(secondRunId);
+  });
+});
