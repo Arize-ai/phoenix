@@ -269,7 +269,7 @@ function DatasetPageContent({
         </Flex>
       </View>
       <Tabs
-        selectedKey={TABS_CONFIG[initialIndex as keyof typeof TABS_CONFIG]}
+        selectedKey={TABS_LIST[initialIndex]}
         onSelectionChange={(key) => {
           if (isTabName(key)) {
             onTabChange(TABS_LIST.indexOf(key));

@@ -4,7 +4,7 @@ import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Loading, Modal, ModalOverlay } from "@phoenix/components";
-import { EvaluatorSelect } from "@phoenix/components/evaluators/EvaluatorSelect";
+import { DatasetEvaluatorSelect } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSelect";
 import {
   datasetEvaluatorsLoader,
   datasetEvaluatorsLoaderGQL,
@@ -84,14 +84,12 @@ export function DatasetEvaluatorsPageContent() {
       <EvaluatorsFilterBar
         padding="size-100"
         extraActions={
-          <EvaluatorSelect
-            size="M"
+          <DatasetEvaluatorSelect
             evaluators={globalEvaluators}
             onSelectionChange={(evaluatorId) => {
               setAddingEvaluatorId(evaluatorId);
             }}
             addNewEvaluatorLink="/evaluators/new"
-            selectionMode="single"
           />
         }
       />
