@@ -192,27 +192,23 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     (state) => state.appendRepetitionOutput
   );
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const setSelectedRepetitionNumber = usePlaygroundContext(
-    (state) => state.setSelectedRepetitionNumber
-  );
-  const setRepetitionSpanId = usePlaygroundContext(
-    (state) => state.setRepetitionSpanId
-  );
-  const setRepetitionError = usePlaygroundContext(
-    (state) => state.setRepetitionError
-  );
-  const setRepetitionStatus = usePlaygroundContext(
-    (state) => state.setRepetitionStatus
-  );
-  const setRepetitionToolCalls = usePlaygroundContext(
-    (state) => state.setRepetitionToolCalls
-  );
-  const addRepetitionPartialToolCall = usePlaygroundContext(
-    (state) => state.addRepetitionPartialToolCall
-  );
-  const clearRepetitions = usePlaygroundContext(
-    (state) => state.clearRepetitions
-  );
+  const {
+    setSelectedRepetitionNumber,
+    setRepetitionSpanId,
+    setRepetitionError,
+    setRepetitionStatus,
+    setRepetitionToolCalls,
+    addRepetitionPartialToolCall,
+    clearRepetitions,
+  } = usePlaygroundContext((state) => ({
+    setSelectedRepetitionNumber: state.setSelectedRepetitionNumber,
+    setRepetitionSpanId: state.setRepetitionSpanId,
+    setRepetitionError: state.setRepetitionError,
+    setRepetitionStatus: state.setRepetitionStatus,
+    setRepetitionToolCalls: state.setRepetitionToolCalls,
+    addRepetitionPartialToolCall: state.addRepetitionPartialToolCall,
+    clearRepetitions: state.clearRepetitions,
+  }));
 
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
