@@ -1,11 +1,4 @@
-import { useMemo } from "react";
-import {
-  Autocomplete,
-  Collection,
-  Input,
-  MenuSection,
-  useFilter,
-} from "react-aria-components";
+import { Autocomplete, Input, useFilter } from "react-aria-components";
 import { css } from "@emotion/react";
 
 import {
@@ -17,7 +10,6 @@ import {
   MenuContainer,
   MenuFooter,
   MenuHeader,
-  MenuSectionTitle,
   MenuTrigger,
   SearchField,
   SearchIcon,
@@ -42,31 +34,6 @@ export function PlaygroundEvaluatorSelect(
     props;
   const { contains } = useFilter({ sensitivity: "base" });
 
-  const evaluatorSections = useMemo(() => {
-    return evaluators.reduce(
-      (acc, evaluator) => {
-        if (evaluator.isAssignedToDataset) {
-          acc[0].children.push(evaluator);
-        } else {
-          acc[1].children.push(evaluator);
-        }
-        return acc;
-      },
-      [
-        {
-          name: "Mapped to this dataset",
-          id: "mapped",
-          children: [] as EvaluatorItem[],
-        },
-        {
-          name: "Not yet mapped",
-          id: "unmapped",
-          children: [] as EvaluatorItem[],
-        },
-      ]
-    );
-  }, [evaluators]);
-
   return (
     <MenuTrigger>
       <Button size="S" leadingVisual={<Icon svg={<Icons.PlusOutline />} />}>
@@ -83,7 +50,7 @@ export function PlaygroundEvaluatorSelect(
           <Menu
             selectionMode="multiple"
             selectedKeys={selectedIds}
-            items={evaluatorSections}
+            items={evaluators}
             renderEmptyState={() => (
               <Text color="grey-300" size="S">
                 No evaluators found
@@ -93,19 +60,12 @@ export function PlaygroundEvaluatorSelect(
               max-width: 600px;
             `}
           >
-            {(section) => (
-              <MenuSection aria-label={section.name}>
-                <MenuSectionTitle title={section.name} />
-                <Collection items={section.children}>
-                  {(item) => (
-                    <EvaluatorSelectMenuItem
-                      evaluator={item}
-                      onSelectionChange={() => onSelectionChange(item.id)}
-                      isSelected={selectedIds?.includes(item.id) ?? false}
-                    />
-                  )}
-                </Collection>
-              </MenuSection>
+            {(evaluator) => (
+              <EvaluatorSelectMenuItem
+                evaluator={evaluator}
+                onSelectionChange={() => onSelectionChange(evaluator.id)}
+                isSelected={selectedIds?.includes(evaluator.id) ?? false}
+              />
             )}
           </Menu>
         </Autocomplete>
