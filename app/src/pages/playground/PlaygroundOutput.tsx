@@ -170,7 +170,6 @@ function PlaygroundOutputContent({
 }
 
 export function PlaygroundOutput(props: PlaygroundOutputProps) {
-  // read zustand state
   const instanceId = props.playgroundInstanceId;
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
@@ -185,8 +184,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
   );
-
-  // read zustand actions
   const {
     appendRepetitionOutput,
     setSelectedRepetitionNumber,
@@ -196,6 +193,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     setRepetitionToolCalls,
     addRepetitionPartialToolCall,
     clearRepetitions,
+    markPlaygroundInstanceComplete,
   } = usePlaygroundContext((state) => ({
     appendRepetitionOutput: state.appendRepetitionOutput,
     setSelectedRepetitionNumber: state.setSelectedRepetitionNumber,
@@ -205,11 +203,9 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     setRepetitionToolCalls: state.setRepetitionToolCalls,
     addRepetitionPartialToolCall: state.addRepetitionPartialToolCall,
     clearRepetitions: state.clearRepetitions,
+    markPlaygroundInstanceComplete: state.markPlaygroundInstanceComplete,
   }));
 
-  const markPlaygroundInstanceComplete = usePlaygroundContext(
-    (state) => state.markPlaygroundInstanceComplete
-  );
   const environment = useRelayEnvironment();
   const playgroundStore = usePlaygroundStore();
 
