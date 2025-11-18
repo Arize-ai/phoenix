@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ba6f88b72f29dcda2c96343c90e739a6>>
+ * @generated SignedSource<<88e693ba83b91c42384caff5402e1e5f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -63,7 +63,11 @@ export type GenerativeCredentialInput = {
 };
 export type PlaygroundEvaluatorInput = {
   id: string;
-  inputMapping?: any | null;
+  inputMapping?: EvaluatorInputMapping;
+};
+export type EvaluatorInputMapping = {
+  literalMapping?: any;
+  pathMapping?: any;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ChatCompletionOverDatasetInput;
@@ -105,20 +109,18 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
   } | {
     readonly __typename: "EvaluationChunk";
     readonly datasetExampleId: string | null;
-    readonly evaluation: {
+    readonly experimentRunEvaluation: {
       readonly annotatorKind: ExperimentRunAnnotatorKind;
       readonly explanation: string | null;
-      readonly id: string;
       readonly label: string | null;
       readonly metadata: any;
-      readonly name: string;
       readonly score: number | null;
       readonly startTime: string;
       readonly trace: {
         readonly projectId: string;
         readonly traceId: string;
       } | null;
-    };
+    } | null;
     readonly repetitionNumber: number | null;
   } | {
     readonly __typename: "TextChunk";
@@ -205,13 +207,6 @@ v6 = {
   "storageKey": null
 },
 v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v8 = {
   "kind": "InlineFragment",
   "selections": [
     (v6/*: any*/),
@@ -225,7 +220,13 @@ v8 = {
       "name": "function",
       "plural": false,
       "selections": [
-        (v7/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "name",
+          "storageKey": null
+        },
         {
           "alias": null,
           "args": null,
@@ -240,10 +241,10 @@ v8 = {
   "type": "ToolCallChunk",
   "abstractKey": null
 },
-v9 = [
+v8 = [
   (v6/*: any*/)
 ],
-v10 = {
+v9 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -253,21 +254,21 @@ v10 = {
       "kind": "LinkedField",
       "name": "experiment",
       "plural": false,
-      "selections": (v9/*: any*/),
+      "selections": (v8/*: any*/),
       "storageKey": null
     }
   ],
   "type": "ChatCompletionSubscriptionExperiment",
   "abstractKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "traceId",
   "storageKey": null
 },
-v12 = {
+v11 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*: any*/),
@@ -331,7 +332,7 @@ v12 = {
           "kind": "LinkedField",
           "name": "project",
           "plural": false,
-          "selections": (v9/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -342,7 +343,7 @@ v12 = {
           "name": "context",
           "plural": false,
           "selections": [
-            (v11/*: any*/)
+            (v10/*: any*/)
           ],
           "storageKey": null
         }
@@ -356,14 +357,14 @@ v12 = {
       "kind": "LinkedField",
       "name": "experimentRun",
       "plural": false,
-      "selections": (v9/*: any*/),
+      "selections": (v8/*: any*/),
       "storageKey": null
     }
   ],
   "type": "ChatCompletionSubscriptionResult",
   "abstractKey": null
 },
-v13 = {
+v12 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*: any*/),
@@ -379,49 +380,49 @@ v13 = {
   "type": "ChatCompletionSubscriptionError",
   "abstractKey": null
 },
-v14 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v15 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v16 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotatorKind",
   "storageKey": null
 },
-v17 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "explanation",
   "storageKey": null
 },
-v18 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "metadata",
   "storageKey": null
 },
-v19 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "startTime",
   "storageKey": null
 },
-v20 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -445,10 +446,10 @@ return {
         "selections": [
           (v2/*: any*/),
           (v5/*: any*/),
-          (v8/*: any*/),
-          (v10/*: any*/),
+          (v7/*: any*/),
+          (v9/*: any*/),
+          (v11/*: any*/),
           (v12/*: any*/),
-          (v13/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -459,17 +460,15 @@ return {
                 "args": null,
                 "concreteType": "ExperimentRunAnnotation",
                 "kind": "LinkedField",
-                "name": "evaluation",
+                "name": "experimentRunEvaluation",
                 "plural": false,
                 "selections": [
-                  (v6/*: any*/),
-                  (v7/*: any*/),
+                  (v13/*: any*/),
                   (v14/*: any*/),
                   (v15/*: any*/),
                   (v16/*: any*/),
                   (v17/*: any*/),
                   (v18/*: any*/),
-                  (v19/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -478,8 +477,8 @@ return {
                     "name": "trace",
                     "plural": false,
                     "selections": [
-                      (v11/*: any*/),
-                      (v20/*: any*/)
+                      (v10/*: any*/),
+                      (v19/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -513,10 +512,10 @@ return {
         "selections": [
           (v2/*: any*/),
           (v5/*: any*/),
-          (v8/*: any*/),
-          (v10/*: any*/),
+          (v7/*: any*/),
+          (v9/*: any*/),
+          (v11/*: any*/),
           (v12/*: any*/),
-          (v13/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -527,17 +526,15 @@ return {
                 "args": null,
                 "concreteType": "ExperimentRunAnnotation",
                 "kind": "LinkedField",
-                "name": "evaluation",
+                "name": "experimentRunEvaluation",
                 "plural": false,
                 "selections": [
-                  (v6/*: any*/),
-                  (v7/*: any*/),
+                  (v13/*: any*/),
                   (v14/*: any*/),
                   (v15/*: any*/),
                   (v16/*: any*/),
                   (v17/*: any*/),
                   (v18/*: any*/),
-                  (v19/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -546,12 +543,13 @@ return {
                     "name": "trace",
                     "plural": false,
                     "selections": [
-                      (v11/*: any*/),
-                      (v20/*: any*/),
+                      (v10/*: any*/),
+                      (v19/*: any*/),
                       (v6/*: any*/)
                     ],
                     "storageKey": null
-                  }
+                  },
+                  (v6/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -565,16 +563,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "855030101d674ef677108e8fdb7c215f",
+    "cacheID": "09d3800a71ec49fc5456a91b336f5d2c",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      evaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n        trace {\n          traceId\n          projectId\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      experimentRunEvaluation {\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n        trace {\n          traceId\n          projectId\n          id\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ab24a225dcb5cafb16a5dbf6ce9e8e3a";
+(node as any).hash = "8e349304f8d10f99bc3e755cec72fbd1";
 
 export default node;

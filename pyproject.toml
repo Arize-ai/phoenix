@@ -25,6 +25,8 @@ dependencies = [
   "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
   "pandas>=1.0",
   "jinja2",
+  "jsonpath-ng",
+  "jsonschema",
   "starlette",
   "uvicorn",
   "psutil",
@@ -78,8 +80,6 @@ dev = [
   "tox-uv==1.11.3",
   "uv==0.7.12",
   "jupyter",
-  "jsonpath-ng",
-  "jsonschema",
   "nbqa",
   "ruff==0.6.9",
   "mypy==1.12.1",
