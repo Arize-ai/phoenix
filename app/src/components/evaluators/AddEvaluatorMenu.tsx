@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { DialogTrigger, MenuTriggerProps } from "react-aria-components";
+import {
+  DialogTrigger,
+  MenuSection,
+  MenuTriggerProps,
+} from "react-aria-components";
 
 import { Button, ButtonProps } from "@phoenix/components/button";
 import { CreateDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateDatasetEvaluatorSlideover";
@@ -8,6 +12,7 @@ import {
   Menu,
   MenuContainer,
   MenuItem,
+  MenuSectionTitle,
   MenuTrigger,
 } from "@phoenix/components/menu";
 
@@ -43,7 +48,16 @@ export const AddEvaluatorMenu = ({
               }
             }}
           >
-            <MenuItem id="createEvaluator">Create new evaluator</MenuItem>
+            <MenuSection>
+              <MenuSectionTitle title="LLM Evaluators" />
+              <MenuItem id="createEvaluator">Create new LLM evaluator</MenuItem>
+            </MenuSection>
+            <MenuSection>
+              <MenuSectionTitle title="Code Evaluators" />
+              <MenuItem isDisabled id="createCodeEvaluator">
+                Create new code evaluator
+              </MenuItem>
+            </MenuSection>
           </Menu>
         </MenuContainer>
       </MenuTrigger>
