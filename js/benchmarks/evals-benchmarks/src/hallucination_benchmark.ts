@@ -5,7 +5,7 @@ import {
 } from "@arizeai/phoenix-client/experiments";
 import { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
 
-import { createHallucinationEvaluator } from "../src/llm";
+import { createHallucinationEvaluator } from "./llm";
 
 import { openai } from "@ai-sdk/openai";
 const hallucinationEvaluator = createHallucinationEvaluator({
