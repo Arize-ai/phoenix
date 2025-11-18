@@ -377,7 +377,6 @@ export const EvaluatorsTable = ({
         <EvaluatorSelectionToolbar
           selectedEvaluators={selectedEvaluators}
           onEvaluatorsDeleted={() => {
-            // TODO: fix top-level checkbox state after deletion
             refetch({});
           }}
           onClearSelection={clearSelection}
