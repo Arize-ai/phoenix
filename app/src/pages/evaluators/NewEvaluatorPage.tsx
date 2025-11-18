@@ -4,14 +4,7 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Flex,
-  Heading,
-  HeadingProps,
-  LinkButton,
-  View,
-} from "@phoenix/components";
+import { Button, Flex, Heading, LinkButton, View } from "@phoenix/components";
 import {
   EvaluatorForm,
   EvaluatorFormProvider,
@@ -44,23 +37,7 @@ export const NewEvaluatorPage = () => {
   );
 };
 
-export const NewEvaluatorPageContent = ({
-  onCancelRedirect = "/evaluators",
-  onSuccessRedirect = "/evaluators",
-  level = 2,
-  updateConnectionIds,
-}: {
-  /** The redirect URL to navigate to when the evaluator is saved successfully */
-  onSuccessRedirect?: string;
-  /** The redirect URL to navigate to when the user clicks the cancel button */
-  onCancelRedirect?: string;
-  /** The level of the primary form heading to display */
-  level?: HeadingProps["level"];
-  /**
-   * Relay connection IDs to update. These must be connections of EvaluatorDatasetEdge types.
-   */
-  updateConnectionIds?: string[];
-}) => {
+export const NewEvaluatorPageContent = () => {
   const store = usePlaygroundStore();
   const {
     formState: { isValid: isEvaluatorValid },
@@ -76,14 +53,9 @@ export const NewEvaluatorPageContent = ({
     useMutation<NewEvaluatorPageContentMutation>(graphql`
       mutation NewEvaluatorPageContentMutation(
         $input: CreateLLMEvaluatorInput!
-        $connectionIds: [ID!]!
       ) {
         createLlmEvaluator(input: $input) {
-          evaluator
-            @appendNode(
-              connections: $connectionIds
-              edgeTypeName: "EvaluatorEdge"
-            ) {
+          evaluator {
             id
             name
             ...EvaluatorsTable_row
@@ -121,14 +93,13 @@ export const NewEvaluatorPageContent = ({
     createEvaluator({
       variables: {
         input,
-        connectionIds: updateConnectionIds ?? [],
       },
       onCompleted: (response) => {
         notifySuccess({
           title: "Evaluator created",
           message: `Evaluator (${response.createLlmEvaluator.evaluator.id}) "${response.createLlmEvaluator.evaluator.name}" created successfully`,
         });
-        navigate(onSuccessRedirect);
+        navigate("/evaluators");
       },
       onError: (error) => {
         const errorMessages = getErrorMessagesFromRelayMutationError(error);
@@ -143,12 +114,10 @@ export const NewEvaluatorPageContent = ({
     createEvaluator,
     getValues,
     navigate,
-    onSuccessRedirect,
     selectedDatasetId,
     notifyError,
     notifySuccess,
     store,
-    updateConnectionIds,
   ]);
 
   return (
@@ -166,9 +135,9 @@ export const NewEvaluatorPageContent = ({
           alignItems="center"
           justifyContent="space-between"
         >
-          <Heading level={level}>New Evaluator</Heading>
+          <Heading>New Evaluator</Heading>
           <Flex direction="row" alignItems="center" gap="size-100">
-            <LinkButton size="S" to={onCancelRedirect}>
+            <LinkButton size="S" to="/evaluators">
               Cancel
             </LinkButton>
             <Button
