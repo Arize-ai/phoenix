@@ -38,6 +38,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     EvaluationResult,
     evaluation_result_to_model,
+    evaluation_result_to_span_annotation,
     get_builtin_evaluator_by_id,
 )
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
@@ -78,6 +79,7 @@ from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.SpanAnnotation import SpanAnnotation
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
@@ -367,22 +369,18 @@ class Subscription:
                             context=context_dict,
                             input_mapping=evaluator.input_mapping,
                         )
-                        annotation = ExperimentRunAnnotation.from_dict(
-                            {
-                                "name": result["name"],
-                                "annotator_kind": result["annotator_kind"],
-                                "label": result["label"],
-                                "score": result["score"],
-                                "explanation": result["explanation"],
-                                "metadata": result["metadata"],
-                                "error": result["error"],
-                                "trace_id": result["trace_id"],
-                                "start_time": result["start_time"],
-                                "end_time": result["end_time"],
-                            }
+                        annotation_model = evaluation_result_to_span_annotation(
+                            result,
+                            span_rowid=db_span.id,
                         )
+                        session.add(annotation_model)
+                        await session.flush()
                         yield EvaluationChunk(
-                            evaluation=annotation,
+                            span_evaluation=SpanAnnotation(
+                                id=annotation_model.id,
+                                db_record=annotation_model,
+                            ),
+                            experiment_run_evaluation=None,
                             dataset_example_id=None,
                             repetition_number=None,
                         )
@@ -401,7 +399,8 @@ class Subscription:
                             }
                         )
                         yield EvaluationChunk(
-                            evaluation=dummy_annotation,
+                            experiment_run_evaluation=dummy_annotation,
+                            span_evaluation=None,
                             dataset_example_id=None,
                             repetition_number=None,
                         )
@@ -662,10 +661,11 @@ class Subscription:
                                 session.add(annotation_model)
                                 await session.flush()
                                 yield EvaluationChunk(
-                                    evaluation=ExperimentRunAnnotation(
+                                    experiment_run_evaluation=ExperimentRunAnnotation(
                                         id=annotation_model.id,
                                         db_record=annotation_model,
                                     ),
+                                    span_evaluation=None,
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
@@ -686,7 +686,8 @@ class Subscription:
                                     }
                                 )
                                 yield EvaluationChunk(
-                                    evaluation=dummy_annotation,
+                                    experiment_run_evaluation=dummy_annotation,
+                                    span_evaluation=None,
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )

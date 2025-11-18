@@ -116,6 +116,27 @@ def evaluation_result_to_model(
     )
 
 
+def evaluation_result_to_span_annotation(
+    result: EvaluationResult,
+    *,
+    span_rowid: int,
+) -> models.SpanAnnotation:
+    return models.SpanAnnotation(
+        span_rowid=span_rowid,
+        name=result["name"],
+        annotator_kind=result["annotator_kind"],
+        label=result["label"],
+        score=result["score"],
+        explanation=result["explanation"],
+        metadata_=result["metadata"],
+        identifier=result["name"],
+        source="API",
+        created_at=result["start_time"],
+        updated_at=result["end_time"],
+        user_id=None,
+    )
+
+
 @register_builtin_evaluator
 class ContainsEvaluator(BuiltInEvaluator):
     name = "ContainsEvaluator"
