@@ -583,7 +583,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10"]
+        py: [3.9]
         pkg: [openai, google_generativeai] # NOTE: bypass Anthropic check while types are changing
     steps:
       - name: Checkout repository
