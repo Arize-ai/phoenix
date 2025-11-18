@@ -32,7 +32,8 @@ export const AddEvaluatorMenu = ({
         >
           Add evaluator
         </Button>
-        <MenuContainer>
+        {/* TODO: Remove minHeight once we have more items in the menu */}
+        <MenuContainer minHeight={"auto"}>
           <Menu
             onAction={(action) => {
               switch (action) {
