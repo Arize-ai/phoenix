@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.4.0
+
+### Minor Changes
+
+- 885be2a: make phoenix-client be able to take in phoenix evals directly
+
 ## 0.3.1
 
 ### Patch Changes
