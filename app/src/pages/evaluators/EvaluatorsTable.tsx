@@ -22,6 +22,7 @@ import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { DatasetEvaluatorActionMenu } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorActionMenu";
 import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
 import {
   EvaluatorFilter,
@@ -122,6 +123,11 @@ type EvaluatorsTableProps = {
     filter?: EvaluatorFilter | null;
   }) => void;
   onRowClick?: (row: TableRow) => void;
+  /**
+   * If datasetId is provided, the table will include an action menu with
+   * the ability to unassign the evaluator from the dataset.
+   */
+  datasetId?: string;
 };
 
 export const EvaluatorsTable = ({
@@ -132,6 +138,7 @@ export const EvaluatorsTable = ({
   loadNext,
   refetch,
   onRowClick,
+  datasetId,
 }: EvaluatorsTableProps) => {
   "use no memo";
   const {
@@ -163,8 +170,8 @@ export const EvaluatorsTable = ({
   const tableData = useMemo(() => {
     return rowReferences.map(readRow);
   }, [rowReferences]);
-  const columns: ColumnDef<TableRow>[] = useMemo(() => {
-    return [
+  const columns = useMemo(() => {
+    const cols: ColumnDef<TableRow>[] = [
       {
         id: "select",
         maxSize: 32,
@@ -209,7 +216,20 @@ export const EvaluatorsTable = ({
         cell: TimestampCell,
       },
     ];
-  }, []);
+    if (datasetId) {
+      cols.push({
+        header: "",
+        id: "actions",
+        cell: ({ row }) => (
+          <DatasetEvaluatorActionMenu
+            evaluatorId={row.original.id}
+            datasetId={datasetId}
+          />
+        ),
+      });
+    }
+    return cols;
+  }, [datasetId]);
   const rowSelection = useMemo(() => {
     return selectedEvaluatorIds.reduce(
       (acc, id) => {
