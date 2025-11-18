@@ -26,6 +26,7 @@
     "@modelcontextprotocol/sdk": "^1.13.3",
     "glob": "^11.1.0",
     "minimist": "^1.2.8",
+    "vitest": "^4.0.10",
     "zod": "^3.24.2"
   },
   "devDependencies": {
