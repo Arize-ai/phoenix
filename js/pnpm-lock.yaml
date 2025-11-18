@@ -202,9 +202,6 @@ importers:
       '@arizeai/openinference-instrumentation-openai':
         specifier: ^2.3.0
         version: 2.3.1
-      '@arizeai/phoenix-client':
-        specifier: workspace:*
-        version: link:../phoenix-client
       '@types/mustache':
         specifier: ^4.2.6
         version: 4.2.6
