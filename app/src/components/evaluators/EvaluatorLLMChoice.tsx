@@ -81,7 +81,6 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
                     {...field}
                     aria-label={`Choice ${index + 1}`}
                     isInvalid={!!error}
-                    autoFocus={index > 0}
                     css={css`
                       flex: 1 1 auto;
                       flex-shrink: 1;
@@ -114,6 +113,8 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
                     >
                       <Input
                         placeholder={`e.g. ${index} (optional)`}
+                        // the css field overrides the default input className, add it back
+                        className="react-aria-Input"
                         css={css`
                           width: 100%;
                         `}

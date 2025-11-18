@@ -1,12 +1,17 @@
-import { PropsWithChildren, useCallback, useState } from "react";
-import { useForm, useFormContext } from "react-hook-form";
+import { useCallback } from "react";
+import { useFormContext } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Heading, Text, View } from "@phoenix/components";
-import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
+import {
+  Button,
+  Flex,
+  Heading,
+  HeadingProps,
+  LinkButton,
+  View,
+} from "@phoenix/components";
 import {
   EvaluatorForm,
   EvaluatorFormProvider,
@@ -17,11 +22,6 @@ import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils"
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { NewEvaluatorPageContentMutation } from "@phoenix/pages/evaluators/__generated__/NewEvaluatorPageContentMutation.graphql";
-import {
-  EvaluatorInputMapping,
-  InputMapping,
-} from "@phoenix/pages/evaluators/EvaluatorInputMapping";
-import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export const NewEvaluatorPage = () => {
@@ -44,64 +44,49 @@ export const NewEvaluatorPage = () => {
   );
 };
 
-const PanelContainer = ({ children }: PropsWithChildren) => {
-  return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        gap: var(--ac-global-dimension-size-200);
-        padding: var(--ac-global-dimension-size-100) 0;
-      `}
-    >
-      {children}
-    </div>
-  );
-};
-
-const panelCSS = css`
-  padding: 0 var(--ac-global-dimension-size-200);
-`;
-
-const panelStyle = {
-  height: "100%",
-  overflowY: "auto",
-} as const;
-
-const NewEvaluatorPageContent = () => {
+export const NewEvaluatorPageContent = ({
+  onCancelRedirect = "/evaluators",
+  onSuccessRedirect = "/evaluators",
+  level = 2,
+  updateConnectionIds,
+}: {
+  /** The redirect URL to navigate to when the evaluator is saved successfully */
+  onSuccessRedirect?: string;
+  /** The redirect URL to navigate to when the user clicks the cancel button */
+  onCancelRedirect?: string;
+  /** The level of the primary form heading to display */
+  level?: HeadingProps["level"];
+  /**
+   * Relay connection IDs to update. These must be connections of EvaluatorDatasetEdge types.
+   */
+  updateConnectionIds?: string[];
+}) => {
   const store = usePlaygroundStore();
-  const { variableKeys: variables } = useDerivedPlaygroundVariables();
-  const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(
-    null
-  );
-  const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
-  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
-    null
-  );
-  const navigate = useNavigate();
-  const {
-    control: inputMappingControl,
-    getValues: getInputMappingValues,
-    formState: { isValid: isInputMappingValid },
-  } = useForm<InputMapping>({
-    defaultValues: {},
-  });
   const {
     formState: { isValid: isEvaluatorValid },
     getValues,
+    watch,
   } = useFormContext<EvaluatorFormValues>();
-  const areFormsValid = isEvaluatorValid && isInputMappingValid;
+  const selectedDatasetId = watch("dataset.id");
+  const navigate = useNavigate();
+  const areFormsValid = isEvaluatorValid;
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [createEvaluator, isCreatingEvaluator] =
     useMutation<NewEvaluatorPageContentMutation>(graphql`
       mutation NewEvaluatorPageContentMutation(
         $input: CreateLLMEvaluatorInput!
+        $connectionIds: [ID!]!
       ) {
         createLlmEvaluator(input: $input) {
-          evaluator {
+          evaluator
+            @appendNode(
+              connections: $connectionIds
+              edgeTypeName: "EvaluatorEdge"
+            ) {
             id
             name
+            ...EvaluatorsTable_row
           }
         }
       }
@@ -113,8 +98,8 @@ const NewEvaluatorPageContent = () => {
     const {
       evaluator: { name, description },
       choiceConfig,
+      inputMapping,
     } = getValues();
-    const inputMapping = getInputMappingValues();
     const instance = store.getState().instances[0];
     if (!instance) {
       notifyError({
@@ -128,6 +113,7 @@ const NewEvaluatorPageContent = () => {
       playgroundStore: store,
       instanceId: instance.id,
       name,
+      datasetId: selectedDatasetId,
       description,
       choiceConfig,
       inputMapping,
@@ -135,13 +121,14 @@ const NewEvaluatorPageContent = () => {
     createEvaluator({
       variables: {
         input,
+        connectionIds: updateConnectionIds ?? [],
       },
       onCompleted: (response) => {
         notifySuccess({
           title: "Evaluator created",
           message: `Evaluator (${response.createLlmEvaluator.evaluator.id}) "${response.createLlmEvaluator.evaluator.name}" created successfully`,
         });
-        navigate("/evaluators");
+        navigate(onSuccessRedirect);
       },
       onError: (error) => {
         const errorMessages = getErrorMessagesFromRelayMutationError(error);
@@ -154,12 +141,14 @@ const NewEvaluatorPageContent = () => {
   }, [
     areFormsValid,
     createEvaluator,
-    getInputMappingValues,
     getValues,
     navigate,
+    onSuccessRedirect,
+    selectedDatasetId,
     notifyError,
     notifySuccess,
     store,
+    updateConnectionIds,
   ]);
 
   return (
@@ -177,12 +166,14 @@ const NewEvaluatorPageContent = () => {
           alignItems="center"
           justifyContent="space-between"
         >
-          <Heading level={2}>New Evaluator</Heading>
+          <Heading level={level}>New Evaluator</Heading>
           <Flex direction="row" alignItems="center" gap="size-100">
-            <Button size="M">Cancel</Button>
+            <LinkButton size="S" to={onCancelRedirect}>
+              Cancel
+            </LinkButton>
             <Button
               variant="primary"
-              size="M"
+              size="S"
               onClick={handleSave}
               isPending={isCreatingEvaluator}
               isDisabled={!areFormsValid}
@@ -192,49 +183,7 @@ const NewEvaluatorPageContent = () => {
           </Flex>
         </Flex>
       </View>
-      <PanelGroup direction="horizontal">
-        <Panel defaultSize={65} css={panelCSS} style={panelStyle}>
-          <PanelContainer>
-            <EvaluatorForm />
-          </PanelContainer>
-        </Panel>
-        <PanelResizeHandle disabled />
-        <Panel defaultSize={35} css={panelCSS} style={panelStyle}>
-          <PanelContainer>
-            <div
-              css={css`
-                display: flex;
-                flex-direction: column;
-                gap: var(--ac-global-dimension-static-size-200);
-                background-color: var(--ac-global-background-color-dark);
-                border-radius: var(--ac-global-rounding-medium);
-                padding: var(--ac-global-dimension-static-size-200);
-                border: 1px solid var(--ac-global-border-color-default);
-              `}
-            >
-              <Flex direction="column" gap="size-100">
-                <Heading level={3}>Test your evaluator</Heading>
-                <Text color="text-500">
-                  Use examples from an existing dataset as a reference, or
-                  create new examples from scratch.
-                </Text>
-                <EvaluatorExampleDataset
-                  selectedDatasetId={selectedDatasetId}
-                  onSelectDataset={setSelectedDatasetId}
-                  selectedSplitIds={selectedSplitIds}
-                  onSelectSplits={setSelectedSplitIds}
-                  onSelectExampleId={setSelectedExampleId}
-                />
-              </Flex>
-              <EvaluatorInputMapping
-                exampleId={selectedExampleId ?? undefined}
-                control={inputMappingControl}
-                variables={variables}
-              />
-            </div>
-          </PanelContainer>
-        </Panel>
-      </PanelGroup>
+      <EvaluatorForm />
     </>
   );
 };

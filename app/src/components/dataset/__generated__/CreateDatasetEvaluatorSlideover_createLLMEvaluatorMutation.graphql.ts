@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a7c3cd127ae5133d9f3a11406cd11eb8>>
+ * @generated SignedSource<<72701039989ac8498bbd757338d8e1f6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -74,11 +74,11 @@ export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
 };
-export type NewEvaluatorPageContentMutation$variables = {
+export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;
   input: CreateLLMEvaluatorInput;
 };
-export type NewEvaluatorPageContentMutation$data = {
+export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$data = {
   readonly createLlmEvaluator: {
     readonly evaluator: {
       readonly id: string;
@@ -87,9 +87,9 @@ export type NewEvaluatorPageContentMutation$data = {
     };
   };
 };
-export type NewEvaluatorPageContentMutation = {
-  response: NewEvaluatorPageContentMutation$data;
-  variables: NewEvaluatorPageContentMutation$variables;
+export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation = {
+  response: CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$data;
+  variables: CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -160,7 +160,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "NewEvaluatorPageContentMutation",
+    "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "selections": [
       {
         "alias": null,
@@ -237,7 +237,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "NewEvaluatorPageContentMutation",
+    "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "selections": [
       {
         "alias": null,
@@ -305,16 +305,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1d3b7471ff7c0591991728b21d5eaf8e",
+    "cacheID": "312cd6aa960ab7bc1ed044658a243f5f",
     "id": null,
     "metadata": {},
-    "name": "NewEvaluatorPageContentMutation",
+    "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation NewEvaluatorPageContentMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n"
+    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n"
   }
 };
 })();
 
-(node as any).hash = "11a533c8f74dd49aa472ac036708c738";
+(node as any).hash = "d92fe019248209bda7be6431680e2477";
 
 export default node;

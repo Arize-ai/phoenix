@@ -18,6 +18,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { Heading } from "@phoenix/components/content/Heading";
+import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { Flex } from "@phoenix/components/layout/Flex";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { EvaluatorInputMappingControlsQuery } from "@phoenix/pages/evaluators/__generated__/EvaluatorInputMappingControlsQuery.graphql";
@@ -26,7 +27,7 @@ import { flattenObject } from "@phoenix/utils/jsonUtils";
 export type InputMapping = Record<string, string>;
 
 type EvaluatorInputMappingProps = {
-  control: Control<InputMapping, unknown, InputMapping>;
+  control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
   exampleId?: string;
   variables: string[];
 };
@@ -82,7 +83,7 @@ const EvaluatorInputMappingControls = ({
   variables,
 }: {
   exampleId: string;
-  control: Control<InputMapping, unknown, InputMapping>;
+  control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
   variables: string[];
 }) => {
   const data = useLazyLoadQuery<EvaluatorInputMappingControlsQuery>(
@@ -143,7 +144,7 @@ const EvaluatorInputMappingControls = ({
           `}
         >
           <Controller
-            name={variable}
+            name={`inputMapping.${variable}`}
             control={control}
             render={({ field }) => (
               <ComboBox
