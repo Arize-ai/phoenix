@@ -1,5 +1,14 @@
 # Changelog
 
+## [12.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.15.0...arize-phoenix-v12.15.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10278](https://github.com/Arize-ai/phoenix/issues/10278)) ([e27e1cd](https://github.com/Arize-ai/phoenix/commit/e27e1cd7547d6c6200f3f1c12b6d35c918984676))
+* incremental fetch strategy for generative models caching ([#10287](https://github.com/Arize-ai/phoenix/issues/10287)) ([c7bb87a](https://github.com/Arize-ai/phoenix/commit/c7bb87aac115bde965acabf545a21f20f596db44))
+* use float to account for large ints ([#10294](https://github.com/Arize-ai/phoenix/issues/10294)) ([07234ab](https://github.com/Arize-ai/phoenix/commit/07234aba2b58a1db861f2e4c668d89e5a424f380))
+
 ## [12.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.14.2...arize-phoenix-v12.15.0) (2025-11-13)
 
 
