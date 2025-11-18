@@ -198,7 +198,7 @@ class Trace(Node):
         before: Optional[CursorString] = UNSET,
     ) -> Connection[Span]:
         # Validate pagination arguments
-        if first is not None and first < 0:
+        if isinstance(first, int) and first < 0:
             raise ValueError('Argument "first" must be a non-negative int')
 
         stmt = (
@@ -210,18 +210,18 @@ class Trace(Node):
             .order_by(desc(models.Span.id))
         )
         # Handle cursor pagination (forward pagination only)
-        if after:
+        if after is not UNSET:
             cursor = Cursor.from_string(after)
             # For descending order, "after" means we want spans with smaller IDs
             # (going forward in descending order)
             stmt = stmt.where(models.Span.id < cursor.rowid)
         # Note: backward pagination (last/before) is not yet implemented
         # as it requires more complex handling with reversed ordering
-        if before or (last is not UNSET and last is not None):
+        if before is not UNSET or (last is not UNSET and last is not None):
             raise ValueError("Backward pagination (last/before) is not yet supported")
 
         # Over-fetch by one to determine whether there's a next page
-        limit = first if first is not None else 50
+        limit = first if isinstance(first, int) else 50
         stmt = stmt.limit(limit + 1)
 
         cursors_and_nodes = []
