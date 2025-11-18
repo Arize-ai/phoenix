@@ -1940,10 +1940,10 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
                     "and Python >= 3.10."
                 )
 
-            # Map medium thinking_level to high as it is not yet supported
-            if thinking_level == "medium":
-                thinking_level = "high"
-
+            # NOTE: as of gemini 1.51.0 medium thinking is not supported
+            # but will eventually be added in a future version
+            # we are purposefully allowing users to select medium knowing
+            # it does not work.
             invocation_parameters["thinking_config"] = {
                 "include_thoughts": True,
                 "thinking_level": thinking_level.upper(),
