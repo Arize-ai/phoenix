@@ -244,9 +244,6 @@ importers:
       minimist:
         specifier: ^1.2.8
         version: 1.2.8
-      vitest:
-        specifier: ^4.0.10
-        version: 4.0.10(@types/node@22.18.12)(jiti@2.6.1)(msw@2.11.6(@types/node@22.18.12)(typescript@5.9.3))(tsx@4.20.6)(yaml@2.8.1)
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -266,6 +263,9 @@ importers:
       typescript:
         specifier: ^5.8.2
         version: 5.9.3
+      vitest:
+        specifier: ^4.0.10
+        version: 4.0.10(@types/node@22.18.12)(jiti@2.6.1)(msw@2.11.6(@types/node@22.18.12)(typescript@5.9.3))(tsx@4.20.6)(yaml@2.8.1)
 
   packages/phoenix-otel:
     dependencies:

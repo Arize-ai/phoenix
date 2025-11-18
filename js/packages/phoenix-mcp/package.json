@@ -26,7 +26,6 @@
     "@modelcontextprotocol/sdk": "^1.13.3",
     "glob": "^11.1.0",
     "minimist": "^1.2.8",
-    "vitest": "^4.0.10",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -34,6 +33,7 @@
     "@types/minimist": "^1.2.5",
     "@types/node": "^22.14.0",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.10"
   }
 }
