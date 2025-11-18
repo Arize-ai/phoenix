@@ -78,7 +78,7 @@ export function TraceDetails(props: TraceDetailsProps) {
             trace(traceId: $traceId) {
               projectSessionId
               ...ConnectedTraceTree
-              topSpans: spans(first: 100) {
+              topSpans: spans(first: 1000) {
                 edges {
                   span: node {
                     statusCode
