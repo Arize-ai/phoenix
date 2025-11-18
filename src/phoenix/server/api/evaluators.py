@@ -1,11 +1,27 @@
 import zlib
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from typing import Any, Optional, TypeVar
 
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
+from typing_extensions import TypedDict
 
+from phoenix.db import models
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMapping
+
+
+class EvaluationResult(TypedDict):
+    name: str
+    annotator_kind: str
+    label: Optional[str]
+    score: Optional[float]
+    explanation: Optional[str]
+    metadata: dict[str, Any]
+    error: Optional[str]
+    trace_id: Optional[str]
+    start_time: datetime
+    end_time: datetime
 
 
 class BuiltInEvaluator(ABC):
@@ -15,9 +31,13 @@ class BuiltInEvaluator(ABC):
     input_schema: dict[str, Any] = {}
 
     @abstractmethod
-    def evaluate(self, **kwargs: Any) -> Any:
-        """Evaluate the input and return a result."""
-        ...
+    def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMapping,
+    ) -> EvaluationResult:
+        raise NotImplementedError
 
 
 _BUILTIN_EVALUATORS: dict[str, type[BuiltInEvaluator]] = {}
@@ -76,6 +96,26 @@ def apply_input_mapping(
     return result
 
 
+def evaluation_result_to_model(
+    result: EvaluationResult,
+    *,
+    experiment_run_id: int,
+) -> models.ExperimentRunAnnotation:
+    return models.ExperimentRunAnnotation(
+        experiment_run_id=experiment_run_id,
+        name=result["name"],
+        annotator_kind=result["annotator_kind"],
+        label=result["label"],
+        score=result["score"],
+        explanation=result["explanation"],
+        trace_id=result["trace_id"],
+        error=result["error"],
+        metadata_=result["metadata"],
+        start_time=result["start_time"],
+        end_time=result["end_time"],
+    )
+
+
 @register_builtin_evaluator
 class ContainsEvaluator(BuiltInEvaluator):
     name = "ContainsEvaluator"
@@ -92,9 +132,29 @@ class ContainsEvaluator(BuiltInEvaluator):
         "required": ["contains"],
     }
 
-    def __init__(self, contains: str):
-        self.contains = contains
-
-    def evaluate(self, **kwargs: Any) -> bool:
-        output = kwargs.get("output", "")
-        return self.contains in str(output)
+    def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMapping,
+    ) -> EvaluationResult:
+        inputs = apply_input_mapping(self.input_schema, input_mapping, context)
+        contains = inputs.get("contains")
+        output = context.get("output", "")
+        now = datetime.now(timezone.utc)
+        matched = str(contains) in str(output)
+        return EvaluationResult(
+            name=self.name,
+            annotator_kind="CODE",
+            label=None,
+            score=1.0 if matched else 0.0,
+            explanation=(
+                f"the string {repr(contains)} was {'found' if matched else 'not found'} "
+                "in the output"
+            ),
+            metadata={"contains": contains},
+            error=None,
+            trace_id=None,
+            start_time=now,
+            end_time=now,
+        )
