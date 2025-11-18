@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { ConnectionHandler, graphql, usePaginationFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -220,7 +220,12 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
             <Flex direction="row" justifyContent="end" width="100%">
               <UserActionMenu
                 userId={row.original.id}
-                onUserDeleted={refetchTableData}
+                connectionIds={[
+                  ConnectionHandler.getConnectionID(
+                    "client:root",
+                    "UsersTable_users"
+                  ),
+                ]}
                 authMethod={row.original.authMethod}
               />
             </Flex>

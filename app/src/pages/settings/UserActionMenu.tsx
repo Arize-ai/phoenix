@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { type DataID } from "relay-runtime";
 
 import {
   Button,
@@ -21,8 +22,8 @@ import { ResetPasswordDialog } from "./ResetPasswordDialog";
 
 type UserActionMenuProps = {
   userId: string;
-  onUserDeleted: () => void;
   authMethod: AuthMethod;
+  connectionIds: DataID[];
 };
 
 enum UserAction {
@@ -35,7 +36,7 @@ function isLocalAuth(authMethod: AuthMethod): authMethod is "LOCAL" {
 }
 
 export function UserActionMenu(props: UserActionMenuProps) {
-  const { userId, onUserDeleted, authMethod } = props;
+  const { userId, authMethod, connectionIds } = props;
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
 
@@ -109,8 +110,8 @@ export function UserActionMenu(props: UserActionMenuProps) {
             <DeleteUserDialog
               userId={userId}
               onClose={() => setShowDeleteDialog(false)}
+              connectionIds={connectionIds}
               onDeleted={() => {
-                onUserDeleted();
                 setShowDeleteDialog(false);
               }}
             />
