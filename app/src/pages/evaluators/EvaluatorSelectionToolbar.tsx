@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -29,6 +30,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 interface SelectedEvaluator {
   id: string;
+  name: string;
 }
 
 type EvaluatorSelectionToolbarProps = {
@@ -148,22 +150,36 @@ export function EvaluatorSelectionToolbar(
                 </DialogTitleExtra>
               </DialogHeader>
               <View padding="size-200">
-                <Text color="danger">
-                  Are you sure you want to delete {selectedEvaluators.length}{" "}
-                  evaluator{isPlural ? "s" : ""}?
+                <Text>Are you sure you want to delete these evaluators?</Text>
+                <ul
+                  css={css`
+                    padding-bottom: var(--ac-global-dimension-size-200);
+                  `}
+                >
+                  {selectedEvaluators.map((evaluator) => (
+                    <li
+                      key={evaluator.id}
+                      css={css`
+                        padding-left: var(--ac-global-dimension-size-200);
+                        padding-top: var(--ac-global-dimension-size-50);
+                      `}
+                    >
+                      <Text>{evaluator.name}</Text>
+                    </li>
+                  ))}
+                </ul>
+                <Text>
+                  This will delete the selected evaluators and remove them from
+                  any datasets that use them. Annotations created by these
+                  evaluators will remain in place.
                 </Text>
               </View>
-              <View
-                paddingEnd="size-200"
-                paddingTop="size-100"
-                paddingBottom="size-100"
-                borderTopColor="light"
-                borderTopWidth="thin"
-              >
-                <Flex direction="row" justifyContent="end" gap="size-100">
+              <View paddingX="size-200" paddingBottom="size-100">
+                <Flex direction="row" justifyContent="end" gap="size-200">
                   <Button
                     size="S"
                     onPress={() => setIsDeleteConfirmationDialogOpen(false)}
+                    variant="quiet"
                   >
                     Cancel
                   </Button>
@@ -175,7 +191,8 @@ export function EvaluatorSelectionToolbar(
                       setIsDeleteConfirmationDialogOpen(false);
                     }}
                   >
-                    Delete
+                    Delete {selectedEvaluators.length} evaluator
+                    {isPlural ? "s" : ""}
                   </Button>
                 </Flex>
               </View>
