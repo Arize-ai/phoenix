@@ -239,17 +239,13 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   const notifyError = useCallback(
     ({ title, message, ...rest }: Parameters<typeof notifyErrorToast>[0]) => {
-      setRepetitionError(instanceId, selectedRepetitionNumber, {
-        title,
-        message,
-      });
       notifyErrorToast({
         title,
         message,
         ...rest,
       });
     },
-    [notifyErrorToast, instanceId, selectedRepetitionNumber, setRepetitionError]
+    [notifyErrorToast]
   );
 
   const handleChatCompletionSubscriptionPayload = useCallback(
