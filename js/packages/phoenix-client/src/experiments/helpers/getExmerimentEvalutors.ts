@@ -32,6 +32,8 @@ function isExperimentEvaluator(evaluator: unknown): evaluator is Evaluator {
   return (
     typeof evaluator === "object" &&
     evaluator !== null &&
+    "evaluate" in evaluator &&
+    typeof evaluator.evaluate === "function" &&
     "name" in evaluator &&
     typeof evaluator.name === "string" &&
     "kind" in evaluator &&
