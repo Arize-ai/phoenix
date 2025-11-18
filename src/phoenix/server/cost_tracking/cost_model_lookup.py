@@ -31,7 +31,6 @@ class CostModelLookup:
         """Add or update a single model in the lookup."""
         self._models_by_id[model.id] = model
 
-        # Calculate specificity score on the fly to avoid memory leaks
         specificity_score = regex_specificity.score(model.name_pattern)
 
         # For built-in models, use negative ID so that earlier IDs win

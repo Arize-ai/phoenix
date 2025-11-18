@@ -106,7 +106,6 @@ class TestGenerativeModelStore:
         )
         assert fetched_model1 is not None
         assert fetched_model1.name == "gpt-3.5"
-        # Verify selectinload worked: token_prices should be loaded
         assert len(fetched_model1.token_prices) == 2
 
         fetched_model2 = store.find_model(
@@ -115,7 +114,6 @@ class TestGenerativeModelStore:
         )
         assert fetched_model2 is not None
         assert fetched_model2.name == "claude-3"
-        # Verify selectinload worked: token_prices should be loaded
         assert len(fetched_model2.token_prices) == 2
 
         # Verify _last_fetch_time was set
