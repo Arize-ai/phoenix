@@ -305,6 +305,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
             {hasNext ? (
               <LoadMoreRow
                 onLoadMore={() => loadNext(PAGE_SIZE)}
+                key="load-more"
                 isLoadingNext={isLoadingNext}
               />
             ) : null}
