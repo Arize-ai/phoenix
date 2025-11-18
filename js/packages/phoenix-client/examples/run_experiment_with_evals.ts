@@ -1,11 +1,10 @@
 import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
 import {
-  asEvaluator,
+  asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
-
-import { createHallucinationEvaluator } from "../src/llm";
+import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
 
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
@@ -66,7 +65,7 @@ const main = async () => {
   };
 
   // Create a custom evaluator to validate results
-  const hallucinationCheck = asEvaluator({
+  const hallucinationCheck = asExperimentEvaluator({
     name: "hallucination",
     kind: "LLM",
     evaluate: async ({ input, output }) => {

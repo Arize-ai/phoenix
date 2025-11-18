@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - examples/apps/*
+  - benchmarks/evals-benchmarks/*
 
 onlyBuiltDependencies:
   - esbuild

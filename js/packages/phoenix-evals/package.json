@@ -38,7 +38,8 @@
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "type:check": "tsc --noEmit",
-    "test": "vitest --typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
     "docs": "typedoc",
     "docs:preview": "pnpx http-server ./docs -p 8080 -o"
   },
@@ -54,7 +55,6 @@
   "devDependencies": {
     "@ai-sdk/openai": "^2.0.0",
     "@arizeai/openinference-instrumentation-openai": "^2.3.0",
-    "@arizeai/phoenix-client": "workspace:*",
     "@types/mustache": "^4.2.6",
     "@types/node": "^24.0.10",
     "msw": "^2.11.6",
@@ -62,7 +62,7 @@
     "tsx": "^4.19.3",
     "typedoc": "^0.27.9",
     "typescript": "^5.8.2",
-    "vitest": "^2.1.9"
+    "vitest": "^4.0.10"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {

@@ -1,11 +1,10 @@
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {
-  asEvaluator,
+  asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
-import { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
-
-import { createDocumentRelevancyEvaluator } from "../src/llm";
+import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import { createDocumentRelevancyEvaluator } from "@arizeai/phoenix-evals";
 
 import { openai } from "@ai-sdk/openai";
 
@@ -203,7 +202,7 @@ type TaskOutput = {
   explanation: string;
 };
 
-const correctEvaluator = asEvaluator({
+const correctEvaluator = asExperimentEvaluator({
   name: "correctness",
   kind: "CODE",
   evaluate: async (args) => {
