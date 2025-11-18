@@ -55,7 +55,6 @@
   "devDependencies": {
     "@ai-sdk/openai": "^2.0.0",
     "@arizeai/openinference-instrumentation-openai": "^2.3.0",
-    "@arizeai/phoenix-client": "workspace:*",
     "@types/mustache": "^4.2.6",
     "@types/node": "^24.0.10",
     "msw": "^2.11.6",
