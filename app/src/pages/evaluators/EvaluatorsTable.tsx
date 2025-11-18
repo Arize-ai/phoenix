@@ -27,6 +27,7 @@ import {
   EvaluatorFilter,
   EvaluatorSort,
 } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
+import { EvaluatorSelectionToolbar } from "@phoenix/pages/evaluators/EvaluatorSelectionToolbar";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 
 export const convertEvaluatorSortToTanstackSort = (
@@ -286,6 +287,13 @@ export const EvaluatorsTable = ({
   }, [sort, filter, refetch]);
 
   const rows = table.getRowModel().rows;
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedEvaluators = selectedRows.map((row) => row.original);
+
+  const clearSelection = useCallback(() => {
+    setRowSelection({});
+  }, [setRowSelection]);
+
   const isEmpty = rows.length === 0;
 
   if (isEmpty) {
@@ -365,6 +373,16 @@ export const EvaluatorsTable = ({
           })}
         </tbody>
       </table>
+      {selectedRows.length ? (
+        <EvaluatorSelectionToolbar
+          selectedEvaluators={selectedEvaluators}
+          onEvaluatorsDeleted={() => {
+            // TODO: fix top-level checkbox state after deletion
+            refetch({});
+          }}
+          onClearSelection={clearSelection}
+        />
+      ) : null}
     </div>
   );
 };
