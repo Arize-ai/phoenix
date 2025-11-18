@@ -11,11 +11,12 @@
   "license": "ISC",
   "packageManager": "pnpm@10.13.1",
   "dependencies": {
-    "@arizeai/phoenix-evals": "workspace:*",
+    "@ai-sdk/openai": "^2.0.0",
     "@arizeai/phoenix-client": "workspace:*",
-    "@ai-sdk/openai": "^2.0.0"
+    "@arizeai/phoenix-evals": "workspace:*"
   },
   "devDependencies": {
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
 }
