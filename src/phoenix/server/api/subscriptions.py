@@ -202,8 +202,10 @@ class Subscription:
             async with info.context.db() as session:
                 for ii, evaluator in enumerate(input.evaluators):
                     _, db_id = from_global_id(evaluator.id)
-                    evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
-                    evaluator_name = evaluator_record.name if evaluator_record else ""  # pyright: ignore
+                    evaluator_record = await session.get(models.Evaluator, db_id)
+                    if evaluator_record is None:
+                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
+                    evaluator_name = evaluator_record.name.root
                     dummy_annotation = ExperimentRunAnnotation.from_dict(
                         {
                             "name": evaluator_name,
@@ -441,8 +443,12 @@ class Subscription:
                     for repetition_number in range(1, input.repetitions + 1):
                         for ii, evaluator in enumerate(input.evaluators):
                             _, db_id = from_global_id(evaluator.id)
-                            evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
-                            evaluator_name = evaluator_record.name if evaluator_record else ""  # pyright: ignore
+                            evaluator_record = await session.get(models.Evaluator, db_id)
+                            if evaluator_record is None:
+                                raise BadRequest(
+                                    f"Could not find evaluator with ID '{evaluator.id}'"
+                                )
+                            evaluator_name = evaluator_record.name.root
                             dummy_annotation = ExperimentRunAnnotation.from_dict(
                                 {
                                     "name": evaluator_name,
