@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2de8987fb57c95752fe8095c973851fe>>
+ * @generated SignedSource<<0073c068d9217d66eae2882b6ddccc07>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -31,7 +31,7 @@ export type TraceDetailsQuery$data = {
       };
       readonly latencyMs: number | null;
       readonly projectSessionId: string | null;
-      readonly spans: {
+      readonly topSpans: {
         readonly edges: ReadonlyArray<{
           readonly span: {
             readonly id: string;
@@ -82,40 +82,76 @@ v4 = {
   "name": "projectSessionId",
   "storageKey": null
 },
-v5 = [
-  {
-    "kind": "Literal",
-    "name": "first",
-    "value": 1000
-  }
-],
-v6 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "statusCode",
   "storageKey": null
 },
-v7 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "spanId",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
+},
+v9 = {
+  "alias": "topSpans",
+  "args": [
+    {
+      "kind": "Literal",
+      "name": "first",
+      "value": 100
+    }
+  ],
+  "concreteType": "SpanConnection",
+  "kind": "LinkedField",
+  "name": "spans",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanEdge",
+      "kind": "LinkedField",
+      "name": "edges",
+      "plural": true,
+      "selections": [
+        {
+          "alias": "span",
+          "args": null,
+          "concreteType": "Span",
+          "kind": "LinkedField",
+          "name": "node",
+          "plural": false,
+          "selections": [
+            (v5/*: any*/),
+            (v6/*: any*/),
+            (v7/*: any*/),
+            (v8/*: any*/)
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": "spans(first:100)"
 },
 v10 = {
   "alias": null,
@@ -181,7 +217,14 @@ v13 = {
   "name": "__typename",
   "storageKey": null
 },
-v14 = {
+v14 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 1001
+  }
+],
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -223,43 +266,7 @@ return {
                     "kind": "FragmentSpread",
                     "name": "ConnectedTraceTree"
                   },
-                  {
-                    "alias": null,
-                    "args": (v5/*: any*/),
-                    "concreteType": "SpanConnection",
-                    "kind": "LinkedField",
-                    "name": "spans",
-                    "plural": false,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "SpanEdge",
-                        "kind": "LinkedField",
-                        "name": "edges",
-                        "plural": true,
-                        "selections": [
-                          {
-                            "alias": "span",
-                            "args": null,
-                            "concreteType": "Span",
-                            "kind": "LinkedField",
-                            "name": "node",
-                            "plural": false,
-                            "selections": [
-                              (v6/*: any*/),
-                              (v7/*: any*/),
-                              (v8/*: any*/),
-                              (v9/*: any*/)
-                            ],
-                            "storageKey": null
-                          }
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": "spans(first:1000)"
-                  },
+                  (v9/*: any*/),
                   (v10/*: any*/),
                   (v12/*: any*/)
                 ],
@@ -308,7 +315,7 @@ return {
                   (v4/*: any*/),
                   {
                     "alias": null,
-                    "args": (v5/*: any*/),
+                    "args": (v14/*: any*/),
                     "concreteType": "SpanConnection",
                     "kind": "LinkedField",
                     "name": "spans",
@@ -330,9 +337,9 @@ return {
                             "name": "node",
                             "plural": false,
                             "selections": [
+                              (v6/*: any*/),
                               (v7/*: any*/),
-                              (v8/*: any*/),
-                              (v14/*: any*/),
+                              (v15/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -340,7 +347,7 @@ return {
                                 "name": "spanKind",
                                 "storageKey": null
                               },
-                              (v6/*: any*/),
+                              (v5/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -355,7 +362,7 @@ return {
                                 "name": "endTime",
                                 "storageKey": null
                               },
-                              (v9/*: any*/),
+                              (v8/*: any*/),
                               (v10/*: any*/),
                               {
                                 "alias": null,
@@ -418,7 +425,7 @@ return {
                                     ],
                                     "storageKey": null
                                   },
-                                  (v14/*: any*/),
+                                  (v15/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -455,7 +462,7 @@ return {
                             "plural": false,
                             "selections": [
                               (v13/*: any*/),
-                              (v7/*: any*/)
+                              (v6/*: any*/)
                             ],
                             "storageKey": null
                           }
@@ -488,18 +495,19 @@ return {
                         "storageKey": null
                       }
                     ],
-                    "storageKey": "spans(first:1000)"
+                    "storageKey": "spans(first:1001)"
                   },
                   {
                     "alias": null,
-                    "args": (v5/*: any*/),
+                    "args": (v14/*: any*/),
                     "filters": null,
                     "handle": "connection",
                     "key": "ConnectedTraceTree_spans",
                     "kind": "LinkedHandle",
                     "name": "spans"
                   },
-                  (v7/*: any*/),
+                  (v6/*: any*/),
+                  (v9/*: any*/),
                   (v10/*: any*/),
                   (v12/*: any*/)
                 ],
@@ -509,23 +517,23 @@ return {
             "type": "Project",
             "abstractKey": null
           },
-          (v7/*: any*/)
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "3b725b26f0b7cd0c065257689c4c1301",
+    "cacheID": "3d6c62e5d40e112ebb139a274a3ac4da",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        ...ConnectedTraceTree\n        spans(first: 1000) {\n          edges {\n            span: node {\n              statusCode\n              id\n              spanId\n              parentId\n            }\n          }\n        }\n        latencyMs\n        costSummary {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedTraceTree on Trace {\n  spans(first: 1000) {\n    edges {\n      span: node {\n        id\n        spanId\n        name\n        spanKind\n        statusCode\n        startTime\n        endTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        spanAnnotationSummaries {\n          labels\n          count\n          labelCount\n          labelFractions {\n            fraction\n            label\n          }\n          name\n          scoreCount\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        ...ConnectedTraceTree\n        topSpans: spans(first: 100) {\n          edges {\n            span: node {\n              statusCode\n              id\n              spanId\n              parentId\n            }\n          }\n        }\n        latencyMs\n        costSummary {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedTraceTree on Trace {\n  spans(first: 1001) {\n    edges {\n      span: node {\n        id\n        spanId\n        name\n        spanKind\n        statusCode\n        startTime\n        endTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        spanAnnotationSummaries {\n          labels\n          count\n          labelCount\n          labelFractions {\n            fraction\n            label\n          }\n          name\n          scoreCount\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "03aae01b2981f43444e23cbde52a5f45";
+(node as any).hash = "8a40c4aa4af247d561af0a00120817d6";
 
 export default node;

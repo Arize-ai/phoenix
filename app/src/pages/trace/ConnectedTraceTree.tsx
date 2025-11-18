@@ -22,7 +22,7 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
       fragment ConnectedTraceTree on Trace
       @refetchable(queryName: "ConnectedTraceTreeQuery")
       @argumentDefinitions(
-        count: { type: "Int", defaultValue: 1000 }
+        count: { type: "Int", defaultValue: 1001 }
         cursor: { type: "String", defaultValue: null }
       ) {
         spans(first: $count, after: $cursor)

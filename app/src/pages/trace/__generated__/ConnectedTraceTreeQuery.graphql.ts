@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e04e1e6fcfda96cf2c8ab55eecb3f65c>>
+ * @generated SignedSource<<deab08efa6ce9686a646ab15ed76da39>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,7 +28,7 @@ export type ConnectedTraceTreeQuery = {
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "defaultValue": 1000,
+    "defaultValue": 1001,
     "kind": "LocalArgument",
     "name": "count"
   },
@@ -367,16 +367,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0fbd1bb8cc107bb2b8d684a1d1979fee",
+    "cacheID": "396e24b23fd26e1d6a77d1af0680052c",
     "id": null,
     "metadata": {},
     "name": "ConnectedTraceTreeQuery",
     "operationKind": "query",
-    "text": "query ConnectedTraceTreeQuery(\n  $count: Int = 1000\n  $cursor: String = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ConnectedTraceTree_1G22uz\n    id\n  }\n}\n\nfragment ConnectedTraceTree_1G22uz on Trace {\n  spans(first: $count, after: $cursor) {\n    edges {\n      span: node {\n        id\n        spanId\n        name\n        spanKind\n        statusCode\n        startTime\n        endTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        spanAnnotationSummaries {\n          labels\n          count\n          labelCount\n          labelFractions {\n            fraction\n            label\n          }\n          name\n          scoreCount\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ConnectedTraceTreeQuery(\n  $count: Int = 1001\n  $cursor: String = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ConnectedTraceTree_1G22uz\n    id\n  }\n}\n\nfragment ConnectedTraceTree_1G22uz on Trace {\n  spans(first: $count, after: $cursor) {\n    edges {\n      span: node {\n        id\n        spanId\n        name\n        spanKind\n        statusCode\n        startTime\n        endTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        spanAnnotationSummaries {\n          labels\n          count\n          labelCount\n          labelFractions {\n            fraction\n            label\n          }\n          name\n          scoreCount\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "189ad04acf2006d703789e07445c4167";
+(node as any).hash = "f61114ea4063ae07f321497aad75df30";
 
 export default node;

@@ -35,7 +35,7 @@ import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations
 
 type Span = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
->["spans"]["edges"][number]["span"];
+>["topSpans"]["edges"][number]["span"];
 
 type CostSummary = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -78,7 +78,7 @@ export function TraceDetails(props: TraceDetailsProps) {
             trace(traceId: $traceId) {
               projectSessionId
               ...ConnectedTraceTree
-              spans(first: 1000) {
+              topSpans: spans(first: 100) {
                 edges {
                   span: node {
                     statusCode
@@ -114,13 +114,13 @@ export function TraceDetails(props: TraceDetailsProps) {
   const traceLatencyMs =
     data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
   const costSummary = data?.project?.trace?.costSummary;
-  const spansList: Span[] = useMemo(() => {
-    const gqlSpans = data.project.trace?.spans.edges || [];
+  const topSpans: Span[] = useMemo(() => {
+    const gqlSpans = data.project.trace?.topSpans.edges || [];
     return gqlSpans.map((node) => node.span);
   }, [data]);
   const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
-  const selectedSpanNodeId = urlSpanNodeId ?? spansList[0].id;
-  const rootSpan = useMemo(() => findRootSpan(spansList), [spansList]);
+  const selectedSpanNodeId = urlSpanNodeId ?? topSpans[0].id;
+  const rootSpan = useMemo(() => findRootSpan(topSpans), [topSpans]);
 
   return (
     <main
