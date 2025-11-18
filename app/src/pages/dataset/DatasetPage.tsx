@@ -145,10 +145,6 @@ function isTabName(name: unknown): name is TabName {
 }
 
 function getTabIndexFromPathname(pathname: string): number {
-  // special case for new evaluator nested route
-  if (pathname.endsWith("/evaluators/new")) {
-    return TABS_LIST.indexOf("evaluators");
-  }
   // We only need the last part of the path
   const path = pathname.split("/").at(-1);
   if (isTabName(path)) {
