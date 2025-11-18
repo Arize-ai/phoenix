@@ -3,9 +3,10 @@ import {
   startTransition,
   useCallback,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { graphql, useRefetchableFragment } from "react-relay";
+import { graphql, usePaginationFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -17,6 +18,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Modal, ModalOverlay } from "@phoenix/components";
 import { RoleSelect } from "@phoenix/components/settings/RoleSelect";
+import { LoadMoreRow } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -30,6 +32,7 @@ import { UserActionMenu } from "./UserActionMenu";
 import { UserRoleChangeDialog } from "./UserRoleChangeDialog";
 
 const USER_TABLE_ROW_HEIGHT = 55;
+const PAGE_SIZE = 50;
 
 const emailLinkCSS = css`
   text-decoration: none;
@@ -55,38 +58,50 @@ const userTableRowCSS = css`
   height: ${USER_TABLE_ROW_HEIGHT}px;
 `;
 
+/**
+ * Container for the users table with scrolling
+ */
+const usersTableContainerCSS = css`
+  overflow: auto;
+  max-height: var(--ac-global-dimension-size-6000);
+`;
+
 const isDefaultAdminUser = (user: { email: string; username: string }) =>
   user.email === "admin@localhost" || user.username === "admin";
 
 export function UsersTable({ query }: { query: UsersTable_users$key }) {
   "use no memo";
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const [data, refetch] = useRefetchableFragment<
-    UsersTableQuery,
-    UsersTable_users$key
-  >(
-    graphql`
-      fragment UsersTable_users on Query
-      @refetchable(queryName: "UsersTableQuery") {
-        users {
-          edges {
-            user: node {
-              id
-              email
-              username
-              createdAt
-              authMethod
-              profilePictureUrl
-              role {
-                name
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<UsersTableQuery, UsersTable_users$key>(
+      graphql`
+        fragment UsersTable_users on Query
+        @refetchable(queryName: "UsersTableQuery")
+        @argumentDefinitions(
+          after: { type: "String", defaultValue: null }
+          first: { type: "Int", defaultValue: 50 }
+        ) {
+          users(first: $first, after: $after)
+            @connection(key: "UsersTable_users") {
+            edges {
+              user: node {
+                id
+                email
+                username
+                createdAt
+                authMethod
+                profilePictureUrl
+                role {
+                  name
+                }
               }
             }
           }
         }
-      }
-    `,
-    query
-  );
+      `,
+      query
+    );
 
   const tableData = useMemo(() => {
     return data.users.edges.map(({ user }) => ({
@@ -102,9 +117,29 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
 
   const refetchTableData = useCallback(() => {
     startTransition(() => {
-      refetch({}, { fetchPolicy: "network-only" });
+      refetch(
+        { after: null, first: PAGE_SIZE },
+        { fetchPolicy: "network-only" }
+      );
     });
   }, [refetch]);
+
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        // once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
   const { viewer } = useViewer();
   type TableRow = (typeof tableData)[number];
   const columns = useMemo((): ColumnDef<TableRow>[] => {
@@ -208,83 +243,95 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
   const rows = table.getRowModel().rows;
   const isEmpty = table.getRowModel().rows.length === 0;
   return (
-    <table css={tableCSS}>
-      <thead>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <tr key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <th
-                colSpan={header.colSpan}
-                key={header.id}
-                css={usersTableHeaderCSS}
-              >
-                {header.isPlaceholder ? null : (
-                  <div
-                    {...{
-                      className: header.column.getCanSort() ? "sort" : "",
-                      onClick: header.column.getToggleSortingHandler(),
-                      style: {
-                        left: header.getStart(),
-                        width: header.getSize(),
-                      },
-                    }}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                    {header.column.getIsSorted() ? (
-                      <Icon
-                        className="sort-icon"
-                        svg={
-                          header.column.getIsSorted() === "asc" ? (
-                            <Icons.ArrowUpFilled />
-                          ) : (
-                            <Icons.ArrowDownFilled />
-                          )
-                        }
-                      />
-                    ) : null}
-                  </div>
-                )}
-              </th>
-            ))}
-          </tr>
-        ))}
-      </thead>
-      {isEmpty ? (
-        <TableEmpty />
-      ) : (
-        <tbody>
-          {rows.map((row) => {
-            return (
-              <tr key={row.id} css={userTableRowCSS}>
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
+    <div
+      css={usersTableContainerCSS}
+      ref={tableContainerRef}
+      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+    >
+      <table css={tableCSS}>
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  css={usersTableHeaderCSS}
+                >
+                  {header.isPlaceholder ? null : (
+                    <div
+                      {...{
+                        className: header.column.getCanSort() ? "sort" : "",
+                        onClick: header.column.getToggleSortingHandler(),
+                        style: {
+                          left: header.getStart(),
+                          width: header.getSize(),
+                        },
+                      }}
+                    >
                       {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+                        header.column.columnDef.header,
+                        header.getContext()
                       )}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      )}
-      <ModalOverlay
-        isOpen={dialog !== null}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setDialog(null);
-          }
-        }}
-        isDismissable
-      >
-        <Modal size="S">{dialog}</Modal>
-      </ModalOverlay>
-    </table>
+                      {header.column.getIsSorted() ? (
+                        <Icon
+                          className="sort-icon"
+                          svg={
+                            header.column.getIsSorted() === "asc" ? (
+                              <Icons.ArrowUpFilled />
+                            ) : (
+                              <Icons.ArrowDownFilled />
+                            )
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  )}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        {isEmpty ? (
+          <TableEmpty />
+        ) : (
+          <tbody>
+            {rows.map((row) => {
+              return (
+                <tr key={row.id} css={userTableRowCSS}>
+                  {row.getVisibleCells().map((cell) => {
+                    return (
+                      <td key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+            {hasNext ? (
+              <LoadMoreRow
+                onLoadMore={() => loadNext(PAGE_SIZE)}
+                isLoadingNext={isLoadingNext}
+              />
+            ) : null}
+          </tbody>
+        )}
+        <ModalOverlay
+          isOpen={dialog !== null}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setDialog(null);
+            }
+          }}
+          isDismissable
+        >
+          <Modal size="S">{dialog}</Modal>
+        </ModalOverlay>
+      </table>
+    </div>
   );
 }
