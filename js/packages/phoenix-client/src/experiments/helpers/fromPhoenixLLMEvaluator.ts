@@ -9,7 +9,7 @@ import { asExperimentEvaluator } from "./asExperimentEvaluator";
  * @param phoenixEvaluator
  * @returns an experiment compatible Evaluator
  */
-export function fromPhoenixEvaluator<
+export function fromPhoenixLLMEvaluator<
   RecordType extends Record<string, unknown>,
 >(phoenixLLMEvaluator: LLMEvaluator<RecordType>): Evaluator {
   return asExperimentEvaluator({

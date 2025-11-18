@@ -17,7 +17,7 @@ describe("getExperimentEvaluators", () => {
     mockFromPhoenixEvaluator.mockClear();
     // Set up the mock implementation
     const { fromPhoenixEvaluator } = await import(
-      "../../../src/experiments/helpers/fromPhoenixEvaluator"
+      "../../../src/experiments/helpers/fromPhoenixLLMEvaluator"
     );
     vi.mocked(fromPhoenixEvaluator).mockImplementation(
       mockFromPhoenixEvaluator

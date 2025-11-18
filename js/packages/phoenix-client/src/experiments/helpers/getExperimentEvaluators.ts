@@ -2,13 +2,13 @@ import type { LLMEvaluator } from "@arizeai/phoenix-evals";
 
 import { Evaluator } from "../../types/experiments";
 
-import { fromPhoenixEvaluator } from "./fromPhoenixLLMEvaluator";
+import { fromPhoenixLLMEvaluator } from "./fromPhoenixLLMEvaluator";
 
 /**
- * A type guard for ClassificationEvaluator functions.
+ * A type guard for LLMEvaluator classes.
  * Note: this is not fool proof, and may need to be updated as phoenix-evals evolves.
  */
-function isLLMEvaluator(
+function isPhoenixLLMEvaluator(
   evaluator: unknown
 ): evaluator is LLMEvaluator<Record<string, unknown>> {
   return (
@@ -46,8 +46,8 @@ function isExperimentEvaluator(evaluator: unknown): evaluator is Evaluator {
  */
 export function getExperimentEvaluators(evaluators: unknown[]): Evaluator[] {
   return evaluators.map((evaluator) => {
-    if (isLLMEvaluator(evaluator)) {
-      return fromPhoenixEvaluator(evaluator);
+    if (isPhoenixLLMEvaluator(evaluator)) {
+      return fromPhoenixLLMEvaluator(evaluator);
     }
     if (isExperimentEvaluator(evaluator)) {
       return evaluator;
