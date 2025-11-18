@@ -38,7 +38,7 @@ function isExperimentEvaluator(evaluator: unknown): evaluator is Evaluator {
     typeof evaluator.name === "string" &&
     "kind" in evaluator &&
     typeof evaluator.kind === "string"
-  );
+    && (evaluator.kind === "CODE" || evaluator.kind === "LLM")
 }
 
 /**
@@ -46,11 +46,11 @@ function isExperimentEvaluator(evaluator: unknown): evaluator is Evaluator {
  */
 export function getExperimentEvaluators(evaluators: unknown[]): Evaluator[] {
   return evaluators.map((evaluator) => {
-    if (isPhoenixLLMEvaluator(evaluator)) {
-      return fromPhoenixLLMEvaluator(evaluator);
-    }
     if (isExperimentEvaluator(evaluator)) {
       return evaluator;
+    }
+    if (isPhoenixLLMEvaluator(evaluator)) {
+      return fromPhoenixLLMEvaluator(evaluator);
     }
     throw new Error(`Unsupported evaluator: ${JSON.stringify(evaluator)}`);
   });

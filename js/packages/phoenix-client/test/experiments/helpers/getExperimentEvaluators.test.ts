@@ -16,10 +16,10 @@ describe("getExperimentEvaluators", () => {
     vi.clearAllMocks();
     mockFromPhoenixEvaluator.mockClear();
     // Set up the mock implementation
-    const { fromPhoenixEvaluator } = await import(
+    const { fromPhoenixLLMEvaluator } = await import(
       "../../../src/experiments/helpers/fromPhoenixLLMEvaluator"
     );
-    vi.mocked(fromPhoenixEvaluator).mockImplementation(
+    vi.mocked(fromPhoenixLLMEvaluator).mockImplementation(
       mockFromPhoenixEvaluator
     );
   });
