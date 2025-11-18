@@ -312,64 +312,65 @@ describe("getExperimentEvaluators", () => {
       expect(result).toEqual([evaluatorWithExtras]);
     });
 
-  describe("Type guard validation", () => {
-    it("should correctly identify ClassificationEvaluator vs Evaluator", () => {
-      // This tests the type guard logic indirectly
-      const classificationEvaluator = createClassificationEvaluator({
-        name: "classification-eval",
-        model: new MockLanguageModelV2({
-          doGenerate: async () => ({
-            finishReason: "stop",
-            usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-            content: [
-              {
-                type: "text",
-                text: `{"label": "valid", "explanation": "test"}`,
-              },
-            ],
-            warnings: [],
+    describe("Type guard validation", () => {
+      it("should correctly identify ClassificationEvaluator vs Evaluator", () => {
+        // This tests the type guard logic indirectly
+        const classificationEvaluator = createClassificationEvaluator({
+          name: "classification-eval",
+          model: new MockLanguageModelV2({
+            doGenerate: async () => ({
+              finishReason: "stop",
+              usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+              content: [
+                {
+                  type: "text",
+                  text: `{"label": "valid", "explanation": "test"}`,
+                },
+              ],
+              warnings: [],
+            }),
           }),
-        }),
-        promptTemplate: "Validate: {{output}}",
-        choices: { valid: 1, invalid: 0 },
+          promptTemplate: "Validate: {{output}}",
+          choices: { valid: 1, invalid: 0 },
+        });
+
+        const codeEvaluator: Evaluator = {
+          name: "code-eval",
+          kind: "CODE", // Different kind should make it not a ClassificationEvaluator
+          evaluate: vi.fn(),
+        };
+
+        const llmEvaluator: Evaluator = {
+          name: "llm-eval",
+          kind: "LLM",
+          evaluate: vi.fn(),
+        };
+
+        const mockConvertedEvaluator: Evaluator = {
+          name: "classification-eval",
+          kind: "LLM",
+          evaluate: vi.fn(),
+        };
+
+        mockFromPhoenixEvaluator.mockReturnValue(mockConvertedEvaluator);
+
+        const result = getExperimentEvaluators([
+          classificationEvaluator,
+          codeEvaluator,
+          llmEvaluator,
+        ]);
+
+        // Only the ClassificationEvaluator should be converted
+        expect(mockFromPhoenixEvaluator).toHaveBeenCalledTimes(1);
+        expect(mockFromPhoenixEvaluator).toHaveBeenCalledWith(
+          classificationEvaluator
+        );
+        expect(result).toEqual([
+          mockConvertedEvaluator,
+          codeEvaluator,
+          llmEvaluator,
+        ]);
       });
-
-      const codeEvaluator: Evaluator = {
-        name: "code-eval",
-        kind: "CODE", // Different kind should make it not a ClassificationEvaluator
-        evaluate: vi.fn(),
-      };
-
-      const llmEvaluator: Evaluator = {
-        name: "llm-eval",
-        kind: "LLM",
-        evaluate: vi.fn(),
-      };
-
-      const mockConvertedEvaluator: Evaluator = {
-        name: "classification-eval",
-        kind: "LLM",
-        evaluate: vi.fn(),
-      };
-
-      mockFromPhoenixEvaluator.mockReturnValue(mockConvertedEvaluator);
-
-      const result = getExperimentEvaluators([
-        classificationEvaluator,
-        codeEvaluator,
-        llmEvaluator,
-      ]);
-
-      // Only the ClassificationEvaluator should be converted
-      expect(mockFromPhoenixEvaluator).toHaveBeenCalledTimes(1);
-      expect(mockFromPhoenixEvaluator).toHaveBeenCalledWith(
-        classificationEvaluator
-      );
-      expect(result).toEqual([
-        mockConvertedEvaluator,
-        codeEvaluator,
-        llmEvaluator,
-      ]);
     });
   });
 });
