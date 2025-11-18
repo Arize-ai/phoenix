@@ -1825,7 +1825,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                     LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
                 }
             )
-            yield TextChunk(content=event.text)
+            # google genai thinking returns thought tokens captured under
+            # event.candidates and event.parts
+            yield TextChunk(content=event.text or "")
 
     def _build_google_messages(
         self,
@@ -1894,6 +1896,61 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
                 label="Top K",
             ),
         ]
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.GOOGLE,
+    model_names=[
+        "gemini-3-pro-preview",
+    ],
+)
+class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        return [
+            StringInvocationParameter(
+                invocation_name="thinking_level",
+                label="Thinking Level",
+                canonical_name=CanonicalParameterName.REASONING_EFFORT,
+            ),
+            *super().supported_invocation_parameters(),
+        ]
+
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        # Extract thinking_level and construct thinking_config
+        thinking_level = invocation_parameters.pop("thinking_level", None)
+
+        if thinking_level:
+            try:
+                import google.genai
+                from packaging.version import parse as parse_version
+
+                if parse_version(google.genai.__version__) < parse_version("1.50.0"):
+                    raise ImportError
+            except (ImportError, AttributeError):
+                raise BadRequest(
+                    "Reasoning capabilities for Gemini models require `google-genai>=1.50.0` "
+                    "and Python >= 3.10."
+                )
+
+            # Map medium thinking_level to high as it is not yet supported
+            if thinking_level == "medium":
+                thinking_level = "high"
+
+            invocation_parameters["thinking_config"] = {
+                "include_thoughts": True,
+                "thinking_level": thinking_level.upper(),
+            }
+
+        async for chunk in super().chat_completion_create(messages, tools, **invocation_parameters):
+            yield chunk
 
 
 def initialize_playground_clients() -> None:
