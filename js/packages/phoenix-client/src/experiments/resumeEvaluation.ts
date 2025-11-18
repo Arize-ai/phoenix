@@ -18,7 +18,7 @@ import { ClientFn } from "../types/core";
 import type {
   EvaluationResult,
   Evaluator,
-  EvaluatorLike,
+  ExperimentEvaluatorLike,
   IncompleteEvaluation,
   TaskOutput,
 } from "../types/experiments";
@@ -66,7 +66,9 @@ export type ResumeEvaluationParams = ClientFn & {
   /**
    * A single evaluator or list of evaluators to run on incomplete evaluations
    */
-  readonly evaluators: EvaluatorLike | readonly EvaluatorLike[];
+  readonly evaluators:
+    | ExperimentEvaluatorLike
+    | readonly ExperimentEvaluatorLike[];
   /**
    * The logger to use
    * @default console
