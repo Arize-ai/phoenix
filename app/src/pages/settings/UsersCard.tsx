@@ -1,5 +1,6 @@
 import { ReactNode, Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { css } from "@emotion/react";
 
 import { Button, Card, Icon, Icons, Loading, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
@@ -8,6 +9,13 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 import { UsersCardQuery } from "./__generated__/UsersCardQuery.graphql";
 import { NewUserDialog } from "./NewUserDialog";
 import { UsersTable } from "./UsersTable";
+
+const usersCardCSS = css`
+  & .card__body {
+    max-height: var(--ac-global-dimension-size-6000);
+    overflow: auto;
+  }
+`;
 
 export function UsersCard() {
   const [fetchKey, setFetchKey] = useState(0);
@@ -30,43 +38,43 @@ export function UsersCard() {
   );
 
   return (
-    <Card
-      title="Users"
-      extra={
-        <Button
-          onPress={() => {
-            setDialog(
-              <NewUserDialog
-                onDismiss={() => {
-                  setDialog(null);
-                }}
-                onNewUserCreated={(email) => {
-                  setDialog(null);
-                  notifySuccess({
-                    title: "User added",
-                    message: `User ${email} has been added.`,
-                  });
-                  setFetchKey((prev) => prev + 1);
-                }}
-                onNewUserCreationError={(error) => {
-                  const formattedError =
-                    getErrorMessagesFromRelayMutationError(error);
-                  notifyError({
-                    title: "Error adding user",
-                    message: formattedError?.[0] ?? error.message,
-                  });
-                }}
-              />
-            );
-          }}
-          size="S"
-          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-        >
-          Add User
-        </Button>
-      }
-    >
-      <View overflow="auto">
+    <div css={usersCardCSS}>
+      <Card
+        title="Users"
+        extra={
+          <Button
+            onPress={() => {
+              setDialog(
+                <NewUserDialog
+                  onDismiss={() => {
+                    setDialog(null);
+                  }}
+                  onNewUserCreated={(email) => {
+                    setDialog(null);
+                    notifySuccess({
+                      title: "User added",
+                      message: `User ${email} has been added.`,
+                    });
+                    setFetchKey((prev) => prev + 1);
+                  }}
+                  onNewUserCreationError={(error) => {
+                    const formattedError =
+                      getErrorMessagesFromRelayMutationError(error);
+                    notifyError({
+                      title: "Error adding user",
+                      message: formattedError?.[0] ?? error.message,
+                    });
+                  }}
+                />
+              );
+            }}
+            size="S"
+            leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+          >
+            Add User
+          </Button>
+        }
+      >
         <Suspense
           fallback={
             <View padding="size-200">
@@ -76,8 +84,8 @@ export function UsersCard() {
         >
           <UsersTable query={data} />
         </Suspense>
-      </View>
-      {dialog}
-    </Card>
+        {dialog}
+      </Card>
+    </div>
   );
 }

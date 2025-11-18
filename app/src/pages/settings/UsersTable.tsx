@@ -41,6 +41,14 @@ const emailLinkCSS = css`
 `;
 
 /**
+ * Make the headers sticky so they are always visible when scrolling
+ */
+const usersTableHeaderCSS = css`
+  position: sticky;
+  top: 0;
+`;
+
+/**
  * Rows may render different content depending on the user so we normalize the height
  */
 const userTableRowCSS = css`
@@ -205,7 +213,11 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         {table.getHeaderGroups().map((headerGroup) => (
           <tr key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <th colSpan={header.colSpan} key={header.id}>
+              <th
+                colSpan={header.colSpan}
+                key={header.id}
+                css={usersTableHeaderCSS}
+              >
                 {header.isPlaceholder ? null : (
                   <div
                     {...{
