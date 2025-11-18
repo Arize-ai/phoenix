@@ -18,10 +18,10 @@ import {
   Text,
 } from "@phoenix/components";
 import { Heading } from "@phoenix/components/content/Heading";
+import { EvaluatorInputMappingControlsQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorInputMappingControlsQuery.graphql";
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { Flex } from "@phoenix/components/layout/Flex";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { EvaluatorInputMappingControlsQuery } from "@phoenix/pages/evaluators/__generated__/EvaluatorInputMappingControlsQuery.graphql";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
 
 export type InputMapping = Record<string, string>;
@@ -93,7 +93,7 @@ const EvaluatorInputMappingControls = ({
           ... on DatasetExample {
             revision {
               input
-              output: output
+              output
               metadata
             }
           }
