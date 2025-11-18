@@ -228,7 +228,7 @@ Below is a complete example:
 ```ts
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {
-  asEvaluator,
+  asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 
@@ -255,7 +255,7 @@ const task = async (example) => `hello ${example.input.name}`;
 
 // 3. Define evaluators
 const evaluators = [
-  asEvaluator({
+  asExperimentEvaluator({
     name: "matches",
     kind: "CODE",
     evaluate: async ({ output, expected }) => {
@@ -270,7 +270,7 @@ const evaluators = [
       };
     },
   }),
-  asEvaluator({
+  asExperimentEvaluator({
     name: "contains-hello",
     kind: "CODE",
     evaluate: async ({ output }) => {
