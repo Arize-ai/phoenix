@@ -181,7 +181,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     throw new Error("We only support chat templates for now");
   }
   const streaming = usePlaygroundContext((state) => state.streaming);
-  const numRepetitions = usePlaygroundContext((state) => state.repetitions);
   const credentials = useCredentialsContext((state) => state);
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
@@ -478,14 +477,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     notifyError,
     handleChatCompletionMutationPayload,
     handleChatCompletionSubscriptionPayload,
-    numRepetitions,
     runInProgress,
     playgroundStore,
     props.playgroundInstanceId,
     streaming,
-    selectedRepetitionNumber,
-    setRepetitionError,
-    setRepetitionStatus,
   ]);
 
   return (
