@@ -16,7 +16,6 @@ import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
-  View,
 } from "@phoenix/components";
 import {
   TimelineBar,
@@ -34,7 +33,7 @@ import { TraceTreeProvider, useTraceTree } from "./TraceTreeContext";
 import { ISpanItem, SpanStatusCodeType } from "./types";
 import { createSpanTree, SpanTreeNode } from "./utils";
 
-type TraceTreeProps = {
+export type TraceTreeProps = {
   spans: ISpanItem[];
   onSpanClick?: (span: ISpanItem) => void;
   selectedSpanNodeId: string;
@@ -130,14 +129,6 @@ export function TraceTree(props: TraceTreeProps) {
             />
           ))}
         </ul>
-        <View
-          padding="size-100"
-          borderTopColor="grey-300"
-          borderTopWidth="thin"
-          flex="none"
-        >
-          Viewing {spans.length} spans
-        </View>
       </div>
     </TraceTreeProvider>
   );

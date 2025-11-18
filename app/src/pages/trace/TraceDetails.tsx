@@ -3,6 +3,7 @@ import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useParams, useSearchParams } from "react-router";
+import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
@@ -18,7 +19,6 @@ import {
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -29,6 +29,7 @@ import {
   TraceDetailsQuery,
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
+import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
 import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
 
@@ -76,36 +77,15 @@ export function TraceDetails(props: TraceDetailsProps) {
           ... on Project {
             trace(traceId: $traceId) {
               projectSessionId
+              ...ConnectedTraceTree
               spans(first: 1000) {
                 edges {
                   span: node {
+                    statusCode
                     id
                     spanId
-                    name
-                    spanKind
-                    statusCode
-                    startTime
-                    endTime
                     parentId
-                    latencyMs
-                    tokenCountTotal
-                    spanAnnotationSummaries {
-                      labels
-                      count
-                      labelCount
-                      labelFractions {
-                        fraction
-                        label
-                      }
-                      name
-                      scoreCount
-                      meanScore
-                    }
                   }
-                }
-                pageInfo {
-                  endCursor
-                  hasNextPage
                 }
               }
               latencyMs
@@ -130,6 +110,7 @@ export function TraceDetails(props: TraceDetailsProps) {
       fetchPolicy: "store-and-network",
     }
   );
+  invariant(data.project.trace, "Trace is required to view the trace details");
   const traceLatencyMs =
     data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
   const costSummary = data?.project?.trace?.costSummary;
@@ -166,8 +147,8 @@ export function TraceDetails(props: TraceDetailsProps) {
       >
         <Panel defaultSize={30} minSize={5}>
           <ScrollingPanelContent>
-            <TraceTree
-              spans={spansList}
+            <ConnectedTraceTree
+              trace={data.project.trace}
               selectedSpanNodeId={selectedSpanNodeId}
               onSpanClick={(span) => {
                 setSearchParams(
