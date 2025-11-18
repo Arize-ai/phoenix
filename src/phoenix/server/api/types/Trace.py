@@ -198,8 +198,8 @@ class Trace(Node):
         before: Optional[CursorString] = UNSET,
     ) -> Connection[Span]:
         # Validate pagination arguments
-        if isinstance(first, int) and first < 0:
-            raise ValueError('Argument "first" must be a non-negative int')
+        if isinstance(first, int) and first <= 0:
+            raise ValueError('Argument "first" must be a positive int')
 
         stmt = (
             select(models.Span.id)
@@ -211,7 +211,10 @@ class Trace(Node):
         )
         # Handle cursor pagination (forward pagination only)
         if after is not UNSET:
-            cursor = Cursor.from_string(after)
+            try:
+                cursor = Cursor.from_string(after)
+            except Exception as e:
+                raise ValueError(f"Invalid cursor format: {after}") from e
             # For descending order, "after" means we want spans with smaller IDs
             # (going forward in descending order)
             stmt = stmt.where(models.Span.id < cursor.rowid)
