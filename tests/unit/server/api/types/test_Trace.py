@@ -93,7 +93,8 @@ async def test_trace_spans_pagination(
         trace = await _add_trace(session, project)
         spans = []
         for i in range(10):
-            span = await _add_span(session, trace, name=f"span-{i}")
+            span = await _add_span(session, trace)
+            span.name = f"span-{i}"
             spans.append(span)
         await session.commit()
 
@@ -247,7 +248,8 @@ async def test_trace_spans_pagination_parametrized(
         trace = await _add_trace(session, project)
         spans = []
         for i in range(5):
-            span = await _add_span(session, trace, name=f"span-{i}")
+            span = await _add_span(session, trace)
+            span.name = f"span-{i}"
             spans.append(span)
         await session.commit()
 

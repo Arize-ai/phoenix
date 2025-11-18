@@ -197,6 +197,10 @@ class Trace(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
     ) -> Connection[Span]:
+        # Validate pagination arguments
+        if first is not None and first < 0:
+            raise ValueError('Argument "first" must be a non-negative int')
+
         stmt = (
             select(models.Span.id)
             .join(models.Trace)
@@ -205,47 +209,36 @@ class Trace(Node):
             # in the ingestion process.
             .order_by(desc(models.Span.id))
         )
-        # Handle cursor pagination
+        # Handle cursor pagination (forward pagination only)
         if after:
             cursor = Cursor.from_string(after)
             # For descending order, "after" means we want spans with smaller IDs
             # (going forward in descending order)
             stmt = stmt.where(models.Span.id < cursor.rowid)
-        if before:
-            cursor = Cursor.from_string(before)
-            # For descending order, "before" means we want spans with larger IDs
-            # (going backward in descending order)
-            stmt = stmt.where(models.Span.id > cursor.rowid)
+        # Note: backward pagination (last/before) is not yet implemented
+        # as it requires more complex handling with reversed ordering
+        if before or (last is not UNSET and last is not None):
+            raise ValueError("Backward pagination (last/before) is not yet supported")
+
         # Over-fetch by one to determine whether there's a next page
-        limit = first if first else (last if last else None)
-        if limit:
-            stmt = stmt.limit(limit + 1)
+        limit = first if first is not None else 50
+        stmt = stmt.limit(limit + 1)
+
         cursors_and_nodes = []
         async with info.context.db() as session:
             span_rowids = await session.stream_scalars(stmt)
             async for span_rowid in islice(span_rowids, limit):
                 cursor = Cursor(rowid=span_rowid)
                 cursors_and_nodes.append((cursor, Span(id=span_rowid)))
-            # Check if there's a next/previous page by trying to fetch one more
-            has_next_page = False
-            has_previous_page = False
-            if first:
-                has_next_page = True
-                try:
-                    await span_rowids.__anext__()
-                except StopAsyncIteration:
-                    has_next_page = False
-            elif last:
-                # For backward pagination, reverse the results
-                cursors_and_nodes.reverse()
-                has_previous_page = True
-                try:
-                    await span_rowids.__anext__()
-                except StopAsyncIteration:
-                    has_previous_page = False
+            # Check if there's a next page by trying to fetch one more
+            has_next_page = True
+            try:
+                await span_rowids.__anext__()
+            except StopAsyncIteration:
+                has_next_page = False
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,
-            has_previous_page=has_previous_page,
+            has_previous_page=False,
             has_next_page=has_next_page,
         )
 
