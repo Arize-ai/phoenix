@@ -57,6 +57,7 @@ export const EditEvaluatorDialogContent = ({
   const handleSubmit = useCallback(() => {
     const {
       evaluator: { name, description },
+      dataset,
       choiceConfig,
     } = form.getValues();
     const input = createLLMEvaluatorPayload({
@@ -65,6 +66,7 @@ export const EditEvaluatorDialogContent = ({
       name,
       description,
       choiceConfig,
+      datasetId: dataset?.id,
     });
     const title = mode === "create" ? "Evaluator created" : "Evaluator updated";
 
