@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 import pandas as pd
 import strawberry
@@ -210,11 +210,13 @@ class Trace(Node):
             .order_by(desc(models.Span.id))
         )
         # Handle cursor pagination (forward pagination only)
-        if after is not UNSET:
+        if after is not UNSET and after is not None:
+            # Type narrowing: after is guaranteed to be str at this point
+            after_cursor_str = cast(CursorString, after)
             try:
-                cursor = Cursor.from_string(after)
+                cursor = Cursor.from_string(after_cursor_str)
             except Exception as e:
-                raise ValueError(f"Invalid cursor format: {after}") from e
+                raise ValueError(f"Invalid cursor format: {after_cursor_str}") from e
             # For descending order, "after" means we want spans with smaller IDs
             # (going forward in descending order)
             stmt = stmt.where(models.Span.id < cursor.rowid)
