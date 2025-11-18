@@ -1,11 +1,4 @@
-import {
-  ReactNode,
-  startTransition,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { ConnectionHandler, graphql, usePaginationFragment } from "react-relay";
 import {
   ColumnDef,
@@ -73,35 +66,37 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
   "use no memo";
   const [dialog, setDialog] = useState<ReactNode>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const { data, loadNext, hasNext, isLoadingNext, refetch } =
-    usePaginationFragment<UsersTableQuery, UsersTable_users$key>(
-      graphql`
-        fragment UsersTable_users on Query
-        @refetchable(queryName: "UsersTableQuery")
-        @argumentDefinitions(
-          after: { type: "String", defaultValue: null }
-          first: { type: "Int", defaultValue: 50 }
-        ) {
-          users(first: $first, after: $after)
-            @connection(key: "UsersTable_users") {
-            edges {
-              user: node {
-                id
-                email
-                username
-                createdAt
-                authMethod
-                profilePictureUrl
-                role {
-                  name
-                }
+  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
+    UsersTableQuery,
+    UsersTable_users$key
+  >(
+    graphql`
+      fragment UsersTable_users on Query
+      @refetchable(queryName: "UsersTableQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 50 }
+      ) {
+        users(first: $first, after: $after)
+          @connection(key: "UsersTable_users") {
+          edges {
+            user: node {
+              id
+              email
+              username
+              createdAt
+              authMethod
+              profilePictureUrl
+              role {
+                name
               }
             }
           }
         }
-      `,
-      query
-    );
+      }
+    `,
+    query
+  );
 
   const tableData = useMemo(() => {
     return data.users.edges.map(({ user }) => ({
@@ -114,15 +109,6 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       authMethod: user.authMethod,
     }));
   }, [data]);
-
-  const refetchTableData = useCallback(() => {
-    startTransition(() => {
-      refetch(
-        { after: null, first: PAGE_SIZE },
-        { fetchPolicy: "network-only" }
-      );
-    });
-  }, [refetch]);
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -188,7 +174,6 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                 setDialog(
                   <UserRoleChangeDialog
                     onClose={() => setDialog(null)}
-                    onRoleChanged={refetchTableData}
                     currentRole={row.original.role}
                     newRole={key as UserRole}
                     email={row.original.email}
@@ -236,7 +221,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         },
       },
     ];
-  }, [refetchTableData, viewer]);
+  }, [viewer]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
