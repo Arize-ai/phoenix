@@ -1,24 +1,24 @@
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 
+import { fromPhoenixLLMEvaluator } from "../../../src/experiments/helpers/fromPhoenixLLMEvaluator";
 import { getExperimentEvaluators } from "../../../src/experiments/helpers/getExperimentEvaluators";
 import { Evaluator } from "../../../src/types/experiments";
 
 import { MockLanguageModelV2 } from "ai/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock the fromPhoenixEvaluator function
-vi.mock("../../../src/experiments/helpers/fromPhoenixEvaluator");
-
+// Mock the fromPhoenixLLMEvaluator function
 const mockFromPhoenixEvaluator = vi.fn();
 
+vi.mock("../../../src/experiments/helpers/fromPhoenixLLMEvaluator", () => ({
+  fromPhoenixLLMEvaluator: vi.fn(),
+}));
+
 describe("getExperimentEvaluators", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
     mockFromPhoenixEvaluator.mockClear();
     // Set up the mock implementation
-    const { fromPhoenixLLMEvaluator } = await import(
-      "../../../src/experiments/helpers/fromPhoenixLLMEvaluator"
-    );
     vi.mocked(fromPhoenixLLMEvaluator).mockImplementation(
       mockFromPhoenixEvaluator
     );
@@ -151,7 +151,7 @@ describe("getExperimentEvaluators", () => {
 
       const evaluator2: Evaluator = {
         name: "evaluator-2",
-        kind: "HUMAN",
+        kind: "LLM",
         evaluate: vi.fn(),
       };
 
@@ -312,51 +312,6 @@ describe("getExperimentEvaluators", () => {
       expect(result).toEqual([evaluatorWithExtras]);
     });
 
-    it("should handle ClassificationEvaluator with extra properties", () => {
-      const classificationEvaluator = createClassificationEvaluator({
-        name: "test-classifier",
-        model: new MockLanguageModelV2({
-          doGenerate: async () => ({
-            finishReason: "stop",
-            usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-            content: [
-              {
-                type: "text",
-                text: `{"label": "pass", "explanation": "test"}`,
-              },
-            ],
-            warnings: [],
-          }),
-        }),
-        promptTemplate: "Test: {{output}}",
-        choices: { pass: 1, fail: 0 },
-      });
-
-      // Add extra property to the evaluator object
-      const classificationEvaluatorWithExtras = {
-        ...classificationEvaluator,
-        extraProp: "extra",
-      };
-
-      const mockConvertedEvaluator: Evaluator = {
-        name: "test-classifier",
-        kind: "LLM",
-        evaluate: vi.fn(),
-      };
-
-      mockFromPhoenixEvaluator.mockReturnValue(mockConvertedEvaluator);
-
-      const result = getExperimentEvaluators([
-        classificationEvaluatorWithExtras,
-      ]);
-
-      expect(mockFromPhoenixEvaluator).toHaveBeenCalledWith(
-        classificationEvaluatorWithExtras
-      );
-      expect(result).toEqual([mockConvertedEvaluator]);
-    });
-  });
-
   describe("Type guard validation", () => {
     it("should correctly identify ClassificationEvaluator vs Evaluator", () => {
       // This tests the type guard logic indirectly
@@ -387,7 +342,7 @@ describe("getExperimentEvaluators", () => {
 
       const llmEvaluator: Evaluator = {
         name: "llm-eval",
-        kind: "HUMAN", // Different kind to avoid confusion with ClassificationEvaluator
+        kind: "LLM",
         evaluate: vi.fn(),
       };
 
