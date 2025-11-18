@@ -15,10 +15,10 @@ export function fromPhoenixLLMEvaluator<
   return asExperimentEvaluator({
     name: phoenixLLMEvaluator.name,
     kind: "LLM",
-    evaluate: async (example) => {
+    evaluate: (example) => {
       // For now blindly coerce the types
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await phoenixLLMEvaluator.evaluate(example as any);
+      return phoenixLLMEvaluator.evaluate(example as any);
     },
   });
 }
