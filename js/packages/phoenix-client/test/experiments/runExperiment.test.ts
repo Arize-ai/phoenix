@@ -1,3 +1,5 @@
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+
 import * as getDatasetModule from "../../src/datasets/getDataset";
 import {
   asEvaluator,
@@ -6,6 +8,7 @@ import {
 import type { Example } from "../../src/types/datasets";
 import type { EvaluatorParams } from "../../src/types/experiments";
 
+import { MockLanguageModelV2 } from "ai/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDataset = {
@@ -193,5 +196,42 @@ describe("runExperiment (dryRun)", () => {
         repetitions: -1,
       })
     ).rejects.toThrow("repetitions must be an integer greater than 0");
+  });
+  it("should work with phoenix-evals evaluators", async () => {
+    const task = (example: Example) => `Hi, ${example.input.name}`;
+    const correctnessEvaluator = createClassificationEvaluator({
+      name: "correctness",
+      model: new MockLanguageModelV2({
+        doGenerate: async () => ({
+          finishReason: "stop",
+          usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+          content: [
+            {
+              type: "text",
+              text: `{"label": "correct", "explanation": "because" }`,
+            },
+          ],
+          warnings: [],
+        }),
+      }),
+      promptTemplate: "Is the following text correct: {{output}}",
+      choices: { correct: 1, incorrect: 0 },
+    });
+    const experiment = await runExperiment({
+      dataset: { datasetId: mockDataset.id },
+      task,
+      evaluators: [correctnessEvaluator],
+      dryRun: true,
+    });
+    expect(experiment).toBeDefined();
+    expect(experiment.runs).toBeDefined();
+    expect(Object.keys(experiment.runs)).toHaveLength(2);
+    expect(experiment.evaluationRuns).toHaveLength(2);
+    expect(experiment.evaluationRuns?.[0].annotatorKind).toBe("LLM");
+    expect(experiment.evaluationRuns?.[0].name).toBe("correctness");
+    expect(experiment.evaluationRuns?.[0].result).toBeDefined();
+    expect(experiment.evaluationRuns?.[0].result?.label).toBe("correct");
+    expect(experiment.evaluationRuns?.[0].result?.score).toBe(1);
+    expect(experiment.evaluationRuns?.[0].result?.explanation).toBe("because");
   });
 });

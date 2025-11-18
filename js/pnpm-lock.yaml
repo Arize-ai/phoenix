@@ -140,15 +140,15 @@ importers:
         specifier: ^1.3.3
         version: 1.3.3
       zod:
-        specifier: ^3.24.2
-        version: 3.25.76
+        specifier: ^4.1.12
+        version: 4.1.12
       zod-to-json-schema:
         specifier: ^3.24.3
-        version: 3.24.6(zod@3.25.76)
+        version: 3.24.6(zod@4.1.12)
     devDependencies:
       '@ai-sdk/openai':
         specifier: ^2.0.27
-        version: 2.0.53(zod@3.25.76)
+        version: 2.0.53(zod@4.1.12)
       '@arizeai/phoenix-evals':
         specifier: workspace:*
         version: link:../phoenix-evals
@@ -176,10 +176,10 @@ importers:
         version: 0.35.0
       ai:
         specifier: ^5.0.76
-        version: 5.0.76(zod@3.25.76)
+        version: 5.0.76(zod@4.1.12)
       openai:
         specifier: ^5.12.1
-        version: 5.23.2(zod@3.25.76)
+        version: 5.23.2(zod@4.1.12)
 
   packages/phoenix-evals:
     dependencies:
@@ -3117,14 +3117,6 @@ packages:
 
 snapshots:
 
-  '@ai-sdk/gateway@2.0.0(zod@3.25.76)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.12(zod@3.25.76)
-      '@vercel/oidc': 3.0.3
-      zod: 3.25.76
-    optional: true
-
   '@ai-sdk/gateway@2.0.0(zod@4.1.12)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
@@ -3132,24 +3124,11 @@ snapshots:
       '@vercel/oidc': 3.0.3
       zod: 4.1.12
 
-  '@ai-sdk/openai@2.0.53(zod@3.25.76)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.12(zod@3.25.76)
-      zod: 3.25.76
-
   '@ai-sdk/openai@2.0.53(zod@4.1.12)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
       '@ai-sdk/provider-utils': 3.0.12(zod@4.1.12)
       zod: 4.1.12
-
-  '@ai-sdk/provider-utils@3.0.12(zod@3.25.76)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0
-      '@standard-schema/spec': 1.0.0
-      eventsource-parser: 3.0.6
-      zod: 3.25.76
 
   '@ai-sdk/provider-utils@3.0.12(zod@4.1.12)':
     dependencies:
@@ -4282,23 +4261,23 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
+  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@18.19.130))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.19
     optionalDependencies:
       msw: 2.11.6(@types/node@18.19.130)(typescript@5.9.3)
-      vite: 5.4.21(@types/node@24.9.1)
+      vite: 5.4.21(@types/node@18.19.130)
 
-  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
+  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@20.19.23))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.19
     optionalDependencies:
       msw: 2.11.6(@types/node@20.19.23)(typescript@5.9.3)
-      vite: 5.4.21(@types/node@24.9.1)
+      vite: 5.4.21(@types/node@20.19.23)
 
   '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))':
     dependencies:
@@ -4362,15 +4341,6 @@ snapshots:
   agentkeepalive@4.6.0:
     dependencies:
       humanize-ms: 1.2.1
-
-  ai@5.0.76(zod@3.25.76):
-    dependencies:
-      '@ai-sdk/gateway': 2.0.0(zod@3.25.76)
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.12(zod@3.25.76)
-      '@opentelemetry/api': 1.9.0
-      zod: 3.25.76
-    optional: true
 
   ai@5.0.76(zod@4.1.12):
     dependencies:
@@ -5454,9 +5424,9 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  openai@5.23.2(zod@3.25.76):
+  openai@5.23.2(zod@4.1.12):
     optionalDependencies:
-      zod: 3.25.76
+      zod: 4.1.12
     optional: true
 
   openai@6.7.0(zod@3.25.76):
@@ -6104,7 +6074,7 @@ snapshots:
   vitest@2.1.9(@types/node@18.19.130)(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3)):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))
+      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@18.19.130)(typescript@5.9.3))(vite@5.4.21(@types/node@18.19.130))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -6139,7 +6109,7 @@ snapshots:
   vitest@2.1.9(@types/node@20.19.23)(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3)):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@24.9.1))
+      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@5.4.21(@types/node@20.19.23))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -6277,6 +6247,10 @@ snapshots:
   zod-to-json-schema@3.24.6(zod@3.25.76):
     dependencies:
       zod: 3.25.76
+
+  zod-to-json-schema@3.24.6(zod@4.1.12):
+    dependencies:
+      zod: 4.1.12
 
   zod@3.25.76: {}
 

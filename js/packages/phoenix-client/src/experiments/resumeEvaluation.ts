@@ -18,6 +18,7 @@ import { ClientFn } from "../types/core";
 import type {
   EvaluationResult,
   Evaluator,
+  EvaluatorLike,
   IncompleteEvaluation,
   TaskOutput,
 } from "../types/experiments";
@@ -27,6 +28,7 @@ import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 
 import { getExperimentInfo } from "./getExperimentInfo.js";
+import { getExperimentEvaluators } from "./helpers";
 
 import invariant from "tiny-invariant";
 
@@ -64,7 +66,7 @@ export type ResumeEvaluationParams = ClientFn & {
   /**
    * A single evaluator or list of evaluators to run on incomplete evaluations
    */
-  readonly evaluators: Evaluator | readonly Evaluator[];
+  readonly evaluators: EvaluatorLike | readonly EvaluatorLike[];
   /**
    * The logger to use
    * @default console
@@ -321,8 +323,9 @@ export async function resumeEvaluation({
   const pageSize = DEFAULT_PAGE_SIZE;
 
   // Normalize evaluators to array
-  const evaluators = Array.isArray(_evaluators) ? _evaluators : [_evaluators];
-
+  const evaluators = getExperimentEvaluators(
+    Array.isArray(_evaluators) ? _evaluators : [_evaluators]
+  );
   // Validate inputs
   invariant(evaluators.length > 0, "Must specify at least one evaluator");
 

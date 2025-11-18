@@ -27,6 +27,7 @@ import {
 import type {
   Evaluator,
   ExperimentEvaluationRun,
+  ExperimentEvaluatorLike,
   ExperimentInfo,
   ExperimentRun,
   ExperimentRunID,
@@ -45,6 +46,7 @@ import {
 } from "../utils/urlUtils";
 
 import { getExperimentInfo } from "./getExperimentInfo";
+import { getExperimentEvaluators } from "./helpers";
 
 import assert from "assert";
 import { queue } from "async";
@@ -87,7 +89,7 @@ export type RunExperimentParams = ClientFn & {
   /**
    * The evaluators to use
    */
-  evaluators?: Evaluator[];
+  evaluators?: ExperimentEvaluatorLike[];
   /**
    * The logger to use
    */
@@ -534,7 +536,7 @@ export async function evaluateExperiment({
    **/
   experiment: RanExperiment;
   /** The evaluators to use */
-  evaluators: Evaluator[];
+  evaluators: ExperimentEvaluatorLike[];
   /** The client to use */
   client?: PhoenixClient;
   /** The logger to use */
@@ -652,7 +654,8 @@ export async function evaluateExperiment({
 
   // Run evaluators against all runs
   // Flat list of evaluator + run tuples
-  const evaluatorsAndRuns = evaluators.flatMap((evaluator) =>
+  const normalizedEvaluators = getExperimentEvaluators(evaluators);
+  const evaluatorsAndRuns = normalizedEvaluators.flatMap((evaluator) =>
     runsToEvaluate.map((run) => ({
       evaluator,
       run,
@@ -825,6 +828,7 @@ async function runEvaluator({
  * @param params.kind - The kind of evaluator (e.g., "CODE", "LLM")
  * @param params.evaluate - The evaluator function.
  * @returns The evaluator object.
+ * @deprecated use asExperimentEvaluator instead
  */
 export function asEvaluator({
   name,

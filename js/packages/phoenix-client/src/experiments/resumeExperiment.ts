@@ -16,7 +16,7 @@ import { components } from "../__generated__/api/v1";
 import { createClient, type PhoenixClient } from "../client";
 import { ClientFn } from "../types/core";
 import { ExampleWithId } from "../types/datasets";
-import type { Evaluator, ExperimentTask } from "../types/experiments";
+import type { EvaluatorLike, ExperimentTask } from "../types/experiments";
 import { type Logger } from "../types/logger";
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
@@ -68,7 +68,7 @@ export type ResumeExperimentParams = ClientFn & {
    * Optional evaluators to run on completed task runs
    * @default undefined
    */
-  readonly evaluators?: readonly Evaluator[];
+  readonly evaluators?: readonly EvaluatorLike[];
   /**
    * The logger to use
    * @default console
