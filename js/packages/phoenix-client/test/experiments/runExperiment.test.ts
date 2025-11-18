@@ -234,4 +234,96 @@ describe("runExperiment (dryRun)", () => {
     expect(experiment.evaluationRuns?.[0].result?.score).toBe(1);
     expect(experiment.evaluationRuns?.[0].result?.explanation).toBe("because");
   });
+
+  it("should work with mixed evaluators: manual asEvaluator and phoenix-evals", async () => {
+    const task = (example: Example) => `Hello, ${example.input.name}!`;
+
+    // Manual evaluator using asEvaluator
+    const manualEvaluator = asEvaluator({
+      name: "manual-length-check",
+      kind: "CODE",
+      evaluate: async ({ output }: EvaluatorParams) => {
+        const outputStr = typeof output === "string" ? output : String(output);
+        const isGoodLength = outputStr.length > 5 && outputStr.length < 50;
+        return {
+          label: isGoodLength ? "good_length" : "bad_length",
+          score: isGoodLength ? 1 : 0,
+          explanation: `Output length is ${outputStr.length} characters`,
+          metadata: { length: outputStr.length },
+        };
+      },
+    });
+
+    // Phoenix-evals evaluator
+    const phoenixEvaluator = createClassificationEvaluator({
+      name: "politeness",
+      model: new MockLanguageModelV2({
+        doGenerate: async () => ({
+          finishReason: "stop",
+          usage: { inputTokens: 15, outputTokens: 25, totalTokens: 40 },
+          content: [
+            {
+              type: "text",
+              text: `{"label": "polite", "explanation": "greeting is polite"}`,
+            },
+          ],
+          warnings: [],
+        }),
+      }),
+      promptTemplate: "Is this greeting polite: {{output}}",
+      choices: { polite: 1, rude: 0 },
+    });
+
+    const experiment = await runExperiment({
+      dataset: { datasetId: mockDataset.id },
+      task,
+      evaluators: [manualEvaluator, phoenixEvaluator],
+      dryRun: true,
+    });
+
+    expect(experiment).toBeDefined();
+    expect(experiment.runs).toBeDefined();
+    expect(Object.keys(experiment.runs)).toHaveLength(2);
+    expect(experiment.evaluationRuns).toBeDefined();
+
+    if (experiment.evaluationRuns) {
+      expect(Array.isArray(experiment.evaluationRuns)).toBe(true);
+      // There should be 2 runs * 2 evaluators = 4 evaluation runs
+      expect(experiment.evaluationRuns.length).toBe(4);
+
+      // Check that both evaluators ran
+      const manualEvalRuns = experiment.evaluationRuns.filter(
+        (run) => run.name === "manual-length-check"
+      );
+      const phoenixEvalRuns = experiment.evaluationRuns.filter(
+        (run) => run.name === "politeness"
+      );
+
+      expect(manualEvalRuns).toHaveLength(2);
+      expect(phoenixEvalRuns).toHaveLength(2);
+
+      // Check manual evaluator results
+      for (const evalRun of manualEvalRuns) {
+        expect(evalRun.annotatorKind).toBe("CODE");
+        expect(evalRun.result).toHaveProperty("label");
+        expect(evalRun.result).toHaveProperty("score");
+        expect(evalRun.result).toHaveProperty("explanation");
+        expect(evalRun.result).toHaveProperty("metadata");
+        expect(evalRun.result?.label).toBe("good_length");
+        expect(evalRun.result?.score).toBe(1);
+        expect(evalRun.result?.metadata).toHaveProperty("length");
+      }
+
+      // Check phoenix-evals evaluator results
+      for (const evalRun of phoenixEvalRuns) {
+        expect(evalRun.annotatorKind).toBe("LLM");
+        expect(evalRun.result).toHaveProperty("label");
+        expect(evalRun.result).toHaveProperty("score");
+        expect(evalRun.result).toHaveProperty("explanation");
+        expect(evalRun.result?.label).toBe("polite");
+        expect(evalRun.result?.score).toBe(1);
+        expect(evalRun.result?.explanation).toBe("greeting is polite");
+      }
+    }
+  });
 });

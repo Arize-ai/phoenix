@@ -37,8 +37,9 @@ function isExperimentEvaluator(evaluator: unknown): evaluator is Evaluator {
     "name" in evaluator &&
     typeof evaluator.name === "string" &&
     "kind" in evaluator &&
-    typeof evaluator.kind === "string"
-    && (evaluator.kind === "CODE" || evaluator.kind === "LLM")
+    typeof evaluator.kind === "string" &&
+    (evaluator.kind === "CODE" || evaluator.kind === "LLM")
+  );
 }
 
 /**
