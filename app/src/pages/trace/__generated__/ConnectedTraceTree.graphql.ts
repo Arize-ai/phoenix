@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ad6fe32897571a60125de35468c416b>>
+ * @generated SignedSource<<a66b109294902974153c42ee29b73993>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type ConnectedTraceTree$data = {
   readonly id: string;
+  readonly numSpans: number;
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -72,7 +73,7 @@ v2 = {
 return {
   "argumentDefinitions": [
     {
-      "defaultValue": 1001,
+      "defaultValue": 1000,
       "kind": "LocalArgument",
       "name": "count"
     },
@@ -113,6 +114,13 @@ return {
   },
   "name": "ConnectedTraceTree",
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "numSpans",
+      "storageKey": null
+    },
     {
       "alias": "spans",
       "args": null,
@@ -333,6 +341,6 @@ return {
 };
 })();
 
-(node as any).hash = "f61114ea4063ae07f321497aad75df30";
+(node as any).hash = "a795a35718b61f5ea864138d6b275046";
 
 export default node;

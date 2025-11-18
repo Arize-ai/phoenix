@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 
-import { Button, Flex, Text, View } from "@phoenix/components";
+import { Alert, Button, Flex } from "@phoenix/components";
 import { TraceTree, TraceTreeProps } from "@phoenix/components/trace/TraceTree";
 
 import { ConnectedTraceTree$key } from "./__generated__/ConnectedTraceTree.graphql";
@@ -10,11 +10,13 @@ import { ConnectedTraceTreeQuery } from "./__generated__/ConnectedTraceTreeQuery
 type ConnectedTraceTreeProps = {
   trace: ConnectedTraceTree$key;
 } & Omit<TraceTreeProps, "spans">;
+
+const PAGE_SIZE = 1000;
 /**
  * A TraceTree that is connected to relay via data fetching
  */
 export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
-  const { data, hasNext } = usePaginationFragment<
+  const { data, hasNext, loadNext } = usePaginationFragment<
     ConnectedTraceTreeQuery,
     ConnectedTraceTree$key
   >(
@@ -22,9 +24,10 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
       fragment ConnectedTraceTree on Trace
       @refetchable(queryName: "ConnectedTraceTreeQuery")
       @argumentDefinitions(
-        count: { type: "Int", defaultValue: 1001 }
+        count: { type: "Int", defaultValue: 1000 }
         cursor: { type: "String", defaultValue: null }
       ) {
+        numSpans
         spans(first: $count, after: $cursor)
           @connection(key: "ConnectedTraceTree_spans") {
           edges {
@@ -63,20 +66,30 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
     return gqlSpans.map((node) => node.span);
   }, [data]);
 
+  const totalSpans = data?.numSpans;
+  const totalSpansViewing = spansList.length;
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
+      {hasNext ? (
+        <Alert
+          variant="warning"
+          banner
+          extra={
+            <Button
+              size="S"
+              variant="primary"
+              onPress={() => {
+                loadNext(PAGE_SIZE);
+              }}
+            >
+              Load More
+            </Button>
+          }
+        >
+          Viewing {totalSpansViewing} of {totalSpans} spans.
+        </Alert>
+      ) : null}
       <TraceTree spans={spansList} {...props} />
-      <View
-        padding="size-100"
-        borderTopColor="grey-300"
-        borderTopWidth="thin"
-        flex="none"
-      >
-        <Flex direction="row">
-          <Text>Viewing {spansList.length} spans.</Text>
-          {hasNext ? <Button size="S">Load More</Button> : null}
-        </Flex>
-      </View>
     </Flex>
   );
 }

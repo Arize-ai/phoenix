@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0073c068d9217d66eae2882b6ddccc07>>
+ * @generated SignedSource<<74683e062147d83dbaa3b63badff5db7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -221,7 +221,7 @@ v14 = [
   {
     "kind": "Literal",
     "name": "first",
-    "value": 1001
+    "value": 1000
   }
 ],
 v15 = {
@@ -313,6 +313,13 @@ return {
                 "plural": false,
                 "selections": [
                   (v4/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "numSpans",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": (v14/*: any*/),
@@ -495,7 +502,7 @@ return {
                         "storageKey": null
                       }
                     ],
-                    "storageKey": "spans(first:1001)"
+                    "storageKey": "spans(first:1000)"
                   },
                   {
                     "alias": null,
@@ -524,12 +531,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3d6c62e5d40e112ebb139a274a3ac4da",
+    "cacheID": "2ac7407df15954a2c044ae23c2c006fd",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        ...ConnectedTraceTree\n        topSpans: spans(first: 100) {\n          edges {\n            span: node {\n              statusCode\n              id\n              spanId\n              parentId\n            }\n          }\n        }\n        latencyMs\n        costSummary {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedTraceTree on Trace {\n  spans(first: 1001) {\n    edges {\n      span: node {\n        id\n        spanId\n        name\n        spanKind\n        statusCode\n        startTime\n        endTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        spanAnnotationSummaries {\n          labels\n          count\n          labelCount\n          labelFractions {\n            fraction\n            label\n          }\n          name\n          scoreCount\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        ...ConnectedTraceTree\n        topSpans: spans(first: 100) {\n          edges {\n            span: node {\n              statusCode\n              id\n              spanId\n              parentId\n            }\n          }\n        }\n        latencyMs\n        costSummary {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedTraceTree on Trace {\n  numSpans\n  spans(first: 1000) {\n    edges {\n      span: node {\n        id\n        spanId\n        name\n        spanKind\n        statusCode\n        startTime\n        endTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        spanAnnotationSummaries {\n          labels\n          count\n          labelCount\n          labelFractions {\n            fraction\n            label\n          }\n          name\n          scoreCount\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
