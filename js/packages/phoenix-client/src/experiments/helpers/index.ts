@@ -1,3 +1,3 @@
 export * from "./asExperimentEvaluator";
-export * from "./getExmerimentEvalutors";
-export * from "./fromPhoenixEvaluator";
+export * from "./getExperimentEvaluators";
+export * from "./fromPhoenixLLMEvaluator";

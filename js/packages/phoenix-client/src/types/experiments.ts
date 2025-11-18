@@ -1,4 +1,4 @@
-import type { ClassificationEvaluator } from "@arizeai/phoenix-evals";
+import type { LLMEvaluator } from "@arizeai/phoenix-evals";
 
 import { AnnotatorKind } from "./annotations";
 import { Node } from "./core";
@@ -185,4 +185,4 @@ export interface ExperimentParameters {
  */
 export type ExperimentEvaluatorLike =
   | Evaluator
-  | ClassificationEvaluator<Record<string, unknown>>;
+  | LLMEvaluator<Record<string, unknown>>;

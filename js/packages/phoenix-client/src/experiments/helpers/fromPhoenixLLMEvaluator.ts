@@ -1,4 +1,4 @@
-import type { ClassificationEvaluator } from "@arizeai/phoenix-evals";
+import type { LLMEvaluator } from "@arizeai/phoenix-evals";
 
 import { Evaluator } from "../../types/experiments";
 
@@ -11,14 +11,14 @@ import { asExperimentEvaluator } from "./asExperimentEvaluator";
  */
 export function fromPhoenixEvaluator<
   RecordType extends Record<string, unknown>,
->(phoenixEvaluator: ClassificationEvaluator<RecordType>): Evaluator {
+>(phoenixLLMEvaluator: LLMEvaluator<RecordType>): Evaluator {
   return asExperimentEvaluator({
-    name: phoenixEvaluator.name,
+    name: phoenixLLMEvaluator.name,
     kind: "LLM",
     evaluate: async (example) => {
       // For now blindly coerce the types
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await phoenixEvaluator.evaluate(example as any);
+      return await phoenixLLMEvaluator.evaluate(example as any);
     },
   });
 }

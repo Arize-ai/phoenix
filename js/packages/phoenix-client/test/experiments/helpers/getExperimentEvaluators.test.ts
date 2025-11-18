@@ -1,6 +1,6 @@
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 
-import { getExperimentEvaluators } from "../../../src/experiments/helpers/getExmerimentEvalutors";
+import { getExperimentEvaluators } from "../../../src/experiments/helpers/getExperimentEvaluators";
 import { Evaluator } from "../../../src/types/experiments";
 
 import { MockLanguageModelV2 } from "ai/test";
