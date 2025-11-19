@@ -1,5 +1,20 @@
 # Changelog
 
+## [12.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.15.1...arize-phoenix-v12.16.0) (2025-11-19)
+
+
+### Features
+
+* add openai 5.1 family ([#10318](https://github.com/Arize-ai/phoenix/issues/10318)) ([cb1f40b](https://github.com/Arize-ai/phoenix/commit/cb1f40bbb3fcb2ca55405586d7b5d260e26e5bcc))
+* implement connection pagination on trace spans ([#10298](https://github.com/Arize-ai/phoenix/issues/10298)) ([f38ce95](https://github.com/Arize-ai/phoenix/commit/f38ce95d81f3f37e0897385f3603d379c0845fe5))
+* **reasoning:** support reasoning for openai, gemini and add gemini-3 ([#10309](https://github.com/Arize-ai/phoenix/issues/10309)) ([eed38d4](https://github.com/Arize-ai/phoenix/commit/eed38d48cd66a042027e470f1730ecf3876f91d4))
+
+
+### Bug Fixes
+
+* account for large traces ([#10296](https://github.com/Arize-ai/phoenix/issues/10296)) ([2c906e1](https://github.com/Arize-ai/phoenix/commit/2c906e14dbfaff68c4a000d20ae49557f0cdfff1))
+* drop support for python 3.9 ([#10310](https://github.com/Arize-ai/phoenix/issues/10310)) ([7f0b8c9](https://github.com/Arize-ai/phoenix/commit/7f0b8c96bd21be92a0cde49fe49a2f5cecfe8362))
+
 ## [12.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.15.0...arize-phoenix-v12.15.1) (2025-11-18)
 
 
