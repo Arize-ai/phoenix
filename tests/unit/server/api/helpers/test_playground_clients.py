@@ -5,7 +5,9 @@ import pytest
 
 from phoenix.server.api.helpers.playground_clients import BedrockStreamingClient
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
+from phoenix.server.api.input_types.GenerativeModelInput import (
+    GenerativeModelBultinProviderInput,
+)
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 
@@ -38,7 +40,7 @@ def test_bedrock_client_model_name_passthrough(
     llm_client = cast(
         BedrockStreamingClient,
         llm_client_class(
-            model=GenerativeModelInput(
+            model=GenerativeModelBultinProviderInput(
                 provider_key=GenerativeProviderKey.AWS, name=model_name, region="us-east-1"
             ),
             credentials=None,

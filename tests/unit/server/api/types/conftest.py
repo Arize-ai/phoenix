@@ -53,6 +53,8 @@ def context_factory() -> Callable[[Inferences, Optional[Inferences]], Context]:
             data_loaders=None,  # type: ignore[arg-type]
             cache_for_dataloaders=None,
             span_cost_calculator=None,  # type: ignore[arg-type]
+            encrypt=lambda v: v,
+            decrypt=lambda v: v,
         )
 
     return create_context

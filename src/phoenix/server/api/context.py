@@ -2,7 +2,7 @@ from asyncio import get_running_loop
 from dataclasses import dataclass
 from functools import cached_property, partial
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from starlette.datastructures import Secret
 from starlette.requests import Request as StarletteRequest
@@ -14,6 +14,7 @@ from phoenix.auth import (
 )
 from phoenix.core.model_schema import Model
 from phoenix.db import models
+from phoenix.duck_types import CanGetString
 from phoenix.server.api.dataloaders import (
     AnnotationConfigsByProjectDataLoader,
     AnnotationSummaryDataLoader,
@@ -47,6 +48,7 @@ from phoenix.server.api.dataloaders import (
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SecretValuesDataLoader,
     SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
@@ -82,6 +84,7 @@ from phoenix.server.api.dataloaders import (
     UsersDataLoader,
 )
 from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
+from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
@@ -93,6 +96,9 @@ from phoenix.server.types import (
     TokenStore,
     UserId,
 )
+
+if TYPE_CHECKING:
+    from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
 
 
 @dataclass
@@ -137,6 +143,7 @@ class DataLoaders:
     experiment_runs_by_experiment_and_example: ExperimentRunsByExperimentAndExampleDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     generative_model_fields: TableFieldsDataLoader
+    generative_model_custom_provider_fields: TableFieldsDataLoader
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
@@ -154,6 +161,7 @@ class DataLoaders:
     project_session_annotation_fields: TableFieldsDataLoader
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
+    secret_values: SecretValuesDataLoader
     session_annotations_by_session: SessionAnnotationsBySessionDataLoader
     session_first_inputs: SessionIODataLoader
     session_last_outputs: SessionIODataLoader
@@ -216,6 +224,9 @@ class Context(BaseContext):
     model: Model
     export_path: Path
     span_cost_calculator: SpanCostCalculator
+    encrypt: Callable[[bytes], bytes]
+    decrypt: Callable[[bytes], bytes]
+    secret_store: CanGetString = _NoOp()
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None
@@ -281,3 +292,12 @@ class Context(BaseContext):
             return int(self.user.identity)
         except Exception:
             return None
+
+    async def get_playground_client(
+        self, model: "GenerativeModelInput"
+    ) -> "PlaygroundStreamingClient":
+        if builtin := model.builtin:
+            return builtin.get_playground_client()
+        custom = model.custom
+        assert custom
+        raise NotImplementedError

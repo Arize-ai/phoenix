@@ -1144,12 +1144,15 @@ const getBaseChatCompletionInput = ({
   return {
     messages: instanceMessages.map(toGqlChatCompletionMessage),
     model: {
-      providerKey: instance.model.provider,
-      name: instance.model.modelName || "",
-      baseUrl: instance.model.baseUrl,
-      customHeaders: instance.model.customHeaders,
-      ...azureModelParams,
-      ...awsModelParams,
+      builtin: {
+        providerKey: instance.model.provider,
+        name: instance.model.modelName || "",
+        baseUrl: instance.model.baseUrl,
+        customHeaders: instance.model.customHeaders,
+        credentials: getCredentials(credentials, instance.model.provider),
+        ...azureModelParams,
+        ...awsModelParams,
+      },
     },
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
@@ -1159,7 +1162,6 @@ const getBaseChatCompletionInput = ({
     tools: instance.tools.length
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
-    credentials: getCredentials(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
   } satisfies Partial<ChatCompletionInput>;
 };
