@@ -10,16 +10,6 @@ type AddAnnotationConfigToProjectPayload {
   project: Project!
 }
 
-input AddDatasetExamplesToDatasetSplitsInput {
-  datasetSplitIds: [ID!]!
-  exampleIds: [ID!]!
-}
-
-type AddDatasetExamplesToDatasetSplitsMutationPayload {
-  query: Query!
-  examples: [DatasetExample!]!
-}
-
 input AddExamplesToDatasetInput {
   datasetId: ID!
   examples: [DatasetExampleInput!]!
@@ -1834,8 +1824,7 @@ type Mutation {
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
-  addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
-  removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
+  setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
@@ -2555,16 +2544,6 @@ type RemoveAnnotationConfigFromProjectPayload {
   project: Project!
 }
 
-input RemoveDatasetExamplesFromDatasetSplitsInput {
-  datasetSplitIds: [ID!]!
-  exampleIds: [ID!]!
-}
-
-type RemoveDatasetExamplesFromDatasetSplitsMutationPayload {
-  query: Query!
-  examples: [DatasetExample!]!
-}
-
 type ResponseFormat {
   definition: JSON!
 }
@@ -2603,6 +2582,16 @@ type Segments {
 
 type ServerStatus {
   insufficientStorage: Boolean!
+}
+
+input SetDatasetExampleSplitsInput {
+  exampleId: ID!
+  datasetSplitIds: [ID!]!
+}
+
+type SetDatasetExampleSplitsMutationPayload {
+  query: Query!
+  example: DatasetExample!
 }
 
 input SetDatasetLabelsInput {
