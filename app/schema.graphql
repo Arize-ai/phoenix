@@ -3102,7 +3102,7 @@ type Trace implements Node {
   session: ProjectSession
   rootSpan: Span
   numSpans: Int!
-  spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
+  spans(first: Int = 50, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
 
   """Annotations associated with the trace."""
   traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!

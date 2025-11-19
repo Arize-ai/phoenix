@@ -9,7 +9,7 @@ import pandas as pd
 import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import desc, select
+from sqlalchemy import desc, or_, select
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
@@ -196,6 +196,8 @@ class Trace(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        root_spans_only: Optional[bool] = UNSET,
+        orphan_span_as_root_span: Optional[bool] = True,
     ) -> Connection[Span]:
         # Validate pagination arguments
         if isinstance(first, int) and first <= 0:
@@ -225,22 +227,61 @@ class Trace(Node):
         if before is not UNSET or (last is not UNSET and last is not None):
             raise ValueError("Backward pagination (last/before) is not yet supported")
 
+        # Filter for root spans only if requested
+        if root_spans_only:
+            # A root span is either a span with no parent_id or an orphan span
+            # (a span whose parent_id references a span that doesn't exist in the database)
+            if orphan_span_as_root_span:
+                # Include both types of root spans
+                parent_spans = select(models.Span.span_id).alias("parent_spans")
+                candidate_spans = stmt.add_columns(models.Span.parent_id).cte("candidate_spans")
+                stmt = (
+                    select(candidate_spans)
+                    .where(
+                        or_(
+                            candidate_spans.c.parent_id.is_(None),
+                            ~select(1)
+                            .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
+                            .exists(),
+                        )
+                    )
+                    .order_by(desc(candidate_spans.c.id))
+                )
+            else:
+                # Only include explicit root spans (spans with parent_id = NULL)
+                stmt = stmt.where(models.Span.parent_id.is_(None))
+
         # Over-fetch by one to determine whether there's a next page
         limit = first if isinstance(first, int) else 50
         stmt = stmt.limit(limit + 1)
 
         cursors_and_nodes = []
         async with info.context.db() as session:
-            span_rowids = await session.stream_scalars(stmt)
-            async for span_rowid in islice(span_rowids, limit):
-                cursor = Cursor(rowid=span_rowid)
-                cursors_and_nodes.append((cursor, Span(id=span_rowid)))
-            # Check if there's a next page by trying to fetch one more
-            has_next_page = True
-            try:
-                await span_rowids.__anext__()
-            except StopAsyncIteration:
-                has_next_page = False
+            if root_spans_only and orphan_span_as_root_span:
+                # When using CTE, we need to stream records and extract the id
+                span_records = await session.stream(stmt)
+                async for span_record in islice(span_records, limit):
+                    span_rowid: int = span_record[0]
+                    cursor = Cursor(rowid=span_rowid)
+                    cursors_and_nodes.append((cursor, Span(id=span_rowid)))
+                # Check if there's a next page
+                has_next_page = True
+                try:
+                    await span_records.__anext__()
+                except StopAsyncIteration:
+                    has_next_page = False
+            else:
+                # For simple queries, use stream_scalars
+                span_rowids = await session.stream_scalars(stmt)
+                async for span_rowid in islice(span_rowids, limit):
+                    cursor = Cursor(rowid=span_rowid)
+                    cursors_and_nodes.append((cursor, Span(id=span_rowid)))
+                # Check if there's a next page
+                has_next_page = True
+                try:
+                    await span_rowids.__anext__()
+                except StopAsyncIteration:
+                    has_next_page = False
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,
             has_previous_page=False,
