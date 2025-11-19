@@ -5,8 +5,12 @@ import { debounce } from "lodash";
 
 import { RegexFieldQuery } from "@phoenix/components/__generated__/RegexFieldQuery.graphql";
 import { Text } from "@phoenix/components/content";
-import { TextField, TextFieldProps } from "@phoenix/components/field";
-import { Icon, Icons } from "@phoenix/components/icon";
+import {
+  FieldDangerIcon,
+  FieldSuccessIcon,
+  TextField,
+  TextFieldProps,
+} from "@phoenix/components/field";
 
 type RegexFieldProps = {
   value: string;
@@ -42,18 +46,8 @@ export const RegexField = ({
       <Input placeholder={placeholder} />
       {!error && description && <Text slot="description">{description}</Text>}
       {error && <FieldError>{error}</FieldError>}
-      {isInvalid && value && (
-        <Icon
-          style={{ color: "var(--ac-global-color-danger)" }}
-          svg={<Icons.CloseCircle />}
-        />
-      )}
-      {!isInvalid && value && (
-        <Icon
-          style={{ color: "var(--ac-global-color-success)" }}
-          svg={<Icons.CheckmarkCircleFilled />}
-        />
-      )}
+      {isInvalid && value && <FieldDangerIcon />}
+      {!isInvalid && value && <FieldSuccessIcon />}
     </TextField>
   );
 };
