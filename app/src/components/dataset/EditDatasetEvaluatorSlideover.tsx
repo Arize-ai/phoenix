@@ -192,11 +192,16 @@ const EditEvaluatorDialog = ({
           { label: "", score: undefined },
         ],
       },
+      dataset: {
+        readonly: true,
+        id: datasetId,
+        assignEvaluatorToDataset: true,
+      },
       inputMapping: {
         // TODO: populate input mapping from evaluator
       },
     };
-  }, [evaluator]);
+  }, [evaluator, datasetId]);
   const form = useEvaluatorForm(defaultValues);
 
   return (
