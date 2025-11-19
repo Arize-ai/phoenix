@@ -18,9 +18,9 @@ INPUT_VALUE = SpanAttributes.INPUT_VALUE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
-INPUT = {"input": INPUT_VALUE}
-OUTPUT = {"output": OUTPUT_VALUE}
-IO = {**INPUT, **OUTPUT}
+INPUT = {INPUT_VALUE: "input"}
+OUTPUT = {OUTPUT_VALUE: "output"}
+IO = {INPUT_VALUE: "input", OUTPUT_VALUE: "output"}
 
 IS_ROOT = "parent_id is None"
 IS_RETRIEVER = "span_kind == 'RETRIEVER'"
@@ -87,7 +87,8 @@ def get_retrieved_documents(
         client.spans.get_spans_dataframe(
             query=SpanQuery()
             .where(IS_RETRIEVER)
-            .select("trace_id", **INPUT)
+            .select("trace_id", INPUT_VALUE)
+            .rename(**INPUT)
             .explode(
                 RETRIEVAL_DOCUMENTS,
                 reference=DOCUMENT_CONTENT,
@@ -157,14 +158,19 @@ def get_qa_with_reference(
 
     project = project_identifier or project_name or get_env_project_name()
     separator = "\n\n"
-    qa_query = SpanQuery().select("span_id", **IO).where(IS_ROOT).with_index("trace_id")
+    qa_query = (
+        SpanQuery()
+        .select("span_id", INPUT_VALUE, OUTPUT_VALUE)
+        .rename(**IO)
+        .where(IS_ROOT)
+        .with_index("trace_id")
+    )
     docs_query = (
         SpanQuery()
         .where(IS_RETRIEVER)
         .concat(RETRIEVAL_DOCUMENTS, reference=DOCUMENT_CONTENT)
-        .with_concat_separator(separator=separator)
         .with_index("trace_id")
-    )
+    )  # separator is "\n\n" by default
 
     df_qa = client.spans.get_spans_dataframe(
         query=qa_query,
@@ -244,7 +250,8 @@ async def get_retrieved_documents_async(
         await client.spans.get_spans_dataframe(
             query=SpanQuery()
             .where(IS_RETRIEVER)
-            .select("trace_id", **INPUT)
+            .select("trace_id", INPUT_VALUE)
+            .rename(**INPUT)
             .explode(
                 RETRIEVAL_DOCUMENTS,
                 reference=DOCUMENT_CONTENT,
@@ -301,14 +308,19 @@ async def get_qa_with_reference_async(
 
     project = project_identifier or project_name or get_env_project_name()
     separator = "\n\n"
-    qa_query = SpanQuery().select("span_id", **IO).where(IS_ROOT).with_index("trace_id")
+    qa_query = (
+        SpanQuery()
+        .select("span_id", INPUT_VALUE, OUTPUT_VALUE)
+        .rename(**IO)
+        .where(IS_ROOT)
+        .with_index("trace_id")
+    )
     docs_query = (
         SpanQuery()
         .where(IS_RETRIEVER)
         .concat(RETRIEVAL_DOCUMENTS, reference=DOCUMENT_CONTENT)
-        .with_concat_separator(separator=separator)
         .with_index("trace_id")
-    )
+    )  # separator is "\n\n" by default
 
     df_qa = await client.spans.get_spans_dataframe(
         query=qa_query,
@@ -338,4 +350,3 @@ async def get_qa_with_reference_async(
     df_ref = pd.DataFrame({"reference": ref})
     df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner").set_index("context.span_id")
     return df_qa_ref
-
