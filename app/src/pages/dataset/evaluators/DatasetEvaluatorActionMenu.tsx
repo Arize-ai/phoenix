@@ -36,10 +36,13 @@ export function DatasetEvaluatorActionMenu({
         $connectionIds: [ID!]!
       ) {
         unassignEvaluatorFromDataset(input: $input) {
-          # TODO: figure out how to make table update upon unassignment
           query {
-            ...DatasetEvaluatorsPage_evaluators
-              @arguments(datasetId: $datasetId)
+            dataset: node(id: $datasetId) {
+              ...PlaygroundDatasetSection_evaluators
+                @arguments(datasetId: $datasetId)
+              ...DatasetEvaluatorsTable_evaluators
+                @arguments(datasetId: $datasetId)
+            }
           }
           evaluator @deleteEdge(connections: $connectionIds) {
             ...EvaluatorsTable_row @arguments(datasetId: $datasetId)
