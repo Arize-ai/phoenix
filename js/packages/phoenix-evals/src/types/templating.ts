@@ -1,10 +1,13 @@
-export type Template = string;
+import type { ModelMessage } from "ai";
+
+export type PromptTemplate = string | Array<ModelMessage>;
+export type RenderedPrompt = string | Array<ModelMessage>;
 export type TemplateVariables = Record<string, unknown>;
 
-/**
- * A class or object that has a prompt template
- */
 export interface WithPromptTemplate {
-  readonly promptTemplate: Template;
-  get promptTemplateVariables(): string[];
+  readonly promptTemplate: PromptTemplate;
+  /**
+   * List out the prompt template variables needed to perform evaluation
+   */
+  readonly promptTemplateVariables: string[];
 }

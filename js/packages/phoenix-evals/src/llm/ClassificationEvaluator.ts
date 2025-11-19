@@ -2,7 +2,7 @@ import { getTemplateVariables } from "../template";
 import {
   CreateClassificationEvaluatorArgs,
   EvaluatorFn,
-  Template,
+  PromptTemplate,
   WithPromptTemplate,
 } from "../types";
 
@@ -17,7 +17,7 @@ export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
   implements WithPromptTemplate
 {
   readonly evaluatorFn: EvaluatorFn<RecordType>;
-  readonly promptTemplate: Template;
+  readonly promptTemplate: PromptTemplate;
   private _promptTemplateVariables: string[] | undefined;
   constructor(args: CreateClassificationEvaluatorArgs) {
     super(args);
