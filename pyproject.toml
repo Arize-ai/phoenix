@@ -53,7 +53,7 @@ dependencies = [
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=2.6.0",
-  "arize-phoenix-otel>=0.10.3",
+  "arize-phoenix-otel>=0.14.0",
   "fastapi",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
