@@ -76,6 +76,7 @@ export function AnnotationNameAndValue({
       alignItems="center"
       className="annotation-name-and-value"
       maxWidth={maxWidth}
+      minWidth={minWidth}
     >
       <AnnotationColorSwatch annotationName={annotation.name} />
       <div css={css(textCSS(maxWidth), { minWidth })} title={annotation.name}>
