@@ -26,6 +26,8 @@ import {
 } from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
+import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
+import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorConfigDialog_dataset$key } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_dataset.graphql";
@@ -34,10 +36,6 @@ import {
   EvaluatorConfigDialog_evaluatorQuery$data,
 } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_evaluatorQuery.graphql";
 import { EvaluatorConfigDialogAssignEvaluatorToDatasetMutation } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialogAssignEvaluatorToDatasetMutation.graphql";
-import {
-  EvaluatorInputMapping,
-  InputMapping,
-} from "@phoenix/pages/evaluators/EvaluatorInputMapping";
 import { promptVersionToInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { extractVariablesFromInstance } from "@phoenix/pages/playground/playgroundUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -101,8 +99,10 @@ function EvaluatorConfigDialogContent({
     control: inputMappingControl,
     getValues: getInputMappingValues,
     formState: { isValid: isInputMappingValid },
-  } = useForm<InputMapping>({
-    defaultValues: {},
+  } = useForm<EvaluatorFormValues>({
+    defaultValues: {
+      inputMapping: {},
+    },
   });
 
   const dataset = useFragment<EvaluatorConfigDialog_dataset$key>(
@@ -161,10 +161,6 @@ function EvaluatorConfigDialogContent({
         $connectionIds: [ID!]!
       ) {
         assignEvaluatorToDataset(input: $input) {
-          query {
-            ...DatasetEvaluatorsPage_evaluators
-              @arguments(datasetId: $datasetId)
-          }
           evaluator
             @appendNode(
               connections: $connectionIds
@@ -315,11 +311,12 @@ function EvaluatorConfigDialogContent({
               <Text size="L">Example</Text>
               <EvaluatorExampleDataset
                 selectedDatasetId={dataset.id}
-                datasetSelectIsDisabled
                 onSelectDataset={() => {}}
                 selectedSplitIds={[]}
                 onSelectSplits={() => {}}
                 onSelectExampleId={setSelectedExampleId}
+                assignEvaluatorToDataset
+                datasetSelectIsDisabled
               />
             </Flex>
             <EvaluatorInputMapping
