@@ -9,11 +9,9 @@ import { EvaluatorsTable } from "@phoenix/pages/evaluators/EvaluatorsTable";
 
 const PAGE_SIZE = 100;
 
-export const DatasetEvaluatorsTable = ({
-  query,
-}: {
-  query: DatasetEvaluatorsTable_evaluators$key;
-}) => {
+export const useDatasetEvaluatorsTable = (
+  query: DatasetEvaluatorsTable_evaluators$key
+) => {
   const { filter } = useEvaluatorsFilterContext();
   const {
     data,
@@ -61,6 +59,30 @@ export const DatasetEvaluatorsTable = ({
     },
     [_refetch]
   );
+  return {
+    filter,
+    data,
+    hasNext,
+    isLoadingNext,
+    loadNext,
+    refetch,
+  };
+};
+
+export type UseDatasetEvaluatorsTableParams = ReturnType<
+  typeof useDatasetEvaluatorsTable
+>;
+
+type DatasetEvaluatorsTableProps = UseDatasetEvaluatorsTableParams;
+
+export const DatasetEvaluatorsTable = ({
+  filter,
+  data,
+  hasNext,
+  isLoadingNext,
+  loadNext,
+  refetch,
+}: DatasetEvaluatorsTableProps) => {
   return (
     <EvaluatorsTable
       rowReferences={data.evaluators.edges.map((edge) => edge.node)}

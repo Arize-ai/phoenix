@@ -221,6 +221,11 @@ class EvaluatorMutationMixin:
             if dataset_id is not None
             else [],
         )
+        # manually update the updated_at field since updating the description or other fields
+        # solely on the parent record Evaluator does not trigger an update of the updated_at
+        # field on the LLMEvaluator record
+        llm_evaluator.updated_at = datetime.now(timezone.utc)
+
         try:
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
         except ValueError as error:

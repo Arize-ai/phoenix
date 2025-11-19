@@ -16,7 +16,6 @@ export const datasetEvaluatorsLoaderGQL = graphql`
         ...DatasetEvaluatorsTable_evaluators @arguments(datasetId: $id)
       }
     }
-    ...DatasetEvaluatorsPage_evaluators @arguments(datasetId: $id)
   }
 `;
 

@@ -1,20 +1,21 @@
 import { Suspense, useMemo, useState } from "react";
-import { graphql, useFragment, usePreloadedQuery } from "react-relay";
+import { usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Loading, Modal, ModalOverlay } from "@phoenix/components";
-import { DatasetEvaluatorSelect } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSelect";
+import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
 import {
   datasetEvaluatorsLoader,
   datasetEvaluatorsLoaderGQL,
 } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
-import { DatasetEvaluatorsTable } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsTable";
+import {
+  DatasetEvaluatorsTable,
+  useDatasetEvaluatorsTable,
+} from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsTable";
 import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/EvaluatorConfigDialog";
 import { EvaluatorsFilterBar } from "@phoenix/pages/evaluators/EvaluatorsFilterBar";
 import { EvaluatorsFilterProvider } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
-
-import type { DatasetEvaluatorsPage_evaluators$key } from "./__generated__/DatasetEvaluatorsPage_evaluators.graphql";
 
 export function DatasetEvaluatorsPage() {
   return (
@@ -33,31 +34,8 @@ export function DatasetEvaluatorsPageContent() {
   const loaderData = useLoaderData<typeof datasetEvaluatorsLoader>();
   invariant(loaderData, "loaderData is required");
   const data = usePreloadedQuery(datasetEvaluatorsLoaderGQL, loaderData);
-
-  const globalEvaluatorsData =
-    useFragment<DatasetEvaluatorsPage_evaluators$key>(
-      graphql`
-        fragment DatasetEvaluatorsPage_evaluators on Query
-        @argumentDefinitions(datasetId: { type: "ID!" }) {
-          globalEvaluators: evaluators(first: 100) {
-            edges {
-              node {
-                id
-                name
-                kind
-                isAssignedToDataset(datasetId: $datasetId)
-                ... on LLMEvaluator {
-                  outputConfig {
-                    name
-                  }
-                }
-              }
-            }
-          }
-        }
-      `,
-      data
-    );
+  const evaluatorsTableProps = useDatasetEvaluatorsTable(data.dataset);
+  const evaluatorsTableData = evaluatorsTableProps.data;
 
   const [addingEvaluatorId, setAddingEvaluatorId] = useState<string | null>(
     null
@@ -67,34 +45,27 @@ export function DatasetEvaluatorsPageContent() {
     setAddingEvaluatorId(null);
   };
 
-  const globalEvaluators = useMemo(
-    () =>
-      globalEvaluatorsData.globalEvaluators.edges.map((edge) => ({
-        id: edge.node.id,
-        name: edge.node.name,
-        kind: edge.node.kind,
-        alreadyAdded: edge.node.isAssignedToDataset,
-        annotationName: edge.node.outputConfig?.name,
-      })),
-    [globalEvaluatorsData]
-  );
+  const connectionsToUpdate = useMemo(() => {
+    if (evaluatorsTableData.evaluators.__id) {
+      return [evaluatorsTableData.evaluators.__id];
+    }
+    return [];
+  }, [evaluatorsTableData]);
 
   return (
     <main>
       <EvaluatorsFilterBar
         padding="size-100"
         extraActions={
-          <DatasetEvaluatorSelect
-            evaluators={globalEvaluators}
-            onSelectionChange={(evaluatorId) => {
-              setAddingEvaluatorId(evaluatorId);
-            }}
-            addNewEvaluatorLink="/evaluators/new"
+          <AddEvaluatorMenu
+            size="M"
+            datasetId={datasetId}
+            updateConnectionIds={connectionsToUpdate}
           />
         }
       />
       <Suspense fallback={<Loading />}>
-        <DatasetEvaluatorsTable query={data.dataset} />
+        <DatasetEvaluatorsTable {...evaluatorsTableProps} />
       </Suspense>
       <ModalOverlay
         isOpen={!!addingEvaluatorId}

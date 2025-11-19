@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
 import { ModalOverlayProps } from "react-aria-components";
 import {
   graphql,
@@ -9,13 +9,11 @@ import {
 import invariant from "tiny-invariant";
 
 import { CreateLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
+import { EditDatasetEvaluatorSlideover_evaluator$key } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_evaluator.graphql";
+import { EditDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_evaluatorQuery.graphql";
+import { EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import { Dialog } from "@phoenix/components/dialog";
-import { EditEvaluatorSlideover_evaluator$key } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_evaluator.graphql";
-import { EditEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_evaluatorQuery.graphql";
-import {
-  EditEvaluatorSlideover_updateLLMEvaluatorMutation,
-  UpdateLLMEvaluatorInput,
-} from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
+import { UpdateLLMEvaluatorInput } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import { EditEvaluatorDialogContent } from "@phoenix/components/evaluators/EditEvaluatorDialogContent";
 import {
   EvaluatorFormProvider,
@@ -24,16 +22,18 @@ import {
 } from "@phoenix/components/evaluators/EvaluatorForm";
 import { Loading } from "@phoenix/components/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/overlay/Modal";
+import { useNotifyError } from "@phoenix/contexts";
 import { Mutable } from "@phoenix/typeUtils";
 
-export const EditEvaluatorSlideover = ({
+export const EditDatasetEvaluatorSlideover = ({
   evaluatorId,
+  datasetId,
   updateConnectionIds,
   ...props
 }: {
   evaluatorId: string;
+  datasetId: string;
   updateConnectionIds?: string[];
-  subMenuTrigger?: boolean;
 } & ModalOverlayProps) => {
   return (
     <ModalOverlay {...props}>
@@ -41,11 +41,12 @@ export const EditEvaluatorSlideover = ({
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>
-              {evaluatorId && (
+              {evaluatorId && datasetId && (
                 <EditEvaluatorDialog
                   evaluatorId={evaluatorId}
-                  updateConnectionIds={updateConnectionIds}
                   onClose={close}
+                  datasetId={datasetId}
+                  updateConnectionIds={updateConnectionIds}
                 />
               )}
             </Suspense>
@@ -59,73 +60,97 @@ export const EditEvaluatorSlideover = ({
 const EditEvaluatorDialog = ({
   evaluatorId,
   onClose,
+  datasetId,
   updateConnectionIds,
 }: {
   evaluatorId: string;
   onClose: () => void;
+  datasetId: string;
   updateConnectionIds?: string[];
 }) => {
-  const query = useLazyLoadQuery<EditEvaluatorSlideover_evaluatorQuery>(
+  const closedRef = useRef(false);
+  const notifyError = useNotifyError();
+  const query = useLazyLoadQuery<EditDatasetEvaluatorSlideover_evaluatorQuery>(
     graphql`
-      query EditEvaluatorSlideover_evaluatorQuery($evaluatorId: ID!) {
+      query EditDatasetEvaluatorSlideover_evaluatorQuery(
+        $evaluatorId: ID!
+        $datasetId: ID!
+      ) {
         evaluator: node(id: $evaluatorId) {
           ... on Evaluator {
-            ...EditEvaluatorSlideover_evaluator
+            ...EditDatasetEvaluatorSlideover_evaluator
+              @arguments(datasetId: $datasetId)
           }
         }
       }
     `,
-    { evaluatorId }
+    { evaluatorId, datasetId }
   );
-  const evaluatorFragment = useFragment<EditEvaluatorSlideover_evaluator$key>(
-    graphql`
-      fragment EditEvaluatorSlideover_evaluator on Evaluator {
-        id
-        name
-        description
-        kind
-        ... on LLMEvaluator {
-          prompt {
-            id
-            name
-          }
-          promptVersion {
-            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
-          }
-          outputConfig {
-            name
-            values {
-              label
-              score
+  const evaluatorFragment =
+    useFragment<EditDatasetEvaluatorSlideover_evaluator$key>(
+      graphql`
+        fragment EditDatasetEvaluatorSlideover_evaluator on Evaluator
+        @argumentDefinitions(datasetId: { type: "ID!" }) {
+          id
+          name
+          description
+          kind
+          isAssignedToDataset(datasetId: $datasetId)
+          ... on LLMEvaluator {
+            prompt {
+              id
+              name
+            }
+            promptVersion {
+              ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
+            }
+            outputConfig {
+              name
+              values {
+                label
+                score
+              }
             }
           }
         }
-      }
-    `,
-    query.evaluator
-  );
+      `,
+      query.evaluator
+    );
   const evaluator = evaluatorFragment as Mutable<typeof evaluatorFragment>;
   invariant(evaluator, "evaluator is required");
+  useEffect(() => {
+    if (!evaluator.isAssignedToDataset && !closedRef.current) {
+      onClose();
+      notifyError({
+        title: "Evaluator not assigned to dataset",
+        message:
+          "This evaluator is not assigned to this dataset. Please refresh the page and try again.",
+      });
+      closedRef.current = true;
+    }
+  }, [evaluator.isAssignedToDataset, onClose, notifyError]);
   const [updateLlmEvaluator, isUpdating] =
-    useMutation<EditEvaluatorSlideover_updateLLMEvaluatorMutation>(graphql`
-      mutation EditEvaluatorSlideover_updateLLMEvaluatorMutation(
-        $input: UpdateLLMEvaluatorInput!
-        $connectionIds: [ID!]!
-      ) {
-        updateLlmEvaluator(input: $input) {
-          evaluator
-            @appendNode(
-              connections: $connectionIds
-              edgeTypeName: "EvaluatorEdge"
-            ) {
-            id
-            name
-            ...EvaluatorsTable_row
-            ...EditEvaluatorSlideover_evaluator
+    useMutation<EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation>(
+      graphql`
+        mutation EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(
+          $input: UpdateLLMEvaluatorInput!
+          $connectionIds: [ID!]!
+        ) {
+          updateLlmEvaluator(input: $input) {
+            evaluator
+              @appendNode(
+                connections: $connectionIds
+                edgeTypeName: "EvaluatorEdge"
+              ) {
+              id
+              name
+              ...EvaluatorsTable_row
+              ...EditEvaluatorSlideover_evaluator
+            }
           }
         }
-      }
-    `);
+      `
+    );
   const onSubmit = useCallback(
     (args: {
       input: UpdateLLMEvaluatorInput | CreateLLMEvaluatorInput;
@@ -167,11 +192,16 @@ const EditEvaluatorDialog = ({
           { label: "", score: undefined },
         ],
       },
+      dataset: {
+        readonly: true,
+        id: datasetId,
+        assignEvaluatorToDataset: true,
+      },
       inputMapping: {
         // TODO: populate input mapping from evaluator
       },
     };
-  }, [evaluator]);
+  }, [evaluator, datasetId]);
   const form = useEvaluatorForm(defaultValues);
 
   return (
