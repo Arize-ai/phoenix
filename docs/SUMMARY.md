@@ -1,6 +1,6 @@
 # Table of contents
 
-* [Arize Phoenixem](README.md)
+* [Arize Phoenix](README.md)
 * [Get Started](get-started/README.md)
   * [Get Started: Tracing](get-started/get-started-tracing.md)
   * [Get Started: Evaluations](get-started/get-started-evaluations.md)
