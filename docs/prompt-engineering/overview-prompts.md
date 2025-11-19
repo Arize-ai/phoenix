@@ -8,7 +8,7 @@ Unlike traditional software, AI applications are non-deterministic and depend on
 
 Optimizing your prompts is typically the highest-leverage way to improve the behavior of your application, but “prompt engineering” comes with its own set of challenges. You want to be confident that changes to your prompts have the intended effect and don’t introduce regressions.
 
-To get started, jump to [quickstart-prompts](quickstart-prompts/ "mention").
+To get started, jump to [Broken link](broken-reference "mention").
 
 ## Prompt Engineering Features
 
@@ -22,4 +22,3 @@ Phoenix offers a comprehensive suite of features to streamline your prompt engin
 ## Explore Demo Prompts
 
 {% embed url="https://phoenix-demo.arize.com/prompts" %}
-
