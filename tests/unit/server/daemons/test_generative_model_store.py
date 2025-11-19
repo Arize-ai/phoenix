@@ -61,16 +61,22 @@ class TestGenerativeModelStore:
         Test that GenerativeModelStore correctly manages model lifecycle through daemon cycles.
 
         This test verifies that the store:
-        1. Loads initial models on first fetch cycle
-        2. Uses incremental fetching to pick up updates efficiently
-        3. Handles deletions correctly
-        4. Maintains _last_fetch_time properly across cycles
-        5. Applies 2-second clock buffer for clock skew tolerance
+        1. Loads initial models on first fetch cycle (full fetch when _last_fetch_time is None)
+        2. Uses incremental fetching on subsequent cycles (queries with >= _last_fetch_time filter)
+        3. Picks up model updates through incremental fetching
+        4. Removes soft-deleted models from the lookup cache
+        5. Advances _last_fetch_time after each successful fetch cycle
+        6. Advances _last_fetch_time even when no models are changed (empty fetch)
 
         Test flow uses controlled daemon execution:
-        - Start the daemon running in background
-        - Trigger fetch cycles on demand via fetch_trigger
-        - Verify observable behavior (model lookups) after each cycle
+        - Start the daemon running in background via store.start()
+        - Trigger fetch cycles on demand via fetch_trigger fixture
+        - Verify observable behavior (model lookups work correctly) after each cycle
+        - Verify internal state (_last_fetch_time advances) to ensure incremental logic executes
+
+        Note: The implementation applies a 2-second clock buffer (fetch_start_time = now - 2s)
+        for clock skew tolerance, but this test does not verify the buffer's effectiveness
+        as that would require time mocking to simulate the race condition.
         """
         # PHASE 1: Create initial models
         result1 = await gql_client.execute(
