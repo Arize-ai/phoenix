@@ -491,6 +491,7 @@ class Subscription:
                             load_only(
                                 models.DatasetExampleRevision.dataset_example_id,
                                 models.DatasetExampleRevision.input,
+                                models.DatasetExampleRevision.output,
                             )
                         )
                     )
