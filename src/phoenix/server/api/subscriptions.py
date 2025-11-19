@@ -354,7 +354,6 @@ class Subscription:
             context_dict: dict[str, Any] = {
                 "input": [message.content for message in input.messages],
                 "expected": None,
-                "reference": None,
                 "output": span.attributes.get(LLM_OUTPUT_MESSAGES),
             }
             async with info.context.db() as session:
@@ -641,7 +640,6 @@ class Subscription:
                         context_dict: dict[str, Any] = {
                             "input": revision.input,
                             "expected": revision.output,
-                            "reference": revision.output,
                             "output": run.output,
                         }
                         for ii, evaluator in enumerate(input.evaluators):

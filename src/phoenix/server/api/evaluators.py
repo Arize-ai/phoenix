@@ -148,9 +148,13 @@ class ContainsEvaluator(BuiltInEvaluator):
             "contains": {
                 "type": "string",
                 "description": "String to search for in the output",
-            }
+            },
+            "output": {
+                "type": "string",
+                "description": "Output to search for the string in",
+            },
         },
-        "required": ["contains"],
+        "required": ["contains", "output"],
     }
 
     def evaluate(

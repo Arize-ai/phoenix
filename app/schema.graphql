@@ -179,6 +179,20 @@ type BoundedFloatInvocationParameter implements InvocationParameterBase {
   maxValue: Float!
 }
 
+type BuiltInEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  inputSchema: JSON
+  isAssignedToDataset(datasetId: ID = null): Boolean!
+  user: User
+}
+
 enum CanonicalParameterName {
   TEMPERATURE
   MAX_COMPLETION_TOKENS
