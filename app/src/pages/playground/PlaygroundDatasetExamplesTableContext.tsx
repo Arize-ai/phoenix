@@ -144,8 +144,8 @@ const createPlaygroundDatasetExamplesTableStore = () => {
       const exampleResponsesMap = get().exampleResponsesMap;
       const instance = exampleResponsesMap[instanceId] ?? {};
       const examplesByRepetitionNumber = instance[exampleId] ?? {};
-      const currentToolCalls =
-        examplesByRepetitionNumber[repetitionNumber]?.toolCalls ?? {};
+      const example = examplesByRepetitionNumber[repetitionNumber] ?? {};
+      const currentToolCalls = example.toolCalls ?? {};
       const { id, function: toolFunction } = toolCallChunk;
       const existingToolCall = currentToolCalls[id];
       const updatedToolCall: PartialOutputToolCall = {
@@ -168,6 +168,7 @@ const createPlaygroundDatasetExamplesTableStore = () => {
             [exampleId]: {
               ...examplesByRepetitionNumber,
               [repetitionNumber]: {
+                ...example,
                 toolCalls: {
                   ...currentToolCalls,
                   [id]: updatedToolCall,
