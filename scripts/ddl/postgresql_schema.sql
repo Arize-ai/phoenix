@@ -899,6 +899,29 @@ CREATE INDEX ix_experiments_dataset_splits_dataset_split_id ON public.experiment
     USING btree (dataset_split_id);
 
 
+-- Table: generative_model_custom_providers
+-- ----------------------------------------
+CREATE TABLE public.generative_model_custom_providers (
+    id bigserial NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    provider VARCHAR NOT NULL,
+    sdk VARCHAR NOT NULL,
+    config BYTEA NOT NULL,
+    user_id BIGINT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_generative_model_custom_providers PRIMARY KEY (id),
+    CONSTRAINT uq_generative_model_custom_providers_name
+        UNIQUE (name),
+    CONSTRAINT fk_generative_model_custom_providers_user_id_users
+        FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+
 -- Table: password_reset_tokens
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
@@ -1047,6 +1070,7 @@ CREATE TABLE public.llm_evaluators (
     kind VARCHAR NOT NULL DEFAULT 'LLM'::character varying,
     prompt_id BIGINT NOT NULL,
     prompt_version_tag_id BIGINT,
+    annotation_name VARCHAR NOT NULL,
     output_config JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),
@@ -1118,6 +1142,25 @@ CREATE UNIQUE INDEX ix_access_tokens_refresh_token_id ON public.access_tokens
     USING btree (refresh_token_id);
 CREATE INDEX ix_access_tokens_user_id ON public.access_tokens
     USING btree (user_id);
+
+
+-- Table: secrets
+-- --------------
+CREATE TABLE public.secrets (
+    key VARCHAR NOT NULL,
+    value BYTEA,
+    user_id BIGINT,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT pk_secrets PRIMARY KEY (key),
+    CONSTRAINT fk_secrets_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX ix_secrets_key_not_deleted ON public.secrets
+    USING btree (key) WHERE (deleted_at IS NULL);
 
 
 -- Table: span_annotations

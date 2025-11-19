@@ -61,8 +61,8 @@ class GenerativeModelBultinProviderInput:
 
 @strawberry.input
 class GenerativeModelCustomProviderInput:
-    provider_id: Optional[GlobalID] = UNSET
-    model_name: Optional[str] = UNSET
+    provider_id: GlobalID
+    model_name: str
     """The name of the model. Not the deployment name for Azure."""
     extra_headers: Optional[JSON] = UNSET
     """Extra headers to use for the requests. """

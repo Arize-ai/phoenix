@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8d45c75965ea1a47900f66500647ae44>>
+ * @generated SignedSource<<4c163f91790246310c5c3b70d1eebd97>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -49,8 +49,8 @@ export type GenerativeCredentialInput = {
 };
 export type GenerativeModelCustomProviderInput = {
   extraHeaders?: any | null;
-  modelName?: string | null;
-  providerId?: string | null;
+  modelName: string;
+  providerId: string;
 };
 export type InvocationParameterInput = {
   canonicalName?: CanonicalParameterName | null;

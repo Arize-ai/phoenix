@@ -2074,8 +2074,8 @@ type GenerativeModelCustomProviderGoogleGenAI implements GenerativeModelCustomPr
 }
 
 input GenerativeModelCustomProviderInput {
-  providerId: ID
-  modelName: String
+  providerId: ID!
+  modelName: String!
   extraHeaders: JSON
 }
 
