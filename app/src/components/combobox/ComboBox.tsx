@@ -66,11 +66,13 @@ export function ComboBox<T extends object>({
   stopPropagation,
   renderEmptyState,
   isInvalid,
+  menuTrigger = "focus",
   ...props
 }: ComboBoxProps<T>) {
   return (
     <AriaComboBox
       {...props}
+      menuTrigger={menuTrigger}
       css={css(fieldBaseCSS, comboBoxCSS)}
       data-size={size}
       isInvalid={isInvalid || Boolean(errorMessage)}

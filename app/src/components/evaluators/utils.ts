@@ -1,7 +1,8 @@
+import { UpdateLLMEvaluatorInput } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
+import { InputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { ChoiceConfig } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { CreateLLMEvaluatorInput } from "@phoenix/pages/evaluators/__generated__/NewEvaluatorPageContentMutation.graphql";
-import { InputMapping } from "@phoenix/pages/evaluators/EvaluatorInputMapping";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { fromOpenAIToolDefinition } from "@phoenix/schemas";
 import {
@@ -19,6 +20,7 @@ export const createLLMEvaluatorPayload = ({
   name: rawName,
   description: rawDescription,
   choiceConfig,
+  datasetId,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   inputMapping,
 }: {
@@ -46,7 +48,11 @@ export const createLLMEvaluatorPayload = ({
    * The input mapping of the evaluator.
    */
   inputMapping?: InputMapping;
-}): CreateLLMEvaluatorInput => {
+  /**
+   * The dataset ID to assign the evaluator to.
+   */
+  datasetId?: string;
+}): CreateLLMEvaluatorInput | UpdateLLMEvaluatorInput => {
   const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
     instanceId,
     playgroundStore
@@ -96,6 +102,7 @@ export const createLLMEvaluatorPayload = ({
   return {
     name,
     description,
+    datasetId,
     // TODO: add input mapping
     promptVersion: prunedPromptInput,
     outputConfig: {
@@ -108,3 +115,7 @@ export const createLLMEvaluatorPayload = ({
     },
   };
 };
+
+export type CreateLLMEvaluatorPayload = ReturnType<
+  typeof createLLMEvaluatorPayload
+>;

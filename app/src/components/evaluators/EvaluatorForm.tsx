@@ -1,10 +1,12 @@
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, useState } from "react";
 import {
   Controller,
   FormProvider,
   useForm,
   useFormContext,
 } from "react-hook-form";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { css } from "@emotion/react";
 
 import {
   FieldError,
@@ -19,11 +21,14 @@ import {
   EvaluatorChatTemplate,
   EvaluatorChatTemplateProvider,
 } from "@phoenix/components/evaluators/EvaluatorChatTemplate";
+import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
+import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import {
   ChoiceConfig,
   EvaluatorLLMChoice,
 } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
 import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
+import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 export type EvaluatorFormValues = {
@@ -32,6 +37,27 @@ export type EvaluatorFormValues = {
     description: string;
   };
   choiceConfig: ChoiceConfig;
+  dataset?: {
+    readonly: boolean;
+    id: string;
+    assignEvaluatorToDataset: boolean;
+  };
+  inputMapping: Record<string, string>;
+};
+
+const DEFAULT_FORM_VALUES: EvaluatorFormValues = {
+  evaluator: {
+    name: "",
+    description: "",
+  },
+  choiceConfig: {
+    name: "",
+    choices: [
+      { label: "", score: undefined },
+      { label: "", score: undefined },
+    ],
+  },
+  inputMapping: {},
 };
 
 /**
@@ -43,19 +69,7 @@ export const useEvaluatorForm = (
   defaultValues?: Partial<EvaluatorFormValues>
 ) => {
   const form = useForm<EvaluatorFormValues>({
-    defaultValues: defaultValues || {
-      evaluator: {
-        name: "",
-        description: "",
-      },
-      choiceConfig: {
-        name: "",
-        choices: [
-          { label: "", score: undefined },
-          { label: "", score: undefined },
-        ],
-      },
-    },
+    defaultValues: { ...DEFAULT_FORM_VALUES, ...defaultValues },
     mode: "onChange",
   });
 
@@ -113,53 +127,146 @@ export const EvaluatorFormProvider = ({
  * ```
  */
 export const EvaluatorForm = () => {
-  const { control } = useFormContext<EvaluatorFormValues>();
+  const { control, getValues, watch, setValue } =
+    useFormContext<EvaluatorFormValues>();
+  const assignEvaluatorToDataset = watch("dataset.assignEvaluatorToDataset");
+  const { variableKeys: variables } = useDerivedPlaygroundVariables();
+  const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
+  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
+    null
+  );
+  const selectedDatasetId = watch("dataset.id");
   return (
-    <>
-      <Flex direction="row" alignItems="baseline" width="100%" gap="size-100">
-        <Controller
-          name="evaluator.name"
-          control={control}
-          rules={{
-            validate: validateIdentifier,
-          }}
-          render={({ field, fieldState: { error } }) => (
-            <TextField {...field} autoComplete="off" isInvalid={!!error}>
-              <Label>Name</Label>
-              <Input placeholder="e.g. correctness_evaluator" autoFocus />
-              <FieldError>{error?.message}</FieldError>
-            </TextField>
-          )}
-        />
-        <Controller
-          name="evaluator.description"
-          control={control}
-          render={({ field, fieldState: { error } }) => (
-            <TextField {...field} autoComplete="off" isInvalid={!!error}>
-              <Label>Description (optional)</Label>
-              <Input
-                placeholder="e.g. rate the response on correctness"
-                autoFocus
+    <PanelGroup direction="horizontal">
+      <Panel defaultSize={65} css={panelCSS} style={panelStyle}>
+        <PanelContainer>
+          <Flex
+            direction="row"
+            alignItems="baseline"
+            width="100%"
+            gap="size-100"
+          >
+            <Controller
+              name="evaluator.name"
+              control={control}
+              rules={{
+                validate: validateIdentifier,
+              }}
+              render={({ field, fieldState: { error } }) => (
+                <TextField
+                  {...field}
+                  autoComplete="off"
+                  isInvalid={!!error}
+                  autoFocus
+                >
+                  <Label>Name</Label>
+                  <Input placeholder="e.g. correctness_evaluator" />
+                  <FieldError>{error?.message}</FieldError>
+                </TextField>
+              )}
+            />
+            <Controller
+              name="evaluator.description"
+              control={control}
+              render={({ field, fieldState: { error } }) => (
+                <TextField {...field} autoComplete="off" isInvalid={!!error}>
+                  <Label>Description (optional)</Label>
+                  <Input placeholder="e.g. rate the response on correctness" />
+                  <FieldError>{error?.message}</FieldError>
+                </TextField>
+              )}
+            />
+          </Flex>
+          <Flex direction="column" gap="size-100">
+            <Heading level={3}>Prompt</Heading>
+            <Text color="text-500">
+              Define or load a prompt for your evaluator.
+            </Text>
+            <EvaluatorChatTemplate />
+          </Flex>
+          <Flex direction="column" gap="size-100">
+            <Heading level={3}>Evaluator Annotation</Heading>
+            <Text color="text-500">
+              Define the annotation that your evaluator will return.
+            </Text>
+            <EvaluatorLLMChoice control={control} />
+          </Flex>
+        </PanelContainer>
+      </Panel>
+      <PanelResizeHandle disabled />
+      <Panel defaultSize={35} css={panelCSS} style={panelStyle}>
+        <PanelContainer>
+          <div
+            css={css`
+              display: flex;
+              flex-direction: column;
+              gap: var(--ac-global-dimension-static-size-200);
+              background-color: var(--ac-global-background-color-dark);
+              border-radius: var(--ac-global-rounding-medium);
+              padding: var(--ac-global-dimension-static-size-200);
+              border: 1px solid var(--ac-global-border-color-default);
+            `}
+          >
+            <Flex direction="column" gap="size-100">
+              <Heading level={3}>Test your evaluator</Heading>
+              <Text color="text-500">
+                Use examples from an existing dataset to ensure your evaluator
+                is working correctly.
+              </Text>
+              <EvaluatorExampleDataset
+                selectedDatasetId={selectedDatasetId}
+                onSelectDataset={(datasetId) => {
+                  if (datasetId) {
+                    setValue("dataset.id", datasetId);
+                  } else {
+                    setValue("dataset", undefined);
+                  }
+                }}
+                selectedSplitIds={selectedSplitIds}
+                onSelectSplits={setSelectedSplitIds}
+                onSelectExampleId={setSelectedExampleId}
+                datasetSelectIsDisabled={!!getValues().dataset?.readonly}
+                assignEvaluatorToDataset={assignEvaluatorToDataset}
+                onAssignEvaluatorToDataset={(assignEvaluatorToDataset) => {
+                  setValue(
+                    "dataset.assignEvaluatorToDataset",
+                    assignEvaluatorToDataset
+                  );
+                }}
               />
-              <FieldError>{error?.message}</FieldError>
-            </TextField>
-          )}
-        />
-      </Flex>
-      <Flex direction="column" gap="size-100">
-        <Heading level={3}>Eval</Heading>
-        <Text color="text-500">
-          Define the eval annotation returned by your evaluator.
-        </Text>
-        <EvaluatorLLMChoice control={control} />
-      </Flex>
-      <Flex direction="column" gap="size-100">
-        <Heading level={3}>Prompt</Heading>
-        <Text color="text-500">
-          Define or load a prompt for your evaluator.
-        </Text>
-        <EvaluatorChatTemplate />
-      </Flex>
-    </>
+            </Flex>
+            <EvaluatorInputMapping
+              exampleId={selectedExampleId ?? undefined}
+              control={control}
+              variables={variables}
+            />
+          </div>
+        </PanelContainer>
+      </Panel>
+    </PanelGroup>
   );
 };
+
+const PanelContainer = ({ children }: PropsWithChildren) => {
+  return (
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-size-200);
+        padding: var(--ac-global-dimension-size-100) 0;
+      `}
+    >
+      {children}
+    </div>
+  );
+};
+
+const panelCSS = css`
+  padding: 0 var(--ac-global-dimension-size-200);
+`;
+
+const panelStyle = {
+  height: "100%",
+  overflowY: "auto",
+} as const;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<04e65353eaa3699697e5ab21404d165f>>
+ * @generated SignedSource<<0f2015b330832b047f368ef5adffdabf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,9 +23,6 @@ export type EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$data = {
   readonly assignEvaluatorToDataset: {
     readonly evaluator: {
       readonly " $fragmentSpreads": FragmentRefs<"EvaluatorsTable_row">;
-    };
-    readonly query: {
-      readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsPage_evaluators">;
     };
   };
 };
@@ -57,67 +54,60 @@ v3 = [
     "variableName": "input"
   }
 ],
-v4 = [
-  {
-    "kind": "Variable",
-    "name": "datasetId",
-    "variableName": "datasetId"
-  }
-],
-v5 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v6 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v7 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 },
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v10 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
+v10 = [
+  {
+    "kind": "Variable",
+    "name": "datasetId",
+    "variableName": "datasetId"
+  }
+],
 v11 = {
   "alias": null,
-  "args": (v4/*: any*/),
+  "args": (v10/*: any*/),
   "kind": "ScalarField",
   "name": "isAssignedToDataset",
-  "storageKey": null
-},
-v12 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
   "storageKey": null
 };
 return {
@@ -142,22 +132,6 @@ return {
           {
             "alias": null,
             "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "args": (v4/*: any*/),
-                "kind": "FragmentSpread",
-                "name": "DatasetEvaluatorsPage_evaluators"
-              }
-            ],
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
             "concreteType": null,
             "kind": "LinkedField",
             "name": "evaluator",
@@ -167,15 +141,15 @@ return {
                 "kind": "InlineDataFragmentSpread",
                 "name": "EvaluatorsTable_row",
                 "selections": [
+                  (v4/*: any*/),
                   (v5/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
                   (v8/*: any*/),
                   (v9/*: any*/),
-                  (v10/*: any*/),
                   (v11/*: any*/)
                 ],
-                "args": (v4/*: any*/),
+                "args": (v10/*: any*/),
                 "argumentDefinitions": [
                   (v1/*: any*/)
                 ]
@@ -211,97 +185,28 @@ return {
           {
             "alias": null,
             "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "alias": "globalEvaluators",
-                "args": [
-                  {
-                    "kind": "Literal",
-                    "name": "first",
-                    "value": 100
-                  }
-                ],
-                "concreteType": "EvaluatorConnection",
-                "kind": "LinkedField",
-                "name": "evaluators",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "EvaluatorEdge",
-                    "kind": "LinkedField",
-                    "name": "edges",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": null,
-                        "kind": "LinkedField",
-                        "name": "node",
-                        "plural": false,
-                        "selections": [
-                          (v12/*: any*/),
-                          (v5/*: any*/),
-                          (v6/*: any*/),
-                          (v7/*: any*/),
-                          (v11/*: any*/),
-                          {
-                            "kind": "InlineFragment",
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "CategoricalAnnotationConfig",
-                                "kind": "LinkedField",
-                                "name": "outputConfig",
-                                "plural": false,
-                                "selections": [
-                                  (v6/*: any*/),
-                                  (v5/*: any*/)
-                                ],
-                                "storageKey": null
-                              }
-                            ],
-                            "type": "LLMEvaluator",
-                            "abstractKey": null
-                          }
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": "evaluators(first:100)"
-              }
-            ],
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
             "concreteType": null,
             "kind": "LinkedField",
             "name": "evaluator",
             "plural": false,
             "selections": [
-              (v12/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "__typename",
+                "storageKey": null
+              },
               {
                 "kind": "TypeDiscriminator",
                 "abstractKey": "__isEvaluator"
               },
+              (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
               (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
-              (v10/*: any*/),
               (v11/*: any*/)
             ],
             "storageKey": null
@@ -333,16 +238,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d953c2d62edafdba9e6e9cc504159056",
+    "cacheID": "141f6a2a04599c7bb0ade780104584a6",
     "id": null,
     "metadata": {},
     "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n  $datasetId: ID!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    query {\n      ...DatasetEvaluatorsPage_evaluators_1wYocp\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row_1wYocp\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsPage_evaluators_1wYocp on Query {\n  globalEvaluators: evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $datasetId)\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n}\n"
+    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n  $datasetId: ID!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row_1wYocp\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n}\n"
   }
 };
 })();
 
-(node as any).hash = "434c0718b0cbee3b3b02e4651da62d32";
+(node as any).hash = "30455fbcfbf37499c7b609a10f9746e7";
 
 export default node;

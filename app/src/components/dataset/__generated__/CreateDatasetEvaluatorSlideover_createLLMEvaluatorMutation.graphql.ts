@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b84026b71a905a99c9ac5a765ab11a2>>
+ * @generated SignedSource<<72701039989ac8498bbd757338d8e1f6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -74,10 +74,11 @@ export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
 };
-export type NewEvaluatorPageContentMutation$variables = {
+export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$variables = {
+  connectionIds: ReadonlyArray<string>;
   input: CreateLLMEvaluatorInput;
 };
-export type NewEvaluatorPageContentMutation$data = {
+export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$data = {
   readonly createLlmEvaluator: {
     readonly evaluator: {
       readonly id: string;
@@ -86,62 +87,65 @@ export type NewEvaluatorPageContentMutation$data = {
     };
   };
 };
-export type NewEvaluatorPageContentMutation = {
-  response: NewEvaluatorPageContentMutation$data;
-  variables: NewEvaluatorPageContentMutation$variables;
+export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation = {
+  response: CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$data;
+  variables: CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "input"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "connectionIds"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "input"
+},
+v2 = [
   {
     "kind": "Variable",
     "name": "input",
     "variableName": "input"
   }
 ],
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -150,14 +154,17 @@ v7 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "NewEvaluatorPageContentMutation",
+    "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": "LLMEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "createLlmEvaluator",
@@ -171,8 +178,8 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
-              (v2/*: any*/),
               (v3/*: any*/),
+              (v4/*: any*/),
               {
                 "kind": "InlineDataFragmentSpread",
                 "name": "EvaluatorsTable_row",
@@ -180,12 +187,12 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v2/*: any*/),
                       (v3/*: any*/),
                       (v4/*: any*/),
                       (v5/*: any*/),
                       (v6/*: any*/),
                       (v7/*: any*/),
+                      (v8/*: any*/),
                       {
                         "alias": null,
                         "args": [
@@ -225,13 +232,16 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
-    "name": "NewEvaluatorPageContentMutation",
+    "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": "LLMEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "createLlmEvaluator",
@@ -245,15 +255,15 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
-              (v2/*: any*/),
               (v3/*: any*/),
+              (v4/*: any*/),
               {
                 "kind": "InlineFragment",
                 "selections": [
-                  (v4/*: any*/),
                   (v5/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
+                  (v8/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -267,6 +277,27 @@ return {
               }
             ],
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "filters": null,
+            "handle": "appendNode",
+            "key": "",
+            "kind": "LinkedHandle",
+            "name": "evaluator",
+            "handleArgs": [
+              {
+                "kind": "Variable",
+                "name": "connections",
+                "variableName": "connectionIds"
+              },
+              {
+                "kind": "Literal",
+                "name": "edgeTypeName",
+                "value": "EvaluatorEdge"
+              }
+            ]
           }
         ],
         "storageKey": null
@@ -274,16 +305,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1d3b7471ff7c0591991728b21d5eaf8e",
+    "cacheID": "312cd6aa960ab7bc1ed044658a243f5f",
     "id": null,
     "metadata": {},
-    "name": "NewEvaluatorPageContentMutation",
+    "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation NewEvaluatorPageContentMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n"
+    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0fb4a8e559639a726df563b283e95f0c";
+(node as any).hash = "d92fe019248209bda7be6431680e2477";
 
 export default node;
