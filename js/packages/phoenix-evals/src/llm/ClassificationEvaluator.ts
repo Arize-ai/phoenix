@@ -3,6 +3,7 @@ import {
   CreateClassificationEvaluatorArgs,
   EvaluatorFn,
   Template,
+  WithPromptTemplate,
 } from "../types";
 
 import { createClassifierFn } from "./createClassifierFn";
@@ -11,9 +12,10 @@ import { LLMEvaluator } from "./LLMEvaluator";
 /**
  * An LLM evaluator that performs evaluation via classification
  */
-export class ClassificationEvaluator<
-  RecordType extends Record<string, unknown>,
-> extends LLMEvaluator<RecordType> {
+export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
+  extends LLMEvaluator<RecordType>
+  implements WithPromptTemplate
+{
   readonly evaluatorFn: EvaluatorFn<RecordType>;
   readonly promptTemplate: Template;
   private _promptTemplateVariables: string[] | undefined;

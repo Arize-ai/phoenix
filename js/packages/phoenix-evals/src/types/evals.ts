@@ -1,4 +1,5 @@
 import { WithTelemetry } from "./otel";
+import { Template } from "./templating";
 
 import { LanguageModel } from "ai";
 
@@ -77,7 +78,7 @@ export interface CreateClassifierArgs extends WithTelemetry {
   /**
    * The prompt template to use for classification
    */
-  promptTemplate: string;
+  promptTemplate: Template;
 }
 
 export interface CreateEvaluatorArgs {
