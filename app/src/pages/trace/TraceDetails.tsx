@@ -33,31 +33,13 @@ import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
 import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
 
-type Span = NonNullable<
+type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
->["topSpans"]["edges"][number]["span"];
+>["rootSpans"]["edges"][number]["span"];
 
 type CostSummary = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
 >["costSummary"];
-
-/**
- * A root span is defined to be a span whose parent span is not in our collection.
- * But if more than one such span exists, return null.
- */
-function findRootSpan(spansList: Span[]): Span | null {
-  // If there is a span whose parent is null, then it is the root span.
-  const rootSpan = spansList.find((span) => span.parentId == null);
-  if (rootSpan) return rootSpan;
-  // Otherwise we need to find all spans whose parent span is not in our collection.
-  const spanIds = new Set(spansList.map((span) => span.spanId));
-  const rootSpans = spansList.filter(
-    (span) => span.parentId != null && !spanIds.has(span.parentId)
-  );
-  // If only one such span exists, then return it, otherwise, return null.
-  if (rootSpans.length === 1) return rootSpans[0];
-  return null;
-}
 
 export type TraceDetailsProps = {
   traceId: string;
@@ -78,7 +60,11 @@ export function TraceDetails(props: TraceDetailsProps) {
             trace(traceId: $traceId) {
               projectSessionId
               ...ConnectedTraceTree
-              topSpans: spans(first: 1000) {
+              rootSpans: spans(
+                first: 1
+                rootSpansOnly: true
+                orphanSpanAsRootSpan: true
+              ) {
                 edges {
                   span: node {
                     statusCode
@@ -114,13 +100,14 @@ export function TraceDetails(props: TraceDetailsProps) {
   const traceLatencyMs =
     data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
   const costSummary = data?.project?.trace?.costSummary;
-  const topSpans: Span[] = useMemo(() => {
-    const gqlSpans = data.project.trace?.topSpans.edges || [];
+  const rootSpans: RootSpan[] = useMemo(() => {
+    const gqlSpans = data.project.trace?.rootSpans.edges || [];
     return gqlSpans.map((node) => node.span);
   }, [data]);
   const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
-  const selectedSpanNodeId = urlSpanNodeId ?? topSpans[0].id;
-  const rootSpan = useMemo(() => findRootSpan(topSpans), [topSpans]);
+  invariant(rootSpans.length > 0, "At least one root must be resolvable");
+  const rootSpan = rootSpans[0];
+  const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
 
   return (
     <main
@@ -183,7 +170,7 @@ function TraceHeader({
   costSummary,
   sessionId,
 }: {
-  rootSpan: Span | null;
+  rootSpan: RootSpan | null;
   latencyMs: number | null;
   costSummary?: CostSummary | null;
   sessionId?: string | null;
