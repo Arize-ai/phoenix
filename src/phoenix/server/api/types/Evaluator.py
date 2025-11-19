@@ -470,6 +470,15 @@ class BuiltInEvaluator(Evaluator, Node):
     ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
         return None
 
+    @strawberry.field
+    async def is_assigned_to_dataset(
+        self,
+        info: Info[Context, None],
+        dataset_id: Optional[GlobalID] = None,
+    ) -> bool:
+        # TODO: possibly set to false and implement somewhere on db
+        return True
+
 
 def _to_gql_categorical_annotation_config(
     config: CategoricalAnnotationConfigModel,
