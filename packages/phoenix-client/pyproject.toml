@@ -3,7 +3,7 @@ name = "arize-phoenix-client"
 description = "LLM Observability"
 readme = "README.md"
 requires-python = ">=3.9, <3.14"
-license = { text = "Elastic-2.0" }
+license = {text="Apache-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
   "Observability",
