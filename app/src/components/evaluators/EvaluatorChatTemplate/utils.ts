@@ -4,6 +4,7 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import {
+  DEFAULT_INSTANCE_PARAMS,
   generateInstanceId,
   generateMessageId,
   InitialPlaygroundState,
@@ -16,7 +17,6 @@ export const makeLLMEvaluatorInstance = (
   {
     id: generateInstanceId(),
     activeRunId: null,
-    spanId: null,
     template: {
       __type: "chat",
       messages: [
@@ -42,8 +42,9 @@ export const makeLLMEvaluatorInstance = (
       supportedInvocationParameters: [],
     },
     toolChoice: "required",
-    output: undefined,
     experimentId: null,
     prompt: null,
+    repetitions: DEFAULT_INSTANCE_PARAMS().repetitions,
+    selectedRepetitionNumber: 1,
   },
 ];
