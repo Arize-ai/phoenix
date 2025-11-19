@@ -624,7 +624,7 @@ export function ExperimentCompareListPage({
                 <li key={experiment.id}>
                   <Flex direction="row" gap="size-100" alignItems="center">
                     <Text size="S" fontFamily="mono" color="grey-500">
-                      avg
+                      AVG
                     </Text>
                     <Text size="S" fontFamily="mono">
                       {floatFormatter(averageTotalTokens)}
