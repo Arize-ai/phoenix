@@ -1,4 +1,10 @@
-import { Suspense, useEffect, useEffectEvent, useMemo } from "react";
+import {
+  PropsWithChildren,
+  Suspense,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+} from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -47,16 +53,18 @@ export const EvaluatorDatasetExamplePreview = ({
           />
         </Suspense>
       ) : (
-        <EvaluatorDatasetExampleEmpty />
+        <EvaluatorDatasetExampleEmpty>
+          No dataset selected
+        </EvaluatorDatasetExampleEmpty>
       )}
     </div>
   );
 };
 
-const EvaluatorDatasetExampleEmpty = () => {
+const EvaluatorDatasetExampleEmpty = ({ children }: PropsWithChildren) => {
   return (
     <Flex justifyContent="center" alignItems="center" flex={1}>
-      <Text color="text-500">No dataset selected</Text>
+      <Text color="text-500">{children}</Text>
     </Flex>
   );
 };
@@ -119,7 +127,14 @@ const EvaluatorDatasetExamplePreviewContent = ({
     }
   }, [example]);
   if (!value) {
-    return <EvaluatorDatasetExampleEmpty />;
+    return (
+      <EvaluatorDatasetExampleEmpty>
+        No examples in dataset
+        {(splitIds?.length ?? 0) > 1
+          ? ` for splits ${splitIds?.join(", ")}`
+          : ""}
+      </EvaluatorDatasetExampleEmpty>
+    );
   }
   return <JSONBlock value={value} />;
 };
