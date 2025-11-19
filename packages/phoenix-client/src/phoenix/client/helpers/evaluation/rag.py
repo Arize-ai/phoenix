@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Optional
 
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 
@@ -28,6 +28,35 @@ IS_ROOT = "parent_id is None"
 IS_RETRIEVER = "span_kind == 'RETRIEVER'"
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
+
+
+def _build_retrieved_documents_query() -> SpanQuery:
+    return (
+        SpanQuery()
+        .where(IS_RETRIEVER)
+        .select("trace_id", INPUT_VALUE)
+        .rename(**INPUT)
+        .explode(
+            RETRIEVAL_DOCUMENTS,
+            context=DOCUMENT_CONTENT,
+            document_score=DOCUMENT_SCORE,
+            document_metadata=DOCUMENT_METADATA,
+        )
+    )
+
+
+def _build_root_qa_query() -> SpanQuery:
+    query = SpanQuery().select("span_id", INPUT_VALUE, OUTPUT_VALUE, METADATA)
+    return query.rename(**IO).where(IS_ROOT).with_index("trace_id")
+
+
+def _build_retriever_docs_concat_query() -> SpanQuery:
+    return (
+        SpanQuery()
+        .where(IS_RETRIEVER)
+        .concat(RETRIEVAL_DOCUMENTS, context=DOCUMENT_CONTENT)
+        .with_index("trace_id")
+    )
 
 
 def get_retrieved_documents(
@@ -61,6 +90,7 @@ def get_retrieved_documents(
             - input: Input value from the retriever span
             - context: Document content
             - document_score: Document relevance score
+            - document_metadata: Document metadata
 
     Examples:
         Basic usage::
@@ -81,31 +111,17 @@ def get_retrieved_documents(
                 start_time=datetime.now() - timedelta(days=1)
             )
     """
-    import pandas as pd
-
     project = project_identifier or project_name or get_env_project_name()
-    return cast(
-        pd.DataFrame,
-        client.spans.get_spans_dataframe(
-            query=SpanQuery()
-            .where(IS_RETRIEVER)
-            .select("trace_id", INPUT_VALUE)
-            .rename(**INPUT)
-            .explode(
-                RETRIEVAL_DOCUMENTS,
-                context=DOCUMENT_CONTENT,
-                document_score=DOCUMENT_SCORE,
-                document_metadata=DOCUMENT_METADATA,
-            ),
-            start_time=start_time,
-            end_time=end_time,
-            project_name=project,
-            timeout=timeout,
-        ),
+    return client.spans.get_spans_dataframe(
+        query=_build_retrieved_documents_query(),
+        start_time=start_time,
+        end_time=end_time,
+        project_name=project,
+        timeout=timeout,
     )
 
 
-def get_qa_with_context(
+def get_input_output_context(
     client: "Client",
     *,
     start_time: Optional[datetime] = None,
@@ -114,9 +130,9 @@ def get_qa_with_context(
     project_identifier: Optional[str] = None,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
 ) -> Optional["pd.DataFrame"]:
-    """Extracts Q&A data with context context for RAG evaluation.
+    """Extracts Q&A data with context for RAG evaluation.
 
-    Constructs a DataFrame that combines root span Q&A pairs with their associated
+    Constructs a DataFrame that combines root span input/output pairs with their associated
     retrieved documents as context. This is formatted for RAG Q&A and
     hallucination evaluation with phoenix.evals.
 
@@ -135,22 +151,23 @@ def get_qa_with_context(
             - input: Question/query from the root span
             - output: Answer/response from the root span
             - context: Concatenated retrieved document content
+            - metadata: Metadata from the root span
         Returns None if no spans or retrieval documents are found.
 
     Examples:
         Basic usage::
 
             from phoenix.client import Client
-            from phoenix.client.helpers.evaluation import get_qa_with_context
+            from phoenix.client.helpers.evaluation import get_input_output_context
 
             client = Client()
-            qa_df = get_qa_with_context(client, project_name="my-rag-app")
+            qa_df = get_input_output_context(client, project_name="my-rag-app")
 
         With phoenix.evals::
 
             from phoenix.evals import HallucinationEvaluator, QAEvaluator, run_evals
 
-            qa_df = get_qa_with_context(client, project_name="my-rag-app")
+            qa_df = get_input_output_context(client, project_name="my-rag-app")
             if qa_df is not None:
                 qa_correctness, hallucination = run_evals(
                     evaluators=[QAEvaluator(eval_model), HallucinationEvaluator(eval_model)],
@@ -161,19 +178,8 @@ def get_qa_with_context(
 
     project = project_identifier or project_name or get_env_project_name()
     separator = "\n\n"
-    qa_query = (
-        SpanQuery()
-        .select("span_id", INPUT_VALUE, OUTPUT_VALUE, METADATA)
-        .rename(**IO)
-        .where(IS_ROOT)
-        .with_index("trace_id")
-    )
-    docs_query = (
-        SpanQuery()
-        .where(IS_RETRIEVER)
-        .concat(RETRIEVAL_DOCUMENTS, context=DOCUMENT_CONTENT)
-        .with_index("trace_id")
-    )  # separator is "\n\n" by default
+    qa_query = _build_root_qa_query()
+    docs_query = _build_retriever_docs_concat_query()  # separator is "\n\n" by default
 
     df_qa = client.spans.get_spans_dataframe(
         query=qa_query,
@@ -203,7 +209,84 @@ def get_qa_with_context(
     return df_qa_ref
 
 
-async def get_retrieved_documents_async(
+def get_qa_with_reference(
+    client: "Client",
+    *,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    project_name: Optional[str] = None,
+    project_identifier: Optional[str] = None,
+    timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+) -> Optional["pd.DataFrame"]:
+    """DEPRECATED: Use get_input_output_context instead.
+
+    Extracts Q&A data with context for RAG evaluation.
+
+    Constructs a DataFrame that combines root span input/output pairs with their associated
+    retrieved documents as context. This is formatted for RAG Q&A and
+    hallucination evaluation with phoenix.evals.
+
+    Deprecated:
+        This function is deprecated and will be removed in a future release.
+        Use get_input_output_context instead.
+
+    Args:
+        client: Phoenix Client instance.
+        start_time: Optional start time for filtering spans (inclusive lower bound).
+        end_time: Optional end time for filtering spans (exclusive upper bound).
+        project_name: Project name (alias for project_identifier). If not provided,
+            uses the environment variable PHOENIX_PROJECT_NAME.
+        project_identifier: Project identifier (name or ID). Takes precedence over
+            project_name if both are provided.
+        timeout: Request timeout in seconds. Defaults to 5.
+
+    Returns:
+        Optional[pd.DataFrame]: Q&A data with index context.span_id and columns:
+            - input: Question/query from the root span
+            - output: Answer/response from the root span
+            - context: Concatenated retrieved document content
+            - metadata: Metadata from the root span
+        Returns None if no spans or retrieval documents are found.
+
+    Examples:
+        Basic usage::
+
+            from phoenix.client import Client
+            from phoenix.client.helpers.evaluation import get_input_output_context
+
+            client = Client()
+            qa_df = get_input_output_context(client, project_name="my-rag-app")
+
+        With phoenix.evals::
+
+            from phoenix.evals import HallucinationEvaluator, QAEvaluator, run_evals
+
+            qa_df = get_input_output_context(client, project_name="my-rag-app")
+            if qa_df is not None:
+                qa_correctness, hallucination = run_evals(
+                    evaluators=[QAEvaluator(eval_model), HallucinationEvaluator(eval_model)],
+                    dataframe=qa_df,
+                )
+    """
+    import warnings
+
+    warnings.warn(
+        "get_qa_with_reference is deprecated and will be removed in a future release. "
+        "Use get_input_output_context instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return get_input_output_context(
+        client,
+        start_time=start_time,
+        end_time=end_time,
+        project_name=project_name,
+        project_identifier=project_identifier,
+        timeout=timeout,
+    )
+
+
+async def async_get_retrieved_documents(
     client: "AsyncClient",
     *,
     start_time: Optional[datetime] = None,
@@ -233,40 +316,27 @@ async def get_retrieved_documents_async(
             - input: Input value from the retriever span
             - context: Document content
             - document_score: Document relevance score
-
+            - document_metadata: Document metadata
     Examples:
         Basic usage::
 
             from phoenix.client import AsyncClient
-            from phoenix.client.helpers.evaluation import get_retrieved_documents_async
+            from phoenix.client.helpers.evaluation import async_get_retrieved_documents
 
             client = AsyncClient()
-            docs_df = await get_retrieved_documents_async(client, project_name="my-rag-app")
+            docs_df = await async_get_retrieved_documents(client, project_name="my-rag-app")
     """
-    import pandas as pd
-
     project = project_identifier or project_name or get_env_project_name()
-    return cast(
-        pd.DataFrame,
-        await client.spans.get_spans_dataframe(
-            query=SpanQuery()
-            .where(IS_RETRIEVER)
-            .select("trace_id", INPUT_VALUE)
-            .rename(**INPUT)
-            .explode(
-                RETRIEVAL_DOCUMENTS,
-                context=DOCUMENT_CONTENT,
-                document_score=DOCUMENT_SCORE,
-            ),
-            start_time=start_time,
-            end_time=end_time,
-            project_name=project,
-            timeout=timeout,
-        ),
+    return await client.spans.get_spans_dataframe(
+        query=_build_retrieved_documents_query(),
+        start_time=start_time,
+        end_time=end_time,
+        project_name=project,
+        timeout=timeout,
     )
 
 
-async def get_qa_with_context_async(
+async def async_get_input_output_context(
     client: "AsyncClient",
     *,
     start_time: Optional[datetime] = None,
@@ -275,9 +345,9 @@ async def get_qa_with_context_async(
     project_identifier: Optional[str] = None,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
 ) -> Optional["pd.DataFrame"]:
-    """Async version of get_qa_with_context.
+    """Async version of get_input_output_context.
 
-    Extracts Q&A data with context context for RAG evaluation.
+    Extracts input/output data with context for RAG evaluation.
 
     Args:
         client: Phoenix AsyncClient instance.
@@ -294,34 +364,24 @@ async def get_qa_with_context_async(
             - input: Question/query from the root span
             - output: Answer/response from the root span
             - context: Concatenated retrieved document content
+            - metadata: Metadata from the root span
         Returns None if no spans or retrieval documents are found.
 
     Examples:
         Basic usage::
 
             from phoenix.client import AsyncClient
-            from phoenix.client.helpers.evaluation import get_qa_with_context_async
+            from phoenix.client.helpers.evaluation import async_get_input_output_context
 
             client = AsyncClient()
-            qa_df = await get_qa_with_context_async(client, project_name="my-rag-app")
+            qa_df = await async_get_input_output_context(client, project_name="my-rag-app")
     """
     import pandas as pd
 
     project = project_identifier or project_name or get_env_project_name()
     separator = "\n\n"
-    qa_query = (
-        SpanQuery()
-        .select("span_id", INPUT_VALUE, OUTPUT_VALUE)
-        .rename(**IO)
-        .where(IS_ROOT)
-        .with_index("trace_id")
-    )
-    docs_query = (
-        SpanQuery()
-        .where(IS_RETRIEVER)
-        .concat(RETRIEVAL_DOCUMENTS, context=DOCUMENT_CONTENT)
-        .with_index("trace_id")
-    )  # separator is "\n\n" by default
+    qa_query = _build_root_qa_query()
+    docs_query = _build_retriever_docs_concat_query()  # separator is "\n\n" by default
 
     df_qa = await client.spans.get_spans_dataframe(
         query=qa_query,
