@@ -33,7 +33,7 @@ import { TraceTreeProvider, useTraceTree } from "./TraceTreeContext";
 import { ISpanItem, SpanStatusCodeType } from "./types";
 import { createSpanTree, SpanTreeNode } from "./utils";
 
-type TraceTreeProps = {
+export type TraceTreeProps = {
   spans: ISpanItem[];
   onSpanClick?: (span: ISpanItem) => void;
   selectedSpanNodeId: string;
