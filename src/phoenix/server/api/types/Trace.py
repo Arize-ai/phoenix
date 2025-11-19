@@ -203,7 +203,8 @@ class Trace(Node):
         if isinstance(first, int) and first <= 0:
             raise ValueError('Argument "first" must be a positive int')
 
-        stmt = (
+        # Build base query for spans in this trace
+        base_query = (
             select(models.Span.id)
             .join(models.Trace)
             .where(models.Trace.id == self.id)
@@ -221,32 +222,36 @@ class Trace(Node):
                 raise ValueError(f"Invalid cursor format: {after}") from e
             # For descending order, "after" means we want spans with smaller IDs
             # (going forward in descending order)
-            stmt = stmt.where(models.Span.id < cursor.rowid)
+            base_query = base_query.where(models.Span.id < cursor.rowid)
         # Note: backward pagination (last/before) is not yet implemented
         # as it requires more complex handling with reversed ordering
         if before is not UNSET or (last is not UNSET and last is not None):
             raise ValueError("Backward pagination (last/before) is not yet supported")
 
-        # Filter for root spans only if requested
+        # Build final query based on filtering requirements
         if root_spans_only:
-            # A root span is either a span with no parent_id or an orphan span
-            # (a span whose parent_id references a span that doesn't exist in the current trace)
             if orphan_span_as_root_span:
-                # Include both types of root spans
-                # Filter parent_spans to only include spans from the current trace
-                parent_spans = (
+                # A root span is either a span with no parent_id or an orphan span
+                # (a span whose parent_id references a span that doesn't exist in the current trace)
+                # We need parent_id to check for orphan spans, so add it to the query
+                # and create a CTE
+                candidate_spans = base_query.add_columns(models.Span.parent_id).cte(
+                    "candidate_spans"
+                )
+                # Subquery to get all span_ids that exist in this trace
+                parent_spans_in_trace = (
                     select(models.Span.span_id)
                     .where(models.Span.trace_rowid == self.id)
                     .alias("parent_spans")
                 )
-                candidate_spans = stmt.add_columns(models.Span.parent_id).cte("candidate_spans")
+                # Filter candidates to only root spans (NULL parent_id or orphan spans)
                 stmt = (
                     select(candidate_spans.c.id)
                     .where(
                         or_(
                             candidate_spans.c.parent_id.is_(None),
                             ~select(1)
-                            .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
+                            .where(candidate_spans.c.parent_id == parent_spans_in_trace.c.span_id)
                             .exists(),
                         )
                     )
@@ -254,7 +259,10 @@ class Trace(Node):
                 )
             else:
                 # Only include explicit root spans (spans with parent_id = NULL)
-                stmt = stmt.where(models.Span.parent_id.is_(None))
+                stmt = base_query.where(models.Span.parent_id.is_(None))
+        else:
+            # Return all spans (no root span filtering)
+            stmt = base_query
 
         # Over-fetch by one to determine whether there's a next page
         limit = first if isinstance(first, int) else 50
