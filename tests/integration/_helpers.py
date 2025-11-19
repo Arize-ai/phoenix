@@ -172,7 +172,7 @@ class _User:
             local=local,
         )
 
-    def delete_users(self, app: _AppInfo, *users: Union[_GqlId, _User]) -> None:
+    def delete_users(self, app: _AppInfo, *users: Union[_GqlId, _User]) -> list[_GqlId]:
         return _delete_users(app, self, users=users)
 
     def list_users(self, app: _AppInfo) -> list[_User]:
@@ -938,11 +938,12 @@ def _delete_users(
     /,
     *,
     users: Iterable[Union[_GqlId, _User]],
-) -> None:
+) -> list[_GqlId]:
     user_ids = [u.gid if isinstance(u, _User) else u for u in users]
-    query = "mutation($userIds:[ID!]!){deleteUsers(input:{userIds:$userIds})}"
-    _, headers = _gql(app, auth, query=query, variables=dict(userIds=user_ids))
+    query = "mutation($userIds:[ID!]!){deleteUsers(input:{userIds:$userIds}){userIds}}"
+    response, headers = _gql(app, auth, query=query, variables=dict(userIds=user_ids))
     assert not headers.get("set-cookie")
+    return [_GqlId(user_id) for user_id in response["data"]["deleteUsers"]["userIds"]]
 
 
 def _patch_user_gid(

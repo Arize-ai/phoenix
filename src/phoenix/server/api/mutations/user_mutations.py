@@ -104,6 +104,11 @@ class DeleteUsersInput:
 
 
 @strawberry.type
+class DeleteUsersPayload:
+    user_ids: list[GlobalID]
+
+
+@strawberry.type
 class UserMutationPayload:
     user: User
 
@@ -253,16 +258,19 @@ class UserMutationMixin:
         self,
         info: Info[Context, None],
         input: DeleteUsersInput,
-    ) -> None:
+    ) -> DeleteUsersPayload:
         assert (token_store := info.context.token_store) is not None
         if not input.user_ids:
-            return
-        user_ids = tuple(
-            map(
-                lambda gid: from_global_id_with_expected_type(gid, User.__name__),
-                set(input.user_ids),
-            )
-        )
+            raise BadRequest("At least one user ID is required")
+        user_rowid_to_gid: dict[int, GlobalID] = {}
+        for user_gid in input.user_ids:
+            try:
+                user_rowid = from_global_id_with_expected_type(user_gid, User.__name__)
+            except ValueError:
+                raise BadRequest(f"Invalid user ID: '{user_gid}'")
+            user_rowid_to_gid[user_rowid] = user_gid
+
+        user_rowids = list(user_rowid_to_gid.keys())
         system_user_role_id = select(models.UserRole.id).filter_by(name="SYSTEM").scalar_subquery()
         admin_user_role_id = select(models.UserRole.id).filter_by(name="ADMIN").scalar_subquery()
         default_admin_user_id = (
@@ -301,7 +309,7 @@ class UserMutationMixin:
                     .select_from(models.User)
                     .where(
                         and_(
-                            models.User.id.in_(user_ids),
+                            models.User.id.in_(user_rowids),
                             models.User.user_role_id != system_user_role_id,
                         )
                     )
@@ -309,41 +317,51 @@ class UserMutationMixin:
             ).all()
             if deletes_default_admin:
                 raise Conflict("Cannot delete the default admin user")
-            if num_resolved_user_ids < len(user_ids):
+            if num_resolved_user_ids < len(user_rowids):
                 raise NotFound("Some user IDs could not be found")
             password_reset_token_ids = [
                 PasswordResetTokenId(id_)
                 async for id_ in await session.stream_scalars(
                     select(models.PasswordResetToken.id).where(
-                        models.PasswordResetToken.user_id.in_(user_ids)
+                        models.PasswordResetToken.user_id.in_(user_rowids)
                     )
                 )
             ]
             access_token_ids = [
                 AccessTokenId(id_)
                 async for id_ in await session.stream_scalars(
-                    select(models.AccessToken.id).where(models.AccessToken.user_id.in_(user_ids))
+                    select(models.AccessToken.id).where(models.AccessToken.user_id.in_(user_rowids))
                 )
             ]
             refresh_token_ids = [
                 RefreshTokenId(id_)
                 async for id_ in await session.stream_scalars(
-                    select(models.RefreshToken.id).where(models.RefreshToken.user_id.in_(user_ids))
+                    select(models.RefreshToken.id).where(
+                        models.RefreshToken.user_id.in_(user_rowids)
+                    )
                 )
             ]
             api_key_ids = [
                 ApiKeyId(id_)
                 async for id_ in await session.stream_scalars(
-                    select(models.ApiKey.id).where(models.ApiKey.user_id.in_(user_ids))
+                    select(models.ApiKey.id).where(models.ApiKey.user_id.in_(user_rowids))
                 )
             ]
-            await session.execute(delete(models.User).where(models.User.id.in_(user_ids)))
+            deleted_user_ids = await session.scalars(
+                delete(models.User).where(models.User.id.in_(user_rowids)).returning(models.User.id)
+            )
         await token_store.revoke(
             *password_reset_token_ids,
             *access_token_ids,
             *refresh_token_ids,
             *api_key_ids,
         )
+        unique_deleted_user_ids = set(deleted_user_ids)
+        deleted_user_gids: list[GlobalID] = []
+        for user_rowid, user_gid in user_rowid_to_gid.items():
+            if user_rowid in unique_deleted_user_ids:
+                deleted_user_gids.append(user_gid)
+        return DeleteUsersPayload(user_ids=deleted_user_gids)
 
 
 def _select_role_id_by_name(role_name: str) -> Select[tuple[int]]:
