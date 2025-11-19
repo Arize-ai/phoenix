@@ -1,5 +1,7 @@
 import { Template } from "../types/templating";
 
+import { createTemplateVariablesProxy } from "./createTemplateVariablesProxy";
+
 import Mustache from "mustache";
 
 /**
@@ -11,6 +13,12 @@ export function formatTemplate(args: {
   variables: Record<string, unknown>;
 }) {
   const { template, variables } = args;
+  const variablesProxy = createTemplateVariablesProxy(variables);
   // Disable HTML escaping by providing a custom escape function that returns text as-is
-  return Mustache.render(template, variables, {}, { escape: (text) => text });
+  return Mustache.render(
+    template,
+    variablesProxy,
+    {},
+    { escape: (text) => text }
+  );
 }

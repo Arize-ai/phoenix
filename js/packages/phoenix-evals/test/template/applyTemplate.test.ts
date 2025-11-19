@@ -131,4 +131,24 @@ describe("formatTemplate", () => {
       "[Query]: How do I check if x > 5?\n[Answer]: Use: if (x > 5) { }"
     );
   });
+  it("should handle template with nested object variables", () => {
+    const result = formatTemplate({
+      template: "Hello {{user.name}}, your email is {{user.email}}.",
+      variables: {
+        user: { name: "Bob", email: "bob@example.com" },
+      },
+    });
+
+    expect(result).toBe("Hello Bob, your email is bob@example.com.");
+  });
+  it("should stringify nested object variables when accessed directly", () => {
+    const result = formatTemplate({
+      template: "Hello {{user}}",
+      variables: {
+        user: { name: "Bob", email: "bob@example.com" },
+      },
+    });
+
+    expect(result).toBe('Hello {"name":"Bob","email":"bob@example.com"}');
+  });
 });
