@@ -59,10 +59,14 @@ class GenerativeModelStore(DaemonTask):
 
     async def _run(self) -> None:
         while self._running:
+            # Capture time before query with 2-second buffer for clock skew tolerance
+            fetch_start_time = datetime.now(timezone.utc) - timedelta(seconds=2)
             try:
                 await self._fetch_models()
             except Exception:
                 logger.exception("Failed to refresh generative models")
+            else:
+                self._last_fetch_time = fetch_start_time
             await sleep(self._refresh_interval_seconds)
 
     async def _fetch_models(self) -> None:
@@ -73,9 +77,6 @@ class GenerativeModelStore(DaemonTask):
         where updated_at or deleted_at is at or after the last fetch time (with a 2-second
         buffer). Some models may be refetched, but .merge() handles duplicates idempotently.
         """
-        # Capture time before query with 2-second buffer for clock skew tolerance
-        fetch_start_time = datetime.now(timezone.utc) - timedelta(seconds=2)
-
         stmt = sa.select(models.GenerativeModel).options(
             joinedload(models.GenerativeModel.token_prices)
         )
@@ -92,9 +93,6 @@ class GenerativeModelStore(DaemonTask):
             )
         async with self._db() as session:
             generative_models = (await session.scalars(stmt)).unique().all()
-
-        # Always update fetch time to avoid unbounded time windows
-        self._last_fetch_time = fetch_start_time
 
         if not generative_models:
             return
