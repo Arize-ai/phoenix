@@ -1,2 +1,2 @@
 -r common.txt
-google-genai>=1.2.0
+google-genai>=1.47.0
