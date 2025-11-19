@@ -1182,6 +1182,10 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 _OPENAI_REASONING_MODELS = [
+    "gpt-5.1",
+    "gpt-5.1-2025-11-13",
+    "gpt-5.1-chat-latest",
+    "gpt-5.1-codex-mini",
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
