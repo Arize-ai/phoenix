@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.5.0
+
+### Minor Changes
+
+- aa5dc26: serialize nested values in templates as JSON
+
 ## 0.4.0
 
 ### Minor Changes
