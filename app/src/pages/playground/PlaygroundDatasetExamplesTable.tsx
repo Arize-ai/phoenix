@@ -36,6 +36,8 @@ import {
 import { css } from "@emotion/react";
 
 import {
+  Dialog,
+  DialogTrigger,
   Flex,
   Icon,
   IconButton,
@@ -43,11 +45,15 @@ import {
   Loading,
   Modal,
   ModalOverlay,
+  Popover,
+  PopoverArrow,
   Text,
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
+import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { CellTop } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -117,8 +123,14 @@ const createExampleResponsesForInstance = (
 ): InstanceResponses => {
   return response.examples.reduce<InstanceResponses>(
     (instanceResponses, example) => {
-      const { datasetExampleId, repetitionNumber, experimentRunId } = example;
-      const { errorMessage, content, span, toolCalls } = example.repetition;
+      const {
+        datasetExampleId,
+        repetitionNumber,
+        experimentRunId,
+        repetition,
+      } = example;
+      const { errorMessage, content, span, toolCalls, evaluations } =
+        repetition;
       const updatedInstanceResponses: InstanceResponses = {
         ...instanceResponses,
         [datasetExampleId]: {
@@ -136,6 +148,7 @@ const createExampleResponsesForInstance = (
               },
               {}
             ),
+            evaluations: [...evaluations],
           },
         },
       };
@@ -264,17 +277,27 @@ function ExampleOutputContent({
   setRepetitionNumber,
   totalRepetitions,
   onViewExperimentRunDetailsPress,
-  onViewExperimentRunTracePress,
+  onViewTracePress,
 }: {
   exampleData: ExampleRunData;
   repetitionNumber: number;
   setRepetitionNumber: (n: SetStateAction<number>) => void;
   totalRepetitions: number;
   onViewExperimentRunDetailsPress: () => void;
-  onViewExperimentRunTracePress: (traceId: string, projectId: string) => void;
+  onViewTracePress: (
+    traceId: string,
+    projectId: string,
+    evaluatorName?: string
+  ) => void;
 }) {
-  const { span, content, toolCalls, errorMessage, experimentRunId } =
-    exampleData;
+  const {
+    span,
+    content,
+    toolCalls,
+    errorMessage,
+    experimentRunId,
+    evaluations,
+  } = exampleData;
   const hasSpan = span != null;
   const hasExperimentRun = experimentRunId != null;
   const spanControls = useMemo(() => {
@@ -308,10 +331,7 @@ function ExampleOutputContent({
             isDisabled={!hasSpan}
             onPress={() => {
               if (span) {
-                onViewExperimentRunTracePress(
-                  span.context.traceId,
-                  span.project.id
-                );
+                onViewTracePress(span.context.traceId, span.project.id);
               }
             }}
           >
@@ -332,7 +352,7 @@ function ExampleOutputContent({
     span,
     totalRepetitions,
     onViewExperimentRunDetailsPress,
-    onViewExperimentRunTracePress,
+    onViewTracePress,
   ]);
 
   return (
@@ -380,6 +400,73 @@ function ExampleOutputContent({
             : null}
         </Flex>
       </View>
+      {evaluations != null && evaluations.length > 0 && (
+        <ul
+          css={css`
+            display: flex;
+            flex-direction: column;
+            flex: none;
+            padding: 0 var(--ac-global-dimension-static-size-100)
+              var(--ac-global-dimension-static-size-100)
+              var(--ac-global-dimension-static-size-100);
+          `}
+        >
+          {evaluations.map((evaluation) => {
+            // TODO: replace this with evaluation trace once it's implemented
+            // const traceId = evaluation.trace?.traceId;
+            // const projectId = evaluation.trace?.projectId;
+            const traceId = span?.context.traceId;
+            const projectId = span?.project.id;
+            const hasTrace = traceId != null && projectId != null;
+            return (
+              <li
+                key={evaluation.id}
+                css={css`
+                  display: flex;
+                  flex-direction: row;
+                  align-items: center;
+                  justify-content: space-between;
+                  gap: var(--ac-global-dimension-static-size-50);
+                `}
+              >
+                <DialogTrigger>
+                  <ExperimentAnnotationButton annotation={evaluation} />
+                  <Popover placement="top">
+                    <PopoverArrow />
+                    <Dialog style={{ width: 400 }}>
+                      <View padding="size-200">
+                        <AnnotationDetailsContent
+                          annotation={{
+                            ...evaluation,
+                            createdAt: evaluation.startTime,
+                          }}
+                        />
+                      </View>
+                    </Dialog>
+                  </Popover>
+                </DialogTrigger>
+                <TooltipTrigger isDisabled={!hasTrace}>
+                  <IconButton
+                    size="S"
+                    isDisabled={!hasTrace}
+                    onPress={() => {
+                      if (hasTrace) {
+                        onViewTracePress(traceId, projectId, evaluation.name);
+                      }
+                    }}
+                  >
+                    <Icon svg={<Icons.Trace />} />
+                  </IconButton>
+                  <Tooltip>
+                    <TooltipArrow />
+                    View evaluation trace
+                  </Tooltip>
+                </TooltipTrigger>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </Flex>
   );
 }
@@ -391,7 +478,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   instanceVariables,
   datasetExampleInput,
   onViewExperimentRunDetailsPress,
-  onViewExperimentRunTracePress,
+  onViewTracePress,
 }: {
   instanceId: number;
   exampleId: string;
@@ -399,7 +486,11 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   instanceVariables: string[];
   datasetExampleInput: unknown;
   onViewExperimentRunDetailsPress: () => void;
-  onViewExperimentRunTracePress: (traceId: string, projectId: string) => void;
+  onViewTracePress: (
+    traceId: string,
+    projectId: string,
+    evaluatorName?: string
+  ) => void;
 }) {
   const [repetitionNumber, setRepetitionNumber] = useState(1);
   const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
@@ -424,7 +515,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}
       onViewExperimentRunDetailsPress={onViewExperimentRunDetailsPress}
-      onViewExperimentRunTracePress={onViewExperimentRunTracePress}
+      onViewTracePress={onViewTracePress}
     />
   );
 });
@@ -523,6 +614,7 @@ export function PlaygroundDatasetExamplesTable({
   const [selectedTraceInfo, setSelectedTraceInfo] = useState<{
     traceId: string;
     projectId: string;
+    evaluatorName?: string;
   } | null>(null);
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
@@ -546,6 +638,10 @@ export function PlaygroundDatasetExamplesTable({
   const appendExampleDataTextChunk = usePlaygroundDatasetExamplesTableContext(
     (state) => state.appendExampleDataTextChunk
   );
+  const appendExampleDataEvaluationChunk =
+    usePlaygroundDatasetExamplesTableContext(
+      (state) => state.appendExampleDataEvaluationChunk
+    );
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
   );
@@ -632,8 +728,12 @@ export function PlaygroundDatasetExamplesTable({
               return;
             }
             const evaluation = chatCompletion.evaluation;
-            // eslint-disable-next-line no-console
-            console.log({ evaluation }); // todo: display evaluations
+            appendExampleDataEvaluationChunk({
+              instanceId,
+              exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
+              evaluationChunk: evaluation,
+            });
             break;
           }
           // This should never happen
@@ -647,6 +747,7 @@ export function PlaygroundDatasetExamplesTable({
     [
       appendExampleDataTextChunk,
       appendExampleDataToolCallChunk,
+      appendExampleDataEvaluationChunk,
       updateExampleData,
       updateInstance,
     ]
@@ -687,6 +788,20 @@ export function PlaygroundDatasetExamplesTable({
                 function {
                   name
                   arguments
+                }
+              }
+              evaluations {
+                id
+                name
+                label
+                score
+                annotatorKind
+                explanation
+                metadata
+                startTime
+                trace {
+                  traceId
+                  projectId
                 }
               }
             }
@@ -986,8 +1101,8 @@ export function PlaygroundDatasetExamplesTable({
               onViewExperimentRunDetailsPress={() => {
                 setSelectedExampleIndex(row.index);
               }}
-              onViewExperimentRunTracePress={(traceId, projectId) => {
-                setSelectedTraceInfo({ traceId, projectId });
+              onViewTracePress={(traceId, projectId, evaluatorName) => {
+                setSelectedTraceInfo({ traceId, projectId, evaluatorName });
               }}
             />
           );
@@ -1244,7 +1359,11 @@ export function PlaygroundDatasetExamplesTable({
             <PlaygroundRunTraceDetailsDialog
               traceId={selectedTraceInfo.traceId}
               projectId={selectedTraceInfo.projectId}
-              title="Experiment Run Trace"
+              title={
+                selectedTraceInfo.evaluatorName
+                  ? `Evaluator Trace: ${selectedTraceInfo.evaluatorName}`
+                  : "Experiment Run Trace"
+              }
             />
           )}
         </Modal>
@@ -1311,8 +1430,18 @@ graphql`
         datasetExampleId
         repetitionNumber
         evaluation {
+          id
+          name
           label
           score
+          annotatorKind
+          explanation
+          metadata
+          startTime
+          trace {
+            traceId
+            projectId
+          }
         }
       }
     }
