@@ -144,22 +144,12 @@ function PlaygroundOutputContent({
       return <PlaygroundOutputMessage key={index} message={message} />;
     });
   }
-  if (typeof output === "string") {
+  if (typeof output === "string" || partialToolCalls.length > 0) {
     return (
       <PlaygroundOutputMessage
         message={{
           id: generateMessageId(),
-          content: output,
-          role: "ai",
-        }}
-      />
-    );
-  }
-  if (partialToolCalls.length > 0) {
-    return (
-      <PlaygroundOutputMessage
-        message={{
-          id: generateMessageId(),
+          content: output ?? undefined,
           role: "ai",
           toolCalls: partialToolCalls,
         }}
