@@ -157,7 +157,7 @@ def _users(
 def _new_user(
     _users: _UserGenerator,
 ) -> Iterator[_UserFactory]:
-    clean_ups: list[Callable[[], None]] = []
+    clean_ups: list[Callable[[], list[_GqlId]]] = []
 
     def _(
         app: _AppInfo,
