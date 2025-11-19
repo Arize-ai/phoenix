@@ -179,8 +179,7 @@ class CodeEvaluator(Evaluator, Node):
     async def input_schema(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]:
-        ...  # TODO: Implement
+    ) -> Optional[JSON]: ...  # TODO: Implement
 
     @strawberry.field
     async def user(
@@ -341,8 +340,7 @@ class LLMEvaluator(Evaluator, Node):
     async def input_schema(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]:
-        ...  # TODO: Implement
+    ) -> Optional[JSON]: ...  # TODO: Implement
 
     @strawberry.field
     async def user(
