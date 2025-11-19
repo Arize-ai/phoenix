@@ -59,7 +59,7 @@ def get_retrieved_documents(
             and columns:
             - context.trace_id: Trace ID
             - input: Input value from the retriever span
-            - reference: Document content
+            - context: Document content
             - document_score: Document relevance score
 
     Examples:
@@ -93,7 +93,7 @@ def get_retrieved_documents(
             .rename(**INPUT)
             .explode(
                 RETRIEVAL_DOCUMENTS,
-                reference=DOCUMENT_CONTENT,
+                context=DOCUMENT_CONTENT,
                 document_score=DOCUMENT_SCORE,
                 document_metadata=DOCUMENT_METADATA,
             ),
@@ -105,7 +105,7 @@ def get_retrieved_documents(
     )
 
 
-def get_qa_with_reference(
+def get_qa_with_context(
     client: "Client",
     *,
     start_time: Optional[datetime] = None,
@@ -114,10 +114,10 @@ def get_qa_with_reference(
     project_identifier: Optional[str] = None,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
 ) -> Optional["pd.DataFrame"]:
-    """Extracts Q&A data with reference context for RAG evaluation.
+    """Extracts Q&A data with context context for RAG evaluation.
 
     Constructs a DataFrame that combines root span Q&A pairs with their associated
-    retrieved documents as reference context. This is formatted for RAG Q&A and
+    retrieved documents as context. This is formatted for RAG Q&A and
     hallucination evaluation with phoenix.evals.
 
     Args:
@@ -134,23 +134,23 @@ def get_qa_with_reference(
         Optional[pd.DataFrame]: Q&A data with index context.span_id and columns:
             - input: Question/query from the root span
             - output: Answer/response from the root span
-            - reference: Concatenated retrieved document content
+            - context: Concatenated retrieved document content
         Returns None if no spans or retrieval documents are found.
 
     Examples:
         Basic usage::
 
             from phoenix.client import Client
-            from phoenix.client.helpers.evaluation import get_qa_with_reference
+            from phoenix.client.helpers.evaluation import get_qa_with_context
 
             client = Client()
-            qa_df = get_qa_with_reference(client, project_name="my-rag-app")
+            qa_df = get_qa_with_context(client, project_name="my-rag-app")
 
         With phoenix.evals::
 
             from phoenix.evals import HallucinationEvaluator, QAEvaluator, run_evals
 
-            qa_df = get_qa_with_reference(client, project_name="my-rag-app")
+            qa_df = get_qa_with_context(client, project_name="my-rag-app")
             if qa_df is not None:
                 qa_correctness, hallucination = run_evals(
                     evaluators=[QAEvaluator(eval_model), HallucinationEvaluator(eval_model)],
@@ -171,7 +171,7 @@ def get_qa_with_reference(
     docs_query = (
         SpanQuery()
         .where(IS_RETRIEVER)
-        .concat(RETRIEVAL_DOCUMENTS, reference=DOCUMENT_CONTENT)
+        .concat(RETRIEVAL_DOCUMENTS, context=DOCUMENT_CONTENT)
         .with_index("trace_id")
     )  # separator is "\n\n" by default
 
@@ -197,10 +197,8 @@ def get_qa_with_reference(
         print("No retrieval documents found.")
         return None
 
-    ref = df_docs.groupby("context.trace_id")["reference"].apply(
-        lambda x: separator.join(x.dropna())
-    )
-    df_ref = pd.DataFrame({"reference": ref})
+    ref = df_docs.groupby("context.trace_id")["context"].apply(lambda x: separator.join(x.dropna()))
+    df_ref = pd.DataFrame({"context": ref})
     df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner").set_index("context.span_id")
     return df_qa_ref
 
@@ -233,7 +231,7 @@ async def get_retrieved_documents_async(
             and columns:
             - context.trace_id: Trace ID
             - input: Input value from the retriever span
-            - reference: Document content
+            - context: Document content
             - document_score: Document relevance score
 
     Examples:
@@ -257,7 +255,7 @@ async def get_retrieved_documents_async(
             .rename(**INPUT)
             .explode(
                 RETRIEVAL_DOCUMENTS,
-                reference=DOCUMENT_CONTENT,
+                context=DOCUMENT_CONTENT,
                 document_score=DOCUMENT_SCORE,
             ),
             start_time=start_time,
@@ -268,7 +266,7 @@ async def get_retrieved_documents_async(
     )
 
 
-async def get_qa_with_reference_async(
+async def get_qa_with_context_async(
     client: "AsyncClient",
     *,
     start_time: Optional[datetime] = None,
@@ -277,9 +275,9 @@ async def get_qa_with_reference_async(
     project_identifier: Optional[str] = None,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
 ) -> Optional["pd.DataFrame"]:
-    """Async version of get_qa_with_reference.
+    """Async version of get_qa_with_context.
 
-    Extracts Q&A data with reference context for RAG evaluation.
+    Extracts Q&A data with context context for RAG evaluation.
 
     Args:
         client: Phoenix AsyncClient instance.
@@ -295,17 +293,17 @@ async def get_qa_with_reference_async(
         Optional[pd.DataFrame]: Q&A data with index context.span_id and columns:
             - input: Question/query from the root span
             - output: Answer/response from the root span
-            - reference: Concatenated retrieved document content
+            - context: Concatenated retrieved document content
         Returns None if no spans or retrieval documents are found.
 
     Examples:
         Basic usage::
 
             from phoenix.client import AsyncClient
-            from phoenix.client.helpers.evaluation import get_qa_with_reference_async
+            from phoenix.client.helpers.evaluation import get_qa_with_context_async
 
             client = AsyncClient()
-            qa_df = await get_qa_with_reference_async(client, project_name="my-rag-app")
+            qa_df = await get_qa_with_context_async(client, project_name="my-rag-app")
     """
     import pandas as pd
 
@@ -321,7 +319,7 @@ async def get_qa_with_reference_async(
     docs_query = (
         SpanQuery()
         .where(IS_RETRIEVER)
-        .concat(RETRIEVAL_DOCUMENTS, reference=DOCUMENT_CONTENT)
+        .concat(RETRIEVAL_DOCUMENTS, context=DOCUMENT_CONTENT)
         .with_index("trace_id")
     )  # separator is "\n\n" by default
 
@@ -347,9 +345,7 @@ async def get_qa_with_reference_async(
         print("No retrieval documents found.")
         return None
 
-    ref = df_docs.groupby("context.trace_id")["reference"].apply(
-        lambda x: separator.join(x.dropna())
-    )
-    df_ref = pd.DataFrame({"reference": ref})
+    ref = df_docs.groupby("context.trace_id")["context"].apply(lambda x: separator.join(x.dropna()))
+    df_ref = pd.DataFrame({"context": ref})
     df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner").set_index("context.span_id")
     return df_qa_ref
