@@ -22,7 +22,7 @@ export const OpenAIReasoningEffortConfigField = ({
 }: OpenAIReasoningEffortConfigFieldProps) => {
   return (
     <Select
-      value={typeof value === "string" ? value : undefined}
+      value={typeof value === "string" ? value : null}
       onChange={(key) => onChange(key === "none" ? undefined : key)}
       placeholder="Select effort"
     >
@@ -33,10 +33,18 @@ export const OpenAIReasoningEffortConfigField = ({
       </Button>
       <Popover>
         <ListBox>
-          <SelectItem id="none">None</SelectItem>
-          <SelectItem id="low">Low</SelectItem>
-          <SelectItem id="medium">Medium</SelectItem>
-          <SelectItem id="high">High</SelectItem>
+          <SelectItem id="none" textValue="None">
+            None
+          </SelectItem>
+          <SelectItem id="low" textValue="Low">
+            Low
+          </SelectItem>
+          <SelectItem id="medium" textValue="Medium">
+            Medium
+          </SelectItem>
+          <SelectItem id="high" textValue="High">
+            High
+          </SelectItem>
         </ListBox>
       </Popover>
     </Select>

@@ -76,7 +76,7 @@ const InvocationParameterFormField = ({
     return (
       <OpenAIReasoningEffortConfigField
         onChange={onChange}
-        value={value}
+        value={value ?? null}
         label={field.label ?? undefined}
       />
     );
