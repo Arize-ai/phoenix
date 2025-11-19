@@ -223,6 +223,7 @@ export const EvaluatorsTable = ({
         cell: ({ row }) => (
           <DatasetEvaluatorActionMenu
             evaluatorId={row.original.id}
+            evaluatorName={row.original.name}
             datasetId={datasetId}
           />
         ),

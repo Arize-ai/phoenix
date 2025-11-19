@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<da85c609d9f9f19018c2149edd9e4844>>
+ * @generated SignedSource<<10c1d7281360ed28a48fad5a0986f5c1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,12 +14,12 @@ export type UnassignEvaluatorFromDatasetInput = {
   datasetId: string;
   evaluatorId: string;
 };
-export type DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation$variables = {
+export type UnassignDatasetEvaluatorDialogMutation$variables = {
   connectionIds: ReadonlyArray<string>;
   datasetId: string;
   input: UnassignEvaluatorFromDatasetInput;
 };
-export type DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation$data = {
+export type UnassignDatasetEvaluatorDialogMutation$data = {
   readonly unassignEvaluatorFromDataset: {
     readonly evaluator: {
       readonly " $fragmentSpreads": FragmentRefs<"EvaluatorsTable_row">;
@@ -31,9 +31,9 @@ export type DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation$data
     };
   };
 };
-export type DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation = {
-  response: DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation$data;
-  variables: DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation$variables;
+export type UnassignDatasetEvaluatorDialogMutation = {
+  response: UnassignDatasetEvaluatorDialogMutation$data;
+  variables: UnassignDatasetEvaluatorDialogMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -159,7 +159,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation",
+    "name": "UnassignDatasetEvaluatorDialogMutation",
     "selections": [
       {
         "alias": null,
@@ -244,7 +244,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation",
+    "name": "UnassignDatasetEvaluatorDialogMutation",
     "selections": [
       {
         "alias": null,
@@ -425,16 +425,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "aaae586db2df1d5dd5c09480261a1f67",
+    "cacheID": "4b894ffb5cd45782fad36fed1ffc4bbc",
     "id": null,
     "metadata": {},
-    "name": "DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation",
+    "name": "UnassignDatasetEvaluatorDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation(\n  $input: UnassignEvaluatorFromDatasetInput!\n  $datasetId: ID!\n) {\n  unassignEvaluatorFromDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...PlaygroundDatasetSection_evaluators_1wYocp\n        ...DatasetEvaluatorsTable_evaluators_1wYocp\n        id\n      }\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row_1wYocp\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $datasetId)\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation UnassignDatasetEvaluatorDialogMutation(\n  $input: UnassignEvaluatorFromDatasetInput!\n  $datasetId: ID!\n) {\n  unassignEvaluatorFromDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...PlaygroundDatasetSection_evaluators_1wYocp\n        ...DatasetEvaluatorsTable_evaluators_1wYocp\n        id\n      }\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row_1wYocp\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $datasetId)\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bed61e69efae2df691eeea1a636995f3";
+(node as any).hash = "bbcfc9f444b6b4c8b5ec7655fbc8bf30";
 
 export default node;

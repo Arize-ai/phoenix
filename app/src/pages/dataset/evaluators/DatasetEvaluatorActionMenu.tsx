@@ -1,4 +1,4 @@
-import { ConnectionHandler, graphql, useMutation } from "react-relay";
+import { useState } from "react";
 
 import {
   Button,
@@ -10,8 +10,7 @@ import {
   Popover,
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { UnassignDatasetEvaluatorDialog } from "@phoenix/pages/dataset/evaluators/UnassignDatasetEvaluatorDialog";
 
 enum DatasetEvaluatorAction {
   UNASSIGN = "unassign",
@@ -19,39 +18,14 @@ enum DatasetEvaluatorAction {
 
 export function DatasetEvaluatorActionMenu({
   evaluatorId,
+  evaluatorName,
   datasetId,
 }: {
   evaluatorId: string;
+  evaluatorName: string;
   datasetId: string;
 }) {
-  const datasetEvaluatorsTableConnection = ConnectionHandler.getConnectionID(
-    datasetId,
-    "DatasetEvaluatorsTable_evaluators"
-  );
-  const [unassignEvaluatorFromDataset, isUnassigningEvaluatorFromDataset] =
-    useMutation(graphql`
-      mutation DatasetEvaluatorActionMenu_UnassignEvaluatorFromDatasetMutation(
-        $input: UnassignEvaluatorFromDatasetInput!
-        $datasetId: ID!
-        $connectionIds: [ID!]!
-      ) {
-        unassignEvaluatorFromDataset(input: $input) {
-          query {
-            dataset: node(id: $datasetId) {
-              ...PlaygroundDatasetSection_evaluators
-                @arguments(datasetId: $datasetId)
-              ...DatasetEvaluatorsTable_evaluators
-                @arguments(datasetId: $datasetId)
-            }
-          }
-          evaluator @deleteEdge(connections: $connectionIds) {
-            ...EvaluatorsTable_row @arguments(datasetId: $datasetId)
-          }
-        }
-      }
-    `);
-  const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [isUnassignDialogOpen, setIsUnassignDialogOpen] = useState(false);
   return (
     <StopPropagation>
       <MenuTrigger>
@@ -65,48 +39,22 @@ export function DatasetEvaluatorActionMenu({
             onAction={(action) => {
               switch (action) {
                 case DatasetEvaluatorAction.UNASSIGN:
-                  if (isUnassigningEvaluatorFromDataset) {
-                    return;
-                  }
-                  unassignEvaluatorFromDataset({
-                    variables: {
-                      input: {
-                        datasetId,
-                        evaluatorId,
-                      },
-                      connectionIds: [datasetEvaluatorsTableConnection],
-                      datasetId,
-                    },
-                    onCompleted: () => {
-                      notifySuccess({
-                        title: "Evaluator unassigned",
-                        message:
-                          "The evaluator has been unassigned from the dataset.",
-                      });
-                    },
-                    onError: (error) => {
-                      notifyError({
-                        title: "Failed to unassign evaluator",
-                        message:
-                          getErrorMessagesFromRelayMutationError(error)?.join(
-                            "\n"
-                          ) ?? error.message,
-                      });
-                    },
-                  });
+                  setIsUnassignDialogOpen(true);
                   break;
               }
             }}
           >
-            <MenuItem
-              id={DatasetEvaluatorAction.UNASSIGN}
-              isDisabled={isUnassigningEvaluatorFromDataset}
-            >
-              Remove
-            </MenuItem>
+            <MenuItem id={DatasetEvaluatorAction.UNASSIGN}>Remove</MenuItem>
           </Menu>
         </Popover>
       </MenuTrigger>
+      <UnassignDatasetEvaluatorDialog
+        evaluatorId={evaluatorId}
+        evaluatorName={evaluatorName}
+        datasetId={datasetId}
+        isOpen={isUnassignDialogOpen}
+        onOpenChange={setIsUnassignDialogOpen}
+      />
     </StopPropagation>
   );
 }
