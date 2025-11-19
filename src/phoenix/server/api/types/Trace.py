@@ -230,10 +230,15 @@ class Trace(Node):
         # Filter for root spans only if requested
         if root_spans_only:
             # A root span is either a span with no parent_id or an orphan span
-            # (a span whose parent_id references a span that doesn't exist in the database)
+            # (a span whose parent_id references a span that doesn't exist in the current trace)
             if orphan_span_as_root_span:
                 # Include both types of root spans
-                parent_spans = select(models.Span.span_id).alias("parent_spans")
+                # Filter parent_spans to only include spans from the current trace
+                parent_spans = (
+                    select(models.Span.span_id)
+                    .where(models.Span.trace_rowid == self.id)
+                    .alias("parent_spans")
+                )
                 candidate_spans = stmt.add_columns(models.Span.parent_id).cte("candidate_spans")
                 stmt = (
                     select(candidate_spans.c.id)

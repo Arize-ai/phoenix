@@ -419,3 +419,71 @@ async def test_trace_spans_root_spans_only(
     # Orphan span and child span should not be included
     assert "orphan-span-1" not in span_names
     assert "child-span-1" not in span_names
+
+
+async def test_trace_spans_root_spans_only_cross_trace_parent(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """Test that orphan span detection correctly filters by trace.
+
+    This test verifies that a span with a parent_id from a different trace
+    is correctly identified as an orphan (root span) in the current trace.
+    """
+    async with db() as session:
+        project = await _add_project(session)
+
+        # Create first trace with a span
+        trace_1 = await _add_trace(session, project)
+        span_in_trace_1 = await _add_span(session, trace_1)
+        span_in_trace_1.name = "span-in-trace-1"
+        span_in_trace_1.parent_id = None
+
+        # Create second trace with a span that has parent_id from trace_1
+        trace_2 = await _add_trace(session, project)
+        span_in_trace_2 = await _add_span(session, trace_2)
+        span_in_trace_2.name = "span-in-trace-2"
+        # This span's parent_id exists in trace_1, but not in trace_2
+        # So it should be considered an orphan (root span) in trace_2
+        span_in_trace_2.parent_id = span_in_trace_1.span_id
+
+        await session.commit()
+
+    trace_2_gid = str(GlobalID(Trace.__name__, str(trace_2.id)))
+
+    query = """
+        query ($traceId: ID!, $first: Int, $rootSpansOnly: Boolean, $orphanSpanAsRootSpan: Boolean) {
+            node(id: $traceId) {
+                ... on Trace {
+                    spans(first: $first, rootSpansOnly: $rootSpansOnly, orphanSpanAsRootSpan: $orphanSpanAsRootSpan) {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    # Test: root_spans_only=True, orphan_span_as_root_span=True
+    # The span_in_trace_2 should be identified as an orphan (root span)
+    # because its parent_id doesn't exist in trace_2, even though it exists in trace_1
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "traceId": trace_2_gid,
+            "first": 10,
+            "rootSpansOnly": True,
+            "orphanSpanAsRootSpan": True,
+        },
+    )
+    assert not response.errors
+    assert (data := response.data) is not None
+    edges = data["node"]["spans"]["edges"]
+    assert len(edges) == 1
+    assert edges[0]["node"]["name"] == "span-in-trace-2"
+    # Verify it's correctly identified as a root span (orphan)
+    # because its parent exists in a different trace
