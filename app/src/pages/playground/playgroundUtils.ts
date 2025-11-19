@@ -653,8 +653,8 @@ export function transformSpanAttributesToPlaygroundInstance(
           1: {
             output: null,
             spanId: span.id,
-            error: null, // todo: handle error parsing
-            toolCalls: {}, // todo: handle tool calls parsing
+            error: null,
+            toolCalls: {},
             status: "notStarted",
           },
         },
@@ -744,8 +744,8 @@ export function transformSpanAttributesToPlaygroundInstance(
           1: {
             output: output ?? null,
             spanId: span.id,
-            error: null, // todo: handle error parsing
-            toolCalls: {}, // todo: handle tool calls parsing
+            error: null,
+            toolCalls: {}, // when parsed from span attributes, tool calls are contained in the output
             status: "finished",
           },
         },
