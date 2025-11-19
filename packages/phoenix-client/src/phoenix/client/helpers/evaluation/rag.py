@@ -14,8 +14,10 @@ if TYPE_CHECKING:
 
 DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
 DOCUMENT_SCORE = DocumentAttributes.DOCUMENT_SCORE
+DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+METADATA = SpanAttributes.METADATA
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 INPUT = {INPUT_VALUE: "input"}
@@ -93,6 +95,7 @@ def get_retrieved_documents(
                 RETRIEVAL_DOCUMENTS,
                 reference=DOCUMENT_CONTENT,
                 document_score=DOCUMENT_SCORE,
+                document_metadata=DOCUMENT_METADATA,
             ),
             start_time=start_time,
             end_time=end_time,
@@ -160,7 +163,7 @@ def get_qa_with_reference(
     separator = "\n\n"
     qa_query = (
         SpanQuery()
-        .select("span_id", INPUT_VALUE, OUTPUT_VALUE)
+        .select("span_id", INPUT_VALUE, OUTPUT_VALUE, METADATA)
         .rename(**IO)
         .where(IS_ROOT)
         .with_index("trace_id")
