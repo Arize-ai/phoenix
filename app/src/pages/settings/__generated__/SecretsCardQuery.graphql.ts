@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b4852e71be60393280164b595523fe24>>
+ * @generated SignedSource<<3a76405e750dc03dbce5f6c1569206bd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -118,6 +118,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "shadowsEnvironmentVariable",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
                   }
@@ -174,16 +181,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2252e945b078faa2af0b94a9fbb5c161",
+    "cacheID": "4fa0d6e24862bf7081345ffd56fba003",
     "id": null,
     "metadata": {},
     "name": "SecretsCardQuery",
     "operationKind": "query",
-    "text": "query SecretsCardQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...SecretsCard_data_2HEEH6\n}\n\nfragment SecretsCard_data_2HEEH6 on Query {\n  secrets(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        key\n        value\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SecretsCardQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...SecretsCard_data_2HEEH6\n}\n\nfragment SecretsCard_data_2HEEH6 on Query {\n  secrets(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        key\n        value\n        shadowsEnvironmentVariable\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "17b2baae2adc68cf6fbb8fa98d468b8a";
+(node as any).hash = "cb1f3855b79670ebfad17733504d7965";
 
 export default node;

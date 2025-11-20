@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5a1e529685a67fb4fdece00a2f16f522>>
+ * @generated SignedSource<<7f3fb498395d92ae97c9bbdf3a44e424>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -221,6 +221,13 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
+                            "name": "shadowsEnvironmentVariable",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
                             "name": "__typename",
                             "storageKey": null
                           }
@@ -283,12 +290,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fe5183d8056e5f1c361b134873efd871",
+    "cacheID": "b04c14cc1384d611ecc9d37903ad35d9",
     "id": null,
     "metadata": {},
     "name": "NewSecretButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation NewSecretButtonMutation(\n  $input: UpsertSecretMutationInput!\n) {\n  upsertSecret(input: $input) {\n    secret {\n      id\n      key\n      value\n    }\n    query {\n      ...SecretsCard_data\n    }\n  }\n}\n\nfragment SecretsCard_data on Query {\n  secrets(first: 50) {\n    edges {\n      node {\n        id\n        key\n        value\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation NewSecretButtonMutation(\n  $input: UpsertSecretMutationInput!\n) {\n  upsertSecret(input: $input) {\n    secret {\n      id\n      key\n      value\n    }\n    query {\n      ...SecretsCard_data\n    }\n  }\n}\n\nfragment SecretsCard_data on Query {\n  secrets(first: 50) {\n    edges {\n      node {\n        id\n        key\n        value\n        shadowsEnvironmentVariable\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

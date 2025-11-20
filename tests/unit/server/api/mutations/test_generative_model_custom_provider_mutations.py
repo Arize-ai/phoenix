@@ -36,7 +36,7 @@ class TestGenerativeModelCustomProviderMutations:
             ... on GenerativeModelCustomProviderOpenAI {
               config {
                 ... on OpenAICustomProviderConfig {
-                  interface
+                  openaiClientInterface
                   supportsStreaming
                   openaiAuthenticationMethod {
                     apiKey {
@@ -65,7 +65,7 @@ class TestGenerativeModelCustomProviderMutations:
             ... on GenerativeModelCustomProviderAzureOpenAI {
               config {
                 ... on AzureOpenAICustomProviderConfig {
-                  interface
+                  azureOpenaiClientInterface
                   supportsStreaming
                   azureOpenaiAuthenticationMethod {
                     apiKey {
@@ -116,7 +116,7 @@ class TestGenerativeModelCustomProviderMutations:
             ... on GenerativeModelCustomProviderAnthropic {
               config {
                 ... on AnthropicCustomProviderConfig {
-                  interface
+                  anthropicClientInterface
                   supportsStreaming
                   anthropicAuthenticationMethod {
                     apiKey {
@@ -169,7 +169,7 @@ class TestGenerativeModelCustomProviderMutations:
             ... on GenerativeModelCustomProviderGoogleGenAI {
               config {
                 ... on GoogleGenAICustomProviderConfig {
-                  interface
+                  googleGenaiClientInterface
                   supportsStreaming
                   googleGenaiAuthenticationMethod {
                     apiKey {
@@ -275,7 +275,7 @@ class TestGenerativeModelCustomProviderMutations:
         assert isinstance(openai_provider["createdAt"], str)
         assert isinstance(openai_provider["updatedAt"], str)
         config = openai_provider["config"]
-        assert config["interface"] == "chat"
+        assert config["openaiClientInterface"] == "CHAT"
         assert config["supportsStreaming"] is True
         assert config["openaiAuthenticationMethod"]["apiKey"]["stringValue"] == "sk-test-key"
         assert config["openaiClientKwargs"]["baseUrl"]["stringValue"] == "https://api.openai.com/v1"
@@ -318,7 +318,7 @@ class TestGenerativeModelCustomProviderMutations:
         assert azure_provider["description"] == "Test Azure OpenAI provider"
         assert azure_provider["provider"] == "azure"
         azure_config = azure_provider["config"]
-        assert azure_config["interface"] == "chat"
+        assert azure_config["azureOpenaiClientInterface"] == "CHAT"
         assert (
             azure_config["azureOpenaiAuthenticationMethod"]["apiKey"]["stringValue"]
             == "azure-key-123"
@@ -466,7 +466,7 @@ class TestGenerativeModelCustomProviderMutations:
         assert anthropic_provider["description"] == "Test Anthropic provider"
         assert anthropic_provider["provider"] == "anthropic"
         anthropic_config = anthropic_provider["config"]
-        assert anthropic_config["interface"] == "chat"
+        assert anthropic_config["anthropicClientInterface"] == "CHAT"
         assert anthropic_config["supportsStreaming"] is True
         assert (
             anthropic_config["anthropicAuthenticationMethod"]["apiKey"]["stringValue"]
@@ -516,7 +516,7 @@ class TestGenerativeModelCustomProviderMutations:
         assert google_provider["description"] == "Test Google GenAI provider"
         assert google_provider["provider"] == "google"
         google_config = google_provider["config"]
-        assert google_config["interface"] == "chat"
+        assert google_config["googleGenaiClientInterface"] == "CHAT"
         assert google_config["supportsStreaming"] is True
         assert (
             google_config["googleGenaiAuthenticationMethod"]["apiKey"]["stringValue"]
@@ -562,7 +562,7 @@ class TestGenerativeModelCustomProviderMutations:
         assert aws_provider["description"] == "Test AWS Bedrock provider"
         assert aws_provider["provider"] == "aws"
         aws_config = aws_provider["config"]
-        assert aws_config["awsBedrockClientInterface"] == "converse"
+        assert aws_config["awsBedrockClientInterface"] == "CONVERSE"
         assert aws_config["supportsStreaming"] is True
         assert (
             aws_config["awsBedrockAuthenticationMethod"]["awsAccessKeyId"]["stringValue"]

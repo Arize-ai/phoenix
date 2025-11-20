@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c023e5ed32f1bcbdc256d5bdf49fde8d>>
+ * @generated SignedSource<<fd6570bc44d4213886c72762694ccc5f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -195,6 +195,13 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
+                            "name": "shadowsEnvironmentVariable",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
                             "name": "__typename",
                             "storageKey": null
                           }
@@ -257,12 +264,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f374b88a59e124b92ef72174139f7192",
+    "cacheID": "e98196643fc1caeb218967100d77b302",
     "id": null,
     "metadata": {},
     "name": "DeleteSecretButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteSecretButtonMutation(\n  $input: DeleteSecretMutationInput!\n) {\n  deleteSecret(input: $input) {\n    id\n    query {\n      ...SecretsCard_data\n    }\n  }\n}\n\nfragment SecretsCard_data on Query {\n  secrets(first: 50) {\n    edges {\n      node {\n        id\n        key\n        value\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation DeleteSecretButtonMutation(\n  $input: DeleteSecretMutationInput!\n) {\n  deleteSecret(input: $input) {\n    id\n    query {\n      ...SecretsCard_data\n    }\n  }\n}\n\nfragment SecretsCard_data on Query {\n  secrets(first: 50) {\n    edges {\n      node {\n        id\n        key\n        value\n        shadowsEnvironmentVariable\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

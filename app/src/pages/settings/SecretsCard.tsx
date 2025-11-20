@@ -94,6 +94,7 @@ export function SecretsCard({ query }: { query: SecretsCard_data$key }) {
               id
               key
               value
+              shadowsEnvironmentVariable
             }
           }
         }
@@ -143,6 +144,18 @@ export function SecretsCard({ query }: { query: SecretsCard_data$key }) {
         enableSorting: false,
         cell: ({ row }) => {
           return <SecretValueCell value={row.original.value} />;
+        },
+      },
+      {
+        header: "Shadows Env Var",
+        accessorKey: "shadowsEnvironmentVariable",
+        cell: ({ getValue }) => {
+          const shadowsEnvVar = getValue<boolean>();
+          return (
+            <Text color={shadowsEnvVar ? "warning" : "text-700"}>
+              {shadowsEnvVar ? "Yes" : "No"}
+            </Text>
+          );
         },
       },
       {

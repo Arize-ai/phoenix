@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4013082d112b914b731dfd209479d913>>
+ * @generated SignedSource<<04e96e8232711b12a3819d27f320a43d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ export type SecretsCard_data$data = {
       readonly node: {
         readonly id: string;
         readonly key: string;
+        readonly shadowsEnvironmentVariable: boolean;
         readonly value: string | null;
       };
     }>;
@@ -120,6 +121,13 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "shadowsEnvironmentVariable",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "__typename",
                   "storageKey": null
                 }
@@ -170,6 +178,6 @@ return {
 };
 })();
 
-(node as any).hash = "17b2baae2adc68cf6fbb8fa98d468b8a";
+(node as any).hash = "cb1f3855b79670ebfad17733504d7965";
 
 export default node;
