@@ -12,6 +12,7 @@ import { Button, ButtonProps } from "@phoenix/components/button";
 import { CreateDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
+import { EvaluatorSelectMenuItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { Icon, Icons } from "@phoenix/components/icon";
 import {
   Menu,
@@ -103,7 +104,7 @@ export const AddEvaluatorMenu = ({
                 <MenuItem
                   leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}
                 >
-                  Use template
+                  Use built-in code evaluator
                 </MenuItem>
               </CodeEvaluatorTemplateSubmenu>
             </MenuSection>
@@ -176,15 +177,16 @@ const CodeEvaluatorTemplateSubmenu = ({
   return (
     <SubmenuTrigger {...props}>
       {children}
-      <MenuContainer shouldFlip placement="start top">
+      <MenuContainer shouldFlip placement="start top" minHeight="auto">
         <Menu
           items={builtInCodeEvaluators}
           onAction={(key) => onAction(key as string)}
         >
           {(evaluator) => (
-            <MenuItem key={evaluator.id} id={evaluator.id}>
-              {evaluator.name}
-            </MenuItem>
+            <EvaluatorSelectMenuItem
+              evaluator={evaluator}
+              onSelectionChange={() => onAction(evaluator.id)}
+            />
           )}
         </Menu>
       </MenuContainer>
