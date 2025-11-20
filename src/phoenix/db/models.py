@@ -2188,7 +2188,9 @@ class DatasetsEvaluators(HasId):
     )
     input_config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_evaluators")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator", back_populates="datasets_evaluators")
+    evaluator: Mapped[Optional["Evaluator"]] = relationship(
+        "Evaluator", back_populates="datasets_evaluators"
+    )
 
     __table_args__ = (
         CheckConstraint(
