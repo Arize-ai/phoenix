@@ -2195,15 +2195,19 @@ class DatasetsEvaluators(HasId):
             "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
             name="evaluator_id_xor_builtin_evaluator_id",
         ),
-        UniqueConstraint(
+        Index(
+            "ix_datasets_evaluators_dataset_evaluator",
             "dataset_id",
             "evaluator_id",
+            unique=True,
             postgresql_where=sa.text("evaluator_id IS NOT NULL"),
             sqlite_where=sa.text("evaluator_id IS NOT NULL"),
         ),
-        UniqueConstraint(
+        Index(
+            "ix_datasets_evaluators_dataset_builtin",
             "dataset_id",
             "builtin_evaluator_id",
+            unique=True,
             postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
             sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),
         ),
