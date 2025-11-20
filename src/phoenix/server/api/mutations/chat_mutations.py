@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain, islice
@@ -252,6 +253,7 @@ class ChatCompletionMutationMixin:
                             ),
                             prompt_name=input.prompt_name,
                             repetitions=repetition_number,
+                            evaluators=input.evaluators,
                         ),
                         repetition_number=repetition_number,
                         project_name=project_name,
@@ -307,12 +309,14 @@ class ChatCompletionMutationMixin:
                 for ii, evaluator in enumerate(input.evaluators):
                     _, db_id = from_global_id(evaluator.id)
                     evaluator_record = await session.get(models.Evaluator, db_id)
-                    evaluator_name = evaluator_record.name if evaluator_record else ""
+                    if evaluator_record is None:
+                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
+                    evaluator_name = evaluator_record.name.root
                     dummy_annotation = ExperimentRunAnnotation.from_dict(
                         {
                             "name": evaluator_name,
                             "label": f"dummy {ii}",
-                            "score": 0.5,
+                            "score": random.random(),
                             "explanation": "dummy evaluation",
                             "metadata": {},
                         }
@@ -570,12 +574,14 @@ class ChatCompletionMutationMixin:
                 for ii, evaluator in enumerate(input.evaluators):
                     _, db_id = from_global_id(evaluator.id)
                     evaluator_record = await session.get(models.Evaluator, db_id)
-                    evaluator_name = evaluator_record.name if evaluator_record else ""
+                    if evaluator_record is None:
+                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
+                    evaluator_name = evaluator_record.name.root
                     dummy_annotation = ExperimentRunAnnotation.from_dict(
                         {
                             "name": evaluator_name,
                             "label": f"dummy {ii}",
-                            "score": 0.5,
+                            "score": random.random(),
                             "explanation": "dummy evaluation",
                             "metadata": {},
                         }

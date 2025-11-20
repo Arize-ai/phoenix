@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from collections import deque
 from collections.abc import AsyncIterator, Iterator
 from datetime import datetime, timedelta, timezone
@@ -349,7 +350,7 @@ class Subscription:
                         {
                             "name": evaluator_name,
                             "label": f"dummy {ii}",
-                            "score": 0.5,
+                            "score": random.random(),
                             "explanation": "dummy evaluation",
                             "metadata": {},
                         }
@@ -594,7 +595,7 @@ class Subscription:
                                 {
                                     "name": evaluator_name,
                                     "label": f"dummy {ii}",
-                                    "score": 0.5,
+                                    "score": random.random(),
                                     "explanation": "dummy evaluation",
                                     "metadata": {},
                                 }
