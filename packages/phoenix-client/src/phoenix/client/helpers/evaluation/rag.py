@@ -46,7 +46,7 @@ def _build_retrieved_documents_query() -> SpanQuery:
 
 
 def _build_root_qa_query() -> SpanQuery:
-    query = SpanQuery().select("span_id", INPUT_VALUE, OUTPUT_VALUE, METADATA)
+    query = SpanQuery().select("span_id", "trace_id", INPUT_VALUE, OUTPUT_VALUE, METADATA)
     return query.rename(**IO).where(IS_ROOT).with_index("trace_id")
 
 
@@ -148,6 +148,7 @@ def get_input_output_context(
 
     Returns:
         Optional[pd.DataFrame]: Q&A data with index context.span_id and columns:
+            - context.trace_id: Trace ID
             - input: Question/query from the root span
             - output: Answer/response from the root span
             - context: Concatenated retrieved document content
@@ -205,7 +206,9 @@ def get_input_output_context(
 
     ref = df_docs.groupby("context.trace_id")["context"].apply(lambda x: separator.join(x.dropna()))
     df_ref = pd.DataFrame({"context": ref})
-    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner").set_index("context.span_id")
+    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner")
+    # Reset index to preserve trace_id as a column, then set span_id as the index
+    df_qa_ref = df_qa_ref.reset_index().set_index("context.span_id")
     return df_qa_ref
 
 
@@ -242,6 +245,7 @@ def get_qa_with_reference(
 
     Returns:
         Optional[pd.DataFrame]: Q&A data with index context.span_id and columns:
+            - context.trace_id: Trace ID
             - input: Question/query from the root span
             - output: Answer/response from the root span
             - context: Concatenated retrieved document content
@@ -361,6 +365,7 @@ async def async_get_input_output_context(
 
     Returns:
         Optional[pd.DataFrame]: Q&A data with index context.span_id and columns:
+            - context.trace_id: Trace ID
             - input: Question/query from the root span
             - output: Answer/response from the root span
             - context: Concatenated retrieved document content
@@ -407,5 +412,7 @@ async def async_get_input_output_context(
 
     ref = df_docs.groupby("context.trace_id")["context"].apply(lambda x: separator.join(x.dropna()))
     df_ref = pd.DataFrame({"context": ref})
-    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner").set_index("context.span_id")
+    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner")
+    # Reset index to preserve trace_id as a column, then set span_id as the index
+    df_qa_ref = df_qa_ref.reset_index().set_index("context.span_id")
     return df_qa_ref
