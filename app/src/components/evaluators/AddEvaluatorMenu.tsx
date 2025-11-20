@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DialogTrigger,
   MenuSection,
   MenuTriggerProps,
+  SubmenuTrigger,
+  SubmenuTriggerProps,
 } from "react-aria-components";
+import { graphql, useFragment } from "react-relay";
 
 import { Button, ButtonProps } from "@phoenix/components/button";
 import { CreateDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateDatasetEvaluatorSlideover";
+import { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
+import { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
 import { Icon, Icons } from "@phoenix/components/icon";
 import {
   Menu,
@@ -15,19 +20,44 @@ import {
   MenuSectionTitle,
   MenuTrigger,
 } from "@phoenix/components/menu";
+import { Modal, ModalOverlay } from "@phoenix/components/overlay";
+import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/EvaluatorConfigDialog";
 
 export const AddEvaluatorMenu = ({
   size,
   datasetId,
   updateConnectionIds,
+  query,
   ...props
 }: {
   size: ButtonProps["size"];
   datasetId: string;
   updateConnectionIds: string[];
+  query: AddEvaluatorMenu_query$key;
 } & Omit<MenuTriggerProps, "children">) => {
   const [createEvaluatorDialogOpen, setCreateEvaluatorDialogOpen] =
     useState(false);
+  const [evaluatorIdToAssociate, setEvaluatorIdToAssociate] = useState<
+    string | null
+  >(null);
+  const associateEvaluatorDialogOpen = evaluatorIdToAssociate != null;
+  const onCloseEvaluatorConfigDialog = () => {
+    setEvaluatorIdToAssociate(null);
+  };
+  const data = useFragment<AddEvaluatorMenu_query$key>(
+    graphql`
+      fragment AddEvaluatorMenu_query on Query
+      @argumentDefinitions(datasetId: { type: "ID!" }) {
+        ...AddEvaluatorMenu_codeEvaluatorTemplates
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            ...EvaluatorConfigDialog_dataset
+          }
+        }
+      }
+    `,
+    query
+  );
   return (
     <>
       <MenuTrigger {...props}>
@@ -49,14 +79,33 @@ export const AddEvaluatorMenu = ({
             }}
           >
             <MenuSection>
-              <MenuSectionTitle title="LLM Evaluators" />
-              <MenuItem id="createEvaluator">Create new LLM evaluator</MenuItem>
+              <MenuSectionTitle title="New LLM evaluator" />
+              <MenuItem
+                leadingContent={<Icon svg={<Icons.PlusOutline />} />}
+                id="createEvaluator"
+              >
+                Create new LLM evaluator
+              </MenuItem>
             </MenuSection>
             <MenuSection>
-              <MenuSectionTitle title="Code Evaluators" />
-              <MenuItem isDisabled id="createCodeEvaluator">
+              <MenuSectionTitle title="New code evaluator" />
+              <MenuItem
+                leadingContent={<Icon svg={<Icons.PlusOutline />} />}
+                isDisabled
+                id="createCodeEvaluator"
+              >
                 Create new code evaluator
               </MenuItem>
+              <CodeEvaluatorTemplateSubmenu
+                query={data}
+                onAction={setEvaluatorIdToAssociate}
+              >
+                <MenuItem
+                  leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}
+                >
+                  Use template
+                </MenuItem>
+              </CodeEvaluatorTemplateSubmenu>
             </MenuSection>
           </Menu>
         </MenuContainer>
@@ -70,6 +119,75 @@ export const AddEvaluatorMenu = ({
           updateConnectionIds={updateConnectionIds}
         />
       </DialogTrigger>
+      <ModalOverlay
+        isOpen={associateEvaluatorDialogOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setEvaluatorIdToAssociate(null);
+          }
+        }}
+      >
+        <Modal size="L">
+          {associateEvaluatorDialogOpen && (
+            <EvaluatorConfigDialog
+              evaluatorId={evaluatorIdToAssociate}
+              onClose={onCloseEvaluatorConfigDialog}
+              datasetRef={data.dataset}
+            />
+          )}
+        </Modal>
+      </ModalOverlay>
     </>
+  );
+};
+
+type CodeEvaluatorTemplateSubmenuProps = Omit<
+  SubmenuTriggerProps,
+  "children"
+> & {
+  children: SubmenuTriggerProps["children"][number];
+  query: AddEvaluatorMenu_codeEvaluatorTemplates$key;
+  onAction: (evaluatorId: string) => void;
+};
+
+const CodeEvaluatorTemplateSubmenu = ({
+  children,
+  query,
+  onAction,
+  ...props
+}: CodeEvaluatorTemplateSubmenuProps) => {
+  const data = useFragment<AddEvaluatorMenu_codeEvaluatorTemplates$key>(
+    graphql`
+      fragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {
+        builtInEvaluators {
+          id
+          name
+          kind
+        }
+      }
+    `,
+    query
+  );
+  const builtInCodeEvaluators = useMemo(
+    () =>
+      data.builtInEvaluators.filter((evaluator) => evaluator.kind === "CODE"),
+    [data.builtInEvaluators]
+  );
+  return (
+    <SubmenuTrigger {...props}>
+      {children}
+      <MenuContainer shouldFlip placement="start top">
+        <Menu
+          items={builtInCodeEvaluators}
+          onAction={(key) => onAction(key as string)}
+        >
+          {(evaluator) => (
+            <MenuItem key={evaluator.id} id={evaluator.id}>
+              {evaluator.name}
+            </MenuItem>
+          )}
+        </Menu>
+      </MenuContainer>
+    </SubmenuTrigger>
   );
 };
