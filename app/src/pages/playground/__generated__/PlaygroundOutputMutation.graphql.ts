@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e6cd1e4cc0e90e7ba3e4010f753db0bf>>
+ * @generated SignedSource<<406bba39bc51c74b3ff1c68903d0086e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -63,17 +63,20 @@ export type PlaygroundOutputMutation$variables = {
 export type PlaygroundOutputMutation$data = {
   readonly chatCompletion: {
     readonly __typename: "ChatCompletionMutationPayload";
-    readonly content: string | null;
-    readonly errorMessage: string | null;
-    readonly span: {
-      readonly id: string;
-    };
-    readonly toolCalls: ReadonlyArray<{
-      readonly function: {
-        readonly arguments: string;
-        readonly name: string;
-      };
-      readonly id: string;
+    readonly repetitions: ReadonlyArray<{
+      readonly content: string | null;
+      readonly errorMessage: string | null;
+      readonly repetitionNumber: number;
+      readonly span: {
+        readonly id: string;
+      } | null;
+      readonly toolCalls: ReadonlyArray<{
+        readonly function: {
+          readonly arguments: string;
+          readonly name: string;
+        };
+        readonly id: string;
+      }>;
     }>;
   };
 };
@@ -122,58 +125,76 @@ v2 = [
       {
         "alias": null,
         "args": null,
-        "kind": "ScalarField",
-        "name": "content",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "errorMessage",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Span",
+        "concreteType": "ChatCompletionRepetition",
         "kind": "LinkedField",
-        "name": "span",
-        "plural": false,
-        "selections": [
-          (v1/*: any*/)
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "ChatCompletionToolCall",
-        "kind": "LinkedField",
-        "name": "toolCalls",
+        "name": "repetitions",
         "plural": true,
         "selections": [
-          (v1/*: any*/),
           {
             "alias": null,
             "args": null,
-            "concreteType": "ChatCompletionFunctionCall",
+            "kind": "ScalarField",
+            "name": "repetitionNumber",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "content",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "errorMessage",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Span",
             "kind": "LinkedField",
-            "name": "function",
+            "name": "span",
             "plural": false,
             "selections": [
+              (v1/*: any*/)
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "ChatCompletionToolCall",
+            "kind": "LinkedField",
+            "name": "toolCalls",
+            "plural": true,
+            "selections": [
+              (v1/*: any*/),
               {
                 "alias": null,
                 "args": null,
-                "kind": "ScalarField",
-                "name": "name",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "arguments",
+                "concreteType": "ChatCompletionFunctionCall",
+                "kind": "LinkedField",
+                "name": "function",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "name",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "arguments",
+                    "storageKey": null
+                  }
+                ],
                 "storageKey": null
               }
             ],
@@ -204,16 +225,16 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "9dc63d3e40081b276c1cbd5f21405c6f",
+    "cacheID": "259654f688f4618f00b667c0a75b02dd",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundOutputMutation(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    content\n    errorMessage\n    span {\n      id\n    }\n    toolCalls {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundOutputMutation(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    repetitions {\n      repetitionNumber\n      content\n      errorMessage\n      span {\n        id\n      }\n      toolCalls {\n        id\n        function {\n          name\n          arguments\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "085e7cb2bebd2c6c6e44b511364c6dd9";
+(node as any).hash = "4d687fac3a1b0a13292c96cb6827c1bc";
 
 export default node;

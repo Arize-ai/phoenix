@@ -1,6 +1,3 @@
-import { useMemo } from "react";
-import { useSearchParams } from "react-router";
-
 import {
   Button,
   Dialog,
@@ -21,12 +18,6 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 export function PlaygroundConfigButton() {
-  const [searchParams] = useSearchParams();
-  const hasSelectedDataset = useMemo(() => {
-    const datasetId = searchParams.get("datasetId");
-    const hasSelectedDataset = datasetId != null;
-    return hasSelectedDataset;
-  }, [searchParams]);
   const streaming = usePlaygroundContext((state) => state.streaming);
   const repetitions = usePlaygroundContext((state) => state.repetitions);
   const setStreaming = usePlaygroundContext((state) => state.setStreaming);
@@ -58,24 +49,20 @@ export function PlaygroundConfigButton() {
               overflow="visible" // prevents the halo around the slider thumb from being clipped
             >
               <Flex direction="column" gap="size-200">
-                {hasSelectedDataset && (
-                  <>
-                    <Slider
-                      defaultValue={1}
-                      label="Repetitions"
-                      minValue={1}
-                      maxValue={30}
-                      value={repetitions}
-                      onChange={setRepetitions}
-                    >
-                      <SliderNumberField />
-                    </Slider>
-                    <Text color="text-700" size="XS">
-                      Increase the number of repetitions to run each experiment
-                      task multiple times.
-                    </Text>
-                  </>
-                )}
+                <Slider
+                  defaultValue={1}
+                  label="Repetitions"
+                  minValue={1}
+                  maxValue={30}
+                  value={repetitions}
+                  onChange={setRepetitions}
+                >
+                  <SliderNumberField />
+                </Slider>
+                <Text color="text-700" size="XS">
+                  Increase the number of repetitions to run each experiment task
+                  multiple times.
+                </Text>
                 <Flex direction="row" justifyContent="start">
                   <Switch
                     labelPlacement="start"

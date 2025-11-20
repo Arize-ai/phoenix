@@ -148,7 +148,7 @@ const playgroundPromptPanelContentCSS = css`
       display: flex;
       flex-direction: column;
       overflow-x: hidden;
-      overflow-y: auto;
+      overflow-y: hidden;
       flex: 1 1 auto;
       // prevent the accordion item header from growing to fill the accordion item
       // using two selectors as fallback just incase the component lib changes subtly

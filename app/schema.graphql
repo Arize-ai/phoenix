@@ -251,18 +251,9 @@ enum ChatCompletionMessageRole {
   AI
 }
 
-type ChatCompletionMutationError {
-  message: String!
-}
-
 type ChatCompletionMutationPayload {
-  content: String
-  toolCalls: [ChatCompletionToolCall!]!
-  span: Span!
-  errorMessage: String
+  repetitions: [ChatCompletionRepetition!]!
 }
-
-union ChatCompletionMutationPayloadChatCompletionMutationError = ChatCompletionMutationPayload | ChatCompletionMutationError
 
 input ChatCompletionOverDatasetInput {
   messages: [ChatCompletionMessageInput!]!
@@ -285,7 +276,7 @@ type ChatCompletionOverDatasetMutationExamplePayload {
   datasetExampleId: ID!
   repetitionNumber: Int!
   experimentRunId: ID!
-  result: ChatCompletionMutationPayloadChatCompletionMutationError!
+  repetition: ChatCompletionRepetition!
 }
 
 type ChatCompletionOverDatasetMutationPayload {
@@ -293,6 +284,14 @@ type ChatCompletionOverDatasetMutationPayload {
   datasetVersionId: ID!
   experimentId: ID!
   examples: [ChatCompletionOverDatasetMutationExamplePayload!]!
+}
+
+type ChatCompletionRepetition {
+  repetitionNumber: Int!
+  content: String
+  toolCalls: [ChatCompletionToolCall!]!
+  span: Span
+  errorMessage: String
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {

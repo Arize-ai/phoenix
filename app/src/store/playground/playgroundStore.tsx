@@ -13,6 +13,7 @@ import {
   RESPONSE_FORMAT_PARAM_NAME,
   TOOL_CHOICE_PARAM_CANONICAL_NAME,
 } from "@phoenix/pages/playground/constants";
+import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 import {
   areInvocationParamsEqual,
   constrainInvocationParameterInputsToDefinition,
@@ -25,14 +26,16 @@ import {
   convertInstanceToolsToProvider,
   convertMessageToolCallsToProvider,
 } from "./playgroundStoreUtils";
-import {
+import type {
   ChatMessage,
   GenAIOperationType,
   InitialPlaygroundState,
   PlaygroundChatTemplate,
+  PlaygroundError,
   PlaygroundInstance,
   PlaygroundNormalizedChatTemplate,
   PlaygroundNormalizedInstance,
+  PlaygroundRepetitionStatus,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
 } from "./types";
@@ -138,8 +141,15 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
-    output: undefined,
-    spanId: null,
+    repetitions: {
+      1: {
+        output: null,
+        spanId: null,
+        error: null,
+        status: "notStarted",
+        toolCalls: {},
+      },
+    },
     activeRunId: null,
   }) satisfies Partial<PlaygroundInstance>;
 
@@ -157,6 +167,7 @@ export function createNormalizedPlaygroundInstance() {
       id: generateInstanceId(),
       template: normalizedTemplate.template,
       ...DEFAULT_INSTANCE_PARAMS(),
+      selectedRepetitionNumber: 1,
     } as PlaygroundNormalizedInstance,
     instanceMessages: normalizedTemplate.messages,
   };
@@ -238,7 +249,10 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
 
 export const createPlaygroundStore = (props: InitialPlaygroundState) => {
   const { instances, instanceMessages } = getInitialInstances(props);
-  const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
+  const playgroundStore: StateCreator<
+    PlaygroundState,
+    [["zustand/devtools", never]]
+  > = (set, get) => ({
     streaming: true,
     repetitions: 1,
     operationType: "chat",
@@ -255,7 +269,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     instances,
     allInstanceMessages: instanceMessages,
     setInput: (input) => {
-      set({ input });
+      set({ input }, false, { type: "setInput" });
     },
     setOperationType: (operationType: GenAIOperationType) => {
       if (operationType === "chat") {
@@ -273,19 +287,27 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             template: normalizedTemplate.template,
           });
         });
-        set({
-          instances: normalizedInstances,
-          allInstanceMessages: messageMap,
-        });
+        set(
+          {
+            instances: normalizedInstances,
+            allInstanceMessages: messageMap,
+          },
+          false,
+          { type: "setOperationType/chat" }
+        );
       } else {
-        set({
-          instances: get().instances.map((instance) => ({
-            ...instance,
-            template: DEFAULT_TEXT_COMPLETION_TEMPLATE,
-          })),
-        });
+        set(
+          {
+            instances: get().instances.map((instance) => ({
+              ...instance,
+              template: DEFAULT_TEXT_COMPLETION_TEMPLATE,
+            })),
+          },
+          false,
+          { type: "setOperationType/text_completion" }
+        );
       }
-      set({ operationType });
+      set({ operationType }, false, { type: "setOperationType" });
     },
     addInstance: () => {
       const instances = get().instances;
@@ -313,30 +335,34 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           {} as Record<number, ChatMessage>
         );
       }
-      set({
-        allInstanceMessages: {
-          ...instanceMessages,
-          ...newMessageMap,
-        },
-        instances: [
-          ...instances,
-          {
-            ...firstInstance,
-            ...(firstInstance.template.__type === "chat"
-              ? {
-                  template: {
-                    ...firstInstance.template,
-                    messageIds: newMessageIds,
-                  },
-                }
-              : {}),
-            id: generateInstanceId(),
-            activeRunId: null,
-            experimentId: null,
-            spanId: null,
+      set(
+        {
+          allInstanceMessages: {
+            ...instanceMessages,
+            ...newMessageMap,
           },
-        ],
-      });
+          instances: [
+            ...instances,
+            {
+              ...firstInstance,
+              ...(firstInstance.template.__type === "chat"
+                ? {
+                    template: {
+                      ...firstInstance.template,
+                      messageIds: newMessageIds,
+                    },
+                  }
+                : {}),
+              id: generateInstanceId(),
+              activeRunId: null,
+              experimentId: null,
+              repetitions: {},
+            },
+          ],
+        },
+        false,
+        { type: "addInstance" }
+      );
     },
     updateModelSupportedInvocationParameters: ({
       instanceId,
@@ -344,48 +370,52 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       modelConfigByProvider,
     }) => {
       const instances = get().instances;
-      set({
-        instances: instances.map((instance) => {
-          if (instance.id === instanceId) {
-            // if we have top level model config for the provider, merge it in
-            // this allows us to populate default values for baseUrl, endpoint, and apiVersion
-            // when the user has saved an azure prompt and we load it back in
-            const { baseUrl, endpoint, apiVersion, region } =
-              modelConfigByProvider[instance.model.provider] ?? {};
-            // ensure that the invocation parameters are only the ones that are supported by the model
-            const filteredInvocationParameters =
-              constrainInvocationParameterInputsToDefinition(
-                instance.model.invocationParameters,
-                supportedInvocationParameters
-              );
-            // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
-            const mergedInvocationParameters =
-              mergeInvocationParametersWithDefaults(
-                filteredInvocationParameters,
-                supportedInvocationParameters
-              );
-            return {
-              ...instance,
-              model: {
-                ...instance.model,
-                baseUrl: instance.model.baseUrl ?? baseUrl,
-                endpoint: instance.model.endpoint ?? endpoint,
-                apiVersion: instance.model.apiVersion ?? apiVersion,
-                region: instance.model.region ?? region,
-                supportedInvocationParameters,
-                invocationParameters: mergedInvocationParameters,
-              },
-              // Delete tools if the model does not support tool choice
-              tools: supportedInvocationParameters.find(
-                (p) => p.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME
-              )
-                ? instance.tools
-                : [],
-            };
-          }
-          return instance;
-        }),
-      });
+      set(
+        {
+          instances: instances.map((instance) => {
+            if (instance.id === instanceId) {
+              // if we have top level model config for the provider, merge it in
+              // this allows us to populate default values for baseUrl, endpoint, and apiVersion
+              // when the user has saved an azure prompt and we load it back in
+              const { baseUrl, endpoint, apiVersion, region } =
+                modelConfigByProvider[instance.model.provider] ?? {};
+              // ensure that the invocation parameters are only the ones that are supported by the model
+              const filteredInvocationParameters =
+                constrainInvocationParameterInputsToDefinition(
+                  instance.model.invocationParameters,
+                  supportedInvocationParameters
+                );
+              // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
+              const mergedInvocationParameters =
+                mergeInvocationParametersWithDefaults(
+                  filteredInvocationParameters,
+                  supportedInvocationParameters
+                );
+              return {
+                ...instance,
+                model: {
+                  ...instance.model,
+                  baseUrl: instance.model.baseUrl ?? baseUrl,
+                  endpoint: instance.model.endpoint ?? endpoint,
+                  apiVersion: instance.model.apiVersion ?? apiVersion,
+                  region: instance.model.region ?? region,
+                  supportedInvocationParameters,
+                  invocationParameters: mergedInvocationParameters,
+                },
+                // Delete tools if the model does not support tool choice
+                tools: supportedInvocationParameters.find(
+                  (p) => p.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME
+                )
+                  ? instance.tools
+                  : [],
+              };
+            }
+            return instance;
+          }),
+        },
+        false,
+        { type: "updateModelSupportedInvocationParameters" }
+      );
     },
     updateProvider: ({ instanceId, provider, modelConfigByProvider }) => {
       const instances = get().instances;
@@ -477,25 +507,29 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           }
         });
       }
-      set({
-        allInstanceMessages: {
-          ...get().allInstanceMessages,
-          ...messageMapPatch,
+      set(
+        {
+          allInstanceMessages: {
+            ...get().allInstanceMessages,
+            ...messageMapPatch,
+          },
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: true,
+          },
+          instances: instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                ...patch,
+              };
+            }
+            return instance;
+          }),
         },
-        dirtyInstances: {
-          ...get().dirtyInstances,
-          [instanceId]: true,
-        },
-        instances: instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              ...patch,
-            };
-          }
-          return instance;
-        }),
-      });
+        false,
+        { type: "updateProvider" }
+      );
     },
     updateModel: ({ instanceId, patch }) => {
       const instances = get().instances;
@@ -503,34 +537,42 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       if (!instance) {
         return;
       }
-      set({
-        dirtyInstances: {
-          ...get().dirtyInstances,
-          [instanceId]: true,
+      set(
+        {
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: true,
+          },
+          instances: instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                model: {
+                  ...instance.model,
+                  ...patch,
+                },
+              };
+            }
+            return instance;
+          }),
         },
-        instances: instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              model: {
-                ...instance.model,
-                ...patch,
-              },
-            };
-          }
-          return instance;
-        }),
-      });
+        false,
+        { type: "updateModel" }
+      );
     },
     deleteInstance: (instanceId: number) => {
       const instances = get().instances;
-      set({
-        instances: instances.filter((instance) => instance.id !== instanceId),
-        dirtyInstances: {
-          ...get().dirtyInstances,
-          [instanceId]: false,
+      set(
+        {
+          instances: instances.filter((instance) => instance.id !== instanceId),
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: false,
+          },
         },
-      });
+        false,
+        { type: "deleteInstance" }
+      );
     },
     addMessage: ({ playgroundInstanceId, messages }) => {
       const instances = get().instances;
@@ -550,160 +592,243 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       }
 
       // Update the given instance
-      set({
-        allInstanceMessages: {
-          ...get().allInstanceMessages,
-          ...newMessages.reduce(
-            (acc, message) => {
-              acc[message.id] = message;
-              return acc;
-            },
-            {} as Record<number, ChatMessage>
-          ),
-        },
-        dirtyInstances: {
-          ...get().dirtyInstances,
-          [playgroundInstanceId]: true,
-        },
-        instances: instances.map((instance) => {
-          if (
-            instance.id === playgroundInstanceId &&
-            instance?.template &&
-            instance?.template.__type === "chat"
-          ) {
-            return {
-              ...instance,
-              template: {
-                ...instance.template,
-                messageIds: [
-                  ...instance.template.messageIds,
-                  ...newMessages.map((message) => message.id),
-                ],
+      set(
+        {
+          allInstanceMessages: {
+            ...get().allInstanceMessages,
+            ...newMessages.reduce(
+              (acc, message) => {
+                acc[message.id] = message;
+                return acc;
               },
-            };
-          }
-          return instance;
-        }),
-      });
+              {} as Record<number, ChatMessage>
+            ),
+          },
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [playgroundInstanceId]: true,
+          },
+          instances: instances.map((instance) => {
+            if (
+              instance.id === playgroundInstanceId &&
+              instance?.template &&
+              instance?.template.__type === "chat"
+            ) {
+              return {
+                ...instance,
+                template: {
+                  ...instance.template,
+                  messageIds: [
+                    ...instance.template.messageIds,
+                    ...newMessages.map((message) => message.id),
+                  ],
+                },
+              };
+            }
+            return instance;
+          }),
+        },
+        false,
+        { type: "addMessage" }
+      );
     },
     updateMessage: ({ messageId, patch, instanceId }) => {
       const allInstanceMessages = get().allInstanceMessages;
-      set({
-        allInstanceMessages: {
-          ...allInstanceMessages,
-          [messageId]: {
-            ...allInstanceMessages[messageId],
-            ...patch,
+      set(
+        {
+          allInstanceMessages: {
+            ...allInstanceMessages,
+            [messageId]: {
+              ...allInstanceMessages[messageId],
+              ...patch,
+            },
+          },
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: true,
           },
         },
-        dirtyInstances: {
-          ...get().dirtyInstances,
-          [instanceId]: true,
-        },
-      });
+        false,
+        { type: "updateMessage" }
+      );
     },
     deleteMessage: ({ instanceId, messageId }) => {
       const instances = get().instances;
       const allInstanceMessages = get().allInstanceMessages;
-      set({
-        allInstanceMessages: Object.fromEntries(
-          Object.entries(allInstanceMessages).filter(
-            ([, { id }]) => id !== messageId
-          )
-        ),
-        dirtyInstances: {
-          ...get().dirtyInstances,
-          [instanceId]: true,
+      set(
+        {
+          allInstanceMessages: Object.fromEntries(
+            Object.entries(allInstanceMessages).filter(
+              ([, { id }]) => id !== messageId
+            )
+          ),
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: true,
+          },
+          instances: instances.map((instance) => {
+            if (
+              instance.id === instanceId &&
+              instance?.template &&
+              instance?.template.__type === "chat"
+            ) {
+              return {
+                ...instance,
+                template: {
+                  ...instance.template,
+                  messageIds: instance.template.messageIds.filter(
+                    (id) => id !== messageId
+                  ),
+                },
+              };
+            }
+            return instance;
+          }),
         },
-        instances: instances.map((instance) => {
-          if (
-            instance.id === instanceId &&
-            instance?.template &&
-            instance?.template.__type === "chat"
-          ) {
-            return {
-              ...instance,
-              template: {
-                ...instance.template,
-                messageIds: instance.template.messageIds.filter(
-                  (id) => id !== messageId
-                ),
-              },
-            };
-          }
-          return instance;
-        }),
-      });
+        false,
+        { type: "deleteMessage" }
+      );
     },
+    setSelectedRepetitionNumber: (
+      instanceId: number,
+      repetitionNumber: number
+    ) => {
+      const instances = get().instances;
+      const instanceIndex = instances.findIndex(
+        (instance) => instance.id === instanceId
+      );
+      if (instanceIndex === -1) {
+        return;
+      }
+      set(
+        {
+          instances: instances.map((instance, idx) =>
+            idx === instanceIndex
+              ? { ...instance, selectedRepetitionNumber: repetitionNumber }
+              : instance
+          ),
+        },
+        false,
+        { type: "setSelectedRepetitionNumber" }
+      );
+    },
+
     updateInstance: ({ instanceId, patch, dirty }) => {
       const instances = get().instances;
-      set({
-        dirtyInstances: {
-          ...get().dirtyInstances,
-          ...(dirty != undefined ? { [instanceId]: dirty } : {}),
+      set(
+        {
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            ...(dirty != undefined ? { [instanceId]: dirty } : {}),
+          },
+          instances: instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                ...patch,
+              };
+            }
+            return instance;
+          }),
         },
-        instances: instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              ...patch,
-            };
-          }
-          return instance;
-        }),
-      });
+        false,
+        { type: "updateInstance" }
+      );
     },
     runPlaygroundInstances: () => {
       const instances = get().instances;
-      set({
-        instances: instances.map((instance) => ({
-          ...instance,
-          activeRunId: generateRunId(),
-          spanId: null, // Clear out the span when (re)running
-        })),
-      });
+      const repetitions = get().repetitions;
+      set(
+        {
+          instances: instances.map((instance) => ({
+            ...instance,
+            activeRunId: generateRunId(),
+            spanId: null, // Clear out the span when (re)running
+            repetitions: Object.fromEntries(
+              Array.from({ length: repetitions }, (_, i) => [
+                i + 1,
+                {
+                  output: null,
+                  spanId: null,
+                  error: null,
+                  status: "pending",
+                  toolCalls: {},
+                },
+              ])
+            ),
+            selectedRepetitionNumber: 1,
+          })),
+        },
+        false,
+        { type: "runPlaygroundInstances" }
+      );
     },
     cancelPlaygroundInstances: () => {
       const instances = get().instances;
-      set({
-        instances: instances.map((instance) => ({
-          ...instance,
-          activeRunId: null,
-          spanId: null,
-        })),
-      });
+      set(
+        {
+          instances: instances.map((instance) => ({
+            ...instance,
+            activeRunId: null,
+            spanId: null,
+            repetitions: Object.fromEntries(
+              Object.entries(instance.repetitions).map(
+                ([repetitionNumber, repetition]) => [
+                  repetitionNumber,
+                  repetition
+                    ? {
+                        ...repetition,
+                        status: "finished",
+                      }
+                    : undefined,
+                ]
+              )
+            ),
+          })),
+        },
+        false,
+        { type: "cancelPlaygroundInstances" }
+      );
     },
     markPlaygroundInstanceComplete: (instanceId: number) => {
       const instances = get().instances;
-      set({
-        instances: instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              activeRunId: null,
-            };
-          }
-          return instance;
-        }),
-      });
+      set(
+        {
+          instances: instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                activeRunId: null,
+              };
+            }
+            return instance;
+          }),
+        },
+        false,
+        { type: "markPlaygroundInstanceComplete" }
+      );
     },
     setTemplateFormat: (templateFormat: TemplateFormat) => {
-      set({ templateFormat });
+      set({ templateFormat }, false, { type: "setTemplateFormat" });
     },
     setVariableValue: (key: string, value: string) => {
       const input = get().input;
-      set({
-        input: {
-          ...input,
-          variablesValueCache: { ...input.variablesValueCache, [key]: value },
+      set(
+        {
+          input: {
+            ...input,
+            variablesValueCache: { ...input.variablesValueCache, [key]: value },
+          },
         },
-      });
+        false,
+        { type: "setVariableValue" }
+      );
     },
     setStreaming: (streaming: boolean) => {
-      set({ streaming });
+      set({ streaming }, false, { type: "setStreaming" });
     },
     setRepetitions: (repetitions: number) => {
-      set({ repetitions });
+      set({ repetitions }, false, { type: "setRepetitions" });
     },
     updateInstanceModelInvocationParameters: ({
       instanceId,
@@ -713,21 +838,25 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       if (!instance) {
         return;
       }
-      set({
-        dirtyInstances: {
-          ...get().dirtyInstances,
-          [instanceId]: true,
+      set(
+        {
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: true,
+          },
+          instances: get().instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                model: { ...instance.model, invocationParameters },
+              };
+            }
+            return instance;
+          }),
         },
-        instances: get().instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              model: { ...instance.model, invocationParameters },
-            };
-          }
-          return instance;
-        }),
-      });
+        false,
+        { type: "updateInstanceModelInvocationParameters" }
+      );
     },
     upsertInvocationParameterInput: ({
       instanceId,
@@ -743,51 +872,59 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         );
 
       if (currentInvocationParameterInput) {
-        set({
-          dirtyInstances: {
-            ...get().dirtyInstances,
-            [instanceId]: true,
+        set(
+          {
+            dirtyInstances: {
+              ...get().dirtyInstances,
+              [instanceId]: true,
+            },
+            instances: get().instances.map((instance) => {
+              if (instance.id === instanceId) {
+                return {
+                  ...instance,
+                  model: {
+                    ...instance.model,
+                    invocationParameters:
+                      instance.model.invocationParameters.map((p) =>
+                        areInvocationParamsEqual(p, invocationParameterInput)
+                          ? invocationParameterInput
+                          : p
+                      ),
+                  },
+                };
+              }
+              return instance;
+            }),
           },
-          instances: get().instances.map((instance) => {
-            if (instance.id === instanceId) {
-              return {
-                ...instance,
-                model: {
-                  ...instance.model,
-                  invocationParameters: instance.model.invocationParameters.map(
-                    (p) =>
-                      areInvocationParamsEqual(p, invocationParameterInput)
-                        ? invocationParameterInput
-                        : p
-                  ),
-                },
-              };
-            }
-            return instance;
-          }),
-        });
+          false,
+          { type: "upsertInvocationParameterInput/update" }
+        );
       } else {
-        set({
-          dirtyInstances: {
-            ...get().dirtyInstances,
-            [instanceId]: true,
+        set(
+          {
+            dirtyInstances: {
+              ...get().dirtyInstances,
+              [instanceId]: true,
+            },
+            instances: get().instances.map((instance) => {
+              if (instance.id === instanceId) {
+                return {
+                  ...instance,
+                  model: {
+                    ...instance.model,
+                    invocationParameters: [
+                      ...instance.model.invocationParameters,
+                      invocationParameterInput,
+                    ],
+                  },
+                };
+              }
+              return instance;
+            }),
           },
-          instances: get().instances.map((instance) => {
-            if (instance.id === instanceId) {
-              return {
-                ...instance,
-                model: {
-                  ...instance.model,
-                  invocationParameters: [
-                    ...instance.model.invocationParameters,
-                    invocationParameterInput,
-                  ],
-                },
-              };
-            }
-            return instance;
-          }),
-        });
+          false,
+          { type: "upsertInvocationParameterInput/insert" }
+        );
       }
     },
     deleteInvocationParameterInput: ({
@@ -798,40 +935,278 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       if (!instance) {
         return;
       }
-      set({
-        dirtyInstances: {
-          ...get().dirtyInstances,
-          [instanceId]: true,
+      set(
+        {
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: true,
+          },
+          instances: get().instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                model: {
+                  ...instance.model,
+                  invocationParameters:
+                    instance.model.invocationParameters.filter(
+                      (p) =>
+                        p.invocationName !==
+                        invocationParameterInputInvocationName
+                    ),
+                },
+              };
+            }
+            return instance;
+          }),
         },
-        instances: get().instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              model: {
-                ...instance.model,
-                invocationParameters:
-                  instance.model.invocationParameters.filter(
-                    (p) =>
-                      p.invocationName !==
-                      invocationParameterInputInvocationName
-                  ),
-              },
-            };
-          }
-          return instance;
-        }),
-      });
+        false,
+        { type: "deleteInvocationParameterInput" }
+      );
     },
     setDirty: (instanceId: number, dirty: boolean) => {
-      set({
-        dirtyInstances: {
-          ...get().dirtyInstances,
-          [instanceId]: dirty,
+      set(
+        {
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: dirty,
+          },
         },
-      });
+        false,
+        { type: "setDirty" }
+      );
+    },
+    appendRepetitionOutput: (
+      instanceId: number,
+      repetitionNumber: number,
+      content: string
+    ) => {
+      const instances = get().instances;
+      const instance = instances.find((instance) => instance.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set(
+        {
+          instances: instances.map((instance) => {
+            if (instance.id === instanceId) {
+              const repetition = instance.repetitions[repetitionNumber];
+              return {
+                ...instance,
+                repetitions: {
+                  ...instance.repetitions,
+                  [repetitionNumber]: repetition
+                    ? {
+                        ...repetition,
+                        output: (repetition.output || "") + content,
+                      }
+                    : undefined,
+                },
+              };
+            }
+            return instance;
+          }),
+        },
+        false,
+        { type: "appendRepetitionOutput" }
+      );
+    },
+    setRepetitionError: (
+      instanceId: number,
+      repetitionNumber: number,
+      error: PlaygroundError
+    ) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const repetition = instance.repetitions[repetitionNumber];
+            const updated = {
+              ...instance,
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
+                  ? {
+                      ...repetition,
+                      error,
+                    }
+                  : undefined,
+              },
+            };
+            return updated;
+          }),
+        },
+        false,
+        { type: "setRepetitionError" }
+      );
+    },
+    setRepetitionStatus: (
+      instanceId: number,
+      repetitionNumber: number,
+      status: PlaygroundRepetitionStatus
+    ) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const repetition = instance.repetitions[repetitionNumber];
+            const updated = {
+              ...instance,
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
+                  ? {
+                      ...repetition,
+                      status,
+                    }
+                  : undefined,
+              },
+            };
+            return updated;
+          }),
+        },
+        false,
+        { type: "setRepetitionStatus" }
+      );
+    },
+    addRepetitionPartialToolCall: (
+      instanceId: number,
+      repetitionNumber: number,
+      partialToolCall: PartialOutputToolCall
+    ) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const repetition = instance.repetitions[repetitionNumber];
+            const toolCalls = repetition?.toolCalls ?? {};
+            const updatedToolCalls =
+              partialToolCall.id in toolCalls
+                ? {
+                    ...toolCalls,
+                    [partialToolCall.id]: {
+                      ...toolCalls[partialToolCall.id],
+                      function: {
+                        ...partialToolCall.function,
+                        arguments:
+                          toolCalls[partialToolCall.id].function.arguments +
+                          partialToolCall.function.arguments,
+                      },
+                    },
+                  }
+                : {
+                    ...toolCalls,
+                    [partialToolCall.id]: partialToolCall,
+                  };
+            return {
+              ...instance,
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
+                  ? {
+                      ...repetition,
+                      toolCalls: updatedToolCalls,
+                    }
+                  : undefined,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "addRepetitionPartialToolCall" }
+      );
+    },
+    setRepetitionToolCalls: (
+      instanceId: number,
+      repetitionNumber: number,
+      toolCalls: PartialOutputToolCall[]
+    ) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const repetition = instance.repetitions[repetitionNumber];
+            const toolCallsById = toolCalls.reduce(
+              (acc, toolCall) => {
+                acc[toolCall.id] = toolCall;
+                return acc;
+              },
+              {} as Record<string, PartialOutputToolCall>
+            );
+            return {
+              ...instance,
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
+                  ? {
+                      ...repetition,
+                      toolCalls: toolCallsById,
+                    }
+                  : undefined,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "setRepetitionToolCalls" }
+      );
+    },
+    clearRepetitions: (instanceId: number) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            return {
+              ...instance,
+              repetitions: {},
+            };
+          }),
+        },
+        false,
+        { type: "clearRepetitions" }
+      );
+    },
+    setRepetitionSpanId: (
+      instanceId: number,
+      repetitionNumber: number,
+      spanId: string
+    ) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const repetition = instance.repetitions[repetitionNumber];
+            return {
+              ...instance,
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
+                  ? {
+                      ...repetition,
+                      spanId,
+                    }
+                  : undefined,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "setRepetitionSpanId" }
+      );
     },
   });
-  return create(devtools(playgroundStore));
+  return create(devtools(playgroundStore, { name: "playgroundStore" }));
 };
 
 export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;
