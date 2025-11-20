@@ -239,7 +239,7 @@ Extract retrieved documents from retriever spans for relevance evaluation:
 
 ```python
 from phoenix.client import Client
-from phoenix.client.helpers.evaluation import get_retrieved_documents
+from phoenix.client.helpers.spans import get_retrieved_documents
 
 client = Client()
 
@@ -274,7 +274,7 @@ relevance_results = run_evals(
 Extract Q&A pairs with reference context for hallucination and QA evaluation:
 
 ```python
-from phoenix.client.helpers.evaluation import get_input_output_context
+from phoenix.client.helpers.spans import get_input_output_context
 from phoenix.evals import HallucinationEvaluator, QAEvaluator
 
 # Extract Q&A with context documents

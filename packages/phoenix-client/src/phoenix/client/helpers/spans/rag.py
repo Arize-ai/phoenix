@@ -38,7 +38,7 @@ def _build_retrieved_documents_query() -> SpanQuery:
         .rename(**INPUT)
         .explode(
             RETRIEVAL_DOCUMENTS,
-            context=DOCUMENT_CONTENT,
+            document=DOCUMENT_CONTENT,
             document_score=DOCUMENT_SCORE,
             document_metadata=DOCUMENT_METADATA,
         )
@@ -88,7 +88,7 @@ def get_retrieved_documents(
             and columns:
             - context.trace_id: Trace ID
             - input: Input value from the retriever span
-            - context: Document content
+            - document: Document content
             - document_score: Document relevance score
             - document_metadata: Document metadata
 
@@ -96,7 +96,7 @@ def get_retrieved_documents(
         Basic usage::
 
             from phoenix.client import Client
-            from phoenix.client.helpers.evaluation import get_retrieved_documents
+            from phoenix.client.helpers.spans import get_retrieved_documents
 
             client = Client()
             docs_df = get_retrieved_documents(client, project_name="my-rag-app")
@@ -159,7 +159,7 @@ def get_input_output_context(
         Basic usage::
 
             from phoenix.client import Client
-            from phoenix.client.helpers.evaluation import get_input_output_context
+            from phoenix.client.helpers.spans import get_input_output_context
 
             client = Client()
             qa_df = get_input_output_context(client, project_name="my-rag-app")
@@ -256,7 +256,7 @@ def get_qa_with_reference(
         Basic usage::
 
             from phoenix.client import Client
-            from phoenix.client.helpers.evaluation import get_input_output_context
+            from phoenix.client.helpers.spans import get_input_output_context
 
             client = Client()
             qa_df = get_input_output_context(client, project_name="my-rag-app")
@@ -325,7 +325,7 @@ async def async_get_retrieved_documents(
         Basic usage::
 
             from phoenix.client import AsyncClient
-            from phoenix.client.helpers.evaluation import async_get_retrieved_documents
+            from phoenix.client.helpers.spans import async_get_retrieved_documents
 
             client = AsyncClient()
             docs_df = await async_get_retrieved_documents(client, project_name="my-rag-app")
@@ -376,7 +376,7 @@ async def async_get_input_output_context(
         Basic usage::
 
             from phoenix.client import AsyncClient
-            from phoenix.client.helpers.evaluation import async_get_input_output_context
+            from phoenix.client.helpers.spans import async_get_input_output_context
 
             client = AsyncClient()
             qa_df = await async_get_input_output_context(client, project_name="my-rag-app")

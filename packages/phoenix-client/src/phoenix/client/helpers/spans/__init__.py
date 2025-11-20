@@ -6,12 +6,23 @@ from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from phoenix.client.__generated__ import v1
 
+from .rag import (
+    get_input_output_context,
+    get_retrieved_documents,
+)
+
 Span = v1.Span
 
 if TYPE_CHECKING:
     import pandas as pd
 
-__all__ = ["uniquify_spans", "uniquify_spans_dataframe", "dataframe_to_spans"]
+__all__ = [
+    "uniquify_spans",
+    "uniquify_spans_dataframe",
+    "dataframe_to_spans",
+    "get_input_output_context",
+    "get_retrieved_documents",
+]
 
 # Source implementation:opentelemetry.sdk.trace.id_generator.RandomIdGenerator
 
