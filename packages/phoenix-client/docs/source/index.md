@@ -252,30 +252,31 @@ retrieved_docs_df = get_retrieved_documents(
 # Each row is a retrieved document with its metadata
 print(retrieved_docs_df.head())
 # Index: context.span_id, document_position
-# Columns: context.trace_id, input, reference, document_score, document_metadata
+# Columns: context.trace_id, input, document, document_score, document_metadata
 
 # Use with phoenix.evals for relevance evaluation
-from phoenix.evals import RelevanceEvaluator, run_evals
-from phoenix.evals import OpenAIModel
+from phoenix.evals import LLM, async_evaluate_dataframe
+from phoenix.evals.metrics import DocumentRelevanceEvaluator
 
-eval_model = OpenAIModel(model="gpt-4o")
-relevance_evaluator = RelevanceEvaluator(eval_model)
+llm = LLM(model="gpt-4o", provider="openai")
+relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
 
-relevance_results = run_evals(
-    evaluators=[relevance_evaluator],
+relevance_results = await async_evaluate_dataframe(
     dataframe=retrieved_docs_df,
-    provide_explanation=True,
-    concurrency=5,
-)[0]
+    evaluators=[relevance_evaluator],
+    concurrency=10,
+    exit_on_error=True,
+)
+relevance_results.head()
 ```
 
 #### RAG Q&A Evaluation
 
-Extract Q&A pairs with reference context for hallucination and QA evaluation:
+Extract Q&A pairs with reference context for hallucination evaluation:
 
 ```python
 from phoenix.client.helpers.spans import get_input_output_context
-from phoenix.evals import HallucinationEvaluator, QAEvaluator
+from phoenix.evals.metrics import HallucinationEvaluator
 
 # Extract Q&A with context documents
 qa_df = get_input_output_context(
@@ -285,27 +286,24 @@ qa_df = get_input_output_context(
 
 # Each row combines a Q&A pair with concatenated retrieval documents
 # Index: context.span_id
-# Columns: input, output, context, metadata
+# Columns: context.trace_id, input, output, context, metadata
 if qa_df is not None:
     print(qa_df.head())
 
-    # Run Q&A correctness and hallucination evaluations
-    qa_evaluator = QAEvaluator(eval_model)
-    hallucination_evaluator = HallucinationEvaluator(eval_model)
+    # Run hallucination evaluations
+    hallucination_evaluator = HallucinationEvaluator(llm=llm)
 
-    qa_correctness, hallucination_results = run_evals(
-        evaluators=[qa_evaluator, hallucination_evaluator],
+    hallucination_results = await async_evaluate_dataframe(
         dataframe=qa_df,
-        provide_explanation=True,
-        concurrency=5,
+        evaluators=[hallucination_evaluator],
+        concurrency=10,
+        exit_on_error=True,
     )
+    hallucination_results.head()
 
-    # View results
-    print(f"QA Correctness: {qa_correctness['score'].mean():.2f}")
-    print(f"Hallucination Rate: {hallucination_results['score'].mean():.2f}")
 ```
 
-#### Time-Filtered Evaluation
+#### Time-Filtered RAG Spans
 
 Filter spans by time range for evaluation:
 
