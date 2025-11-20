@@ -133,6 +133,7 @@ export const EvaluatorsTable = ({
   refetch,
   onRowClick,
 }: EvaluatorsTableProps) => {
+  "use no memo";
   const {
     selectedEvaluatorIds,
     setSelectedEvaluatorIds,
@@ -239,6 +240,7 @@ export const EvaluatorsTable = ({
     },
     [setSelectedEvaluatorIds]
   );
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
