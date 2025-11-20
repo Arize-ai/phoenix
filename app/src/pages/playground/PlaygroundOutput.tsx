@@ -434,6 +434,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       onCompleted: handleChatCompletionMutationPayload,
       onError(error) {
         markPlaygroundInstanceComplete(props.playgroundInstanceId);
+        clearRepetitions(instanceId);
         const errorMessages = getErrorMessagesFromRelayMutationError(error);
         if (errorMessages != null && errorMessages.length > 0) {
           notifyError({
@@ -455,6 +456,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     environment,
     generateChatCompletion,
     instanceId,
+    clearRepetitions,
     markPlaygroundInstanceComplete,
     notifyError,
     handleChatCompletionMutationPayload,
