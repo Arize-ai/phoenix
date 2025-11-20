@@ -133,15 +133,16 @@ class TestEvaluationHelpersRag:
 
         project_name = _existing_project.name
 
+        client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
+        client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+
         # No spans logged
         docs_df: pd.DataFrame
         if is_async:
-            client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
             docs_df = await _await_or_return(
                 cast(Any, async_get_retrieved_documents(client_async, project_name=project_name))
             )
         else:
-            client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
             docs_df = await _await_or_return(
                 cast(Any, get_retrieved_documents(client_sync, project_name=project_name))
             )
@@ -150,12 +151,10 @@ class TestEvaluationHelpersRag:
 
         qa_df: Optional[pd.DataFrame]
         if is_async:
-            client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
             qa_df = await _await_or_return(
                 cast(Any, async_get_input_output_context(client_async, project_name=project_name))
             )
         else:
-            client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
             qa_df = await _await_or_return(
                 cast(Any, get_input_output_context(client_sync, project_name=project_name))
             )
@@ -180,10 +179,8 @@ class TestEvaluationHelpersRag:
             get_retrieved_documents,
         )
 
-        if is_async:
-            client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-        else:
-            client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+        client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
+        client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
         project_name = _existing_project.name
 
         trace_id = f"trace_retrieve_{token_hex(8)}"
@@ -254,10 +251,10 @@ class TestEvaluationHelpersRag:
         assert all(val == "what is X?" for val in df_docs_only["input"].tolist())
         # Content and score/metadata assertions when available
         if "document" in df_docs_only.columns:
-            documents = set(df_docs_only["document"].astype(str).tolist())
+            documents = set(df_docs_only["document"].astype(str).tolist())  # type: ignore[union-attr]
             assert "doc_1_content" in documents and "doc_2_content" in documents
         if "document_score" in df_docs_only.columns:
-            has_missing = any(pd.isna(s) for s in df_docs_only["document_score"].tolist())
+            has_missing = any(pd.isna(s) for s in df_docs_only["document_score"].tolist())  # type: ignore[arg-type]
             assert has_missing
 
     @pytest.mark.flaky(reruns=2, reruns_delay=1)
@@ -282,10 +279,8 @@ class TestEvaluationHelpersRag:
             get_retrieved_documents,
         )
 
-        if is_async:
-            client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-        else:
-            client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+        client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
+        client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
         project_name = _existing_project.name
 
         trace_id = f"trace_concat_{token_hex(8)}"
@@ -383,10 +378,10 @@ class TestEvaluationHelpersRag:
         assert qa_df2 is not None
         assert isinstance(qa_df2, pd.DataFrame)
         # Index should be context.span_id, which should include the root span
-        assert str(root_span_id) in qa_df2.index.astype(str)
+        assert str(root_span_id) in qa_df2.index.astype(str)  # type: ignore[operator]
         row = qa_df2.loc[str(root_span_id)]
-        assert row["input"] == "What is the capital of France?"
-        assert row["output"] == "Paris"
+        assert row["input"] == "What is the capital of France?"  # type: ignore[comparison-overlap]
+        assert row["output"] == "Paris"  # type: ignore[comparison-overlap]
         # Confirm concatenation contains both pieces and uses separator "\n\n"
         context_val = row["context"]
         assert isinstance(context_val, str)
@@ -395,7 +390,7 @@ class TestEvaluationHelpersRag:
         assert "\n\n" in context_val
         # Metadata is propagated
         assert (
-            "metadata" in row
+            "metadata" in row  # type: ignore[operator]
             and isinstance(row["metadata"], dict)
             and row["metadata"]["task"] == "geography"
         )
@@ -422,10 +417,8 @@ class TestEvaluationHelpersRag:
             get_retrieved_documents,
         )
 
-        if is_async:
-            client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-        else:
-            client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+        client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
+        client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
         project_name = _existing_project.name
 
         base_time = datetime.now(timezone.utc)
@@ -532,12 +525,12 @@ class TestEvaluationHelpersRag:
         # Should only include "late doc"
         if "document" in docs_df.columns:
             documents = (
-                set(docs_df["document"].astype(str).tolist()) if not docs_df.empty else set()
+                set(docs_df["document"].astype(str).tolist()) if not docs_df.empty else set()  # type: ignore[union-attr]
             )
             assert documents == {"late doc"}
         else:
             assert not docs_df.empty
-            assert set(docs_df["trace_id"].astype(str).tolist()) == {trace_late}
+            assert set(docs_df["trace_id"].astype(str).tolist()) == {trace_late}  # type: ignore[union-attr]
             assert docs_df.shape[0] == 1
 
         # Ensure retriever docs for the filtered window are visible first (handles lag)
@@ -611,6 +604,6 @@ class TestEvaluationHelpersRag:
         # Only the late root span should be present
         assert len(qa_df) == 1
         row = qa_df.iloc[0]
-        assert row["input"] == "late in time"
-        assert row["output"] == "late out"
+        assert row["input"] == "late in time"  # type: ignore[comparison-overlap]
+        assert row["output"] == "late out"  # type: ignore[comparison-overlap]
         assert "late doc" in row["context"]

@@ -204,13 +204,13 @@ def get_input_output_context(
         print("No retrieval documents found.")
         return None
 
-    ref: pd.Series[str] = df_docs.groupby("context.trace_id")["context"].apply(  # type: ignore[assignment,call-overload]
-        lambda x: separator.join(x.dropna())  # type: ignore[arg-type,union-attr]
+    ref: pd.Series[str] = df_docs.groupby("context.trace_id")["context"].apply(
+        lambda x: separator.join(x.dropna())
     )
     df_ref = pd.DataFrame({"context": ref})
-    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner")  # type: ignore[call-overload]
+    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner")
     # Reset index to preserve trace_id as a column, then set span_id as the index
-    df_qa_ref = df_qa_ref.reset_index().set_index("context.span_id")  # type: ignore[call-overload]
+    df_qa_ref = df_qa_ref.reset_index().set_index("context.span_id")
     return df_qa_ref
 
 
@@ -412,11 +412,11 @@ async def async_get_input_output_context(
         print("No retrieval documents found.")
         return None
 
-    ref: pd.Series[str] = df_docs.groupby("context.trace_id")["context"].apply(  # type: ignore[assignment,call-overload]
-        lambda x: separator.join(x.dropna())  # type: ignore[arg-type,union-attr]
+    ref: pd.Series[str] = df_docs.groupby("context.trace_id")["context"].apply(
+        lambda x: separator.join(x.dropna())
     )
     df_ref = pd.DataFrame({"context": ref})
-    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner")  # type: ignore[call-overload]
+    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner")
     # Reset index to preserve trace_id as a column, then set span_id as the index
-    df_qa_ref = df_qa_ref.reset_index().set_index("context.span_id")  # type: ignore[call-overload]
+    df_qa_ref = df_qa_ref.reset_index().set_index("context.span_id")
     return df_qa_ref
