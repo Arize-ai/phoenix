@@ -284,6 +284,7 @@ module = [
   "authlib.*",
   "google.*",
   "mistralai.*",
+  "jsonpath_ng",
 ]
 ignore_missing_imports = true
 
