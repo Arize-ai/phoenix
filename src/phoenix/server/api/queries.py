@@ -30,6 +30,7 @@ from phoenix.db.models import LatencyMs
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
+from phoenix.server.api.evaluators import get_builtin_evaluators
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.experiment_run_filters import (
@@ -62,7 +63,12 @@ from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
-from phoenix.server.api.types.Evaluator import CodeEvaluator, Evaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluator,
+    CodeEvaluator,
+    Evaluator,
+    LLMEvaluator,
+)
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -959,6 +965,8 @@ class Query:
             return LLMEvaluator(id=node_id)
         elif type_name == CodeEvaluator.__name__:
             return CodeEvaluator(id=node_id)
+        elif type_name == BuiltInEvaluator.__name__:
+            return BuiltInEvaluator(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -1150,6 +1158,11 @@ class Query:
                 data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
             else:
                 raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+
+        builtin_evaluators = get_builtin_evaluators()
+        for builtin_id, _ in builtin_evaluators:
+            data.append(BuiltInEvaluator(id=builtin_id))
+
         return connection_from_list(data=data, args=args)
 
     @strawberry.field

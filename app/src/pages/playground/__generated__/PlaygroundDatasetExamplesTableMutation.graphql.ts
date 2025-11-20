@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a0ed35bc793a94d7b8740ca93f42056f>>
+ * @generated SignedSource<<408870eabb6449a03e7e53cef8ef2538>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -63,7 +63,11 @@ export type GenerativeCredentialInput = {
 };
 export type PlaygroundEvaluatorInput = {
   id: string;
-  inputMapping?: any | null;
+  inputMapping?: EvaluatorInputMapping;
+};
+export type EvaluatorInputMapping = {
+  literalMapping?: any;
+  pathMapping?: any;
 };
 export type PlaygroundDatasetExamplesTableMutation$variables = {
   input: ChatCompletionOverDatasetInput;
