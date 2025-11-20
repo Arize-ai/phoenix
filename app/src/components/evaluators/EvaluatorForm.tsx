@@ -129,7 +129,6 @@ export const EvaluatorFormProvider = ({
 export const EvaluatorForm = () => {
   const { control, getValues, watch, setValue } =
     useFormContext<EvaluatorFormValues>();
-  const assignEvaluatorToDataset = watch("dataset.assignEvaluatorToDataset");
   const { variableKeys: variables } = useDerivedPlaygroundVariables();
   const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
@@ -208,38 +207,37 @@ export const EvaluatorForm = () => {
             `}
           >
             <Flex direction="column" gap="size-100">
-              <Heading level={3}>Test your evaluator</Heading>
+              <Heading level={3}>Connect your evaluator</Heading>
               <Text color="text-500">
-                Use examples from an existing dataset to ensure your evaluator
-                is working correctly.
+                Define a connection between this evaluator and a dataset.
               </Text>
-              <EvaluatorExampleDataset
-                selectedDatasetId={selectedDatasetId}
-                onSelectDataset={(datasetId) => {
-                  if (datasetId) {
-                    setValue("dataset.id", datasetId);
-                  } else {
-                    setValue("dataset", undefined);
-                  }
-                }}
-                selectedSplitIds={selectedSplitIds}
-                onSelectSplits={setSelectedSplitIds}
-                onSelectExampleId={setSelectedExampleId}
-                datasetSelectIsDisabled={!!getValues().dataset?.readonly}
-                assignEvaluatorToDataset={assignEvaluatorToDataset}
-                onAssignEvaluatorToDataset={(assignEvaluatorToDataset) => {
-                  setValue(
-                    "dataset.assignEvaluatorToDataset",
-                    assignEvaluatorToDataset
-                  );
-                }}
-              />
             </Flex>
+            <EvaluatorExampleDataset
+              selectedDatasetId={selectedDatasetId}
+              onSelectDataset={(datasetId) => {
+                if (datasetId) {
+                  setValue("dataset.id", datasetId);
+                } else {
+                  setValue("dataset", undefined);
+                }
+              }}
+              selectedSplitIds={selectedSplitIds}
+              onSelectSplits={setSelectedSplitIds}
+              onSelectExampleId={setSelectedExampleId}
+              datasetSelectIsDisabled={!!getValues().dataset?.readonly}
+            />
             <EvaluatorInputMapping
               exampleId={selectedExampleId ?? undefined}
               control={control}
               variables={variables}
             />
+            <Flex direction="column" gap="size-100">
+              <Heading level={3}>Test your evaluator</Heading>
+              <Text color="text-500">
+                Give your evaluator a test run against the selected dataset
+                example, and your hypothetical task output.
+              </Text>
+            </Flex>
           </div>
         </PanelContainer>
       </Panel>

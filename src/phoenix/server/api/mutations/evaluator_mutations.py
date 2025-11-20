@@ -11,6 +11,7 @@ from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -108,6 +109,7 @@ class EvaluatorMutationPayload:
 class AssignEvaluatorToDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
+    input_config: Optional[JSON] = None
 
 
 @strawberry.input
@@ -355,6 +357,9 @@ class EvaluatorMutationMixin:
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
+        # TODO: validate input_config as json record
+        input_config = input.input_config or {}
+
         # Use upsert for idempotent assignment
         # Foreign key constraints will ensure dataset and evaluator exist
         try:
@@ -364,7 +369,7 @@ class EvaluatorMutationMixin:
                         {
                             "dataset_id": dataset_rowid,
                             "evaluator_id": evaluator_rowid,
-                            "input_config": {},
+                            "input_config": input_config,
                         },
                         dialect=info.context.db.dialect,
                         table=models.DatasetsEvaluators,

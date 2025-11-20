@@ -150,6 +150,7 @@ interface ApiKey {
 input AssignEvaluatorToDatasetInput {
   datasetId: ID!
   evaluatorId: ID!
+  inputConfig: JSON = null
 }
 
 enum AuthMethod {
