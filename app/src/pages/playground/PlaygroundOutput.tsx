@@ -408,6 +408,18 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           },
           onError: (error) => {
             markPlaygroundInstanceComplete(props.playgroundInstanceId);
+            const instance = playgroundStore
+              .getState()
+              .instances.find((inst) => inst.id === instanceId);
+            if (instance != null) {
+              Object.keys(instance.repetitions).forEach((repetitionNumber) => {
+                setRepetitionStatus(
+                  instanceId,
+                  parseInt(repetitionNumber),
+                  "finished"
+                );
+              });
+            }
             const errorMessages =
               getErrorMessagesFromRelaySubscriptionError(error);
             if (errorMessages != null && errorMessages.length > 0) {
@@ -464,6 +476,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     runInProgress,
     playgroundStore,
     props.playgroundInstanceId,
+    setRepetitionStatus,
     streaming,
   ]);
 
