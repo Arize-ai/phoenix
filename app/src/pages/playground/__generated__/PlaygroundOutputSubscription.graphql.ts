@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ccd6f35fde0d596837e7180e100793e5>>
+ * @generated SignedSource<<01312975205a612e468b441247edaefb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -60,7 +60,11 @@ export type PromptTemplateOptions = {
 };
 export type PlaygroundEvaluatorInput = {
   id: string;
-  inputMapping?: any | null;
+  inputMapping?: EvaluatorInputMapping;
+};
+export type EvaluatorInputMapping = {
+  literalMapping?: any;
+  pathMapping?: any;
 };
 export type PlaygroundOutputSubscription$variables = {
   input: ChatCompletionInput;

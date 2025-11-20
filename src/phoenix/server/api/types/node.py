@@ -3,7 +3,7 @@ from base64 import b64decode
 
 from strawberry.relay import GlobalID
 
-_GLOBAL_ID_PATTERN = re.compile(r"[a-zA-Z]+:[0-9]+")
+_GLOBAL_ID_PATTERN = re.compile(r"[a-zA-Z]+:[-]?[0-9]+")
 
 
 def is_global_id(node_id: str) -> bool:

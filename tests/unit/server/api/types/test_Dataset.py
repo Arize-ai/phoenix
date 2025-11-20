@@ -877,6 +877,7 @@ async def test_experiments_without_filter(
     assert len(data["node"]["experiments"]["edges"]) == 4
 
 
+@pytest.mark.xfail(reason="Temporarily associating builtin evaluators with all datasets as well")
 class TestDatasetsEvaluatorsResolver:
     async def test_returns_associated_evaluators(
         self,

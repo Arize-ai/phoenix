@@ -12,6 +12,7 @@ from phoenix.server.api.subscriptions import Subscription
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
 )
+from phoenix.server.api.types.Evaluator import Evaluator
 
 
 def build_graphql_schema(
@@ -25,7 +26,12 @@ def build_graphql_schema(
         mutation=Mutation,
         extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
         subscription=Subscription,
-        types=_implementing_types(ChatCompletionSubscriptionPayload),
+        types=list(
+            chain(
+                _implementing_types(ChatCompletionSubscriptionPayload),
+                _implementing_types(Evaluator),
+            )
+        ),
     )
 
 

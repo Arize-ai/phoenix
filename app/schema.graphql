@@ -180,6 +180,20 @@ type BoundedFloatInvocationParameter implements InvocationParameterBase {
   maxValue: Float!
 }
 
+type BuiltInEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  inputSchema: JSON
+  isAssignedToDataset(datasetId: ID = null): Boolean!
+  user: User
+}
+
 enum CanonicalParameterName {
   TEMPERATURE
   MAX_COMPLETION_TOKENS
@@ -395,6 +409,7 @@ type CodeEvaluator implements Evaluator & Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
+  inputSchema: JSON
   isAssignedToDataset(datasetId: ID = null): Boolean!
   user: User
 }
@@ -1285,7 +1300,8 @@ input EvalResultKey {
 type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
-  evaluation: ExperimentRunAnnotation!
+  experimentRunEvaluation: ExperimentRunAnnotation
+  spanEvaluation: SpanAnnotation
 }
 
 interface Evaluator implements Node {
@@ -1297,6 +1313,7 @@ interface Evaluator implements Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
+  inputSchema: JSON
   isAssignedToDataset(datasetId: ID = null): Boolean!
 }
 
@@ -1333,6 +1350,11 @@ input EvaluatorFilter {
 
 enum EvaluatorFilterColumn {
   name
+}
+
+input EvaluatorInputMapping {
+  literalMapping: JSON! = {}
+  pathMapping: JSON! = {}
 }
 
 enum EvaluatorKind {
@@ -1892,6 +1914,7 @@ type LLMEvaluator implements Evaluator & Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
+  inputSchema: JSON
   isAssignedToDataset(datasetId: ID = null): Boolean!
   outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
@@ -2140,7 +2163,7 @@ type PerformanceTimeSeries implements TimeSeries {
 
 input PlaygroundEvaluatorInput {
   id: ID!
-  inputMapping: JSON = {}
+  inputMapping: EvaluatorInputMapping! = {}
 }
 
 type PlaygroundModel implements ModelInterface {

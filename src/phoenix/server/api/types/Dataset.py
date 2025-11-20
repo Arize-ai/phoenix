@@ -15,6 +15,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.evaluators import get_builtin_evaluators
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
@@ -26,7 +27,12 @@ from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Evaluator import CodeEvaluator, Evaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluator,
+    CodeEvaluator,
+    Evaluator,
+    LLMEvaluator,
+)
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -521,6 +527,11 @@ class Dataset(Node):
                 data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
             else:
                 raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+
+        builtin_evaluators = get_builtin_evaluators()
+        for builtin_id, _ in builtin_evaluators:
+            data.append(BuiltInEvaluator(id=builtin_id))
+
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
