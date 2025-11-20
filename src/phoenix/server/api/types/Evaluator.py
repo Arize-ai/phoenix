@@ -476,8 +476,23 @@ class BuiltInEvaluator(Evaluator, Node):
         info: Info[Context, None],
         dataset_id: Optional[GlobalID] = None,
     ) -> bool:
-        # TODO: possibly set to false and implement somewhere on db
-        return True
+        if dataset_id is None:
+            return False
+
+        try:
+            dataset_rowid = from_global_id_with_expected_type(
+                global_id=dataset_id,
+                expected_type_name="Dataset",
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset id: {dataset_id}")
+
+        stmt = sa.select(models.DatasetsEvaluators).where(
+            models.DatasetsEvaluators.dataset_id == dataset_rowid,
+            models.DatasetsEvaluators.builtin_evaluator_id == self.id,
+        )
+        async with info.context.db() as session:
+            return (await session.scalar(stmt)) is not None
 
 
 def _to_gql_categorical_annotation_config(
