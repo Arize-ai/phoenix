@@ -1,5 +1,6 @@
 from datetime import datetime
 from math import isfinite
+from random import randint
 from typing import Any, Dict, Optional
 
 import strawberry
@@ -25,7 +26,7 @@ class ExperimentRunAnnotation(Node):
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ExperimentRunAnnotation":
-        annotation_id = data.get("id", -1)
+        annotation_id = data.get("id", randint(1, 1000000))
         return cls(id=annotation_id, _raw_annotation=data)
 
     @strawberry.field(description="Name of the annotation, e.g. 'helpfulness' or 'relevance'.")  # type: ignore
