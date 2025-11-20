@@ -45,6 +45,7 @@ export function DatasetEvaluatorActionMenu({
             }}
           >
             <MenuItem id={DatasetEvaluatorAction.UNASSIGN}>Unlink</MenuItem>
+            {/* TODO: add edit action that opens input mapping dialog */}
           </Menu>
         </Popover>
       </MenuTrigger>
