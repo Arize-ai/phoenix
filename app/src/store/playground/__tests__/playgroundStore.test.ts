@@ -530,3 +530,159 @@ describe("runPlaygroundInstances", () => {
     expect(newSecondRunId).not.toBe(secondRunId);
   });
 });
+
+describe("markPlaygroundInstanceComplete", () => {
+  it("should mark a specific instance as complete without affecting other instances", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().addInstance();
+    store.getState().setRepetitions(2);
+
+    // run both instances
+    store.getState().runPlaygroundInstances();
+
+    const [firstInstanceId, secondInstanceId] = store
+      .getState()
+      .instances.map((instance) => instance.id);
+
+    // simulate progress on first instance
+    store.getState().setRepetitionStatus(firstInstanceId, 1, "finished");
+    store
+      .getState()
+      .appendRepetitionOutput(firstInstanceId, 1, "Complete output");
+    store.getState().setRepetitionSpanId(firstInstanceId, 1, "span-123");
+    store.getState().addRepetitionPartialToolCall(firstInstanceId, 1, {
+      id: "call_1",
+      function: {
+        name: "get_weather",
+        arguments: '{"location": "Paris"}',
+      },
+    });
+
+    store
+      .getState()
+      .setRepetitionStatus(firstInstanceId, 2, "streamInProgress");
+    store
+      .getState()
+      .appendRepetitionOutput(firstInstanceId, 2, "Partial output");
+
+    // simulate progress on second instance
+    store
+      .getState()
+      .setRepetitionStatus(secondInstanceId, 1, "streamInProgress");
+    store
+      .getState()
+      .appendRepetitionOutput(secondInstanceId, 1, "Second instance output");
+
+    // snapshot instances before marking complete
+    const [firstInstanceBefore, secondInstanceBefore] =
+      store.getState().instances;
+
+    // mark first instance complete
+    store.getState().markPlaygroundInstanceComplete(firstInstanceId);
+
+    // get instances after
+    const [firstInstanceAfter, secondInstanceAfter] =
+      store.getState().instances;
+
+    // verify first instance has expected changes
+    expect(firstInstanceAfter).toEqual({
+      ...firstInstanceBefore,
+      activeRunId: null, // activeRunId should be cleared
+      // all repetitions should be marked as finished
+      repetitions: Object.fromEntries(
+        Object.entries(firstInstanceBefore.repetitions).map(
+          ([repetitionNumber, repetition]) => [
+            repetitionNumber,
+            {
+              ...repetition,
+              status: "finished",
+            },
+          ]
+        )
+      ),
+    });
+
+    // verify second instance is unchanged
+    expect(secondInstanceAfter).toEqual(secondInstanceBefore);
+  });
+});
+
+describe("cancelPlaygroundInstances", () => {
+  it("should cancel all instances and set all repetitions to finished", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().addInstance();
+    store.getState().setRepetitions(2);
+
+    // run both instances
+    store.getState().runPlaygroundInstances();
+
+    const [firstInstanceId, secondInstanceId] = store
+      .getState()
+      .instances.map((instance) => instance.id);
+
+    // simulate progress on first instance
+    store.getState().setRepetitionStatus(firstInstanceId, 1, "finished");
+    store
+      .getState()
+      .appendRepetitionOutput(firstInstanceId, 1, "Complete output");
+    store.getState().setRepetitionSpanId(firstInstanceId, 1, "span-123");
+
+    store
+      .getState()
+      .setRepetitionStatus(firstInstanceId, 2, "streamInProgress");
+    store
+      .getState()
+      .appendRepetitionOutput(firstInstanceId, 2, "Partial output");
+
+    // simulate progress on second instance
+    store
+      .getState()
+      .setRepetitionStatus(secondInstanceId, 1, "streamInProgress");
+    store
+      .getState()
+      .appendRepetitionOutput(secondInstanceId, 1, "Second instance output");
+
+    // snapshot instances before canceling
+    const [firstInstanceBefore, secondInstanceBefore] =
+      store.getState().instances;
+
+    // cancel all instances
+    store.getState().cancelPlaygroundInstances();
+
+    // get instances after
+    const [firstInstanceAfter, secondInstanceAfter] =
+      store.getState().instances;
+
+    // verify instances have expected changes
+    expect(firstInstanceAfter).toEqual({
+      ...firstInstanceBefore,
+      activeRunId: null,
+      repetitions: Object.fromEntries(
+        Object.entries(firstInstanceBefore.repetitions).map(
+          ([repetitionNumber, repetition]) => [
+            repetitionNumber,
+            { ...repetition, status: "finished" },
+          ]
+        )
+      ),
+    });
+    expect(secondInstanceAfter).toEqual({
+      ...secondInstanceBefore,
+      activeRunId: null,
+      repetitions: Object.fromEntries(
+        Object.entries(secondInstanceBefore.repetitions).map(
+          ([repetitionNumber, repetition]) => [
+            repetitionNumber,
+            { ...repetition, status: "finished" },
+          ]
+        )
+      ),
+    });
+  });
+});
