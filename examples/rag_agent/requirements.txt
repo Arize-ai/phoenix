@@ -4,11 +4,10 @@ arize-phoenix-otel
 beautifulsoup4==4.12.3
 duckduckgo_search==7.2.1
 langchain==0.3.14
-langchain-anthropic==0.3.0
-langchain-community==0.3.27
-langchain-core==0.3.30
+langchain-community
+langchain-core>=0.3.29,<0.3.72
 langchain-openai==0.2.11
-langchain-text-splitters==0.3.9
+langchain-text-splitters
 langgraph==0.2.62
 loguru==0.7.2
 pandas==2.2.3
@@ -16,3 +15,4 @@ python-dotenv==1.0.1
 tqdm==4.66.6
 gradio
 openinference-instrumentation-openai
+openinference-instrumentation-langchain
