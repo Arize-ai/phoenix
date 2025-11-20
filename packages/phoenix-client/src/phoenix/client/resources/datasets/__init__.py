@@ -1457,6 +1457,7 @@ class AsyncDatasets:
         input_keys: Iterable[str] = (),
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1529,6 +1530,7 @@ class AsyncDatasets:
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
+                split_keys=split_keys,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -1554,6 +1556,7 @@ class AsyncDatasets:
         input_keys: Iterable[str] = (),
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1642,6 +1645,7 @@ class AsyncDatasets:
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
+                split_keys=split_keys,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1688,6 +1692,7 @@ class AsyncDatasets:
         input_keys: Iterable[str],
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1696,6 +1701,7 @@ class AsyncDatasets:
         input_keys_set = frozenset(input_keys)
         output_keys_set = frozenset(output_keys)
         metadata_keys_set = frozenset(metadata_keys)
+        split_keys_set = frozenset(split_keys)
 
         # Auto-infer keys if none provided
         if not any([input_keys_set, output_keys_set, metadata_keys_set]):
@@ -1704,7 +1710,7 @@ class AsyncDatasets:
             output_keys_set = frozenset(output_keys_tuple)
             metadata_keys_set = frozenset(metadata_keys_tuple)
 
-        keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set)
+        keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set, split_keys_set)
 
         if isinstance(table, Path) or isinstance(table, str):
             file = _prepare_csv(Path(table), keys)
@@ -1731,6 +1737,7 @@ class AsyncDatasets:
                 "input_keys[]": sorted(keys.input),
                 "output_keys[]": sorted(keys.output),
                 "metadata_keys[]": sorted(keys.metadata),
+                "split_keys[]": sorted(keys.split),
             },
             params={"sync": True},
             headers={"accept": "application/json"},
@@ -1883,8 +1890,10 @@ def _prepare_dataframe_as_csv(
 
     keys.check_differences(frozenset(df.columns))
 
-    # Ensure consistent column ordering: input, output, metadata
-    selected_columns = sorted(keys.input) + sorted(keys.output) + sorted(keys.metadata)
+    # Ensure consistent column ordering: input, output, metadata, split
+    selected_columns = (
+        sorted(keys.input) + sorted(keys.output) + sorted(keys.metadata) + sorted(keys.split)
+    )
 
     csv_buffer = BytesIO()
     df[selected_columns].to_csv(csv_buffer, index=False)
