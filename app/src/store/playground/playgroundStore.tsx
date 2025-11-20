@@ -743,7 +743,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           instances: instances.map((instance) => ({
             ...instance,
             activeRunId: generateRunId(),
-            spanId: null, // Clear out the span when (re)running
             repetitions: Object.fromEntries(
               Array.from({ length: repetitions }, (_, i) => [
                 i + 1,
@@ -770,7 +769,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           instances: instances.map((instance) => ({
             ...instance,
             activeRunId: null,
-            spanId: null,
             repetitions: Object.fromEntries(
               Object.entries(instance.repetitions).map(
                 ([repetitionNumber, repetition]) => [

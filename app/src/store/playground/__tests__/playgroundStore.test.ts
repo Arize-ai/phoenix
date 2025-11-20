@@ -609,3 +609,80 @@ describe("markPlaygroundInstanceComplete", () => {
     expect(secondInstanceAfter).toEqual(secondInstanceBefore);
   });
 });
+
+describe("cancelPlaygroundInstances", () => {
+  it("should cancel all instances and set all repetitions to finished", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().addInstance();
+    store.getState().setRepetitions(2);
+
+    // run both instances
+    store.getState().runPlaygroundInstances();
+
+    const [firstInstanceId, secondInstanceId] = store
+      .getState()
+      .instances.map((instance) => instance.id);
+
+    // simulate progress on first instance
+    store.getState().setRepetitionStatus(firstInstanceId, 1, "finished");
+    store
+      .getState()
+      .appendRepetitionOutput(firstInstanceId, 1, "Complete output");
+    store.getState().setRepetitionSpanId(firstInstanceId, 1, "span-123");
+
+    store
+      .getState()
+      .setRepetitionStatus(firstInstanceId, 2, "streamInProgress");
+    store
+      .getState()
+      .appendRepetitionOutput(firstInstanceId, 2, "Partial output");
+
+    // simulate progress on second instance
+    store
+      .getState()
+      .setRepetitionStatus(secondInstanceId, 1, "streamInProgress");
+    store
+      .getState()
+      .appendRepetitionOutput(secondInstanceId, 1, "Second instance output");
+
+    // snapshot instances before canceling
+    const [firstInstanceBefore, secondInstanceBefore] =
+      store.getState().instances;
+
+    // cancel all instances
+    store.getState().cancelPlaygroundInstances();
+
+    // get instances after
+    const [firstInstanceAfter, secondInstanceAfter] =
+      store.getState().instances;
+
+    // verify instances have expected changes
+    expect(firstInstanceAfter).toEqual({
+      ...firstInstanceBefore,
+      activeRunId: null,
+      repetitions: Object.fromEntries(
+        Object.entries(firstInstanceBefore.repetitions).map(
+          ([repetitionNumber, repetition]) => [
+            repetitionNumber,
+            { ...repetition, status: "finished" },
+          ]
+        )
+      ),
+    });
+    expect(secondInstanceAfter).toEqual({
+      ...secondInstanceBefore,
+      activeRunId: null,
+      repetitions: Object.fromEntries(
+        Object.entries(secondInstanceBefore.repetitions).map(
+          ([repetitionNumber, repetition]) => [
+            repetitionNumber,
+            { ...repetition, status: "finished" },
+          ]
+        )
+      ),
+    });
+  });
+});
