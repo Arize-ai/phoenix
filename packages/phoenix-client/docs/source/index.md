@@ -252,7 +252,7 @@ retrieved_docs_df = get_retrieved_documents(
 # Each row is a retrieved document with its metadata
 print(retrieved_docs_df.head())
 # Index: context.span_id, document_position
-# Columns: context.trace_id, input, reference, document_score
+# Columns: context.trace_id, input, reference, document_score, document_metadata
 
 # Use with phoenix.evals for relevance evaluation
 from phoenix.evals import RelevanceEvaluator, run_evals
