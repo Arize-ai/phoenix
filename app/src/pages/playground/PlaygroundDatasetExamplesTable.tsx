@@ -727,7 +727,10 @@ export function PlaygroundDatasetExamplesTable({
             if (chatCompletion.datasetExampleId == null) {
               return;
             }
-            const evaluation = chatCompletion.evaluation;
+            const evaluation = chatCompletion.experimentRunEvaluation;
+            if (evaluation == null) {
+              return;
+            }
             appendExampleDataEvaluationChunk({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
@@ -1429,7 +1432,7 @@ graphql`
       ... on EvaluationChunk {
         datasetExampleId
         repetitionNumber
-        evaluation {
+        experimentRunEvaluation {
           id
           name
           label
