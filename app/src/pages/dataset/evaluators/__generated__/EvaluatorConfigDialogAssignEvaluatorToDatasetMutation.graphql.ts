@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<20babb5b9924242cdaba168afb7e174a>>
+ * @generated SignedSource<<97b107e3b61e57bb28a3d61fe8fef390>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ import { FragmentRefs } from "relay-runtime";
 export type AssignEvaluatorToDatasetInput = {
   datasetId: string;
   evaluatorId: string;
+  inputConfig?: any | null;
 };
 export type EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$variables = {
   connectionIds: ReadonlyArray<string>;

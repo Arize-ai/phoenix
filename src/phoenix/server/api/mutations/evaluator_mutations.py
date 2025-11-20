@@ -117,7 +117,7 @@ class EvaluatorMutationPayload:
 class AssignEvaluatorToDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
-    input_config: Optional[JSON] = UNSET
+    input_config: Optional[JSON] = None
 
 
 @strawberry.input
@@ -364,6 +364,9 @@ class EvaluatorMutationMixin:
             evaluator_rowid, evaluator_kind = _parse_evaluator_id(input.evaluator_id)
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
+
+        # TODO: validate input_config as json record
+        input_config = input.input_config or {}
 
         # Use upsert for idempotent assignment
         # Foreign key constraints will ensure dataset and evaluator exist
