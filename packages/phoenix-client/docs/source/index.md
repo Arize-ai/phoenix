@@ -300,7 +300,6 @@ if qa_df is not None:
         exit_on_error=True,
     )
     hallucination_results.head()
-
 ```
 
 #### Time-Filtered RAG Spans
