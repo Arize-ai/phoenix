@@ -656,6 +656,7 @@ CREATE TABLE public.evaluators (
     id bigserial NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
+    metadata JSONB NOT NULL,
     kind VARCHAR NOT NULL,
     user_id BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
