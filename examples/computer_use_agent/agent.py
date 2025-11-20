@@ -39,6 +39,7 @@ def initialize_instrumentor(project_name, endpoint=None):
     tracer_provider = register(
         project_name=project_name,
         endpoint=endpoint,
+        auto_instrument=True,
         batch=True,
     )
     AnthropicBetaInstrumentor().instrument(tracer_provider=tracer_provider)
