@@ -274,18 +274,18 @@ relevance_results = run_evals(
 Extract Q&A pairs with reference context for hallucination and QA evaluation:
 
 ```python
-from phoenix.client.helpers.evaluation import get_qa_with_reference
+from phoenix.client.helpers.evaluation import get_input_output_context
 from phoenix.evals import HallucinationEvaluator, QAEvaluator
 
-# Extract Q&A with reference documents
-qa_df = get_qa_with_reference(
+# Extract Q&A with context documents
+qa_df = get_input_output_context(
     client,
     project_name="my-rag-app"
 )
 
 # Each row combines a Q&A pair with concatenated retrieval documents
 # Index: context.span_id
-# Columns: input, output, reference
+# Columns: input, output, context, metadata
 if qa_df is not None:
     print(qa_df.head())
 
@@ -321,7 +321,7 @@ recent_docs = get_retrieved_documents(
 )
 
 # Get Q&A from last week
-weekly_qa = get_qa_with_reference(
+weekly_qa = get_input_output_context(
     client,
     project_name="my-rag-app",
     start_time=datetime.now() - timedelta(days=7)
