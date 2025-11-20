@@ -12,19 +12,28 @@ from rag import initialize_vector_store
 load_dotenv()
 
 SYSTEM_MESSAGE_FOR_AGENT_WORKFLOW = """
-    You are a Retrieval-Augmented Generation (RAG) assistant designed to provide responses by leveraging provided tools
-    Your goal is to ensure the user's query is addressed with quality. If further clarification is required,
-    you can request additional input from the user.
+    You are a Retrieval-Augmented Generation (RAG) assistant designed to provide responses by leveraging provided tools.
+    
+    IMPORTANT WORKFLOW:
+    1. For EVERY user query, you MUST first use the `create_rag_response` tool to retrieve relevant information from the vector store.
+    2. Use the retrieved information to answer the user's question.
+    3. If the RAG response doesn't contain enough information, you can use the `web_search` tool to find additional information.
+    4. You can use the `analyze_rag_response` tool if the user asks you to analyze or evaluate a RAG response.
+    
+    Your goal is to ensure the user's query is addressed with quality using the retrieved information. If further clarification is required, you can request additional input from the user.
     """
 
 
-def initialize_agent(phoenix_key, project_name, openai_key, user_session_id, vector_source_web_url):
+def initialize_agent(phoenix_key, project_name, openai_key, user_session_id, vector_source_web_url, phoenix_endpoint_v1):
     from tools import initialize_tool_llm
 
     os.environ["PHOENIX_API_KEY"] = phoenix_key
     os.environ["OPENAI_API_KEY"] = openai_key
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com/v1/traces"
-    agent_tracer = initialize_instrumentor(project_name)
+    os.environ["USER_AGENT"] = "Phoenix-RAG-Agent"
+    endpoint = phoenix_endpoint_v1 or "http://localhost:6006"
+    if endpoint and not endpoint.endswith("/v1/traces"):
+        endpoint = endpoint.rstrip("/") + "/v1/traces"
+    agent_tracer = initialize_instrumentor(project_name, endpoint)
     initialize_agent_llm("gpt-4o-mini")
     tool_model = initialize_tool_llm("gpt-4o-mini")
     initialize_vector_store(vector_source_web_url)
@@ -47,7 +56,7 @@ def chat_with_agent(
     user_chat_history,
     conversation_history,
 ):
-    if not agent:
+    if not copilot_agent:
         return "Error: RAG Agent is not initialized. Please set API keys first."
     if not conversation_history:
         messages = [SystemMessage(content=SYSTEM_MESSAGE_FOR_AGENT_WORKFLOW)]
@@ -57,7 +66,7 @@ def chat_with_agent(
     with using_session(session_id=user_session_id):
         with agent_tracer.start_as_current_span(
             f"agent-{user_session_id}",
-            openinference_span_kind="chain",
+            openinference_span_kind="agent",
         ) as span:
             span.set_input(user_input_message)
             conversation_history = copilot_agent.invoke(
@@ -99,9 +108,10 @@ with gr.Blocks() as demo:
         with gr.Column(scale=1, min_width=250):
             gr.Markdown("### Configuration Panel ⚙️")
 
-            phoenix_input = gr.Textbox(label="Phoenix API Key", type="password")
-            project_input = gr.Textbox(label="Project Name", value="Agentic Rag")
+            phoenix_input = gr.Textbox(label="Phoenix API Key (Only required for Phoenix Cloud)", type="password")
+            project_input = gr.Textbox(label="Project Name", value="Agentic Rag Demo")
             openai_input = gr.Textbox(label="OpenAI API Key", type="password")
+            phoenix_endpoint = gr.Textbox(label="Phoenix Endpoint")
             web_url = gr.Textbox(
                 label="Vector Source Web URL",
                 value="https://lilianweng.github.io/posts/2023-06-23-agent/",
@@ -111,7 +121,7 @@ with gr.Blocks() as demo:
 
             set_button.click(
                 fn=initialize_agent,
-                inputs=[phoenix_input, project_input, openai_input, session_id, web_url],
+                inputs=[phoenix_input, project_input, openai_input, session_id, web_url, phoenix_endpoint],
                 outputs=[agent, tracer, openai_tool_model, session_id, output_message],
             )
 

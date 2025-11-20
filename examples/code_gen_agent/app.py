@@ -14,8 +14,9 @@ SYSTEM_MESSAGE_FOR_AGENT_WORKFLOW = "You are an AI Python coding assistant speci
 def initialize_agent(phoenix_key, project_name, openai_key, user_session_id, phoenix_endpoint_v1):
     os.environ["PHOENIX_API_KEY"] = phoenix_key
     os.environ["OPENAI_API_KEY"] = openai_key
-    print(phoenix_endpoint_v1)
-    endpoint = phoenix_endpoint_v1 or "https://app.phoenix.arize.com/v1/traces"
+    endpoint = phoenix_endpoint_v1 or "http://localhost:6006"
+    if endpoint and not endpoint.endswith("/v1/traces"):
+        endpoint = endpoint.rstrip("/") + "/v1/traces"
     agent_tracer = initialize_instrumentor(project_name, endpoint)
     agent_ai_llm = initialize_llm("gpt-4o", openai_key)
     tool_model = initialize_tool_llm("gpt-4o", openai_key)
@@ -40,7 +41,7 @@ def chat_with_agent(
     user_chat_history,
     conversation_history,
 ):
-    if not agent:
+    if not copilot_agent:
         return "Error: Copilot Agent is not initialized. Please set API keys first."
     if not conversation_history:
         messages = [SystemMessage(content=SYSTEM_MESSAGE_FOR_AGENT_WORKFLOW)]
@@ -88,12 +89,10 @@ with gr.Blocks() as demo:
             output_message = gr.Markdown(
                 "### Status: <span style='color: red;'> Not Connected</span>"
             )
-            phoenix_input = gr.Textbox(label="Phoenix API Key", type="password")
+            phoenix_input = gr.Textbox(label="Phoenix API Key (Only required for Phoenix Cloud)", type="password")
             project_input = gr.Textbox(label="Project Name", value="Copilot Agent")
             openai_input = gr.Textbox(label="OpenAI API Key", type="password")
-            phoenix_endpoint = gr.Textbox(
-                label="Phoenix Endpoint", value="https://app.phoenix.arize.com/v1/traces"
-            )
+            phoenix_endpoint = gr.Textbox(label="Phoenix Endpoint")
             set_button = gr.Button("Set API Keys & Initialize")
 
             set_button.click(

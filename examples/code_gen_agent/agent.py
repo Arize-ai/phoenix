@@ -5,18 +5,18 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
-from openinference.instrumentation.openai import OpenAIInstrumentor
 from tools import code_analysis, execute_code, generate_code, generate_merge_request_description
-
 from phoenix.otel import register
 
 
 def initialize_instrumentor(project_name, endpoint):
-    if os.environ.get("PHOENIX_API_KEY"):
-        os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.environ.get('PHOENIX_API_KEY')}"
-    tracer_provider = register(project_name=project_name, endpoint=endpoint)
+    tracer_provider = register(
+        project_name=project_name,
+        endpoint=endpoint,
+        batch=True, 
+        auto_instrument=True,
+    )
     tracer = tracer_provider.get_tracer(__name__)
-    OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
     return tracer
 
 
