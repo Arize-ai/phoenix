@@ -19,8 +19,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text, Token, View } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
-import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { DatasetEvaluatorActionMenu } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorActionMenu";
 import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
@@ -141,13 +140,7 @@ export const EvaluatorsTable = ({
   datasetId,
 }: EvaluatorsTableProps) => {
   "use no memo";
-  const {
-    selectedEvaluatorIds,
-    setSelectedEvaluatorIds,
-    sort,
-    setSort,
-    filter,
-  } = useEvaluatorsFilterContext();
+  const { sort, setSort, filter } = useEvaluatorsFilterContext();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const sorting = useMemo(
     () => convertEvaluatorSortToTanstackSort(sort),
@@ -172,29 +165,6 @@ export const EvaluatorsTable = ({
   }, [rowReferences]);
   const columns = useMemo(() => {
     const cols: ColumnDef<TableRow>[] = [
-      {
-        id: "select",
-        maxSize: 32,
-        header: ({ table }) => (
-          <IndeterminateCheckboxCell
-            {...{
-              isSelected: table.getIsAllRowsSelected(),
-              isIndeterminate: table.getIsSomeRowsSelected(),
-              onChange: table.toggleAllRowsSelected,
-            }}
-          />
-        ),
-        cell: ({ row }) => (
-          <IndeterminateCheckboxCell
-            {...{
-              isSelected: row.getIsSelected(),
-              isDisabled: !row.getCanSelect(),
-              isIndeterminate: row.getIsSomeSelected(),
-              onChange: row.toggleSelected,
-            }}
-          />
-        ),
-      },
       {
         header: "name",
         accessorKey: "name",
@@ -231,36 +201,7 @@ export const EvaluatorsTable = ({
     }
     return cols;
   }, [datasetId]);
-  const rowSelection = useMemo(() => {
-    return selectedEvaluatorIds.reduce(
-      (acc, id) => {
-        acc[id] = true;
-        return acc;
-      },
-      {} as Record<string, boolean>
-    );
-  }, [selectedEvaluatorIds]);
-  const setRowSelection = useCallback(
-    (rowSelection: Updater<Record<string, boolean>>) => {
-      setSelectedEvaluatorIds((prevSelection) => {
-        if (typeof rowSelection === "function") {
-          return Object.keys(
-            rowSelection(
-              prevSelection.reduce(
-                (acc, id) => {
-                  acc[id] = true;
-                  return acc;
-                },
-                {} as Record<string, boolean>
-              )
-            )
-          );
-        }
-        return Object.keys(rowSelection);
-      });
-    },
-    [setSelectedEvaluatorIds]
-  );
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
@@ -268,11 +209,9 @@ export const EvaluatorsTable = ({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     state: {
-      rowSelection,
       sorting,
     },
     onSortingChange: setSorting,
-    onRowSelectionChange: setRowSelection,
     getRowId: (row) => row.id,
   });
   const fetchMoreOnBottomReached = (
@@ -324,7 +263,7 @@ export const EvaluatorsTable = ({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={selectableTableCSS}>
+      <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
