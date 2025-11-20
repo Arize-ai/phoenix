@@ -692,6 +692,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         self,
         model: GenerativeModelBultinProviderInput,
         credentials: Optional[list[PlaygroundClientCredential]] = None,
+        client: Any | None = None,
     ) -> None:
         import boto3  # type: ignore[import-untyped]
 

@@ -3,10 +3,11 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    Awaitable,
-    Callable,
+    Generic,
     Literal,
     Mapping,
+    Protocol,
+    TypeVar,
     Union,
 )
 
@@ -90,6 +91,13 @@ def _resolve_value(value: StringValueLookupOrStringValue | None, store: CanGetSt
     assert_never(value)
 
 
+_TClient = TypeVar("_TClient", covariant=True)
+
+
+class SDKClientFactory(Protocol, Generic[_TClient]):
+    async def __call__(self, extra_headers: Mapping[str, str] | None = None) -> _TClient: ...
+
+
 class OpenAIAuthenticationMethod(BaseModel):
     model_config = ConfigDict(
         frozen=True,
@@ -144,9 +152,7 @@ class OpenAICustomProviderConfig(BaseModel):
         default=None, description="OpenAI client kwargs"
     )
 
-    async def get_client_factory(
-        self, store: CanGetString
-    ) -> Callable[..., Awaitable["AsyncOpenAI"]]:
+    async def get_client_factory(self, store: CanGetString) -> "SDKClientFactory[AsyncOpenAI]":
         try:
             from openai import AsyncOpenAI
         except ImportError:
@@ -161,13 +167,16 @@ class OpenAICustomProviderConfig(BaseModel):
         project = _resolve_value(kwargs.project if kwargs else None, store)
         default_headers = kwargs.default_headers if kwargs else None
 
-        async def _() -> AsyncOpenAI:
+        async def _(extra_headers: Mapping[str, str] | None = None) -> AsyncOpenAI:
+            headers = dict(default_headers) if default_headers else {}
+            if extra_headers:
+                headers.update(extra_headers)
             return AsyncOpenAI(
                 api_key=api_key,
                 base_url=base_url,
                 organization=organization,
                 project=project,
-                default_headers=default_headers,
+                default_headers=headers or None,
             )
 
         return _
@@ -266,9 +275,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
         description="Azure OpenAI client kwargs",
     )
 
-    async def get_client_factory(
-        self, store: CanGetString
-    ) -> Callable[..., Awaitable["AsyncAzureOpenAI"]]:
+    async def get_client_factory(self, store: CanGetString) -> "SDKClientFactory[AsyncAzureOpenAI]":
         try:
             from openai import AsyncAzureOpenAI
         except ImportError:
@@ -289,14 +296,19 @@ class AzureOpenAICustomProviderConfig(BaseModel):
             raise ValueError("API version is required")
         default_headers = kwargs.default_headers if kwargs else None
 
-        async def _() -> AsyncAzureOpenAI:
+        async def _(extra_headers: Mapping[str, str] | None = None) -> AsyncAzureOpenAI:
+            headers = dict(default_headers) if default_headers else {}
+            if extra_headers:
+                headers.update(extra_headers)
+            merged_headers = headers or None
+
             if method.api_key:
                 return AsyncAzureOpenAI(
                     api_key=_resolve_value(method.api_key, store),
                     azure_endpoint=azure_endpoint,
                     azure_deployment=azure_deployment,
                     api_version=api_version,
-                    default_headers=default_headers,
+                    default_headers=merged_headers,
                 )
 
             if method.azure_ad_token:
@@ -305,7 +317,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                     azure_endpoint=azure_endpoint,
                     azure_deployment=azure_deployment,
                     api_version=api_version,
-                    default_headers=default_headers,
+                    default_headers=merged_headers,
                 )
 
             if method.azure_ad_token_provider:
@@ -351,7 +363,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                     azure_endpoint=azure_endpoint,
                     azure_deployment=azure_deployment,
                     api_version=api_version,
-                    default_headers=default_headers,
+                    default_headers=merged_headers,
                 )
             raise ValueError("No authentication method provided")
 
@@ -405,9 +417,7 @@ class AnthropicCustomProviderConfig(BaseModel):
         description="Anthropic client kwargs",
     )
 
-    async def get_client_factory(
-        self, store: CanGetString
-    ) -> Callable[..., Awaitable["AsyncAnthropic"]]:
+    async def get_client_factory(self, store: CanGetString) -> "SDKClientFactory[AsyncAnthropic]":
         try:
             from anthropic import AsyncAnthropic
         except ImportError:
@@ -420,11 +430,14 @@ class AnthropicCustomProviderConfig(BaseModel):
         base_url = _resolve_value(kwargs.base_url if kwargs else None, store)
         default_headers = kwargs.default_headers if kwargs else None
 
-        async def _() -> AsyncAnthropic:
+        async def _(extra_headers: Mapping[str, str] | None = None) -> AsyncAnthropic:
+            headers = dict(default_headers) if default_headers else {}
+            if extra_headers:
+                headers.update(extra_headers)
             return AsyncAnthropic(
                 api_key=api_key,
                 base_url=base_url,
-                default_headers=default_headers,
+                default_headers=headers or None,
             )
 
         return _
@@ -485,7 +498,7 @@ class AWSBedrockCustomProviderConfig(BaseModel):
         description="AWS Bedrock client kwargs",
     )
 
-    async def get_client_factory(self, store: CanGetString) -> Callable[..., Awaitable[Any]]:
+    async def get_client_factory(self, store: CanGetString) -> "SDKClientFactory[Any]":
         try:
             import boto3  # type: ignore[import-untyped]
         except ImportError:
@@ -513,7 +526,7 @@ class AWSBedrockCustomProviderConfig(BaseModel):
         if aws_secret_access_key and not aws_access_key_id:
             raise ValueError("AWS access key ID is required when secret access key is provided")
 
-        async def _() -> Any:
+        async def _(extra_headers: Mapping[str, str] | None = None) -> Any:
             client_kwargs: dict[str, Any] = {
                 "service_name": "bedrock-runtime",
                 "region_name": region_name,
@@ -526,7 +539,17 @@ class AWSBedrockCustomProviderConfig(BaseModel):
                 client_kwargs["aws_secret_access_key"] = aws_secret_access_key
             if aws_session_token:
                 client_kwargs["aws_session_token"] = aws_session_token
-            return boto3.client(**client_kwargs)
+            client = boto3.client(**client_kwargs)
+
+            # Add custom headers support via boto3 event system
+            if extra_headers:
+
+                def add_custom_headers(request: Any, **kwargs: Any) -> None:
+                    request.headers.update(extra_headers)
+
+                client.meta.events.register("before-send.*", add_custom_headers)
+
+            return client
 
         return _
 
@@ -595,7 +618,7 @@ class GoogleGenAICustomProviderConfig(BaseModel):
 
     async def get_client_factory(
         self, store: CanGetString
-    ) -> Callable[..., Awaitable["genai.client.AsyncClient"]]:
+    ) -> "SDKClientFactory[genai.client.AsyncClient]":
         try:
             from google.genai.client import AsyncClient, Client
             from google.genai.types import HttpOptions
@@ -605,16 +628,22 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         method = self.google_genai_authentication_method
         api_key = _resolve_value(method.api_key, store)
 
-        http_options = None
+        base_url = None
+        default_headers = None
         if self.google_genai_client_kwargs and self.google_genai_client_kwargs.http_options:
             ho = self.google_genai_client_kwargs.http_options
             base_url = _resolve_value(ho.base_url, store)
-            http_options = HttpOptions(
-                base_url=base_url,
-                headers=dict(ho.headers) if ho.headers else None,
-            )
+            default_headers = ho.headers
 
-        async def _() -> AsyncClient:
+        async def _(extra_headers: Mapping[str, str] | None = None) -> AsyncClient:
+            headers = dict(default_headers) if default_headers else {}
+            if extra_headers:
+                headers.update(extra_headers)
+            http_options = (
+                HttpOptions(base_url=base_url, headers=headers or None)
+                if base_url or headers
+                else None
+            )
             client = Client(
                 api_key=api_key,
                 http_options=http_options,
@@ -638,9 +667,7 @@ class OllamaCustomProviderConfig(BaseModel):
         description="OpenAI client kwargs",
     )
 
-    async def get_client_factory(
-        self, store: CanGetString
-    ) -> Callable[..., Awaitable["AsyncOpenAI"]]:
+    async def get_client_factory(self, store: CanGetString) -> "SDKClientFactory[AsyncOpenAI]":
         try:
             from openai import AsyncOpenAI
         except ImportError:
@@ -652,13 +679,16 @@ class OllamaCustomProviderConfig(BaseModel):
         project = _resolve_value(kwargs.project if kwargs else None, store)
         default_headers = kwargs.default_headers if kwargs else None
 
-        async def _() -> AsyncOpenAI:
+        async def _(extra_headers: Mapping[str, str] | None = None) -> AsyncOpenAI:
+            headers = dict(default_headers) if default_headers else {}
+            if extra_headers:
+                headers.update(extra_headers)
             return AsyncOpenAI(
                 api_key="ollama",
                 base_url=base_url,
                 organization=organization,
                 project=project,
-                default_headers=default_headers,
+                default_headers=headers or None,
             )
 
         return _
@@ -694,9 +724,7 @@ class DeepSeekCustomProviderConfig(BaseModel):
         description="OpenAI client kwargs",
     )
 
-    async def get_client_factory(
-        self, store: CanGetString
-    ) -> Callable[..., Awaitable["AsyncOpenAI"]]:
+    async def get_client_factory(self, store: CanGetString) -> "SDKClientFactory[AsyncOpenAI]":
         try:
             from openai import AsyncOpenAI
         except ImportError:
@@ -711,13 +739,16 @@ class DeepSeekCustomProviderConfig(BaseModel):
         project = _resolve_value(kwargs.project if kwargs else None, store)
         default_headers = kwargs.default_headers if kwargs else None
 
-        async def _() -> AsyncOpenAI:
+        async def _(extra_headers: Mapping[str, str] | None = None) -> AsyncOpenAI:
+            headers = dict(default_headers) if default_headers else {}
+            if extra_headers:
+                headers.update(extra_headers)
             return AsyncOpenAI(
                 api_key=api_key,
                 base_url=base_url,
                 organization=organization,
                 project=project,
-                default_headers=default_headers,
+                default_headers=headers or None,
             )
 
         return _
@@ -753,9 +784,7 @@ class XAICustomProviderConfig(BaseModel):
         description="OpenAI client kwargs",
     )
 
-    async def get_client_factory(
-        self, store: CanGetString
-    ) -> Callable[..., Awaitable["AsyncOpenAI"]]:
+    async def get_client_factory(self, store: CanGetString) -> "SDKClientFactory[AsyncOpenAI]":
         try:
             from openai import AsyncOpenAI
         except ImportError:
@@ -770,13 +799,16 @@ class XAICustomProviderConfig(BaseModel):
         project = _resolve_value(kwargs.project if kwargs else None, store)
         default_headers = kwargs.default_headers if kwargs else None
 
-        async def _() -> AsyncOpenAI:
+        async def _(extra_headers: Mapping[str, str] | None = None) -> AsyncOpenAI:
+            headers = dict(default_headers) if default_headers else {}
+            if extra_headers:
+                headers.update(extra_headers)
             return AsyncOpenAI(
                 api_key=api_key,
                 base_url=base_url,
                 organization=organization,
                 project=project,
-                default_headers=default_headers,
+                default_headers=headers or None,
             )
 
         return _
