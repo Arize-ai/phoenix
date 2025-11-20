@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ba6f88b72f29dcda2c96343c90e739a6>>
+ * @generated SignedSource<<dbc7076e06d24a214e8567171d3463b9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -63,7 +63,11 @@ export type GenerativeCredentialInput = {
 };
 export type PlaygroundEvaluatorInput = {
   id: string;
-  inputMapping?: any | null;
+  inputMapping?: EvaluatorInputMapping;
+};
+export type EvaluatorInputMapping = {
+  literalMapping?: any;
+  pathMapping?: any;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ChatCompletionOverDatasetInput;
@@ -105,7 +109,7 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
   } | {
     readonly __typename: "EvaluationChunk";
     readonly datasetExampleId: string | null;
-    readonly evaluation: {
+    readonly experimentRunEvaluation: {
       readonly annotatorKind: ExperimentRunAnnotatorKind;
       readonly explanation: string | null;
       readonly id: string;
@@ -118,7 +122,7 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
         readonly projectId: string;
         readonly traceId: string;
       } | null;
-    };
+    } | null;
     readonly repetitionNumber: number | null;
   } | {
     readonly __typename: "TextChunk";
@@ -459,7 +463,7 @@ return {
                 "args": null,
                 "concreteType": "ExperimentRunAnnotation",
                 "kind": "LinkedField",
-                "name": "evaluation",
+                "name": "experimentRunEvaluation",
                 "plural": false,
                 "selections": [
                   (v6/*: any*/),
@@ -527,7 +531,7 @@ return {
                 "args": null,
                 "concreteType": "ExperimentRunAnnotation",
                 "kind": "LinkedField",
-                "name": "evaluation",
+                "name": "experimentRunEvaluation",
                 "plural": false,
                 "selections": [
                   (v6/*: any*/),
@@ -565,16 +569,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "855030101d674ef677108e8fdb7c215f",
+    "cacheID": "9dab6095b8ad0e86e0fa2b0d9e31d926",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      evaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n        trace {\n          traceId\n          projectId\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n        trace {\n          traceId\n          projectId\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ab24a225dcb5cafb16a5dbf6ce9e8e3a";
+(node as any).hash = "0e3cd4082b91ecc29cc4888eb50e26e4";
 
 export default node;
