@@ -1,36 +1,35 @@
-import {
-  PropsWithChildren,
-  Suspense,
-  useEffect,
-  useEffectEvent,
-  useMemo,
-} from "react";
+import { Suspense, useEffect, useEffectEvent, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Flex, Loading, Text } from "@phoenix/components";
+import { Loading } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import { EvaluatorDatasetExamplePreviewContentQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorDatasetExamplePreviewContentQuery.graphql";
+import { EvaluatorInputPreviewContentQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorInputPreviewContentQuery.graphql";
+import {
+  datasetExampleToEvaluatorInput,
+  EMPTY_EVALUATOR_INPUT_STRING,
+} from "@phoenix/components/evaluators/utils";
 
-type EvaluatorDatasetExamplePreviewProps = {
+type EvaluatorInputPreviewProps = {
   datasetId?: string | null;
   splitIds?: string[];
   exampleId?: string | null;
   onSelectExampleId: (exampleId: string | null) => void;
+  hypotheticalTaskOutput?: string | null;
 };
 
 /**
  * Given a datasetId, splitIds, and optional exampleId, this component will
  * fetch the dataset with splits, and then show the first example or the example chosen.
  *
- * It will display the example in a JSON block, providing a fallback if no dataset is selected or the example is not found.
+ * It will display the hypothetical input for the evaluator, given the dataset example.
  */
-export const EvaluatorDatasetExamplePreview = ({
+export const EvaluatorInputPreview = ({
   datasetId,
   splitIds,
   exampleId,
   onSelectExampleId,
-}: EvaluatorDatasetExamplePreviewProps) => {
+}: EvaluatorInputPreviewProps) => {
   return (
     <div
       css={css`
@@ -43,59 +42,44 @@ export const EvaluatorDatasetExamplePreview = ({
         background-color: var(--ac-global-input-field-background-color);
       `}
     >
-      {datasetId ? (
-        <Suspense fallback={<Loading />}>
-          <EvaluatorDatasetExamplePreviewContent
-            datasetId={datasetId}
-            splitIds={splitIds}
-            exampleId={exampleId}
-            onSelectExampleId={onSelectExampleId}
-          />
-        </Suspense>
-      ) : (
-        <EvaluatorDatasetExampleEmpty>
-          No dataset selected
-        </EvaluatorDatasetExampleEmpty>
-      )}
+      <Suspense fallback={<Loading />}>
+        <EvaluatorInputPreviewContent
+          datasetId={datasetId}
+          splitIds={splitIds}
+          exampleId={exampleId}
+          onSelectExampleId={onSelectExampleId}
+        />
+      </Suspense>
     </div>
   );
 };
 
-const EvaluatorDatasetExampleEmpty = ({ children }: PropsWithChildren) => {
-  return (
-    <Flex justifyContent="center" alignItems="center" flex={1}>
-      <Text color="text-500">{children}</Text>
-    </Flex>
-  );
-};
-
-const EvaluatorDatasetExamplePreviewContent = ({
+const EvaluatorInputPreviewContent = ({
   datasetId,
   splitIds,
   exampleId,
   onSelectExampleId: _onSelectExampleId,
 }: {
-  datasetId: string;
+  datasetId?: string | null;
   splitIds?: string[];
   exampleId?: string | null;
   onSelectExampleId: (exampleId: string | null) => void;
 }) => {
-  const data = useLazyLoadQuery<EvaluatorDatasetExamplePreviewContentQuery>(
+  const data = useLazyLoadQuery<EvaluatorInputPreviewContentQuery>(
     graphql`
-      query EvaluatorDatasetExamplePreviewContentQuery(
+      query EvaluatorInputPreviewContentQuery(
         $datasetId: ID!
         $splitIds: [ID!]
+        $hasDataset: Boolean!
       ) {
-        dataset: node(id: $datasetId) {
+        dataset: node(id: $datasetId) @include(if: $hasDataset) {
           ... on Dataset {
             examples(splitIds: $splitIds) {
               edges {
                 example: node {
                   id
                   revision {
-                    input
-                    output
-                    metadata
+                    ...utils_datasetExampleToEvaluatorInput_example
                   }
                 }
               }
@@ -104,9 +88,12 @@ const EvaluatorDatasetExamplePreviewContent = ({
         }
       }
     `,
-    { datasetId, splitIds }
+    { datasetId: datasetId ?? "", splitIds, hasDataset: datasetId != null }
   );
   const example = useMemo(() => {
+    if (!data.dataset) {
+      return null;
+    }
     if (!exampleId) {
       return data.dataset.examples?.edges[0]?.example;
     }
@@ -120,21 +107,17 @@ const EvaluatorDatasetExamplePreviewContent = ({
     // These can be removed once the rules of hooks plugin is updated to support useEffectEvent
   }, [example]);
   const value = useMemo(() => {
+    if (!example) {
+      return EMPTY_EVALUATOR_INPUT_STRING;
+    }
     try {
-      return JSON.stringify(example?.revision, null, 2);
+      const evaluatorInput = datasetExampleToEvaluatorInput({
+        exampleRef: example.revision,
+      });
+      return JSON.stringify(evaluatorInput, null, 2);
     } catch {
-      return null;
+      return EMPTY_EVALUATOR_INPUT_STRING;
     }
   }, [example]);
-  if (!value) {
-    return (
-      <EvaluatorDatasetExampleEmpty>
-        No examples in dataset
-        {(splitIds?.length ?? 0) > 1
-          ? ` for splits ${splitIds?.join(", ")}`
-          : ""}
-      </EvaluatorDatasetExampleEmpty>
-    );
-  }
   return <JSONBlock value={value} />;
 };

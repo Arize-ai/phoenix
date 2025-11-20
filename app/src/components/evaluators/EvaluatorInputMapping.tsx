@@ -20,6 +20,11 @@ import {
 import { Heading } from "@phoenix/components/content/Heading";
 import { EvaluatorInputMappingControlsQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorInputMappingControlsQuery.graphql";
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
+import {
+  datasetExampleToEvaluatorInput,
+  EMPTY_EVALUATOR_INPUT,
+  EvaluatorInput,
+} from "@phoenix/components/evaluators/utils";
 import { Flex } from "@phoenix/components/layout/Flex";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
@@ -37,15 +42,6 @@ export const EvaluatorInputMapping = ({
   exampleId,
   variables,
 }: EvaluatorInputMappingProps) => {
-  if (!exampleId) {
-    return (
-      <EvaluatorInputMappingTitle>
-        <Text color="text-500">
-          Select a dataset example to view available fields.
-        </Text>
-      </EvaluatorInputMappingTitle>
-    );
-  }
   return (
     <EvaluatorInputMappingTitle>
       <Suspense fallback={<Loading />}>
@@ -62,9 +58,10 @@ export const EvaluatorInputMapping = ({
 const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
   return (
     <Flex direction="column" gap="size-100">
-      <Heading level={3}>Mapping</Heading>
+      <Heading level={3}>Map input fields</Heading>
       <Text color="text-500">
-        Map the evaluator input fields to the example input fields.
+        Your evaluator requires certain fields to be available in its input. Map
+        these fields to those available in its context.
       </Text>
       {children}
     </Flex>
@@ -74,7 +71,6 @@ const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
 type ExampleKeyItem = {
   id: string;
   label: string;
-  section: "Input" | "Reference Output" | "Metadata";
 };
 
 const EvaluatorInputMappingControls = ({
@@ -82,46 +78,53 @@ const EvaluatorInputMappingControls = ({
   control,
   variables,
 }: {
-  exampleId: string;
+  exampleId?: string;
   control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
   variables: string[];
 }) => {
   const data = useLazyLoadQuery<EvaluatorInputMappingControlsQuery>(
     graphql`
-      query EvaluatorInputMappingControlsQuery($exampleId: ID!) {
-        example: node(id: $exampleId) {
+      query EvaluatorInputMappingControlsQuery(
+        $exampleId: ID!
+        $hasExample: Boolean!
+      ) {
+        example: node(id: $exampleId) @include(if: $hasExample) {
           ... on DatasetExample {
             revision {
-              input
-              output
-              metadata
+              ...utils_datasetExampleToEvaluatorInput_example
             }
           }
         }
       }
     `,
-    { exampleId }
+    { exampleId: exampleId ?? "", hasExample: exampleId != null }
   );
-  const allExampleKeys: ExampleKeyItem[] = useMemo(() => {
-    if (!data.example?.revision) {
-      return [];
+  const example = data.example;
+  const evaluatorInput: EvaluatorInput = useMemo(() => {
+    if (!example?.revision) {
+      return EMPTY_EVALUATOR_INPUT;
     }
+    try {
+      const evaluatorInput = datasetExampleToEvaluatorInput({
+        exampleRef: example.revision,
+      });
+      return evaluatorInput;
+    } catch {
+      return EMPTY_EVALUATOR_INPUT;
+    }
+  }, [example]);
+  const allExampleKeys: ExampleKeyItem[] = useMemo(() => {
     const flat = flattenObject({
-      obj: data.example.revision,
+      obj: evaluatorInput,
       keepNonTerminalValues: true,
     });
     return [
       ...Object.keys(flat).map((key) => ({
         id: key,
         label: key,
-        section: key.startsWith("input.")
-          ? ("Input" as const)
-          : key.startsWith("output.")
-            ? ("Reference Output" as const)
-            : ("Metadata" as const),
       })),
     ];
-  }, [data]);
+  }, [evaluatorInput]);
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const setInputValue = useCallback((key: string, value: string) => {
     setInputValues((prev) => ({ ...prev, [key]: value }));
