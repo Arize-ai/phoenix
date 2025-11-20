@@ -27,6 +27,7 @@ class ExampleContent:
     input: dict[str, Any] = field(default_factory=dict)
     output: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    splits: dict[str, str] = field(default_factory=dict)  # Maps split column name to split value
 
 
 Examples: TypeAlias = Iterable[ExampleContent]
@@ -138,6 +139,57 @@ async def insert_dataset_example_revision(
     return cast(DatasetExampleRevisionId, id_)
 
 
+async def get_or_create_dataset_split(
+    session: AsyncSession,
+    name: str,
+    user_id: Optional[int] = None,
+) -> int:
+    """
+    Get existing split by name, or create it if it doesn't exist.
+    Returns the split ID.
+    """
+    # Try to find existing split
+    split_id = await session.scalar(
+        select(models.DatasetSplit.id).where(models.DatasetSplit.name == name)
+    )
+
+    if split_id is not None:
+        return cast(int, split_id)
+
+    # Create new split with default color
+    split_id = await session.scalar(
+        insert(models.DatasetSplit)
+        .values(
+            name=name,
+            color="#808080",  # Default gray color
+            metadata_={},
+            user_id=user_id,
+        )
+        .returning(models.DatasetSplit.id)
+    )
+    return cast(int, split_id)
+
+
+async def assign_example_to_split(
+    session: AsyncSession,
+    dataset_example_id: DatasetExampleId,
+    dataset_split_id: int,
+) -> None:
+    """
+    Assign an example to a split by creating a record in the junction table.
+    Ignores if the association already exists.
+    """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    stmt = pg_insert(models.DatasetSplitDatasetExample).values(
+        dataset_split_id=dataset_split_id,
+        dataset_example_id=dataset_example_id,
+    )
+    # Use ON CONFLICT DO NOTHING to avoid errors if association already exists
+    stmt = stmt.on_conflict_do_nothing(index_elements=["dataset_split_id", "dataset_example_id"])
+    await session.execute(stmt)
+
+
 class DatasetAction(Enum):
     CREATE = "create"
     APPEND = "append"
@@ -213,6 +265,27 @@ async def add_dataset_examples(
                 f"{dataset_example_id=}"
             )
             raise
+        # Handle split assignments
+        if example.splits:
+            # Collect unique split names from all split columns
+            split_names = set(example.splits.values())
+            for split_name in split_names:
+                try:
+                    split_id = await get_or_create_dataset_split(
+                        session=session,
+                        name=split_name,
+                        user_id=user_id,
+                    )
+                    await assign_example_to_split(
+                        session=session,
+                        dataset_example_id=dataset_example_id,
+                        dataset_split_id=split_id,
+                    )
+                except Exception:
+                    logger.exception(
+                        f"Failed to assign example to split: {dataset_example_id=}, {split_name=}"
+                    )
+                    raise
     return DatasetExampleAdditionEvent(dataset_id=dataset_id, dataset_version_id=dataset_version_id)
 
 
