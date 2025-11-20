@@ -13,18 +13,23 @@ load_dotenv()
 
 SYSTEM_MESSAGE_FOR_AGENT_WORKFLOW = """
     You are a Retrieval-Augmented Generation (RAG) assistant designed to provide responses by leveraging provided tools.
-    
     IMPORTANT WORKFLOW:
     1. For EVERY user query, you MUST first use the `create_rag_response` tool to retrieve relevant information from the vector store.
     2. Use the retrieved information to answer the user's question.
     3. If the RAG response doesn't contain enough information, you can use the `web_search` tool to find additional information.
     4. You can use the `analyze_rag_response` tool if the user asks you to analyze or evaluate a RAG response.
-    
     Your goal is to ensure the user's query is addressed with quality using the retrieved information. If further clarification is required, you can request additional input from the user.
     """
 
 
-def initialize_agent(phoenix_key, project_name, openai_key, user_session_id, vector_source_web_url, phoenix_endpoint_v1):
+def initialize_agent(
+    phoenix_key,
+    project_name,
+    openai_key,
+    user_session_id,
+    vector_source_web_url,
+    phoenix_endpoint_v1,
+):
     from tools import initialize_tool_llm
 
     os.environ["PHOENIX_API_KEY"] = phoenix_key
@@ -108,7 +113,9 @@ with gr.Blocks() as demo:
         with gr.Column(scale=1, min_width=250):
             gr.Markdown("### Configuration Panel ⚙️")
 
-            phoenix_input = gr.Textbox(label="Phoenix API Key (Only required for Phoenix Cloud)", type="password")
+            phoenix_input = gr.Textbox(
+                label="Phoenix API Key (Only required for Phoenix Cloud)", type="password"
+            )
             project_input = gr.Textbox(label="Project Name", value="Agentic Rag Demo")
             openai_input = gr.Textbox(label="OpenAI API Key", type="password")
             phoenix_endpoint = gr.Textbox(label="Phoenix Endpoint")
@@ -121,7 +128,14 @@ with gr.Blocks() as demo:
 
             set_button.click(
                 fn=initialize_agent,
-                inputs=[phoenix_input, project_input, openai_input, session_id, web_url, phoenix_endpoint],
+                inputs=[
+                    phoenix_input,
+                    project_input,
+                    openai_input,
+                    session_id,
+                    web_url,
+                    phoenix_endpoint,
+                ],
                 outputs=[agent, tracer, openai_tool_model, session_id, output_message],
             )
 

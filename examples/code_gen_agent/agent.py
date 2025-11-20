@@ -1,11 +1,10 @@
-import os
-
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 from tools import code_analysis, execute_code, generate_code, generate_merge_request_description
+
 from phoenix.otel import register
 
 
@@ -13,7 +12,7 @@ def initialize_instrumentor(project_name, endpoint):
     tracer_provider = register(
         project_name=project_name,
         endpoint=endpoint,
-        batch=True, 
+        batch=True,
         auto_instrument=True,
     )
     tracer = tracer_provider.get_tracer(__name__)

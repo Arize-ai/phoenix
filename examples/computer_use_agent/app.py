@@ -69,7 +69,7 @@ async def chat_with_agent(
             logger.info(conversation_history["messages"][-1])
             span.set_output(conversation_history["messages"][-1]["content"][0]["text"])
             span.set_status(Status(StatusCode.OK))
-            
+
             # Format chat history as messages (role/content dicts) instead of tuples
             assistant_response = conversation_history["messages"][-1]["content"][0]["text"]
             user_chat_history.append({"role": "user", "content": user_input_message})
@@ -103,7 +103,9 @@ with gr.Blocks() as demo:
             # Configuration Block
             with gr.Row():
                 with gr.Accordion("Configurations ⚙️", open=True) as config_accordion:
-                    phoenix_input = gr.Textbox(label="Phoenix API Key (Only required for Phoenix Cloud)", type="password")
+                    phoenix_input = gr.Textbox(
+                        label="Phoenix API Key (Only required for Phoenix Cloud)", type="password"
+                    )
                     project_input = gr.Textbox(label="Project Name", value="Computer Use Agent")
 
                     phoenix_endpoint = gr.Textbox(label="Phoenix Endpoint")

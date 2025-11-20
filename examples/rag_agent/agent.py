@@ -108,7 +108,6 @@ def main():
     logger.info("RAG Agent Started....")
 
     os.environ["USER_AGENT"] = "Phoenix-RAG-Agent"
-    tracer = initialize_instrumentor("agentic_rag")
     initialize_agent_llm("gpt-4o-mini")
     initialize_tool_llm("gpt-4o-mini")
 
@@ -120,13 +119,11 @@ def main():
     query = input("Human: ")
     SYSTEM_MESSAGE_FOR_AGENT_WORKFLOW = """
     You are a Retrieval-Augmented Generation (RAG) assistant designed to provide responses by leveraging provided tools.
-    
     IMPORTANT WORKFLOW:
     1. For each user query, you first use the `create_rag_response` tool to retrieve relevant information from the vector store.
     2. Use the retrieved information to answer the user's question.
     3. If the RAG response doesn't contain enough information, you can use the `web_search` tool to find additional information.
     4. You can use the `analyze_rag_response` tool if the user asks you to analyze or evaluate a RAG response.
-    
     Your goal is to ensure the user's query is addressed with quality using the retrieved information. If further clarification is required, you can request additional input from the user.
     """
     agent.invoke(

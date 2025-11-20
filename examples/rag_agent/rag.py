@@ -21,7 +21,7 @@ def load_web_content_to_vector_store(web_post_url):
     )
     all_splits = text_splitter.split_documents(docs)
     logger.info(f"Split blog post into {len(all_splits)} sub-documents.")
-    
+
     document_ids = vector_store.add_documents(documents=all_splits)
     logger.info(f"Loaded {len(document_ids)} to vector store.")
 

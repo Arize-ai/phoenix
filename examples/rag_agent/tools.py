@@ -1,5 +1,3 @@
-import json
-
 from langchain.tools import tool
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_core.messages import HumanMessage
@@ -21,9 +19,9 @@ def initialize_tool_llm(model):
 def create_rag_response(user_query: str) -> str:
     """
     USE THIS TOOL FIRST for any user query. Fetches relevant information for the user's query from a pre-loaded vector store containing web content.
-    
+
     This tool searches through embedded documents that were loaded from a web URL. Use this tool to retrieve context before answering any question.
-    
+
     Args:
         user_query (str): The user's query or question.
 
@@ -33,12 +31,12 @@ def create_rag_response(user_query: str) -> str:
     vector_store = get_vector_store()
     if vector_store is None:
         return "Error: Vector store is not initialized. Please ensure the web URL has been loaded."
-    
+
     tracer = get_tracer_provider().get_tracer(__name__)
-    
+
     with tracer.start_as_current_span("rag_retrieval", openinference_span_kind="retriever") as span:
         span.set_attribute("input.value", user_query)
-        
+
         retrieved_docs = vector_store.similarity_search(user_query)
         logger.info(f"RAG search for '{user_query}' retrieved {len(retrieved_docs)} documents")
 
@@ -51,16 +49,16 @@ def create_rag_response(user_query: str) -> str:
         for i, doc in enumerate(retrieved_docs):
             doc_id = str(i)
             doc_content = doc.page_content[:1200].replace("\n", " ")
-            
+
             span.set_attribute(f"retrieval.documents.{i}.document.id", str(doc_id))
             span.set_attribute(f"retrieval.documents.{i}.document.content", doc_content)
-        
+
         span.set_attribute("retrieval.documents", len(retrieved_docs))
         span.set_status(Status(StatusCode.OK))
-        
+
         result = "\n\n".join(doc.page_content for doc in retrieved_docs)
         span.set_attribute("output.value", result)
-        
+
         return result
 
 
@@ -147,11 +145,11 @@ def web_search(user_query: str) -> str:
     try:
         duck_duck_go = DuckDuckGoSearchResults(max_results=5, output_format="list")
         search_results = duck_duck_go.invoke(user_query)
-        
+
         if not search_results:
             logger.info("Websearch completed, no documents retrieved")
             return "No relevant web search results were found for the given query."
-        
+
         formatted_results = [
             f"{i}. Title: {result['title']}\n   Snippet: {result['snippet']}\n   URL: {result['link']}"
             for i, result in enumerate(search_results, start=1)

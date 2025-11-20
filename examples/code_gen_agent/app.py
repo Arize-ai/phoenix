@@ -89,7 +89,9 @@ with gr.Blocks() as demo:
             output_message = gr.Markdown(
                 "### Status: <span style='color: red;'> Not Connected</span>"
             )
-            phoenix_input = gr.Textbox(label="Phoenix API Key (Only required for Phoenix Cloud)", type="password")
+            phoenix_input = gr.Textbox(
+                label="Phoenix API Key (Only required for Phoenix Cloud)", type="password"
+            )
             project_input = gr.Textbox(label="Project Name", value="Copilot Agent")
             openai_input = gr.Textbox(label="OpenAI API Key", type="password")
             phoenix_endpoint = gr.Textbox(label="Phoenix Endpoint")
