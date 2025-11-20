@@ -624,7 +624,7 @@ async def _process_csv(
             output={k: row.get(k) for k in output_keys},
             metadata={k: row.get(k) for k in metadata_keys},
             splits={
-                k: row.get(k) for k in split_keys if row.get(k)
+                k: v for k in split_keys if (v := row.get(k))
             },  # Only include non-empty split values
         )
         for row in iter(reader)
@@ -652,7 +652,7 @@ async def _process_pyarrow(
                 output={k: row.get(k) for k in output_keys},
                 metadata={k: row.get(k) for k in metadata_keys},
                 splits={
-                    k: row.get(k) for k in split_keys if row.get(k)
+                    k: v for k in split_keys if (v := row.get(k))
                 },  # Only include non-empty split values
             )
 

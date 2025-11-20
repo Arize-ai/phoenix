@@ -1166,6 +1166,12 @@
                     "items": {
                       "type": "object"
                     }
+                  },
+                  "splits": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
                   }
                 }
               }
@@ -1213,6 +1219,14 @@
                       "type": "string"
                     },
                     "uniqueItems": true
+                  },
+                  "split_keys[]": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "uniqueItems": true,
+                    "description": "Column names for auto-assigning examples to splits"
                   },
                   "file": {
                     "type": "string",

@@ -140,6 +140,77 @@ class TestDatasetKeys:
         with pytest.raises(ValueError, match="Keys not found"):
             keys.check_differences(frozenset(["a", "b"]))
 
+    def test_valid_keys_with_splits(self) -> None:
+        """Test DatasetKeys with split_keys included."""
+        keys = DatasetKeys(
+            input_keys=frozenset(["a", "b"]),
+            output_keys=frozenset(["c"]),
+            metadata_keys=frozenset(["d", "e"]),
+            split_keys=frozenset(["split", "category"]),
+        )
+        assert keys.input == frozenset(["a", "b"])
+        assert keys.output == frozenset(["c"])
+        assert keys.metadata == frozenset(["d", "e"])
+        assert keys.split == frozenset(["split", "category"])
+        assert set(keys) == {"a", "b", "c", "d", "e", "split", "category"}
+
+    def test_split_keys_overlap_with_input(self) -> None:
+        """Test that split keys cannot overlap with input keys."""
+        with pytest.raises(ValueError, match="Input and split keys overlap"):
+            DatasetKeys(
+                input_keys=frozenset(["a", "b"]),
+                output_keys=frozenset(["c"]),
+                metadata_keys=frozenset(["d"]),
+                split_keys=frozenset(["b", "split"]),  # 'b' overlaps with input
+            )
+
+    def test_split_keys_overlap_with_output(self) -> None:
+        """Test that split keys cannot overlap with output keys."""
+        with pytest.raises(ValueError, match="Output and split keys overlap"):
+            DatasetKeys(
+                input_keys=frozenset(["a"]),
+                output_keys=frozenset(["b", "c"]),
+                metadata_keys=frozenset(["d"]),
+                split_keys=frozenset(["c", "split"]),  # 'c' overlaps with output
+            )
+
+    def test_split_keys_overlap_with_metadata(self) -> None:
+        """Test that split keys cannot overlap with metadata keys."""
+        with pytest.raises(ValueError, match="Metadata and split keys overlap"):
+            DatasetKeys(
+                input_keys=frozenset(["a"]),
+                output_keys=frozenset(["b"]),
+                metadata_keys=frozenset(["c", "d"]),
+                split_keys=frozenset(["d", "split"]),  # 'd' overlaps with metadata
+            )
+
+    def test_check_differences_with_split_keys(self) -> None:
+        """Test that check_differences validates split keys exist in available columns."""
+        keys = DatasetKeys(
+            input_keys=frozenset(["a"]),
+            output_keys=frozenset(["b"]),
+            metadata_keys=frozenset(["c"]),
+            split_keys=frozenset(["split"]),
+        )
+
+        # Should pass when all keys including split are present
+        keys.check_differences(frozenset(["a", "b", "c", "split", "extra"]))
+
+        # Should fail when split key is missing
+        with pytest.raises(ValueError, match="Keys not found"):
+            keys.check_differences(frozenset(["a", "b", "c"]))  # 'split' missing
+
+    def test_empty_split_keys(self) -> None:
+        """Test DatasetKeys with empty split_keys (default behavior)."""
+        keys = DatasetKeys(
+            input_keys=frozenset(["a"]),
+            output_keys=frozenset(["b"]),
+            metadata_keys=frozenset(["c"]),
+            # split_keys not provided, should default to empty frozenset
+        )
+        assert keys.split == frozenset()
+        assert set(keys) == {"a", "b", "c"}
+
 
 class TestHelperFunctions:
     def test_parse_datetime(self) -> None:
@@ -419,74 +490,3 @@ class TestCSVProcessing:
 
         with pytest.raises(ValueError, match="Keys not found"):
             keys_with_missing.check_differences(frozenset(df.columns))
-
-    def test_valid_keys_with_splits(self) -> None:
-        """Test DatasetKeys with split_keys included."""
-        keys = DatasetKeys(
-            input_keys=frozenset(["a", "b"]),
-            output_keys=frozenset(["c"]),
-            metadata_keys=frozenset(["d", "e"]),
-            split_keys=frozenset(["split", "category"]),
-        )
-        assert keys.input == frozenset(["a", "b"])
-        assert keys.output == frozenset(["c"])
-        assert keys.metadata == frozenset(["d", "e"])
-        assert keys.split == frozenset(["split", "category"])
-        assert set(keys) == {"a", "b", "c", "d", "e", "split", "category"}
-
-    def test_split_keys_overlap_with_input(self) -> None:
-        """Test that split keys cannot overlap with input keys."""
-        with pytest.raises(ValueError, match="Input and split keys overlap"):
-            DatasetKeys(
-                input_keys=frozenset(["a", "b"]),
-                output_keys=frozenset(["c"]),
-                metadata_keys=frozenset(["d"]),
-                split_keys=frozenset(["b", "split"]),  # 'b' overlaps with input
-            )
-
-    def test_split_keys_overlap_with_output(self) -> None:
-        """Test that split keys cannot overlap with output keys."""
-        with pytest.raises(ValueError, match="Output and split keys overlap"):
-            DatasetKeys(
-                input_keys=frozenset(["a"]),
-                output_keys=frozenset(["b", "c"]),
-                metadata_keys=frozenset(["d"]),
-                split_keys=frozenset(["c", "split"]),  # 'c' overlaps with output
-            )
-
-    def test_split_keys_overlap_with_metadata(self) -> None:
-        """Test that split keys cannot overlap with metadata keys."""
-        with pytest.raises(ValueError, match="Metadata and split keys overlap"):
-            DatasetKeys(
-                input_keys=frozenset(["a"]),
-                output_keys=frozenset(["b"]),
-                metadata_keys=frozenset(["c", "d"]),
-                split_keys=frozenset(["d", "split"]),  # 'd' overlaps with metadata
-            )
-
-    def test_check_differences_with_split_keys(self) -> None:
-        """Test that check_differences validates split keys exist in available columns."""
-        keys = DatasetKeys(
-            input_keys=frozenset(["a"]),
-            output_keys=frozenset(["b"]),
-            metadata_keys=frozenset(["c"]),
-            split_keys=frozenset(["split"]),
-        )
-
-        # Should pass when all keys including split are present
-        keys.check_differences(frozenset(["a", "b", "c", "split", "extra"]))
-
-        # Should fail when split key is missing
-        with pytest.raises(ValueError, match="Keys not found"):
-            keys.check_differences(frozenset(["a", "b", "c"]))  # 'split' missing
-
-    def test_empty_split_keys(self) -> None:
-        """Test DatasetKeys with empty split_keys (default behavior)."""
-        keys = DatasetKeys(
-            input_keys=frozenset(["a"]),
-            output_keys=frozenset(["b"]),
-            metadata_keys=frozenset(["c"]),
-            # split_keys not provided, should default to empty frozenset
-        )
-        assert keys.split == frozenset()
-        assert set(keys) == {"a", "b", "c"}

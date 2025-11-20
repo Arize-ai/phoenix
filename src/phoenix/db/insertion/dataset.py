@@ -154,7 +154,7 @@ async def get_or_create_dataset_split(
     )
 
     if split_id is not None:
-        return cast(int, split_id)
+        return split_id
 
     # Create new split with default color
     split_id = await session.scalar(
