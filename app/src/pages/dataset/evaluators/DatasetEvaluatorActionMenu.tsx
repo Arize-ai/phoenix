@@ -44,7 +44,7 @@ export function DatasetEvaluatorActionMenu({
               }
             }}
           >
-            <MenuItem id={DatasetEvaluatorAction.UNASSIGN}>Remove</MenuItem>
+            <MenuItem id={DatasetEvaluatorAction.UNASSIGN}>Unlink</MenuItem>
           </Menu>
         </Popover>
       </MenuTrigger>
