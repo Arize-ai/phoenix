@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fc1ee50198d3a4d1843564eb28c0b6ba>>
+ * @generated SignedSource<<286ae592277d9271ef5e150a451c8043>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,7 @@ export type datasetEvaluatorsLoaderQuery$data = {
     readonly id: string;
     readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_evaluators" | "EvaluatorConfigDialog_dataset">;
   };
+  readonly " $fragmentSpreads": FragmentRefs<"AddEvaluatorMenu_query">;
 };
 export type datasetEvaluatorsLoaderQuery = {
   response: datasetEvaluatorsLoaderQuery$data;
@@ -73,7 +74,14 @@ v6 = [
     "name": "first",
     "value": 100
   }
-];
+],
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -109,6 +117,11 @@ return {
           }
         ],
         "storageKey": null
+      },
+      {
+        "args": (v3/*: any*/),
+        "kind": "FragmentSpread",
+        "name": "AddEvaluatorMenu_query"
       }
     ],
     "type": "Query",
@@ -165,13 +178,7 @@ return {
                           },
                           (v2/*: any*/),
                           (v5/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "kind",
-                            "storageKey": null
-                          },
+                          (v7/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -271,20 +278,34 @@ return {
           }
         ],
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "BuiltInEvaluator",
+        "kind": "LinkedField",
+        "name": "builtInEvaluators",
+        "plural": true,
+        "selections": [
+          (v2/*: any*/),
+          (v5/*: any*/),
+          (v7/*: any*/)
+        ],
+        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "7698292d4c874e4effb1719f34d7a7c7",
+    "cacheID": "a9ddabf4927aead338f0dd407258f6cd",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...EvaluatorConfigDialog_dataset\n      ...DatasetEvaluatorsTable_evaluators_2m4mqp\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_2m4mqp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_2m4mqp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n\nfragment EvaluatorsTable_row_2m4mqp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $id)\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...EvaluatorConfigDialog_dataset\n      ...DatasetEvaluatorsTable_evaluators_2m4mqp\n    }\n  }\n  ...AddEvaluatorMenu_query_2m4mqp\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_query_2m4mqp on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      ...EvaluatorConfigDialog_dataset\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_2m4mqp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_2m4mqp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n\nfragment EvaluatorsTable_row_2m4mqp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $id)\n}\n"
   }
 };
 })();
 
-(node as any).hash = "73fb66e3a05a16cfe30f411c30985bbf";
+(node as any).hash = "7ef3d802d8b5ca5a590bb4fa3eedd877";
 
 export default node;
