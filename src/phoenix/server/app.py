@@ -78,6 +78,7 @@ from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.duck_types import CanGetString
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
@@ -115,6 +116,7 @@ from phoenix.server.api.dataloaders import (
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SecretValuesDataLoader,
     SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
@@ -161,10 +163,12 @@ from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
+from phoenix.server.daemons.secret_store import SecretStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
@@ -580,6 +584,7 @@ def _lifespan(
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
     db_disk_usage_monitor: DbDiskUsageMonitor,
+    secret_store: SecretStore,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -621,6 +626,7 @@ def _lifespan(
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
+            await stack.enter_async_context(secret_store)
             await stack.enter_async_context(db_disk_usage_monitor)
             if scaffolder_config:
                 scaffolder = Scaffolder(
@@ -670,6 +676,9 @@ def create_graphql_router(
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
+    encrypt: Callable[[bytes], bytes],
+    decrypt: Callable[[bytes], bytes],
+    secret_store: CanGetString,
     corpus: Optional[Model] = None,
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
@@ -765,6 +774,9 @@ def create_graphql_router(
                 ),
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
                 generative_model_fields=TableFieldsDataLoader(db, models.GenerativeModel),
+                generative_model_custom_provider_fields=TableFieldsDataLoader(
+                    db, models.GenerativeModelCustomProvider
+                ),
                 last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(
                     db
                 ),
@@ -801,6 +813,7 @@ def create_graphql_router(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
                 ),
+                secret_values=SecretValuesDataLoader(db),
                 session_annotations_by_session=SessionAnnotationsBySessionDataLoader(db),
                 session_first_inputs=SessionIODataLoader(db, "first_input"),
                 session_last_outputs=SessionIODataLoader(db, "last_output"),
@@ -874,6 +887,9 @@ def create_graphql_router(
             token_store=token_store,
             email_sender=email_sender,
             span_cost_calculator=span_cost_calculator,
+            secret_store=secret_store,
+            encrypt=encrypt,
+            decrypt=decrypt,
         )
 
     return GraphQLRouter(
@@ -1093,7 +1109,8 @@ def create_app(
                 self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
-
+    encryption_service = EncryptionService(secret=secret)
+    secret_store = SecretStore(db=db, decrypt=encryption_service.decrypt)
     graphql_router = create_graphql_router(
         db=db,
         graphql_schema=build_graphql_schema(graphql_schema_extensions),
@@ -1109,6 +1126,9 @@ def create_app(
         token_store=token_store,
         email_sender=email_sender,
         span_cost_calculator=span_cost_calculator,
+        encrypt=encryption_service.encrypt,
+        decrypt=encryption_service.decrypt,
+        secret_store=secret_store,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -1127,6 +1147,7 @@ def create_app(
             trace_data_sweeper=trace_data_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
+            secret_store=secret_store,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
@@ -1201,6 +1222,8 @@ def create_app(
     app.state.db = db
     app.state.email_sender = email_sender
     app.state.span_cost_calculator = span_cost_calculator
+    app.state.encrypt = encryption_service.encrypt
+    app.state.decrypt = encryption_service.decrypt
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)

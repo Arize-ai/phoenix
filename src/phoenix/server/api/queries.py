@@ -27,6 +27,7 @@ from phoenix.db.helpers import (
     exclude_experiment_projects,
 )
 from phoenix.db.models import LatencyMs
+from phoenix.db.types.model_provider import GenerativeModelCustomerProviderConfig
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -75,13 +76,23 @@ from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeModelCustomProvider import (
+    GenerativeModelCustomProvider,
+    GenerativeModelCustomProviderAnthropic,
+    GenerativeModelCustomProviderAWSBedrock,
+    GenerativeModelCustomProviderAzureOpenAI,
+    GenerativeModelCustomProviderDeepSeek,
+    GenerativeModelCustomProviderGoogleGenAI,
+    GenerativeModelCustomProviderOllama,
+    GenerativeModelCustomProviderOpenAI,
+    GenerativeModelCustomProviderXAI,
+)
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.node import (
-    from_global_id,
     from_global_id_with_expected_type,
-    is_global_id,
+    is_composite_global_id,
 )
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -98,6 +109,7 @@ from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptLabel import PromptLabel
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
+from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
@@ -186,6 +198,154 @@ class Query:
             )
             for provider_key in available_providers
         ]
+
+    @strawberry.field
+    async def generative_model_custom_providers(
+        self,
+        info: Info[Context, None],
+        first: int | None = 50,
+        last: int | None = UNSET,
+        after: CursorString | None = UNSET,
+        before: CursorString | None = UNSET,
+    ) -> Connection[GenerativeModelCustomProvider]:
+        page_size = first or 50
+
+        # Parse cursor for forward pagination
+        after_cursor = Cursor.from_string(after) if after else None
+
+        # Build query with ordering (descending by id)
+        stmt = select(models.GenerativeModelCustomProvider).order_by(
+            models.GenerativeModelCustomProvider.id.desc()
+        )
+
+        # Apply cursor filtering for forward pagination
+        if after_cursor:
+            # Get items with id < cursor.rowid (next items in desc order)
+            stmt = stmt.where(models.GenerativeModelCustomProvider.id < after_cursor.rowid)
+
+        # Fetch one extra item to check for next page
+        stmt = stmt.limit(page_size + 1)
+
+        async with info.context.db() as session:
+            providers = (await session.scalars(stmt)).all()
+
+        # Check for next page
+        has_next_page = len(providers) > page_size
+        if has_next_page:
+            providers = providers[:page_size]
+
+        # has_previous_page is True if we have an after cursor (we're not at the start)
+        has_previous_page = after_cursor is not None
+
+        # Convert ORM models to GraphQL types and create cursors
+        cursors_and_nodes: list[tuple[Cursor, GenerativeModelCustomProvider]] = []
+
+        for provider in providers:
+            gql_provider: GenerativeModelCustomProvider
+            try:
+                # Decrypt config to determine the correct GraphQL provider class
+                decrypted_data = info.context.decrypt(provider.config)
+            except Exception:
+                if provider.sdk == "openai":
+                    gql_provider = GenerativeModelCustomProviderOpenAI(
+                        id=provider.id, db_record=provider
+                    )
+                elif provider.sdk == "azure_openai":
+                    gql_provider = GenerativeModelCustomProviderAzureOpenAI(
+                        id=provider.id, db_record=provider
+                    )
+                elif provider.sdk == "anthropic":
+                    gql_provider = GenerativeModelCustomProviderAnthropic(
+                        id=provider.id, db_record=provider
+                    )
+                elif provider.sdk == "aws_bedrock":
+                    gql_provider = GenerativeModelCustomProviderAWSBedrock(
+                        id=provider.id, db_record=provider
+                    )
+                elif provider.sdk == "google_genai":
+                    gql_provider = GenerativeModelCustomProviderGoogleGenAI(
+                        id=provider.id, db_record=provider
+                    )
+                else:
+                    assert_never(provider.sdk)
+            else:
+                config = GenerativeModelCustomerProviderConfig.model_validate_json(decrypted_data)
+                if config.root.type == "openai":
+                    gql_provider = GenerativeModelCustomProviderOpenAI(
+                        id=provider.id, db_record=provider
+                    )
+                elif config.root.type == "azure_openai":
+                    gql_provider = GenerativeModelCustomProviderAzureOpenAI(
+                        id=provider.id, db_record=provider
+                    )
+                elif config.root.type == "anthropic":
+                    gql_provider = GenerativeModelCustomProviderAnthropic(
+                        id=provider.id, db_record=provider
+                    )
+                elif config.root.type == "aws_bedrock":
+                    gql_provider = GenerativeModelCustomProviderAWSBedrock(
+                        id=provider.id, db_record=provider
+                    )
+                elif config.root.type == "google_genai":
+                    gql_provider = GenerativeModelCustomProviderGoogleGenAI(
+                        id=provider.id, db_record=provider
+                    )
+                elif config.root.type == "ollama":
+                    gql_provider = GenerativeModelCustomProviderOllama(
+                        id=provider.id, db_record=provider
+                    )
+                elif config.root.type == "deepseek":
+                    gql_provider = GenerativeModelCustomProviderDeepSeek(
+                        id=provider.id, db_record=provider
+                    )
+                elif config.root.type == "xai":
+                    gql_provider = GenerativeModelCustomProviderXAI(
+                        id=provider.id, db_record=provider
+                    )
+                else:
+                    assert_never(config.root.type)
+            cursors_and_nodes.append((Cursor(rowid=provider.id), gql_provider))
+
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=has_previous_page,
+            has_next_page=has_next_page,
+        )
+
+    @strawberry.field
+    async def secrets(
+        self,
+        info: Info[Context, None],
+        first: int | None = 50,
+        last: int | None = UNSET,
+        after: CursorString | None = UNSET,
+        before: CursorString | None = UNSET,
+    ) -> Connection[Secret]:
+        page_size = first or 50
+
+        stmt = (
+            select(models.Secret)
+            .order_by(models.Secret.key)
+            .where(models.Secret.deleted_at.is_(None))
+        )
+        if after:
+            stmt = stmt.where(models.Secret.key > after)
+        stmt = stmt.limit(page_size + 1)
+        async with info.context.db() as session:
+            secrets = (await session.scalars(stmt)).all()
+
+        has_next_page = len(secrets) > page_size
+        if has_next_page:
+            secrets = secrets[:page_size]
+        has_previous_page = bool(after)
+        cursors_and_nodes: list[tuple[str, Secret]] = []
+        for secret in secrets:
+            cursors_and_nodes.append((secret.key, Secret(id=secret.key, db_record=secret)))
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=has_previous_page,
+            has_next_page=has_next_page,
+        )
 
     @strawberry.field
     async def generative_models(
@@ -891,7 +1051,7 @@ class Query:
 
     @strawberry.field
     async def node(self, id: strawberry.ID, info: Info[Context, None]) -> Node:
-        if not is_global_id(id):
+        if is_composite_global_id(id):
             try:
                 experiment_rowid, dataset_example_rowid = (
                     parse_experiment_repeated_run_group_node_id(id)
@@ -904,7 +1064,10 @@ class Query:
             )
 
         global_id = GlobalID.from_id(id)
-        type_name, node_id = from_global_id(global_id)
+        type_name = global_id.type_name
+        if type_name == Secret.__name__:
+            return Secret(id=global_id.node_id)
+        node_id = int(global_id.node_id)
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
             return to_gql_dimension(node_id, dimension)
@@ -959,6 +1122,22 @@ class Query:
             return LLMEvaluator(id=node_id)
         elif type_name == CodeEvaluator.__name__:
             return CodeEvaluator(id=node_id)
+        if type_name == GenerativeModelCustomProviderOpenAI.__name__:
+            return GenerativeModelCustomProviderOpenAI(id=node_id)
+        if type_name == GenerativeModelCustomProviderAzureOpenAI.__name__:
+            return GenerativeModelCustomProviderAzureOpenAI(id=node_id)
+        if type_name == GenerativeModelCustomProviderAnthropic.__name__:
+            return GenerativeModelCustomProviderAnthropic(id=node_id)
+        if type_name == GenerativeModelCustomProviderGoogleGenAI.__name__:
+            return GenerativeModelCustomProviderGoogleGenAI(id=node_id)
+        if type_name == GenerativeModelCustomProviderAWSBedrock.__name__:
+            return GenerativeModelCustomProviderAWSBedrock(id=node_id)
+        if type_name == GenerativeModelCustomProviderOllama.__name__:
+            return GenerativeModelCustomProviderOllama(id=node_id)
+        if type_name == GenerativeModelCustomProviderDeepSeek.__name__:
+            return GenerativeModelCustomProviderDeepSeek(id=node_id)
+        if type_name == GenerativeModelCustomProviderXAI.__name__:
+            return GenerativeModelCustomProviderXAI(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
