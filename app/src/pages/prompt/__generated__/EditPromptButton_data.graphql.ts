@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2264b11cd91fbe93f593b27a192a8e92>>
+ * @generated SignedSource<<1c7658cd29999f5be4210d26ad2b493d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ import { FragmentRefs } from "relay-runtime";
 export type EditPromptButton_data$data = {
   readonly description: string | null;
   readonly id: string;
+  readonly metadata: any;
   readonly " $fragmentType": "EditPromptButton_data";
 };
 export type EditPromptButton_data$key = {
@@ -39,12 +40,19 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "description",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "metadata",
+      "storageKey": null
     }
   ],
   "type": "Prompt",
   "abstractKey": null
 };
 
-(node as any).hash = "24788aacf7830c0e5037befe576f4968";
+(node as any).hash = "f1d8e195768db742eb9070b7ad56ce0f";
 
 export default node;

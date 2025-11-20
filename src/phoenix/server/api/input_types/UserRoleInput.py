@@ -7,3 +7,4 @@ import strawberry
 class UserRoleInput(Enum):
     ADMIN = "ADMIN"
     MEMBER = "MEMBER"
+    VIEWER = "VIEWER"

@@ -10,15 +10,15 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier as IdentifierModel
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
+from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptVersion import PromptVersion
-from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
+from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 
 
 @strawberry.input
@@ -42,7 +42,7 @@ class PromptVersionTagMutationPayload:
 
 @strawberry.type
 class PromptVersionTagMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_prompt_version_tag(
         self, info: Info[Context, None], input: DeletePromptVersionTagInput
     ) -> PromptVersionTagMutationPayload:
@@ -75,10 +75,12 @@ class PromptVersionTagMutationMixin:
             await session.delete(prompt_version_tag)
             await session.commit()
             return PromptVersionTagMutationPayload(
-                prompt_version_tag=None, query=Query(), prompt=to_gql_prompt_from_orm(prompt)
+                prompt_version_tag=None,
+                query=Query(),
+                prompt=Prompt(id=prompt.id, db_record=prompt),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def set_prompt_version_tag(
         self, info: Info[Context, None], input: SetPromptVersionTagInput
     ) -> PromptVersionTagMutationPayload:
@@ -111,9 +113,10 @@ class PromptVersionTagMutationMixin:
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict("Failed to update PromptVersionTag.")
 
-            version_tag = to_gql_prompt_version_tag(updated_tag)
             return PromptVersionTagMutationPayload(
-                prompt_version_tag=version_tag, prompt=to_gql_prompt_from_orm(prompt), query=Query()
+                prompt_version_tag=PromptVersionTag(id=updated_tag.id, db_record=updated_tag),
+                prompt=Prompt(id=prompt.id, db_record=prompt),
+                query=Query(),
             )
 
 

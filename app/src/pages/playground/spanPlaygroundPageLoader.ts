@@ -78,3 +78,7 @@ export async function spanPlaygroundPageLoader(args: LoaderFunctionArgs) {
   ).toPromise();
   return loaderData;
 }
+
+export type SpanPlaygroundPageLoaderData = Awaited<
+  ReturnType<typeof spanPlaygroundPageLoader>
+>;

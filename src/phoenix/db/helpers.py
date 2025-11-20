@@ -21,6 +21,7 @@ from sqlalchemy import (
     func,
     insert,
     literal,
+    literal_column,
     or_,
     select,
     util,
@@ -524,3 +525,616 @@ def truncate_name(name: str, max_len: int = 63) -> str:
     if len(name) > max_len:
         return name[0 : max_len - 8] + "_" + util.md5_hex(name)[-4:]
     return name
+
+
+def get_successful_run_counts_subquery(
+    experiment_id: int,
+    repetitions: int,
+) -> Any:
+    """
+    Build a subquery that counts successful runs per dataset example for an experiment.
+
+    This subquery outer joins experiment dataset examples with their runs, counting only
+    successful runs (runs that exist and have no error). The HAVING clause filters to only
+    include examples with fewer successful runs than the total repetitions required.
+
+    Args:
+        experiment_id: The experiment ID to query runs for
+        repetitions: The number of repetitions required per example
+
+    Returns:
+        SQLAlchemy subquery with columns:
+        - dataset_example_revision_id: ID of the example revision
+        - dataset_example_id: ID of the dataset example
+        - successful_count: Count of successful runs for this example
+    """
+    # Use CASE to count only successful runs (run exists AND error IS NULL)
+    # Important: Must check that run exists (id IS NOT NULL) to distinguish
+    # "no run" from "successful run" in the outer join
+    successful_run_case = case(
+        (
+            and_(
+                models.ExperimentRun.id.is_not(None),  # Run exists
+                models.ExperimentRun.error.is_(None),  # No error (successful)
+            ),
+            1,
+        ),
+        else_=0,
+    )
+
+    return (
+        select(
+            models.ExperimentDatasetExample.dataset_example_revision_id,
+            models.ExperimentDatasetExample.dataset_example_id,
+            func.sum(successful_run_case).label("successful_count"),
+        )
+        .select_from(models.ExperimentDatasetExample)
+        .outerjoin(
+            models.ExperimentRun,
+            and_(
+                models.ExperimentRun.experiment_id == experiment_id,
+                models.ExperimentRun.dataset_example_id
+                == models.ExperimentDatasetExample.dataset_example_id,
+            ),
+        )
+        .where(models.ExperimentDatasetExample.experiment_id == experiment_id)
+        .group_by(
+            models.ExperimentDatasetExample.dataset_example_revision_id,
+            models.ExperimentDatasetExample.dataset_example_id,
+        )
+        .having(
+            # Only include incomplete examples (successful_count < repetitions)
+            func.coalesce(func.sum(successful_run_case), 0) < repetitions
+        )
+        .subquery()
+    )
+
+
+def generate_expected_repetitions_cte(
+    dialect: SupportedSQLDialect,
+    run_counts_subquery: Any,
+    repetitions: int,
+) -> Any:
+    """
+    Generate a CTE that produces all expected repetition numbers for partially complete examples.
+
+    This generates a sequence of repetition numbers [1..repetitions] for each example that has
+    at least one successful run (0 < successful_count < repetitions). The implementation varies
+    by SQL dialect.
+
+    Args:
+        dialect: The SQL dialect to use (PostgreSQL or SQLite)
+        run_counts_subquery: Subquery from get_successful_run_counts_subquery containing
+            dataset_example_revision_id, dataset_example_id, and successful_count columns
+        repetitions: The total number of repetitions required
+
+    Returns:
+        SQLAlchemy CTE with columns:
+        - dataset_example_revision_id: ID of the example revision
+        - dataset_example_id: ID of the dataset example
+        - successful_count: Count of successful runs for this example
+        - repetition_number: Expected repetition number (1..repetitions)
+
+    Note:
+        - For PostgreSQL: Uses generate_series function
+        - For SQLite: Uses recursive CTE to generate the sequence
+    """
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        # Generate expected repetition numbers only for partially complete examples
+        # Use func.generate_series with direct parameter - SQLAlchemy handles this safely
+        return (
+            select(
+                run_counts_subquery.c.dataset_example_revision_id,
+                run_counts_subquery.c.dataset_example_id,
+                run_counts_subquery.c.successful_count,
+                func.generate_series(1, repetitions).label("repetition_number"),
+            )
+            .select_from(run_counts_subquery)
+            .where(run_counts_subquery.c.successful_count > 0)  # Only partially complete!
+            .cte("expected_runs")
+        )
+    elif dialect is SupportedSQLDialect.SQLITE:
+        # Recursive CTE only for partially complete examples
+        expected_runs_cte = (
+            select(
+                run_counts_subquery.c.dataset_example_revision_id,
+                run_counts_subquery.c.dataset_example_id,
+                run_counts_subquery.c.successful_count,
+                literal_column("1").label("repetition_number"),
+            )
+            .select_from(run_counts_subquery)
+            .where(run_counts_subquery.c.successful_count > 0)  # Only partially complete!
+            .cte("expected_runs", recursive=True)
+        )
+
+        # Recursive part: increment repetition_number up to repetitions
+        expected_runs_recursive = expected_runs_cte.union_all(
+            select(
+                expected_runs_cte.c.dataset_example_revision_id,
+                expected_runs_cte.c.dataset_example_id,
+                expected_runs_cte.c.successful_count,
+                (expected_runs_cte.c.repetition_number + 1).label("repetition_number"),
+            ).where(expected_runs_cte.c.repetition_number < repetitions)
+        )
+
+        return expected_runs_recursive
+    else:
+        assert_never(dialect)
+
+
+def get_incomplete_repetitions_query(
+    dialect: SupportedSQLDialect,
+    expected_runs_cte: Any,
+    experiment_id: int,
+) -> Select[tuple[Any, Any, Any]]:
+    """
+    Build a query that finds incomplete repetitions for partially complete examples.
+
+    This query outer joins the expected repetition numbers with actual successful runs to find
+    which repetitions are missing or failed. It aggregates the incomplete repetitions into an
+    array or JSON array depending on the dialect.
+
+    Args:
+        dialect: The SQL dialect to use (PostgreSQL or SQLite)
+        expected_runs_cte: CTE from generate_expected_repetitions_cte containing expected
+            repetition numbers for partially complete examples
+        experiment_id: The experiment ID to query runs for
+
+    Returns:
+        SQLAlchemy SELECT query with columns:
+        - dataset_example_revision_id: ID of the example revision
+        - successful_count: Count of successful runs for this example
+        - incomplete_reps: Array/JSON array of incomplete repetition numbers
+
+    Note:
+        - For PostgreSQL: Returns an array using array_agg
+        - For SQLite: Returns a JSON string using json_group_array
+    """
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        agg_func = func.coalesce(
+            func.array_agg(expected_runs_cte.c.repetition_number),
+            literal_column("ARRAY[]::int[]"),
+        )
+    elif dialect is SupportedSQLDialect.SQLITE:
+        agg_func = func.coalesce(
+            func.json_group_array(expected_runs_cte.c.repetition_number),
+            literal_column("'[]'"),
+        )
+    else:
+        assert_never(dialect)
+
+    # Find incomplete runs for partially complete examples
+    return (
+        select(
+            expected_runs_cte.c.dataset_example_revision_id,
+            expected_runs_cte.c.successful_count,
+            agg_func.label("incomplete_reps"),
+        )
+        .select_from(expected_runs_cte)
+        .outerjoin(
+            models.ExperimentRun,
+            and_(
+                models.ExperimentRun.experiment_id == experiment_id,
+                models.ExperimentRun.dataset_example_id == expected_runs_cte.c.dataset_example_id,
+                models.ExperimentRun.repetition_number == expected_runs_cte.c.repetition_number,
+                # Only join successful runs
+                models.ExperimentRun.error.is_(None),
+            ),
+        )
+        .where(
+            # Incomplete = no matching run (NULL)
+            models.ExperimentRun.id.is_(None)
+        )
+        .group_by(
+            expected_runs_cte.c.dataset_example_revision_id,
+            expected_runs_cte.c.successful_count,
+        )
+    )
+
+
+def get_incomplete_runs_with_revisions_query(
+    incomplete_runs_subquery: Any,
+    *,
+    cursor_example_rowid: Optional[int] = None,
+    limit: Optional[int] = None,
+) -> Select[tuple[models.DatasetExampleRevision, Any, Any]]:
+    """
+    Build the main query that joins incomplete runs with dataset example revisions.
+
+    This query takes a subquery containing incomplete run information and joins it with
+    the DatasetExampleRevision table to get the full example data. It also applies
+    cursor-based pagination for efficient retrieval of large result sets.
+
+    Args:
+        incomplete_runs_subquery: Subquery with columns:
+            - dataset_example_revision_id: ID of the example revision
+            - successful_count: Count of successful runs for this example
+            - incomplete_reps: Array/JSON array of incomplete repetition numbers
+        cursor_example_rowid: Optional cursor position (dataset_example_id) for pagination.
+            When provided, only returns examples with ID >= cursor_example_rowid
+        limit: Optional maximum number of results to return. If provided, the query
+            will fetch limit+1 rows to enable next-page detection
+
+    Returns:
+        SQLAlchemy SELECT query with columns:
+        - DatasetExampleRevision: The full revision object
+        - successful_count: Count of successful runs
+        - incomplete_reps: Array/JSON array of incomplete repetition numbers
+
+    Note:
+        Results are ordered by dataset_example_id ascending for consistent pagination.
+        When using limit, fetch one extra row to check if there's a next page.
+    """
+    stmt = (
+        select(
+            models.DatasetExampleRevision,
+            incomplete_runs_subquery.c.successful_count,
+            incomplete_runs_subquery.c.incomplete_reps,
+        )
+        .select_from(incomplete_runs_subquery)
+        .join(
+            models.DatasetExampleRevision,
+            models.DatasetExampleRevision.id
+            == incomplete_runs_subquery.c.dataset_example_revision_id,
+        )
+        .order_by(models.DatasetExampleRevision.dataset_example_id.asc())
+    )
+
+    # Apply cursor filter in SQL for efficiency with large datasets
+    if cursor_example_rowid is not None:
+        stmt = stmt.where(models.DatasetExampleRevision.dataset_example_id >= cursor_example_rowid)
+
+    # Fetch limit+1 to check if there's a next page
+    if limit is not None:
+        stmt = stmt.limit(limit + 1)
+
+    return stmt
+
+
+def get_successful_experiment_runs_query(
+    experiment_id: int,
+    *,
+    cursor_run_rowid: Optional[int] = None,
+    limit: Optional[int] = None,
+) -> Select[tuple[models.ExperimentRun, int]]:
+    """
+    Build a query for successful experiment runs with their dataset example revision IDs.
+
+    This query retrieves all experiment runs that completed successfully (error IS NULL)
+    and joins them with the ExperimentDatasetExample table to get the revision IDs.
+    Results are ordered by run ID ascending for consistent pagination.
+
+    Args:
+        experiment_id: The experiment ID to query runs for
+        cursor_run_rowid: Optional cursor position (experiment_run_id) for pagination.
+            When provided, only returns runs with ID >= cursor_run_rowid
+        limit: Optional maximum number of results to return. If provided, the query
+            will fetch limit+1 rows to enable next-page detection
+
+    Returns:
+        SQLAlchemy SELECT query with columns:
+        - ExperimentRun: The full experiment run object
+        - dataset_example_revision_id: ID of the dataset example revision (int)
+
+    Note:
+        - Only includes successful runs (error IS NULL)
+        - Results ordered by run ID ascending for consistent pagination
+        - When using limit, fetch one extra row to check if there's a next page
+    """
+    stmt = (
+        select(
+            models.ExperimentRun,
+            models.ExperimentDatasetExample.dataset_example_revision_id,
+        )
+        .join(
+            models.ExperimentDatasetExample,
+            and_(
+                models.ExperimentDatasetExample.experiment_id == experiment_id,
+                models.ExperimentDatasetExample.dataset_example_id
+                == models.ExperimentRun.dataset_example_id,
+            ),
+        )
+        .where(
+            and_(
+                models.ExperimentRun.experiment_id == experiment_id,
+                models.ExperimentRun.error.is_(None),  # Only successful task runs
+            )
+        )
+        .order_by(models.ExperimentRun.id.asc())
+    )
+
+    if cursor_run_rowid is not None:
+        stmt = stmt.where(models.ExperimentRun.id >= cursor_run_rowid)
+
+    if limit is not None:
+        stmt = stmt.limit(limit + 1)
+
+    return stmt
+
+
+def get_experiment_run_annotations_query(
+    run_ids: Sequence[int],
+    evaluation_names: Sequence[str],
+) -> Select[tuple[int, str, Optional[str]]]:
+    """
+    Build a query to get annotations for specific runs and evaluation names.
+
+    This query retrieves annotations (evaluations) for a set of experiment runs,
+    filtered by specific evaluation names. It returns only the essential fields
+    needed to determine if an evaluation is complete or has errors.
+
+    Args:
+        run_ids: List of experiment run IDs to query annotations for
+        evaluation_names: List of evaluation names to filter by
+
+    Returns:
+        SQLAlchemy SELECT query with columns:
+        - experiment_run_id: ID of the experiment run (int)
+        - name: Name of the evaluation (str)
+        - error: Error message if evaluation failed, None if successful (Optional[str])
+
+    Example:
+        >>> run_ids = [1, 2, 3]
+        >>> eval_names = ["relevance", "coherence"]
+        >>> query = get_experiment_run_annotations_query(run_ids, eval_names)
+        >>> results = await session.execute(query)
+        >>> for run_id, name, error in results:
+        ...     # Process annotations...
+    """
+    return (
+        select(
+            models.ExperimentRunAnnotation.experiment_run_id,
+            models.ExperimentRunAnnotation.name,
+            models.ExperimentRunAnnotation.error,
+        )
+        .where(models.ExperimentRunAnnotation.experiment_run_id.in_(run_ids))
+        .where(models.ExperimentRunAnnotation.name.in_(evaluation_names))
+    )
+
+
+def get_runs_with_incomplete_evaluations_query(
+    experiment_id: int,
+    evaluation_names: Sequence[str],
+    dialect: SupportedSQLDialect,
+    *,
+    cursor_run_rowid: Optional[int] = None,
+    limit: Optional[int] = None,
+    include_annotations_and_revisions: bool = False,
+) -> Select[Any]:
+    """
+    Get experiment runs that have incomplete evaluations.
+
+    A run has incomplete evaluations if it's missing successful annotations for any of
+    the requested evaluation names. Both missing (no annotation) and failed (error != NULL)
+    evaluations are considered incomplete.
+
+    Args:
+        experiment_id: The experiment ID to query
+        evaluation_names: Evaluation names to check for completeness
+        dialect: SQL dialect (PostgreSQL or SQLite)
+        cursor_run_rowid: Optional run ID for cursor-based pagination
+        limit: Optional limit (fetches limit+1 for next-page detection)
+        include_annotations_and_revisions: If True, also fetch revision and successful
+            annotation names as JSON array
+
+    Returns:
+        Query returning (ExperimentRun, revision_id, [revision, annotations_json])
+        Results ordered by run ID ascending
+    """
+    # Subquery: Count successful annotations per run
+    successful_annotations_count = (
+        select(
+            models.ExperimentRunAnnotation.experiment_run_id,
+            func.count().label("successful_count"),
+        )
+        .where(
+            models.ExperimentRunAnnotation.name.in_(evaluation_names),
+            models.ExperimentRunAnnotation.error.is_(None),
+        )
+        .group_by(models.ExperimentRunAnnotation.experiment_run_id)
+        .subquery()
+    )
+
+    # Base query: Find runs where successful_count < required evaluations
+    stmt = (
+        select(
+            models.ExperimentRun,
+            models.ExperimentDatasetExample.dataset_example_revision_id,
+        )
+        .join(
+            models.ExperimentDatasetExample,
+            and_(
+                models.ExperimentDatasetExample.experiment_id == experiment_id,
+                models.ExperimentDatasetExample.dataset_example_id
+                == models.ExperimentRun.dataset_example_id,
+            ),
+        )
+        .outerjoin(
+            successful_annotations_count,
+            successful_annotations_count.c.experiment_run_id == models.ExperimentRun.id,
+        )
+        .where(
+            models.ExperimentRun.experiment_id == experiment_id,
+            models.ExperimentRun.error.is_(None),  # Only successful task runs
+            func.coalesce(successful_annotations_count.c.successful_count, 0)
+            < len(evaluation_names),
+        )
+    )
+
+    # Optionally include revisions and successful annotation names
+    if include_annotations_and_revisions:
+        # Subquery: Aggregate successful annotation names as JSON array
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            json_agg_expr = func.cast(
+                func.coalesce(
+                    func.json_agg(models.ExperimentRunAnnotation.name),
+                    literal_column("'[]'::json"),
+                ),
+                sa.String,
+            )
+        else:  # SQLite
+            json_agg_expr = func.cast(
+                func.coalesce(
+                    func.json_group_array(models.ExperimentRunAnnotation.name),
+                    literal_column("'[]'"),
+                ),
+                sa.String,
+            )
+
+        successful_annotations_json = (
+            select(
+                models.ExperimentRunAnnotation.experiment_run_id,
+                json_agg_expr.label("annotations_json"),
+            )
+            .where(
+                models.ExperimentRunAnnotation.name.in_(evaluation_names),
+                models.ExperimentRunAnnotation.error.is_(None),
+            )
+            .group_by(models.ExperimentRunAnnotation.experiment_run_id)
+            .subquery()
+        )
+
+        stmt = (
+            stmt.add_columns(
+                models.DatasetExampleRevision,
+                successful_annotations_json.c.annotations_json,
+            )
+            .join(
+                models.DatasetExampleRevision,
+                models.DatasetExampleRevision.id
+                == models.ExperimentDatasetExample.dataset_example_revision_id,
+            )
+            .outerjoin(
+                successful_annotations_json,
+                successful_annotations_json.c.experiment_run_id == models.ExperimentRun.id,
+            )
+        )
+
+    # Apply ordering, cursor, and limit
+    stmt = stmt.order_by(models.ExperimentRun.id.asc())
+
+    if cursor_run_rowid is not None:
+        stmt = stmt.where(models.ExperimentRun.id >= cursor_run_rowid)
+
+    if limit is not None:
+        stmt = stmt.limit(limit + 1)
+
+    return stmt
+
+
+def get_experiment_incomplete_runs_query(
+    experiment: models.Experiment,
+    dialect: SupportedSQLDialect,
+    *,
+    cursor_example_rowid: Optional[int] = None,
+    limit: Optional[int] = None,
+) -> Select[tuple[models.DatasetExampleRevision, Any, Any]]:
+    """
+    High-level helper to build a complete query for incomplete runs in an experiment.
+
+    This is the main entry point for querying incomplete runs. It encapsulates all the
+    logic for finding runs that need to be completed, including both missing runs
+    (not yet attempted) and failed runs (attempted but have errors).
+
+    The function automatically chooses the optimal query strategy:
+    - For repetitions=1: Simple fast path (no CTE needed)
+    - For repetitions>1: Two-path optimization separating completely missing examples
+      from partially complete examples
+
+    Args:
+        experiment: The Experiment model instance to query incomplete runs for
+        dialect: The SQL dialect to use (PostgreSQL or SQLite)
+        cursor_example_rowid: Optional cursor position (dataset_example_id) for pagination.
+            When provided, only returns examples with ID >= cursor_example_rowid
+        limit: Optional maximum number of results to return. If provided, the query
+            will fetch limit+1 rows to enable next-page detection
+
+    Returns:
+        SQLAlchemy SELECT query with columns:
+        - DatasetExampleRevision: The full revision object with example data
+        - successful_count: Count of successful runs for this example (int)
+        - incomplete_reps: Incomplete repetition numbers as:
+            * PostgreSQL: Array of ints (or empty array for completely missing)
+            * SQLite: JSON string array (or '[]' for completely missing)
+
+    Note:
+        For completely missing examples (successful_count=0), the incomplete_reps
+        column will be an empty array/JSON. Callers should generate the full
+        [1..repetitions] list when successful_count=0.
+
+    Example:
+        >>> experiment = session.get(models.Experiment, experiment_id)
+        >>> dialect = SupportedSQLDialect(session.bind.dialect.name)
+        >>> query = get_experiment_incomplete_runs_query(
+        ...     experiment, dialect, cursor_example_rowid=100, limit=50
+        ... )
+        >>> results = await session.execute(query)
+        >>> for revision, success_count, incomplete_reps in results:
+        ...     # Process incomplete runs...
+    """
+    # Step 1: Get successful run counts for incomplete examples
+    run_counts_subquery = get_successful_run_counts_subquery(experiment.id, experiment.repetitions)
+
+    # Step 2: Build the combined incomplete runs subquery
+    # The strategy depends on whether repetitions=1 or >1
+    if experiment.repetitions == 1:
+        # Fast path optimization for repetitions=1:
+        # All incomplete examples have successful_count=0, so we can skip the expensive CTE
+        empty_array: Any
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            empty_array = literal_column("ARRAY[]::int[]")
+        elif dialect is SupportedSQLDialect.SQLITE:
+            empty_array = literal_column("'[]'")
+        else:
+            assert_never(dialect)
+
+        combined_incomplete = (
+            select(
+                run_counts_subquery.c.dataset_example_revision_id,
+                run_counts_subquery.c.successful_count,
+                empty_array.label("incomplete_reps"),
+            ).select_from(run_counts_subquery)
+        ).subquery()
+    else:
+        # Two-path optimization for repetitions > 1:
+        # Path 1: Completely missing examples (successful_count = 0) - no CTE needed
+        # Path 2: Partially complete examples (0 < successful_count < R) - use CTE
+
+        # Path 1: Completely missing examples
+        empty_array_inner: Any
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            empty_array_inner = literal_column("ARRAY[]::int[]")
+        elif dialect is SupportedSQLDialect.SQLITE:
+            empty_array_inner = literal_column("'[]'")
+        else:
+            assert_never(dialect)
+
+        completely_missing_stmt = (
+            select(
+                run_counts_subquery.c.dataset_example_revision_id,
+                run_counts_subquery.c.successful_count,
+                empty_array_inner.label("incomplete_reps"),
+            )
+            .select_from(run_counts_subquery)
+            .where(run_counts_subquery.c.successful_count == 0)
+        )
+
+        # Path 2: Partially complete examples
+        expected_runs_cte = generate_expected_repetitions_cte(
+            dialect, run_counts_subquery, experiment.repetitions
+        )
+        partially_complete_stmt = get_incomplete_repetitions_query(
+            dialect, expected_runs_cte, experiment.id
+        )
+
+        # Combine both paths
+        from sqlalchemy import union_all
+
+        combined_incomplete = union_all(completely_missing_stmt, partially_complete_stmt).subquery()
+
+    # Step 3: Join with revisions and apply pagination
+    return get_incomplete_runs_with_revisions_query(
+        combined_incomplete,
+        cursor_example_rowid=cursor_example_rowid,
+        limit=limit,
+    )

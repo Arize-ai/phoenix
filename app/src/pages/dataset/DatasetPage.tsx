@@ -1,9 +1,8 @@
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo } from "react";
+import { graphql, usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
-
-import { ActionMenu, Item } from "@arizeai/components";
 
 import {
   Button,
@@ -13,14 +12,19 @@ import {
   Icons,
   LazyTabPanel,
   Loading,
-  ModalOverlay,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover,
   Tab,
   TabList,
   Tabs,
   Text,
+  Token,
   View,
 } from "@phoenix/components";
-import { NewDatasetSplitDialog } from "@phoenix/components/dataset/NewDatasetSplitDialog";
+import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   DatasetProvider,
@@ -31,29 +35,67 @@ import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
+import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeButton } from "./DatasetCodeButton";
 import { RunExperimentButton } from "./RunExperimentButton";
 
+export const DatasetPageQueryNode = graphql`
+  query DatasetPageQuery($id: ID!) {
+    dataset: node(id: $id) {
+      id
+      ... on Dataset {
+        id
+        name
+        description
+        exampleCount
+        experimentCount
+        labels {
+          id
+          name
+          color
+        }
+        latestVersions: versions(
+          first: 1
+          sort: { col: createdAt, dir: desc }
+        ) {
+          edges {
+            version: node {
+              id
+              description
+              createdAt
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 export function DatasetPage() {
   const loaderData = useLoaderData<typeof datasetLoader>();
   invariant(loaderData, "loaderData is required");
+  const data = usePreloadedQuery<DatasetPageQuery>(
+    DatasetPageQueryNode,
+    loaderData.queryRef
+  );
+
   const latestVersion = useMemo(() => {
-    const versions = loaderData.dataset.latestVersions;
+    const versions = data.dataset.latestVersions;
     if (versions?.edges && versions.edges.length) {
       return versions.edges[0].version;
     }
     return null;
-  }, [loaderData]);
+  }, [data]);
 
   return (
     <DatasetProvider
-      datasetId={loaderData.dataset.id}
-      datasetName={loaderData.dataset.name as string}
+      datasetId={data.dataset.id}
+      datasetName={data.dataset.name as string}
       latestVersion={latestVersion}
     >
       <Suspense fallback={<Loading />}>
-        <DatasetPageContent dataset={loaderData["dataset"]} />
+        <DatasetPageContent dataset={data.dataset} />
       </Suspense>
     </DatasetProvider>
   );
@@ -117,13 +159,11 @@ function DatasetPageContent({
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
   const isEvaluatorsEnabled = useFeatureFlag("evaluators");
-  const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const datasetId = dataset.id;
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
   );
   const notifySuccess = useNotifySuccess();
-  const [isCreateSplitOpen, setIsCreateSplitOpen] = useState(false);
 
   const navigate = useNavigate();
   const onTabChange = useCallback(
@@ -135,6 +175,7 @@ function DatasetPageContent({
     },
     [navigate, datasetId]
   );
+  const datasetHasVersions = (dataset.latestVersions?.edges.length ?? 0) > 0;
 
   // Set the initial tab
   const location = useLocation();
@@ -157,50 +198,82 @@ function DatasetPageContent({
             <Flex direction="row" gap="size-200" alignItems="center">
               {/* TODO(datasets): Add an icon here to make the UI cohesive */}
               {/* <Icon svg={<Icons.DatabaseOutline />} /> */}
-              <Flex direction="column">
+              <Flex direction="column" gap="size-50">
                 <Text elementType="h1" size="L" weight="heavy">
                   {dataset.name}
                 </Text>
                 <Text color="text-700">{dataset.description || "--"}</Text>
+                {dataset.labels && dataset.labels.length > 0 && (
+                  <ul
+                    css={css`
+                      display: flex;
+                      flex-direction: row;
+                      gap: var(--ac-global-dimension-size-100);
+                      min-width: 0;
+                      flex-wrap: wrap;
+                      padding-top: var(--ac-global-dimension-size-50);
+                    `}
+                  >
+                    {dataset.labels.map((label) => (
+                      <li key={label.id}>
+                        <Token color={label.color}>
+                          <Truncate maxWidth={200} title={label.name}>
+                            {label.name}
+                          </Truncate>
+                        </Token>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </Flex>
             </Flex>
           </Flex>
           <Flex direction="row" gap="size-100" alignItems="center">
-            <ActionMenu
-              align="end"
-              buttonSize="compact"
-              icon={<Icon svg={<Icons.DownloadOutline />} />}
-              onAction={(action) => {
-                switch (action) {
-                  case "csv":
-                    window.open(
-                      prependBasename(`/v1/datasets/${dataset.id}/csv`),
-                      "_blank"
-                    );
-                    break;
-                  case "openai-ft":
-                    window.open(
-                      prependBasename(
-                        `/v1/datasets/${dataset.id}/jsonl/openai_ft`
-                      ),
-                      "_blank"
-                    );
-                    break;
-                  case "openai-evals":
-                    window.open(
-                      prependBasename(
-                        `/v1/datasets/${dataset.id}/jsonl/openai_evals`
-                      ),
-                      "_blank"
-                    );
-                    break;
-                }
-              }}
-            >
-              <Item key="csv">Download CSV</Item>
-              <Item key="openai-ft">Download OpenAI Fine-Tuning JSONL</Item>
-              <Item key="openai-evals">Download OpenAI Evals JSONL</Item>
-            </ActionMenu>
+            <MenuTrigger>
+              <Button
+                size="S"
+                leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+              />
+              <Popover>
+                <Menu
+                  aria-label="Dataset action menu"
+                  onAction={(action) => {
+                    switch (action) {
+                      case "csv":
+                        window.open(
+                          prependBasename(`/v1/datasets/${dataset.id}/csv`),
+                          "_blank"
+                        );
+                        break;
+                      case "openai-ft":
+                        window.open(
+                          prependBasename(
+                            `/v1/datasets/${dataset.id}/jsonl/openai_ft`
+                          ),
+                          "_blank"
+                        );
+                        break;
+                      case "openai-evals":
+                        window.open(
+                          prependBasename(
+                            `/v1/datasets/${dataset.id}/jsonl/openai_evals`
+                          ),
+                          "_blank"
+                        );
+                        break;
+                    }
+                  }}
+                >
+                  <MenuItem id="csv">Download CSV</MenuItem>
+                  <MenuItem id="openai-ft">
+                    Download OpenAI Fine-Tuning JSONL
+                  </MenuItem>
+                  <MenuItem id="openai-evals">
+                    Download OpenAI Evals JSONL
+                  </MenuItem>
+                </Menu>
+              </Popover>
+            </MenuTrigger>
             <DatasetCodeButton />
             <RunExperimentButton />
             <AddDatasetExampleButton
@@ -214,16 +287,9 @@ function DatasetPageContent({
                 refreshLatestVersion();
               }}
             />
-            {isSplitsEnabled ? (
-              <Button
-                leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-                size="S"
-                onPress={() => setIsCreateSplitOpen(true)}
-              >
-                Create Split
-              </Button>
-            ) : null}
+            <DatasetLabelConfigButton datasetId={dataset.id} />
             <Button
+              isDisabled={!datasetHasVersions}
               size="S"
               variant="primary"
               leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
@@ -236,18 +302,6 @@ function DatasetPageContent({
           </Flex>
         </Flex>
       </View>
-      {isSplitsEnabled ? (
-        <ModalOverlay
-          isOpen={isCreateSplitOpen}
-          onOpenChange={(open) => {
-            if (!open) setIsCreateSplitOpen(false);
-          }}
-        >
-          <NewDatasetSplitDialog
-            onCompleted={() => setIsCreateSplitOpen(false)}
-          />
-        </ModalOverlay>
-      ) : null}
       <Tabs
         defaultSelectedKey={
           initialIndex === 0

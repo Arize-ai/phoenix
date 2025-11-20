@@ -23,7 +23,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     FreeformAnnotationConfig as FreeformAnnotationConfigModel,
 )
-from phoenix.server.api.auth import IsNotReadOnly
+from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
@@ -197,7 +197,7 @@ def _to_pydantic_freeform_annotation_config(
 
 @strawberry.type
 class AnnotationConfigMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
     async def create_annotation_config(
         self,
         info: Info[Context, None],
@@ -236,7 +236,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
     async def update_annotation_config(
         self,
         info: Info[Context, None],
@@ -285,7 +285,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
     async def delete_annotation_configs(
         self,
         info: Info[Context, None],
@@ -317,7 +317,7 @@ class AnnotationConfigMutationMixin:
             ],
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
     async def add_annotation_config_to_project(
         self,
         info: Info[Context, None],
@@ -374,10 +374,10 @@ class AnnotationConfigMutationMixin:
                 )
             return AddAnnotationConfigToProjectPayload(
                 query=Query(),
-                project=Project(project_rowid=project_id),
+                project=Project(id=project_id),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
     async def remove_annotation_config_from_project(
         self,
         info: Info[Context, None],
@@ -409,5 +409,5 @@ class AnnotationConfigMutationMixin:
                 raise NotFound("Could not find one or more input project annotation configs")
         return RemoveAnnotationConfigFromProjectPayload(
             query=Query(),
-            project=Project(project_rowid=project_id),
+            project=Project(id=project_id),
         )

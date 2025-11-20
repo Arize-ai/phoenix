@@ -19,6 +19,7 @@ export function PromptLabelsTable({
 }: {
   query: PromptLabelsTableFragment$key;
 }) {
+  "use no memo";
   const data = useFragment<PromptLabelsTableFragment$key>(
     graphql`
       fragment PromptLabelsTableFragment on Query
@@ -40,9 +41,10 @@ export function PromptLabelsTable({
   );
   const tableData = useMemo(
     () => data.promptLabels.edges.map((edge) => edge.node),
-    [data.promptLabels.edges]
+    [data]
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns: [
       {

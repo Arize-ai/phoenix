@@ -30,7 +30,7 @@ question can be answered by the information in the Reference text.
 "relevant" means the reference text contains an answer to the Question. '''
 ```
 
-For more information about prompt templates, see the API Reference for [Prompt Template](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#prompt-template). For more information about how to configure the LLM judge, see [Configuring the LLM](configuring-the-llm.md).
+For more information about prompt templates, see the API Reference for [Prompt Template](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#prompt-template). For more information about how to configure the LLM judge, see [Configuring the LLM](configuring-the-llm/).
 
 #### Label Choices
 
@@ -45,7 +45,11 @@ The `choices` of a `ClassificationEvaluator` can be structured in a couple of wa
 
 The `ClassificationEvaluator` also supports multi-class labels and scores, for example: `choices = {"good": 1.0, "bad": 0.0, "neutral": 0.5}`
 
+There is no limit to the number of label choices you can provide, and you can specify any numeric scores (not limited to values between 0 and 1). For example, you can set `choices = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}` for a numeric rating task.&#x20;
+
 #### Putting it together
+
+For the relevance evaluation, we define the evaluator as follows:
 
 ```python
 from phoenix.evals ClassificationEvaluator
@@ -64,9 +68,11 @@ results = relevance_classifier.evaluate({"query": "input query goes here", "refe
 
 ### Custom Numeric Rating LLM Evaluator
 
-We do not have a pre-built `LLMEvaluator` designed for LLM judges that produce numeric ratings (also known as Likert scores), since classification-style evals are more widely used and generally more reliable. That said, it is still possible to create a custom evaluator that implements the base [`LLMEvaluator`](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#llmevaluator) class.
+The `ClassificationEvaluator` is a flexible LLM-as-a-judge construct that can also be used to produce numeric ratings (also known as Likert scores).&#x20;
 
-Here is a prompt that asks the LLM to rate the input context on a scale from 1-10:
+**Note**: We generally recommend using categorical labels over numeric ratings for most evaluation tasks. LLMs have inherent limitations in their numeric reasoning abilities, and numeric scores do not correlate as well with human judgements. See this [technical report](https://arize.com/blog/testing-binary-vs-score-llm-evals-on-the-latest-models/) for more information about our findings on this subject.&#x20;
+
+Here is a prompt that asks the LLM to rate the spelling/grammatical correctness of some input context on a scale from 1-10:
 
 ```python
 SCORE_TEMPLATE = """
@@ -84,14 +90,37 @@ Example Scoring Rubric
 
 #CONTEXT
 {context}
-#ENDCONTEXT
+#END CONTEXT
 
 #QUESTION
 Please rate the percentage of errors in the context on a scale from 1 to 10. 
 """
 ```
 
-We can implement our own `LLMEvaluator` for almost any complex eval that doesn't fit into the classification type.
+This numeric rating task can be framed as a classification task where the set of labels is the set of numbers on the rating scale (here, 1-10). Then we can set up a custom `ClassificationEvaluator` for our evaluation task, similar to how we did above. Make sure to set the optimization `direction = "minimize"` here since a lower score is better on this task (fewer spelling errors).&#x20;
+
+```python
+from phoenix.evals ClassificationEvaluator
+from phoenix.evals.llm import LLM
+
+choices = {i: str(i) for i in range(1, 11)} # choices are {"1": 1, "2": 2, etc...}
+
+spelling_classifier = ClassificationEvaluator(
+    name="spelling",
+    prompt_template=SCORE_TEMPLATE,
+    model=LLM(provider="openai", model="gpt-4o"),
+    choices=choices
+    direction="minimize" # lower scores = better, so direction = minimize 
+)
+spelling_classifier.evaluate({"context": "This is a test. There are is some typo in this sentence."})
+>>> [Score(name='spelling', score=2, label="2", explanation="There is one grammatical error ('There are is') and one typo ('typo' instead of 'typos'), which roughly represents 20% of the 10 words in the document.", metadata={'model': 'gpt-4o-mini'}, kind='llm', direction='minimize')]
+```
+
+### Alternative: Fully Custom LLM Evaluator
+
+Alternatively, for LLM-as-a-judge tasks that don't fit the classification paradigm, it is also possible to create a custom evaluator that implements the base [`LLMEvaluator`](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#llmevaluator) class. We can implement our own `LLMEvaluator` for almost any complex eval that doesn't fit into the classification type.
+
+In this example, we implement the same spelling evaluator from above as a fully custom `LLMEvaluator.` &#x20;
 
 #### Steps to create a custom evaluator:
 
@@ -150,7 +179,7 @@ class SpellingEvaluator(LLMEvaluator):
                 name=self.name,
                 explanation=explanation,
                 metadata={"model": self.llm.model},  # could add more metadata here if you want
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
             )
         ]
@@ -163,10 +192,10 @@ spelling_evaluator = SpellingEvaluator(llm=LLM(provider="openai", model="gpt-4o-
 spelling_evaluator.evaluate(
     eval_input={"context": "This is a test. There are is some typo in this sentence."}
 )
->>> [Score(name='spelling_evaluator', score=2, label=None, explanation="There is one grammatical error ('There are is') and one typo ('typo' instead of 'typos'), which roughly represents 20% of the 10 words in the document.", metadata={'model': 'gpt-4o-mini'}, source='llm', direction='minimize')]
+>>> [Score(name='spelling_evaluator', score=2, label=None, explanation="There is one grammatical error ('There are is') and one typo ('typo' instead of 'typos'), which roughly represents 20% of the 10 words in the document.", metadata={'model': 'gpt-4o-mini'}, kind='llm', direction='minimize')]
 ```
 
-#### Improving your Custom Eval
+#### Improving your Custom Evals
 
 As with all evals, it is important to test that your custom evaluators are working as expected before trusting them at scale. When testing an eval, you use many of the same techniques used for testing your application:
 

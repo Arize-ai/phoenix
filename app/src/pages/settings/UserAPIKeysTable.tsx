@@ -26,6 +26,7 @@ export function UserAPIKeysTable({
 }: {
   query: UserAPIKeysTableFragment$key;
 }) {
+  "use no memo";
   const [data, refetch] = useRefetchableFragment<
     UserAPIKeysTableQuery,
     UserAPIKeysTableFragment$key
@@ -150,6 +151,7 @@ export function UserAPIKeysTable({
     ];
     return cols;
   }, [handleDelete]);
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

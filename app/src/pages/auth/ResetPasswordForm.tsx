@@ -4,11 +4,10 @@ import { graphql, useFragment, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Form } from "@arizeai/components";
-
 import {
   Button,
   FieldError,
+  Form,
   Input,
   Label,
   Text,
@@ -213,8 +212,10 @@ export function ResetPasswordForm(props: {
           flex-direction: row;
           gap: var(--ac-global-dimension-size-200);
           padding-top: var(--ac-global-dimension-size-100);
+          overflow: hidden;
           & > * {
             width: 50%;
+            flex: 1 1 auto;
           }
         `}
       >

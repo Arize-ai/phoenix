@@ -16,7 +16,6 @@ import CodeMirror, {
 } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp, TabbedCard } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
@@ -33,6 +32,7 @@ import {
   Button,
   Card,
   CardProps,
+  ContextualHelp,
   CopyToClipboardButton,
   Counter,
   DialogTrigger,
@@ -77,7 +77,7 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import { useDimensions } from "@phoenix/hooks";
+import { useDimensions, useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
@@ -749,38 +749,42 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             <LazyTabPanel id="prompt-template">
               <View padding="size-200">
                 <Flex direction="column" gap="size-100">
-                  <View
-                    borderRadius="medium"
-                    borderColor="light"
-                    backgroundColor="light"
-                    borderWidth="thin"
-                    padding="size-200"
-                  >
-                    <CopyToClipboard text={promptTemplateObject.template}>
-                      <Text color="text-700" fontStyle="italic">
-                        prompt template
-                      </Text>
-                      <PreBlock>{promptTemplateObject.template}</PreBlock>
-                    </CopyToClipboard>
-                  </View>
-                  <View
-                    borderRadius="medium"
-                    borderColor="light"
-                    backgroundColor="light"
-                    borderWidth="thin"
-                    padding="size-200"
-                  >
-                    <CopyToClipboard
-                      text={JSON.stringify(promptTemplateObject.variables)}
+                  {promptTemplateObject.template != null && (
+                    <View
+                      borderRadius="medium"
+                      borderColor="light"
+                      backgroundColor="light"
+                      borderWidth="thin"
+                      padding="size-200"
                     >
-                      <Text color="text-700" fontStyle="italic">
-                        template variables
-                      </Text>
-                      <JSONBlock>
-                        {JSON.stringify(promptTemplateObject.variables)}
-                      </JSONBlock>
-                    </CopyToClipboard>
-                  </View>
+                      <CopyToClipboard text={promptTemplateObject.template}>
+                        <Text color="text-700" fontStyle="italic">
+                          prompt template
+                        </Text>
+                        <PreBlock>{promptTemplateObject.template}</PreBlock>
+                      </CopyToClipboard>
+                    </View>
+                  )}
+                  {promptTemplateObject.variables != null && (
+                    <View
+                      borderRadius="medium"
+                      borderColor="light"
+                      backgroundColor="light"
+                      borderWidth="thin"
+                      padding="size-200"
+                    >
+                      <CopyToClipboard
+                        text={JSON.stringify(promptTemplateObject.variables)}
+                      >
+                        <Text color="text-700" fontStyle="italic">
+                          template variables
+                        </Text>
+                        <JSONBlock>
+                          {JSON.stringify(promptTemplateObject.variables)}
+                        </JSONBlock>
+                      </CopyToClipboard>
+                    </View>
+                  )}
                 </Flex>
               </View>
             </LazyTabPanel>
@@ -805,7 +809,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         </Tabs>
       </Card>
       {hasOutput || hasOutputMessages ? (
-        <TabbedCard {...defaultCardProps}>
+        <Card {...defaultCardProps} title="Output" titleSeparator={false}>
           <Tabs>
             <TabList>
               {hasOutputMessages && (
@@ -840,7 +844,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
               </LazyTabPanel>
             )}
           </Tabs>
-        </TabbedCard>
+        </Card>
       ) : null}
     </Flex>
   );
@@ -1381,7 +1385,7 @@ function DocumentItem({
                               </Token>
                             )}
                           </Flex>
-                          {typeof documentEvaluation.explanation && (
+                          {documentEvaluation.explanation ? (
                             <p
                               css={css`
                                 margin-top: var(
@@ -1392,7 +1396,7 @@ function DocumentItem({
                             >
                               {documentEvaluation.explanation}
                             </p>
-                          )}
+                          ) : null}
                         </Flex>
                       </View>
                     </li>
@@ -1475,10 +1479,10 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             ]}
           >
             {/* when the message is a tool result, show the tool result in a disclosure */}
-            {messageContent && role.toLowerCase() === "tool" ? (
+            {role.toLowerCase() === "tool" ? (
               <Disclosure id="tool-content">
                 <DisclosureTrigger
-                  arrowPosition="start"
+                  arrowPosition={messageContent ? "start" : "none"}
                   justifyContent="space-between"
                 >
                   <Text>
@@ -1489,11 +1493,13 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   ) : null}
                 </DisclosureTrigger>
                 <DisclosurePanel>
-                  <View width="100%">
-                    <ConnectedMarkdownBlock>
-                      {messageContent}
-                    </ConnectedMarkdownBlock>
-                  </View>
+                  {messageContent ? (
+                    <View width="100%">
+                      <ConnectedMarkdownBlock>
+                        {messageContent}
+                      </ConnectedMarkdownBlock>
+                    </View>
+                  ) : null}
                 </DisclosurePanel>
               </Disclosure>
             ) : // when the message is any other kind, just show the content without a disclosure
@@ -1871,7 +1877,7 @@ function JSONBlock({
         value: JSON.stringify(JSON.parse(children), null, 2),
         mimeType: "json" as const,
       };
-    } catch (e) {
+    } catch (_e) {
       // Fall back to string
       return { value: children, mimeType: "text" as const };
     }
@@ -1945,6 +1951,7 @@ function EmptyIndicator({ text }: { text: string }) {
   );
 }
 function SpanEventsList({ events }: { events: Span["events"] }) {
+  const { fullTimeFormatter } = useTimeFormatters();
   if (events.length === 0) {
     return <EmptyIndicator text="No events" />;
   }
@@ -1988,7 +1995,7 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
               </Flex>
               <View>
                 <Text color="text-700">
-                  {new Date(event.timestamp).toLocaleString()}
+                  {fullTimeFormatter(new Date(event.timestamp))}
                 </Text>
               </View>
             </Flex>
@@ -2000,26 +2007,19 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
 }
 
 const attributesContextualHelp = (
-  <Flex alignItems="center" justifyContent="center">
-    <View marginStart="size-100">
-      <ContextualHelp>
-        <Heading weight="heavy" level={4}>
-          Span Attributes
-        </Heading>
-        <Content>
-          <Text>
-            Attributes are key-value pairs that represent metadata associated
-            with a span. For detailed descriptions of specific attributes,
-            consult the semantic conventions section of the OpenInference
-            tracing specification.
-          </Text>
-        </Content>
-        <footer>
-          <ExternalLink href="https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md">
-            Semantic Conventions
-          </ExternalLink>
-        </footer>
-      </ContextualHelp>
-    </View>
-  </Flex>
+  <ContextualHelp>
+    <Heading weight="heavy" level={4}>
+      Span Attributes
+    </Heading>
+    <Text>
+      Attributes are key-value pairs that represent metadata associated with a
+      span. For detailed descriptions of specific attributes, consult the
+      semantic conventions section of the OpenInference tracing specification.
+    </Text>
+    <footer>
+      <ExternalLink href="https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md">
+        Semantic Conventions
+      </ExternalLink>
+    </footer>
+  </ContextualHelp>
 );

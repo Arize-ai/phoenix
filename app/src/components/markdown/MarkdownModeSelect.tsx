@@ -35,7 +35,7 @@ export function MarkdownModeSelect({
   return (
     <Select
       aria-label="Markdown Mode"
-      selectedKey={mode}
+      value={mode}
       css={css`
         button {
           width: 140px;
@@ -43,7 +43,7 @@ export function MarkdownModeSelect({
         }
       `}
       size="S"
-      onSelectionChange={(key) => {
+      onChange={(key) => {
         if (isMarkdownDisplayMode(key)) {
           onModeChange(key);
         } else {

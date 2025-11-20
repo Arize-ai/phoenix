@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { graphql, useMutation } from "react-relay";
+import { type DataID, graphql, useMutation } from "react-relay";
 
 import {
   Button,
@@ -18,16 +18,23 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 export function DeleteUserDialog({
   userId,
+  connectionIds,
   onDeleted,
   onClose,
 }: {
   userId: string;
+  connectionIds: DataID[];
   onDeleted: () => void;
   onClose: () => void;
 }) {
   const [commit, isCommitting] = useMutation(graphql`
-    mutation DeleteUserDialogMutation($input: DeleteUsersInput!) {
-      deleteUsers(input: $input)
+    mutation DeleteUserDialogMutation(
+      $input: DeleteUsersInput!
+      $connectionIds: [ID!]!
+    ) {
+      deleteUsers(input: $input) {
+        userIds @deleteEdge(connections: $connectionIds)
+      }
     }
   `);
 
@@ -40,6 +47,7 @@ export function DeleteUserDialog({
         input: {
           userIds: [userId],
         },
+        connectionIds,
       },
       onCompleted: () => {
         notifySuccess({
@@ -57,7 +65,15 @@ export function DeleteUserDialog({
         });
       },
     });
-  }, [commit, notifyError, notifySuccess, onClose, onDeleted, userId]);
+  }, [
+    commit,
+    connectionIds,
+    notifyError,
+    notifySuccess,
+    onClose,
+    onDeleted,
+    userId,
+  ]);
 
   return (
     <Dialog>

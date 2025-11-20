@@ -5,7 +5,7 @@ metadata:
   name: "{{ template "phoenix.ingress" . }}"
   namespace: {{ .Release.Namespace | quote }}
   labels:
-    app: {{ .Release.Name }}
+    app: {{ include "phoenix.fullname" . }}
 {{- if .Values.ingress.labels }}
 {{ toYaml .Values.ingress.labels | indent 4 }}
 {{- end }}

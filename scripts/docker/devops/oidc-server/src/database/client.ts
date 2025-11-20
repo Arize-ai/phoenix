@@ -219,7 +219,7 @@ export class DatabaseClient {
 
     const roleGroups: { [roleName: string]: string[] } = {
       ADMIN: ["phoenix-admins", "full-access"],
-      MEMBER: ["phoenix-editors", "write-access"],
+      MEMBER: ["phoenix-members", "write-access"],
       VIEWER: ["phoenix-viewers", "read-access"],
     };
 

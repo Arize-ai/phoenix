@@ -18,7 +18,6 @@ type PromptComboBoxProps = {
 
 export function PromptComboBox({
   onChange,
-  container,
   promptId,
   ...comboBoxProps
 }: PromptComboBoxProps) {
@@ -55,7 +54,6 @@ export function PromptComboBox({
       width="100%"
       menuTrigger="focus"
       stopPropagation
-      container={container}
       defaultItems={items}
       placeholder="Select a prompt..."
       renderEmptyState={() => <div>No prompts found</div>}

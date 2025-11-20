@@ -11,10 +11,8 @@ import { css } from "@emotion/react";
 
 import { Link } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
-import {
-  useNotifySuccess,
-  useViewerCanManageRetentionPolicy,
-} from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
+import { useViewerCanManageRetentionPolicy } from "@phoenix/contexts/ViewerContext";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { createPolicyScheduleSummaryText } from "@phoenix/utils/retentionPolicyUtils";
 
@@ -57,6 +55,7 @@ export const RetentionPoliciesTable = ({
 }: {
   query: RetentionPoliciesTable_policies$key;
 }) => {
+  "use no memo";
   const notifySuccess = useNotifySuccess();
   const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
   const { data } = usePaginationFragment<
@@ -74,7 +73,6 @@ export const RetentionPoliciesTable = ({
           @connection(
             key: "RetentionPoliciesTable_projectTraceRetentionPolicies"
           ) {
-          __id
           edges {
             node {
               ...RetentionPoliciesTable_retentionPolicy
@@ -86,15 +84,18 @@ export const RetentionPoliciesTable = ({
     query
   );
 
-  const connectionId = data.projectTraceRetentionPolicies.__id;
-  const tableData = data.projectTraceRetentionPolicies.edges.map((edge) => {
-    const node = edge.node;
-    const data = readInlineData<RetentionPoliciesTable_retentionPolicy$key>(
-      RETENTION_POLICY_FRAGMENT,
-      node
-    );
-    return data;
-  });
+  const tableData = useMemo(
+    () =>
+      data.projectTraceRetentionPolicies.edges.map((edge) => {
+        const node = edge.node;
+        const data = readInlineData<RetentionPoliciesTable_retentionPolicy$key>(
+          RETENTION_POLICY_FRAGMENT,
+          node
+        );
+        return data;
+      }),
+    [data]
+  );
 
   const columns: ColumnDef<(typeof tableData)[number]>[] = useMemo(() => {
     const columns: ColumnDef<(typeof tableData)[number]>[] = [
@@ -169,7 +170,6 @@ export const RetentionPoliciesTable = ({
             <RetentionPolicyActionMenu
               policyId={row.original.id}
               policyName={row.original.name}
-              connectionId={connectionId}
               projectNames={row.original.projects.edges.map(
                 (edge) => edge.node.name
               )}
@@ -191,9 +191,10 @@ export const RetentionPoliciesTable = ({
       });
     }
     return columns;
-  }, [canManageRetentionPolicy, notifySuccess, connectionId]);
+  }, [canManageRetentionPolicy, notifySuccess]);
 
-  const table = useReactTable<(typeof tableData)[number]>({
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const table = useReactTable({
     columns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),

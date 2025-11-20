@@ -8,7 +8,7 @@ from strawberry import Info
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
 from phoenix.server.api.helpers.annotations import get_user_identifier
@@ -19,10 +19,7 @@ from phoenix.server.api.input_types.UpdateAnnotationInput import UpdateAnnotatio
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.ProjectSessionAnnotation import (
-    ProjectSessionAnnotation,
-    to_gql_project_session_annotation,
-)
+from phoenix.server.api.types.ProjectSessionAnnotation import ProjectSessionAnnotation
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import (
     ProjectSessionAnnotationDeleteEvent,
@@ -38,7 +35,7 @@ class ProjectSessionAnnotationMutationPayload:
 
 @strawberry.type
 class ProjectSessionAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_project_session_annotations(
         self, info: Info[Context, None], input: CreateProjectSessionAnnotationInput
     ) -> ProjectSessionAnnotationMutationPayload:
@@ -81,11 +78,11 @@ class ProjectSessionAnnotationMutationMixin:
         info.context.event_queue.put(ProjectSessionAnnotationInsertEvent((anno.id,)))
 
         return ProjectSessionAnnotationMutationPayload(
-            project_session_annotation=to_gql_project_session_annotation(anno),
+            project_session_annotation=ProjectSessionAnnotation(id=anno.id, db_record=anno),
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def update_project_session_annotations(
         self, info: Info[Context, None], input: UpdateAnnotationInput
     ) -> ProjectSessionAnnotationMutationPayload:
@@ -122,11 +119,11 @@ class ProjectSessionAnnotationMutationMixin:
 
         info.context.event_queue.put(ProjectSessionAnnotationInsertEvent((anno.id,)))
         return ProjectSessionAnnotationMutationPayload(
-            project_session_annotation=to_gql_project_session_annotation(anno),
+            project_session_annotation=ProjectSessionAnnotation(id=anno.id, db_record=anno),
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_project_session_annotation(
         self, info: Info[Context, None], id: GlobalID
     ) -> ProjectSessionAnnotationMutationPayload:
@@ -154,7 +151,7 @@ class ProjectSessionAnnotationMutationMixin:
 
             await session.delete(anno)
 
-        deleted_gql_annotation = to_gql_project_session_annotation(anno)
+        deleted_gql_annotation = ProjectSessionAnnotation(id=anno.id, db_record=anno)
         info.context.event_queue.put(ProjectSessionAnnotationDeleteEvent((id_,)))
         return ProjectSessionAnnotationMutationPayload(
             project_session_annotation=deleted_gql_annotation, query=Query()

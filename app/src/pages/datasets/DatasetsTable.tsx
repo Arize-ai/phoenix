@@ -10,6 +10,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
   CellContext,
+  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -24,8 +25,11 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
+import {
+  useNotifyError,
+  useNotifySuccess,
+  useViewerCanModify,
+} from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
@@ -40,6 +44,7 @@ const PAGE_SIZE = 100;
 type DatasetsTableProps = {
   query: DatasetsTable_datasets$key;
   filter: string;
+  labelFilter?: string[];
 };
 
 function toGqlSort(sort: SortingState[number]): DatasetSort {
@@ -54,14 +59,14 @@ function toGqlSort(sort: SortingState[number]): DatasetSort {
 }
 
 export function DatasetsTable(props: DatasetsTableProps) {
-  const { filter } = props;
+  "use no memo";
+  const { filter, labelFilter } = props;
   const [sorting, setSorting] = useState<SortingState>([]);
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
-  const isDatasetLabelEnabled = useFeatureFlag("datasetLabel");
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
       DatasetsTableDatasetsQuery,
@@ -118,20 +123,30 @@ export function DatasetsTable(props: DatasetsTableProps) {
         ) {
           loadNext(PAGE_SIZE, {
             UNSTABLE_extraVariables: {
-              filter: filter ? { col: "name", value: filter } : null,
+              filter:
+                filter || labelFilter?.length
+                  ? {
+                      col: "name",
+                      value: filter || "",
+                      ...(labelFilter?.length
+                        ? { filterLabels: labelFilter }
+                        : {}),
+                    }
+                  : null,
             },
           });
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext, filter]
+    [hasNext, isLoadingNext, loadNext, filter, labelFilter]
   );
-  const table = useReactTable({
-    columns: [
+  const canModify = useViewerCanModify();
+  const columns = useMemo(() => {
+    const cols: ColumnDef<(typeof tableData)[number]>[] = [
       {
         header: "name",
         accessorKey: "name",
-        cell: ({ row }) => {
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           const hasExperiments = row.original.experimentCount > 0;
           const to = hasExperiments
             ? `${row.original.id}/experiments`
@@ -139,40 +154,34 @@ export function DatasetsTable(props: DatasetsTableProps) {
           return <Link to={to}>{row.original.name}</Link>;
         },
       },
-      ...(isDatasetLabelEnabled
-        ? [
-            {
-              header: "labels",
-              accessorKey: "labels",
-              enableSorting: false,
-              cell: ({
-                row,
-              }: CellContext<(typeof tableData)[number], unknown>) => {
-                return (
-                  <ul
-                    css={css`
-                      display: flex;
-                      flex-direction: row;
-                      gap: var(--ac-global-dimension-size-100);
-                      min-width: 0;
-                      flex-wrap: wrap;
-                    `}
-                  >
-                    {row.original.labels.map((label) => (
-                      <li key={label.id}>
-                        <Token color={label.color}>
-                          <Truncate maxWidth={200} title={label.name}>
-                            {label.name}
-                          </Truncate>
-                        </Token>
-                      </li>
-                    ))}
-                  </ul>
-                );
-              },
-            },
-          ]
-        : []),
+      {
+        header: "labels",
+        accessorKey: "labels",
+        enableSorting: false,
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
+          return (
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: row;
+                gap: var(--ac-global-dimension-size-100);
+                min-width: 0;
+                flex-wrap: wrap;
+              `}
+            >
+              {row.original.labels.map((label) => (
+                <li key={label.id}>
+                  <Token color={label.color}>
+                    <Truncate maxWidth={200} title={label.name}>
+                      {label.name}
+                    </Truncate>
+                  </Token>
+                </li>
+              ))}
+            </ul>
+          );
+        },
+      },
       {
         header: "description",
         accessorKey: "description",
@@ -188,7 +197,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         accessorKey: "exampleCount",
         enableSorting: false,
         meta: {
-          textAlign: "right",
+          textAlign: "right" as const,
         },
       },
       {
@@ -196,7 +205,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         accessorKey: "experimentCount",
         enableSorting: false,
         meta: {
-          textAlign: "right",
+          textAlign: "right" as const,
         },
       },
       {
@@ -205,12 +214,14 @@ export function DatasetsTable(props: DatasetsTableProps) {
         enableSorting: false,
         cell: CompactJSONCell,
       },
-      {
+    ];
+    if (canModify) {
+      cols.push({
         header: "",
         id: "actions",
         enableSorting: false,
         size: 10,
-        cell: ({ row }) => {
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           return (
             <DatasetActionMenu
               datasetId={row.original.id}
@@ -224,7 +235,16 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 });
                 refetch(
                   {
-                    filter: filter ? { col: "name", value: filter } : null,
+                    filter:
+                      filter || labelFilter?.length
+                        ? {
+                            col: "name",
+                            value: filter || "",
+                            ...(labelFilter?.length
+                              ? { filterLabels: labelFilter }
+                              : {}),
+                          }
+                        : null,
                   },
                   { fetchPolicy: "store-and-network" }
                 );
@@ -244,7 +264,16 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 });
                 refetch(
                   {
-                    filter: filter ? { col: "name", value: filter } : null,
+                    filter:
+                      filter || labelFilter?.length
+                        ? {
+                            col: "name",
+                            value: filter || "",
+                            ...(labelFilter?.length
+                              ? { filterLabels: labelFilter }
+                              : {}),
+                          }
+                        : null,
                   },
                   { fetchPolicy: "store-and-network" }
                 );
@@ -260,8 +289,13 @@ export function DatasetsTable(props: DatasetsTableProps) {
             />
           );
         },
-      },
-    ],
+      });
+    }
+    return cols;
+  }, [filter, labelFilter, notifyError, notifySuccess, refetch, canModify]);
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const table = useReactTable({
+    columns,
     data: tableData,
     state: {
       sorting,
@@ -282,12 +316,19 @@ export function DatasetsTable(props: DatasetsTableProps) {
           sort: sort ? toGqlSort(sort) : { col: "createdAt", dir: "desc" },
           after: null,
           first: PAGE_SIZE,
-          filter: filter ? { col: "name", value: filter } : null,
+          filter:
+            filter || labelFilter?.length
+              ? {
+                  col: "name",
+                  value: filter || "",
+                  ...(labelFilter?.length ? { filterLabels: labelFilter } : {}),
+                }
+              : null,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch, filter]);
+  }, [sorting, refetch, filter, labelFilter]);
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   return (

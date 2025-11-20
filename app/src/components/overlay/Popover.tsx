@@ -2,7 +2,7 @@ import { forwardRef, Ref } from "react";
 import { Popover as AriaPopover, PopoverProps } from "react-aria-components";
 import { css, keyframes } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
+import { classNames } from "@phoenix/utils";
 
 const popoverSlideKeyframes = keyframes`
  100% {
@@ -24,8 +24,8 @@ const popoverCSS = css`
   transition:
     transform 200ms,
     opacity 200ms;
-  border: 1px solid var(--ac-global-border-color-light);
-  box-shadow: 3px 5px 10px rgba(0 0 0 / 0.2);
+  border: 1px solid var(--ac-global-popover-border-color);
+  box-shadow: var(--px-overlay-box-shadow);
   border-radius: var(--ac-global-rounding-small);
   background: var(--background-color);
   color: var(--ac-global-text-color-900);
@@ -119,7 +119,6 @@ function Popover(props: PopoverProps, ref: Ref<HTMLDivElement>) {
     />
   );
 }
-popoverCSS;
 
 const _Popover = forwardRef(Popover);
 export { _Popover as Popover };

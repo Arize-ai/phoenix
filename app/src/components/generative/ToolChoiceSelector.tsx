@@ -156,11 +156,7 @@ const removeToolNamePrefix = (toolName: string) =>
  *
  * @returns A label for the tool choice
  */
-export const ChoiceLabel = ({
-  choiceType,
-}: {
-  choiceType: string;
-}): JSX.Element => {
+export const ChoiceLabel = ({ choiceType }: { choiceType: string }) => {
   switch (choiceType) {
     case "any":
     case "required":
@@ -237,9 +233,9 @@ export function ToolChoiceSelector<
     : addToolNamePrefix(findToolChoiceName(choice) ?? "");
   return (
     <Select
-      selectedKey={currentKey}
+      value={currentKey}
       aria-label="Tool Choice for an LLM"
-      onSelectionChange={(choice) => {
+      onChange={(choice) => {
         if (typeof choice !== "string") {
           return;
         }

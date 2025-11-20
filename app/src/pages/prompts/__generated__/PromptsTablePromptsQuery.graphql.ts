@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<10ca50e22349cc3bdccf38e5f053d530>>
+ * @generated SignedSource<<b236257d5e752f094aab5cdf6a8090f3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type PromptsTablePromptsQuery$variables = {
   after?: string | null;
   filter?: PromptFilter | null;
   first?: number | null;
+  labelIds?: ReadonlyArray<string> | null;
 };
 export type PromptsTablePromptsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"PromptsTable_prompts">;
@@ -44,6 +45,11 @@ var v0 = [
     "defaultValue": 100,
     "kind": "LocalArgument",
     "name": "first"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "labelIds"
   }
 ],
 v1 = [
@@ -61,6 +67,11 @@ v1 = [
     "kind": "Variable",
     "name": "first",
     "variableName": "first"
+  },
+  {
+    "kind": "Variable",
+    "name": "labelIds",
+    "variableName": "labelIds"
   }
 ],
 v2 = {
@@ -235,7 +246,8 @@ return {
         "alias": null,
         "args": (v1/*: any*/),
         "filters": [
-          "filter"
+          "filter",
+          "labelIds"
         ],
         "handle": "connection",
         "key": "PromptsTable_prompts",
@@ -245,16 +257,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7039e9fbd62b1264862349e9fcd1d879",
+    "cacheID": "c742220ba8617113856418d1b6fb0c13",
     "id": null,
     "metadata": {},
     "name": "PromptsTablePromptsQuery",
     "operationKind": "query",
-    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $filter: PromptFilter = null\n  $first: Int = 100\n) {\n  ...PromptsTable_prompts_G9cLv\n}\n\nfragment PromptsTable_prompts_G9cLv on Query {\n  prompts(first: $first, after: $after, filter: $filter) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $filter: PromptFilter = null\n  $first: Int = 100\n  $labelIds: [ID!] = null\n) {\n  ...PromptsTable_prompts_2FeKoo\n}\n\nfragment PromptsTable_prompts_2FeKoo on Query {\n  prompts(first: $first, after: $after, filter: $filter, labelIds: $labelIds) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "85ad9ca649e4c99d9a97ce8f218a0da3";
+(node as any).hash = "33daede08f0acc18f45f19692993314f";
 
 export default node;

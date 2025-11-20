@@ -4,8 +4,8 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@phoenix/components";
 import { StylableProps } from "@phoenix/components/types";
+import { classNames } from "@phoenix/utils";
 
 const baseRadioCSS = css(`
   display: flex;

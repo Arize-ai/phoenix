@@ -19,6 +19,7 @@ export function DatasetLabelsTable({
 }: {
   query: DatasetLabelsTableFragment$key;
 }) {
+  "use no memo";
   const data = useFragment<DatasetLabelsTableFragment$key>(
     graphql`
       fragment DatasetLabelsTableFragment on Query
@@ -43,6 +44,7 @@ export function DatasetLabelsTable({
     [data.datasetLabels.edges]
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns: [
       {

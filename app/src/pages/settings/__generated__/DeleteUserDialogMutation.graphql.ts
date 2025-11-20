@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dc479fe49dbe6c4db136d7a9a5b891de>>
+ * @generated SignedSource<<81f07fd13832e41474e2a3611fba7562>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,10 +13,13 @@ export type DeleteUsersInput = {
   userIds: ReadonlyArray<string>;
 };
 export type DeleteUserDialogMutation$variables = {
+  connectionIds: ReadonlyArray<string>;
   input: DeleteUsersInput;
 };
 export type DeleteUserDialogMutation$data = {
-  readonly deleteUsers: any | null;
+  readonly deleteUsers: {
+    readonly userIds: ReadonlyArray<string>;
+  };
 };
 export type DeleteUserDialogMutation = {
   response: DeleteUserDialogMutation$data;
@@ -24,56 +27,106 @@ export type DeleteUserDialogMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "connectionIds"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "input"
+},
+v2 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "input"
+    "kind": "Variable",
+    "name": "input",
+    "variableName": "input"
   }
 ],
-v1 = [
-  {
-    "alias": null,
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "input",
-        "variableName": "input"
-      }
-    ],
-    "kind": "ScalarField",
-    "name": "deleteUsers",
-    "storageKey": null
-  }
-];
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "userIds",
+  "storageKey": null
+};
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "DeleteUserDialogMutation",
-    "selections": (v1/*: any*/),
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "concreteType": "DeleteUsersPayload",
+        "kind": "LinkedField",
+        "name": "deleteUsers",
+        "plural": false,
+        "selections": [
+          (v3/*: any*/)
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "DeleteUserDialogMutation",
-    "selections": (v1/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "concreteType": "DeleteUsersPayload",
+        "kind": "LinkedField",
+        "name": "deleteUsers",
+        "plural": false,
+        "selections": [
+          (v3/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "filters": null,
+            "handle": "deleteEdge",
+            "key": "",
+            "kind": "ScalarHandle",
+            "name": "userIds",
+            "handleArgs": [
+              {
+                "kind": "Variable",
+                "name": "connections",
+                "variableName": "connectionIds"
+              }
+            ]
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "00d3d0f3855e92e529bc446d0f426123",
+    "cacheID": "6104e51eeaa0e88341d600b9c8f2272a",
     "id": null,
     "metadata": {},
     "name": "DeleteUserDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteUserDialogMutation(\n  $input: DeleteUsersInput!\n) {\n  deleteUsers(input: $input)\n}\n"
+    "text": "mutation DeleteUserDialogMutation(\n  $input: DeleteUsersInput!\n) {\n  deleteUsers(input: $input) {\n    userIds\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a718ceab0ec0a7d461f6cd5e5b178a1f";
+(node as any).hash = "3e3fce3704bc71d61dc41b274452060c";
 
 export default node;

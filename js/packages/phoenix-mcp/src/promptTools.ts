@@ -1,18 +1,19 @@
 import { PhoenixClient } from "@arizeai/phoenix-client";
 import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
-  listPromptsSchema,
+  addPromptVersionTagSchema,
+  createPromptSchema,
   getLatestPromptSchema,
   getPromptByIdentifierSchema,
-  getPromptVersionSchema,
-  createPromptSchema,
-  listPromptVersionsSchema,
   getPromptVersionByTagSchema,
+  getPromptVersionSchema,
+  listPromptsSchema,
+  listPromptVersionsSchema,
   listPromptVersionTagsSchema,
-  addPromptVersionTagSchema,
 } from "./promptSchemas.js";
+
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 // Tool descriptions as template literals for better readability
 const LIST_PROMPTS_DESCRIPTION = `Get a list of all the prompts.

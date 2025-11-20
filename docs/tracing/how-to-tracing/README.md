@@ -23,15 +23,15 @@ How to set custom attributes and semantic attributes to child spans and spans cr
 * [How to read attributes from context](add-metadata/customize-spans.md#using_attributes)
 * [Masking attributes on spans](advanced/masking-span-attributes.md)
 
-## [Auto Instrumentation](broken-reference)
+## [Auto Instrumentation](broken-reference/)
 
-Phoenix natively works with a variety of frameworks and SDKs across [Python](./#python) and [JavaScript](./#javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](broken-reference) and [LiteLLM proxy](broken-reference).
+Phoenix natively works with a variety of frameworks and SDKs across [Python](./#python) and [JavaScript](./#javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](broken-reference/) and [LiteLLM proxy](broken-reference/).
 
 ## Manual Instrumentation
 
 Create and customize spans for your use-case
 
-### [Instrument: Python using OpenInference Helpers](setup-tracing/instrument-python.md)
+### [Instrument: Python using OpenInference Helpers](setup-tracing/instrument.md)
 
 ### [Instrument: Python using Base OTEL](./#instrument-python-using-base-otel)
 

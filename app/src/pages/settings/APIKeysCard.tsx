@@ -2,10 +2,9 @@ import { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { getLocalTimeZone } from "@internationalized/date";
 
-import { TabbedCard } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   DialogTrigger,
   Icon,
   Icons,
@@ -30,7 +29,7 @@ import { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
 import { SystemAPIKeysTable } from "./SystemAPIKeysTable";
 import { UserAPIKeysTable } from "./UserAPIKeysTable";
 
-function APIKeysCardContent() {
+function APIKeysCardContent({ fetchKey }: { fetchKey: number }) {
   const query = useLazyLoadQuery<APIKeysCardQuery>(
     graphql`
       query APIKeysCardQuery {
@@ -39,7 +38,7 @@ function APIKeysCardContent() {
       }
     `,
     {},
-    { fetchPolicy: "network-only" }
+    { fetchPolicy: "network-only", fetchKey }
   );
 
   return (
@@ -63,6 +62,7 @@ export function APIKeysCard() {
   const [showOneTimeAPIKeyJwt, setShowOneTimeAPIKeyJwt] = useState<
     string | null
   >(null);
+  const [fetchKey, setFetchKey] = useState(0);
   const notifyError = useNotifyError();
 
   const [commit, isCommitting] =
@@ -99,6 +99,7 @@ export function APIKeysCard() {
             data.expiresAt?.toDate(getLocalTimeZone()).toISOString() || null,
         },
         onCompleted: (response) => {
+          setFetchKey((prev) => prev + 1);
           setShowCreateAPIKeyDialog(false);
           setShowOneTimeAPIKeyJwt(response.createSystemApiKey.jwt);
         },
@@ -115,9 +116,9 @@ export function APIKeysCard() {
 
   return (
     <div>
-      <TabbedCard
+      <Card
+        titleSeparator={false}
         title="API Keys"
-        variant="compact"
         extra={
           <DialogTrigger
             isOpen={showCreateAPIKeyDialog}
@@ -149,9 +150,9 @@ export function APIKeysCard() {
             </View>
           }
         >
-          <APIKeysCardContent />
+          <APIKeysCardContent fetchKey={fetchKey} />
         </Suspense>
-      </TabbedCard>
+      </Card>
       <DialogTrigger
         isOpen={!!showOneTimeAPIKeyJwt}
         onOpenChange={() => setShowOneTimeAPIKeyJwt(null)}

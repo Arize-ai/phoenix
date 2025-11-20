@@ -22,6 +22,15 @@ class IsNotReadOnly(Authorization):
         return not info.context.read_only
 
 
+class IsNotViewer(Authorization):
+    message = "Viewers cannot perform this action"
+
+    def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
+        if not info.context.auth_enabled:
+            return True
+        return isinstance((user := info.context.user), PhoenixUser) and not user.is_viewer
+
+
 class IsLocked(BasePermission):
     """
     Permission class that restricts data-modifying operations when insufficient storage.

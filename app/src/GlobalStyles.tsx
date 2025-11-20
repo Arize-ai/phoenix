@@ -1,8 +1,6 @@
 import { css, Global } from "@emotion/react";
 
-import { useProvider } from "@arizeai/components";
-
-import { ThemeContextType } from "./contexts";
+import { ThemeContextType, useTheme } from "./contexts";
 
 /**
  * Medium size root CSS variables
@@ -171,6 +169,9 @@ export const darkThemeCSS = css`
   :root,
   .ac-theme--dark {
     /* Colors */
+
+    // sync system elements like the scrollbar with the theme
+    color-scheme: dark;
 
     // The newer grays (grey)
     --ac-global-color-grey-50-rgb: 0, 0, 0;
@@ -664,10 +665,6 @@ export const darkThemeCSS = css`
     --ac-global-color-severe-700: rgba(var(--ac-global-color-severe-rgb), 0.7);
     --ac-global-color-severe-500: rgba(var(--ac-global-color-severe-rgb), 0.5);
 
-    // Designation colors
-    --ac-global-color-designation-purple: #bb9ff9;
-    --ac-global-color-designation-turquoise: #9efcfd;
-
     --ac-global-text-color-900: rgba(255, 255, 255, 0.9);
     --ac-global-text-color-700: rgba(255, 255, 255, 0.7);
     --ac-global-text-color-500: rgba(255, 255, 255, 0.5);
@@ -687,6 +684,9 @@ export const lightThemeCSS = css`
   :root,
   .ac-theme--light {
     /* Colors */
+
+    // sync system elements like the scrollbar with the theme
+    color-scheme: light;
 
     // The newer grays (grey)
     --ac-global-color-grey-50-rgb: 255, 255, 255;
@@ -916,10 +916,6 @@ export const lightThemeCSS = css`
     --ac-global-color-severe-700: rgba(188, 76, 0, 0.7);
     --ac-global-color-severe-500: rgba(188, 76, 0, 0.5);
 
-    // Designation colors
-    --ac-global-color-designation-purple: #4500d9;
-    --ac-global-color-designation-turquoise: #00add0;
-
     --ac-global-text-color-900: rgba(0, 0, 0, 0.9);
     --ac-global-text-color-700: rgba(0, 0, 0, 0.7);
     --ac-global-text-color-500: rgba(0, 0, 0, 0.5);
@@ -1008,8 +1004,8 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     );
 
     // Styles for menus
-    --ac-global-menu-border-color: var(--ac-global-color-grey-400);
-    --ac-global-menu-background-color: var(--ac-global-color-grey-200);
+    --ac-global-menu-border-color: var(--ac-global-color-grey-300);
+    --ac-global-menu-background-color: var(--ac-global-color-grey-50);
     --ac-global-menu-item-background-color-hover: var(
       --ac-global-color-grey-300
     );
@@ -1064,6 +1060,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-card-header-height: 46px;
 
     // Style for popovers
+    --ac-global-popover-border-color: var(--ac-global-color-grey-300);
     --ac-global-popover-background-color: var(--ac-global-color-grey-50);
 
     --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
@@ -1184,7 +1181,8 @@ const appGlobalStylesCSS = css`
     --px-section-background-color: #2f353d;
 
     /** The color of shadows on menus etc. */
-    --px-overlay-shadow-color: rgba(0, 0, 0, 0.4);
+    --px-overlay-shadow-color: rgba(0, 0, 0, 0.1);
+    --px-overlay-box-shadow: 0px 8px 16px var(--px-overlay-shadow-color);
 
     /* An item is a typically something in a list */
     --px-item-background-color: #1d2126;
@@ -1217,7 +1215,7 @@ const appGlobalStylesCSS = css`
     --ac-global-line-height-xxl: 48px;
 
     /* Fields */
-    --ac-global-input-field-min-width: 200px;
+    --ac-global-input-field-min-width: 100px;
 
     /* Modal */
     --ac-global-modal-width-S: 500px;
@@ -1235,6 +1233,7 @@ const appGlobalStylesCSS = css`
     --px-reference-color--transparent: #baa1f982;
     --px-corpus-color: #92969c;
     --px-corpus-color--transparent: #92969c63;
+    --px-overlay-shadow-color: rgba(0, 0, 0, 0.6);
   }
   .ac-theme--light {
     --px-primary-color: #00add0;
@@ -1243,6 +1242,7 @@ const appGlobalStylesCSS = css`
     --px-reference-color--transparent: rgba(69, 0, 217, 0.2);
     --px-corpus-color: #92969c;
     --px-corpus-color--transparent: #92969c63;
+    --px-overlay-shadow-color: rgba(0, 0, 0, 0.1);
   }
 `;
 
@@ -1294,7 +1294,7 @@ const fontFamilyCSS = css`
 `;
 
 export function GlobalStyles() {
-  const { theme = "dark" } = useProvider();
+  const { theme } = useTheme();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
   return (
     <Global

@@ -15,6 +15,7 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { AnthropicReasoningConfigField } from "@phoenix/pages/playground/AnthropicReasoningConfigField";
+import { OpenAIReasoningEffortConfigField } from "@phoenix/pages/playground/OpenAIReasoningEffortConfigField";
 import { Mutable } from "@phoenix/typeUtils";
 
 import { ModelSupportedParamsFetcherQuery$data } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
@@ -68,6 +69,17 @@ const InvocationParameterFormField = ({
   // special case for anthropic reasoning config
   if (field.canonicalName === "ANTHROPIC_EXTENDED_THINKING") {
     return <AnthropicReasoningConfigField onChange={onChange} value={value} />;
+  }
+
+  // special case for openai reasoning effort
+  if (field.canonicalName === "REASONING_EFFORT") {
+    return (
+      <OpenAIReasoningEffortConfigField
+        onChange={onChange}
+        value={value ?? null}
+        label={field.label ?? undefined}
+      />
+    );
   }
 
   const { __typename } = field;

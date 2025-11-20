@@ -7,7 +7,6 @@ import {
   Form,
   Input,
   Label,
-  Text,
   TextArea,
   TextField,
   Token,
@@ -35,6 +34,7 @@ export function NewDatasetSplitForm({
   onSubmit,
   isSubmitting,
 }: NewDatasetSplitFormProps) {
+  "use no memo";
   const {
     control,
     handleSubmit,
@@ -46,6 +46,7 @@ export function NewDatasetSplitForm({
       description: "",
       color: "#33c5e8",
     },
+    mode: "onChange",
   });
 
   return (
@@ -58,6 +59,7 @@ export function NewDatasetSplitForm({
             justifyContent="center"
             width="100%"
           >
+            {/* eslint-disable-next-line react-hooks/incompatible-library */}
             <Token color={watch("color")}>
               {watch("name") || "split preview"}
             </Token>
@@ -88,12 +90,8 @@ export function NewDatasetSplitForm({
               value={value.toString()}
             >
               <Label>Split Name</Label>
-              <Input placeholder="e.x. test" />
-              {error?.message ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">The name of the split</Text>
-              )}
+              <Input placeholder="e.g. test" />
+              {error?.message && <FieldError>{error.message}</FieldError>}
             </TextField>
           )}
         />
@@ -111,12 +109,8 @@ export function NewDatasetSplitForm({
               value={value.toString()}
             >
               <Label>Description</Label>
-              <TextArea placeholder="A short description" />
-              {error?.message ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">The description of the split</Text>
-              )}
+              <TextArea placeholder="e.g. a test split" />
+              {error?.message && <FieldError>{error.message}</FieldError>}
             </TextField>
           )}
         />

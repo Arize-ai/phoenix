@@ -14,15 +14,11 @@ from typing_extensions import TypeAlias
 from phoenix.client.__generated__ import v1
 
 from .._helpers import (
-    _ADMIN,  # pyright: ignore[reportPrivateUsage]
-    _MEMBER,  # pyright: ignore[reportPrivateUsage]
     _AppInfo,  # pyright: ignore[reportPrivateUsage]
     _await_or_return,  # pyright: ignore[reportPrivateUsage]
     _ExistingProject,
     _ExistingSpan,
-    _GetUser,  # pyright: ignore[reportPrivateUsage]
     _gql,
-    _RoleOrUser,
     _until_spans_exist,
 )
 
@@ -38,13 +34,10 @@ SpanGlobalId: TypeAlias = str
 
 class TestClientForSpanAnnotationsRetrieval:
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_get_span_annotations_dataframe_and_list(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         num_spans = len(_existing_spans)
@@ -53,8 +46,7 @@ class TestClientForSpanAnnotationsRetrieval:
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -161,13 +153,10 @@ class TestClientForSpanAnnotationsRetrieval:
             assert row.loc["result.explanation"] == expl
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_note_annotations_filtering_behavior(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         num_spans = len(_existing_spans)
@@ -176,8 +165,7 @@ class TestClientForSpanAnnotationsRetrieval:
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -342,13 +330,10 @@ class TestClientForSpanAnnotationsRetrieval:
             )
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_get_span_annotations_with_spans_objects(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test getting span annotations using Span objects from get_spans."""
@@ -358,8 +343,7 @@ class TestClientForSpanAnnotationsRetrieval:
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -487,13 +471,10 @@ class TestClientForSpansRetrieval:
     """Test the get_spans method with various filtering and pagination options."""
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_basic_span_retrieval(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test basic span retrieval returns ergonomic span format."""
@@ -502,8 +483,7 @@ class TestClientForSpansRetrieval:
         existing_span1 = choice(_existing_spans)
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -545,12 +525,10 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that start_time and end_time filters work correctly."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -679,7 +657,6 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that the method automatically handles pagination to fetch up to the limit."""
@@ -687,8 +664,7 @@ class TestClientForSpansRetrieval:
         existing_span1 = choice(_existing_spans)
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -724,7 +700,6 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that project identifier works with both project names and IDs."""
@@ -733,8 +708,7 @@ class TestClientForSpansRetrieval:
         project_id = str(existing_span1.trace.project.id)
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -766,15 +740,13 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         assert _existing_spans, "At least one existing span is required for this test"
         existing_span = choice(_existing_spans)
         project_name = existing_span.trace.project.name
 
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -832,7 +804,6 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test behavior when no spans match the filter criteria."""
@@ -840,8 +811,7 @@ class TestClientForSpansRetrieval:
         existing_span = choice(_existing_spans)
         project_name = existing_span.trace.project.name
 
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -867,12 +837,10 @@ class TestClientForSpansRetrieval:
     async def test_invalid_project_identifier(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test error handling for invalid project identifier."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         import httpx
 
@@ -895,7 +863,6 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test the get_spans method returns spans correctly."""
@@ -905,8 +872,7 @@ class TestClientForSpansRetrieval:
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -964,12 +930,10 @@ class TestClientForSpanCreation:
     async def test_basic_span_operations(
         self,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test basic span creation, duplicates, and error handling in one efficient test."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import Client
         from phoenix.client.exceptions import SpanCreationError
@@ -1059,7 +1023,6 @@ class TestClientForSpanCreation:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test round-tripping spans through helper functions efficiently."""
@@ -1070,8 +1033,7 @@ class TestClientForSpanCreation:
         try:
             random.seed(100 + (1 if is_async else 0))
 
-            user = _get_user(_app, _MEMBER).log_in(_app)
-            api_key = str(user.create_api_key(_app))
+            api_key = _app.admin_secret
 
             from phoenix.client import AsyncClient
             from phoenix.client import Client as SyncClient
@@ -1214,12 +1176,10 @@ class TestClientForSpanCreation:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test efficient batch span creation and retrieval."""
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1267,11 +1227,9 @@ class TestClientForSpanCreation:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1503,7 +1461,6 @@ class TestClientForSpanCreation:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that flattened attributes are properly unflattened when creating spans.
@@ -1513,8 +1470,7 @@ class TestClientForSpanCreation:
         It uses GraphQL to check the raw database structure (nested) and the REST API
         to verify round-trip behavior (flattened).
         """
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1596,7 +1552,7 @@ class TestClientForSpanCreation:
 
         trace_result, _ = _gql(
             _app,
-            user,
+            _app.admin_secret,
             query=trace_query,
             variables={"projectId": str(_existing_project.id), "traceId": trace_id},
         )
@@ -1615,7 +1571,9 @@ class TestClientForSpanCreation:
         assert span_global_id is not None, f"Could not find span with spanId {span_id}"
 
         # Now query for the attributes using the Global ID
-        attr_result, _ = _gql(_app, user, query=gql_query, variables={"spanId": span_global_id})
+        attr_result, _ = _gql(
+            _app, _app.admin_secret, query=gql_query, variables={"spanId": span_global_id}
+        )
         assert not attr_result.get("errors"), f"GraphQL errors: {attr_result.get('errors')}"
 
         # Get the nested attributes from GraphQL (as stored in the database)
@@ -1713,18 +1671,14 @@ class TestClientForSpanDeletion:
     """Test the delete_span method with various span identifiers."""
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_delete_span_by_opentelemetry_span_id(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test deleting a span by OpenTelemetry span_id."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1791,18 +1745,14 @@ class TestClientForSpanDeletion:
         assert span_id not in span_ids_after, "Test span should be deleted"
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_delete_span_by_global_id(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test deleting a span by Phoenix Global ID."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1884,12 +1834,10 @@ class TestClientForSpanDeletion:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that deleting a parent span orphans its children but doesn't delete them."""
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1999,12 +1947,10 @@ class TestClientForSpanDeletion:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test error handling when trying to delete a non-existent span."""
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         import httpx
 
@@ -2030,12 +1976,10 @@ class TestClientForSpanDeletion:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that timeout parameter is properly handled."""
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient

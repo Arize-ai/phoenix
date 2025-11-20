@@ -1,6 +1,6 @@
 import type { StorybookConfig } from "@storybook/react-vite";
-import { mergeConfig } from "vite";
 import { resolve } from "path";
+import { mergeConfig } from "vite";
 
 const config: StorybookConfig = {
   stories: ["../stories/*.mdx", "../stories/*.stories.@(js|jsx|mjs|ts|tsx)"],
@@ -18,7 +18,7 @@ const config: StorybookConfig = {
   typescript: {
     reactDocgen: "react-docgen-typescript",
   },
-  async viteFinal(config, { configType }) {
+  async viteFinal(config, { configType: _configType }) {
     // return the customized config
     return mergeConfig(config, {
       // customize the Vite config here

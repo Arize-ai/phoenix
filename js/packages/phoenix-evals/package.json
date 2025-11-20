@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-evals",
-  "version": "0.2.2",
+  "version": "0.5.0",
   "description": "A library for running evaluations for AI use cases",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
@@ -38,29 +38,31 @@
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "type:check": "tsc --noEmit",
-    "test": "vitest --typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
     "docs": "typedoc",
     "docs:preview": "pnpx http-server ./docs -p 8080 -o"
   },
   "keywords": [
     "evals",
+    "arize",
     "phoenix",
     "llm",
     "evaluation"
   ],
   "author": "oss@arize.com",
-  "license": "ELv2",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@ai-sdk/openai": "^2.0.0",
     "@arizeai/openinference-instrumentation-openai": "^2.3.0",
-    "@arizeai/phoenix-client": "workspace:*",
     "@types/mustache": "^4.2.6",
     "@types/node": "^24.0.10",
+    "msw": "^2.11.6",
     "nock": "^14.0.5",
     "tsx": "^4.19.3",
     "typedoc": "^0.27.9",
     "typescript": "^5.8.2",
-    "vitest": "^2.1.9"
+    "vitest": "^4.0.10"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {

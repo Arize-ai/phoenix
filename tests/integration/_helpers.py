@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from email.message import Message
 from functools import cached_property
 from io import BytesIO
+from itertools import chain
 from random import random
 from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
@@ -89,6 +90,7 @@ _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 
 _ADMIN = UserRoleInput.ADMIN
 _MEMBER = UserRoleInput.MEMBER
+_VIEWER = UserRoleInput.VIEWER
 
 _ProjectName: TypeAlias = str
 _SpanName: TypeAlias = str
@@ -124,10 +126,11 @@ class _User:
     gid: _GqlId
     role: UserRoleInput
     profile: _Profile
+    profile_picture_url: Optional[str]
 
     def log_in(self, app: _AppInfo) -> _LoggedInUser:
         tokens = _log_in(app, self.password, email=self.email)
-        return _LoggedInUser(self.gid, self.role, self.profile, tokens)
+        return _LoggedInUser(self.gid, self.role, self.profile, self.profile_picture_url, tokens)
 
     @cached_property
     def password(self) -> _Password:
@@ -169,7 +172,7 @@ class _User:
             local=local,
         )
 
-    def delete_users(self, app: _AppInfo, *users: Union[_GqlId, _User]) -> None:
+    def delete_users(self, app: _AppInfo, *users: Union[_GqlId, _User]) -> list[_GqlId]:
         return _delete_users(app, self, users=users)
 
     def list_users(self, app: _AppInfo) -> list[_User]:
@@ -271,6 +274,7 @@ _DEFAULT_ADMIN = _User(
         password=DEFAULT_ADMIN_PASSWORD,
         username=DEFAULT_ADMIN_USERNAME,
     ),
+    profile_picture_url=None,
 )
 
 _ApiKeyKind = Literal["System", "User"]
@@ -345,13 +349,21 @@ class _LoggedInTokens(_CanLogOut[None]):
 class _LoggedInUser(_User, _CanLogOut[_User]):
     tokens: _LoggedInTokens
 
+    @property
+    def user(self) -> _User:
+        return _User(self.gid, self.role, self.profile, self.profile_picture_url)
+
     @override
     def log_out(self, app: _AppInfo) -> _User:
         self.tokens.access_token.log_out(app)
-        return _User(self.gid, self.role, self.profile)
+        return self.user
 
     def refresh(self, app: _AppInfo) -> _LoggedInUser:
         return replace(self, tokens=self.tokens.refresh(app))
+
+    def visit(self, app: _AppInfo, expected_status_code: int = 200) -> None:
+        response = _httpx_client(app, self).get("/graphql")
+        assert response.status_code == expected_status_code
 
 
 _RoleOrUser = Union[UserRoleInput, _User]
@@ -864,7 +876,7 @@ def _list_users(
         query = (
             "query{users"
             + args_str
-            + "{edges{node{id email username role{name}}} pageInfo{hasNextPage endCursor}}}"
+            + "{edges{node{id email username profilePictureUrl role{name}}} pageInfo{hasNextPage endCursor}}}"
         )
         resp_dict, _ = _gql(app, auth, query=query)
 
@@ -876,6 +888,7 @@ def _list_users(
                     _GqlId(u["id"]),
                     UserRoleInput(u["role"]["name"]),
                     _Profile(u["email"], "", u["username"]),
+                    profile_picture_url=u.get("profilePictureUrl"),
                 )
                 for u in users
             ]
@@ -907,14 +920,16 @@ def _create_user(
     if not local:
         args.append("authMethod:OAUTH2")
     args.append(f"sendWelcomeEmail:{str(send_welcome_email).lower()}")
-    out = "user{id email role{name}}"
+    out = "user{id email profilePictureUrl role{name}}"
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
     resp_dict, headers = _gql(app, auth, query=query)
     assert (user := resp_dict["data"]["createUser"]["user"])
     assert user["email"] == sanitize_email(email)
     assert user["role"]["name"] == role.value
     assert not headers.get("set-cookie")
-    return _User(_GqlId(user["id"]), role, profile)
+    return _User(
+        _GqlId(user["id"]), role, profile, profile_picture_url=user.get("profilePictureUrl")
+    )
 
 
 def _delete_users(
@@ -923,11 +938,12 @@ def _delete_users(
     /,
     *,
     users: Iterable[Union[_GqlId, _User]],
-) -> None:
+) -> list[_GqlId]:
     user_ids = [u.gid if isinstance(u, _User) else u for u in users]
-    query = "mutation($userIds:[ID!]!){deleteUsers(input:{userIds:$userIds})}"
-    _, headers = _gql(app, auth, query=query, variables=dict(userIds=user_ids))
+    query = "mutation($userIds:[ID!]!){deleteUsers(input:{userIds:$userIds}){userIds}}"
+    response, headers = _gql(app, auth, query=query, variables=dict(userIds=user_ids))
     assert not headers.get("set-cookie")
+    return [_GqlId(user_id) for user_id in response["data"]["deleteUsers"]["userIds"]]
 
 
 def _patch_user_gid(
@@ -1145,7 +1161,12 @@ def _json(
     assert (resp_dict := cast(dict[str, Any], resp.json()))
     if errers := resp_dict.get("errors"):
         msg = errers[0]["message"]
-        if "not auth" in msg or IsAdmin.message in msg:
+        # Raise Unauthorized for permission-related errors
+        if (
+            "not auth" in msg
+            or IsAdmin.message in msg
+            or "Viewers cannot perform this action" in msg
+        ):
             raise Unauthorized(msg)
         raise RuntimeError(msg)
     return resp_dict
@@ -1248,6 +1269,56 @@ async def _await_or_return(obj: Union[_AnyT, Awaitable[_AnyT]]) -> _AnyT:
     return obj
 
 
+@dataclass
+class _TestOverrides:
+    """Dynamic test overrides for simulating IDP state changes."""
+
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    user_name: Optional[str] = None
+    user_logins_remaining: int = 0
+
+    role: Optional[str] = None
+    role_logins_remaining: int = 0
+
+    email: Optional[str] = None
+    email_logins_remaining: int = 0
+
+    picture: Optional[str] = None
+    picture_logins_remaining: int = 0
+
+    def consume_user(self) -> Optional[tuple[str, str, str]]:
+        """Consume and return user override if available."""
+        if self.user_logins_remaining > 0:
+            self.user_logins_remaining -= 1
+            assert self.user_id is not None
+            assert self.user_email is not None
+            assert self.user_name is not None
+            return self.user_id, self.user_email, self.user_name
+        return None
+
+    def consume_role(self) -> Optional[str]:
+        """Consume and return role override if available."""
+        if self.role_logins_remaining > 0:
+            self.role_logins_remaining -= 1
+            return self.role
+        return None
+
+    def consume_email(self) -> Optional[str]:
+        """Consume and return email override if available."""
+        if self.email_logins_remaining > 0:
+            self.email_logins_remaining -= 1
+            return self.email
+        return None
+
+    def consume_picture(self) -> Optional[str]:
+        """Consume and return picture override if available."""
+        if self.picture_logins_remaining > 0:
+            self.picture_logins_remaining -= 1
+            return self.picture
+        return None
+
+
 class _OIDCServer:
     """
     A mock OpenID Connect (OIDC) server implementation for testing OAuth2/OIDC authentication flows.
@@ -1289,6 +1360,7 @@ class _OIDCServer:
         port: int,
         use_pkce: bool = False,
         groups: Optional[list[str]] = None,
+        role: Optional[str] = None,
     ):
         """
         Initialize a new OIDC server instance.
@@ -1297,6 +1369,7 @@ class _OIDCServer:
             port: The port number on which the server will listen.
             use_pkce: Enable PKCE (Proof Key for Code Exchange) support.
             groups: List of groups to include in ID token claims (for group-based access control testing).
+            role: Role to include in ID token claims (for role mapping testing).
         """
         self._name: str = f"oidc_server_{token_hex(8)}"
         self._client_id: str = f"client_id_{token_hex(8)}"
@@ -1306,16 +1379,60 @@ class _OIDCServer:
         self._port: int = port
         self._use_pkce: bool = use_pkce
         self._groups: list[str] = groups or []
+        self._role: Optional[str] = role
         self._app = FastAPI()
-        self._nonce: Optional[str] = None
-        self._user_id: Optional[str] = None
-        self._user_email: Optional[str] = None
-        self._user_name: Optional[str] = None
         # PKCE state: maps auth_code -> code_challenge
         self._code_challenges: dict[str, str] = {}
+        # Dynamic test overrides for simulating IDP state changes
+        self._test_overrides = _TestOverrides()
+        # Auth sessions: maps auth_code -> session info
+        self._auth_sessions: dict[str, dict[str, Any]] = {}
+        # Current session data for /userinfo endpoint
+        self._current_session: Optional[dict[str, Any]] = None
         self._server: Optional[Generator[Thread, None, None]] = None
         self._thread: Optional[Thread] = None
         self._setup_routes()
+
+    def _generate_session_data(self, nonce: Optional[str]) -> dict[str, Any]:
+        """
+        Generate session data for the current auth request, considering test overrides.
+
+        Returns:
+            Dictionary containing user_id, user_email, user_name, user_picture, nonce, session_role, session_groups
+        """
+        # Determine user identity
+        user_override = self._test_overrides.consume_user()
+        if user_override:
+            user_id, user_email, user_name = user_override
+        else:
+            user_id = f"user_id_{token_hex(8)}"
+            user_email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
+            user_name = f"User {token_hex(8)}"
+
+        # Apply email override (independent of user override)
+        email_override = self._test_overrides.consume_email()
+        if email_override:
+            user_email = email_override
+
+        # Determine profile picture
+        picture_override = self._test_overrides.consume_picture()
+        user_picture = (
+            picture_override if picture_override is not None else "https://example.com/picture.jpg"
+        )
+
+        # Determine role
+        role_override = self._test_overrides.consume_role()
+        session_role = role_override if role_override is not None else self._role
+
+        return {
+            "user_id": user_id,
+            "user_email": user_email,
+            "user_name": user_name,
+            "user_picture": user_picture,
+            "nonce": nonce,
+            "session_role": session_role,
+            "session_groups": self._groups,
+        }
 
     def _setup_routes(self) -> None:
         """
@@ -1373,11 +1490,14 @@ class _OIDCServer:
 
                 self._code_challenges[auth_code] = code_challenge
 
-            # Generate user for this session
-            self._nonce = nonce
-            self._user_id = f"user_id_{token_hex(8)}"
-            self._user_email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
-            self._user_name = f"User {token_hex(8)}"
+            # Generate session data for this authorization request
+            session_data = self._generate_session_data(nonce)
+
+            # Store session info keyed by auth_code
+            self._auth_sessions[auth_code] = session_data
+
+            # Also store as current session so properties (user_email, etc.) work immediately
+            self._current_session = session_data
 
             return RedirectResponse(
                 f"{redirect_uri}?code={auth_code}&state={state}",
@@ -1509,18 +1629,40 @@ class _OIDCServer:
                         status_code=400,
                     )
 
+            # Retrieve session info for this auth code
+            session = self._auth_sessions.get(code)
+            if not session:
+                return JSONResponse(
+                    {
+                        "error": "invalid_grant",
+                        "error_description": "Invalid or expired authorization code",
+                    },
+                    status_code=400,
+                )
+
+            # Store as current session for /userinfo endpoint
+            self._current_session = session
+
+            # Clean up session after first use (proper OAuth2 single-use behavior)
+            del self._auth_sessions[code]
+
             # Create ID token with required claims
             now = int(time())
             id_token_claims = {
                 "iss": self.base_url,
-                "sub": self._user_id,
+                "sub": session["user_id"],
                 "aud": self._client_id,
                 "iat": now,
                 "exp": now + 3600,
-                "email": self._user_email,
-                "name": self._user_name,
-                "nonce": self._nonce,
+                "email": session["user_email"],
+                "name": session["user_name"],
+                "picture": session["user_picture"],
+                "nonce": session["nonce"],
             }
+
+            # Add role if configured
+            if session["session_role"]:
+                id_token_claims["role"] = session["session_role"]
 
             # NOTE: Groups are intentionally NOT included in ID token to simulate
             # real-world IDPs (AWS Cognito, Azure AD) that keep ID tokens small.
@@ -1586,6 +1728,12 @@ class _OIDCServer:
                 assert isinstance(token_auth_methods, list)
                 token_auth_methods.append("none")
 
+            # Add role claim if configured
+            if self._role:
+                claims_supported = config["claims_supported"]
+                assert isinstance(claims_supported, list)
+                claims_supported.append("role")
+
             # Add groups claim if configured
             if self._groups:
                 claims_supported = config["claims_supported"]
@@ -1603,16 +1751,26 @@ class _OIDCServer:
             be retrieved from a real identity provider's user database.
             Includes groups claim if configured.
             """
+            if not self._current_session:
+                return JSONResponse(
+                    {"error": "invalid_token", "error_description": "No active session"},
+                    status_code=401,
+                )
+
             user_info = {
-                "sub": self._user_id,
-                "name": self._user_name,
-                "email": self._user_email,
-                "picture": "https://example.com/picture.jpg",
+                "sub": self._current_session["user_id"],
+                "name": self._current_session["user_name"],
+                "email": self._current_session["user_email"],
+                "picture": self._current_session["user_picture"],
             }
 
+            # Add role if configured
+            if self._current_session["session_role"]:
+                user_info["role"] = self._current_session["session_role"]
+
             # Add groups if configured
-            if self._groups:
-                user_info["groups"] = self._groups  # type: ignore[assignment]
+            if self._current_session["session_groups"]:
+                user_info["groups"] = self._current_session["session_groups"]
 
             return JSONResponse(user_info)
 
@@ -1680,17 +1838,17 @@ class _OIDCServer:
     @property
     def user_id(self) -> Optional[str]:
         """Get the current user ID."""
-        return self._user_id
+        return self._current_session["user_id"] if self._current_session else None
 
     @property
     def user_email(self) -> Optional[str]:
         """Get the current user email."""
-        return self._user_email
+        return self._current_session["user_email"] if self._current_session else None
 
     @property
     def user_name(self) -> Optional[str]:
         """Get the current user name."""
-        return self._user_name
+        return self._current_session["user_name"] if self._current_session else None
 
     @property
     def client_id(self) -> str:
@@ -1706,6 +1864,113 @@ class _OIDCServer:
     def groups(self) -> list[str]:
         """Get the configured groups for this OIDC server."""
         return self._groups
+
+    @property
+    def role(self) -> Optional[str]:
+        """Get the configured role for this OIDC server."""
+        return self._role
+
+    def set_role(self, role: Optional[str], num_logins: int) -> None:
+        """
+        Dynamically update the role that will be returned in ID token and userinfo claims.
+
+        This is useful for testing scenarios where a user's role changes in the IDP
+        between login sessions (e.g., a user gets promoted from MEMBER to ADMIN).
+
+        Args:
+            role: The new role value to return in claims, or None to remove role claims
+            num_logins: Number of logins to use this role for (must be > 0)
+
+        Example:
+            server.set_role("Owner", num_logins=1)
+        """
+        assert num_logins > 0, "num_logins must be > 0"
+        self._test_overrides.role = role
+        self._test_overrides.role_logins_remaining = num_logins
+
+    def set_email(self, email: str, num_logins: int) -> None:
+        """
+        Dynamically update the email that will be returned in ID token and userinfo claims.
+
+        This is useful for testing scenarios where a user's email changes in the IDP
+        between login sessions (e.g., a user updates their email address). This is
+        independent of set_user() and allows changing just the email while keeping
+        the same user_id.
+
+        Args:
+            email: The new email address to return in claims
+            num_logins: Number of logins to use this email for (must be > 0)
+
+        Example:
+            server.set_user("user_123", "alice@example.com", num_logins=2)
+            email1, _, _ = await complete_flow(app, server)  # alice@example.com
+
+            server.set_email("alice.new@example.com", num_logins=1)
+            email2, _, _ = await complete_flow(app, server)  # alice.new@example.com
+        """
+        assert num_logins > 0, "num_logins must be > 0"
+        self._test_overrides.email = email
+        self._test_overrides.email_logins_remaining = num_logins
+
+    def set_picture(self, picture: str, num_logins: int) -> None:
+        """
+        Dynamically update the profile picture URL that will be returned in userinfo claims.
+
+        This is useful for testing scenarios where a user's profile picture changes in the IDP
+        between login sessions (e.g., a user updates their avatar). This is independent of
+        set_user() and allows changing just the picture while keeping the same user_id.
+
+        Args:
+            picture: The new profile picture URL to return in claims
+            num_logins: Number of logins to use this picture for (must be > 0)
+
+        Example:
+            server.set_user("user_123", "alice@example.com", num_logins=2)
+            # First login - default picture
+
+            server.set_picture("https://example.com/new_avatar.jpg", num_logins=1)
+            # Second login - updated picture
+        """
+        assert num_logins > 0, "num_logins must be > 0"
+        self._test_overrides.picture = picture
+        self._test_overrides.picture_logins_remaining = num_logins
+
+    def set_user(
+        self,
+        user_id: str,
+        email: str,
+        num_logins: int,
+        name: Optional[str] = None,
+    ) -> None:
+        """
+        Set a persistent user identity for the next N login flows.
+
+        By default, the mock OIDC server generates a new random user on each /auth request.
+        This method allows you to persist a user's identity across multiple login flows,
+        which is essential for testing scenarios where the same user logs in multiple times
+        (e.g., to test role updates or email changes).
+
+        After num_logins auth requests, the server automatically reverts to generating
+        random users, so no manual cleanup is needed.
+
+        Args:
+            user_id: The persistent user ID (sub claim) to use
+            email: The persistent email to use
+            num_logins: Number of login flows to use this user for (must be > 0)
+            name: Optional name for the user (defaults to "User {user_id}" if None)
+
+        Example:
+            server.set_user("user_123", "alice@example.com", num_logins=2)
+            email1, _, _ = await complete_flow(app, server)  # First login
+            server.set_role("Owner", num_logins=1)  # Change role in IDP
+            email2, _, _ = await complete_flow(app, server)  # Second login - same user!
+            assert email1 == email2
+        """
+        assert num_logins > 0, "num_logins must be > 0"
+        self._test_overrides.user_id = user_id
+        self._test_overrides.user_email = email
+        self._test_overrides.user_name = name if name is not None else f"User {user_id}"
+        self._test_overrides.user_logins_remaining = num_logins
 
     @property
     def use_pkce(self) -> bool:
@@ -1904,3 +2169,169 @@ async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None
 
 def _randomize_casing(email: str) -> str:
     return "".join(c.lower() if random() < 0.5 else c.upper() for c in email)
+
+
+# GET endpoints that all roles can read with expected status codes
+_COMMON_RESOURCE_ENDPOINTS = (
+    # Projects
+    (404, "GET", "v1/projects/fake-id-{}"),
+    (200, "GET", "v1/projects"),
+    # Datasets
+    (422, "GET", "v1/datasets/fake-id-{}"),
+    (200, "GET", "v1/datasets"),
+    (422, "GET", "v1/datasets/fake-id-{}/versions"),
+    (422, "GET", "v1/datasets/fake-id-{}/examples"),
+    (422, "GET", "v1/datasets/fake-id-{}/csv"),
+    (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_ft"),
+    (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
+    # Experiments
+    (422, "GET", "v1/experiments/fake-id-{}"),
+    (422, "GET", "v1/datasets/fake-id-{}/experiments"),
+    (422, "GET", "v1/experiments/fake-id-{}/runs"),
+    (422, "GET", "v1/experiments/fake-id-{}/incomplete-runs"),
+    (422, "GET", "v1/experiments/fake-id-{}/incomplete-evaluations"),
+    (422, "GET", "v1/experiments/fake-id-{}/json"),
+    (422, "GET", "v1/experiments/fake-id-{}/csv"),
+    # Prompts
+    (200, "GET", "v1/prompts"),
+    (200, "GET", "v1/prompts/fake-id-{}/versions"),
+    (422, "GET", "v1/prompt_versions/fake-id-{}"),
+    (404, "GET", "v1/prompts/fake-id-{}/tags/test-tag"),
+    (404, "GET", "v1/prompts/fake-id-{}/latest"),
+    (422, "GET", "v1/prompt_versions/fake-id-{}/tags"),
+    # Annotation configs
+    (200, "GET", "v1/annotation_configs"),
+    (404, "GET", "v1/annotation_configs/fake-id-{}"),
+    # Evaluations
+    (404, "GET", "v1/evaluations"),
+    # Spans (project-scoped)
+    (404, "GET", "v1/projects/fake-id-{}/spans"),
+    (404, "GET", "v1/projects/fake-id-{}/spans/otlpv1"),
+    # Annotations (project-scoped)
+    (422, "GET", "v1/projects/fake-id-{}/span_annotations"),
+    (422, "GET", "v1/projects/fake-id-{}/trace_annotations"),
+    (422, "GET", "v1/projects/fake-id-{}/session_annotations"),
+    # Spans
+    (422, "GET", "v1/spans"),
+)
+
+# Admin-only endpoints (user management, project CRUD)
+# Non-admins always receive 403, admins get expected_admin_status
+_ADMIN_ONLY_ENDPOINTS = (
+    (200, "GET", "v1/users"),
+    (422, "POST", "v1/users"),
+    (422, "DELETE", "v1/users/fake-id-{}"),
+    (422, "PUT", "v1/projects/fake-id-{}"),
+    (404, "DELETE", "v1/projects/fake-id-{}"),
+)
+
+# Write operations blocked for viewers (POST/PUT/DELETE)
+# Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
+_VIEWER_BLOCKED_WRITE_OPERATIONS = (
+    # POST routes
+    (422, "POST", "v1/annotation_configs"),
+    (400, "POST", "v1/datasets/upload"),
+    (422, "POST", "v1/datasets/fake-id-{}/experiments"),
+    (422, "POST", "v1/document_annotations"),
+    (415, "POST", "v1/evaluations"),
+    (422, "POST", "v1/experiment_evaluations"),
+    (422, "POST", "v1/experiments/fake-id-{}/runs"),
+    (422, "POST", "v1/projects"),
+    (422, "POST", "v1/projects/fake-id-{}/spans"),
+    (422, "POST", "v1/prompts"),
+    (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
+    (422, "POST", "v1/session_annotations"),
+    (422, "POST", "v1/span_annotations"),
+    (422, "POST", "v1/spans"),
+    (422, "POST", "v1/trace_annotations"),
+    (415, "POST", "v1/traces"),
+    # PUT routes
+    (422, "PUT", "v1/annotation_configs/fake-id-{}"),
+    # DELETE routes
+    (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}"),
+    (422, "DELETE", "v1/experiments/fake-id-{}"),
+    (404, "DELETE", "v1/spans/fake-id-{}"),
+    (404, "DELETE", "v1/traces/fake-id-{}"),
+)
+
+
+def _ensure_endpoint_coverage_is_exhaustive() -> None:
+    """Verify that test constants cover all actual v1 API routes.
+
+    This runs at module import time as a prerequisite check. If endpoint
+    coverage is incomplete, all tests that import this module will fail fast.
+    """
+    import re
+
+    from fastapi.routing import APIRoute
+
+    from phoenix.server.api.routers.v1 import create_v1_router
+
+    # Get all actual routes from the v1 router
+    router = create_v1_router(authentication_enabled=False)
+    actual_routes = {
+        (method, route.path)
+        for route in router.routes
+        if isinstance(route, APIRoute)
+        for method in route.methods
+    }
+
+    # Get all routes from test constants
+    test_routes = {
+        (method, endpoint)
+        for _, method, endpoint in chain(
+            _COMMON_RESOURCE_ENDPOINTS,
+            _ADMIN_ONLY_ENDPOINTS,
+            _VIEWER_BLOCKED_WRITE_OPERATIONS,
+        )
+    }
+
+    # Normalize paths: server uses {param_name}, tests use fake-id-{}
+    def normalize_path(path: str) -> str:
+        if not path.startswith("/"):
+            path = "/" + path
+        path = re.sub(r"fake-id-\{\}", "{id}", path)
+        path = re.sub(r"\{[^}]*\}", "{id}", path)
+        path = re.sub(r"/tags/test-tag$", "/tags/{id}", path)
+        return path
+
+    # Map normalized paths back to original paths for error reporting
+    normalized_to_actual = {(m, normalize_path(p)): (m, p) for m, p in actual_routes}
+    normalized_to_test = {(m, normalize_path(p)): (m, p) for m, p in test_routes}
+
+    normalized_actual = set(normalized_to_actual.keys())
+    normalized_test = set(normalized_to_test.keys())
+
+    # Check for discrepancies
+    missing_in_tests = normalized_actual - normalized_test
+    extra_in_tests = normalized_test - normalized_actual
+
+    if missing_in_tests or extra_in_tests:
+        error_parts = []
+        if missing_in_tests:
+            # Show actual server paths (not normalized)
+            actual_paths = [normalized_to_actual[route] for route in sorted(missing_in_tests)]
+            routes_str = "\n".join(f"  {m} {p}" for m, p in actual_paths)
+            error_parts.append(
+                f"Routes in server but NOT in test constants:\n{routes_str}\n\n"
+                f"Add these to _helpers.py:\n"
+                f"  - GET routes → _COMMON_RESOURCE_ENDPOINTS\n"
+                f"  - Admin-only routes (users, project CRUD) → _ADMIN_ONLY_ENDPOINTS\n"
+                f"  - Write operations (POST/PUT/DELETE) → _VIEWER_BLOCKED_WRITE_OPERATIONS\n\n"
+                f"Format: (expected_status_code, method, endpoint_path)\n"
+                f'Example: (404, "GET", "v1/projects/fake-id-{{}}") or (422, "POST", "v1/datasets/upload")'
+            )
+        if extra_in_tests:
+            # Show actual test paths (not normalized)
+            test_paths = [normalized_to_test[route] for route in sorted(extra_in_tests)]
+            routes_str = "\n".join(f"  {m} {p}" for m, p in test_paths)
+            error_parts.append(
+                f"Routes in test constants but NOT in server (removed?):\n{routes_str}\n\n"
+                f"Remove these from _COMMON_RESOURCE_ENDPOINTS, _ADMIN_ONLY_ENDPOINTS,\n"
+                f"or _VIEWER_BLOCKED_WRITE_OPERATIONS in _helpers.py"
+            )
+        raise AssertionError("Endpoint coverage is incomplete!\n\n" + "\n\n".join(error_parts))
+
+
+_ensure_endpoint_coverage_is_exhaustive()

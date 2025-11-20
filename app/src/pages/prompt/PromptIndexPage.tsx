@@ -1,5 +1,5 @@
 import { DialogTrigger, Heading } from "react-aria-components";
-import { graphql, useFragment } from "react-relay";
+import { graphql, useFragment, usePreloadedQuery } from "react-relay";
 
 import {
   Button,
@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { JSONBlock } from "@phoenix/components/code";
 import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 import { PromptLabelConfigButton } from "@phoenix/pages/prompt/PromptLabelConfigButton";
 import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
@@ -19,15 +20,21 @@ import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelC
 
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
+import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
 import { EditPromptButton } from "./EditPromptButton";
 import { PromptChatMessagesCard } from "./PromptChatMessagesCard";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
+import { promptLoaderQuery } from "./promptLoader";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 export function PromptIndexPage() {
   const loaderData = usePromptIdLoader();
-  return <PromptIndexPageContent prompt={loaderData.prompt} />;
+  const data = usePreloadedQuery<promptLoaderQueryType>(
+    promptLoaderQuery,
+    loaderData.queryRef
+  );
+  return <PromptIndexPageContent prompt={data.prompt} />;
 }
 
 export function PromptIndexPageContent({
@@ -100,6 +107,7 @@ function PromptIndexPageAside({
         id
         name
         description
+        metadata
         ...PromptLatestVersionsListFragment
         ...EditPromptButton_data
         ...PromptLabels
@@ -130,6 +138,7 @@ function PromptIndexPageAside({
                   promptId={data.id}
                   promptName={data.name}
                   promptDescription={data.description ?? undefined}
+                  promptMetadata={data.metadata ?? undefined}
                 />
               </Modal>
             </ModalOverlay>
@@ -166,6 +175,21 @@ function PromptIndexPageAside({
             <PromptLabelConfigButton promptId={data.id} />
           </Flex>
           <PromptLabels prompt={data} />
+        </section>
+        <section>
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={3}>Metadata</Heading>
+            <EditPromptButton prompt={data} />
+          </Flex>
+          <JSONBlock
+            value={
+              data.metadata ? JSON.stringify(data.metadata, null, 2) : "{}"
+            }
+          />
         </section>
         <section>
           <Heading level={3}>Latest Versions</Heading>

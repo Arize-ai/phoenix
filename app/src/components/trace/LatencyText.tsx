@@ -3,14 +3,36 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
 import { TextColorValue } from "@phoenix/components/types/style";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
+import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
+/**
+ * The thresholds for the latency text color.
+ * The numbers are in milliseconds.
+ */
+export type LatencyThresholds = {
+  /**
+   * The threshold for the fast latency.
+   * Anything less than this is considered fast.
+   */
+  fast: number;
+  /**
+   * The threshold for the moderate latency.
+   * Anything between this and the slow threshold is considered moderate. Anything greater than this is considered slow.
+   */
+  moderate: number;
+};
 export function LatencyText({
   latencyMs,
   size = "M",
   showIcon = true,
+  latencyThresholds,
 }: {
-  latencyMs: number;
+  latencyMs: number | null;
   size?: TextProps["size"];
+  /**
+   * The thresholds for the latency text color.
+   * @default undefined
+   */
+  latencyThresholds?: LatencyThresholds;
   /**
    * Whether to show the clock icon.
    * @default true
@@ -18,20 +40,19 @@ export function LatencyText({
   showIcon?: boolean;
 }) {
   const color: TextColorValue = useMemo(() => {
-    if (latencyMs < 3000) {
-      return "success";
-    } else if (latencyMs < 8000) {
-      return "warning";
-    } else {
-      return "danger";
+    if (latencyThresholds && latencyMs !== null) {
+      if (latencyMs < latencyThresholds.fast) {
+        return "success";
+      } else if (latencyMs < latencyThresholds.moderate) {
+        return "warning";
+      } else {
+        return "danger";
+      }
     }
-  }, [latencyMs]);
-  const latencyText = useMemo(() => {
-    if (latencyMs < 10) {
-      return formatFloat(latencyMs) + "ms";
-    }
-    return formatFloat(latencyMs / 1000) + "s";
-  }, [latencyMs]);
+    return "text-900";
+  }, [latencyMs, latencyThresholds]);
+
+  const latencyText = useMemo(() => latencyMsFormatter(latencyMs), [latencyMs]);
 
   return (
     <Flex

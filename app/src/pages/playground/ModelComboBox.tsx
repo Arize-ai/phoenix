@@ -21,7 +21,6 @@ type ModelComboBoxProps = {
   onChange: (model: string) => void;
   provider: ModelProvider;
   modelName: string | null;
-  container?: HTMLElement;
 } & Omit<
   ComboBoxProps<ModelItem>,
   "children" | "onSelectionChange" | "defaultSelectedKey"
@@ -29,7 +28,6 @@ type ModelComboBoxProps = {
 
 export function ModelComboBoxLoader({
   onChange,
-  container,
   modelName,
   queryReference,
   ...comboBoxProps
@@ -52,7 +50,9 @@ export function ModelComboBoxLoader({
   const onSelectionChange = (key: Key | null) => {
     if (typeof key === "string") {
       const item = items.find((item) => item.id === key);
-      item?.name != null && onChange(item.name);
+      if (item?.name != null) {
+        onChange(item.name);
+      }
     }
   };
 
@@ -94,7 +94,6 @@ export function ModelComboBoxLoader({
         }
       }}
       menuTrigger="focus"
-      container={container}
       description={"Choose a model from the list, or enter a custom model name"}
       defaultItems={items}
       {...comboBoxProps}
@@ -124,6 +123,7 @@ export function ModelComboBox(props: ModelComboBoxProps) {
   ) : null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 graphql`
   query ModelComboBoxQuery($providerKey: GenerativeProviderKey!) {
     playgroundModels(input: { providerKey: $providerKey }) {

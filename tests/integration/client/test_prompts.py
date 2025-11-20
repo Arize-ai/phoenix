@@ -14,6 +14,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    Union,
     cast,
 )
 
@@ -52,20 +53,27 @@ from ...__generated__.graphql import (
     TextContentValueInput,
     ToolDefinitionInput,
 )
-from .._helpers import _MEMBER, _AppInfo, _await_or_return, _GetUser, _LoggedInUser
+from .._helpers import (
+    _MEMBER,
+    _SYSTEM_USER_GID,
+    _AdminSecret,
+    _ApiKey,
+    _AppInfo,
+    _await_or_return,
+    _GetUser,
+    _gql,
+)
 
 
 class TestUserMessage:
     def test_user_message(
         self,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        u = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
         x = token_hex(4)
         expected = [{"role": "user", "content": f"hello {x}"}]
-        prompt = _create_chat_prompt(_app, u, api_key, template_format="F_STRING")
+        prompt = _create_chat_prompt(_app, api_key, template_format="F_STRING")
         messages = prompt.format(variables={"x": x}).messages
         assert not DeepDiff(expected, messages)
         _can_recreate_via_client(_app, prompt, api_key)
@@ -122,11 +130,9 @@ class TestTools:
     def test_openai(
         self,
         types_: Sequence[type[BaseModel]],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        u = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
         expected: Mapping[str, ChatCompletionToolParam] = {
             t.__name__: cast(
                 ChatCompletionToolParam, json.loads(json.dumps(pydantic_function_tool(t)))
@@ -134,7 +140,7 @@ class TestTools:
             for t in types_
         }
         tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
-        prompt = _create_chat_prompt(_app, u, api_key, tools=tools)
+        prompt = _create_chat_prompt(_app, api_key, tools=tools)
         kwargs = prompt.format().kwargs
         assert "tools" in kwargs
         actual: dict[str, ChatCompletionToolParam] = {
@@ -154,11 +160,9 @@ class TestTools:
     def test_anthropic(
         self,
         types_: Sequence[type[BaseModel]],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        u = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
         expected: dict[str, ToolParam] = {
             t.__name__: ToolParam(
                 name=t.__name__,
@@ -169,7 +173,6 @@ class TestTools:
         tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
         prompt = _create_chat_prompt(
             _app,
-            u,
             api_key,
             tools=tools,
             model_provider="ANTHROPIC",
@@ -197,18 +200,16 @@ class TestToolChoice:
     def test_openai(
         self,
         expected: ChatCompletionToolChoiceOptionParam,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        u = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
         tools = [
             ToolDefinitionInput(definition=json.loads(json.dumps(pydantic_function_tool(t))))
             for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
         ]
         invocation_parameters = {"tool_choice": expected}
         prompt = _create_chat_prompt(
-            _app, u, api_key, tools=tools, invocation_parameters=invocation_parameters
+            _app, api_key, tools=tools, invocation_parameters=invocation_parameters
         )
         kwargs = prompt.format().kwargs
         assert "tool_choice" in kwargs
@@ -227,11 +228,9 @@ class TestToolChoice:
     def test_anthropic(
         self,
         expected: ToolChoiceParam,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        u = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
         tools = [
             ToolDefinitionInput(
                 definition=dict(ToolParam(name=t.__name__, input_schema=t.model_json_schema()))
@@ -241,7 +240,6 @@ class TestToolChoice:
         invocation_parameters = {"max_tokens": 1024, "tool_choice": expected}
         prompt = _create_chat_prompt(
             _app,
-            u,
             api_key,
             tools=tools,
             invocation_parameters=invocation_parameters,
@@ -290,14 +288,12 @@ class TestResponseFormat:
     def test_openai(
         self,
         type_: type[BaseModel],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        u = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
         expected = cast(ResponseFormatJSONSchema, type_to_response_format_param(type_))
         response_format = ResponseFormatInput(definition=dict(expected))
-        prompt = _create_chat_prompt(_app, u, api_key, response_format=response_format)
+        prompt = _create_chat_prompt(_app, api_key, response_format=response_format)
         kwargs = prompt.format().kwargs
         assert "response_format" in kwargs
         actual = kwargs["response_format"]
@@ -327,6 +323,57 @@ class TestUserId:
         assert u.gid == response["data"]["node"]["user"]["id"]
 
 
+class TestMetadata:
+    @pytest.mark.parametrize("is_async", [False, True])
+    async def test_create_and_retrieve_metadata(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that metadata can be created and retrieved for prompts."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # Create prompt with metadata
+        prompt_name = token_hex(8)
+        prompt_description = token_hex(8)
+        prompt_metadata = {"environment": token_hex(8)}
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).prompts.create(
+                name=prompt_name,
+                version=PromptVersion.from_openai(
+                    CompletionCreateParamsBase(
+                        model=token_hex(8), messages=[{"role": "user", "content": "hello"}]
+                    )
+                ),
+                prompt_description=prompt_description,
+                prompt_metadata=prompt_metadata,
+            )
+        )
+
+        # Query prompt metadata via GraphQL
+        query = """
+        query($name: String!) {
+            prompts(first: 1, filter: {col: name, value: $name}) {
+                edges {
+                    node {
+                        id
+                        metadata
+                        description
+                    }
+                }
+            }
+        }
+        """
+        response, _ = _gql(_app, _app.admin_secret, query=query, variables={"name": prompt_name})
+        assert response["data"]["prompts"]["edges"]
+        retrieved_metadata = response["data"]["prompts"]["edges"][0]["node"]["metadata"]
+        assert retrieved_metadata == prompt_metadata
+        assert response["data"]["prompts"]["edges"][0]["node"]["description"] == prompt_description
+
+
 def _can_recreate_via_client(_app: _AppInfo, version: PromptVersion, api_key: str) -> None:
     new_name = token_hex(8)
     base_url = _app.base_url
@@ -347,8 +394,7 @@ def _can_recreate_via_client(_app: _AppInfo, version: PromptVersion, api_key: st
 
 def _create_chat_prompt(
     app: _AppInfo,
-    u: _LoggedInUser,
-    api_key: str,
+    api_key: Union[_ApiKey, _AdminSecret],
     /,
     *,
     messages: Sequence[PromptMessageInput] = (),
@@ -382,7 +428,7 @@ def _create_chat_prompt(
             promptVersion=version,
         ).model_dump(exclude_unset=True)
     }
-    response, _ = u.gql(app, query=_CREATE_CHAT_PROMPT, variables=variables)
+    response, _ = _gql(app, api_key, query=_CREATE_CHAT_PROMPT, variables=variables)
     prompt_id = response["data"]["createChatPrompt"]["id"]
     return px.Client(endpoint=app.base_url, api_key=api_key).prompts.get(
         prompt_identifier=prompt_id
@@ -974,11 +1020,9 @@ class TestClient:
         convert: Callable[..., PromptVersion],
         expected: dict[str, Any],
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        u = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
         prompt_identifier = token_hex(16)
         from phoenix.client import Client
 
@@ -999,13 +1043,10 @@ class TestClient:
             params = prompt.format(formatter=NO_OP_FORMATTER)
             assert not DeepDiff(expected, {**params})
 
-    @pytest.mark.parametrize("use_phoenix_admin_secret", [True, False])
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_version_tags(
         self,
         is_async: bool,
-        use_phoenix_admin_secret: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test the version tagging functionality for prompts.
@@ -1018,13 +1059,8 @@ class TestClient:
            for a different version will remove it from the previous version
         5. Different prompts can have tags with the same name without affecting each other
         """
-        # Set up test environment with logged-in user
-        u1 = _get_user(_app, _MEMBER).log_in(_app)
-        if use_phoenix_admin_secret:
-            assert (admin_secret := _app.admin_secret)
-            api_key = str(admin_secret)
-        else:
-            api_key = str(u1.create_api_key(_app))
+        # Set up test environment with admin secret
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1078,13 +1114,10 @@ class TestClient:
         assert "description" in tags[0]
         assert tags[0]["description"] == tag_description1
 
-        # Verify tag is associated with the correct user
-        query = "query($id:ID!){node(id:$id){... on PromptVersionTag{user{id username}}}}"
-        res, _ = u1.gql(_app, query=query, variables={"id": tags[0]["id"]})
-        if use_phoenix_admin_secret:
-            assert res["data"]["node"]["user"]["username"] == "system"
-        else:
-            assert res["data"]["node"]["user"]["id"] == u1.gid
+        # Verify tag is associated with the correct user (system user when using admin_secret)
+        query = "query($id:ID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
+        res, _ = _gql(_app, _app.admin_secret, query=query, variables={"id": tags[0]["id"]})
+        assert res["data"]["node"]["user"]["id"] == _SYSTEM_USER_GID
 
         # Create a second version of the same prompt
         prompt2 = await _await_or_return(
@@ -1103,9 +1136,8 @@ class TestClient:
         )
         assert not tags
 
-        # Change the user api key to a different one
-        u2 = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(u2.create_api_key(_app))
+        # Use admin secret (no need for a different user)
+        api_key = _app.admin_secret
 
         # Create a tag with the same name for the second version.
         # This will automatically remove the tag from the first version
@@ -1130,10 +1162,10 @@ class TestClient:
         assert "description" in tags[0]
         assert tags[0]["description"] == tag_description2
 
-        # Verify tag is associated with the correct user
+        # Verify tag is associated with the correct user (system user)
         query = "query($id:ID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
-        res, _ = u2.gql(_app, query=query, variables={"id": tags[0]["id"]})
-        assert res["data"]["node"]["user"]["id"] == u2.gid
+        res, _ = _gql(_app, _app.admin_secret, query=query, variables={"id": tags[0]["id"]})
+        assert res["data"]["node"]["user"]["id"] == _SYSTEM_USER_GID
 
         # Verify first version's tag was automatically removed when we created
         # the tag for the second version. This demonstrates that tag names must
@@ -1188,3 +1220,412 @@ class TestClient:
         assert tags[0]["name"] == tag_name
         assert "description" in tags[0]
         assert tags[0]["description"] == tag_description2
+
+
+class TestPromptFiltering:
+    """Test filtering prompts by name, labels, and combinations."""
+
+    def _create_prompt_via_gql(
+        self,
+        app: _AppInfo,
+        name: str,
+    ) -> str:
+        """Create a prompt via GraphQL mutation and return its ID."""
+        create_prompt_mutation = """
+        mutation($input: CreateChatPromptInput!) {
+            createChatPrompt(input: $input) {
+                id
+            }
+        }
+        """
+
+        # Create a simple prompt version
+        version = ChatPromptVersionInput(
+            templateFormat="NONE",
+            template=PromptChatTemplateInput(
+                messages=[
+                    PromptMessageInput(
+                        role="USER",
+                        content=[ContentPartInput(text=TextContentValueInput(text="hello {x}"))],
+                    )
+                ]
+            ),
+            invocationParameters={},
+            modelProvider="OPENAI",
+            modelName=token_hex(8),
+            tools=[],
+            responseFormat=None,
+        )
+
+        variables = {
+            "input": CreateChatPromptInput(
+                name=name,
+                promptVersion=version,
+            ).model_dump(exclude_unset=True)
+        }
+
+        response, _ = _gql(app, app.admin_secret, query=create_prompt_mutation, variables=variables)
+        resp_id = response["data"]["createChatPrompt"]["id"]
+        assert resp_id is not None
+        assert isinstance(resp_id, str)
+        return resp_id
+
+    def test_filter_prompts_by_name(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        """Test filtering prompts by name using GraphQL query."""
+        # Keep compatibility with _create_prompt_via_gql
+
+        # Create prompts with specific names for testing
+        prompt1_name = f"test-prompt-{token_hex(4)}"
+        prompt2_name = f"another-prompt-{token_hex(4)}"
+        prompt3_name = f"test-another-{token_hex(4)}"
+
+        # Create the test prompts via GraphQL
+        self._create_prompt_via_gql(_app, prompt1_name)
+        self._create_prompt_via_gql(_app, prompt2_name)
+        self._create_prompt_via_gql(_app, prompt3_name)
+
+        # Test filtering by name containing "test"
+        query = """
+        query($filter: PromptFilter, $labelIds: [ID!]) {
+            prompts(first: 10, filter: $filter, labelIds: $labelIds) {
+                edges {
+                    node {
+                        id
+                        name
+                    }
+                }
+            }
+        }
+        """
+
+        # Filter by name containing "test"
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=query,
+            variables={"filter": {"col": "name", "value": "test"}, "labelIds": None},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_names = [edge["node"]["name"] for edge in results]
+
+        # Should return prompts with "test" in the name
+        assert prompt1_name in result_names
+        assert prompt3_name in result_names
+        assert prompt2_name not in result_names
+
+        # Test filtering by name containing "another"
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=query,
+            variables={"filter": {"col": "name", "value": "another"}, "labelIds": None},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_names = [edge["node"]["name"] for edge in results]
+
+        # Should return prompts with "another" in the name
+        assert prompt2_name in result_names
+        assert prompt3_name in result_names
+        assert prompt1_name not in result_names
+
+    def test_filter_prompts_by_labels(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        """Test filtering prompts by labels using GraphQL query."""
+        # Keep compatibility with _create_prompt_via_gql
+
+        # Create prompts
+        prompt1_name = f"prompt-1-{token_hex(4)}"
+        prompt2_name = f"prompt-2-{token_hex(4)}"
+        prompt3_name = f"prompt-3-{token_hex(4)}"
+
+        # Create prompts via GraphQL
+        prompt1_id = self._create_prompt_via_gql(_app, prompt1_name)
+        prompt2_id = self._create_prompt_via_gql(_app, prompt2_name)
+        prompt3_id = self._create_prompt_via_gql(_app, prompt3_name)
+
+        # Create labels
+        label1_name = f"label-1-{token_hex(4)}"
+        label2_name = f"label-2-{token_hex(4)}"
+
+        # Create labels using GraphQL mutation
+        create_label_mutation = """
+        mutation($input: CreatePromptLabelInput!) {
+            createPromptLabel(input: $input) {
+                promptLabels {
+                    id
+                    name
+                }
+            }
+        }
+        """
+
+        # Create first label
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=create_label_mutation,
+            variables={
+                "input": {"name": label1_name, "description": "Test label 1", "color": "#FF0000"}
+            },
+        )
+        label1_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
+
+        # Create second label
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=create_label_mutation,
+            variables={
+                "input": {"name": label2_name, "description": "Test label 2", "color": "#00FF00"}
+            },
+        )
+        label2_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
+
+        # Assign labels to prompts using GraphQL mutation
+        set_labels_mutation = """
+        mutation($input: SetPromptLabelsInput!) {
+            setPromptLabels(input: $input) {
+                query {
+                    __typename
+                }
+            }
+        }
+        """
+
+        # Assign label1 to prompt1
+        _gql(
+            _app,
+            _app.admin_secret,
+            query=set_labels_mutation,
+            variables={"input": {"promptId": prompt1_id, "promptLabelIds": [label1_id]}},
+        )
+
+        # Assign both label1 and label2 to prompt2
+        _gql(
+            _app,
+            _app.admin_secret,
+            query=set_labels_mutation,
+            variables={"input": {"promptId": prompt2_id, "promptLabelIds": [label1_id, label2_id]}},
+        )
+
+        # Assign label2 to prompt3
+        _gql(
+            _app,
+            _app.admin_secret,
+            query=set_labels_mutation,
+            variables={"input": {"promptId": prompt3_id, "promptLabelIds": [label2_id]}},
+        )
+
+        # Test filtering by label1
+        query = """
+        query($filter: PromptFilter, $labelIds: [ID!]) {
+            prompts(first: 10, filter: $filter, labelIds: $labelIds) {
+                edges {
+                    node {
+                        id
+                        name
+                        labels {
+                            id
+                            name
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=query,
+            variables={"filter": None, "labelIds": [label1_id]},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_ids = [edge["node"]["id"] for edge in results]
+
+        # Should return prompts with label1
+        assert prompt1_id in result_ids
+        assert prompt2_id in result_ids
+        assert prompt3_id not in result_ids
+
+        # Test filtering by label2
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=query,
+            variables={"filter": None, "labelIds": [label2_id]},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_ids = [edge["node"]["id"] for edge in results]
+
+        # Should return prompts with label2
+        assert prompt2_id in result_ids
+        assert prompt3_id in result_ids
+        assert prompt1_id not in result_ids
+
+        # Test filtering by both labels
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=query,
+            variables={"filter": None, "labelIds": [label1_id, label2_id]},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_ids = [edge["node"]["id"] for edge in results]
+
+        # Should return prompts with either label1 or label2
+        assert prompt1_id in result_ids
+        assert prompt2_id in result_ids
+        assert prompt3_id in result_ids
+
+    def test_filter_prompts_by_name_and_labels(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        """Test filtering prompts by both name and labels using GraphQL query."""
+
+        # Create prompts with specific names
+        test_prompt_name = f"test-prompt-{token_hex(4)}"
+        another_prompt_name = f"another-prompt-{token_hex(4)}"
+        test_another_name = f"test-another-{token_hex(4)}"
+
+        # Create prompts via GraphQL
+        test_prompt_id = self._create_prompt_via_gql(_app, test_prompt_name)
+        another_prompt_id = self._create_prompt_via_gql(_app, another_prompt_name)
+        test_another_id = self._create_prompt_via_gql(_app, test_another_name)
+
+        # Create labels
+        test_label_name = f"test-label-{token_hex(4)}"
+        other_label_name = f"other-label-{token_hex(4)}"
+
+        create_label_mutation = """
+        mutation($input: CreatePromptLabelInput!) {
+            createPromptLabel(input: $input) {
+                promptLabels {
+                    id
+                    name
+                }
+            }
+        }
+        """
+
+        # Create test label
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=create_label_mutation,
+            variables={
+                "input": {"name": test_label_name, "description": "Test label", "color": "#FF0000"}
+            },
+        )
+        test_label_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
+
+        # Create other label
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=create_label_mutation,
+            variables={
+                "input": {
+                    "name": other_label_name,
+                    "description": "Other label",
+                    "color": "#00FF00",
+                }
+            },
+        )
+        other_label_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
+
+        # Assign labels to prompts
+        set_labels_mutation = """
+        mutation($input: SetPromptLabelsInput!) {
+            setPromptLabels(input: $input) {
+                query {
+                    __typename
+                }
+            }
+        }
+        """
+
+        # Assign test label to test_prompt and test_another
+        _gql(
+            _app,
+            _app.admin_secret,
+            query=set_labels_mutation,
+            variables={"input": {"promptId": test_prompt_id, "promptLabelIds": [test_label_id]}},
+        )
+
+        _gql(
+            _app,
+            _app.admin_secret,
+            query=set_labels_mutation,
+            variables={"input": {"promptId": test_another_id, "promptLabelIds": [test_label_id]}},
+        )
+
+        # Assign other label to another_prompt
+        _gql(
+            _app,
+            _app.admin_secret,
+            query=set_labels_mutation,
+            variables={
+                "input": {"promptId": another_prompt_id, "promptLabelIds": [other_label_id]}
+            },
+        )
+
+        # Test filtering by name "test" AND label "test-label"
+        query = """
+        query($filter: PromptFilter, $labelIds: [ID!]) {
+            prompts(first: 10, filter: $filter, labelIds: $labelIds) {
+                edges {
+                    node {
+                        id
+                        name
+                        labels {
+                            id
+                            name
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=query,
+            variables={"filter": {"col": "name", "value": "test"}, "labelIds": [test_label_id]},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_ids = [edge["node"]["id"] for edge in results]
+
+        # Should return prompts that have "test" in name AND have the test label
+        assert test_prompt_id in result_ids
+        assert test_another_id in result_ids
+        assert another_prompt_id not in result_ids
+
+        # Test filtering by name "another" AND label "other-label"
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=query,
+            variables={"filter": {"col": "name", "value": "another"}, "labelIds": [other_label_id]},
+        )
+
+        results = response["data"]["prompts"]["edges"]
+        result_ids = [edge["node"]["id"] for edge in results]
+
+        # Should return prompts that have "another" in name AND have the other label
+        assert another_prompt_id in result_ids
+        assert test_prompt_id not in result_ids
+        assert test_another_id not in result_ids

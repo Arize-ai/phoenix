@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<af42e4ee22cfb4cae58d402480df64aa>>
+ * @generated SignedSource<<914a32a95c229ec84884ba44e598f877>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type UserRoleInput = "ADMIN" | "MEMBER";
+export type UserRoleInput = "ADMIN" | "MEMBER" | "VIEWER";
 export type PatchUserInput = {
   newPassword?: string | null;
   newRole?: UserRoleInput | null;
@@ -21,7 +21,13 @@ export type UserRoleChangeDialogMutation$variables = {
 };
 export type UserRoleChangeDialogMutation$data = {
   readonly patchUser: {
-    readonly __typename: "UserMutationPayload";
+    readonly user: {
+      readonly id: string;
+      readonly role: {
+        readonly id: string;
+        readonly name: string;
+      };
+    };
   };
 };
 export type UserRoleChangeDialogMutation = {
@@ -37,7 +43,14 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": null,
     "args": [
@@ -55,8 +68,32 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "kind": "ScalarField",
-        "name": "__typename",
+        "concreteType": "User",
+        "kind": "LinkedField",
+        "name": "user",
+        "plural": false,
+        "selections": [
+          (v1/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "UserRole",
+            "kind": "LinkedField",
+            "name": "role",
+            "plural": false,
+            "selections": [
+              (v1/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
         "storageKey": null
       }
     ],
@@ -69,7 +106,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "UserRoleChangeDialogMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -78,19 +115,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "UserRoleChangeDialogMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "44e970c967f83a0b7a6bd1cbafc3a936",
+    "cacheID": "3c8547a2325c7e077c817ed32c43a051",
     "id": null,
     "metadata": {},
     "name": "UserRoleChangeDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation UserRoleChangeDialogMutation(\n  $input: PatchUserInput!\n) {\n  patchUser(input: $input) {\n    __typename\n  }\n}\n"
+    "text": "mutation UserRoleChangeDialogMutation(\n  $input: PatchUserInput!\n) {\n  patchUser(input: $input) {\n    user {\n      id\n      role {\n        id\n        name\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "468eff05b42e39b55f9aa5b9a7d2c483";
+(node as any).hash = "81ae74aa52c4c2bcbe266d9adf18f725";
 
 export default node;

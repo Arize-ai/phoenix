@@ -43,12 +43,12 @@ export function MessageRoleSelect({
 }: MessageRolePickerProps) {
   return (
     <Select
-      selectedKey={role}
+      value={role}
       css={!includeLabel ? hiddenLabelCSS : undefined}
       data-testid="messages-role-picker"
       aria-label="Role for the chat message"
       size="S"
-      onSelectionChange={(e) => {
+      onChange={(e) => {
         if (!isChatMessageRole(e)) {
           throw new Error(`Invalid chat message role: ${e}`);
         }

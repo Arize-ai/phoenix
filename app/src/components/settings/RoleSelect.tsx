@@ -44,7 +44,10 @@ type RoleSelectProps = {
    * Whether the field is invalid
    */
   isInvalid?: boolean;
-} & Omit<SelectProps, "children" | "onSelectionChange" | "selectedKey">;
+} & Omit<
+  SelectProps,
+  "children" | "onSelectionChange" | "selectedKey" | "validate"
+>;
 
 export function RoleSelect({
   onChange,
@@ -60,10 +63,10 @@ export function RoleSelect({
       css={!includeLabel ? hiddenLabelCSS : undefined}
       className="role-select"
       size={size}
-      selectedKey={role ?? undefined}
+      value={role ?? undefined}
       aria-label="User Role"
       isInvalid={isInvalid}
-      onSelectionChange={(key) => {
+      onChange={(key) => {
         if (isUserRole(key)) {
           onChange(key);
         }

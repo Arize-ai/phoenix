@@ -1,45 +1,37 @@
-import { fetchQuery, graphql } from "react-relay";
+import { fetchQuery, loadQuery } from "react-relay";
 import { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { datasetLoaderQuery } from "./__generated__/datasetLoaderQuery.graphql";
+import type { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
+import { DatasetPageQueryNode } from "./DatasetPage";
 
 /**
  * Loads in the necessary page data for the dataset page
  */
 export async function datasetLoader(args: LoaderFunctionArgs) {
   const { datasetId } = args.params;
-  return await fetchQuery<datasetLoaderQuery>(
+  const queryRef = loadQuery<DatasetPageQuery>(
     RelayEnvironment,
-    graphql`
-      query datasetLoaderQuery($id: ID!) {
-        dataset: node(id: $id) {
-          id
-          ... on Dataset {
-            id
-            name
-            description
-            exampleCount
-            experimentCount
-            latestVersions: versions(
-              first: 1
-              sort: { col: createdAt, dir: desc }
-            ) {
-              edges {
-                version: node {
-                  id
-                  description
-                  createdAt
-                }
-              }
-            }
-          }
-        }
-      }
-    `,
+    DatasetPageQueryNode,
+    {
+      id: datasetId as string,
+    }
+  );
+
+  // Also fetch the data for breadcrumbs (can be sync from cache)
+  const data = await fetchQuery<DatasetPageQuery>(
+    RelayEnvironment,
+    DatasetPageQueryNode,
     {
       id: datasetId as string,
     }
   ).toPromise();
+
+  return {
+    queryRef,
+    dataset: data?.dataset,
+  };
 }
+
+export type DatasetLoaderData = Awaited<ReturnType<typeof datasetLoader>>;

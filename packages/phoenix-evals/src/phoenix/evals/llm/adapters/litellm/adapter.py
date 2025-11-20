@@ -59,8 +59,8 @@ def get_litellm_rate_limit_errors() -> list[Type[Exception]]:
     dependencies=["litellm"],
 )
 class LiteLLMAdapter(BaseLLMAdapter):
-    def __init__(self, client: LiteLLMClient):
-        self.client = client
+    def __init__(self, client: LiteLLMClient, model: str):
+        super().__init__(client, model)
         self._validate_client()
         self._import_litellm()
 

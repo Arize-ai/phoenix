@@ -1,10 +1,9 @@
-import { useCallback } from "react";
-import { Key } from "react-aria-components";
+import { Suspense, useCallback } from "react";
+import { Collection, Key } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { LazyTabPanel, Tab, TabList, Tabs } from "@phoenix/components";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
+import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
 
 const settingsPageCSS = css`
   overflow-y: auto;
@@ -21,10 +20,19 @@ const settingsPageInnerCSS = css`
   margin-right: auto;
 `;
 
+const tabs: { id: string; label: string }[] = [
+  { id: "general", label: "General" },
+  { id: "providers", label: "AI Providers" },
+  { id: "models", label: "Models" },
+  { id: "datasets", label: "Datasets" },
+  { id: "annotations", label: "Annotations" },
+  { id: "prompts", label: "Prompts" },
+  { id: "data", label: "Data Retention" },
+];
+
 export function SettingsPage() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const isDatasetLabelEnabled = useFeatureFlag("datasetLabel");
   const tab = pathname.split("/settings")[1].replace("/", "");
   const onChangeTab = useCallback(
     (tab: Key) => {
@@ -41,38 +49,18 @@ export function SettingsPage() {
     <main css={settingsPageCSS}>
       <div css={settingsPageInnerCSS}>
         <Tabs selectedKey={tab} onSelectionChange={onChangeTab}>
-          <TabList>
-            <Tab id="general">General</Tab>
-            <Tab id="providers">AI Providers</Tab>
-            <Tab id="models">Models</Tab>
-            {isDatasetLabelEnabled && <Tab id="datasets">Datasets</Tab>}
-            <Tab id="annotations">Annotations</Tab>
-            <Tab id="prompts">Prompts</Tab>
-            <Tab id="data">Data Retention</Tab>
+          <TabList items={tabs}>
+            {(item) => <Tab id={item.id}>{item.label}</Tab>}
           </TabList>
-          <LazyTabPanel id="general" padded>
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel id="providers" padded>
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel id="models" padded>
-            <Outlet />
-          </LazyTabPanel>
-          {isDatasetLabelEnabled && (
-            <LazyTabPanel id="datasets" padded>
-              <Outlet />
-            </LazyTabPanel>
-          )}
-          <LazyTabPanel id="annotations" padded>
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel id="prompts" padded>
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel id="data" padded>
-            <Outlet />
-          </LazyTabPanel>
+          <Collection items={tabs}>
+            {(item) => (
+              <TabPanel id={item.id} padded>
+                <Suspense fallback={<Loading />}>
+                  <Outlet />
+                </Suspense>
+              </TabPanel>
+            )}
+          </Collection>
         </Tabs>
       </div>
     </main>

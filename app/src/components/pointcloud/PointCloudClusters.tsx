@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import { interpolateSinebow } from "d3-scale-chromatic";
 
-import { ProviderTheme } from "@arizeai/components";
 import { Cluster, ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
 import { usePointCloudContext, useTheme } from "@phoenix/contexts";
-import { ClusterColorMode } from "@phoenix/store";
+import { CanvasTheme, ClusterColorMode } from "@phoenix/store";
 
 type PointCloudClustersProps = {
   /**
@@ -94,7 +93,7 @@ function clusterColor({
   clusterCount,
 }: {
   clusterColorMode: ClusterColorMode;
-  theme: ProviderTheme;
+  theme: CanvasTheme;
   /**
    * Where the cluster is in the list of clusters
    */

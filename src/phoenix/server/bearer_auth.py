@@ -75,10 +75,17 @@ class PhoenixUser(BaseUser):
         self._is_admin = (
             claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "ADMIN"
         )
+        self._is_viewer = (
+            claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "VIEWER"
+        )
 
     @cached_property
     def is_admin(self) -> bool:
         return self._is_admin
+
+    @cached_property
+    def is_viewer(self) -> bool:
+        return self._is_viewer
 
     @cached_property
     def identity(self) -> UserId:
@@ -92,6 +99,8 @@ class PhoenixUser(BaseUser):
 class PhoenixSystemUser(PhoenixUser):
     def __init__(self, user_id: UserId) -> None:
         self._user_id = user_id
+        self._is_admin = True  # System users have admin privileges
+        self._is_viewer = False  # System users are not viewers
 
     @property
     def is_admin(self) -> bool:

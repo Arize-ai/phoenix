@@ -63,7 +63,7 @@ export function LoginForm(props: LoginFormProps) {
           setError(errorMessage);
           return;
         }
-      } catch (error) {
+      } catch (_error) {
         setError("Invalid login");
         return;
       } finally {

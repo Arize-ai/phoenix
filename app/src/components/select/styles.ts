@@ -1,6 +1,10 @@
 import { css } from "@emotion/react";
 
 export const selectCSS = css`
+  // TODO: respect trailingVisual and leadingVisual inside of phoenix button
+  // ideally the content is justified start with leading visual, and trailing visual
+  // is positioned at the end
+  // the current styling assumes content + 1 trailing visual
   button {
     display: flex;
     align-items: center;

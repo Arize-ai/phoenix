@@ -10,13 +10,13 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
-from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
+from phoenix.server.api.types.PromptLabel import PromptLabel
 
 
 @strawberry.input
@@ -69,7 +69,7 @@ class PromptLabelAssociationMutationPayload:
 
 @strawberry.type
 class PromptLabelMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_prompt_label(
         self, info: Info[Context, None], input: CreatePromptLabelInput
     ) -> PromptLabelMutationPayload:
@@ -85,11 +85,11 @@ class PromptLabelMutationMixin:
                 raise Conflict(f"A prompt label named '{input.name}' already exists.")
 
             return PromptLabelMutationPayload(
-                prompt_labels=[to_gql_prompt_label(label_orm)],
+                prompt_labels=[PromptLabel(id=label_orm.id, db_record=label_orm)],
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def patch_prompt_label(
         self, info: Info[Context, None], input: PatchPromptLabelInput
     ) -> PromptLabelMutationPayload:
@@ -113,11 +113,11 @@ class PromptLabelMutationMixin:
                 raise Conflict("Error patching PromptLabel. Possibly a name conflict?")
 
             return PromptLabelMutationPayload(
-                prompt_labels=[to_gql_prompt_label(label_orm)],
+                prompt_labels=[PromptLabel(id=label_orm.id, db_record=label_orm)],
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_prompt_labels(
         self, info: Info[Context, None], input: DeletePromptLabelsInput
     ) -> PromptLabelDeleteMutationPayload:
@@ -139,7 +139,7 @@ class PromptLabelMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def set_prompt_labels(
         self, info: Info[Context, None], input: SetPromptLabelsInput
     ) -> PromptLabelAssociationMutationPayload:
@@ -168,7 +168,7 @@ class PromptLabelMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def unset_prompt_labels(
         self, info: Info[Context, None], input: UnsetPromptLabelsInput
     ) -> PromptLabelAssociationMutationPayload:
@@ -188,7 +188,7 @@ class PromptLabelMutationMixin:
             )
             result = await session.execute(stmt)
 
-            if result.rowcount != len(label_ids):
+            if result.rowcount != len(label_ids):  # type: ignore[attr-defined]
                 label_ids_str = ", ".join(str(i) for i in label_ids)
                 raise NotFound(
                     f"No association between prompt={prompt_id} and labels={label_ids_str}."

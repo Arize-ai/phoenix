@@ -9,7 +9,6 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import exclude_experiment_projects
-from phoenix.db.models import UserRoleName
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -18,7 +17,7 @@ from phoenix.server.api.routers.v1.utils import (
     add_errors_to_responses,
 )
 from phoenix.server.api.types.Project import Project as ProjectNodeType
-from phoenix.server.authorization import is_not_locked
+from phoenix.server.authorization import is_not_locked, require_admin
 
 router = APIRouter(tags=["projects"])
 
@@ -210,7 +209,7 @@ async def create_project(
 
 @router.put(
     "/projects/{project_identifier}",
-    dependencies=[Depends(is_not_locked)],
+    dependencies=[Depends(require_admin), Depends(is_not_locked)],
     operation_id="updateProject",
     summary="Update a project by ID or name",  # noqa: E501
     description="Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
@@ -245,20 +244,6 @@ async def update_project(
     Raises:
         HTTPException: If the project identifier format is invalid or the project is not found.
     """  # noqa: E501
-    if request.app.state.authentication_enabled:
-        async with request.app.state.db() as session:
-            # Check if the user is an admin
-            stmt = (
-                select(models.UserRole.name)
-                .join(models.User)
-                .where(models.User.id == int(request.user.identity))
-            )
-            role_name: UserRoleName = await session.scalar(stmt)
-        if role_name != "ADMIN" and role_name != "SYSTEM":
-            raise HTTPException(
-                status_code=403,
-                detail="Only admins can update projects",
-            )
     async with request.app.state.db() as session:
         project = await _get_project_by_identifier(session, project_identifier)
 
@@ -272,6 +257,7 @@ async def update_project(
 
 @router.delete(
     "/projects/{project_identifier}",
+    dependencies=[Depends(require_admin)],
     operation_id="deleteProject",
     summary="Delete a project by ID or name",  # noqa: E501
     description="Delete an existing project and all its associated data. The project identifier is either project ID or project name. The default project cannot be deleted. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
@@ -305,20 +291,6 @@ async def delete_project(
     Raises:
         HTTPException: If the project identifier format is invalid, the project is not found, or it's the default project.
     """  # noqa: E501
-    if request.app.state.authentication_enabled:
-        async with request.app.state.db() as session:
-            # Check if the user is an admin
-            stmt = (
-                select(models.UserRole.name)
-                .join(models.User)
-                .where(models.User.id == int(request.user.identity))
-            )
-            role_name: UserRoleName = await session.scalar(stmt)
-        if role_name != "ADMIN" and role_name != "SYSTEM":
-            raise HTTPException(
-                status_code=403,
-                detail="Only admins can delete projects",
-            )
     async with request.app.state.db() as session:
         project = await _get_project_by_identifier(session, project_identifier)
 

@@ -24,13 +24,13 @@ import {
   useSemanticChartColors,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   intFormatter,
   intShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { LLMSpanErrorsTimeSeriesQuery } from "./__generated__/LLMSpanErrorsTimeSeriesQuery.graphql";
 
@@ -40,6 +40,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
+  const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     const errorValue = payload[0]?.value ?? null;
     const errorString = intFormatter(errorValue);

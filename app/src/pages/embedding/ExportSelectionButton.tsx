@@ -5,8 +5,6 @@ import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { Download } from "@arizeai/components";
-
 import {
   Alert,
   Button,
@@ -236,7 +234,7 @@ function ExportsList() {
               size="S"
               aria-label="Download"
               variant="default"
-              leadingVisual={<Icon svg={<Download />} />}
+              leadingVisual={<Icon svg={<Icons.DownloadOutline />} />}
               onPress={() => {
                 window.open(`/exports?filename=${fileInfo.fileName}`, "_self");
               }}

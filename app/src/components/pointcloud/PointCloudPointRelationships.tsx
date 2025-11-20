@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import { QuadraticBezierLine } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
+import THREE from "three";
 
 import { usePointCloudContext } from "@phoenix/contexts";
 

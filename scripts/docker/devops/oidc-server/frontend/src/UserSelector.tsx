@@ -16,9 +16,13 @@ export default function UserSelector() {
     new URLSearchParams()
   );
 
+  const [isPKCE, setIsPKCE] = useState(false);
+
   useEffect(() => {
     const currentParams = new URLSearchParams(window.location.search);
     setUrlParams(currentParams);
+    // Detect PKCE flow by checking for code_challenge parameter
+    setIsPKCE(currentParams.has("code_challenge"));
     window.history.replaceState(null, "", "/phoenix");
     fetch(`${config.apiBase}/users`)
       .then((response) => response.json())
@@ -68,7 +72,7 @@ export default function UserSelector() {
           {users.map((user) => (
             <a
               key={user.id}
-              href={`${config.apiBase}/select-user?userId=${user.id}&${urlParams.toString()}`}
+              href={`${config.apiBase}/${isPKCE ? "pkce/" : ""}select-user?userId=${user.id}&${urlParams.toString()}`}
               className="user-card-compact"
               title={`${user.name} (${user.email})`}
             >

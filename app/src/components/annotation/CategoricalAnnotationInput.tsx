@@ -20,7 +20,11 @@ import { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 import { AnnotationInputPropsBase } from "./types";
 
 type CategoricalAnnotationInputProps =
-  AnnotationInputPropsBase<AnnotationConfigCategorical> & SelectProps;
+  AnnotationInputPropsBase<AnnotationConfigCategorical> &
+    Omit<
+      SelectProps<{ label: string; score: number }, "single">,
+      "validate" | "value" | "onChange"
+    >;
 
 export const CategoricalAnnotationInput = forwardRef<
   HTMLButtonElement,
@@ -35,7 +39,7 @@ export const CategoricalAnnotationInput = forwardRef<
       <Select
         id={annotationConfig.id}
         name={annotationConfig.name}
-        defaultSelectedKey={annotation?.label ?? undefined}
+        defaultValue={annotation?.label ?? undefined}
         size="S"
         {...props}
         css={css`

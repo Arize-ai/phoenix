@@ -164,8 +164,8 @@ export function MetricSelector({
   );
   const hasNumericDimensions = numericDimensions.length > 0;
   const onSelectionChange = useCallback(
-    (key: Key | null) => {
-      if (!key) {
+    (key: Key | Key[] | null) => {
+      if (!key || typeof key !== "string") {
         return;
       }
       const metricDefinition = parseMetricKey({
@@ -226,10 +226,11 @@ export function MetricSelector({
   return (
     <TooltipTrigger delay={0}>
       <Select
-        selectedKey={metric ? getMetricKey(metric) : undefined}
-        onSelectionChange={onSelectionChange}
+        value={metric ? getMetricKey(metric) : undefined}
+        onChange={onSelectionChange}
         placeholder="Select a metric..."
         isDisabled={loading}
+        size="S"
         aria-label="Analysis metric"
         css={metricSelectorCSS}
       >

@@ -25,10 +25,10 @@ import {
   defaultYAxisProps,
 } from "@phoenix/components/chart/defaults";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { SpanAnnotationScoreTimeSeriesQuery } from "./__generated__/SpanAnnotationScoreTimeSeriesQuery.graphql";
 import type { ProjectMetricViewProps } from "./types";
@@ -38,6 +38,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
+  const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     return (
       <ChartTooltip>

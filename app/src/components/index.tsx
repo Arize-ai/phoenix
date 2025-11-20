@@ -18,7 +18,6 @@ export type {
   TimeValue,
   Selection,
 } from "react-aria-components";
-export { classNames } from "@arizeai/components";
 
 export * from "./Link";
 export * from "./ExternalLink";
@@ -30,6 +29,7 @@ export * from "./Empty";
 export * from "./exception";
 export * from "./KeyboardToken";
 export * from "./color/ColorSwatch";
+export * from "./tooltip/ContextualHelp";
 
 // design system based components
 export * from "./alert";

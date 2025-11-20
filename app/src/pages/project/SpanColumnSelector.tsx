@@ -3,9 +3,17 @@ import { graphql, useFragment } from "react-relay";
 import { Column } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Dropdown } from "@arizeai/components";
-
-import { Checkbox, Flex, Icon, Icons, View } from "@phoenix/components";
+import {
+  Button,
+  Checkbox,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Popover,
+  SelectChevronUpDownIcon,
+  View,
+} from "@phoenix/components";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import { SpanColumnSelector_annotations$key } from "./__generated__/SpanColumnSelector_annotations.graphql";
@@ -24,17 +32,17 @@ type SpanColumnSelectorProps = {
 
 export function SpanColumnSelector(props: SpanColumnSelectorProps) {
   return (
-    <Dropdown
-      menu={<ColumnSelectorMenu {...props} />}
-      triggerProps={{
-        placement: "bottom end",
-      }}
-    >
-      <Flex direction="row" alignItems="center" gap="size-100">
-        <Icon svg={<Icons.Column />} />
-        Columns
-      </Flex>
-    </Dropdown>
+    <DialogTrigger>
+      <Button trailingVisual={<SelectChevronUpDownIcon />}>
+        <Flex direction="row" alignItems="center" gap="size-100">
+          <Icon svg={<Icons.Column />} />
+          Columns
+        </Flex>
+      </Button>
+      <Popover>
+        <ColumnSelectorMenu {...props} />
+      </Popover>
+    </DialogTrigger>
   );
 }
 
@@ -101,7 +109,7 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
         max-height: calc(100vh - 200px);
       `}
     >
-      <View paddingTop="size-50" paddingBottom="size-50">
+      <View padding="size-50">
         <View
           borderBottomColor="dark"
           borderBottomWidth="thin"
@@ -191,7 +199,6 @@ function EvaluationColumnSelector({
         paddingBottom="size-50"
         borderColor="dark"
         borderTopWidth="thin"
-        borderBottomWidth="thin"
       >
         <div css={columCheckboxItemCSS}>
           <Checkbox

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 
 import strawberry
 from sqlalchemy import select
@@ -9,7 +9,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.models import UserRoleName
-from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.queries import Query
@@ -61,7 +61,7 @@ class DeleteApiKeyMutationPayload:
 
 @strawberry.type
 class ApiKeyMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin, IsLocked])  # type: ignore
     async def create_system_api_key(
         self, info: Info[Context, None], input: CreateApiKeyInput
     ) -> CreateSystemApiKeyMutationPayload:
@@ -92,13 +92,7 @@ class ApiKeyMutationMixin:
         token, token_id = await token_store.create_api_key(claims)
         return CreateSystemApiKeyMutationPayload(
             jwt=token,
-            api_key=SystemApiKey(
-                id_attr=int(token_id),
-                name=input.name,
-                description=input.description or None,
-                created_at=issued_at,
-                expires_at=input.expires_at or None,
-            ),
+            api_key=SystemApiKey(id=int(token_id)),
             query=Query(),
         )
 
@@ -113,12 +107,20 @@ class ApiKeyMutationMixin:
         except AttributeError:
             raise ValueError("User not found")
         issued_at = datetime.now(timezone.utc)
+        # Determine user role for API key
+        user_role: Literal["ADMIN", "MEMBER", "VIEWER"]
+        if user.is_admin:
+            user_role = "ADMIN"
+        elif user.is_viewer:
+            user_role = "VIEWER"
+        else:
+            user_role = "MEMBER"
         claims = ApiKeyClaims(
             subject=user.identity,
             issued_at=issued_at,
             expiration_time=input.expires_at or None,
             attributes=ApiKeyAttributes(
-                user_role="ADMIN" if user.is_admin else "MEMBER",
+                user_role=user_role,
                 name=input.name,
                 description=input.description,
             ),
@@ -126,18 +128,11 @@ class ApiKeyMutationMixin:
         token, token_id = await token_store.create_api_key(claims)
         return CreateUserApiKeyMutationPayload(
             jwt=token,
-            api_key=UserApiKey(
-                id_attr=int(token_id),
-                name=input.name,
-                description=input.description or None,
-                created_at=issued_at,
-                expires_at=input.expires_at or None,
-                user_id=int(user.identity),
-            ),
+            api_key=UserApiKey(id=int(token_id)),
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin])  # type: ignore
     async def delete_system_api_key(
         self, info: Info[Context, None], input: DeleteApiKeyInput
     ) -> DeleteApiKeyMutationPayload:

@@ -24,7 +24,7 @@ import {
   View,
 } from "@phoenix/components";
 
-import { identifierPattern } from "../../utils/identifierUtils";
+import { validateIdentifier } from "../../utils/identifierUtils";
 
 type PromptVersionTagFormParams = {
   name: string;
@@ -52,6 +52,7 @@ export function NewPromptVersionDialog({
       name: "",
       description: "",
     },
+    mode: "onChange",
   });
   const [error, setError] = useState<string | null>(null);
   const [commitCreate, isCommitting] = useMutation(graphql`
@@ -111,8 +112,7 @@ export function NewPromptVersionDialog({
                   name="name"
                   control={control}
                   rules={{
-                    required: "Name is required",
-                    pattern: identifierPattern,
+                    validate: validateIdentifier,
                   }}
                   render={({
                     field: { name, onChange, onBlur, value },
@@ -123,7 +123,7 @@ export function NewPromptVersionDialog({
                       onChange={onChange}
                       onBlur={onBlur}
                       name={name}
-                      value={value.toString()}
+                      value={value}
                     >
                       <Label>Tag Name</Label>
                       <Input placeholder="e.x. prod" />
@@ -149,7 +149,7 @@ export function NewPromptVersionDialog({
                       onChange={onChange}
                       name={name}
                       onBlur={onBlur}
-                      value={value.toString()}
+                      value={value}
                     >
                       <Label>Description</Label>
                       <TextArea placeholder="A description of the tag" />

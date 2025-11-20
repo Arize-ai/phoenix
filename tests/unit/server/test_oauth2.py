@@ -8,6 +8,7 @@ from phoenix.config import OAuth2ClientConfig
 from phoenix.server.oauth2 import OAuth2Client, OAuth2Clients
 
 # Common test configuration constants
+# Note: Optional features (groups, roles) are excluded - tests add them explicitly
 _OAUTH2_CONFIG_DEFAULTS: dict[str, Any] = {
     "idp_name": "test",
     "idp_display_name": "Test IDP",
@@ -52,6 +53,9 @@ class TestOAuth2ClientJMESPathValidation:
             **_OAUTH2_CONFIG_DEFAULTS,
             groups_attribute_path=groups_attribute_path,
             allowed_groups=["admin"],
+            role_attribute_path=None,
+            role_mapping={},
+            role_attribute_strict=False,
         )
 
         clients = OAuth2Clients()
@@ -72,6 +76,9 @@ class TestOAuth2ClientJMESPathValidation:
             **_OAUTH2_CONFIG_DEFAULTS,
             groups_attribute_path=groups_attribute_path,
             allowed_groups=["admin"],
+            role_attribute_path=None,
+            role_mapping={},
+            role_attribute_strict=False,
         )
 
         clients = OAuth2Clients()
@@ -84,6 +91,9 @@ class TestOAuth2ClientJMESPathValidation:
             **{**_OAUTH2_CONFIG_DEFAULTS, "idp_name": "auth0", "idp_display_name": "Auth0"},
             groups_attribute_path="https://myapp.com/groups",  # Invalid - needs quotes
             allowed_groups=["admin"],
+            role_attribute_path=None,
+            role_mapping={},
+            role_attribute_strict=False,
         )
 
         clients = OAuth2Clients()
@@ -91,7 +101,7 @@ class TestOAuth2ClientJMESPathValidation:
             clients.add_client(config)
 
         error_message = str(exc_info.value)
-        assert "Invalid JMESPath expression" in error_message
+        assert "Invalid JMESPath expression in GROUPS_ATTRIBUTE_PATH" in error_message
         assert "https://myapp.com/groups" in error_message
         assert "double quotes" in error_message
         assert '"cognito:groups"' in error_message  # Example in hint
@@ -103,10 +113,33 @@ class TestOAuth2ClientJMESPathValidation:
             **_OAUTH2_CONFIG_DEFAULTS,
             groups_attribute_path=None,  # No group-based access control
             allowed_groups=[],
+            role_attribute_path=None,
+            role_mapping={},
+            role_attribute_strict=False,
         )
 
         clients = OAuth2Clients()
         clients.add_client(config)  # Should not raise
+
+    def test_role_attribute_path_error_message_identifies_role(self) -> None:
+        """Test that error message for invalid role JMESPath correctly identifies ROLE_ATTRIBUTE_PATH."""
+        config = OAuth2ClientConfig(
+            **_OAUTH2_CONFIG_DEFAULTS,
+            groups_attribute_path=None,
+            allowed_groups=[],
+            role_attribute_path="https://myapp.com/role",  # Invalid - needs quotes
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=False,
+        )
+
+        clients = OAuth2Clients()
+        with pytest.raises(ValueError) as exc_info:
+            clients.add_client(config)
+
+        error_message = str(exc_info.value)
+        assert "Invalid JMESPath expression in ROLE_ATTRIBUTE_PATH" in error_message
+        assert "https://myapp.com/role" in error_message
+        assert "double quotes" in error_message
 
 
 class TestHasSufficientClaims:
@@ -744,3 +777,438 @@ class TestOAuth2ClientAccessValidation:
 
         # Should grant access - "admin" is in the list
         client.validate_access(user_claims)
+
+
+class TestOAuth2ClientRoleMapping:
+    """Test role mapping functionality."""
+
+    def test_role_extraction_simple_path(self) -> None:
+        """Test role extraction with simple JMESPath."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN", "Developer": "MEMBER"},
+        )
+
+        claims = {"email": "user@example.com", "role": "Owner"}
+        role = client.extract_and_map_role(claims)
+        assert role == "ADMIN"
+
+    def test_role_extraction_nested_path(self) -> None:
+        """Test role extraction with nested JMESPath."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="user.organization.role",
+            role_mapping={"admin": "ADMIN"},
+        )
+
+        claims = {
+            "email": "user@example.com",
+            "user": {"organization": {"role": "admin"}},
+        }
+        role = client.extract_and_map_role(claims)
+        assert role == "ADMIN"
+
+    def test_role_extraction_with_quoted_jmespath(self) -> None:
+        """Test role extraction with quoted JMESPath (special characters)."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path='"https://myapp.com/roles"',
+            role_mapping={"SuperAdmin": "ADMIN"},
+        )
+
+        claims = {"email": "user@example.com", "https://myapp.com/roles": "SuperAdmin"}
+        role = client.extract_and_map_role(claims)
+        assert role == "ADMIN"
+
+    def test_role_mapping_case_sensitive(self) -> None:
+        """Test that IDP role keys are case-sensitive but Phoenix roles are normalized."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN", "owner": "MEMBER"},  # Different IDP roles
+        )
+
+        # Exact match required for IDP role
+        claims1 = {"email": "user@example.com", "role": "Owner"}
+        assert client.extract_and_map_role(claims1) == "ADMIN"
+
+        claims2 = {"email": "user@example.com", "role": "owner"}
+        assert client.extract_and_map_role(claims2) == "MEMBER"
+
+    def test_unmapped_role_defaults_to_viewer(self) -> None:
+        """Test that unmapped role defaults to VIEWER in non-strict mode."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=False,
+        )
+
+        claims = {"email": "user@example.com", "role": "Guest"}
+        role = client.extract_and_map_role(claims)
+        assert role == "VIEWER"  # Default to least privilege
+
+    def test_unmapped_role_raises_in_strict_mode(self) -> None:
+        """Test that unmapped role raises PermissionError in strict mode."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=True,
+        )
+
+        claims = {"email": "user@example.com", "role": "Guest"}
+        with pytest.raises(PermissionError, match="Role 'Guest' is not mapped"):
+            client.extract_and_map_role(claims)
+
+    def test_missing_role_claim_defaults_to_viewer(self) -> None:
+        """Test that missing role claim defaults to VIEWER in non-strict mode."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=False,
+        )
+
+        claims = {"email": "user@example.com"}
+        role = client.extract_and_map_role(claims)
+        assert role == "VIEWER"
+
+    def test_missing_role_claim_raises_in_strict_mode(self) -> None:
+        """Test that missing role claim raises PermissionError in strict mode."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=True,
+        )
+
+        claims = {"email": "user@example.com"}
+        with pytest.raises(PermissionError, match="Role claim not found"):
+            client.extract_and_map_role(claims)
+
+    def test_no_role_path_returns_none(self) -> None:
+        """Test that no role path configured returns None (preserves existing roles)."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path=None,
+            role_mapping={},
+        )
+
+        claims = {"email": "user@example.com", "role": "Owner"}
+        role = client.extract_and_map_role(claims)
+        assert role is None  # None preserves existing user roles (backward compatibility)
+
+    def test_system_role_defaults_to_viewer(self) -> None:
+        """Test that SYSTEM role from IDP defaults to VIEWER (not mapped)."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"SuperAdmin": "ADMIN"},  # SYSTEM not in mapping
+        )
+
+        # Even if IDP returns "SYSTEM", it should not be mapped
+        claims = {"email": "user@example.com", "role": "SYSTEM"}
+        role = client.extract_and_map_role(claims)
+        assert role == "VIEWER"  # Not in mapping, defaults to VIEWER
+
+    def test_complex_jmespath_with_conditional_logic(self) -> None:
+        """Test complex JMESPath expression with logical operators to derive role from groups.
+
+        This tests the pattern:
+        contains(groups[*], 'admin') && 'ADMIN' || contains(groups[*], 'editor') && 'MEMBER' || 'VIEWER'
+
+        The expression evaluates to a role string that can be used directly without ROLE_MAPPING.
+        """
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            # Complex JMESPath expression that derives role from group membership
+            role_attribute_path=(
+                "contains(groups[*], 'admin') && 'ADMIN' || "
+                "contains(groups[*], 'editor') && 'MEMBER' || 'VIEWER'"
+            ),
+            role_mapping={},  # No mapping needed - JMESPath returns Phoenix role directly
+        )
+
+        # User in admin group gets ADMIN role
+        claims_admin = {"email": "admin@example.com", "groups": ["admin", "users"]}
+        assert client.extract_and_map_role(claims_admin) == "ADMIN"
+
+        # User in editor group (but not admin) gets MEMBER role
+        claims_editor = {"email": "editor@example.com", "groups": ["editor", "users"]}
+        assert client.extract_and_map_role(claims_editor) == "MEMBER"
+
+        # User in neither group gets default VIEWER role
+        claims_viewer = {"email": "viewer@example.com", "groups": ["users"]}
+        assert client.extract_and_map_role(claims_viewer) == "VIEWER"
+
+        # User with no groups gets default VIEWER role
+        claims_no_groups = {"email": "viewer@example.com", "groups": []}
+        assert client.extract_and_map_role(claims_no_groups) == "VIEWER"
+
+    def test_jmespath_returning_system_is_rejected(self) -> None:
+        """Test that JMESPath expression returning SYSTEM is rejected (security).
+
+        This tests the critical security edge case where a misconfigured JMESPath
+        expression returns "SYSTEM" - which should NEVER be assignable via OAuth.
+
+        Pattern tested:
+        contains(groups[*], 'system_admin') && 'SYSTEM' || 'VIEWER'
+
+        Expected behavior:
+        - Non-strict mode: Defaults to VIEWER (least privilege)
+        - Strict mode: Raises PermissionError (deny access)
+        """
+        # Non-strict mode: SYSTEM → VIEWER (default to least privilege)
+        client_non_strict = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="contains(groups[*], 'system_admin') && 'SYSTEM' || 'VIEWER'",
+            role_mapping={},
+            role_attribute_strict=False,
+        )
+
+        # User in system_admin group - JMESPath evaluates to 'SYSTEM'
+        claims_system = {"email": "admin@example.com", "groups": ["system_admin", "users"]}
+        result = client_non_strict.extract_and_map_role(claims_system)
+        assert result == "VIEWER", (
+            f"SECURITY: JMESPath returning 'SYSTEM' should default to 'VIEWER' in non-strict mode, "
+            f"got '{result}'"
+        )
+
+        # Strict mode: SYSTEM → PermissionError
+        client_strict = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="contains(groups[*], 'system_admin') && 'SYSTEM' || 'VIEWER'",
+            role_mapping={},
+            role_attribute_strict=True,
+        )
+
+        with pytest.raises(
+            PermissionError,
+            match="Access denied: Role 'SYSTEM' is not a valid Phoenix role.*Strict mode is enabled",
+        ):
+            client_strict.extract_and_map_role(claims_system)
+
+        # Verify non-system users still work correctly
+        claims_normal = {"email": "viewer@example.com", "groups": ["users"]}
+        assert client_non_strict.extract_and_map_role(claims_normal) == "VIEWER"
+        assert client_strict.extract_and_map_role(claims_normal) == "VIEWER"
+
+
+class TestHasSufficientClaimsWithRoles:
+    """Test has_sufficient_claims method with role mapping."""
+
+    def test_sufficient_with_role_present_and_mapped(self) -> None:
+        """Test that claims are sufficient when role is present and can be mapped."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+        )
+
+        claims = {"sub": "user123", "email": "user@example.com", "role": "Owner"}
+        assert client.has_sufficient_claims(claims) is True
+
+    def test_sufficient_when_unmapped_role_in_non_strict_mode(self) -> None:
+        """Test that claims are sufficient when role is unmapped in non-strict mode (defaults to VIEWER)."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=False,
+        )
+
+        claims = {"sub": "user123", "email": "user@example.com", "role": "Guest"}
+        # Returns VIEWER in non-strict mode, so claims are sufficient
+        assert client.has_sufficient_claims(claims) is True
+
+    def test_sufficient_when_unmapped_role_in_strict_mode(self) -> None:
+        """Test that claims are sufficient even when role is unmapped in strict mode.
+
+        UserInfo won't help since the role is already present in ID token.
+        Access will be denied later by extract_and_map_role() raising PermissionError.
+        """
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=True,
+        )
+
+        claims = {"sub": "user123", "email": "user@example.com", "role": "Guest"}
+        # Role exists (even if unmapped), so UserInfo won't help - don't fetch it
+        assert client.has_sufficient_claims(claims) is True
+
+    def test_insufficient_when_missing_role_in_non_strict_mode(self) -> None:
+        """Test that claims are insufficient when role is missing in non-strict mode.
+
+        UserInfo might contain a mappable role that upgrades from default VIEWER.
+        """
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=False,
+        )
+
+        claims = {"sub": "user123", "email": "user@example.com"}  # No role
+        # Need to check UserInfo - might have a role that maps to ADMIN/MEMBER
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_insufficient_when_missing_role_in_strict_mode(self) -> None:
+        """Test that claims are insufficient when role is missing in strict mode."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=True,
+        )
+
+        claims = {"sub": "user123", "email": "user@example.com"}  # No role
+        # Returns None in strict mode, need to try userinfo
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_sufficient_with_email_groups_and_roles(self) -> None:
+        """Test that all claims (email, groups, roles) must be present when configured."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="groups",
+            allowed_groups=["users"],
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+        )
+
+        claims = {
+            "sub": "user123",
+            "email": "user@example.com",
+            "groups": ["users"],
+            "role": "Owner",
+        }
+        assert client.has_sufficient_claims(claims) is True
+
+    def test_insufficient_when_role_missing_but_non_strict_even_with_groups(self) -> None:
+        """Test that claims are insufficient when role is missing in non-strict mode.
+
+        UserInfo might contain a mappable role that upgrades from default VIEWER.
+        """
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="groups",
+            allowed_groups=["users"],
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=False,
+        )
+
+        claims = {
+            "sub": "user123",
+            "email": "user@example.com",
+            "groups": ["users"],
+            # Missing role - might be in UserInfo
+        }
+        # Need to check UserInfo - might have a role that maps to ADMIN/MEMBER
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_insufficient_when_role_missing_and_strict_even_with_groups(self) -> None:
+        """Test that claims are insufficient when role is missing in strict mode even with groups."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="groups",
+            allowed_groups=["users"],
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+            role_attribute_strict=True,
+        )
+
+        claims = {
+            "sub": "user123",
+            "email": "user@example.com",
+            "groups": ["users"],
+            # Missing role
+        }
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_sufficient_with_nested_role_path(self) -> None:
+        """Test that claims are sufficient with nested role paths."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="user.permissions.role",
+            role_mapping={"admin": "ADMIN"},
+        )
+
+        claims = {
+            "sub": "user123",
+            "email": "user@example.com",
+            "user": {"permissions": {"role": "admin"}},
+        }
+        assert client.has_sufficient_claims(claims) is True
+
+
+class TestOAuth2ClientRoleValidation:
+    """Test role-based access validation in validate_access."""
+
+    def test_access_granted_with_admin_role(self) -> None:
+        """Test that access validation works with role mapping (doesn't throw)."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN", "Developer": "MEMBER"},
+        )
+
+        claims = {"email": "user@example.com", "role": "Owner"}
+        # Should not raise - role mapping is for assignment, not access control
+        client.validate_access(claims)
+
+    def test_access_granted_with_viewer_role(self) -> None:
+        """Test that access validation works with VIEWER role."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Reader": "VIEWER"},
+        )
+
+        claims = {"email": "user@example.com", "role": "Reader"}
+        # Should not raise
+        client.validate_access(claims)
+
+    def test_access_granted_with_unmapped_role(self) -> None:
+        """Test that access validation succeeds even with unmapped role (defaults to VIEWER)."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+        )
+
+        claims = {"email": "user@example.com", "role": "Guest"}
+        # Should not raise - unmapped role will default to VIEWER
+        client.validate_access(claims)
+
+    def test_access_works_with_both_groups_and_roles(self) -> None:
+        """Test that validate_access works with both groups and roles configured."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="groups",
+            allowed_groups=["users"],
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+        )
+
+        claims = {"email": "user@example.com", "groups": ["users"], "role": "Owner"}
+        # Should not raise - both groups and roles are valid
+        client.validate_access(claims)
+
+    def test_access_denied_when_groups_invalid_even_with_valid_role(self) -> None:
+        """Test that group validation happens before role extraction."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path="groups",
+            allowed_groups=["admin"],
+            role_attribute_path="role",
+            role_mapping={"Owner": "ADMIN"},
+        )
+
+        claims = {"email": "user@example.com", "groups": ["guest"], "role": "Owner"}
+        # Should raise - group validation fails even though role is valid
+        with pytest.raises(PermissionError, match="Access denied"):
+            client.validate_access(claims)

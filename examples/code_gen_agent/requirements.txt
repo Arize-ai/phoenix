@@ -13,3 +13,4 @@ python-dotenv==1.0.1
 tqdm==4.66.6
 gradio
 openinference-instrumentation-openai
+openinference-instrumentation-langchain

@@ -45,19 +45,32 @@ export interface DatasetStoreState extends DatasetStoreProps {
 }
 
 export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
-  const datasetStore: StateCreator<DatasetStoreState> = (set, get) => ({
+  const datasetStore: StateCreator<
+    DatasetStoreState,
+    [["zustand/devtools", unknown]]
+  > = (set, get) => ({
     ...initialProps,
     isRefreshingLatestVersion: false,
     refreshLatestVersion: async () => {
       const dataset = get();
-      set({ isRefreshingLatestVersion: true });
+      set({ isRefreshingLatestVersion: true }, false, {
+        type: "refreshLatestVersionInit",
+      });
       const newVersion = await fetchLatestVersion({
         datasetId: dataset.datasetId,
       });
-      set({ latestVersion: newVersion, isRefreshingLatestVersion: false });
+      set(
+        { latestVersion: newVersion, isRefreshingLatestVersion: false },
+        false,
+        { type: "refreshLatestVersionSuccess" }
+      );
     },
   });
-  return create<DatasetStoreState>()(devtools(datasetStore));
+  return create<DatasetStoreState>()(
+    devtools(datasetStore, {
+      name: "datasetStore",
+    })
+  );
 };
 
 export type DatasetStore = ReturnType<typeof createDatasetStore>;

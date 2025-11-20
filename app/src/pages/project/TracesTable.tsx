@@ -25,9 +25,15 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp } from "@arizeai/components";
-
-import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Link,
+  Text,
+  View,
+} from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TextCell } from "@phoenix/components/table";
@@ -35,6 +41,7 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { ContextualHelp } from "@phoenix/components/tooltip/ContextualHelp";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
@@ -415,16 +422,16 @@ export function TracesTable(props: TracesTableProps) {
     () => [
       {
         header: () => (
-          <Flex direction="row" gap="size-50">
+          <Flex direction="row" gap="size-50" alignItems="center">
             <span>Annotations</span>
             <ContextualHelp>
               <Heading level={3} weight="heavy">
                 Annotations
               </Heading>
-              <Content>
+              <Text>
                 Evaluations and human annotations logged via the API or set via
                 the UI.
-              </Content>
+              </Text>
             </ContextualHelp>
           </Flex>
         ),
@@ -803,7 +810,7 @@ export function TracesTable(props: TracesTableProps) {
     }
     return colSizes;
     // Disabled lint as per tanstack docs linked above
-    // eslint-disable-next-line react-compiler/react-compiler
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
 

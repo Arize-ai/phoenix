@@ -164,7 +164,7 @@ class JwtStore:
         for token_id in token_ids:
             if isinstance(token_id, PasswordResetTokenId):
                 password_reset_token_ids.append(token_id)
-            if isinstance(token_id, AccessTokenId):
+            elif isinstance(token_id, AccessTokenId):
                 access_token_ids.append(token_id)
             elif isinstance(token_id, RefreshTokenId):
                 refresh_token_ids.append(token_id)
@@ -182,10 +182,10 @@ class JwtStore:
         await gather(*coroutines)
 
     async def log_out(self, user_id: UserId) -> None:
-        for cls in (AccessTokenId, RefreshTokenId):
-            table = cls.table
-            stmt = delete(table).where(table.user_id == int(user_id)).returning(table.id)
-            async with self._db() as session:
+        async with self._db() as session:
+            for cls in (AccessTokenId, RefreshTokenId):
+                table = cls.table
+                stmt = delete(table).where(table.user_id == int(user_id)).returning(table.id)
                 async for id_ in await session.stream_scalars(stmt):
                     await self._evict(cls(id_))
 
@@ -314,7 +314,9 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
 
     async def _delete_expired_tokens(self, session: Any) -> None:
         now = datetime.now(timezone.utc)
-        await session.execute(delete(self._table).where(self._table.expires_at < now))
+        # Per JWT RFC 7519 Section 4.1.4, tokens expire "on or after" the expiration time.
+        # Use <= to include tokens expiring at exactly this moment.
+        await session.execute(delete(self._table).where(self._table.expires_at <= now))
 
     async def _run(self) -> None:
         while self._running:

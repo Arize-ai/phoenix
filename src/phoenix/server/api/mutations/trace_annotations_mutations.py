@@ -6,7 +6,7 @@ from starlette.requests import Request
 from strawberry import UNSET, Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers.annotations import get_user_identifier
@@ -16,7 +16,7 @@ from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationI
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
+from phoenix.server.api.types.TraceAnnotation import TraceAnnotation
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import TraceAnnotationDeleteEvent, TraceAnnotationInsertEvent
 
@@ -29,7 +29,7 @@ class TraceAnnotationMutationPayload:
 
 @strawberry.type
 class TraceAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_trace_annotations(
         self, info: Info[Context, None], input: list[CreateTraceAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
@@ -111,7 +111,9 @@ class TraceAnnotationMutationMixin:
             info.context.event_queue.put(TraceAnnotationInsertEvent(inserted_annotation_ids))
 
         returned_annotations = [
-            to_gql_trace_annotation(processed_annotations_map[i])
+            TraceAnnotation(
+                id=processed_annotations_map[i].id, db_record=processed_annotations_map[i]
+            )
             for i in sorted(processed_annotations_map.keys())
         ]
 
@@ -120,7 +122,7 @@ class TraceAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def patch_trace_annotations(
         self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
@@ -186,7 +188,7 @@ class TraceAnnotationMutationMixin:
             await session.commit()
 
         patched_annotations = [
-            to_gql_trace_annotation(trace_annotation)
+            TraceAnnotation(id=trace_annotation.id, db_record=trace_annotation)
             for trace_annotation in trace_annotations_by_id.values()
         ]
         info.context.event_queue.put(TraceAnnotationInsertEvent(tuple(patch_by_id.keys())))
@@ -195,7 +197,7 @@ class TraceAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_trace_annotations(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> TraceAnnotationMutationPayload:
@@ -245,7 +247,10 @@ class TraceAnnotationMutationMixin:
                 )
 
         deleted_gql_annotations = [
-            to_gql_trace_annotation(deleted_annotations_by_id[id]) for id in trace_annotation_ids
+            TraceAnnotation(
+                id=deleted_annotations_by_id[id].id, db_record=deleted_annotations_by_id[id]
+            )
+            for id in trace_annotation_ids
         ]
         info.context.event_queue.put(
             TraceAnnotationDeleteEvent(tuple(deleted_annotations_by_id.keys()))

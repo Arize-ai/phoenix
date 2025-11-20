@@ -5,7 +5,7 @@ from collections.abc import Generator, Iterator
 from itertools import count, starmap
 from secrets import token_hex
 from types import ModuleType
-from typing import Optional, cast
+from typing import Callable, Literal, Optional, cast
 
 import pytest
 from _pytest.fixtures import SubRequest
@@ -22,12 +22,12 @@ from phoenix.client.__generated__ import v1
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from ._helpers import (
-    _ADMIN,
     _DB_BACKEND,
     _HTTPX_OP_IDX,
     _MEMBER,
     _TEST_NAME,
     _AppInfo,
+    _delete_users,
     _Email,
     _GetUser,
     _GqlId,
@@ -124,18 +124,29 @@ def _users(
         while True:
             profile = profile or next(_profiles)
             url = "v1/users"
+            # Map the role to the API string value
+            role_str: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
+            if role == UserRoleInput.ADMIN:
+                role_str = "ADMIN"
+            elif role == UserRoleInput.VIEWER:
+                role_str = "VIEWER"
+            elif role == UserRoleInput.MEMBER:
+                role_str = "MEMBER"
+            else:
+                assert_never(role)
+
             user = v1.LocalUserData(
                 auth_method="LOCAL",
                 email=profile.email,
                 username=profile.username,
                 password=profile.password,
-                role="ADMIN" if role is _ADMIN else "MEMBER",
+                role=role_str,
             )
             json_ = v1.CreateUserRequestBody(user=user, send_welcome_email=False)
             resp = _httpx_client(app, app.admin_secret).post(url=url, json=json_)
             resp.raise_for_status()
             gid = _GqlId(cast(v1.CreateUserResponseBody, resp.json())["data"]["id"])
-            app, role, profile = yield _User(gid, role, profile)
+            app, role, profile = yield _User(gid, role, profile, profile_picture_url=None)
 
     g = _()
     next(g)
@@ -145,7 +156,9 @@ def _users(
 @pytest.fixture
 def _new_user(
     _users: _UserGenerator,
-) -> _UserFactory:
+) -> Iterator[_UserFactory]:
+    clean_ups: list[Callable[[], list[_GqlId]]] = []
+
     def _(
         app: _AppInfo,
         role: UserRoleInput = _MEMBER,
@@ -153,9 +166,16 @@ def _new_user(
         *,
         profile: Optional[_Profile] = None,
     ) -> _User:
-        return _users.send((app, role, profile))
+        user = _users.send((app, role, profile))
+        clean_ups.append(lambda: _delete_users(app, app.admin_secret, users=[user]))
+        return user
 
-    return _
+    yield _
+    for clean_up in clean_ups:
+        try:
+            clean_up()
+        except Exception:
+            pass
 
 
 @pytest.fixture

@@ -5,7 +5,7 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@arizeai/components";
+import { classNames } from "@phoenix/utils";
 
 import { headingBaseCSS, textBaseCSS } from "./styles";
 import { Weight } from "./types";

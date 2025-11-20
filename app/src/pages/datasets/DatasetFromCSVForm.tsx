@@ -3,21 +3,18 @@ import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
-  Dropdown,
-  DropdownProps,
-  Field,
-  FieldProps,
-  Item,
-  ListBox,
-} from "@arizeai/components";
-
-import {
   Button,
   FieldError,
   Flex,
   Form,
   Input,
   Label,
+  ListBox,
+  ListBoxItem,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectValue,
   Text,
   TextArea,
   TextField,
@@ -222,13 +219,9 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
           rules={{
             required: "field is required",
           }}
-          render={({
-            field: { value, onChange },
-            fieldState: { invalid, error },
-          }) => (
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
             <ColumnMultiSelector
               label="input keys"
-              validationState={invalid ? "invalid" : "valid"}
               description={`the columns to use as input`}
               columns={columns}
               selectedColumns={value}
@@ -240,13 +233,9 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
         <Controller
           name="output_keys"
           control={control}
-          render={({
-            field: { value, onChange },
-            fieldState: { invalid, error },
-          }) => (
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
             <ColumnMultiSelector
               label="output keys"
-              validationState={invalid ? "invalid" : "valid"}
               description={`the columns to use as output`}
               columns={columns}
               selectedColumns={value}
@@ -258,13 +247,9 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
         <Controller
           name="metadata_keys"
           control={control}
-          render={({
-            field: { value, onChange },
-            fieldState: { invalid, error },
-          }) => (
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
             <ColumnMultiSelector
               label="metadata keys"
-              validationState={invalid ? "invalid" : "valid"}
               description={`the columns to use as metadata`}
               columns={columns}
               selectedColumns={value}
@@ -296,68 +281,63 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
   );
 }
 
-function ColumnMultiSelector(
-  props: Omit<DropdownProps, "menu" | "children"> &
-    Pick<
-      FieldProps,
-      "label" | "validationState" | "description" | "errorMessage"
-    > & {
-      label: string;
-      columns: string[];
-      selectedColumns: string[];
-      onChange: (selectedColumns: string[]) => void;
-    }
-) {
+function ColumnMultiSelector(props: {
+  description?: string;
+  errorMessage?: string;
+  label: string;
+  columns: string[];
+  selectedColumns: string[];
+  onChange: (selectedColumns: string[]) => void;
+}) {
   const {
     columns,
     selectedColumns,
     onChange,
     label,
-    validationState,
     description,
     errorMessage,
-    ...restProps
   } = props;
   const noColumns = columns.length === 0;
-  const displayText = useMemo(() => {
-    if (noColumns) {
-      return "No columns to select";
-    }
-    return selectedColumns.length > 0
-      ? `${selectedColumns.join(", ")}`
-      : "No columns selected";
-  }, [selectedColumns, noColumns]);
+  const items = useMemo(() => {
+    return columns.map((column) => ({ id: column, value: column }));
+  }, [columns]);
+
   return (
-    <Field
-      label={label}
-      isDisabled={noColumns}
-      validationState={validationState}
-      description={description}
-      errorMessage={errorMessage}
-    >
-      <Dropdown
+    <div css={fieldBaseCSS}>
+      <Label>{label}</Label>
+      <Select
         isDisabled={noColumns}
-        {...restProps}
-        menu={
-          <ListBox
-            selectionMode="multiple"
-            onSelectionChange={(keys) => {
-              onChange(Array.from(keys) as string[]);
-            }}
-            selectedKeys={new Set(selectedColumns)}
-            style={{ maxHeight: "40vh", overflowY: "auto" }}
-          >
-            {columns.map((column) => (
-              <Item key={column}>{column}</Item>
-            ))}
-          </ListBox>
-        }
-        triggerProps={{
-          placement: "bottom end",
+        placeholder="Select columns"
+        selectionMode="multiple"
+        onChange={(keys) => {
+          if (keys === "all") {
+            return onChange(columns);
+          }
+          return onChange(Array.from(keys as string[]));
         }}
+        value={selectedColumns}
       >
-        {displayText}
-      </Dropdown>
-    </Field>
+        <Button>
+          <SelectValue />
+          <SelectChevronUpDownIcon />
+        </Button>
+        <Popover>
+          <ListBox
+            renderEmptyState={() => "No columns to select"}
+            items={items}
+          >
+            {(item) => <ListBoxItem id={item.id}>{item.value}</ListBoxItem>}
+          </ListBox>
+        </Popover>
+      </Select>
+      {errorMessage ? (
+        <Text slot="errorMessage" color="danger">
+          {errorMessage}
+        </Text>
+      ) : null}
+      {description && !errorMessage ? (
+        <Text slot="description">{description}</Text>
+      ) : null}
+    </div>
   );
 }

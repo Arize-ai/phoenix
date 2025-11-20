@@ -1,0 +1,181 @@
+---
+description: >-
+  How to use OpenInference instrumentation with Spring AI and export traces to
+  Arize Phoenix.
+---
+
+# Spring AI Tracing
+
+## Prerequisites
+
+* Java 11 or higher
+* (Optional) Phoenix API key if using auth
+
+### Add Dependencies
+
+#### **1. Gradle**
+
+Add the dependencies to your `build.gradle`:
+
+```groovy
+dependencies {
+	implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+	implementation 'io.micrometer:micrometer-tracing-bridge-brave:1.5.1'
+	implementation project(path: ':instrumentation:openinference-instrumentation-springAI')
+
+	// OpenTelemetry
+	implementation "io.opentelemetry:opentelemetry-sdk"
+	implementation "io.opentelemetry:opentelemetry-exporter-otlp"
+	implementation "io.opentelemetry:opentelemetry-exporter-logging"
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+```
+
+## **Setup Phoenix**
+
+{% tabs %}
+{% tab title="Docker" %}
+**Pull latest Phoenix image from** **Docker Hub:**
+
+```bash
+docker pull arizephoenix/phoenix:latest
+```
+
+**Run your containerized instance:**
+
+```bash
+docker run -p 6006:6006 -p 4317:4317 arizephoenix/phoenix:latest
+```
+
+This command:
+
+* Exposes port 6006 for the Phoenix web UI
+* Exposes port 4317 for the OTLP gRPC endpoint (where traces are sent)
+
+For more info on using Phoenix with Docker, see Docker.
+{% endtab %}
+
+{% tab title="Phoenix Cloud" %}
+**Sign up for Phoenix:**
+
+1. Sign up for an Arize Phoenix account at https://app.phoenix.arize.com/login
+2. Click `Create Space`, then follow the prompts to create and launch your space.
+
+**Set your Phoenix endpoint and API Key:**
+
+From your new Phoenix Space
+
+1. Create your API key from the Settings page
+2. Copy your `Hostname` from the Settings page
+3. Set your endpoint and API key:
+
+```bash
+export PHOENIX_API_KEY = "your-phoenix-api-key"
+export PHOENIX_COLLECTOR_ENDPOINT = "your-phoenix-endpoint"
+```
+
+{% hint style="info" %}
+Having trouble finding your endpoint? Check out Finding your Phoenix Endpoint
+{% endhint %}
+{% endtab %}
+{% endtabs %}
+
+{% hint style="warning" %}
+If you are using Phoenix Cloud, adjust the endpoint in the code below as needed.
+{% endhint %}
+
+## **Configuration for Phoenix Tracing**
+
+```java
+private static void initializeOpenTelemetry() {
+        // Create resource with service name
+        Resource resource = Resource.getDefault()
+                .merge(Resource.create(Attributes.of(
+                        AttributeKey.stringKey("service.name"), "spring-ai",
+                        AttributeKey.stringKey(SEMRESATTRS_PROJECT_NAME), "spring-ai-project",
+                        AttributeKey.stringKey("service.version"), "0.1.0")));
+
+        String apiKey = System.getenv("PHOENIX_API_KEY");
+        OtlpGrpcSpanExporterBuilder otlpExporterBuilder = OtlpGrpcSpanExporter.builder()
+                .setEndpoint("http://localhost:4317") # adjust as needed
+                .setTimeout(Duration.ofSeconds(2));
+        OtlpGrpcSpanExporter otlpExporter = null;
+        if (apiKey != null && !apiKey.isEmpty()) {
+            otlpExporter = otlpExporterBuilder
+                    .setHeaders(() -> Map.of("Authorization", String.format("Bearer %s", apiKey)))
+                    .build();
+        } else {
+            logger.log(Level.WARNING, "Please set PHOENIX_API_KEY environment variable if auth is enabled.");
+            otlpExporter = otlpExporterBuilder.build();
+        }
+
+        // Create tracer provider with both OTLP (for Phoenix) and console exporters
+        tracerProvider = SdkTracerProvider.builder()
+                .addSpanProcessor(BatchSpanProcessor.builder(otlpExporter)
+                        .setScheduleDelay(Duration.ofSeconds(1))
+                        .build())
+                .addSpanProcessor(SimpleSpanProcessor.create(LoggingSpanExporter.create()))
+                .setResource(resource)
+                .build();
+
+        // Build OpenTelemetry SDK
+        OpenTelemetrySdk.builder()
+                .setTracerProvider(tracerProvider)
+                .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+                .buildAndRegisterGlobal();
+
+        System.out.println("OpenTelemetry initialized. Traces will be sent to Phoenix at http://localhost:6006");
+    }
+}
+```
+
+## Run Spring AI
+
+By instrumenting your application, spans will be created whenever it is run and will be sent to the Phoenix server for collection.
+
+```java
+import com.arize.instrumentation.springAI.SpringAIInstrumentor;
+import org.springframework.ai.openai.OpenAiChatModel;
+
+initializeOpenTelemetry();
+
+// 2. Create OITracer + instrumentor
+OITracer tracer = new OITracer(tracerProvider.get("com.example.springai"), TraceConfig.getDefault());
+ObservationRegistry registry = ObservationRegistry.create();
+registry.observationConfig().observationHandler(new SpringAIInstrumentor(tracer));
+
+// 3. Build Spring AI model
+String apiKey = System.getenv("OPENAI_API_KEY");
+OpenAiApi openAiApi = OpenAiApi.builder().apiKey(apiKey).build();
+OpenAiChatOptions options = OpenAiChatOptions.builder().model("gpt-4").build();
+
+OpenAiChatModel model = OpenAiChatModel.builder()
+    .openAiApi(openAiApi)
+    .defaultOptions(options)
+    .observationRegistry(registry)
+    .build();
+
+// 4. Use it — traces are automatically created
+ChatResponse response = model.call(new Prompt("What is the capital of France?"));
+System.out.println("Response: " + response.getResult().getOutput().getContent());
+```
+
+{% hint style="success" %}
+Full example: [https://github.com/Arize-ai/openinference/blob/main/java/examples/spring-ai-example/src/main/java/com/arize/openinference/examples/SpringAI.java](https://github.com/Arize-ai/openinference/blob/main/java/examples/spring-ai-example/src/main/java/com/arize/openinference/examples/SpringAI.java)
+{% endhint %}
+
+## Observe
+
+Once configured, your OpenInference traces will be automatically sent to Phoenix where you can:
+
+* **Monitor Performance**: Track latency and errors
+* **Analyze Usage**: View token usage, model performance, and cost metrics
+* **Debug Issues**: Trace request flows and identify bottlenecks
+* **Evaluate Quality**: Run evaluations on your LLM outputs
+
+## Resources
+
+* [Full Example](https://github.com/Arize-ai/openinference/blob/main/java/examples/spring-ai-example/src/main/java/com/arize/openinference/examples/SpringAI.java)
+* [OpenInference package](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-springAI)

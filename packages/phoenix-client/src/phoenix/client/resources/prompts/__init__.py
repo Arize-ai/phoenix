@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 import httpx
+from httpx import HTTPStatusError
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.types.prompts import PromptVersion
@@ -46,7 +47,8 @@ class Prompts:
                     model_name="gpt-4",
                     model_provider="OPENAI"
                 ),
-                prompt_description="Sentiment classification prompt"
+                prompt_description="Sentiment classification prompt",
+                metadata={"category": "classification", "version": "1.0"}
             )
 
         Working with tags::
@@ -90,6 +92,7 @@ class Prompts:
             PromptVersion: The retrieved prompt version data.
 
         Raises:
+            ValueError: If prompt identifier or prompt version id is not found.
             httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
 
         Example::
@@ -111,9 +114,14 @@ class Prompts:
             )
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
-        response = self._client.get(url)
-        response.raise_for_status()
-        return PromptVersion._loads(cast(v1.GetPromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+        try:
+            prompt_response = self._client.get(url)
+            prompt_response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_version_id or prompt_identifier}")
+            raise
+        return PromptVersion._loads(cast(v1.GetPromptResponseBody, prompt_response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
     def create(
         self,
@@ -121,6 +129,7 @@ class Prompts:
         version: PromptVersion,
         name: str,
         prompt_description: Optional[str] = None,
+        prompt_metadata: Optional[dict[str, Any]] = None,
     ) -> PromptVersion:
         """
         Creates a new version for the prompt under the name specified. The prompt will
@@ -133,6 +142,8 @@ class Prompts:
                 alphanumeric character.
             prompt_description (Optional[str]): An optional description for the prompt.
                 If prompt already exists, this value is ignored by the server.
+            prompt_metadata (Optional[dict[str, Any]]): An optional metadata dictionary
+                for the prompt. If prompt already exists, this value is ignored by the server.
 
         Returns:
             PromptVersion: The created prompt version data.
@@ -141,6 +152,8 @@ class Prompts:
         prompt = v1.PromptData(name=name)
         if prompt_description:
             prompt["description"] = prompt_description
+        if prompt_metadata:
+            prompt["metadata"] = prompt_metadata
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
@@ -311,7 +324,8 @@ class AsyncPrompts:
                     model_name="gpt-4",
                     model_provider="OPENAI"
                 ),
-                prompt_description="Sentiment classification prompt"
+                prompt_description="Sentiment classification prompt",
+                prompt_metadata={"category": "classification"}
             )
 
         Working with tags::
@@ -355,6 +369,7 @@ class AsyncPrompts:
             PromptVersion: The retrieved prompt version data.
 
         Raises:
+            ValueError: If prompt identifier or prompt version id is not found.
             httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
 
         Example::
@@ -376,9 +391,14 @@ class AsyncPrompts:
             )
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
-        response = await self._client.get(url)
-        response.raise_for_status()
-        return PromptVersion._loads(cast(v1.GetPromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+        try:
+            prompt_response = await self._client.get(url)
+            prompt_response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_version_id or prompt_identifier}")
+            raise
+        return PromptVersion._loads(cast(v1.GetPromptResponseBody, prompt_response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
     async def create(
         self,
@@ -386,6 +406,7 @@ class AsyncPrompts:
         version: PromptVersion,
         name: str,
         prompt_description: Optional[str] = None,
+        prompt_metadata: Optional[dict[str, Any]] = None,
     ) -> PromptVersion:
         """
         Creates a new version for the prompt under the name specified. The prompt will
@@ -398,6 +419,8 @@ class AsyncPrompts:
                 alphanumeric character.
             prompt_description (Optional[str]): An optional description for the prompt.
                 If prompt already exists, this value is ignored by the server.
+            prompt_metadata (Optional[dict[str, Any]]): An optional metadata dictionary
+                for the prompt. If prompt already exists, this value is ignored by the server.
 
         Returns:
             PromptVersion: The created prompt version data.
@@ -406,6 +429,8 @@ class AsyncPrompts:
         prompt = v1.PromptData(name=name)
         if prompt_description:
             prompt["description"] = prompt_description
+        if prompt_metadata:
+            prompt["metadata"] = prompt_metadata
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()

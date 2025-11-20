@@ -15,7 +15,7 @@ Depending on what you want to do with your annotations, you may want to configur
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/annotation_types.png" alt=""><figcaption><p>Different types of annotations change the way human annotators provide feedback</p></figcaption></figure>
 
-See [Annotate Traces](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/how-to-tracing/feedback-and-annotations) for more details.
+See [Annotate Traces](../how-to-tracing/feedback-and-annotations/) for more details.
 
 ### Annotation Targets
 
@@ -42,11 +42,11 @@ Phoenix also supports specialized evaluation metrics for retrieval systems, incl
 
 Human feedback allows you to understand how your users are experiencing your application and helps draw attention to problematic traces. Phoenix makes it easy to collect feedback for traces and view it in the context of the trace, as well as filter all your traces based on the feedback annotations you send. Before anything else, you want to know if your users or customers are happy with your product. This can be as straightforward as adding :thumbsup: :thumbsdown: buttons to your application, and logging the result as annotations.
 
-For more information on how to wire up your application to collect feedback from your users, see [https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/how-to-tracing/feedback-and-annotations](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/how-to-tracing/feedback-and-annotations "mention").
+For more information on how to wire up your application to collect feedback from your users, see [feedback-and-annotations](../how-to-tracing/feedback-and-annotations/ "mention").
 
 ### Evaluations from LLMs
 
-When you have large amounts of data it can be immensely efficient and valuable to leverage LLM judges via `evals` to produce labels and scores to annotate your traces with. Phoenix's evals library as well as other third-party eval libraries can be leveraged to annotate your spans with evaluations. For details see [Running Evals on Traces](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces) to:
+When you have large amounts of data it can be immensely efficient and valuable to leverage LLM judges via `evals` to produce labels and scores to annotate your traces with. Phoenix's evals library as well as other third-party eval libraries can be leveraged to annotate your spans with evaluations. For details see [Running Evals on Traces](../how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md) to:
 
 * Generate evaluation results
 * Add evaluation results to spans

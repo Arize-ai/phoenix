@@ -50,6 +50,7 @@ const tokenBaseCSS = css`
     lch(from var(--ac-internal-token-color) calc((l) * infinity) c h / 0.3);
   color: lch(from var(--ac-internal-token-color) calc((50 - l) * infinity) 0 0);
   user-select: none;
+  text-wrap: nowrap;
 
   &[data-size="S"] {
     height: var(--ac-global-dimension-static-size-200);

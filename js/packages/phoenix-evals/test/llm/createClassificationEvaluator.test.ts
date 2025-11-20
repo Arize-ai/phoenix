@@ -1,6 +1,7 @@
-import { describe, expectTypeOf, it } from "vitest";
 import { createClassificationEvaluator } from "../../src";
+
 import { openai } from "@ai-sdk/openai";
+import { describe, expectTypeOf, it } from "vitest";
 describe("createClassificationEvaluator", () => {
   it("should support the passed in type signature", () => {
     const evaluator = createClassificationEvaluator<{ question: string }>({

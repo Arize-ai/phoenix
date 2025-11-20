@@ -1,6 +1,7 @@
 export enum UserRole {
   ADMIN = "ADMIN",
   MEMBER = "MEMBER",
+  VIEWER = "VIEWER",
 }
 
 export function normalizeUserRole(role: string) {

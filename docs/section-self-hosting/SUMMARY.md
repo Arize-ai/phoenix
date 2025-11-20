@@ -2,7 +2,8 @@
 
 * [Self-Hosting](README.md)
 * [License](license.md)
-* [Configuration](configuration.md)
+* [Configuration](configuration/README.md)
+  * [Using Amazon Aurora](configuration/using-amazon-aurora.md)
 
 ## Deployment Options
 

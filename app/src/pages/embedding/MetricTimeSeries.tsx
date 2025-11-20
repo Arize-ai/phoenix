@@ -16,9 +16,13 @@ import {
 import { CategoricalChartFunc } from "recharts/types/chart/types";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp } from "@arizeai/components";
-
-import { Heading, Icon, Icons, Text } from "@phoenix/components";
+import {
+  ContextualHelp,
+  Heading,
+  Icon,
+  Icons,
+  Text,
+} from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipDivider,
@@ -32,13 +36,13 @@ import {
 import { usePointCloudContext } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { MetricDefinition } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   getMetricDescriptionByMetricKey,
   getMetricShortNameByMetricKey,
 } from "@phoenix/utils/metricFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import {
   calculateGranularity,
   calculateGranularityWithRollingAverage,
@@ -66,6 +70,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const { color, barColor } = useColors();
+  const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     const metricValue = payload[1]?.value ?? null;
     const count = payload[0]?.value ?? null;
@@ -360,7 +365,7 @@ export function MetricTimeSeries({
         {metricDescription != null ? (
           <ContextualHelp>
             <Heading level={4}>{metricShortName}</Heading>
-            <Content>{metricDescription}</Content>
+            <Text>{metricDescription}</Text>
           </ContextualHelp>
         ) : null}
       </Heading>

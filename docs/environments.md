@@ -5,7 +5,7 @@ The Phoenix app can be run in various environments such as Colab and SageMaker n
 <table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>Phoenix Cloud</strong></td><td>Connect to a pre-configured, managed Phoenix instance</td><td><a href="https://app.phoenix.arize.com/login">https://app.phoenix.arize.com/login</a></td><td><a href=".gitbook/assets/Screenshot 2024-10-09 at 6.32.50 PM.png">Screenshot 2024-10-09 at 6.32.50 PM.png</a></td></tr><tr><td><strong>As a Container</strong></td><td>Self-host your own Phoenix</td><td><a href="https://arize.com/docs/phoenix/self-hosting">https://arize.com/docs/phoenix/self-hosting</a></td><td><a href=".gitbook/assets/docker.png">docker.png</a></td></tr><tr><td><strong>In a Notebook</strong></td><td>Run Phoenix in the notebook as you run experiments</td><td><a href="environments.md#notebooks">#notebooks</a></td><td><a href=".gitbook/assets/notebook.png">notebook.png</a></td></tr><tr><td><strong>From the Terminal</strong></td><td>Run Phoenix via the CLI on your local machine</td><td><a href="environments.md#terminal">#terminal</a></td><td><a href=".gitbook/assets/terminal.png">terminal.png</a></td></tr></tbody></table>
 
 {% hint style="success" %}
-If you are set up, see [Quickstarts](quickstart.md) to start using Phoenix in your preferred environment.
+If you are set up, see [Quickstarts](get-started/) to start using Phoenix in your preferred environment.
 {% endhint %}
 
 ### Phoenix Cloud
