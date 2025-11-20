@@ -80,14 +80,17 @@ def _resolve_value(value: StringValueLookupOrStringValue | None, store: CanGetSt
         The resolved string value, or None if value was None
 
     Raises:
-        TypeError: If value is not one of the expected types
+        ValueError: If the value is a StringValueLookup and the secret is not found
     """
     if value is None:
         return None
     if isinstance(value, StringValue):
         return value.string_value
     if isinstance(value, StringValueLookup):
-        return store.get(value.string_value_lookup_key)
+        ans = store.get(value.string_value_lookup_key)
+        if ans is None:
+            raise ValueError(f"{value.string_value_lookup_key} not found")
+        return ans
     assert_never(value)
 
 

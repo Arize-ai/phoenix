@@ -2,6 +2,7 @@ import strawberry
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
+from phoenix.config import getenv
 from phoenix.db import models
 from phoenix.server.api.context import Context
 
@@ -31,3 +32,17 @@ class Secret(Node):
             except Exception:
                 pass
         return None
+
+    @strawberry.field
+    async def shadows_environment_variable(self, info: Info[Context, None]) -> bool:
+        if self.db_record:
+            val = self.db_record.value
+        else:
+            val = await info.context.data_loaders.secret_values.load(self.id)
+        if val:
+            try:
+                info.context.decrypt(val).decode("utf-8")
+                return getenv(self.id) is not None
+            except Exception:
+                pass
+        return False

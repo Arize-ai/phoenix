@@ -54,6 +54,22 @@ class GenerativeModelCustomProviderSDK(Enum):
     GOOGLE_GENAI = "google_genai"
 
 
+class OpenAISDKClientInterface(Enum):
+    CHAT = "chat"
+
+
+class AnthropicSDKClientInterface(Enum):
+    CHAT = "chat"
+
+
+class AWSBedrockSDKClientInterface(Enum):
+    CONVERSE = "converse"
+
+
+class GoogleGenAISDKClientInterface(Enum):
+    CHAT = "chat"
+
+
 @strawberry.type
 class UnparsableConfig:
     parse_error: str
@@ -108,15 +124,15 @@ class OpenAIClientKwargs:
 
 @strawberry.type
 class OpenAICustomProviderConfig:
-    interface: str
     supports_streaming: bool
     openai_authentication_method: OpenAIAuthenticationMethod
     openai_client_kwargs: OpenAIClientKwargs | None = UNSET
+    openai_client_interface: OpenAISDKClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.OpenAICustomProviderConfig) -> Self:
         return cls(
-            interface=config.openai_client_interface,
+            openai_client_interface=OpenAISDKClientInterface(config.openai_client_interface),
             supports_streaming=config.supports_streaming,
             openai_authentication_method=OpenAIAuthenticationMethod.from_orm(
                 config.openai_authentication_method
@@ -164,15 +180,17 @@ class AzureOpenAIClientKwargs:
 
 @strawberry.type
 class AzureOpenAICustomProviderConfig:
-    interface: str
     supports_streaming: bool
     azure_openai_authentication_method: AzureOpenAIAuthenticationMethod
     azure_openai_client_kwargs: AzureOpenAIClientKwargs | None = UNSET
+    azure_openai_client_interface: OpenAISDKClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.AzureOpenAICustomProviderConfig) -> Self:
         return cls(
-            interface=config.azure_openai_client_interface,
+            azure_openai_client_interface=OpenAISDKClientInterface(
+                config.azure_openai_client_interface
+            ),
             supports_streaming=config.supports_streaming,
             azure_openai_authentication_method=AzureOpenAIAuthenticationMethod.from_orm(
                 config.azure_openai_authentication_method
@@ -209,15 +227,17 @@ class AnthropicClientKwargs:
 
 @strawberry.type
 class AnthropicCustomProviderConfig:
-    interface: str
     supports_streaming: bool
     anthropic_authentication_method: AnthropicAuthenticationMethod
     anthropic_client_kwargs: AnthropicClientKwargs | None = UNSET
+    anthropic_client_interface: AnthropicSDKClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.AnthropicCustomProviderConfig) -> Self:
         return cls(
-            interface=config.anthropic_client_interface,
+            anthropic_client_interface=AnthropicSDKClientInterface(
+                config.anthropic_client_interface
+            ),
             supports_streaming=config.supports_streaming,
             anthropic_authentication_method=AnthropicAuthenticationMethod.from_orm(
                 config.anthropic_authentication_method
@@ -263,7 +283,7 @@ class AWSBedrockCustomProviderConfig:
     supports_streaming: bool
     aws_bedrock_authentication_method: AWSBedrockAuthenticationMethod
     aws_bedrock_client_kwargs: AWSBedrockClientKwargs | None = UNSET
-    aws_bedrock_client_interface: str = "converse"
+    aws_bedrock_client_interface: AWSBedrockSDKClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.AWSBedrockCustomProviderConfig) -> Self:
@@ -275,7 +295,9 @@ class AWSBedrockCustomProviderConfig:
             aws_bedrock_client_kwargs=AWSBedrockClientKwargs.from_orm(
                 config.aws_bedrock_client_kwargs
             ),
-            aws_bedrock_client_interface=config.aws_bedrock_client_interface,
+            aws_bedrock_client_interface=AWSBedrockSDKClientInterface(
+                config.aws_bedrock_client_interface
+            ),
         )
 
 
@@ -319,15 +341,17 @@ class GoogleGenAIClientKwargs:
 
 @strawberry.type
 class GoogleGenAICustomProviderConfig:
-    interface: str
     supports_streaming: bool
     google_genai_authentication_method: GoogleGenAIAuthenticationMethod
     google_genai_client_kwargs: GoogleGenAIClientKwargs | None = UNSET
+    google_genai_client_interface: GoogleGenAISDKClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.GoogleGenAICustomProviderConfig) -> Self:
         return cls(
-            interface=config.google_genai_client_interface,
+            google_genai_client_interface=GoogleGenAISDKClientInterface(
+                config.google_genai_client_interface
+            ),
             supports_streaming=config.supports_streaming,
             google_genai_authentication_method=GoogleGenAIAuthenticationMethod.from_orm(
                 config.google_genai_authentication_method
@@ -340,14 +364,14 @@ class GoogleGenAICustomProviderConfig:
 
 @strawberry.type
 class OllamaCustomProviderConfig:
-    interface: str
     supports_streaming: bool
     openai_client_kwargs: OpenAIClientKwargs | None = UNSET
+    openai_client_interface: OpenAISDKClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.OllamaCustomProviderConfig) -> Self:
         return cls(
-            interface=config.openai_client_interface,
+            openai_client_interface=OpenAISDKClientInterface(config.openai_client_interface),
             supports_streaming=config.supports_streaming,
             openai_client_kwargs=(OpenAIClientKwargs.from_orm(config.openai_client_kwargs)),
         )
@@ -364,15 +388,15 @@ class DeepSeekAuthenticationMethod:
 
 @strawberry.type
 class DeepSeekCustomProviderConfig:
-    interface: str
     supports_streaming: bool
     deepseek_authentication_method: DeepSeekAuthenticationMethod
     openai_client_kwargs: OpenAIClientKwargs | None = UNSET
+    openai_client_interface: OpenAISDKClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.DeepSeekCustomProviderConfig) -> Self:
         return cls(
-            interface=config.openai_client_interface,
+            openai_client_interface=OpenAISDKClientInterface(config.openai_client_interface),
             supports_streaming=config.supports_streaming,
             deepseek_authentication_method=DeepSeekAuthenticationMethod.from_orm(
                 config.deepseek_authentication_method
@@ -392,15 +416,15 @@ class XAIAuthenticationMethod:
 
 @strawberry.type
 class XAICustomProviderConfig:
-    interface: str
     supports_streaming: bool
     xai_authentication_method: XAIAuthenticationMethod
     openai_client_kwargs: OpenAIClientKwargs | None = UNSET
+    openai_client_interface: OpenAISDKClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.XAICustomProviderConfig) -> Self:
         return cls(
-            interface=config.openai_client_interface,
+            openai_client_interface=OpenAISDKClientInterface(config.openai_client_interface),
             supports_streaming=config.supports_streaming,
             xai_authentication_method=XAIAuthenticationMethod.from_orm(
                 config.xai_authentication_method

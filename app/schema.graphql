@@ -26,7 +26,7 @@ type AWSBedrockCustomProviderConfig {
   supportsStreaming: Boolean!
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethod!
   awsBedrockClientKwargs: AWSBedrockClientKwargs
-  awsBedrockClientInterface: String!
+  awsBedrockClientInterface: AWSBedrockSDKClientInterface!
 }
 
 input AWSBedrockCustomProviderConfigInput {
@@ -35,6 +35,10 @@ input AWSBedrockCustomProviderConfigInput {
 }
 
 union AWSBedrockCustomProviderConfigUnparsableConfig = AWSBedrockCustomProviderConfig | UnparsableConfig
+
+enum AWSBedrockSDKClientInterface {
+  CONVERSE
+}
 
 input AddAnnotationConfigToProjectInput {
   projectId: ID!
@@ -198,10 +202,10 @@ input AnthropicClientKwargsInput {
 }
 
 type AnthropicCustomProviderConfig {
-  interface: String!
   supportsStreaming: Boolean!
   anthropicAuthenticationMethod: AnthropicAuthenticationMethod!
   anthropicClientKwargs: AnthropicClientKwargs
+  anthropicClientInterface: AnthropicSDKClientInterface!
 }
 
 input AnthropicCustomProviderConfigInput {
@@ -210,6 +214,10 @@ input AnthropicCustomProviderConfigInput {
 }
 
 union AnthropicCustomProviderConfigUnparsableConfig = AnthropicCustomProviderConfig | UnparsableConfig
+
+enum AnthropicSDKClientInterface {
+  CHAT
+}
 
 interface ApiKey {
   """Name of the API key."""
@@ -276,10 +284,10 @@ input AzureOpenAIClientKwargsInput {
 }
 
 type AzureOpenAICustomProviderConfig {
-  interface: String!
   supportsStreaming: Boolean!
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethod!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargs
+  azureOpenaiClientInterface: OpenAISDKClientInterface!
 }
 
 input AzureOpenAICustomProviderConfigInput {
@@ -1037,10 +1045,10 @@ input DeepSeekAuthenticationMethodInput {
 }
 
 type DeepSeekCustomProviderConfig {
-  interface: String!
   supportsStreaming: Boolean!
   deepseekAuthenticationMethod: DeepSeekAuthenticationMethod!
   openaiClientKwargs: OpenAIClientKwargs
+  openaiClientInterface: OpenAISDKClientInterface!
 }
 
 input DeepSeekCustomProviderConfigInput {
@@ -2250,10 +2258,10 @@ input GoogleGenAIClientKwargsInput {
 }
 
 type GoogleGenAICustomProviderConfig {
-  interface: String!
   supportsStreaming: Boolean!
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethod!
   googleGenaiClientKwargs: GoogleGenAIClientKwargs
+  googleGenaiClientInterface: GoogleGenAISDKClientInterface!
 }
 
 input GoogleGenAICustomProviderConfigInput {
@@ -2271,6 +2279,10 @@ type GoogleGenAIHttpOptions {
 input GoogleGenAIHttpOptionsInput {
   baseUrl: StringValueLookupOrStringValueInput
   headers: JSON
+}
+
+enum GoogleGenAISDKClientInterface {
+  CHAT
 }
 
 """
@@ -2571,9 +2583,9 @@ type NumericRange {
 }
 
 type OllamaCustomProviderConfig {
-  interface: String!
   supportsStreaming: Boolean!
   openaiClientKwargs: OpenAIClientKwargs
+  openaiClientInterface: OpenAISDKClientInterface!
 }
 
 input OllamaCustomProviderConfigInput {
@@ -2605,10 +2617,10 @@ input OpenAIClientKwargsInput {
 }
 
 type OpenAICustomProviderConfig {
-  interface: String!
   supportsStreaming: Boolean!
   openaiAuthenticationMethod: OpenAIAuthenticationMethod!
   openaiClientKwargs: OpenAIClientKwargs
+  openaiClientInterface: OpenAISDKClientInterface!
 }
 
 input OpenAICustomProviderConfigInput {
@@ -2617,6 +2629,10 @@ input OpenAICustomProviderConfigInput {
 }
 
 union OpenAICustomProviderConfigUnparsableConfig = OpenAICustomProviderConfig | UnparsableConfig
+
+enum OpenAISDKClientInterface {
+  CHAT
+}
 
 enum OptimizationDirection {
   MINIMIZE
@@ -3333,6 +3349,7 @@ type Secret implements Node {
   id: ID!
   key: String!
   value: String
+  shadowsEnvironmentVariable: Boolean!
 }
 
 """A connection to a list of items."""
@@ -4206,10 +4223,10 @@ input XAIAuthenticationMethodInput {
 }
 
 type XAICustomProviderConfig {
-  interface: String!
   supportsStreaming: Boolean!
   xaiAuthenticationMethod: XAIAuthenticationMethod!
   openaiClientKwargs: OpenAIClientKwargs
+  openaiClientInterface: OpenAISDKClientInterface!
 }
 
 input XAICustomProviderConfigInput {

@@ -584,6 +584,7 @@ def _lifespan(
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
     db_disk_usage_monitor: DbDiskUsageMonitor,
+    secret_store: SecretStore,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -625,6 +626,7 @@ def _lifespan(
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
+            await stack.enter_async_context(secret_store)
             await stack.enter_async_context(db_disk_usage_monitor)
             if scaffolder_config:
                 scaffolder = Scaffolder(
@@ -1145,6 +1147,7 @@ def create_app(
             trace_data_sweeper=trace_data_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
+            secret_store=secret_store,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,

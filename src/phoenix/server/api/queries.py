@@ -27,6 +27,7 @@ from phoenix.db.helpers import (
     exclude_experiment_projects,
 )
 from phoenix.db.models import LatencyMs
+from phoenix.db.types.model_provider import GenerativeModelCustomerProviderConfig
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -202,10 +203,10 @@ class Query:
     async def generative_model_custom_providers(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
+        first: int | None = 50,
+        last: int | None = UNSET,
+        after: CursorString | None = UNSET,
+        before: CursorString | None = UNSET,
     ) -> Connection[GenerativeModelCustomProvider]:
         page_size = first or 50
 
@@ -240,15 +241,35 @@ class Query:
         cursors_and_nodes: list[tuple[Cursor, GenerativeModelCustomProvider]] = []
 
         for provider in providers:
-            # Decrypt config to determine the correct GraphQL provider class
+            gql_provider: GenerativeModelCustomProvider
             try:
+                # Decrypt config to determine the correct GraphQL provider class
                 decrypted_data = info.context.decrypt(provider.config)
-                from phoenix.db.types.model_provider import GenerativeModelCustomerProviderConfig
-
+            except Exception:
+                if provider.sdk == "openai":
+                    gql_provider = GenerativeModelCustomProviderOpenAI(
+                        id=provider.id, db_record=provider
+                    )
+                elif provider.sdk == "azure_openai":
+                    gql_provider = GenerativeModelCustomProviderAzureOpenAI(
+                        id=provider.id, db_record=provider
+                    )
+                elif provider.sdk == "anthropic":
+                    gql_provider = GenerativeModelCustomProviderAnthropic(
+                        id=provider.id, db_record=provider
+                    )
+                elif provider.sdk == "aws_bedrock":
+                    gql_provider = GenerativeModelCustomProviderAWSBedrock(
+                        id=provider.id, db_record=provider
+                    )
+                elif provider.sdk == "google_genai":
+                    gql_provider = GenerativeModelCustomProviderGoogleGenAI(
+                        id=provider.id, db_record=provider
+                    )
+                else:
+                    assert_never(provider.sdk)
+            else:
                 config = GenerativeModelCustomerProviderConfig.model_validate_json(decrypted_data)
-
-                # Determine provider class from config type
-                gql_provider: GenerativeModelCustomProvider
                 if config.root.type == "openai":
                     gql_provider = GenerativeModelCustomProviderOpenAI(
                         id=provider.id, db_record=provider
@@ -283,10 +304,7 @@ class Query:
                     )
                 else:
                     assert_never(config.root.type)
-                cursors_and_nodes.append((Cursor(rowid=provider.id), gql_provider))
-            except Exception:
-                # Skip providers with invalid/outdated configs
-                continue
+            cursors_and_nodes.append((Cursor(rowid=provider.id), gql_provider))
 
         return connection_from_cursors_and_nodes(
             cursors_and_nodes=cursors_and_nodes,
@@ -298,10 +316,10 @@ class Query:
     async def secrets(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
+        first: int | None = 50,
+        last: int | None = UNSET,
+        after: CursorString | None = UNSET,
+        before: CursorString | None = UNSET,
     ) -> Connection[Secret]:
         page_size = first or 50
 
