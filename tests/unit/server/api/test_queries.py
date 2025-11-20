@@ -920,6 +920,130 @@ async def experiment_run_metric_comparison_experiments(
         return base_experiment, (compare_experiment_1, compare_experiment_2)
 
 
+async def test_secrets_pagination(
+    gql_client: AsyncGraphQLClient,
+    secrets_for_pagination: Any,
+) -> None:
+    """Test that secrets query supports pagination correctly."""
+    query = """
+      query ($first: Int, $after: String) {
+        secrets(first: $first, after: $after) {
+          edges {
+            secret: node {
+              id
+            }
+            cursor
+          }
+          pageInfo {
+            hasNextPage
+            hasPreviousPage
+            startCursor
+            endCursor
+          }
+        }
+      }
+    """
+
+    # Test first page with limit of 2
+    response = await gql_client.execute(
+        query=query,
+        variables={"first": 2, "after": None},
+    )
+    assert not response.errors
+    assert response.data is not None
+    first_page = response.data["secrets"]
+
+    # Should have 2 items
+    assert len(first_page["edges"]) == 2
+
+    # Get the actual secret IDs from the response (ordering by key ascending)
+    first_page_ids = [edge["secret"]["id"] for edge in first_page["edges"]]
+
+    # Should have next page
+    assert first_page["pageInfo"]["hasNextPage"] is True
+    assert first_page["pageInfo"]["hasPreviousPage"] is False
+
+    # Get cursor for next page
+    after_cursor = first_page["pageInfo"]["endCursor"]
+    assert after_cursor is not None
+
+    # Test second page
+    response = await gql_client.execute(
+        query=query,
+        variables={"first": 2, "after": after_cursor},
+    )
+    assert not response.errors
+    assert response.data is not None
+    second_page = response.data["secrets"]
+
+    # Should have 2 more items
+    assert len(second_page["edges"]) == 2
+    second_page_ids = [edge["secret"]["id"] for edge in second_page["edges"]]
+
+    # Verify no duplicates between pages
+    assert set(first_page_ids).isdisjoint(set(second_page_ids))
+
+    # Should have next page
+    assert second_page["pageInfo"]["hasNextPage"] is True
+    assert second_page["pageInfo"]["hasPreviousPage"] is True
+
+    # Test third page (last page)
+    after_cursor = second_page["pageInfo"]["endCursor"]
+    response = await gql_client.execute(
+        query=query,
+        variables={"first": 2, "after": after_cursor},
+    )
+    assert not response.errors
+    assert response.data is not None
+    third_page = response.data["secrets"]
+
+    # Should have only 1 item (last one)
+    assert len(third_page["edges"]) == 1
+    third_page_ids = [edge["secret"]["id"] for edge in third_page["edges"]]
+
+    # Verify no duplicates with previous pages
+    assert set(third_page_ids).isdisjoint(set(first_page_ids))
+    assert set(third_page_ids).isdisjoint(set(second_page_ids))
+
+    # Should not have next page
+    assert third_page["pageInfo"]["hasNextPage"] is False
+    assert third_page["pageInfo"]["hasPreviousPage"] is True
+
+    # Verify all non-deleted secrets are returned across all pages
+    all_secret_ids = first_page_ids + second_page_ids + third_page_ids
+    assert len(all_secret_ids) == 5  # 6 created, 1 deleted
+    assert len(set(all_secret_ids)) == 5  # No duplicates
+
+    # Verify the deleted secret is not in the results
+    assert "secret-f" not in all_secret_ids
+
+
+@pytest.fixture
+async def secrets_for_pagination(db: DbSessionFactory) -> None:
+    """
+    Creates multiple secrets for testing pagination.
+    Creates 6 secrets, with one marked as deleted.
+    """
+    async with db() as session:
+        secrets = [
+            models.Secret(key="secret-a", value=b"value-a"),
+            models.Secret(key="secret-b", value=b"value-b"),
+            models.Secret(key="secret-c", value=b"value-c"),
+            models.Secret(key="secret-d", value=b"value-d"),
+            models.Secret(key="secret-e", value=b"value-e"),
+            models.Secret(
+                key="secret-f",
+                value=b"value-f",
+                deleted_at=datetime.now(tz=pytz.utc),  # This one is deleted
+            ),
+        ]
+
+        for secret in secrets:
+            session.add(secret)
+
+        await session.commit()
+
+
 @pytest.fixture
 async def comparison_experiments(db: DbSessionFactory) -> None:
     """

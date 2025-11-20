@@ -35,14 +35,10 @@ from phoenix.db.helpers import (
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundClientCredential,
     PlaygroundStreamingClient,
     initialize_playground_clients,
-)
-from phoenix.server.api.helpers.playground_registry import (
-    PLAYGROUND_CLIENT_REGISTRY,
 )
 from phoenix.server.api.helpers.playground_spans import (
     get_db_experiment_run,
@@ -206,31 +202,43 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            playground_credentials = None
-            if input.credentials:
-                playground_credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=playground_credentials,
+        llm_client = await info.context.get_playground_client(input.model)
+        messages = [
+            (
+                message.role,
+                message.content,
+                message.tool_call_id if isinstance(message.tool_call_id, str) else None,
+                message.tool_calls if isinstance(message.tool_calls, list) else None,
             )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
+            for message in input.messages
+        ]
+        attributes = None
+        if template_options := input.template:
+            messages = list(
+                _formatted_messages(
+                    messages=messages,
+                    template_format=template_options.format,
+                    template_variables=template_options.variables,
+                )
             )
-
+            attributes = {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
+        invocation_parameters = llm_client.construct_invocation_parameters(
+            input.invocation_parameters
+        )
+        async with streaming_llm_span(
+            input=input,
+            messages=messages,
+            invocation_parameters=invocation_parameters,
+            attributes=attributes,
+        ) as span:
+            async for chunk in llm_client.chat_completion_create(
+                messages=messages, tools=input.tools or [], **invocation_parameters
+            ):
+                span.add_response_chunk(chunk)
+                yield chunk
+        span.set_attributes(llm_client.attributes)
+        if span.status_message is not None:
+            yield ChatCompletionSubscriptionError(message=span.status_message)
         async with info.context.db() as session:
             if (
                 playground_project_id := await session.scalar(
@@ -365,31 +373,7 @@ class Subscription:
     async def chat_completion_over_dataset(
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            playground_credentials = None
-            if input.credentials:
-                playground_credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=playground_credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
-
+        llm_client = await info.context.get_playground_client(input.model)
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         version_id = (
             from_global_id_with_expected_type(

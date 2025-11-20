@@ -67,7 +67,13 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                        "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
+                    }
+                },
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
                 "messages": [
@@ -77,7 +83,6 @@ class TestChatCompletionMutationMixin:
                     }
                 ],
                 "templateFormat": "F_STRING",
-                "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
                 "repetitions": 1,
             }
         }
@@ -150,7 +155,7 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
                 "messages": [
@@ -227,7 +232,7 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
                 "messages": [
@@ -303,7 +308,7 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
                 "messages": [

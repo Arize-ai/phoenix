@@ -2,7 +2,7 @@ from asyncio import get_running_loop
 from dataclasses import dataclass
 from functools import cached_property, partial
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from starlette.datastructures import Secret
 from starlette.requests import Request as StarletteRequest
@@ -14,6 +14,7 @@ from phoenix.auth import (
 )
 from phoenix.core.model_schema import Model
 from phoenix.db import models
+from phoenix.duck_types import CanGetString
 from phoenix.server.api.dataloaders import (
     AnnotationConfigsByProjectDataLoader,
     AnnotationSummaryDataLoader,
@@ -47,6 +48,7 @@ from phoenix.server.api.dataloaders import (
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SecretValuesDataLoader,
     SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
@@ -82,6 +84,7 @@ from phoenix.server.api.dataloaders import (
     UsersDataLoader,
 )
 from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
+from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
@@ -93,6 +96,10 @@ from phoenix.server.types import (
     TokenStore,
     UserId,
 )
+
+if TYPE_CHECKING:
+    from phoenix.db.types.model_provider import GenerativeModelCustomerProviderConfig
+    from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
 
 
 @dataclass
@@ -137,6 +144,7 @@ class DataLoaders:
     experiment_runs_by_experiment_and_example: ExperimentRunsByExperimentAndExampleDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     generative_model_fields: TableFieldsDataLoader
+    generative_model_custom_provider_fields: TableFieldsDataLoader
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
@@ -154,6 +162,7 @@ class DataLoaders:
     project_session_annotation_fields: TableFieldsDataLoader
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
+    secret_values: SecretValuesDataLoader
     session_annotations_by_session: SessionAnnotationsBySessionDataLoader
     session_first_inputs: SessionIODataLoader
     session_last_outputs: SessionIODataLoader
@@ -216,6 +225,9 @@ class Context(BaseContext):
     model: Model
     export_path: Path
     span_cost_calculator: SpanCostCalculator
+    encrypt: Callable[[bytes], bytes]
+    decrypt: Callable[[bytes], bytes]
+    secret_store: CanGetString = _NoOp()
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None
@@ -281,3 +293,140 @@ class Context(BaseContext):
             return int(self.user.identity)
         except Exception:
             return None
+
+    async def get_playground_client(
+        self, model: "GenerativeModelInput"
+    ) -> "PlaygroundStreamingClient":
+        if builtin := model.builtin:
+            return builtin.get_playground_client()
+        custom = model.custom
+        assert custom
+
+        # Parse the provider ID and load from database
+        from phoenix.db.types.model_provider import GenerativeModelCustomerProviderConfig
+        from phoenix.server.api.types.node import from_global_id
+
+        _, provider_id = from_global_id(custom.provider_id)
+
+        # Load provider from database
+        async with self.db() as session:
+            provider_record = await session.get(models.GenerativeModelCustomProvider, provider_id)
+            if not provider_record:
+                from phoenix.server.api.exceptions import NotFound
+
+                raise NotFound(f"Custom provider with ID {provider_id} not found")
+
+        # Decrypt and parse the config
+        decrypted_data = self.decrypt(provider_record.config)
+        config = GenerativeModelCustomerProviderConfig.model_validate_json(decrypted_data)
+
+        # Create appropriate playground client based on config type
+        return await _create_custom_provider_client(
+            store=self.secret_store,
+            config=config,
+            model_name=custom.model_name,
+            extra_headers=custom.extra_headers,
+        )
+
+
+async def _create_custom_provider_client(
+    store: CanGetString,
+    config: "GenerativeModelCustomerProviderConfig",
+    model_name: str,
+    extra_headers: Optional[Any] = None,
+) -> "PlaygroundStreamingClient":
+    """Create a playground client from a custom provider config.
+
+    Note: extra_headers parameter is currently not used but reserved for future enhancement.
+    Headers should be configured in the custom provider configuration in the database.
+    """
+    from typing_extensions import assert_never
+
+    from phoenix.server.api.exceptions import BadRequest
+    from phoenix.server.api.helpers.playground_clients import (
+        AnthropicStreamingClient,
+        DeepSeekStreamingClient,
+        GoogleStreamingClient,
+        OllamaStreamingClient,
+        OpenAIStreamingClient,
+        XAIStreamingClient,
+    )
+    from phoenix.server.api.input_types.GenerativeModelInput import (
+        GenerativeModelBultinProviderInput,
+    )
+    from phoenix.server.api.types.GenerativeProvider import (
+        CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY,
+    )
+
+    provider_key = CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY[config.root.type]
+    # Create a mock builtin input for the streaming client
+    # The streaming clients expect GenerativeModelBultinProviderInput
+    mock_builtin_input = GenerativeModelBultinProviderInput(
+        provider_key=provider_key,
+        name=model_name,
+    )
+
+    # Create the appropriate streaming client based on config type
+    # Type narrowing with SDKClientFactory[T] allows mypy to infer correct client types
+    if config.root.type == "openai":
+        try:
+            openai_factory = await config.root.get_client_factory(store)
+            openai_client = await openai_factory(extra_headers=extra_headers)
+            return OpenAIStreamingClient(model=mock_builtin_input, client=openai_client)
+        except Exception as e:
+            raise BadRequest(f"Failed to create OpenAI client: {str(e)}")
+    elif config.root.type == "azure_openai":
+        from phoenix.server.api.helpers.playground_clients import AzureOpenAIStreamingClient
+
+        try:
+            azure_factory = await config.root.get_client_factory(store)
+            azure_client = await azure_factory(extra_headers=extra_headers)
+            return AzureOpenAIStreamingClient(model=mock_builtin_input, client=azure_client)
+        except Exception as e:
+            raise BadRequest(f"Failed to create Azure OpenAI client: {str(e)}")
+    elif config.root.type == "anthropic":
+        try:
+            anthropic_factory = await config.root.get_client_factory(store)
+            anthropic_client = await anthropic_factory(extra_headers=extra_headers)
+            return AnthropicStreamingClient(model=mock_builtin_input, client=anthropic_client)
+        except Exception as e:
+            raise BadRequest(f"Failed to create Anthropic client: {str(e)}")
+    elif config.root.type == "aws_bedrock":
+        try:
+            aws_bedrock_factory = await config.root.get_client_factory(store)
+            _ = await aws_bedrock_factory(extra_headers=extra_headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create AWS Bedrock client: {str(e)}")
+        raise NotImplementedError(
+            "AWS Bedrock custom providers are not yet supported in the playground"
+        )
+    elif config.root.type == "google_genai":
+        try:
+            google_factory = await config.root.get_client_factory(store)
+            google_client = await google_factory(extra_headers=extra_headers)
+            return GoogleStreamingClient(model=mock_builtin_input, client=google_client)
+        except Exception as e:
+            raise BadRequest(f"Failed to create Google GenAI client: {str(e)}")
+    elif config.root.type == "ollama":
+        try:
+            ollama_factory = await config.root.get_client_factory(store)
+            ollama_client = await ollama_factory(extra_headers=extra_headers)
+            return OllamaStreamingClient(model=mock_builtin_input, client=ollama_client)
+        except Exception as e:
+            raise BadRequest(f"Failed to create Ollama client: {str(e)}")
+    elif config.root.type == "deepseek":
+        try:
+            deepseek_factory = await config.root.get_client_factory(store)
+            deepseek_client = await deepseek_factory(extra_headers=extra_headers)
+            return DeepSeekStreamingClient(model=mock_builtin_input, client=deepseek_client)
+        except Exception as e:
+            raise BadRequest(f"Failed to create DeepSeek client: {str(e)}")
+    elif config.root.type == "xai":
+        try:
+            xai_factory = await config.root.get_client_factory(store)
+            xai_client = await xai_factory(extra_headers=extra_headers)
+            return XAIStreamingClient(model=mock_builtin_input, client=xai_client)
+        except Exception as e:
+            raise BadRequest(f"Failed to create xAI client: {str(e)}")
+    else:
+        assert_never(config.root)
