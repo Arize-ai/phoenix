@@ -1,9 +1,10 @@
-import { startTransition, useCallback, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import { useMutation } from "react-relay";
 import { ConnectionHandler, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
+  Alert,
   Button,
   Checkbox,
   Dialog,
@@ -20,7 +21,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import type { UnassignDatasetEvaluatorDialogDeleteMutation } from "@phoenix/pages/dataset/evaluators/__generated__/UnassignDatasetEvaluatorDialogDeleteMutation.graphql";
 import type { UnassignDatasetEvaluatorDialogUnassignMutation } from "@phoenix/pages/dataset/evaluators/__generated__/UnassignDatasetEvaluatorDialogUnassignMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -42,6 +43,18 @@ export function UnassignDatasetEvaluatorDialog({
 }: UnassignDatasetEvaluatorDialogProps) {
   const [deleteFromGlobalEvaluators, setDeleteFromGlobalEvaluators] =
     useState(false);
+  const [error, setError] = useState<{ title: string; message: string } | null>(
+    null
+  );
+
+  useEffect(() => {
+    // reset state when dialog is reopened
+    if (isOpen) {
+      setError(null);
+      setDeleteFromGlobalEvaluators(false);
+    }
+  }, [isOpen]);
+
   const datasetEvaluatorsTableConnection = ConnectionHandler.getConnectionID(
     datasetId,
     "DatasetEvaluatorsTable_evaluators"
@@ -90,7 +103,6 @@ export function UnassignDatasetEvaluatorDialog({
       }
     `);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
 
   const handleUnassignEvaluator = useCallback(() => {
     startTransition(() => {
@@ -110,8 +122,8 @@ export function UnassignDatasetEvaluatorDialog({
           });
         },
         onError: (error) => {
-          notifyError({
-            title: "Failed to unlink evaluator from dataset",
+          setError({
+            title: "Failed to unlink evaluator",
             message:
               getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
               error.message,
@@ -125,7 +137,6 @@ export function UnassignDatasetEvaluatorDialog({
     evaluatorId,
     datasetEvaluatorsTableConnection,
     notifySuccess,
-    notifyError,
   ]);
 
   const handleDeleteEvaluator = useCallback(() => {
@@ -145,7 +156,7 @@ export function UnassignDatasetEvaluatorDialog({
           });
         },
         onError: (error) => {
-          notifyError({
+          setError({
             title: "Failed to delete evaluator",
             message:
               getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
@@ -160,7 +171,6 @@ export function UnassignDatasetEvaluatorDialog({
     evaluatorId,
     datasetEvaluatorsTableConnection,
     notifySuccess,
-    notifyError,
   ]);
 
   return (
@@ -174,6 +184,11 @@ export function UnassignDatasetEvaluatorDialog({
                 <DialogCloseButton />
               </DialogTitleExtra>
             </DialogHeader>
+            {error && (
+              <Alert variant="danger" title={error.title}>
+                {error.message}
+              </Alert>
+            )}
             <Flex
               direction="column"
               gap="size-100"
