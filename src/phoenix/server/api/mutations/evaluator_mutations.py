@@ -367,9 +367,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
         input_config: EvaluatorInputMappingInput = (
-            input.input_config
-            if input.input_config is not None
-            else EvaluatorInputMappingInput()
+            input.input_config if input.input_config is not None else EvaluatorInputMappingInput()
         )
 
         # Use upsert for idempotent assignment
