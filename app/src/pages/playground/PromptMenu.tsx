@@ -401,10 +401,12 @@ export function IdTruncate({
   id,
   length = 6,
   textProps,
+  ellipsis,
 }: {
   id: string;
   length?: number;
   textProps?: Partial<TextProps>;
+  ellipsis?: boolean;
 }) {
   const truncatedValue = useMemo(() => {
     if (id.length <= length) return id;
@@ -421,6 +423,7 @@ export function IdTruncate({
       `}
       {...textProps}
     >
+      {ellipsis ? <>&hellip;</> : ""}
       {truncatedValue}
     </Text>
   );

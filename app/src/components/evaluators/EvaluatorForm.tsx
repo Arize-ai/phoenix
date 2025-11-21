@@ -217,6 +217,7 @@ export const EvaluatorForm = () => {
               }}
               selectedSplitIds={selectedSplitIds}
               onSelectSplits={setSelectedSplitIds}
+              selectedExampleId={selectedExampleId}
               onSelectExampleId={setSelectedExampleId}
               datasetSelectIsDisabled={!!getValues().dataset?.readonly}
             />
