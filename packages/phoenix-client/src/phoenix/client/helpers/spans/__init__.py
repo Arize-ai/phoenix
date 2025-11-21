@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, Sequence, cast
 from phoenix.client.__generated__ import v1
 
 from .rag import (
+    async_get_input_output_context,
+    async_get_retrieved_documents,
     get_input_output_context,
     get_retrieved_documents,
 )
@@ -22,6 +24,8 @@ __all__ = [
     "dataframe_to_spans",
     "get_input_output_context",
     "get_retrieved_documents",
+    "async_get_input_output_context",
+    "async_get_retrieved_documents",
 ]
 
 # Source implementation:opentelemetry.sdk.trace.id_generator.RandomIdGenerator
