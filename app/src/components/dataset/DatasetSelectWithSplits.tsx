@@ -47,6 +47,7 @@ type DatasetSelectWithSplitsProps = {
   placement?: ComponentProps<typeof MenuContainer>["placement"];
   shouldFlip?: ComponentProps<typeof MenuContainer>["shouldFlip"];
   isDisabled?: boolean;
+  isReadOnly?: boolean;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideSplits?: boolean;
@@ -164,6 +165,10 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
   return (
     <MenuTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <Button
+        css={css`
+          min-width: 0 !important;
+          justify-content: space-between;
+        `}
         data-testid="dataset-picker"
         className="dataset-picker-button"
         trailingVisual={<SelectChevronUpDownIcon />}
