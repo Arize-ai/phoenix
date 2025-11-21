@@ -12,6 +12,7 @@ import {
 import {
   createAnthropicToolDefinition,
   createAwsToolDefinition,
+  createGeminiToolDefinition,
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
 } from "@phoenix/schemas";
@@ -956,6 +957,8 @@ export const getToolName = (tool: Tool): string | null => {
       return validatedToolDefinition.name;
     case "AWS":
       return validatedToolDefinition.toolSpec.name;
+    case "GOOGLE":
+      return validatedToolDefinition.functionDeclarations[0]?.name ?? null;
     case "UNKNOWN":
       return null;
     default:
@@ -996,11 +999,10 @@ export const createToolForProvider = ({
         id: generateToolId(),
         definition: createAwsToolDefinition(toolNumber),
       };
-    // TODO(apowell): #5348 Add Google tool definition
     case "GOOGLE":
       return {
         id: generateToolId(),
-        definition: createOpenAIToolDefinition(toolNumber),
+        definition: createGeminiToolDefinition(toolNumber),
       };
     default:
       assertUnreachable(provider);

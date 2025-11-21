@@ -35,6 +35,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   OLLAMA: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
   AWS: ["any", "auto", "none"] as const,
+  GOOGLE: ["auto"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
 >;
@@ -271,6 +272,8 @@ export function ToolChoiceSelector<
                 })
               );
               break;
+            case "GOOGLE":
+              throw new Error("Google tool choice not supported");
             default:
               assertUnreachable(provider);
           }
@@ -301,6 +304,8 @@ export function ToolChoiceSelector<
                 })
               );
               break;
+            case "GOOGLE":
+              throw new Error("Google tool choice not supported");
             default:
               assertUnreachable(provider);
           }
