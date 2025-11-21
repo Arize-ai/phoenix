@@ -53,6 +53,7 @@
   "author": "oss@arize.com",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@ai-sdk/google": "^2.0.40",
     "@ai-sdk/openai": "^2.0.0",
     "@arizeai/openinference-instrumentation-openai": "^2.3.0",
     "@types/mustache": "^4.2.6",
