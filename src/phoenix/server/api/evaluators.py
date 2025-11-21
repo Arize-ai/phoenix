@@ -83,7 +83,8 @@ def apply_input_mapping(
                     result[key] = matches[0].value
             except Exception:
                 pass
-    # apply literal mappings
+
+    # literal mappings take priority over path mappings
     if hasattr(input_mapping, "literal_mapping"):
         for key, value in input_mapping.literal_mapping.items():
             result[key] = value
@@ -171,7 +172,7 @@ class ContainsEvaluator(BuiltInEvaluator):
     ) -> EvaluationResult:
         inputs = apply_input_mapping(self.input_schema, input_mapping, context)
         contains = inputs.get("contains", "").lower()
-        output = context.get("output", "").lower()
+        output = inputs.get("output", "").lower()
         now = datetime.now(timezone.utc)
         matched = str(contains) in str(output)
         return EvaluationResult(
