@@ -10,7 +10,6 @@ from phoenix.evals.templating import (
     Template,
     TemplateFormat,
     detect_template_format,
-    render_template,
 )
 
 
@@ -228,115 +227,6 @@ def test_dot_delimited_f_string_variables() -> None:
     assert template.render({"hello.world": "hello! world!"}) == "hello! world!"
     assert template.render({"hello": Hello()}) == "why hello, world"
     assert template.variables == ["hello.world"]
-
-
-class TestRenderTemplate:
-    """Tests for render_template function with message lists."""
-
-    def test_render_string_template(self) -> None:
-        """Test that string templates are rendered correctly."""
-        template = "Hello {name}, welcome to {place}"
-        variables = {"name": "Alice", "place": "Phoenix"}
-        result = render_template(template, variables)
-        assert result == "Hello Alice, welcome to Phoenix"
-
-    def test_render_single_message_fstring(self) -> None:
-        """Test rendering a single message with f-string variables."""
-        template = [{"role": "user", "content": "Score this text: {text}"}]
-        variables = {"text": "hello world"}
-        result = render_template(template, variables)
-
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert result[0]["role"] == "user"
-        assert result[0]["content"] == "Score this text: hello world"
-
-    def test_render_multiple_messages_fstring(self) -> None:
-        """Test rendering multiple messages with f-string variables."""
-        template = [
-            {"role": "system", "content": "You are {role}"},
-            {"role": "user", "content": "Analyze this: {text}"},
-        ]
-        variables = {"role": "a helpful assistant", "text": "sample text"}
-        result = render_template(template, variables)
-
-        assert isinstance(result, list)
-        assert len(result) == 2
-        assert result[0]["role"] == "system"
-        assert result[0]["content"] == "You are a helpful assistant"
-        assert result[1]["role"] == "user"
-        assert result[1]["content"] == "Analyze this: sample text"
-
-    def test_render_messages_with_mustache(self) -> None:
-        """Test rendering messages with mustache variables."""
-        template = [{"role": "user", "content": "Hello {{name}}, score {{text}}"}]
-        variables = {"name": "Alice", "text": "document"}
-        result = render_template(template, variables, template_format=TemplateFormat.MUSTACHE)
-
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert result[0]["content"] == "Hello Alice, score document"
-
-    def test_render_messages_no_variables(self) -> None:
-        """Test rendering messages without variables."""
-        template = [
-            {"role": "system", "content": "You are a helpful assistant"},
-            {"role": "user", "content": "Hello"},
-        ]
-        variables = {}
-        result = render_template(template, variables)
-
-        assert isinstance(result, list)
-        assert len(result) == 2
-        assert result[0]["content"] == "You are a helpful assistant"
-        assert result[1]["content"] == "Hello"
-
-    def test_render_messages_preserves_extra_fields(self) -> None:
-        """Test that extra message fields are preserved."""
-        template = [{"role": "user", "content": "Hello {name}", "name": "ChatBot", "id": 123}]
-        variables = {"name": "Alice"}
-        result = render_template(template, variables)
-
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert result[0]["role"] == "user"
-        assert result[0]["content"] == "Hello Alice"
-        assert result[0]["name"] == "ChatBot"
-        assert result[0]["id"] == 123
-
-    def test_render_messages_without_content_field(self) -> None:
-        """Test handling messages without content field."""
-        template = [{"role": "user"}]
-        variables = {}
-        result = render_template(template, variables)
-
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert result[0]["role"] == "user"
-        assert "content" not in result[0]
-
-    def test_render_empty_message_list(self) -> None:
-        """Test rendering an empty message list."""
-        template: List[Dict[str, str]] = []
-        variables = {}
-        result = render_template(template, variables)
-
-        assert isinstance(result, list)
-        assert len(result) == 0
-
-    def test_render_template_invalid_type(self) -> None:
-        """Test that invalid template types raise TypeError."""
-        with pytest.raises(TypeError, match="Template must be a string or list"):
-            render_template(123, {})  # type: ignore
-
-    def test_render_messages_multiple_variables_in_content(self) -> None:
-        """Test rendering messages with multiple variables in content."""
-        template = [{"role": "user", "content": "{name} scored {score} on {task}"}]
-        variables = {"name": "Alice", "score": "95", "task": "math test"}
-        result = render_template(template, variables)
-
-        assert isinstance(result, list)
-        assert result[0]["content"] == "Alice scored 95 on math test"
 
 
 class TestPromptTemplate:

@@ -436,29 +436,3 @@ class PromptTemplate:
                     rendered_msg["content"] = dedent(rendered_content)
                 rendered_messages.append(rendered_msg)
             return rendered_messages
-
-
-def render_template(
-    template: Union[str, List[Dict[str, Any]]],
-    variables: Dict[str, Any],
-    template_format: Optional[TemplateFormat] = None,
-) -> Union[str, List[Dict[str, Any]]]:
-    """Render a template with variables.
-
-    Supports both string templates and OpenAI-style message lists.
-    For message lists, renders the content field of each message.
-
-    Args:
-        template: Either a string template or a list of message dicts with role and content.
-        variables: Variables to substitute into the template.
-        template_format: Optional format specification (F_STRING or MUSTACHE).
-            If None, format will be auto-detected for string templates.
-
-    Returns:
-        Rendered template in the same format as input (str or List[Dict]).
-
-    Raises:
-        TypeError: If template is not a string or list.
-    """
-    prompt_template = PromptTemplate(template=template, template_format=template_format)
-    return prompt_template.render(variables)
