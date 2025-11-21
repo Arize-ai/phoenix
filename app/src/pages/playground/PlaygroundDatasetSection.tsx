@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
 import {
   Flex,
@@ -16,6 +16,7 @@ import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/EvaluatorConfigDialog";
+import { PlaygroundDatasetSection_evaluators$key } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluators.graphql";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { Mutable } from "@phoenix/typeUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -51,21 +52,8 @@ export function PlaygroundDatasetSection({
               name
               color
             }
-            evaluators {
-              edges {
-                evaluator: node {
-                  id
-                  name
-                  kind
-                  isAssignedToDataset(datasetId: $datasetId)
-                  ... on LLMEvaluator {
-                    outputConfig {
-                      name
-                    }
-                  }
-                }
-              }
-            }
+            ...PlaygroundDatasetSection_evaluators
+              @arguments(datasetId: $datasetId)
           }
           ...EvaluatorConfigDialog_dataset
         }
@@ -75,6 +63,30 @@ export function PlaygroundDatasetSection({
       datasetId,
       splitIds: splitIds ?? null,
     }
+  );
+
+  const evaluatorsData = useFragment<PlaygroundDatasetSection_evaluators$key>(
+    graphql`
+      fragment PlaygroundDatasetSection_evaluators on Dataset
+      @argumentDefinitions(datasetId: { type: "ID!" }) {
+        evaluators(first: 100) {
+          edges {
+            evaluator: node {
+              id
+              name
+              kind
+              isAssignedToDataset(datasetId: $datasetId)
+              ... on LLMEvaluator {
+                outputConfig {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    data.dataset
   );
 
   // Filter to only the selected splits
@@ -92,7 +104,7 @@ export function PlaygroundDatasetSection({
   }, [data, splitIds]);
 
   const evaluators =
-    data.dataset.evaluators?.edges?.map((edge) => ({
+    evaluatorsData.evaluators.edges.map((edge) => ({
       ...edge.evaluator,
       annotationName: edge.evaluator.outputConfig?.name,
     })) ?? [];
