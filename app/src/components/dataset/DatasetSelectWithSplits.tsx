@@ -157,13 +157,17 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         <Flex alignItems="center" width="100%">
           {selectedDataset ? (
             <>
-              <Text>{selectedDataset.name}</Text>
+              <Text>
+                <Truncate maxWidth="10rem">{selectedDataset.name}</Truncate>
+              </Text>
               {selectedSplits.length > 0 ? (
-                <Text color="text-300">
-                  &nbsp;/{" "}
-                  {selectedSplits.length === 1
-                    ? selectedSplits[0].name
-                    : `${selectedSplits.length} splits`}
+                <Text color="text-300" minWidth={0}>
+                  <Truncate maxWidth="100%">
+                    &nbsp;/&nbsp;
+                    {selectedSplits.length === 1
+                      ? selectedSplits[0].name
+                      : `${selectedSplits.length} splits`}
+                  </Truncate>
                 </Text>
               ) : (
                 <Text color="text-300">&nbsp;/ All Examples</Text>
