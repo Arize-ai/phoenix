@@ -1,0 +1,14 @@
+instances:
+  alice:
+    id: 1
+    name: Alice
+    email: alice@example.com
+    roles:
+      - admin
+      - user
+
+  bob:
+    id: 2
+    name: Bob
+    roles:
+      - user
