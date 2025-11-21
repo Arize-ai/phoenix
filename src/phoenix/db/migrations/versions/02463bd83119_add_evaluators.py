@@ -162,22 +162,16 @@ def upgrade() -> None:
             "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
             name="evaluator_id_xor_builtin_evaluator_id",
         ),
-    )
-    op.create_index(
-        "ix_datasets_evaluators_dataset_evaluator",
-        "datasets_evaluators",
-        ["dataset_id", "evaluator_id"],
-        unique=True,
-        postgresql_where=sa.text("evaluator_id IS NOT NULL"),
-        sqlite_where=sa.text("evaluator_id IS NOT NULL"),
-    )
-    op.create_index(
-        "ix_datasets_evaluators_dataset_builtin",
-        "datasets_evaluators",
-        ["dataset_id", "builtin_evaluator_id"],
-        unique=True,
-        postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
-        sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),
+        sa.UniqueConstraint(
+            "dataset_id",
+            "evaluator_id",
+            name="uq_datasets_evaluators_dataset_evaluator",
+        ),
+        sa.UniqueConstraint(
+            "dataset_id",
+            "builtin_evaluator_id",
+            name="uq_datasets_evaluators_dataset_builtin",
+        ),
     )
 
 
