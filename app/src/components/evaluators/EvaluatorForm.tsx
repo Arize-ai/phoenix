@@ -206,12 +206,6 @@ export const EvaluatorForm = () => {
               border: 1px solid var(--ac-global-border-color-default);
             `}
           >
-            <Flex direction="column" gap="size-100">
-              <Heading level={3}>Connect your evaluator</Heading>
-              <Text color="text-500">
-                Define a connection between this evaluator and a dataset.
-              </Text>
-            </Flex>
             <EvaluatorExampleDataset
               selectedDatasetId={selectedDatasetId}
               onSelectDataset={(datasetId) => {
@@ -235,7 +229,7 @@ export const EvaluatorForm = () => {
               <Heading level={3}>Test your evaluator</Heading>
               <Text color="text-500">
                 Give your evaluator a test run against the selected dataset
-                example, and your hypothetical task output.
+                example, and a hypothetical task output.
               </Text>
             </Flex>
           </div>
