@@ -958,7 +958,7 @@ export const getToolName = (tool: Tool): string | null => {
     case "AWS":
       return validatedToolDefinition.toolSpec.name;
     case "GOOGLE":
-      return validatedToolDefinition.functionDeclarations[0]?.name ?? null;
+      return validatedToolDefinition.name;
     case "UNKNOWN":
       return null;
     default:
