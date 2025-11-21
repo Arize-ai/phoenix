@@ -13,8 +13,6 @@ import { EvaluatorSort } from "@phoenix/pages/evaluators/__generated__/GlobalEva
 export type EvaluatorsFilterContext = {
   filter: string;
   setFilter: Dispatch<SetStateAction<string>>;
-  selectedEvaluatorIds: string[];
-  setSelectedEvaluatorIds: Dispatch<SetStateAction<string[]>>;
   sort: EvaluatorSort | null | undefined;
   setSort: Dispatch<SetStateAction<EvaluatorSort | null | undefined>>;
 };
@@ -24,15 +22,10 @@ export const evaluatorsFilterContext =
 
 export const EvaluatorsFilterProvider = ({ children }: PropsWithChildren) => {
   const [filter, setFilter] = useState("");
-  const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
-    []
-  );
   const [sort, setSort] = useState<EvaluatorSort | null | undefined>(undefined);
   return (
     <evaluatorsFilterContext.Provider
       value={{
-        selectedEvaluatorIds,
-        setSelectedEvaluatorIds,
         filter,
         setFilter,
         sort,
