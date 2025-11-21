@@ -355,16 +355,6 @@ class TestLLMEvaluator:
         assert isinstance(evaluator.prompt_template, PromptTemplate)
         assert evaluator._get_required_fields(None) == expected_required_fields
 
-    def test_llm_evaluator_initialization_with_template_object(self):
-        """Test LLMEvaluator initialization with PromptTemplate object."""
-        llm = MockLLM()
-        template = PromptTemplate(template="Test template with {input}")
-
-        evaluator = LLMEvaluator(name="test_evaluator", llm=llm, prompt_template=template)
-
-        assert evaluator.prompt_template == template
-        assert evaluator._get_required_fields(None) == {"input"}
-
     def test_llm_evaluator_initialization_with_explicit_required_fields(self):
         """Test LLMEvaluator initialization with explicit required_fields."""
         llm = MockLLM()
