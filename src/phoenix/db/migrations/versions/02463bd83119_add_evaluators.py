@@ -142,6 +142,7 @@ def upgrade() -> None:
     )
     op.create_table(
         "datasets_evaluators",
+        sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "dataset_id",
             _Integer,
@@ -152,13 +153,24 @@ def upgrade() -> None:
             "evaluator_id",
             _Integer,
             sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
-            nullable=False,
+            nullable=True,
             index=True,
         ),
+        sa.Column("builtin_evaluator_id", _Integer, nullable=True, index=True),
         sa.Column("input_config", JSON_, nullable=False),
-        sa.PrimaryKeyConstraint(
+        sa.CheckConstraint(
+            "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
+            name="evaluator_id_xor_builtin_evaluator_id",
+        ),
+        sa.UniqueConstraint(
             "dataset_id",
             "evaluator_id",
+            name="uq_datasets_evaluators_dataset_evaluator",
+        ),
+        sa.UniqueConstraint(
+            "dataset_id",
+            "builtin_evaluator_id",
+            name="uq_datasets_evaluators_dataset_builtin",
         ),
     )
 

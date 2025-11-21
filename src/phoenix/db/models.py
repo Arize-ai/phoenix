@@ -2171,22 +2171,40 @@ class CodeEvaluator(Evaluator):
     )
 
 
-class DatasetsEvaluators(Base):
+class DatasetsEvaluators(HasId):
     __tablename__ = "datasets_evaluators"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
     )
-    evaluator_id: Mapped[int] = mapped_column(
+    evaluator_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("evaluators.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    builtin_evaluator_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        nullable=True,
         index=True,
     )
     input_config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_evaluators")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator", back_populates="datasets_evaluators")
+    evaluator: Mapped[Optional["Evaluator"]] = relationship(
+        "Evaluator", back_populates="datasets_evaluators"
+    )
 
     __table_args__ = (
-        PrimaryKeyConstraint(
+        CheckConstraint(
+            "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
+            name="evaluator_id_xor_builtin_evaluator_id",
+        ),
+        UniqueConstraint(
             "dataset_id",
             "evaluator_id",
+            name="uq_datasets_evaluators_dataset_evaluator",
+        ),
+        UniqueConstraint(
+            "dataset_id",
+            "builtin_evaluator_id",
+            name="uq_datasets_evaluators_dataset_builtin",
         ),
     )

@@ -27,13 +27,13 @@ Provide any remaining important reminders for the LLM to keep in mind while grad
 `;
 
 const USER_PROMPT = `
-<input>
-{{input}}
-</input>
+<reference_answer>
+{{reference_answer}}
+</reference_answer>
 
-<output>
-{{output}}
-</output>
+<provided_answer>
+{{provided_answer}}
+</provided_answer>
 `;
 
 export const DEFAULT_EVALUATOR_TEMPLATE: LLMEvaluatorTemplate = {

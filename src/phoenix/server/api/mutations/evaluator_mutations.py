@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Optional
+from typing import Any, Optional
 
 import strawberry
 from fastapi import Request
@@ -24,6 +24,7 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
 )
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.mutations.annotation_config_mutations import (
     CategoricalAnnotationConfigInput,
@@ -32,6 +33,7 @@ from phoenix.server.api.mutations.annotation_config_mutations import (
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluator,
     CodeEvaluator,
     Evaluator,
     LLMEvaluator,
@@ -49,13 +51,21 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
         tuple of (evaluator_rowid, evaluator_kind)
     """
     type_name, evaluator_rowid = from_global_id(global_id)
-    if type_name not in (LLMEvaluator.__name__, CodeEvaluator.__name__):
+    if type_name not in (
+        LLMEvaluator.__name__,
+        CodeEvaluator.__name__,
+        BuiltInEvaluator.__name__,
+    ):
         raise ValueError(
             f"Invalid evaluator type: {type_name}. "
-            f"Expected {LLMEvaluator.__name__} or {CodeEvaluator.__name__}"
+            f"Expected {LLMEvaluator.__name__}, {CodeEvaluator.__name__} "
+            f"or {BuiltInEvaluator.__name__}"
         )
     # Convert class name to EvaluatorKind literal
-    evaluator_kind: EvaluatorKind = "LLM" if type_name == LLMEvaluator.__name__ else "CODE"
+    if type_name == BuiltInEvaluator.__name__:
+        evaluator_kind: EvaluatorKind = "CODE"
+    else:
+        evaluator_kind = "LLM" if type_name == LLMEvaluator.__name__ else "CODE"
     return evaluator_rowid, evaluator_kind
 
 
@@ -108,6 +118,7 @@ class EvaluatorMutationPayload:
 class AssignEvaluatorToDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
+    input_config: Optional[EvaluatorInputMappingInput] = None
 
 
 @strawberry.input
@@ -355,22 +366,35 @@ class EvaluatorMutationMixin:
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
+        input_config: EvaluatorInputMappingInput = (
+            input.input_config if input.input_config is not None else EvaluatorInputMappingInput()
+        )
+
         # Use upsert for idempotent assignment
         # Foreign key constraints will ensure dataset and evaluator exist
+        is_builtin = evaluator_rowid < 0
+        values: dict[str, Any] = {
+            "dataset_id": dataset_rowid,
+            "input_config": input_config.to_dict(),
+        }
+        if is_builtin:
+            values["builtin_evaluator_id"] = evaluator_rowid
+            values["evaluator_id"] = None
+            unique_by = ("dataset_id", "builtin_evaluator_id")
+        else:
+            values["evaluator_id"] = evaluator_rowid
+            values["builtin_evaluator_id"] = None
+            unique_by = ("dataset_id", "evaluator_id")
+
         try:
             async with info.context.db() as session:
                 await session.execute(
                     insert_on_conflict(
-                        {
-                            "dataset_id": dataset_rowid,
-                            "evaluator_id": evaluator_rowid,
-                            "input_config": {},
-                        },
+                        values,
                         dialect=info.context.db.dialect,
                         table=models.DatasetsEvaluators,
-                        unique_by=("dataset_id", "evaluator_id"),
+                        unique_by=unique_by,
                         on_conflict=OnConflict.DO_UPDATE,
-                        constraint_name="pk_datasets_evaluators",
                     )
                 )
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
@@ -387,7 +411,10 @@ class EvaluatorMutationMixin:
         if evaluator_kind == "LLM":
             evaluator_instance = LLMEvaluator(id=evaluator_rowid)
         elif evaluator_kind == "CODE":
-            evaluator_instance = CodeEvaluator(id=evaluator_rowid)
+            if evaluator_rowid < 0:
+                evaluator_instance = BuiltInEvaluator(id=evaluator_rowid)
+            else:
+                evaluator_instance = CodeEvaluator(id=evaluator_rowid)
         else:
             assert_never(evaluator_kind)
 
@@ -415,8 +442,11 @@ class EvaluatorMutationMixin:
 
         stmt = delete(models.DatasetsEvaluators).where(
             models.DatasetsEvaluators.dataset_id == dataset_rowid,
-            models.DatasetsEvaluators.evaluator_id == evaluator_rowid,
         )
+        if evaluator_rowid < 0:
+            stmt = stmt.where(models.DatasetsEvaluators.builtin_evaluator_id == evaluator_rowid)
+        else:
+            stmt = stmt.where(models.DatasetsEvaluators.evaluator_id == evaluator_rowid)
         async with info.context.db() as session:
             await session.execute(stmt)
 
@@ -425,7 +455,10 @@ class EvaluatorMutationMixin:
         if evaluator_kind == "LLM":
             evaluator_instance = LLMEvaluator(id=evaluator_rowid)
         elif evaluator_kind == "CODE":
-            evaluator_instance = CodeEvaluator(id=evaluator_rowid)
+            if evaluator_rowid < 0:
+                evaluator_instance = BuiltInEvaluator(id=evaluator_rowid)
+            else:
+                evaluator_instance = CodeEvaluator(id=evaluator_rowid)
         else:
             assert_never(evaluator_kind)
 

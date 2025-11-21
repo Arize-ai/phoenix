@@ -1,9 +1,9 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
 import { usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Loading, Modal, ModalOverlay } from "@phoenix/components";
+import { Loading } from "@phoenix/components";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
 import {
   datasetEvaluatorsLoader,
@@ -13,7 +13,6 @@ import {
   DatasetEvaluatorsTable,
   useDatasetEvaluatorsTable,
 } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsTable";
-import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/EvaluatorConfigDialog";
 import { EvaluatorsFilterBar } from "@phoenix/pages/evaluators/EvaluatorsFilterBar";
 import { EvaluatorsFilterProvider } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 
@@ -37,14 +36,6 @@ export function DatasetEvaluatorsPageContent() {
   const evaluatorsTableProps = useDatasetEvaluatorsTable(data.dataset);
   const evaluatorsTableData = evaluatorsTableProps.data;
 
-  const [addingEvaluatorId, setAddingEvaluatorId] = useState<string | null>(
-    null
-  );
-
-  const onCloseEvaluatorConfigDialog = () => {
-    setAddingEvaluatorId(null);
-  };
-
   const connectionsToUpdate = useMemo(() => {
     if (evaluatorsTableData.evaluators.__id) {
       return [evaluatorsTableData.evaluators.__id];
@@ -61,30 +52,13 @@ export function DatasetEvaluatorsPageContent() {
             size="M"
             datasetId={datasetId}
             updateConnectionIds={connectionsToUpdate}
+            query={data}
           />
         }
       />
       <Suspense fallback={<Loading />}>
         <DatasetEvaluatorsTable {...evaluatorsTableProps} />
       </Suspense>
-      <ModalOverlay
-        isOpen={!!addingEvaluatorId}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setAddingEvaluatorId(null);
-          }
-        }}
-      >
-        <Modal size="L">
-          {addingEvaluatorId && (
-            <EvaluatorConfigDialog
-              evaluatorId={addingEvaluatorId}
-              onClose={onCloseEvaluatorConfigDialog}
-              datasetRef={data.dataset}
-            />
-          )}
-        </Modal>
-      </ModalOverlay>
     </main>
   );
 }
