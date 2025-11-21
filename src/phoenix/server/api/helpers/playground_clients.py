@@ -1798,6 +1798,11 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_k",
                 label="Top K",
             ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+            ),
         ]
 
     async def chat_completion_create(
@@ -1898,6 +1903,11 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
             FloatInvocationParameter(
                 invocation_name="top_k",
                 label="Top K",
+            ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
             ),
         ]
 

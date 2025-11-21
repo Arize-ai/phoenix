@@ -3,7 +3,7 @@ import zodToJsonSchema from "zod-to-json-schema";
 
 import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 
-import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
+import { jsonLiteralSchema } from "./jsonLiteralSchema";
 
 const jsonSchemaPropertiesSchema = z
   .object({
@@ -151,10 +151,224 @@ export const awsToolDefinitionJSONSchema = zodToJsonSchema(
 );
 
 /**
+ * Gemini uses uppercase type values (STRING, NUMBER, INTEGER, BOOLEAN, ARRAY, OBJECT, NULL)
+ * instead of lowercase like OpenAPI standard
+ */
+type GeminiSchemaProperties = {
+  type:
+    | "STRING"
+    | "NUMBER"
+    | "INTEGER"
+    | "BOOLEAN"
+    | "ARRAY"
+    | "OBJECT"
+    | "NULL";
+  description?: string;
+  enum?: string[];
+  format?: string;
+  nullable?: boolean;
+  items?: GeminiSchemaProperties;
+  properties?: Record<string, GeminiSchemaProperties>;
+  required?: string[];
+  [key: string]: unknown;
+};
+
+const geminiSchemaPropertiesSchema: z.ZodType<GeminiSchemaProperties> = z
+  .object({
+    type: z
+      .enum([
+        "STRING",
+        "NUMBER",
+        "INTEGER",
+        "BOOLEAN",
+        "ARRAY",
+        "OBJECT",
+        "NULL",
+      ])
+      .describe("The type of the parameter"),
+    description: z
+      .string()
+      .optional()
+      .describe("A description of the parameter"),
+    enum: z.array(z.string()).optional().describe("The allowed values"),
+    format: z.string().optional().describe("The format of the data"),
+    nullable: z.boolean().optional().describe("Whether the value may be null"),
+    items: z
+      .lazy(() => geminiSchemaPropertiesSchema)
+      .optional()
+      .describe("Schema of array elements"),
+    properties: z
+      .record(z.lazy(() => geminiSchemaPropertiesSchema))
+      .optional()
+      .describe("Properties of object type"),
+    required: z
+      .array(z.string())
+      .optional()
+      .describe("Required properties for object type"),
+  })
+  .passthrough()
+  .describe("A Gemini schema property definition");
+
+const geminiFunctionDeclarationSchema = z.object({
+  name: z.string().describe("The name of the function"),
+  description: z.string().optional().describe("A description of the function"),
+  parameters: geminiSchemaPropertiesSchema
+    .optional()
+    .describe("The parameters that the function accepts"),
+});
+
+export const geminiToolDefinitionSchema = z.object({
+  functionDeclarations: z
+    .array(geminiFunctionDeclarationSchema)
+    .describe("List of function declarations that the tool supports"),
+});
+
+export type GeminiToolDefinition = z.infer<typeof geminiToolDefinitionSchema>;
+
+export const geminiToolDefinitionJSONSchema = zodToJsonSchema(
+  geminiToolDefinitionSchema,
+  {
+    removeAdditionalStrategy: "passthrough",
+  }
+);
+
+/**
  * --------------------------------
  * Conversion Schemas
  * --------------------------------
  */
+
+/**
+ * Convert Gemini schema types (uppercase) to OpenAPI types (lowercase)
+ */
+const convertGeminiSchemaToOpenAPI = (
+  geminiSchema: GeminiSchemaProperties
+): Record<string, unknown> => {
+  const openaiSchema: Record<string, unknown> = {
+    ...geminiSchema,
+    type: geminiSchema.type?.toLowerCase(),
+  };
+
+  if (geminiSchema.properties) {
+    openaiSchema.properties = Object.fromEntries(
+      Object.entries(geminiSchema.properties).map(([key, value]) => [
+        key,
+        convertGeminiSchemaToOpenAPI(value),
+      ])
+    );
+  }
+
+  if (geminiSchema.items) {
+    openaiSchema.items = convertGeminiSchemaToOpenAPI(geminiSchema.items);
+  }
+
+  return openaiSchema;
+};
+
+/**
+ * Convert OpenAPI schema types (lowercase) to Gemini types (uppercase)
+ */
+const convertOpenAPISchemaToGemini = (
+  openaiSchema: Record<string, unknown>
+): GeminiSchemaProperties => {
+  const geminiSchema: Record<string, unknown> = {
+    ...openaiSchema,
+    type:
+      typeof openaiSchema.type === "string"
+        ? openaiSchema.type.toUpperCase()
+        : openaiSchema.type,
+  };
+
+  if (
+    "properties" in openaiSchema &&
+    openaiSchema.properties &&
+    typeof openaiSchema.properties === "object"
+  ) {
+    geminiSchema.properties = Object.fromEntries(
+      Object.entries(openaiSchema.properties).map(([key, value]) => {
+        if (
+          typeof value === "object" &&
+          value !== null &&
+          "anyOf" in value &&
+          Array.isArray(value.anyOf) &&
+          value.anyOf[0]
+        ) {
+          // For anyOf, just take the first option for simplicity
+          return [
+            key,
+            convertOpenAPISchemaToGemini(
+              value.anyOf[0] as Record<string, unknown>
+            ),
+          ];
+        }
+        return [
+          key,
+          convertOpenAPISchemaToGemini(value as Record<string, unknown>),
+        ];
+      })
+    );
+  }
+
+  if (
+    "items" in openaiSchema &&
+    openaiSchema.items &&
+    typeof openaiSchema.items === "object"
+  ) {
+    geminiSchema.items = convertOpenAPISchemaToGemini(
+      openaiSchema.items as Record<string, unknown>
+    );
+  }
+
+  return geminiSchema as GeminiSchemaProperties;
+};
+
+/**
+ * Convert a Gemini tool (which can have multiple function declarations) to OpenAI format
+ * Returns an array of OpenAI tool definitions, one for each function declaration
+ */
+const convertGeminiToOpenAITools = (
+  gemini: GeminiToolDefinition
+): OpenAIToolDefinition[] => {
+  return gemini.functionDeclarations.map((func) => {
+    const parameters = func.parameters
+      ? convertGeminiSchemaToOpenAPI(func.parameters)
+      : { type: "object", properties: {} };
+
+    // Ensure type is "object" for OpenAI compatibility
+    if (!parameters.type) {
+      parameters.type = "object";
+    }
+
+    return {
+      type: "function" as const,
+      function: {
+        name: func.name,
+        description: func.description,
+        parameters:
+          parameters as OpenAIToolDefinition["function"]["parameters"],
+      },
+    };
+  });
+};
+
+/**
+ * Convert an OpenAI tool to Gemini format
+ */
+const convertOpenAIToGeminiTool = (
+  openai: OpenAIToolDefinition
+): GeminiToolDefinition => {
+  return {
+    functionDeclarations: [
+      {
+        name: openai.function.name,
+        description: openai.function.description,
+        parameters: openai.function.parameters
+          ? convertOpenAPISchemaToGemini(openai.function.parameters)
+          : undefined,
+      },
+    ],
+  };
+};
 
 export const awsToolToOpenAI = awsToolDefinitionSchema.transform(
   (aws): OpenAIToolDefinition => ({
@@ -219,6 +433,7 @@ export const llmProviderToolDefinitionSchema = z.union([
   openAIToolDefinitionSchema,
   anthropicToolDefinitionSchema,
   awsToolDefinitionSchema,
+  geminiToolDefinitionSchema,
   jsonLiteralSchema,
 ]);
 
@@ -238,6 +453,10 @@ type ToolDefinitionWithProvider =
   | {
       provider: Extract<ModelProvider, "AWS">;
       validatedToolDefinition: AwsToolDefinition;
+    }
+  | {
+      provider: Extract<ModelProvider, "GOOGLE">;
+      validatedToolDefinition: GeminiToolDefinition;
     }
   | {
       provider: "UNKNOWN";
@@ -276,6 +495,16 @@ export const detectToolDefinitionProvider = (
       validatedToolDefinition: awsData,
     };
   }
+
+  const { success: geminiSuccess, data: geminiData } =
+    geminiToolDefinitionSchema.safeParse(toolDefinition);
+  if (geminiSuccess) {
+    return {
+      provider: "GOOGLE",
+      validatedToolDefinition: geminiData,
+    };
+  }
+
   return { provider: "UNKNOWN", validatedToolDefinition: null };
 };
 
@@ -283,8 +512,7 @@ type ProviderToToolDefinitionMap = {
   OPENAI: OpenAIToolDefinition;
   AZURE_OPENAI: OpenAIToolDefinition;
   ANTHROPIC: AnthropicToolDefinition;
-  // Use generic JSON type for unknown tool formats / new providers
-  GOOGLE: JSONLiteral;
+  GOOGLE: GeminiToolDefinition;
   DEEPSEEK: OpenAIToolDefinition;
   XAI: OpenAIToolDefinition;
   OLLAMA: OpenAIToolDefinition;
@@ -307,6 +535,11 @@ export const toOpenAIToolDefinition = (
       return anthropicToolToOpenAI.parse(validatedToolDefinition);
     case "AWS":
       return awsToolToOpenAI.parse(validatedToolDefinition);
+    case "GOOGLE": {
+      // Gemini can have multiple function declarations, return the first one
+      const converted = convertGeminiToOpenAITools(validatedToolDefinition);
+      return converted[0] ?? null;
+    }
     case "UNKNOWN":
       return null;
     default:
@@ -339,9 +572,10 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
       return openAIToolToAws.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
-    // TODO(apowell): #5348 Add Google tool calls schema - https://github.com/Arize-ai/phoenix/issues/5348
     case "GOOGLE":
-      return toolDefinition as ProviderToToolDefinitionMap[T];
+      return convertOpenAIToGeminiTool(
+        toolDefinition
+      ) as ProviderToToolDefinitionMap[T];
     default:
       assertUnreachable(targetProvider);
   }
@@ -416,12 +650,40 @@ export function createAwsToolDefinition(toolNumber: number): AwsToolDefinition {
   };
 }
 
+/**
+ * Creates a Gemini tool definition
+ * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1 to be used to fill in the name
+ * @returns a Gemini tool definition
+ */
+export function createGeminiToolDefinition(
+  toolNumber: number
+): GeminiToolDefinition {
+  return {
+    functionDeclarations: [
+      {
+        name: `new_function_${toolNumber}`,
+        description: "a description",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            new_arg: {
+              type: "STRING",
+            },
+          },
+          required: [],
+        },
+      },
+    ],
+  };
+}
+
 export const findToolDefinitionName = (toolDefinition: unknown) => {
   const parsed = llmProviderToolDefinitionSchema.safeParse(toolDefinition);
   if (!parsed.success || parsed.data === null || !isObject(parsed.data)) {
     return null;
   }
 
+  // OpenAI format
   if (
     "function" in parsed.data &&
     isObject(parsed.data.function) &&
@@ -431,8 +693,31 @@ export const findToolDefinitionName = (toolDefinition: unknown) => {
     return parsed.data.function.name;
   }
 
+  // Anthropic format
   if ("name" in parsed.data && typeof parsed.data.name === "string") {
     return parsed.data.name;
+  }
+
+  // AWS format
+  if (
+    "toolSpec" in parsed.data &&
+    isObject(parsed.data.toolSpec) &&
+    "name" in parsed.data.toolSpec &&
+    typeof parsed.data.toolSpec.name === "string"
+  ) {
+    return parsed.data.toolSpec.name;
+  }
+
+  // Gemini format - get the first function declaration's name
+  if (
+    "functionDeclarations" in parsed.data &&
+    Array.isArray(parsed.data.functionDeclarations) &&
+    parsed.data.functionDeclarations.length > 0 &&
+    isObject(parsed.data.functionDeclarations[0]) &&
+    "name" in parsed.data.functionDeclarations[0] &&
+    typeof parsed.data.functionDeclarations[0].name === "string"
+  ) {
+    return parsed.data.functionDeclarations[0].name;
   }
 
   return null;
@@ -444,6 +729,7 @@ export const findToolDefinitionDescription = (toolDefinition: unknown) => {
     return null;
   }
 
+  // OpenAI format
   if (
     "function" in parsed.data &&
     isObject(parsed.data.function) &&
@@ -453,11 +739,34 @@ export const findToolDefinitionDescription = (toolDefinition: unknown) => {
     return parsed.data.function.description;
   }
 
+  // Anthropic format
   if (
     "description" in parsed.data &&
     typeof parsed.data.description === "string"
   ) {
     return parsed.data.description;
+  }
+
+  // AWS format
+  if (
+    "toolSpec" in parsed.data &&
+    isObject(parsed.data.toolSpec) &&
+    "description" in parsed.data.toolSpec &&
+    typeof parsed.data.toolSpec.description === "string"
+  ) {
+    return parsed.data.toolSpec.description;
+  }
+
+  // Gemini format - get the first function declaration's description
+  if (
+    "functionDeclarations" in parsed.data &&
+    Array.isArray(parsed.data.functionDeclarations) &&
+    parsed.data.functionDeclarations.length > 0 &&
+    isObject(parsed.data.functionDeclarations[0]) &&
+    "description" in parsed.data.functionDeclarations[0] &&
+    typeof parsed.data.functionDeclarations[0].description === "string"
+  ) {
+    return parsed.data.functionDeclarations[0].description;
   }
 
   return null;
