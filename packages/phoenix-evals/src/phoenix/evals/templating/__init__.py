@@ -301,6 +301,137 @@ class Template:
         return dedent(self._formatter.render(self.template, variables))
 
 
+class PromptTemplate:
+    """
+    Unified template class for rendering prompts with either string or message list format.
+
+    Supports:
+    - String templates with mustache ({{variable}}) or f-string ({variable}) formats
+    - OpenAI-style message lists with role and content fields
+
+    Provides a uniform interface regardless of the internal template format.
+    """
+
+    def __init__(
+        self,
+        *,
+        template: Union[str, List[Dict[str, Any]]],
+        template_format: Optional[TemplateFormat] = None,
+    ):
+        """Initialize a PromptTemplate instance.
+
+        Args:
+            template: Either a string template or a list of message dicts with role and content.
+            template_format: Optional format specification (F_STRING or MUSTACHE).
+                If None, format will be auto-detected for string templates.
+
+        Raises:
+            ValueError: If the template is empty.
+            TypeError: If template is not a string or list.
+        """
+        if isinstance(template, str):
+            if not template:
+                raise ValueError("Template cannot be empty")
+            self._is_string = True
+            self._template = template
+            self._template_format = template_format
+
+            # Create formatter for string template
+            if template_format is None:
+                self.template_format = detect_template_format(template)
+                self._formatter = FormatterFactory.auto_detect_and_create(template)
+            else:
+                self.template_format = template_format
+                self._formatter = FormatterFactory.create(self.template_format)
+
+            # Extract variables from string template
+            self._variables = self._formatter.extract_variables(self._template)
+
+        elif isinstance(template, list):
+            self._is_string = False
+            self._template = template
+            self._template_format = template_format
+            self.template_format = template_format or TemplateFormat.F_STRING
+
+            # Extract variables from all message content fields
+            variables_set: set[str] = set()
+            for msg in template:
+                if "content" in msg and msg["content"]:
+                    # Detect format for this message's content
+                    if template_format is None:
+                        msg_format = detect_template_format(msg["content"])
+                        formatter = FormatterFactory.create(msg_format)
+                    else:
+                        formatter = FormatterFactory.create(template_format)
+
+                    msg_variables = formatter.extract_variables(msg["content"])
+                    variables_set.update(msg_variables)
+
+            self._variables = list(variables_set)
+        else:
+            raise TypeError(
+                f"Template must be a string or list of message dicts, got {type(template)}"
+            )
+
+    @property
+    def template(self) -> Union[str, List[Dict[str, Any]]]:
+        """Get the raw template.
+
+        Returns:
+            The template in its original format (str or List[Dict]).
+        """
+        return self._template
+
+    @property
+    def variables(self) -> List[str]:
+        """Get the list of variables used in the template.
+
+        Returns:
+            List[str]: A list of variable names found in the template.
+        """
+        return self._variables
+
+    def render(
+        self, variables: Dict[str, Any], tracer: Optional[Tracer] = None
+    ) -> Union[str, List[Dict[str, Any]]]:
+        """Render the template with the given variables.
+
+        Args:
+            variables: The variables to substitute into the template.
+            tracer: Optional tracer for tracing operations.
+
+        Returns:
+            Rendered template in the same format as input (str or List[Dict]).
+
+        Raises:
+            TypeError: If variables is not a dictionary.
+        """
+        if not isinstance(variables, dict):  # pyright: ignore
+            raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
+
+        if self._is_string:
+            # Render string template
+            rendered = self._formatter.render(self._template, variables)  # type: ignore
+            return dedent(rendered)
+        else:
+            # Render message list
+            rendered_messages = []
+            for msg in self._template:  # type: ignore
+                rendered_msg = msg.copy()  # Preserve all fields including extras
+                if "content" in msg:
+                    # Create formatter for this message's content
+                    if self._template_format is None:
+                        msg_format = detect_template_format(msg["content"])
+                        formatter = FormatterFactory.create(msg_format)
+                    else:
+                        formatter = FormatterFactory.create(self._template_format)
+
+                    rendered_content = formatter.render(msg["content"], variables)
+                    rendered_msg["content"] = dedent(rendered_content)
+                rendered_messages.append(rendered_msg)
+            return rendered_messages
+
+
 def render_template(
     template: Union[str, List[Dict[str, Any]]],
     variables: Dict[str, Any],
@@ -323,24 +454,5 @@ def render_template(
     Raises:
         TypeError: If template is not a string or list.
     """
-    if isinstance(template, str):
-        # Use existing Template class for string rendering
-        template_obj = Template(template=template, template_format=template_format)
-        return template_obj.render(variables)
-
-    elif isinstance(template, list):
-        # Render each message's content field
-        rendered_messages = []
-        for msg in template:
-            rendered_msg = msg.copy()  # Preserve all fields including extras
-            if "content" in msg:
-                # Render content using Template class
-                content_template = Template(
-                    template=msg["content"], template_format=template_format
-                )
-                rendered_msg["content"] = content_template.render(variables)
-            rendered_messages.append(rendered_msg)
-        return rendered_messages
-
-    else:
-        raise TypeError(f"Template must be a string or list of message dicts, got {type(template)}")
+    prompt_template = PromptTemplate(template=template, template_format=template_format)
+    return prompt_template.render(variables)

@@ -6,6 +6,7 @@ from phoenix.evals.templating import (
     FormatterFactory,
     FStringFormatter,
     MustacheFormatter,
+    PromptTemplate,
     Template,
     TemplateFormat,
     detect_template_format,
@@ -336,3 +337,127 @@ class TestRenderTemplate:
 
         assert isinstance(result, list)
         assert result[0]["content"] == "Alice scored 95 on math test"
+
+
+class TestPromptTemplate:
+    """Tests for the unified PromptTemplate class."""
+
+    def test_string_template_creation(self) -> None:
+        """Test creating PromptTemplate with a string."""
+        template = PromptTemplate(template="Hello {name}")
+        assert template.template == "Hello {name}"
+        assert template.variables == ["name"]
+        assert template.template_format == TemplateFormat.F_STRING
+
+    def test_message_list_template_creation(self) -> None:
+        """Test creating PromptTemplate with a message list."""
+        messages = [
+            {"role": "system", "content": "You are {role}"},
+            {"role": "user", "content": "Analyze {text}"},
+        ]
+        template = PromptTemplate(template=messages)
+        assert template.template == messages
+        assert set(template.variables) == {"role", "text"}
+
+    def test_string_template_rendering(self) -> None:
+        """Test rendering a string template."""
+        template = PromptTemplate(template="Hello {name}, welcome to {place}")
+        result = template.render({"name": "Alice", "place": "Phoenix"})
+        assert result == "Hello Alice, welcome to Phoenix"
+
+    def test_message_list_rendering(self) -> None:
+        """Test rendering a message list template."""
+        messages = [
+            {"role": "system", "content": "You are {role}"},
+            {"role": "user", "content": "Score this: {text}"},
+        ]
+        template = PromptTemplate(template=messages)
+        result = template.render({"role": "a helpful assistant", "text": "hello world"})
+
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["role"] == "system"
+        assert result[0]["content"] == "You are a helpful assistant"
+        assert result[1]["role"] == "user"
+        assert result[1]["content"] == "Score this: hello world"
+
+    def test_mustache_string_template(self) -> None:
+        """Test PromptTemplate with mustache format."""
+        template = PromptTemplate(
+            template="Hello {{name}}", template_format=TemplateFormat.MUSTACHE
+        )
+        assert template.template_format == TemplateFormat.MUSTACHE
+        assert template.variables == ["name"]
+        result = template.render({"name": "Bob"})
+        assert result == "Hello Bob"
+
+    def test_mustache_message_list(self) -> None:
+        """Test PromptTemplate with mustache format in messages."""
+        messages = [{"role": "user", "content": "Hello {{name}}, rate {{text}}"}]
+        template = PromptTemplate(template=messages, template_format=TemplateFormat.MUSTACHE)
+        result = template.render({"name": "Alice", "text": "document"})
+
+        assert isinstance(result, list)
+        assert result[0]["content"] == "Hello Alice, rate document"
+
+    def test_message_list_preserves_extra_fields(self) -> None:
+        """Test that extra fields in messages are preserved."""
+        messages = [
+            {"role": "user", "content": "Hello {name}", "id": 123, "metadata": {"key": "value"}}
+        ]
+        template = PromptTemplate(template=messages)
+        result = template.render({"name": "Alice"})
+
+        assert isinstance(result, list)
+        assert result[0]["role"] == "user"
+        assert result[0]["content"] == "Hello Alice"
+        assert result[0]["id"] == 123
+        assert result[0]["metadata"] == {"key": "value"}
+
+    def test_empty_string_raises_error(self) -> None:
+        """Test that empty string template raises ValueError."""
+        with pytest.raises(ValueError, match="Template cannot be empty"):
+            PromptTemplate(template="")
+
+    def test_invalid_variables_type_raises_error(self) -> None:
+        """Test that invalid variables type raises TypeError."""
+        template = PromptTemplate(template="Hello {name}")
+        with pytest.raises(TypeError, match="Variables must be a dictionary"):
+            template.render("invalid")  # type: ignore
+
+    def test_message_without_content(self) -> None:
+        """Test handling messages without content field."""
+        messages = [{"role": "user"}]
+        template = PromptTemplate(template=messages)
+        result = template.render({})
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["role"] == "user"
+        assert "content" not in result[0]
+
+    def test_mixed_variables_in_multiple_messages(self) -> None:
+        """Test extracting variables from multiple messages with different variables."""
+        messages = [
+            {"role": "system", "content": "You are {role}"},
+            {"role": "user", "content": "Analyze {text} for {user_id}"},
+            {"role": "assistant", "content": "I will analyze the {text}"},
+        ]
+        template = PromptTemplate(template=messages)
+
+        # All unique variables should be extracted
+        assert set(template.variables) == {"role", "text", "user_id"}
+
+    def test_auto_format_detection_for_messages(self) -> None:
+        """Test that format detection works for individual messages."""
+        messages = [{"role": "user", "content": "Hello {{name}}"}]
+        template = PromptTemplate(template=messages)  # Auto-detect format
+
+        result = template.render({"name": "Alice"})
+        assert isinstance(result, list)
+        assert result[0]["content"] == "Hello Alice"
+
+    def test_invalid_template_type(self) -> None:
+        """Test that invalid template type raises TypeError."""
+        with pytest.raises(TypeError, match="Template must be a string or list of message dicts"):
+            PromptTemplate(template=123)  # type: ignore
