@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<52aceab96796b0445ccaa947e2f7064c>>
+ * @generated SignedSource<<cd0b7fc1b492e5fcc1fab738ae24ee5c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ import { FragmentRefs } from "relay-runtime";
 export type AssignEvaluatorToDatasetInput = {
   datasetId: string;
   evaluatorId: string;
-  inputConfig: EvaluatorInputMappingInput;
+  inputConfig?: EvaluatorInputMappingInput | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
