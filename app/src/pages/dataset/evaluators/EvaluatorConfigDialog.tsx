@@ -29,6 +29,7 @@ import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/Evaluato
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorConfigDialog_dataset$key } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_dataset.graphql";
 import {
@@ -241,17 +242,21 @@ function EvaluatorConfigDialogContent({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
+        <DialogTitle
+          css={css`
+            overflow: hidden;
+          `}
+        >
           <Flex direction="row" alignItems="center" gap="size-50">
             Add
             <Flex direction="row" alignItems="center" gap="size-25">
               <Icon svg={<Icons.Scale />} />
-              {evaluator.name}
+              <Truncate maxWidth="18rem">{evaluator.name}</Truncate>
             </Flex>
             to
             <Flex direction="row" alignItems="center" gap="size-25">
               <Icon svg={<Icons.DatabaseOutline />} />
-              {dataset.name}
+              <Truncate maxWidth="18rem">{dataset.name}</Truncate>
             </Flex>
           </Flex>
         </DialogTitle>
