@@ -375,7 +375,7 @@ class EvaluatorMutationMixin:
         is_builtin = evaluator_rowid < 0
         values: dict[str, Any] = {
             "dataset_id": dataset_rowid,
-            "input_config": input_config,
+            "input_config": input_config.to_dict(),
         }
         if is_builtin:
             values["builtin_evaluator_id"] = evaluator_rowid
