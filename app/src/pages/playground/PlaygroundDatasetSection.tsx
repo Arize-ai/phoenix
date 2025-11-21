@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
 import {
   Flex,
@@ -15,6 +15,7 @@ import {
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/EvaluatorConfigDialog";
+import { PlaygroundDatasetSection_evaluators$key } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluators.graphql";
 import { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
@@ -44,21 +45,8 @@ export function PlaygroundDatasetSection({
       query PlaygroundDatasetSectionQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
-            evaluators {
-              edges {
-                evaluator: node {
-                  id
-                  name
-                  kind
-                  isAssignedToDataset(datasetId: $datasetId)
-                  ... on LLMEvaluator {
-                    outputConfig {
-                      name
-                    }
-                  }
-                }
-              }
-            }
+            ...PlaygroundDatasetSection_evaluators
+              @arguments(datasetId: $datasetId)
           }
           ...EvaluatorConfigDialog_dataset
         }
@@ -69,8 +57,32 @@ export function PlaygroundDatasetSection({
     }
   );
 
+  const evaluatorsData = useFragment<PlaygroundDatasetSection_evaluators$key>(
+    graphql`
+      fragment PlaygroundDatasetSection_evaluators on Dataset
+      @argumentDefinitions(datasetId: { type: "ID!" }) {
+        evaluators(first: 100) {
+          edges {
+            evaluator: node {
+              id
+              name
+              kind
+              isAssignedToDataset(datasetId: $datasetId)
+              ... on LLMEvaluator {
+                outputConfig {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    data.dataset
+  );
+
   const evaluators =
-    data.dataset.evaluators?.edges?.map((edge) => ({
+    evaluatorsData.evaluators.edges.map((edge) => ({
       ...edge.evaluator,
       annotationName: edge.evaluator.outputConfig?.name,
     })) ?? [];

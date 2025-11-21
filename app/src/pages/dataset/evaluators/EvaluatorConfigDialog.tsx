@@ -161,6 +161,14 @@ function EvaluatorConfigDialogContent({
         $connectionIds: [ID!]!
       ) {
         assignEvaluatorToDataset(input: $input) {
+          query {
+            dataset: node(id: $datasetId) {
+              ...PlaygroundDatasetSection_evaluators
+                @arguments(datasetId: $datasetId)
+              ...DatasetEvaluatorsTable_evaluators
+                @arguments(datasetId: $datasetId)
+            }
+          }
           evaluator
             @appendNode(
               connections: $connectionIds

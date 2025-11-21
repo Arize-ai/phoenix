@@ -1,6 +1,8 @@
 import { useCallback } from "react";
 import { usePaginationFragment } from "react-relay";
+import { useParams } from "react-router";
 import { graphql } from "relay-runtime";
+import invariant from "tiny-invariant";
 
 import { Empty } from "@phoenix/components";
 import { DatasetEvaluatorsTable_evaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTable_evaluators.graphql";
@@ -83,6 +85,8 @@ export const DatasetEvaluatorsTable = ({
   loadNext,
   refetch,
 }: DatasetEvaluatorsTableProps) => {
+  const { datasetId } = useParams();
+  invariant(datasetId, "datasetId is required");
   return (
     <EvaluatorsTable
       rowReferences={data.evaluators.edges.map((edge) => edge.node)}
@@ -100,6 +104,7 @@ export const DatasetEvaluatorsTable = ({
           }
         />
       }
+      datasetId={datasetId}
     />
   );
 };
