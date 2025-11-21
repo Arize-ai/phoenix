@@ -133,8 +133,12 @@ class TestEvaluationHelpersRag:
 
         project_name = _existing_project.name
 
-        client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-        client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+        if is_async:
+            client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
+            client_sync = None  # type: ignore[assignment]
+        else:
+            client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+            client_async = None  # type: ignore[assignment]
 
         # No spans logged
         docs_df: pd.DataFrame
@@ -179,8 +183,12 @@ class TestEvaluationHelpersRag:
             get_retrieved_documents,
         )
 
-        client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-        client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+        if is_async:
+            client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
+            client_sync = None  # type: ignore[assignment]
+        else:
+            client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+            client_async = None  # type: ignore[assignment]
         project_name = _existing_project.name
 
         trace_id = f"trace_retrieve_{token_hex(8)}"
@@ -279,8 +287,12 @@ class TestEvaluationHelpersRag:
             get_retrieved_documents,
         )
 
-        client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-        client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+        if is_async:
+            client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
+            client_sync = None  # type: ignore[assignment]
+        else:
+            client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+            client_async = None  # type: ignore[assignment]
         project_name = _existing_project.name
 
         trace_id = f"trace_concat_{token_hex(8)}"
@@ -417,8 +429,12 @@ class TestEvaluationHelpersRag:
             get_retrieved_documents,
         )
 
-        client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-        client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+        if is_async:
+            client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
+            client_sync = None  # type: ignore[assignment]
+        else:
+            client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
+            client_async = None  # type: ignore[assignment]
         project_name = _existing_project.name
 
         base_time = datetime.now(timezone.utc)
@@ -530,7 +546,7 @@ class TestEvaluationHelpersRag:
             assert documents == {"late doc"}
         else:
             assert not docs_df.empty
-            assert set(docs_df["trace_id"].astype(str).tolist()) == {trace_late}  # type: ignore[union-attr]
+            assert set(docs_df["context.trace_id"].astype(str).tolist()) == {trace_late}  # type: ignore[union-attr]
             assert docs_df.shape[0] == 1
 
         # Ensure retriever docs for the filtered window are visible first (handles lag)
