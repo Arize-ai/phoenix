@@ -204,7 +204,7 @@ def get_input_output_context(
         print("No retrieval documents found.")
         return None
 
-    ref: pd.Series[str] = df_docs.groupby("context.trace_id")["context"].apply(
+    ref: pd.Series[str] = df_docs.groupby(level=0)["context"].apply(
         lambda x: separator.join(x.dropna())
     )
     df_ref = pd.DataFrame({"context": ref})
@@ -412,7 +412,7 @@ async def async_get_input_output_context(
         print("No retrieval documents found.")
         return None
 
-    ref: pd.Series[str] = df_docs.groupby("context.trace_id")["context"].apply(
+    ref: pd.Series[str] = df_docs.groupby(level=0)["context"].apply(
         lambda x: separator.join(x.dropna())
     )
     df_ref = pd.DataFrame({"context": ref})
