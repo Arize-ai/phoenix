@@ -28,6 +28,7 @@ import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorConfigDialog_dataset$key } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_dataset.graphql";
@@ -226,6 +227,10 @@ function EvaluatorConfigDialogContent({
     updateInputVariables();
   }, [updateInputVariables]);
 
+  const [evaluatorInput, setEvaluatorInput] = useState<EvaluatorInput | null>(
+    null
+  );
+
   const onAddEvaluator = () => {
     if (!isInputMappingValid) {
       return;
@@ -347,12 +352,13 @@ function EvaluatorConfigDialogContent({
                 selectedExampleId={selectedExampleId}
                 onSelectExampleId={setSelectedExampleId}
                 datasetSelectIsDisabled
+                onEvaluatorInputObjectChange={setEvaluatorInput}
               />
             </Flex>
             <EvaluatorInputMapping
-              exampleId={selectedExampleId ?? undefined}
               control={inputMappingControl}
               variables={inputVariables}
+              evaluatorInput={evaluatorInput}
             />
           </Flex>
         </Flex>

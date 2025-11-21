@@ -1,13 +1,15 @@
 import { Suspense, useEffect, useEffectEvent, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { debounce } from "lodash";
 import { css } from "@emotion/react";
 
 import { Loading } from "@phoenix/components";
-import { JSONBlock } from "@phoenix/components/code";
+import { JSONEditor } from "@phoenix/components/code";
 import { EvaluatorInputPreviewContentQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorInputPreviewContentQuery.graphql";
 import {
   datasetExampleToEvaluatorInput,
-  EMPTY_EVALUATOR_INPUT_STRING,
+  EMPTY_EVALUATOR_INPUT,
+  EvaluatorInput,
 } from "@phoenix/components/evaluators/utils";
 
 type EvaluatorInputPreviewProps = {
@@ -15,7 +17,7 @@ type EvaluatorInputPreviewProps = {
   splitIds?: string[];
   exampleId?: string | null;
   onSelectExampleId: (exampleId: string | null) => void;
-  hypotheticalTaskOutput?: string | null;
+  setEvaluatorInputObject: (evaluatorInput: EvaluatorInput | null) => void;
 };
 
 /**
@@ -24,12 +26,7 @@ type EvaluatorInputPreviewProps = {
  *
  * It will display the hypothetical input for the evaluator, given the dataset example.
  */
-export const EvaluatorInputPreview = ({
-  datasetId,
-  splitIds,
-  exampleId,
-  onSelectExampleId,
-}: EvaluatorInputPreviewProps) => {
+export const EvaluatorInputPreview = (props: EvaluatorInputPreviewProps) => {
   return (
     <div
       css={css`
@@ -43,12 +40,7 @@ export const EvaluatorInputPreview = ({
       `}
     >
       <Suspense fallback={<Loading />}>
-        <EvaluatorInputPreviewContent
-          datasetId={datasetId}
-          splitIds={splitIds}
-          exampleId={exampleId}
-          onSelectExampleId={onSelectExampleId}
-        />
+        <EvaluatorInputPreviewContent {...props} />
       </Suspense>
     </div>
   );
@@ -59,12 +51,8 @@ const EvaluatorInputPreviewContent = ({
   splitIds,
   exampleId,
   onSelectExampleId: _onSelectExampleId,
-}: {
-  datasetId?: string | null;
-  splitIds?: string[];
-  exampleId?: string | null;
-  onSelectExampleId: (exampleId: string | null) => void;
-}) => {
+  setEvaluatorInputObject: _setEvaluatorInputObject,
+}: EvaluatorInputPreviewProps) => {
   const data = useLazyLoadQuery<EvaluatorInputPreviewContentQuery>(
     graphql`
       query EvaluatorInputPreviewContentQuery(
@@ -104,20 +92,51 @@ const EvaluatorInputPreviewContent = ({
   const onSelectExampleId = useEffectEvent(_onSelectExampleId);
   useEffect(() => {
     onSelectExampleId(example?.id ?? null);
-    // These can be removed once the rules of hooks plugin is updated to support useEffectEvent
   }, [example]);
-  const value = useMemo(() => {
+  // generate a default value for the json editor
+  // this is derived from the example in the dataset
+  const defaultValue = useMemo(() => {
     if (!example) {
-      return EMPTY_EVALUATOR_INPUT_STRING;
+      return EMPTY_EVALUATOR_INPUT;
     }
     try {
       const evaluatorInput = datasetExampleToEvaluatorInput({
         exampleRef: example.revision,
       });
-      return JSON.stringify(evaluatorInput, null, 2);
+      return evaluatorInput;
     } catch {
-      return EMPTY_EVALUATOR_INPUT_STRING;
+      return EMPTY_EVALUATOR_INPUT;
     }
   }, [example]);
-  return <JSONBlock value={value} />;
+  // convert the default value to a string for usage in the json editor
+  const stringValue = useMemo(() => {
+    return JSON.stringify(defaultValue, null, 2);
+  }, [defaultValue]);
+  // if the default value changes, propagate the change upwards to parent
+  // this value is the one that will actually be used when testing an evaluator
+  const setEvaluatorInputObject = useEffectEvent(_setEvaluatorInputObject);
+  useEffect(() => {
+    setEvaluatorInputObject(defaultValue);
+  }, [defaultValue]);
+  // sync the string value within the json editor to the parent, every 500ms maximum
+  const debouncedSetEvaluatorInputObject = useMemo(() => {
+    return debounce((evaluatorInput: string) => {
+      try {
+        const evaluatorInputObject = JSON.parse(evaluatorInput);
+        _setEvaluatorInputObject(evaluatorInputObject);
+      } catch {
+        // invalid json will be ignored, previous value will be maintained
+        // noop
+      }
+    }, 500);
+  }, [_setEvaluatorInputObject]);
+  return (
+    <JSONEditor
+      key={`${datasetId}-${exampleId}`}
+      value={stringValue}
+      onChange={(value) => {
+        debouncedSetEvaluatorInputObject(value);
+      }}
+    />
+  );
 };
