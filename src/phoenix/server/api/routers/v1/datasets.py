@@ -581,10 +581,16 @@ def _process_json(
             )
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
-        # Extract split values, filtering out empty/null values
+        # Extract split values, validating they're non-empty strings
         split_dict = {}
         if splits:
-            split_dict = {k: v for k, v in splits[i].items() if v}
+            for k, v in splits[i].items():
+                if not isinstance(v, str):
+                    raise ValueError(
+                        f"Split value for key '{k}' must be a string, got {type(v).__name__}"
+                    )
+                if v and v.strip():  # Filter out empty and whitespace-only strings
+                    split_dict[k] = v.strip()
         example = ExampleContent(
             input=obj,
             output=outputs[i] if outputs else {},
@@ -624,8 +630,8 @@ async def _process_csv(
             output={k: row.get(k) for k in output_keys},
             metadata={k: row.get(k) for k in metadata_keys},
             splits={
-                k: v for k in split_keys if (v := row.get(k))
-            },  # Only include non-empty split values
+                k: str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
+            },  # Only include non-empty, non-whitespace split values, convert to string
         )
         for row in iter(reader)
     )
@@ -652,8 +658,8 @@ async def _process_pyarrow(
                 output={k: row.get(k) for k in output_keys},
                 metadata={k: row.get(k) for k in metadata_keys},
                 splits={
-                    k: v for k in split_keys if (v := row.get(k))
-                },  # Only include non-empty split values
+                    k: str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
+                },  # Only include non-empty, non-whitespace split values, convert to string
             )
 
     return run_in_threadpool(get_examples)

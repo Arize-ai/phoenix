@@ -1220,3 +1220,155 @@ async def test_post_dataset_upload_reuses_existing_splits(
         )
         assert len(splits_after) == 1
         assert splits_after[0].id == train_split_id  # Same split ID
+
+
+async def test_post_dataset_upload_rejects_non_string_split_values(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Test that JSON upload rejects non-string split values."""
+    name = inspect.stack()[0][3]
+
+    # Test with integer split value
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"question": "Q1"}],
+            "outputs": [{"answer": "A1"}],
+            "splits": [{"data_split": 123}],  # Integer instead of string
+        },
+    )
+    assert response.status_code == 422
+    assert "must be a string" in response.text
+
+    # Test with boolean split value
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": f"{name}_bool",
+            "inputs": [{"question": "Q1"}],
+            "outputs": [{"answer": "A1"}],
+            "splits": [{"data_split": True}],  # Boolean instead of string
+        },
+    )
+    assert response.status_code == 422
+    assert "must be a string" in response.text
+
+    # Test with object split value
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": f"{name}_obj",
+            "inputs": [{"question": "Q1"}],
+            "outputs": [{"answer": "A1"}],
+            "splits": [{"data_split": {"nested": "object"}}],  # Object instead of string
+        },
+    )
+    assert response.status_code == 422
+    assert "must be a string" in response.text
+
+
+async def test_post_dataset_upload_filters_whitespace_only_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test that whitespace-only split values are filtered out and not created."""
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"question": "Q1"}, {"question": "Q2"}, {"question": "Q3"}],
+            "outputs": [{"answer": "A1"}, {"answer": "A2"}, {"answer": "A3"}],
+            "splits": [
+                {"data_split": "train"},  # Valid split
+                {"data_split": "   "},  # Whitespace-only
+                {"data_split": "\t\n"},  # Tab and newline only
+            ],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    # Verify only "train" split was created, not whitespace-only ones
+    async with db() as session:
+        splits = list(
+            await session.scalars(select(models.DatasetSplit).order_by(models.DatasetSplit.name))
+        )
+        split_names = [s.name for s in splits]
+        assert split_names == ["train"]
+
+        # Verify only first example has split assignment
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 3
+
+        # Check only first example has splits
+        example1_splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == examples[0].id)
+            )
+        )
+        assert len(example1_splits) == 1
+
+        # Other examples should have no splits
+        for ex in examples[1:]:
+            ex_splits = list(
+                await session.scalars(
+                    select(models.DatasetSplit)
+                    .join(models.DatasetSplitDatasetExample)
+                    .where(models.DatasetSplitDatasetExample.dataset_example_id == ex.id)
+                )
+            )
+            assert len(ex_splits) == 0
+
+
+async def test_post_dataset_upload_csv_strips_whitespace_from_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test that CSV upload strips leading/trailing whitespace from split values."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(
+        b"question,answer,data_split\n"
+        b"Q1,A1,  train  \n"  # Leading and trailing whitespace
+        b"Q2,A2,test\n"
+    )
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_keys[]": ["data_split"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert data.get("dataset_id")
+
+    # Verify splits are created with trimmed names
+    async with db() as session:
+        splits = list(
+            await session.scalars(select(models.DatasetSplit).order_by(models.DatasetSplit.name))
+        )
+        split_names = [s.name for s in splits]
+        # Should have "train" and "test", not "  train  "
+        assert "train" in split_names
+        assert "test" in split_names
+        assert "  train  " not in split_names
