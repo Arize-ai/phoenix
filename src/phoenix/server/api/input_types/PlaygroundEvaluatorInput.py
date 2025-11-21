@@ -4,7 +4,7 @@ from strawberry.scalars import JSON
 
 
 @strawberry.input
-class EvaluatorInputMapping:
+class EvaluatorInputMappingInput:
     literal_mapping: JSON = strawberry.field(default_factory=dict)
     """Direct key-value mappings to evaluator inputs."""
     path_mapping: JSON = strawberry.field(default_factory=dict)
@@ -14,4 +14,6 @@ class EvaluatorInputMapping:
 @strawberry.input
 class PlaygroundEvaluatorInput:
     id: GlobalID
-    input_mapping: EvaluatorInputMapping = strawberry.field(default_factory=EvaluatorInputMapping)
+    input_mapping: EvaluatorInputMappingInput = strawberry.field(
+        default_factory=EvaluatorInputMappingInput
+    )

@@ -10,7 +10,6 @@ from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
-from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -24,6 +23,7 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
 )
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.mutations.annotation_config_mutations import (
     CategoricalAnnotationConfigInput,
@@ -117,7 +117,7 @@ class EvaluatorMutationPayload:
 class AssignEvaluatorToDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
-    input_config: Optional[JSON] = None
+    input_config: EvaluatorInputMappingInput
 
 
 @strawberry.input
@@ -365,13 +365,14 @@ class EvaluatorMutationMixin:
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
-        # TODO: validate input_config as json record
-        input_config = input.input_config or {}
+        input_config: EvaluatorInputMappingInput = EvaluatorInputMappingInput(
+            literal_mapping=input.input_config.literal_mapping,
+            path_mapping=input.input_config.path_mapping,
+        )
 
         # Use upsert for idempotent assignment
         # Foreign key constraints will ensure dataset and evaluator exist
         is_builtin = evaluator_rowid < 0
-        input_config = input.input_config if input.input_config is not UNSET else {}
         values: dict[str, Any] = {
             "dataset_id": dataset_rowid,
             "input_config": input_config,

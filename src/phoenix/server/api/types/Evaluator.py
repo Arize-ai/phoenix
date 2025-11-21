@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 
 import sqlalchemy as sa
 import strawberry
+from sqlalchemy.sql import select
 from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
@@ -34,6 +35,14 @@ if TYPE_CHECKING:
 class EvaluatorKind(Enum):
     LLM = "LLM"
     CODE = "CODE"
+
+
+@strawberry.type
+class EvaluatorInputMapping:
+    literal_mapping: JSON = strawberry.field(default_factory=dict)
+    """Direct key-value mappings to evaluator inputs."""
+    path_mapping: JSON = strawberry.field(default_factory=dict)
+    """JSONPath expressions to extract values from the evaluation context."""
 
 
 @strawberry.interface
@@ -91,6 +100,41 @@ class Evaluator(Node):
             (dataset_rowid, self.id)
         )
         return dataset_evaluator is not None
+
+    @strawberry.field
+    async def dataset_input_mapping(
+        self, info: Info[Context, None], dataset_id: Optional[GlobalID] = None
+    ) -> Optional[EvaluatorInputMapping]:
+        if dataset_id is None:
+            return None
+
+        try:
+            dataset_rowid = from_global_id_with_expected_type(
+                global_id=dataset_id,
+                expected_type_name="Dataset",
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset id: {dataset_id}")
+
+        is_builtin = self.id < 0
+
+        async with info.context.db() as session:
+            stmt = select(models.DatasetsEvaluators).where(
+                models.DatasetsEvaluators.dataset_id == dataset_rowid,
+                models.DatasetsEvaluators.evaluator_id == self.id
+                if not is_builtin
+                else models.DatasetsEvaluators.builtin_evaluator_id == self.id,
+            )
+            dataset_evaluator = await session.scalar(stmt)
+            if dataset_evaluator is None:
+                return None
+            if dataset_evaluator.input_config is None:
+                return None
+
+            return EvaluatorInputMapping(
+                literal_mapping=dataset_evaluator.input_config.get("literal_mapping", {}),
+                path_mapping=dataset_evaluator.input_config.get("path_mapping", {}),
+            )
 
 
 @strawberry.type
