@@ -16,23 +16,16 @@ const colorSwatchPickerCSS = css`
 
   .react-aria-ColorSwatchPickerItem {
     position: relative;
-    outline: none;
     width: fit-content;
     height: fit-content;
     forced-color-adjust: none;
     display: inline-flex;
-
-    &[data-focus-visible] {
-      outline: 2px solid var(--focus-ring-color);
-      outline-offset: 2px;
-    }
 
     &[data-selected]::after {
       content: "";
       position: absolute;
       inset: 0;
       border: 2px solid var(--ac-global-text-color-900);
-      outline-offset: -4px;
       border-radius: inherit;
     }
   }
