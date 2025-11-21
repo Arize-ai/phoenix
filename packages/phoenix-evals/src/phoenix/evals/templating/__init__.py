@@ -334,7 +334,6 @@ class PromptTemplate:
                 raise ValueError("Template cannot be empty")
             self._is_string = True
             self._template = template
-            self._template_format = template_format
 
             # Create formatter for string template
             if template_format is None:
@@ -350,6 +349,7 @@ class PromptTemplate:
         elif isinstance(template, list):
             self._is_string = False
             self._template = template
+            # Store user-specified format (None means auto-detect per message)
             self._template_format = template_format
             self.template_format = template_format or TemplateFormat.F_STRING
 
@@ -357,13 +357,7 @@ class PromptTemplate:
             variables_set: set[str] = set()
             for msg in template:
                 if "content" in msg and msg["content"]:
-                    # Detect format for this message's content
-                    if template_format is None:
-                        msg_format = detect_template_format(msg["content"])
-                        formatter = FormatterFactory.create(msg_format)
-                    else:
-                        formatter = FormatterFactory.create(template_format)
-
+                    formatter = self._get_formatter_for_content(msg["content"])
                     msg_variables = formatter.extract_variables(msg["content"])
                     variables_set.update(msg_variables)
 
@@ -372,6 +366,24 @@ class PromptTemplate:
             raise TypeError(
                 f"Template must be a string or list of message dicts, got {type(template)}"
             )
+
+    def _get_formatter_for_content(self, content: str) -> TemplateFormatter:
+        """Get the appropriate formatter for message content.
+
+        Args:
+            content: The message content to format.
+
+        Returns:
+            TemplateFormatter: Auto-detected formatter if template_format was None,
+                otherwise formatter for the user-specified format.
+        """
+        if self._template_format is None:
+            # Auto-detect format for this specific content
+            msg_format = detect_template_format(content)
+            return FormatterFactory.create(msg_format)
+        else:
+            # Use user-specified format
+            return FormatterFactory.create(self._template_format)
 
     @property
     def template(self) -> Union[str, List[Dict[str, Any]]]:
@@ -419,13 +431,7 @@ class PromptTemplate:
             for msg in self._template:  # type: ignore
                 rendered_msg = msg.copy()  # Preserve all fields including extras
                 if "content" in msg:
-                    # Create formatter for this message's content
-                    if self._template_format is None:
-                        msg_format = detect_template_format(msg["content"])
-                        formatter = FormatterFactory.create(msg_format)
-                    else:
-                        formatter = FormatterFactory.create(self._template_format)
-
+                    formatter = self._get_formatter_for_content(msg["content"])
                     rendered_content = formatter.render(msg["content"], variables)
                     rendered_msg["content"] = dedent(rendered_content)
                 rendered_messages.append(rendered_msg)
