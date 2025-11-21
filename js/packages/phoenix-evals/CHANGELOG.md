@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.5.1
+
+### Patch Changes
+
+- 9408838: add message template support
+
 ## 0.5.0
 
 ### Minor Changes
