@@ -344,6 +344,7 @@ function EvaluatorConfigDialogContent({
                 onSelectDataset={() => {}}
                 selectedSplitIds={[]}
                 onSelectSplits={() => {}}
+                selectedExampleId={selectedExampleId}
                 onSelectExampleId={setSelectedExampleId}
                 datasetSelectIsDisabled
               />

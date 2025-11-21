@@ -58,7 +58,7 @@ export const EvaluatorInputMapping = ({
 const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
   return (
     <Flex direction="column" gap="size-100">
-      <Heading level={3}>Map input fields</Heading>
+      <Heading level={3}>Map fields</Heading>
       <Text color="text-500">
         Your evaluator requires certain fields to be available in its input. Map
         these fields to those available in its context.
@@ -163,6 +163,14 @@ const EvaluatorInputMappingControls = ({
                 inputValue={inputValues[variable] ?? ""}
                 css={css`
                   width: 100%;
+                  min-width: 0 !important;
+                  // allow the combobox to shrink to prevent blowing up page layout
+                  .px-combobox-container {
+                    min-width: 0 !important;
+                    input {
+                      min-width: 0 !important;
+                    }
+                  }
                 `}
               >
                 {(item) => (
