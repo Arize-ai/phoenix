@@ -118,7 +118,7 @@ class EvaluatorMutationPayload:
 class AssignEvaluatorToDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
-    input_config: EvaluatorInputMappingInput
+    input_config: Optional[EvaluatorInputMappingInput] = None
 
 
 @strawberry.input
@@ -366,9 +366,10 @@ class EvaluatorMutationMixin:
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
-        input_config: EvaluatorInputMappingInput = EvaluatorInputMappingInput(
-            literal_mapping=input.input_config.literal_mapping,
-            path_mapping=input.input_config.path_mapping,
+        input_config: EvaluatorInputMappingInput = (
+            input.input_config
+            if input.input_config is not None
+            else EvaluatorInputMappingInput()
         )
 
         # Use upsert for idempotent assignment
