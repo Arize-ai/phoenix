@@ -6,7 +6,6 @@ import {
   useState,
 } from "react";
 import { Control, Controller } from "react-hook-form";
-import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
@@ -18,10 +17,8 @@ import {
   Text,
 } from "@phoenix/components";
 import { Heading } from "@phoenix/components/content/Heading";
-import { EvaluatorInputMappingControlsQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorInputMappingControlsQuery.graphql";
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import {
-  datasetExampleToEvaluatorInput,
   EMPTY_EVALUATOR_INPUT,
   EvaluatorInput,
 } from "@phoenix/components/evaluators/utils";
@@ -33,20 +30,21 @@ export type InputMapping = Record<string, string>;
 
 type EvaluatorInputMappingProps = {
   control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
+  evaluatorInput: EvaluatorInput | null;
   exampleId?: string;
   variables: string[];
 };
 
 export const EvaluatorInputMapping = ({
+  evaluatorInput,
   control,
-  exampleId,
   variables,
 }: EvaluatorInputMappingProps) => {
   return (
     <EvaluatorInputMappingTitle>
       <Suspense fallback={<Loading />}>
         <EvaluatorInputMappingControls
-          exampleId={exampleId}
+          evaluatorInput={evaluatorInput}
           control={control}
           variables={variables}
         />
@@ -74,48 +72,17 @@ type ExampleKeyItem = {
 };
 
 const EvaluatorInputMappingControls = ({
-  exampleId,
   control,
+  evaluatorInput,
   variables,
 }: {
-  exampleId?: string;
+  evaluatorInput: EvaluatorInput | null;
   control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
   variables: string[];
 }) => {
-  const data = useLazyLoadQuery<EvaluatorInputMappingControlsQuery>(
-    graphql`
-      query EvaluatorInputMappingControlsQuery(
-        $exampleId: ID!
-        $hasExample: Boolean!
-      ) {
-        example: node(id: $exampleId) @include(if: $hasExample) {
-          ... on DatasetExample {
-            revision {
-              ...utils_datasetExampleToEvaluatorInput_example
-            }
-          }
-        }
-      }
-    `,
-    { exampleId: exampleId ?? "", hasExample: exampleId != null }
-  );
-  const example = data.example;
-  const evaluatorInput: EvaluatorInput = useMemo(() => {
-    if (!example?.revision) {
-      return EMPTY_EVALUATOR_INPUT;
-    }
-    try {
-      const evaluatorInput = datasetExampleToEvaluatorInput({
-        exampleRef: example.revision,
-      });
-      return evaluatorInput;
-    } catch {
-      return EMPTY_EVALUATOR_INPUT;
-    }
-  }, [example]);
   const allExampleKeys: ExampleKeyItem[] = useMemo(() => {
     const flat = flattenObject({
-      obj: evaluatorInput,
+      obj: evaluatorInput ?? EMPTY_EVALUATOR_INPUT,
       keepNonTerminalValues: true,
     });
     return [

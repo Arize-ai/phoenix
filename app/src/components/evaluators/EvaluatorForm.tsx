@@ -27,6 +27,7 @@ import {
   ChoiceConfig,
   EvaluatorLLMChoice,
 } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
+import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
@@ -134,6 +135,8 @@ export const EvaluatorForm = () => {
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     null
   );
+  const [evaluatorInputObject, setEvaluatorInputObject] =
+    useState<EvaluatorInput | null>(null);
   const selectedDatasetId = watch("dataset.id");
   return (
     <PanelGroup direction="horizontal">
@@ -220,8 +223,10 @@ export const EvaluatorForm = () => {
               selectedExampleId={selectedExampleId}
               onSelectExampleId={setSelectedExampleId}
               datasetSelectIsDisabled={!!getValues().dataset?.readonly}
+              onEvaluatorInputObjectChange={setEvaluatorInputObject}
             />
             <EvaluatorInputMapping
+              evaluatorInput={evaluatorInputObject}
               exampleId={selectedExampleId ?? undefined}
               control={control}
               variables={variables}
