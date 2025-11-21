@@ -120,6 +120,7 @@ export function UnassignDatasetEvaluatorDialog({
             title: "Evaluator unlinked",
             message: "The evaluator has been unlinked from the dataset.",
           });
+          onOpenChange(false);
         },
         onError: (error) => {
           setError({
@@ -137,6 +138,7 @@ export function UnassignDatasetEvaluatorDialog({
     evaluatorId,
     datasetEvaluatorsTableConnection,
     notifySuccess,
+    onOpenChange,
   ]);
 
   const handleDeleteEvaluator = useCallback(() => {
@@ -154,6 +156,7 @@ export function UnassignDatasetEvaluatorDialog({
             title: "Evaluator deleted",
             message: "The evaluator has been deleted.",
           });
+          onOpenChange(false);
         },
         onError: (error) => {
           setError({
@@ -171,6 +174,7 @@ export function UnassignDatasetEvaluatorDialog({
     evaluatorId,
     datasetEvaluatorsTableConnection,
     notifySuccess,
+    onOpenChange,
   ]);
 
   return (
