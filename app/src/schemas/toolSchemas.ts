@@ -151,18 +151,17 @@ export const awsToolDefinitionJSONSchema = zodToJsonSchema(
 );
 
 /**
- * Gemini uses uppercase type values (STRING, NUMBER, INTEGER, BOOLEAN, ARRAY, OBJECT, NULL)
- * instead of lowercase like OpenAPI standard
+ * Gemini schema properties using standard lowercase type values
  */
 type GeminiSchemaProperties = {
   type:
-    | "STRING"
-    | "NUMBER"
-    | "INTEGER"
-    | "BOOLEAN"
-    | "ARRAY"
-    | "OBJECT"
-    | "NULL";
+    | "string"
+    | "number"
+    | "integer"
+    | "boolean"
+    | "array"
+    | "object"
+    | "null";
   description?: string;
   enum?: string[];
   format?: string;
@@ -177,13 +176,13 @@ const geminiSchemaPropertiesSchema: z.ZodType<GeminiSchemaProperties> = z
   .object({
     type: z
       .enum([
-        "STRING",
-        "NUMBER",
-        "INTEGER",
-        "BOOLEAN",
-        "ARRAY",
-        "OBJECT",
-        "NULL",
+        "string",
+        "number",
+        "integer",
+        "boolean",
+        "array",
+        "object",
+        "null",
       ])
       .describe("The type of the parameter"),
     description: z
@@ -217,14 +216,18 @@ const geminiFunctionDeclarationSchema = z.object({
     .describe("The parameters that the function accepts"),
 });
 
-export const geminiToolDefinitionSchema = z.object({
-  functionDeclarations: z
-    .array(geminiFunctionDeclarationSchema)
-    .describe("List of function declarations that the tool supports"),
-});
+/**
+ * Gemini tool definition - a single function declaration.
+ * The backend will wrap this in a `functionDeclarations` array when sending to Google's API.
+ */
+export const geminiToolDefinitionSchema = geminiFunctionDeclarationSchema;
 
 export type GeminiToolDefinition = z.infer<typeof geminiToolDefinitionSchema>;
 
+/**
+ * The JSON schema for a Gemini tool definition (single function declaration).
+ * The backend wraps this in a `functionDeclarations` array before sending to Google's API.
+ */
 export const geminiToolDefinitionJSONSchema = zodToJsonSchema(
   geminiToolDefinitionSchema,
   {
@@ -239,14 +242,13 @@ export const geminiToolDefinitionJSONSchema = zodToJsonSchema(
  */
 
 /**
- * Convert Gemini schema types (uppercase) to OpenAPI types (lowercase)
+ * Convert Gemini schema to OpenAPI schema (they use the same type values now)
  */
 const convertGeminiSchemaToOpenAPI = (
   geminiSchema: GeminiSchemaProperties
 ): Record<string, unknown> => {
   const openaiSchema: Record<string, unknown> = {
     ...geminiSchema,
-    type: geminiSchema.type?.toLowerCase(),
   };
 
   if (geminiSchema.properties) {
@@ -266,17 +268,13 @@ const convertGeminiSchemaToOpenAPI = (
 };
 
 /**
- * Convert OpenAPI schema types (lowercase) to Gemini types (uppercase)
+ * Convert OpenAPI schema to Gemini schema (they use the same type values now)
  */
 const convertOpenAPISchemaToGemini = (
   openaiSchema: Record<string, unknown>
 ): GeminiSchemaProperties => {
   const geminiSchema: Record<string, unknown> = {
     ...openaiSchema,
-    type:
-      typeof openaiSchema.type === "string"
-        ? openaiSchema.type.toUpperCase()
-        : openaiSchema.type,
   };
 
   if (
@@ -323,50 +321,42 @@ const convertOpenAPISchemaToGemini = (
 };
 
 /**
- * Convert a Gemini tool (which can have multiple function declarations) to OpenAI format
- * Returns an array of OpenAI tool definitions, one for each function declaration
+ * Convert a Gemini function declaration to OpenAI format
  */
-const convertGeminiToOpenAITools = (
+const convertGeminiToOpenAITool = (
   gemini: GeminiToolDefinition
-): OpenAIToolDefinition[] => {
-  return gemini.functionDeclarations.map((func) => {
-    const parameters = func.parameters
-      ? convertGeminiSchemaToOpenAPI(func.parameters)
-      : { type: "object", properties: {} };
+): OpenAIToolDefinition => {
+  const parameters = gemini.parameters
+    ? convertGeminiSchemaToOpenAPI(gemini.parameters)
+    : { type: "object", properties: {} };
 
-    // Ensure type is "object" for OpenAI compatibility
-    if (!parameters.type) {
-      parameters.type = "object";
-    }
+  // Ensure type is "object" for OpenAI compatibility
+  if (!parameters.type) {
+    parameters.type = "object";
+  }
 
-    return {
-      type: "function" as const,
-      function: {
-        name: func.name,
-        description: func.description,
-        parameters:
-          parameters as OpenAIToolDefinition["function"]["parameters"],
-      },
-    };
-  });
+  return {
+    type: "function" as const,
+    function: {
+      name: gemini.name,
+      description: gemini.description,
+      parameters: parameters as OpenAIToolDefinition["function"]["parameters"],
+    },
+  };
 };
 
 /**
- * Convert an OpenAI tool to Gemini format
+ * Convert an OpenAI tool to Gemini function declaration
  */
 const convertOpenAIToGeminiTool = (
   openai: OpenAIToolDefinition
 ): GeminiToolDefinition => {
   return {
-    functionDeclarations: [
-      {
-        name: openai.function.name,
-        description: openai.function.description,
-        parameters: openai.function.parameters
-          ? convertOpenAPISchemaToGemini(openai.function.parameters)
-          : undefined,
-      },
-    ],
+    name: openai.function.name,
+    description: openai.function.description,
+    parameters: openai.function.parameters
+      ? convertOpenAPISchemaToGemini(openai.function.parameters)
+      : undefined,
   };
 };
 
@@ -535,11 +525,8 @@ export const toOpenAIToolDefinition = (
       return anthropicToolToOpenAI.parse(validatedToolDefinition);
     case "AWS":
       return awsToolToOpenAI.parse(validatedToolDefinition);
-    case "GOOGLE": {
-      // Gemini can have multiple function declarations, return the first one
-      const converted = convertGeminiToOpenAITools(validatedToolDefinition);
-      return converted[0] ?? null;
-    }
+    case "GOOGLE":
+      return convertGeminiToOpenAITool(validatedToolDefinition);
     case "UNKNOWN":
       return null;
     default:
@@ -651,7 +638,7 @@ export function createAwsToolDefinition(toolNumber: number): AwsToolDefinition {
 }
 
 /**
- * Creates a Gemini tool definition
+ * Creates a Gemini tool definition (single function declaration)
  * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1 to be used to fill in the name
  * @returns a Gemini tool definition
  */
@@ -659,21 +646,17 @@ export function createGeminiToolDefinition(
   toolNumber: number
 ): GeminiToolDefinition {
   return {
-    functionDeclarations: [
-      {
-        name: `new_function_${toolNumber}`,
-        description: "a description",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            new_arg: {
-              type: "STRING",
-            },
-          },
-          required: [],
+    name: `new_function_${toolNumber}`,
+    description: "a description",
+    parameters: {
+      type: "object",
+      properties: {
+        new_arg: {
+          type: "string",
         },
       },
-    ],
+      required: [],
+    },
   };
 }
 
@@ -708,16 +691,13 @@ export const findToolDefinitionName = (toolDefinition: unknown) => {
     return parsed.data.toolSpec.name;
   }
 
-  // Gemini format - get the first function declaration's name
+  // Gemini format - single function declaration
   if (
-    "functionDeclarations" in parsed.data &&
-    Array.isArray(parsed.data.functionDeclarations) &&
-    parsed.data.functionDeclarations.length > 0 &&
-    isObject(parsed.data.functionDeclarations[0]) &&
-    "name" in parsed.data.functionDeclarations[0] &&
-    typeof parsed.data.functionDeclarations[0].name === "string"
+    "name" in parsed.data &&
+    typeof parsed.data.name === "string" &&
+    "parameters" in parsed.data
   ) {
-    return parsed.data.functionDeclarations[0].name;
+    return parsed.data.name;
   }
 
   return null;
@@ -757,16 +737,13 @@ export const findToolDefinitionDescription = (toolDefinition: unknown) => {
     return parsed.data.toolSpec.description;
   }
 
-  // Gemini format - get the first function declaration's description
+  // Gemini format - single function declaration
   if (
-    "functionDeclarations" in parsed.data &&
-    Array.isArray(parsed.data.functionDeclarations) &&
-    parsed.data.functionDeclarations.length > 0 &&
-    isObject(parsed.data.functionDeclarations[0]) &&
-    "description" in parsed.data.functionDeclarations[0] &&
-    typeof parsed.data.functionDeclarations[0].description === "string"
+    "description" in parsed.data &&
+    typeof parsed.data.description === "string" &&
+    "parameters" in parsed.data
   ) {
-    return parsed.data.functionDeclarations[0].description;
+    return parsed.data.description;
   }
 
   return null;
