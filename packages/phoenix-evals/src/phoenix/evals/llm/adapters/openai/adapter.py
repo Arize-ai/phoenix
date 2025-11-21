@@ -1,7 +1,7 @@
 import base64
 import json
 import logging
-from typing import Any, Dict, Type, Union, cast
+from typing import Any, Dict, List, Type, Union, cast
 from urllib.parse import urlparse
 
 from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
@@ -82,7 +82,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         return inspect.iscoroutinefunction(create_method)
 
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any) -> str:
         """Generate text using OpenAI client."""
         if self._is_async:
             raise ValueError("Cannot call sync method generate_text() on async OpenAI client.")
@@ -100,7 +100,9 @@ class OpenAIAdapter(BaseLLMAdapter):
             logger.error(f"OpenAI completion failed: {e}")
             raise
 
-    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def async_generate_text(
+        self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any
+    ) -> str:
         """Async text generation using OpenAI client."""
         if not self._is_async:
             raise ValueError(
@@ -122,7 +124,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -167,7 +169,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -376,11 +378,18 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         return tool_definition
 
-    def _build_messages(self, prompt: Union[str, MultimodalPrompt]) -> list[dict[str, Any]]:
+    def _build_messages(
+        self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
+    ) -> list[dict[str, Any]]:
         """Build messages for OpenAI API from prompt."""
         if isinstance(prompt, str):
             return [{"role": "user", "content": prompt}]
 
+        if isinstance(prompt, list):
+            # Already in OpenAI message format
+            return prompt
+
+        # Handle legacy MultimodalPrompt
         messages: list[dict[str, Any]] = []
         for part in prompt.parts:
             if part.content_type == PromptPartContentType.TEXT:

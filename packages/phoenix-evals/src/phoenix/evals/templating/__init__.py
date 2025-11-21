@@ -6,7 +6,7 @@ from enum import Enum
 from inspect import BoundArguments
 from string import Formatter
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 import pystache  # type: ignore
 from opentelemetry.trace import Tracer
@@ -299,3 +299,48 @@ class Template:
         if not isinstance(variables, dict):  # pyright: ignore
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
         return dedent(self._formatter.render(self.template, variables))
+
+
+def render_template(
+    template: Union[str, List[Dict[str, Any]]],
+    variables: Dict[str, Any],
+    template_format: Optional[TemplateFormat] = None,
+) -> Union[str, List[Dict[str, Any]]]:
+    """Render a template with variables.
+
+    Supports both string templates and OpenAI-style message lists.
+    For message lists, renders the content field of each message.
+
+    Args:
+        template: Either a string template or a list of message dicts with role and content.
+        variables: Variables to substitute into the template.
+        template_format: Optional format specification (F_STRING or MUSTACHE).
+            If None, format will be auto-detected for string templates.
+
+    Returns:
+        Rendered template in the same format as input (str or List[Dict]).
+
+    Raises:
+        TypeError: If template is not a string or list.
+    """
+    if isinstance(template, str):
+        # Use existing Template class for string rendering
+        template_obj = Template(template=template, template_format=template_format)
+        return template_obj.render(variables)
+
+    elif isinstance(template, list):
+        # Render each message's content field
+        rendered_messages = []
+        for msg in template:
+            rendered_msg = msg.copy()  # Preserve all fields including extras
+            if "content" in msg:
+                # Render content using Template class
+                content_template = Template(
+                    template=msg["content"], template_format=template_format
+                )
+                rendered_msg["content"] = content_template.render(variables)
+            rendered_messages.append(rendered_msg)
+        return rendered_messages
+
+    else:
+        raise TypeError(f"Template must be a string or list of message dicts, got {type(template)}")

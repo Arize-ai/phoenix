@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, Type, Union, cast
+from typing import Any, Dict, List, Type, Union, cast
 
 from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 
@@ -56,7 +56,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             return False
         return True
 
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any) -> str:
         if self._is_async:
             raise ValueError(
                 "Cannot call sync method generate_text() on async Google GenAI client."
@@ -77,7 +77,9 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             logger.error(f"Google GenAI completion failed: {e}")
             raise
 
-    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def async_generate_text(
+        self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any
+    ) -> str:
         if not self._is_async:
             raise ValueError(
                 "Cannot call async method async_generate_text() on sync Google GenAI client."
@@ -100,7 +102,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -139,7 +141,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -177,7 +179,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     def _generate_with_structured_output(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -205,7 +207,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_structured_output(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -233,7 +235,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -269,7 +271,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -318,10 +320,26 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         return genai.types.Tool(function_declarations=[function_declaration])
 
-    def _build_content(self, prompt: Union[str, MultimodalPrompt]) -> str:
+    def _build_content(
+        self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
+    ) -> Union[str, List[Dict[str, Any]]]:
         if isinstance(prompt, str):
             return prompt
 
+        if isinstance(prompt, list):
+            # Convert OpenAI-style messages to Google format
+            # Google uses "model" instead of "assistant" for role
+            google_messages = []
+            for msg in prompt:
+                role = msg["role"]
+                content = msg["content"]
+                # Convert assistant role to model
+                if role == "assistant":
+                    role = "model"
+                google_messages.append({"role": role, "parts": [{"text": content}]})
+            return google_messages
+
+        # Handle legacy MultimodalPrompt
         text_parts: list[str] = []
         for part in prompt.parts:
             if part.content_type == PromptPartContentType.TEXT:

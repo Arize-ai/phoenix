@@ -1,7 +1,7 @@
 import base64
 import json
 import logging
-from typing import Any, Dict, Type, Union, cast
+from typing import Any, Dict, List, Type, Union, cast
 from urllib.parse import urlparse
 
 from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
@@ -84,7 +84,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         except ImportError:
             raise ImportError("LiteLLM package not installed. Run: pip install litellm")
 
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any) -> str:
         """Generate text using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -100,7 +100,9 @@ class LiteLLMAdapter(BaseLLMAdapter):
             logger.error(f"LiteLLM completion failed: {e}")
             raise
 
-    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def async_generate_text(
+        self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any
+    ) -> str:
         """Async text generation using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -118,7 +120,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -171,7 +173,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -225,7 +227,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def _generate_with_structured_output(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -254,7 +256,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -279,7 +281,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_structured_output(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -308,7 +310,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -363,52 +365,59 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
         return tool_definition
 
-    def _build_messages(self, prompt: Union[str, MultimodalPrompt]) -> list[dict[str, Any]]:
-        messages: list[dict[str, Any]] = []
+    def _build_messages(
+        self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
+    ) -> list[dict[str, Any]]:
         if isinstance(prompt, str):
             return [{"role": "user", "content": prompt}]
-        else:
-            for part in prompt.parts:
-                if part.content_type == PromptPartContentType.TEXT:
-                    messages.append({"role": "user", "content": part.content})
-                elif part.content_type == PromptPartContentType.AUDIO:
-                    format = str(get_audio_format_from_base64(part.content))
-                    if format not in SUPPORTED_AUDIO_FORMATS:
-                        raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
-                    messages.append(
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "input_audio",
-                                    "input_audio": {
-                                        "data": part.content,
-                                        "format": str(get_audio_format_from_base64(part.content)),
-                                    },
-                                }
-                            ],
-                        }
-                    )
-                elif part.content_type == PromptPartContentType.IMAGE:
-                    if _is_base64(part.content):
-                        content_url = f"data:image/jpeg;base64,{part.content}"
-                    elif _is_url(part.content):
-                        content_url = part.content
-                    else:
-                        raise ValueError("Only base64 encoded images or image URLs are supported")
-                    messages.append(
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": content_url},
-                                }
-                            ],
-                        }
-                    )
+
+        if isinstance(prompt, list):
+            # Already in OpenAI message format
+            return prompt
+
+        # Handle legacy MultimodalPrompt
+        messages: list[dict[str, Any]] = []
+        for part in prompt.parts:
+            if part.content_type == PromptPartContentType.TEXT:
+                messages.append({"role": "user", "content": part.content})
+            elif part.content_type == PromptPartContentType.AUDIO:
+                format = str(get_audio_format_from_base64(part.content))
+                if format not in SUPPORTED_AUDIO_FORMATS:
+                    raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_audio",
+                                "input_audio": {
+                                    "data": part.content,
+                                    "format": str(get_audio_format_from_base64(part.content)),
+                                },
+                            }
+                        ],
+                    }
+                )
+            elif part.content_type == PromptPartContentType.IMAGE:
+                if _is_base64(part.content):
+                    content_url = f"data:image/jpeg;base64,{part.content}"
+                elif _is_url(part.content):
+                    content_url = part.content
                 else:
-                    raise ValueError(f"Unsupported content type: {part.content_type}")
+                    raise ValueError("Only base64 encoded images or image URLs are supported")
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": content_url},
+                            }
+                        ],
+                    }
+                )
+            else:
+                raise ValueError(f"Unsupported content type: {part.content_type}")
         return messages
 
     def _ensure_additional_properties_false(self, schema: Dict[str, Any]) -> Dict[str, Any]:

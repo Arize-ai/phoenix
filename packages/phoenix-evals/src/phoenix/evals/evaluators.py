@@ -37,7 +37,7 @@ from .legacy.evaluators import (
 )
 from .llm import LLM
 from .llm.types import ObjectGenerationMethod
-from .templating import Template
+from .templating import Template, render_template
 from .utils import (
     _deprecate_positional_args,
     _deprecate_source_and_heuristic,
@@ -392,16 +392,31 @@ class LLMEvaluator(Evaluator):
         *,
         name: str,
         llm: LLM,
-        prompt_template: Union[str, Template],
+        prompt_template: Union[str, List[Dict[str, Any]], Template],
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
         **kwargs: Any,
     ):
-        # Infer required fields from prompt_template
+        # Store the prompt template (convert string to Template for backward compatibility)
         if isinstance(prompt_template, str):
-            prompt_template = Template(template=prompt_template)
-        required_fields = prompt_template.variables
+            # Convert string to Template object (backward compatibility)
+            self._raw_prompt_template = Template(template=prompt_template)
+            required_fields = self._raw_prompt_template.variables
+        elif isinstance(prompt_template, list):
+            # Store message list as-is
+            self._raw_prompt_template = prompt_template
+            # Extract variables from all message contents
+            required_fields_set: Set[str] = set()
+            for msg in prompt_template:
+                if "content" in msg:
+                    # Create a temporary Template to extract variables
+                    temp_template = Template(template=msg["content"])
+                    required_fields_set.update(temp_template.variables)
+            required_fields = list(required_fields_set)
+        else:  # Template instance
+            self._raw_prompt_template = prompt_template
+            required_fields = prompt_template.variables
 
         # If no explicit input_schema, create a Pydantic model with all fields as required str
         if input_schema is None:
@@ -423,8 +438,12 @@ class LLMEvaluator(Evaluator):
             input_schema=input_schema,
         )
         self.llm = llm
-        self.prompt_template = prompt_template
         self.schema = schema
+
+    @property
+    def prompt_template(self) -> Union[str, List[Dict[str, Any]], Template]:
+        """Get the prompt template (backward compatibility property)."""
+        return self._raw_prompt_template
 
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         raise NotImplementedError("Subclasses must implement _evaluate")
@@ -544,7 +563,7 @@ class ClassificationEvaluator(LLMEvaluator):
         *,
         name: str,
         llm: LLM,
-        prompt_template: Union[str, Template],
+        prompt_template: Union[str, List[Dict[str, Any]], Template],
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
         ],
@@ -586,7 +605,17 @@ class ClassificationEvaluator(LLMEvaluator):
         self.labels = labels
 
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
-        prompt_filled = self.prompt_template.render(variables=eval_input)
+        # Render template (handles Template objects and message lists)
+        if isinstance(self._raw_prompt_template, Template):
+            prompt_filled = self._raw_prompt_template.render(variables=eval_input)
+        elif isinstance(self._raw_prompt_template, list):
+            prompt_filled = render_template(
+                template=self._raw_prompt_template, variables=eval_input
+            )
+        else:
+            # Should not reach here
+            raise TypeError(f"Unexpected template type: {type(self._raw_prompt_template)}")
+
         method = (
             ObjectGenerationMethod.TOOL_CALLING
             if isinstance(self.labels, Dict)
@@ -626,7 +655,17 @@ class ClassificationEvaluator(LLMEvaluator):
         ]
 
     async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
-        prompt_filled = self.prompt_template.render(variables=eval_input)
+        # Render template (handles Template objects and message lists)
+        if isinstance(self._raw_prompt_template, Template):
+            prompt_filled = self._raw_prompt_template.render(variables=eval_input)
+        elif isinstance(self._raw_prompt_template, list):
+            prompt_filled = render_template(
+                template=self._raw_prompt_template, variables=eval_input
+            )
+        else:
+            # Should not reach here
+            raise TypeError(f"Unexpected template type: {type(self._raw_prompt_template)}")
+
         method = (
             ObjectGenerationMethod.TOOL_CALLING
             if isinstance(self.labels, Dict)

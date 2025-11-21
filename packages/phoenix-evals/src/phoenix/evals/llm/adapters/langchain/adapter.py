@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Type, Union, cast
+from typing import Any, Dict, List, Type, Union, cast
 
 from phoenix.evals.legacy.templates import MultimodalPrompt
 
@@ -68,7 +68,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 f"'predict' method, got {type(self.client)}"
             )
 
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "invoke"):
@@ -85,7 +85,9 @@ class LangChainModelAdapter(BaseLLMAdapter):
         else:
             return str(response)
 
-    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def async_generate_text(
+        self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any
+    ) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "ainvoke"):
@@ -104,7 +106,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -184,7 +186,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -278,11 +280,39 @@ class LangChainModelAdapter(BaseLLMAdapter):
         else:
             return f"langchain-{type(self.client).__name__}"
 
-    def _build_prompt(self, prompt: Union[str, MultimodalPrompt]) -> str:
-        if isinstance(prompt, MultimodalPrompt):
-            return prompt.to_text_only_prompt()
-        else:
+    def _build_prompt(
+        self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
+    ) -> Union[str, List[Any]]:
+        if isinstance(prompt, str):
             return prompt
+
+        if isinstance(prompt, list):
+            # Convert OpenAI-style messages to LangChain messages
+            try:
+                from langchain_community.adapters.openai import convert_openai_messages
+
+                return convert_openai_messages(prompt)
+            except ImportError:
+                # Fallback: manual conversion if langchain_community not available
+                from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+                lc_messages = []
+                for msg in prompt:
+                    role = msg["role"]
+                    content = msg["content"]
+                    if role == "user":
+                        lc_messages.append(HumanMessage(content=content))
+                    elif role == "assistant":
+                        lc_messages.append(AIMessage(content=content))
+                    elif role == "system":
+                        lc_messages.append(SystemMessage(content=content))
+                    else:
+                        # Default to HumanMessage for unknown roles
+                        lc_messages.append(HumanMessage(content=content))
+                return lc_messages
+
+        # Handle legacy MultimodalPrompt
+        return prompt.to_text_only_prompt()
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get(

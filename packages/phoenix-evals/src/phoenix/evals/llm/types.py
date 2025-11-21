@@ -3,8 +3,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from phoenix.evals.legacy.templates import MultimodalPrompt
-
 
 class ObjectGenerationMethod(str, Enum):
     AUTO = "auto"
@@ -38,19 +36,29 @@ class BaseLLMAdapter(ABC):
         pass
 
     @abstractmethod
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
-        """Generate text response from the model."""
+    def generate_text(self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any) -> str:
+        """Generate text response from the model.
+
+        Args:
+            prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
+        """
         pass
 
     @abstractmethod
-    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
-        """Async version of generate_text."""
+    async def async_generate_text(
+        self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any
+    ) -> str:
+        """Async version of generate_text.
+
+        Args:
+            prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
+        """
         pass
 
     @abstractmethod
     def generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -61,6 +69,11 @@ class BaseLLMAdapter(ABC):
         The adapter handles all implementation details internally (native structured output,
         tool calling, text parsing, etc.).
 
+        Args:
+            prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
+            schema: JSON schema for the structured output.
+            method: Method to use for generation (auto, tool_calling, structured_output).
+
         Returns:
             A dictionary containing the structured data that conforms to the provided schema.
         """
@@ -69,13 +82,18 @@ class BaseLLMAdapter(ABC):
     @abstractmethod
     async def async_generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[str, List[Dict[str, Any]]],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Async version of generate_object.
+
+        Args:
+            prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
+            schema: JSON schema for the structured output.
+            method: Method to use for generation (auto, tool_calling, structured_output).
 
         Returns:
             A dictionary containing the structured data that conforms to the provided schema.
