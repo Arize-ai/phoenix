@@ -244,13 +244,13 @@ function EvaluatorConfigDialogContent({
     if (!isInputMappingValid) {
       return;
     }
-    const inputConfig = getInputMappingValues();
+    const inputConfig = getInputMappingValues().inputMapping;
     assignEvaluatorToDataset({
       variables: {
         input: {
           datasetId: dataset.id,
           evaluatorId: evaluator.id,
-          inputConfig,
+          inputConfig: { pathMapping: inputConfig },
         },
         connectionIds: [datasetEvaluatorsTableConnection],
         datasetId: dataset.id,
