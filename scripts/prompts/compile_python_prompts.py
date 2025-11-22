@@ -6,55 +6,63 @@ import yaml
 # Add src to path to import models directly
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phoenix.prompts._models import _BuiltInLLMEvaluatorPrompt
+from phoenix.prompts._models import _BuiltInLLMEvaluatorConfig
 
 
-def generate_instances(
-    yaml_path: str,
-    output_path: str,
-) -> None:
+def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
+    """Compile a single YAML prompt file to Python."""
     with open(yaml_path, "r", encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
-    instances = raw.get("instances", {})
-    instance_names = list(instances.keys())
+    # Validate & coerce via Pydantic
+    config = _BuiltInLLMEvaluatorConfig.model_validate(raw)
 
-    # Generate the _hallucination_prompts.py file
+    # Use the name field to determine the variable name and filename
+    name = config.name
+
+    # Generate the Python file
     lines: list[str] = []
     lines.append("# This file is generated. Do not edit by hand.\n")
     lines.append("# ruff: noqa: E501\n")
-    lines.append("from .._models import _BuiltInLLMEvaluatorPrompt, _PromptMessage\n")
+    lines.append("from .._models import _BuiltInLLMEvaluatorConfig, _PromptMessage\n")
+    lines.append(f"\n{name} = {repr(config)}\n")
 
-    for name, data in instances.items():
-        # validate & coerce via Pydantic
-        prompt = _BuiltInLLMEvaluatorPrompt.model_validate(data)
+    output_path = output_dir / f"_{name}.py"
+    output_path.write_text("\n".join(lines), encoding="utf-8")
 
-        # repr(prompt) is "_BuiltInLLMEvaluatorPrompt(...)" which is valid Python
-        lines.append(f"{name} = {repr(prompt)}\n")
+    return name
 
-    Path(output_path).write_text("\n".join(lines), encoding="utf-8")
+
+def compile_all_prompts(prompts_dir: Path, output_dir: Path) -> None:
+    """Compile all YAML prompt files in the prompts directory."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Find all YAML files
+    yaml_files = list(prompts_dir.glob("*.yaml")) + list(prompts_dir.glob("*.yml"))
+
+    # Compile each prompt file
+    prompt_names = []
+    for yaml_file in sorted(yaml_files):
+        name = compile_prompt(yaml_file, output_dir)
+        prompt_names.append(name)
 
     # Generate the __init__.py file
-    output_dir = Path(output_path).parent
     init_path = output_dir / "__init__.py"
-
-    module_name = Path(output_path).stem  # e.g., "_hallucination_prompts"
-
     init_lines: list[str] = []
     init_lines.append("# This file is generated. Do not edit by hand.\n")
 
-    # Import all instances
-    imports = ", ".join(instance_names)
-    init_lines.append(f"from .{module_name} import {imports}\n")
+    # Import all prompts with fully qualified imports
+    for name in prompt_names:
+        init_lines.append(f"from phoenix.prompts.__generated__._{name} import {name}\n")
 
-    # Export all instances
-    all_exports = ", ".join([f'"{name}"' for name in instance_names])
-    init_lines.append(f"__all__ = [{all_exports}]\n")
+    # Export all prompts
+    all_exports = ", ".join([f'"{name}"' for name in prompt_names])
+    init_lines.append(f"\n__all__ = [{all_exports}]\n")
 
     init_path.write_text("\n".join(init_lines), encoding="utf-8")
 
 
 if __name__ == "__main__":
-    generate_instances(
-        "prompts/hallucination.yaml", "src/phoenix/prompts/__generated__/_hallucination_prompts.py"
-    )
+    prompts_dir = Path("prompts")
+    output_dir = Path("src/phoenix/prompts/__generated__")
+    compile_all_prompts(prompts_dir, output_dir)

@@ -8,6 +8,8 @@ class _PromptMessage(BaseModel):
     content: str
 
 
-class _BuiltInLLMEvaluatorPrompt(BaseModel):
+class _BuiltInLLMEvaluatorConfig(BaseModel):
+    name: str
+    description: str
     messages: list[_PromptMessage]
     choices: dict[str, float]
