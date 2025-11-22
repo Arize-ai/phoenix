@@ -1,6 +1,5 @@
 name: HallucinationClassificationEvaluatorConfig
-description: |
-  Detects hallucinations
+description: Detects hallucinations
 messages:
   - role: user
     content: |

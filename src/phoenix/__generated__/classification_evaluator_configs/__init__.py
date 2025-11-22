@@ -3,7 +3,6 @@
 from ._HallucinationClassificationEvaluatorConfig import HallucinationClassificationEvaluatorConfig
 from ._models import ClassificationEvaluatorConfig, PromptMessage
 
-
 __all__ = [
     "ClassificationEvaluatorConfig",
     "PromptMessage",
