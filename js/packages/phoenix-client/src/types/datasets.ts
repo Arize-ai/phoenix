@@ -45,6 +45,7 @@ export interface Example {
   input: Record<string, unknown>;
   output?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
+  splits?: Record<string, string> | null;
 }
 
 /**

@@ -28,6 +28,7 @@ type CreateDatasetFromCSVParams = {
   input_keys: string[];
   output_keys: string[];
   metadata_keys: string[];
+  split_keys: string[];
   name: string;
   description: string;
   metadata: Record<string, unknown>;
@@ -61,6 +62,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
       input_keys: [],
       output_keys: [],
       metadata_keys: [],
+      split_keys: [],
       description: "",
       metadata: {},
     },
@@ -81,6 +83,9 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
       });
       data.metadata_keys.forEach((key) => {
         formData.append("metadata_keys[]", key);
+      });
+      data.split_keys.forEach((key) => {
+        formData.append("split_keys[]", key);
       });
       return fetch(prependBasename("/v1/datasets/upload?sync=true"), {
         method: "POST",
@@ -139,6 +144,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
                     resetField("input_keys");
                     resetField("output_keys");
                     resetField("metadata_keys");
+                    resetField("split_keys");
                     const file = event.target.files?.[0];
                     if (file) {
                       const name = file.name.split(".")[0];
@@ -251,6 +257,20 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
             <ColumnMultiSelector
               label="metadata keys"
               description={`the columns to use as metadata`}
+              columns={columns}
+              selectedColumns={value}
+              onChange={onChange}
+              errorMessage={error?.message}
+            />
+          )}
+        />
+        <Controller
+          name="split_keys"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <ColumnMultiSelector
+              label="split keys"
+              description={`the columns to use for automatically assigning examples to splits`}
               columns={columns}
               selectedColumns={value}
               onChange={onChange}
