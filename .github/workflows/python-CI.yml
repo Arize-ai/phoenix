@@ -272,7 +272,7 @@ jobs:
       - run: git diff --exit-code
 
   compile-prompts:
-    name: Compile Classification Evaluator Configs
+    name: Compile Prompts
     needs: changes
     if: ${{ needs.changes.outputs.prompts == 'true' }}
     strategy:
