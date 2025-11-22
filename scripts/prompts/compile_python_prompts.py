@@ -22,7 +22,7 @@ def generate_instances(
     # Generate the _hallucination_prompts.py file
     lines: list[str] = []
     lines.append("# This file is generated. Do not edit by hand.\n")
-    lines.append("from ._models import User\n")
+    lines.append("from .._models import User\n")
 
     for name, data in instances.items():
         # validate & coerce via Pydantic
@@ -55,5 +55,5 @@ def generate_instances(
 
 if __name__ == "__main__":
     generate_instances(
-        "prompts/hallucination.yaml", "src/phoenix/prompts/_hallucination_prompts.py"
+        "prompts/hallucination.yaml", "src/phoenix/prompts/__generated__/_hallucination_prompts.py"
     )
