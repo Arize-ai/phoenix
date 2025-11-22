@@ -2,13 +2,13 @@
 
 # ruff: noqa: E501
 
-from phoenix.prompts._models import _ClassificationEvaluatorConfig, _PromptMessage
+from phoenix.prompts._models import ClassificationEvaluatorConfig, PromptMessage
 
-HallucinationClassificationEvaluatorConfig = _ClassificationEvaluatorConfig(
+HallucinationClassificationEvaluatorConfig = ClassificationEvaluatorConfig(
     name="HallucinationClassificationEvaluatorConfig",
     description="Detects hallucinations\n",
     messages=[
-        _PromptMessage(
+        PromptMessage(
             role="user",
             content="You are comparing a reference text to a question and answer pair to determine if the answer contains hallucinations.\n\nA hallucination occurs when the answer contains information that is not supported by or contradicts the reference text.\n\nReference text: {{reference}}\nQuestion: {{input}}\nAnswer: {{output}}\n",
         )

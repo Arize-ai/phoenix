@@ -3,13 +3,13 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-class _PromptMessage(BaseModel):
+class PromptMessage(BaseModel):
     role: Literal["user"]
     content: str
 
 
-class _ClassificationEvaluatorConfig(BaseModel):
+class ClassificationEvaluatorConfig(BaseModel):
     name: str
     description: str
-    messages: list[_PromptMessage]
+    messages: list[PromptMessage]
     choices: dict[str, float]
