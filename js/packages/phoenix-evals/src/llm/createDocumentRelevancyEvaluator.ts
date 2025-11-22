@@ -65,11 +65,18 @@ export function createDocumentRelevancyEvaluator<
 >(
   args: DocumentRelevancyEvaluatorArgs<RecordType>
 ): ClassificationEvaluator<RecordType> {
+  const {
+    choices = DOCUMENT_RELEVANCY_CHOICES,
+    promptTemplate = DOCUMENT_RELEVANCY_TEMPLATE,
+    optimizationDirection = "MAXIMIZE",
+    name = "document_relevancy",
+    ...rest
+  } = args;
   return createClassificationEvaluator<RecordType>({
-    ...args,
-    promptTemplate: DOCUMENT_RELEVANCY_TEMPLATE,
-    choices: DOCUMENT_RELEVANCY_CHOICES,
-    optimizationDirection: "MAXIMIZE",
-    name: "document_relevancy",
+    ...rest,
+    promptTemplate,
+    choices,
+    optimizationDirection,
+    name,
   });
 }
