@@ -24,18 +24,9 @@ def generate_models_file(output_path: Path) -> None:
     lines: list[str] = []
     lines.append("# This file is generated. Do not edit by hand.")
     lines.append("from typing import Literal")
-    lines.append("")
     lines.append("from pydantic import BaseModel")
-    lines.append("")
-    lines.append("")
-
-    # Get source code for PromptMessage class
     prompt_message_source = inspect.getsource(PromptMessage)
     lines.append(prompt_message_source.rstrip())
-    lines.append("")
-    lines.append("")
-
-    # Get source code for ClassificationEvaluatorConfig class
     config_source = inspect.getsource(ClassificationEvaluatorConfig)
     lines.append(config_source.rstrip())
 
@@ -47,20 +38,15 @@ def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
     with open(yaml_path, "r", encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
-    # Validate & coerce via Pydantic
     config = ClassificationEvaluatorConfig.model_validate(raw)
-
-    # Use the name field to determine the variable name and filename
     name = config.name
-
-    # Generate the Python file
     lines: list[str] = []
-    lines.append("# This file is generated. Do not edit by hand.\n")
-    lines.append("# ruff: noqa: E501\n")
+    lines.append("# This file is generated. Do not edit by hand.")
+    lines.append("# ruff: noqa: E501")
     lines.append(
-        "from phoenix.prompts.__generated__._models import ClassificationEvaluatorConfig, PromptMessage\n"  # noqa: E501
+        "from phoenix.prompts.__generated__._models import ClassificationEvaluatorConfig, PromptMessage"  # noqa: E501
     )
-    lines.append(f"\n{name} = {repr(config)}\n")
+    lines.append(f"{name} = {repr(config)}")
 
     output_path = output_dir / f"_{name}.py"
     output_path.write_text("\n".join(lines), encoding="utf-8")
