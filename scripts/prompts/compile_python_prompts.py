@@ -1,12 +1,45 @@
-import sys
+import inspect
 from pathlib import Path
+from typing import Literal
 
 import yaml
+from pydantic import BaseModel
 
-# Add src to path to import models directly
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phoenix.prompts._models import ClassificationEvaluatorConfig
+# Define the models here - they will be generated into _models.py
+class PromptMessage(BaseModel):
+    role: Literal["user"]
+    content: str
+
+
+class ClassificationEvaluatorConfig(BaseModel):
+    name: str
+    description: str
+    messages: list[PromptMessage]
+    choices: dict[str, float]
+
+
+def generate_models_file(output_path: Path) -> None:
+    """Generate the _models.py file with Pydantic model definitions."""
+    lines: list[str] = []
+    lines.append("# This file is generated. Do not edit by hand.")
+    lines.append("from typing import Literal")
+    lines.append("")
+    lines.append("from pydantic import BaseModel")
+    lines.append("")
+    lines.append("")
+
+    # Get source code for PromptMessage class
+    prompt_message_source = inspect.getsource(PromptMessage)
+    lines.append(prompt_message_source.rstrip())
+    lines.append("")
+    lines.append("")
+
+    # Get source code for ClassificationEvaluatorConfig class
+    config_source = inspect.getsource(ClassificationEvaluatorConfig)
+    lines.append(config_source.rstrip())
+
+    output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
@@ -25,7 +58,7 @@ def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
     lines.append("# This file is generated. Do not edit by hand.\n")
     lines.append("# ruff: noqa: E501\n")
     lines.append(
-        "from phoenix.prompts._models import ClassificationEvaluatorConfig, PromptMessage\n"
+        "from phoenix.prompts.__generated__._models import ClassificationEvaluatorConfig, PromptMessage\n"  # noqa: E501
     )
     lines.append(f"\n{name} = {repr(config)}\n")
 
@@ -65,6 +98,16 @@ def compile_all_prompts(prompts_dir: Path, output_dir: Path) -> None:
 
 
 if __name__ == "__main__":
+    prompts_base_dir = Path("src/phoenix/prompts")
     prompts_dir = Path("prompts")
-    output_dir = Path("src/phoenix/prompts/__generated__")
+    output_dir = prompts_base_dir / "__generated__"
+
+    # Ensure output directory exists
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate the _models.py file first in __generated__
+    models_path = output_dir / "_models.py"
+    generate_models_file(models_path)
+
+    # Then compile all prompts
     compile_all_prompts(prompts_dir, output_dir)
