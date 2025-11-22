@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field
 
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
-from ..templating import Template
 
 _DEFAULT_DOCUMENT_RELEVANCY_TEMPLATE = """\
 You are comparing a document text to a question and trying to determine
@@ -58,7 +57,7 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
     """
 
     NAME = "document_relevance"
-    PROMPT = Template(template=_DEFAULT_DOCUMENT_RELEVANCY_TEMPLATE)
+    PROMPT = _DEFAULT_DOCUMENT_RELEVANCY_TEMPLATE
     CHOICES = {"unrelated": 0.0, "relevant": 1.0}
 
     class DocumentRelevanceInputSchema(BaseModel):

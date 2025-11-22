@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field
 
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
-from ..templating import Template
 
 _DEFAULT_HALLUCINATION_TEMPLATE = """\
 In this task, you will be presented with a query, some context and a response. The response
@@ -66,7 +65,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
     """
 
     NAME = "hallucination"
-    PROMPT = Template(template=_DEFAULT_HALLUCINATION_TEMPLATE)
+    PROMPT = _DEFAULT_HALLUCINATION_TEMPLATE
     CHOICES = {"hallucinated": 0.0, "factual": 1.0}
 
     class HallucinationInputSchema(BaseModel):

@@ -6,12 +6,12 @@ from typing import Any, Dict, List, Optional, Union
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.trace import Tracer
 
-from phoenix.evals.legacy.templates import MultimodalPrompt
 from phoenix.evals.rate_limiters import RateLimiter
 from phoenix.evals.tracing import trace
 
 from .adapters import register_adapters
 from .registries import PROVIDER_REGISTRY, adapter_availability_table
+from .types import PromptLike
 
 register_adapters()
 
@@ -196,12 +196,12 @@ class LLM:
         process_output={SpanAttributes.OUTPUT_VALUE: _get_output},
     )
     def generate_text(
-        self, prompt: Union[str, MultimodalPrompt], tracer: Optional[Tracer] = None, **kwargs: Any
+        self, prompt: PromptLike, tracer: Optional[Tracer] = None, **kwargs: Any
     ) -> str:
         """Generate text given a prompt.
 
         Args:
-            prompt (Union[str, MultimodalPrompt]): The prompt to generate text from.
+            prompt (PromptLike): The prompt to generate text from.
             tracer (Optional[Tracer]): Optional tracer for tracing operations.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
@@ -224,7 +224,7 @@ class LLM:
     )
     def generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
@@ -232,7 +232,7 @@ class LLM:
         """Generate an object given a prompt and a schema.
 
         Args:
-            prompt (Union[str, MultimodalPrompt]): The prompt to generate the object from.
+            prompt (PromptLike): The prompt to generate the object from.
             schema (Dict[str, Any]): A JSON schema that describes the generated object.
             tracer (Optional[Tracer]): Optional tracer for tracing operations.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
@@ -248,7 +248,7 @@ class LLM:
 
     def generate_classification(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         labels: Union[List[str], Dict[str, str]],
         include_explanation: bool = True,
         description: Optional[str] = None,
@@ -257,7 +257,7 @@ class LLM:
         """Generate a classification given a prompt and a set of labels.
 
         Args:
-            prompt (Union[str, MultimodalPrompt]): The prompt template to go with the tool call.
+            prompt (PromptLike): The prompt template to go with the tool call.
             labels (Union[List[str], Dict[str, str]]): Either:
                 - A list of strings, where each string is a label
                 - A dictionary where keys are labels and values are descriptions
@@ -299,14 +299,14 @@ class LLM:
     )
     async def async_generate_text(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
     ) -> str:
         """Asynchronously generate text given a prompt.
 
         Args:
-            prompt (Union[str, MultimodalPrompt]): The prompt to generate text from.
+            prompt (PromptLike): The prompt to generate text from.
             tracer (Optional[Tracer]): The tracer to use for tracing.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
@@ -329,7 +329,7 @@ class LLM:
     )
     async def async_generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
@@ -337,7 +337,7 @@ class LLM:
         """Asynchronously generate an object given a prompt and a schema.
 
         Args:
-            prompt (Union[str, MultimodalPrompt]): The prompt to generate the object from.
+            prompt (PromptLike): The prompt to generate the object from.
             schema (Dict[str, Any]): A JSON schema that describes the generated object.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
@@ -352,7 +352,7 @@ class LLM:
 
     async def async_generate_classification(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         labels: Union[List[str], Dict[str, str]],
         include_explanation: bool = True,
         description: Optional[str] = None,
@@ -361,7 +361,7 @@ class LLM:
         """Asynchronously generate a classification given a prompt and a set of labels.
 
         Args:
-            prompt (Union[str, MultimodalPrompt]): The prompt template to go with the tool call.
+            prompt (PromptLike): The prompt template to go with the tool call.
             labels (Union[List[str], Dict[str, str]]): Either:
                 - A list of strings, where each string is a label
                 - A dictionary where keys are labels and values are descriptions
