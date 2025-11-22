@@ -1,4 +1,5 @@
 # This file is generated. Do not edit by hand.
+
 from typing import Literal
 
 from pydantic import BaseModel

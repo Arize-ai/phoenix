@@ -7,7 +7,7 @@ from jinja2 import Template
 from pydantic import BaseModel
 
 
-# Define the models here - they will be generated into _models.py
+# The following classes are copied into the compiled module.
 class PromptMessage(BaseModel):
     role: Literal["user"]
     content: str
@@ -20,9 +20,9 @@ class ClassificationEvaluatorConfig(BaseModel):
     choices: dict[str, float]
 
 
-# Jinja2 templates defined inline
 MODELS_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
+
 from typing import Literal
 
 from pydantic import BaseModel
@@ -33,7 +33,7 @@ from pydantic import BaseModel
 {{ classification_evaluator_config_source }}
 """
 
-PROMPT_TEMPLATE = """\
+CLASSIFICATION_EVALUATOR_CONFIG_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
@@ -44,9 +44,11 @@ from phoenix.prompts.__generated__._models import ClassificationEvaluatorConfig,
 
 INIT_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
+
 {% for name in prompt_names -%}
 from phoenix.prompts.__generated__._{{ name }} import {{ name }}
 {% endfor %}
+
 __all__ = [{{ prompt_names|map('tojson')|join(', ') }}]
 """
 
@@ -77,7 +79,7 @@ def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
     config = ClassificationEvaluatorConfig.model_validate(raw)
     name = config.name
 
-    template = Template(PROMPT_TEMPLATE)
+    template = Template(CLASSIFICATION_EVALUATOR_CONFIG_TEMPLATE)
     content = template.render(
         classification_evaluator_config_name=name,
         classification_evaluator_config_definition=repr(config),
