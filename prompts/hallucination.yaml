@@ -1,14 +1,15 @@
 instances:
-  alice:
-    id: 1
-    name: Alice
-    email: alice@example.com
-    roles:
-      - admin
-      - user
-
-  bob:
-    id: 2
-    name: Bob
-    roles:
-      - user
+  hallucination_prompt:
+    messages:
+      - role: user
+        content: |
+          You are comparing a reference text to a question and answer pair to determine if the answer contains hallucinations.
+          
+          A hallucination occurs when the answer contains information that is not supported by or contradicts the reference text.
+          
+          Reference text: {reference}
+          Question: {input}
+          Answer: {output}
+    choices:
+      hallucinated: 1.0
+      factual: 0.0

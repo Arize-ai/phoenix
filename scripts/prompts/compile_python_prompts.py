@@ -6,7 +6,7 @@ import yaml
 # Add src to path to import models directly
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phoenix.prompts._models import User
+from phoenix.prompts._models import _BuiltInLLMEvaluatorPrompt
 
 
 def generate_instances(
@@ -22,14 +22,15 @@ def generate_instances(
     # Generate the _hallucination_prompts.py file
     lines: list[str] = []
     lines.append("# This file is generated. Do not edit by hand.\n")
-    lines.append("from .._models import User\n")
+    lines.append("# ruff: noqa: E501\n")
+    lines.append("from .._models import _BuiltInLLMEvaluatorPrompt, _PromptMessage\n")
 
     for name, data in instances.items():
         # validate & coerce via Pydantic
-        user = User.model_validate(data)
+        prompt = _BuiltInLLMEvaluatorPrompt.model_validate(data)
 
-        # repr(user) is "User(id=..., name=..., ...)" which is valid Python
-        lines.append(f"{name} = {repr(user)}\n")
+        # repr(prompt) is "_BuiltInLLMEvaluatorPrompt(...)" which is valid Python
+        lines.append(f"{name} = {repr(prompt)}\n")
 
     Path(output_path).write_text("\n".join(lines), encoding="utf-8")
 

@@ -1,5 +1,5 @@
 # This file is generated. Do not edit by hand.
 
-from ._hallucination_prompts import alice, bob
+from ._hallucination_prompts import hallucination_prompt
 
-__all__ = ["alice", "bob"]
+__all__ = ["hallucination_prompt"]
