@@ -4,4 +4,4 @@ export * from "./createClassificationEvaluator";
 export * from "./createHallucinationEvaluator";
 export * from "./createDocumentRelevancyEvaluator";
 export * from "./ClassificationEvaluator";
-export * from "./LLMEvaluatorBase";
+export * from "./LLMEvaluator";

@@ -10,7 +10,7 @@ import { ObjectMapping } from "../types/data";
 import { remapObject } from "../utils/objectMappingUtils";
 
 import { createClassifierFn } from "./createClassifierFn";
-import { LLMEvaluatorBase } from "./LLMEvaluatorBase";
+import { LLMEvaluator } from "./LLMEvaluator";
 
 import { LanguageModel } from "ai";
 
@@ -18,7 +18,7 @@ import { LanguageModel } from "ai";
  * An LLM evaluator that performs evaluation via classification
  */
 export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
-  extends LLMEvaluatorBase<RecordType>
+  extends LLMEvaluator<RecordType>
   implements WithPromptTemplate
 {
   readonly evaluatorFn: EvaluatorFn<RecordType>;
