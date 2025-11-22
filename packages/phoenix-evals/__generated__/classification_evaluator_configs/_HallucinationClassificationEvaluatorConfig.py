@@ -3,6 +3,7 @@
 
 from ._models import ClassificationEvaluatorConfig, PromptMessage
 
+
 HallucinationClassificationEvaluatorConfig = ClassificationEvaluatorConfig(
     name="HallucinationClassificationEvaluatorConfig",
     description="Detects hallucinations",
