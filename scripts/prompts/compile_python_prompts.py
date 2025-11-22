@@ -30,7 +30,7 @@ from pydantic import BaseModel
 
 {{ prompt_message_source }}
 
-{{ config_source }}
+{{ classification_evaluator_config_source }}
 """
 
 PROMPT_TEMPLATE = """\
@@ -39,7 +39,7 @@ PROMPT_TEMPLATE = """\
 
 from phoenix.prompts.__generated__._models import ClassificationEvaluatorConfig, PromptMessage
 
-{{ name }} = {{ config_repr }}
+{{ classification_evaluator_config_name }} = {{ classification_evaluator_config_definition }}
 """
 
 INIT_TEMPLATE = """\
@@ -57,11 +57,13 @@ def generate_models_file(output_path: Path) -> None:
 
     # Get source code for classes
     prompt_message_source = inspect.getsource(PromptMessage).rstrip()
-    config_source = inspect.getsource(ClassificationEvaluatorConfig).rstrip()
+    classification_evaluator_config_source = inspect.getsource(
+        ClassificationEvaluatorConfig
+    ).rstrip()
 
     content = template.render(
         prompt_message_source=prompt_message_source,
-        config_source=config_source,
+        classification_evaluator_config_source=classification_evaluator_config_source,
     )
 
     output_path.write_text(content, encoding="utf-8")
@@ -77,8 +79,8 @@ def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
 
     template = Template(PROMPT_TEMPLATE)
     content = template.render(
-        name=name,
-        config_repr=repr(config),
+        classification_evaluator_config_name=name,
+        classification_evaluator_config_definition=repr(config),
     )
 
     output_path = output_dir / f"_{name}.py"
