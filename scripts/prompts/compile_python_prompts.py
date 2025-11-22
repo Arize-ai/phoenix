@@ -64,9 +64,9 @@ __all__ = [
 """
 
 
-def generate_models_file(output_path: Path) -> None:
+def get_models_file_contents() -> str:
     """
-    Generate the _models.py file with Pydantic model definitions.
+    Gets the contents of _models.py containing Pydantic model definitions.
     """
     template = Template(MODELS_TEMPLATE)
     prompt_message_source = inspect.getsource(PromptMessage).strip()
@@ -77,47 +77,28 @@ def generate_models_file(output_path: Path) -> None:
         prompt_message_source=prompt_message_source,
         classification_evaluator_config_source=classification_evaluator_config_source,
     )
-    output_path.write_text(content, encoding="utf-8")
+    return content
 
 
-def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
+def get_prompt_file_contents(config: ClassificationEvaluatorConfig) -> str:
     """
-    Compile a single YAML prompt file to Python.
+    Gets the Python code contents for a ClassificationEvaluatorConfig.
     """
-    with open(yaml_path, "r", encoding="utf-8") as f:
-        raw_config = yaml.safe_load(f)
-    config = ClassificationEvaluatorConfig.model_validate(raw_config)
-    name = config.name
     template = Template(CLASSIFICATION_EVALUATOR_CONFIG_TEMPLATE)
     content = template.render(
-        classification_evaluator_config_name=name,
+        classification_evaluator_config_name=config.name,
         classification_evaluator_config_definition=repr(config),
     )
-    output_path = output_dir / f"_{name}.py"
-    output_path.write_text(content, encoding="utf-8")
-    return name
+    return content
 
 
-def compile_all_prompts(prompts_dir: Path, output_dir: Path) -> None:
+def get_init_file_contents(prompt_names: list[str]) -> str:
     """
-    Compile all YAML prompt files in the prompts directory.
+    Gets the __init__.py file contents with exports for all prompts.
     """
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Find all YAML files
-    yaml_files = list(prompts_dir.glob("*.yaml"))
-    prompt_names = []
-    for yaml_file in sorted(yaml_files):
-        name = compile_prompt(yaml_file, output_dir)
-        prompt_names.append(name)
-
-    # Generate the __init__.py file
     template = Template(INIT_TEMPLATE)
     content = template.render(prompt_names=prompt_names)
-
-    init_path = output_dir / "__init__.py"
-    init_path.write_text(content, encoding="utf-8")
+    return content
 
 
 if __name__ == "__main__":
@@ -136,9 +117,31 @@ if __name__ == "__main__":
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate the _models.py file first
+    # Generate _models.py containing Pydantic model definitions
+    models_content = get_models_file_contents()
     models_path = output_dir / "_models.py"
-    generate_models_file(models_path)
+    models_path.write_text(models_content, encoding="utf-8")
 
-    # Then compile all prompts
-    compile_all_prompts(prompts_dir, output_dir)
+    # Compile all YAML prompts to Python
+    yaml_files = list(prompts_dir.glob("*.yaml"))
+    prompt_names = []
+
+    for yaml_file in sorted(yaml_files):
+        # Read and validate YAML
+        with open(yaml_file, "r", encoding="utf-8") as f:
+            raw_config = yaml.safe_load(f)
+        config = ClassificationEvaluatorConfig.model_validate(raw_config)
+
+        # Generate Python code
+        name = config.name
+        content = get_prompt_file_contents(config)
+        prompt_names.append(name)
+
+        # Write to file
+        output_path = output_dir / f"_{name}.py"
+        output_path.write_text(content, encoding="utf-8")
+
+    # Generate the __init__.py file
+    init_content = get_init_file_contents(prompt_names)
+    init_path = output_dir / "__init__.py"
+    init_path.write_text(init_content, encoding="utf-8")
