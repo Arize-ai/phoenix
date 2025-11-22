@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 # Type alias for prompt formats
-PromptLike = Union[str, List[Dict[str, str]]]
+PromptLike = Union[str, List[Dict[str, Any]]]
 
 
 class ObjectGenerationMethod(str, Enum):

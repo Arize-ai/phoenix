@@ -324,6 +324,13 @@ class PromptTemplate:
     Provides a uniform interface regardless of the internal template format.
     """
 
+    _template: Union[str, List[Dict[str, Any]]]
+    _is_string: bool
+    _variables: List[str]
+    template_format: TemplateFormat
+    _template_format: Optional[TemplateFormat]
+    _formatter: TemplateFormatter
+
     def __init__(
         self,
         *,
@@ -435,12 +442,14 @@ class PromptTemplate:
 
         if self._is_string:
             # Render string template
-            rendered = self._formatter.render(self._template, variables)  # type: ignore
+            assert isinstance(self._template, str)
+            rendered = self._formatter.render(self._template, variables)
             return dedent(rendered)
         else:
             # Render message list
+            assert isinstance(self._template, list)
             rendered_messages = []
-            for msg in self._template:  # type: ignore
+            for msg in self._template:
                 rendered_msg = msg.copy()  # Preserve all fields including extras
                 if "content" in msg:
                     formatter = self._get_formatter_for_content(msg["content"])

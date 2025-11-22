@@ -287,12 +287,18 @@ class LangChainModelAdapter(BaseLLMAdapter):
         if isinstance(prompt, list):
             # Convert OpenAI-style messages to LangChain messages
             try:
-                from langchain_community.adapters.openai import convert_openai_messages
+                from langchain_community.adapters.openai import (
+                    convert_openai_messages,  # type: ignore
+                )
 
-                return convert_openai_messages(prompt)
+                return convert_openai_messages(prompt)  # type: ignore
             except ImportError:
                 # Fallback: manual conversion if langchain_community not available
-                from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+                from langchain_core.messages import (  # type: ignore
+                    AIMessage,
+                    HumanMessage,
+                    SystemMessage,
+                )
 
                 lc_messages = []
                 for msg in prompt:

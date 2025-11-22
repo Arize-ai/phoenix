@@ -211,7 +211,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def _generate_with_structured_output(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -240,7 +240,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -272,7 +272,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_structured_output(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -301,7 +301,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
