@@ -1,3 +1,4 @@
+import argparse
 import inspect
 from pathlib import Path
 from typing import Literal
@@ -113,7 +114,16 @@ def compile_all_prompts(prompts_dir: Path, output_dir: Path) -> None:
 
 
 if __name__ == "__main__":
-    prompts_base_dir = Path("src/phoenix/prompts")
+    parser = argparse.ArgumentParser(description="Compile YAML prompts to Python code")
+    parser.add_argument(
+        "compiled_module_path",
+        type=Path,
+        help="Path to the compiled module (e.g., src/phoenix/prompts)",
+    )
+
+    args = parser.parse_args()
+
+    prompts_base_dir = args.compiled_module_path
     prompts_dir = Path("prompts")
     output_dir = prompts_base_dir / "__generated__"
 
