@@ -1,5 +1,6 @@
 import json
 import re
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import Enum
@@ -243,6 +244,10 @@ class Template:
     Template for rendering prompts with mustache ({{variable}}) or f-string ({variable}) formats.
 
     Supports auto-detection of template format and handles JSON content correctly.
+
+    .. deprecated::
+        Template is deprecated. Use PromptTemplate instead, which supports both string
+        templates and message lists (OpenAI-style format).
     """
 
     def __init__(
@@ -261,6 +266,13 @@ class Template:
         Raises:
             ValueError: If the template is empty.
         """
+        warnings.warn(
+            "Template is deprecated and will be removed in a future version. "
+            "Use PromptTemplate instead, which supports both string templates and "
+            "message lists (OpenAI-style format).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not template:
             raise ValueError("Template cannot be empty")
         self.template = template
