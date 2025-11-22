@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.6.0...arize-phoenix-evals-v2.6.1) (2025-11-22)
+
+
+### Bug Fixes
+
+* handle None values for top_p and temperature in AnthropicModel ([#10361](https://github.com/Arize-ai/phoenix/issues/10361)) ([2ade906](https://github.com/Arize-ai/phoenix/commit/2ade9067080e3557472518472c76efbfd08b343f))
+
 ## [2.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.5.0...arize-phoenix-evals-v2.6.0) (2025-11-12)
 
 
