@@ -1,5 +1,7 @@
 import { ObjectMapping, ValueGetter } from "../types/data";
 
+import { JSONPath } from "jsonpath-plus";
+
 /**
  * A function that takes an object and a mapping and returns the re-mapped object
  */
@@ -21,6 +23,8 @@ export function remapInput<DataType extends Record<string, unknown>>(
 function getMappedInputValue<DataType extends Record<string, unknown>>(
   data: DataType,
   valueGetter: ValueGetter<DataType>
-): unknown {
-  return typeof valueGetter === "function" ? valueGetter(data) : valueGetter;
+): DataType[keyof DataType] {
+  return typeof valueGetter === "function"
+    ? valueGetter(data)
+    : JSONPath({ path: valueGetter, json: data, wrap: false });
 }
