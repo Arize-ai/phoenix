@@ -129,7 +129,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     output_dir = args.compiled_module_path
-    prompts_dir = Path("prompts")
+    prompts_dir = Path("prompts/classification_evaluator_configs")
 
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
