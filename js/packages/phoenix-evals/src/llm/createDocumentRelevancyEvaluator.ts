@@ -2,19 +2,24 @@ import {
   DOCUMENT_RELEVANCY_CHOICES,
   DOCUMENT_RELEVANCY_TEMPLATE,
 } from "../default_templates/DOCUMENT_RELEVANCY_TEMPLATE";
-import { CreateClassificationEvaluatorArgs, Evaluator } from "../types/evals";
+import { CreateClassificationEvaluatorArgs } from "../types/evals";
 
+import { ClassificationEvaluator } from "./ClassificationEvaluator";
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
-export interface DocumentRelevancyEvaluatorArgs
-  extends Omit<
-    CreateClassificationEvaluatorArgs,
+export interface DocumentRelevancyEvaluatorArgs<
+  RecordType extends Record<
+    string,
+    unknown
+  > = DocumentRelevancyEvaluationRecord,
+> extends Omit<
+    CreateClassificationEvaluatorArgs<RecordType>,
     "promptTemplate" | "choices" | "optimizationDirection" | "name"
   > {
-  optimizationDirection?: CreateClassificationEvaluatorArgs["optimizationDirection"];
-  name?: CreateClassificationEvaluatorArgs["name"];
-  choices?: CreateClassificationEvaluatorArgs["choices"];
-  promptTemplate?: CreateClassificationEvaluatorArgs["promptTemplate"];
+  optimizationDirection?: CreateClassificationEvaluatorArgs<RecordType>["optimizationDirection"];
+  name?: CreateClassificationEvaluatorArgs<RecordType>["name"];
+  choices?: CreateClassificationEvaluatorArgs<RecordType>["choices"];
+  promptTemplate?: CreateClassificationEvaluatorArgs<RecordType>["promptTemplate"];
 }
 
 /**
@@ -57,21 +62,14 @@ export function createDocumentRelevancyEvaluator<
     string,
     unknown
   > = DocumentRelevancyEvaluationRecord,
->(args: DocumentRelevancyEvaluatorArgs): Evaluator<RecordType> {
-  const {
-    choices = DOCUMENT_RELEVANCY_CHOICES,
-    promptTemplate = DOCUMENT_RELEVANCY_TEMPLATE,
-    optimizationDirection = "MAXIMIZE",
-    name = "document_relevancy",
-    ...rest
-  } = args;
-
+>(
+  args: DocumentRelevancyEvaluatorArgs<RecordType>
+): ClassificationEvaluator<RecordType> {
   return createClassificationEvaluator<RecordType>({
     ...args,
-    promptTemplate,
-    choices,
-    optimizationDirection,
-    name,
-    ...rest,
+    promptTemplate: DOCUMENT_RELEVANCY_TEMPLATE,
+    choices: DOCUMENT_RELEVANCY_CHOICES,
+    optimizationDirection: "MAXIMIZE",
+    name: "document_relevancy",
   });
 }
