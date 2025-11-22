@@ -30,6 +30,11 @@ IS_RETRIEVER = "span_kind == 'RETRIEVER'"
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
+def _concat_contexts(contexts: "pd.Series[str]", separator: str = "\n\n") -> str:
+    """Concatenate context strings with a separator."""
+    return separator.join(str(v) for v in contexts.dropna())
+
+
 def _build_retrieved_documents_query() -> SpanQuery:
     return (
         SpanQuery()
@@ -204,8 +209,9 @@ def get_input_output_context(
         print("No retrieval documents found.")
         return None
 
+    # Group by trace_id (index level 0) and concatenate contexts
     ref: pd.Series[str] = df_docs.groupby(level=0)["context"].apply(
-        lambda x: separator.join(x.dropna())
+        lambda x: _concat_contexts(x, separator)
     )
     df_ref = pd.DataFrame({"context": ref})
     df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner")
@@ -412,8 +418,9 @@ async def async_get_input_output_context(
         print("No retrieval documents found.")
         return None
 
+    # Group by trace_id (index level 0) and concatenate contexts
     ref: pd.Series[str] = df_docs.groupby(level=0)["context"].apply(
-        lambda x: separator.join(x.dropna())
+        lambda x: _concat_contexts(x, separator)
     )
     df_ref = pd.DataFrame({"context": ref})
     df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner")

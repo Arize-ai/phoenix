@@ -135,18 +135,20 @@ class TestEvaluationHelpersRag:
 
         if is_async:
             client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-            client_sync = None  # type: ignore[assignment]
+            client_sync = None
         else:
             client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
-            client_async = None  # type: ignore[assignment]
+            client_async = None
 
         # No spans logged
         docs_df: pd.DataFrame
         if is_async:
+            assert client_async is not None
             docs_df = await _await_or_return(
                 cast(Any, async_get_retrieved_documents(client_async, project_name=project_name))
             )
         else:
+            assert client_sync is not None
             docs_df = await _await_or_return(
                 cast(Any, get_retrieved_documents(client_sync, project_name=project_name))
             )
@@ -155,10 +157,12 @@ class TestEvaluationHelpersRag:
 
         qa_df: Optional[pd.DataFrame]
         if is_async:
+            assert client_async is not None
             qa_df = await _await_or_return(
                 cast(Any, async_get_input_output_context(client_async, project_name=project_name))
             )
         else:
+            assert client_sync is not None
             qa_df = await _await_or_return(
                 cast(Any, get_input_output_context(client_sync, project_name=project_name))
             )
@@ -185,10 +189,10 @@ class TestEvaluationHelpersRag:
 
         if is_async:
             client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-            client_sync = None  # type: ignore[assignment]
+            client_sync = None
         else:
             client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
-            client_async = None  # type: ignore[assignment]
+            client_async = None
         project_name = _existing_project.name
 
         trace_id = f"trace_retrieve_{token_hex(8)}"
@@ -217,6 +221,7 @@ class TestEvaluationHelpersRag:
         # Log spans
         create_result: dict[str, Any]
         if is_async:
+            assert client_async is not None
             create_result = await _await_or_return(
                 cast(
                     "Awaitable[dict[str, Any]]",
@@ -226,6 +231,7 @@ class TestEvaluationHelpersRag:
                 )
             )
         else:
+            assert client_sync is not None
             create_result = await _await_or_return(
                 cast(
                     dict[str, Any],
@@ -239,10 +245,12 @@ class TestEvaluationHelpersRag:
 
         df: pd.DataFrame
         if is_async:
+            assert client_async is not None
             df = await _await_or_return(
                 cast(Any, async_get_retrieved_documents(client_async, project_name=project_name))
             )
         else:
+            assert client_sync is not None
             df = await _await_or_return(
                 cast(Any, get_retrieved_documents(client_sync, project_name=project_name))
             )
@@ -259,10 +267,10 @@ class TestEvaluationHelpersRag:
         assert all(val == "what is X?" for val in df_docs_only["input"].tolist())
         # Content and score/metadata assertions when available
         if "document" in df_docs_only.columns:
-            documents = set(df_docs_only["document"].astype(str).tolist())  # type: ignore[union-attr]
+            documents = set(df_docs_only["document"].astype(str).tolist())  # pyright: ignore[reportAttributeAccessIssue]
             assert "doc_1_content" in documents and "doc_2_content" in documents
         if "document_score" in df_docs_only.columns:
-            has_missing = any(pd.isna(s) for s in df_docs_only["document_score"].tolist())  # type: ignore[arg-type]
+            has_missing = any(pd.isna(s) for s in df_docs_only["document_score"].tolist())  # pyright: ignore[reportArgumentType]
             assert has_missing
 
     @pytest.mark.flaky(reruns=2, reruns_delay=1)
@@ -289,10 +297,10 @@ class TestEvaluationHelpersRag:
 
         if is_async:
             client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-            client_sync = None  # type: ignore[assignment]
+            client_sync = None
         else:
             client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
-            client_async = None  # type: ignore[assignment]
+            client_async = None
         project_name = _existing_project.name
 
         trace_id = f"trace_concat_{token_hex(8)}"
@@ -319,6 +327,7 @@ class TestEvaluationHelpersRag:
 
         create_result: dict[str, Any]
         if is_async:
+            assert client_async is not None
             create_result = await _await_or_return(
                 cast(
                     "Awaitable[dict[str, Any]]",
@@ -328,6 +337,7 @@ class TestEvaluationHelpersRag:
                 )
             )
         else:
+            assert client_sync is not None
             create_result = await _await_or_return(
                 cast(
                     dict[str, Any],
@@ -342,6 +352,7 @@ class TestEvaluationHelpersRag:
         # Ensure retriever docs are visible first
         for _ in range(50):
             if is_async:
+                assert client_async is not None
                 docs_df = await _await_or_return(
                     cast(
                         Any,
@@ -351,6 +362,7 @@ class TestEvaluationHelpersRag:
                     )
                 )
             else:
+                assert client_sync is not None
                 docs_df = await _await_or_return(
                     cast(
                         Any,
@@ -367,6 +379,7 @@ class TestEvaluationHelpersRag:
         qa_df2: Optional[pd.DataFrame] = None
         for _ in range(60):
             if is_async:
+                assert client_async is not None
                 qa_df2 = await _await_or_return(
                     cast(
                         Any,
@@ -376,6 +389,7 @@ class TestEvaluationHelpersRag:
                     )
                 )
             else:
+                assert client_sync is not None
                 qa_df2 = await _await_or_return(
                     cast(
                         Any,
@@ -390,10 +404,10 @@ class TestEvaluationHelpersRag:
         assert qa_df2 is not None
         assert isinstance(qa_df2, pd.DataFrame)
         # Index should be context.span_id, which should include the root span
-        assert str(root_span_id) in qa_df2.index.astype(str)  # type: ignore[operator]
+        assert str(root_span_id) in qa_df2.index.astype(str)  # pyright: ignore[reportGeneralTypeIssues]
         row = qa_df2.loc[str(root_span_id)]
-        assert row["input"] == "What is the capital of France?"  # type: ignore[comparison-overlap]
-        assert row["output"] == "Paris"  # type: ignore[comparison-overlap]
+        assert row["input"] == "What is the capital of France?"  # pyright: ignore[reportGeneralTypeIssues]
+        assert row["output"] == "Paris"  # pyright: ignore[reportGeneralTypeIssues]
         # Confirm concatenation contains both pieces and uses separator "\n\n"
         context_val = row["context"]
         assert isinstance(context_val, str)
@@ -402,7 +416,7 @@ class TestEvaluationHelpersRag:
         assert "\n\n" in context_val
         # Metadata is propagated
         assert (
-            "metadata" in row  # type: ignore[operator]
+            "metadata" in row  # pyright: ignore[reportGeneralTypeIssues]
             and isinstance(row["metadata"], dict)
             and row["metadata"]["task"] == "geography"
         )
@@ -431,10 +445,10 @@ class TestEvaluationHelpersRag:
 
         if is_async:
             client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
-            client_sync = None  # type: ignore[assignment]
+            client_sync = None
         else:
             client_sync = SyncClient(base_url=_app.base_url, api_key=api_key)
-            client_async = None  # type: ignore[assignment]
+            client_async = None
         project_name = _existing_project.name
 
         base_time = datetime.now(timezone.utc)
@@ -476,6 +490,7 @@ class TestEvaluationHelpersRag:
 
         create_result: dict[str, Any]
         if is_async:
+            assert client_async is not None
             create_result = await _await_or_return(
                 cast(
                     "Awaitable[dict[str, Any]]",
@@ -486,6 +501,7 @@ class TestEvaluationHelpersRag:
                 )
             )
         else:
+            assert client_sync is not None
             create_result = await _await_or_return(
                 cast(
                     dict[str, Any],
@@ -512,6 +528,7 @@ class TestEvaluationHelpersRag:
 
         docs_df: pd.DataFrame
         if is_async:
+            assert client_async is not None
             docs_df = await _await_or_return(
                 cast(
                     Any,
@@ -525,6 +542,7 @@ class TestEvaluationHelpersRag:
                 )
             )
         else:
+            assert client_sync is not None
             docs_df = await _await_or_return(
                 cast(
                     Any,
@@ -540,18 +558,19 @@ class TestEvaluationHelpersRag:
         assert isinstance(docs_df, pd.DataFrame)
         # Should only include "late doc"
         if "document" in docs_df.columns:
-            documents = (
-                set(docs_df["document"].astype(str).tolist()) if not docs_df.empty else set()  # type: ignore[union-attr]
+            documents: set[str] = (
+                set(docs_df["document"].astype(str).tolist()) if not docs_df.empty else set()  # pyright: ignore[reportAttributeAccessIssue]
             )
             assert documents == {"late doc"}
         else:
             assert not docs_df.empty
-            assert set(docs_df["context.trace_id"].astype(str).tolist()) == {trace_late}  # type: ignore[union-attr]
+            assert set(docs_df["context.trace_id"].astype(str).tolist()) == {trace_late}  # pyright: ignore[reportAttributeAccessIssue]
             assert docs_df.shape[0] == 1
 
         # Ensure retriever docs for the filtered window are visible first (handles lag)
         for _ in range(50):
             if is_async:
+                assert client_async is not None
                 docs_df = await _await_or_return(
                     cast(
                         Any,
@@ -565,6 +584,7 @@ class TestEvaluationHelpersRag:
                     )
                 )
             else:
+                assert client_sync is not None
                 docs_df = await _await_or_return(
                     cast(
                         Any,
@@ -587,6 +607,7 @@ class TestEvaluationHelpersRag:
         qa_df: Optional[pd.DataFrame] = None
         for _ in range(60):
             if is_async:
+                assert client_async is not None
                 qa_df = await _await_or_return(
                     cast(
                         Any,
@@ -600,6 +621,7 @@ class TestEvaluationHelpersRag:
                     )
                 )
             else:
+                assert client_sync is not None
                 qa_df = await _await_or_return(
                     cast(
                         Any,
@@ -620,6 +642,6 @@ class TestEvaluationHelpersRag:
         # Only the late root span should be present
         assert len(qa_df) == 1
         row = qa_df.iloc[0]
-        assert row["input"] == "late in time"  # type: ignore[comparison-overlap]
-        assert row["output"] == "late out"  # type: ignore[comparison-overlap]
+        assert row["input"] == "late in time"  # pyright: ignore[reportGeneralTypeIssues]
+        assert row["output"] == "late out"  # pyright: ignore[reportGeneralTypeIssues]
         assert "late doc" in row["context"]
