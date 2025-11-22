@@ -1,7 +1,7 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from phoenix.prompts.__generated__._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, PromptMessage
 
 HallucinationClassificationEvaluatorConfig = ClassificationEvaluatorConfig(
     name="HallucinationClassificationEvaluatorConfig",

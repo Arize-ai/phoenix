@@ -38,7 +38,7 @@ CLASSIFICATION_EVALUATOR_CONFIG_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from phoenix.prompts.__generated__._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, PromptMessage
 
 {{ classification_evaluator_config_name }} = {{ classification_evaluator_config_definition }}
 """
@@ -47,7 +47,7 @@ INIT_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
 
 {% for name in prompt_names -%}
-from phoenix.prompts.__generated__._{{ name }} import {{ name }}
+from ._{{ name }} import {{ name }}
 {% endfor %}
 
 __all__ = [{{ prompt_names|map('tojson')|join(', ') }}]
