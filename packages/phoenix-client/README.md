@@ -29,6 +29,7 @@ Phoenix Client provides a interface for interacting with the Phoenix platform vi
 - **Experiments** - Run evaluations and track experiment results
 - **Spans** - Query and analyze traces with powerful filtering
 - **Annotations** - Add human feedback and automated evaluations
+- **Evaluation Helpers** - Extract span data in formats optimized for RAG evaluation workflows
 
 ## Installation
 
