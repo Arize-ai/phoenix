@@ -1,22 +1,13 @@
-import {
-  CreateEvaluatorArgs,
-  EvaluationResult,
-  Evaluator,
-  OptimizationDirection,
-} from "../types";
+import { EvaluatorBase } from "../core/EvaluatorBase";
+import { CreateLLMEvaluatorArgs } from "../types";
 
 /**
  * Base class for llm evaluation metrics / scores
  */
-export abstract class LLMEvaluator<RecordType extends Record<string, unknown>>
-  implements Evaluator<RecordType>
-{
-  readonly name: string;
-  readonly kind = "LLM" as const;
-  readonly optimizationDirection?: OptimizationDirection;
-  constructor({ name, optimizationDirection }: CreateEvaluatorArgs) {
-    this.name = name;
-    this.optimizationDirection = optimizationDirection;
+export abstract class LLMEvaluator<
+  RecordType extends Record<string, unknown>,
+> extends EvaluatorBase<RecordType> {
+  constructor({ ...args }: CreateLLMEvaluatorArgs<RecordType>) {
+    super({ kind: "LLM", ...args });
   }
-  abstract evaluate(_example: RecordType): Promise<EvaluationResult>;
 }
