@@ -9,7 +9,7 @@ from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentTy
 from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
 
 from ...registries import register_adapter, register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ...types import BaseLLMAdapter, ObjectGenerationMethod, PromptLike
 from .factories import OpenAIClientWrapper, create_azure_openai_client, create_openai_client
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         return inspect.iscoroutinefunction(create_method)
 
-    def generate_text(self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Generate text using OpenAI client."""
         if self._is_async:
             raise ValueError("Cannot call sync method generate_text() on async OpenAI client.")
@@ -100,9 +100,7 @@ class OpenAIAdapter(BaseLLMAdapter):
             logger.error(f"OpenAI completion failed: {e}")
             raise
 
-    async def async_generate_text(
-        self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Async text generation using OpenAI client."""
         if not self._is_async:
             raise ValueError(
@@ -124,7 +122,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -169,7 +167,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,

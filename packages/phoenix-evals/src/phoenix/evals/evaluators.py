@@ -36,7 +36,7 @@ from .legacy.evaluators import (
     ToxicityEvaluator,
 )
 from .llm import LLM
-from .llm.types import ObjectGenerationMethod
+from .llm.types import ObjectGenerationMethod, PromptLike
 from .templating import PromptTemplate
 from .utils import (
     _deprecate_positional_args,
@@ -393,7 +393,7 @@ class LLMEvaluator(Evaluator):
         *,
         name: str,
         llm: LLM,
-        prompt_template: Union[str, List[Dict[str, Any]]],
+        prompt_template: PromptLike,
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
@@ -550,7 +550,7 @@ class ClassificationEvaluator(LLMEvaluator):
         *,
         name: str,
         llm: LLM,
-        prompt_template: Union[str, List[Dict[str, Any]]],
+        prompt_template: PromptLike,
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
         ],

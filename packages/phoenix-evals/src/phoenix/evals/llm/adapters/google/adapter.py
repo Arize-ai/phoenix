@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Type, Union, cast
 from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 
 from ...registries import register_adapter, register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ...types import BaseLLMAdapter, ObjectGenerationMethod, PromptLike
 from .factories import GoogleGenAIClientWrapper, create_google_genai_client
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             return False
         return True
 
-    def generate_text(self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         if self._is_async:
             raise ValueError(
                 "Cannot call sync method generate_text() on async Google GenAI client."
@@ -77,9 +77,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             logger.error(f"Google GenAI completion failed: {e}")
             raise
 
-    async def async_generate_text(
-        self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         if not self._is_async:
             raise ValueError(
                 "Cannot call async method async_generate_text() on sync Google GenAI client."
@@ -102,7 +100,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -141,7 +139,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -179,7 +177,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     def _generate_with_structured_output(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -207,7 +205,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_structured_output(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -235,7 +233,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -271,7 +269,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:

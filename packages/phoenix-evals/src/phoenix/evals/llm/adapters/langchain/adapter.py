@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Type, Union, cast
 from phoenix.evals.legacy.templates import MultimodalPrompt
 
 from ...registries import register_adapter, register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ...types import BaseLLMAdapter, ObjectGenerationMethod, PromptLike
 from .factories import (
     create_anthropic_langchain_client,  # pyright: ignore
     create_openai_langchain_client,  # pyright: ignore
@@ -68,7 +68,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 f"'predict' method, got {type(self.client)}"
             )
 
-    def generate_text(self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "invoke"):
@@ -85,9 +85,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
         else:
             return str(response)
 
-    async def async_generate_text(
-        self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "ainvoke"):
@@ -106,7 +104,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -186,7 +184,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,

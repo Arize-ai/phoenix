@@ -9,7 +9,7 @@ from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentTy
 from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
 
 from ...registries import register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ...types import BaseLLMAdapter, ObjectGenerationMethod, PromptLike
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
@@ -84,7 +84,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         except ImportError:
             raise ImportError("LiteLLM package not installed. Run: pip install litellm")
 
-    def generate_text(self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Generate text using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -100,9 +100,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
             logger.error(f"LiteLLM completion failed: {e}")
             raise
 
-    async def async_generate_text(
-        self, prompt: Union[str, List[Dict[str, Any]]], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Async text generation using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -120,7 +118,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -173,7 +171,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -227,7 +225,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def _generate_with_structured_output(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -256,7 +254,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -281,7 +279,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_structured_output(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -310,7 +308,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: Union[str, List[Dict[str, Any]]],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
