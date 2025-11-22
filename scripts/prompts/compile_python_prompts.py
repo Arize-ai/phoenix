@@ -1,3 +1,7 @@
+"""
+Compiles YAML prompts into Python code.
+"""
+
 import argparse
 import inspect
 from pathlib import Path
@@ -8,12 +12,13 @@ from jinja2 import Template
 from pydantic import BaseModel
 
 
-# The following classes are copied into the compiled module.
+# Based message class copied into the compiled module.
 class PromptMessage(BaseModel):
     role: Literal["user"]
     content: str
 
 
+# Base classification evaluator config class copied into the compiled module.
 class ClassificationEvaluatorConfig(BaseModel):
     name: str
     description: str
@@ -60,51 +65,48 @@ __all__ = [
 
 
 def generate_models_file(output_path: Path) -> None:
-    """Generate the _models.py file with Pydantic model definitions."""
+    """
+    Generate the _models.py file with Pydantic model definitions.
+    """
     template = Template(MODELS_TEMPLATE)
-
-    # Get source code for classes
-    prompt_message_source = inspect.getsource(PromptMessage).rstrip()
+    prompt_message_source = inspect.getsource(PromptMessage).strip()
     classification_evaluator_config_source = inspect.getsource(
         ClassificationEvaluatorConfig
-    ).rstrip()
-
+    ).strip()
     content = template.render(
         prompt_message_source=prompt_message_source,
         classification_evaluator_config_source=classification_evaluator_config_source,
     )
-
     output_path.write_text(content, encoding="utf-8")
 
 
 def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
-    """Compile a single YAML prompt file to Python."""
+    """
+    Compile a single YAML prompt file to Python.
+    """
     with open(yaml_path, "r", encoding="utf-8") as f:
-        raw = yaml.safe_load(f)
-
-    config = ClassificationEvaluatorConfig.model_validate(raw)
+        raw_config = yaml.safe_load(f)
+    config = ClassificationEvaluatorConfig.model_validate(raw_config)
     name = config.name
-
     template = Template(CLASSIFICATION_EVALUATOR_CONFIG_TEMPLATE)
     content = template.render(
         classification_evaluator_config_name=name,
         classification_evaluator_config_definition=repr(config),
     )
-
     output_path = output_dir / f"_{name}.py"
     output_path.write_text(content, encoding="utf-8")
-
     return name
 
 
 def compile_all_prompts(prompts_dir: Path, output_dir: Path) -> None:
-    """Compile all YAML prompt files in the prompts directory."""
+    """
+    Compile all YAML prompt files in the prompts directory.
+    """
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Find all YAML files
-    yaml_files = list(prompts_dir.glob("*.yaml")) + list(prompts_dir.glob("*.yml"))
-
-    # Compile each prompt file
+    yaml_files = list(prompts_dir.glob("*.yaml"))
     prompt_names = []
     for yaml_file in sorted(yaml_files):
         name = compile_prompt(yaml_file, output_dir)
