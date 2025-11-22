@@ -271,8 +271,8 @@ jobs:
         run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e compile_protobuf
       - run: git diff --exit-code
 
-  compile-prompts:
-    name: Compile Prompts
+  compile-classification-evaluator-configs:
+    name: Compile Classification Evaluator Configs
     needs: changes
     if: ${{ needs.changes.outputs.prompts == 'true' }}
     strategy:
@@ -292,7 +292,7 @@ jobs:
         with:
           version: 0.8.6
       - name: Compile Prompts
-        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e compile_prompts src/phoenix/classification_evaluator_configs
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e compile_prompts -- src/phoenix/__generated__/classification_evaluator_configs
       - run: git diff --exit-code
 
   ruff:
