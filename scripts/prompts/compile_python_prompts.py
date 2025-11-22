@@ -46,11 +46,16 @@ from ._models import ClassificationEvaluatorConfig, PromptMessage
 INIT_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
 
+from ._models import ClassificationEvaluatorConfig, PromptMessage
 {% for name in prompt_names -%}
 from ._{{ name }} import {{ name }}
 {% endfor %}
 
-__all__ = [{{ prompt_names|map('tojson')|join(', ') }}]
+__all__ = [
+    "ClassificationEvaluatorConfig",
+    "PromptMessage",
+    {{ prompt_names|map('tojson')|join(', ') }}
+]
 """
 
 
@@ -118,19 +123,18 @@ if __name__ == "__main__":
     parser.add_argument(
         "compiled_module_path",
         type=Path,
-        help="Path to the compiled module (e.g., src/phoenix/prompts)",
+        help="Path to the compiled module",
     )
 
     args = parser.parse_args()
 
-    prompts_base_dir = args.compiled_module_path
+    output_dir = args.compiled_module_path
     prompts_dir = Path("prompts")
-    output_dir = prompts_base_dir / "__generated__"
 
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate the _models.py file first in __generated__
+    # Generate the _models.py file first
     models_path = output_dir / "_models.py"
     generate_models_file(models_path)
 
