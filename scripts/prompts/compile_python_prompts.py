@@ -53,7 +53,7 @@ INIT_TEMPLATE = """\
 
 from ._models import ClassificationEvaluatorConfig, PromptMessage
 {% for name in prompt_names -%}
-from ._{{ name }} import {{ name }}
+from ._{{ name.lower() }} import {{ name }}
 {% endfor %}
 
 __all__ = [
@@ -80,13 +80,13 @@ def get_models_file_contents() -> str:
     return content
 
 
-def get_prompt_file_contents(config: ClassificationEvaluatorConfig) -> str:
+def get_prompt_file_contents(config: ClassificationEvaluatorConfig, name: str) -> str:
     """
     Gets the Python code contents for a ClassificationEvaluatorConfig.
     """
     template = Template(CLASSIFICATION_EVALUATOR_CONFIG_TEMPLATE)
     content = template.render(
-        classification_evaluator_config_name=config.name,
+        classification_evaluator_config_name=name,
         classification_evaluator_config_definition=repr(config),
     )
     return content
@@ -132,13 +132,13 @@ if __name__ == "__main__":
             raw_config = yaml.safe_load(f)
         config = ClassificationEvaluatorConfig.model_validate(raw_config)
 
-        # Generate Python code
-        name = config.name
-        content = get_prompt_file_contents(config)
+        # Generate Python code using YAML filename as the module/variable name
+        name = yaml_file.stem
+        content = get_prompt_file_contents(config, name)
         prompt_names.append(name)
 
         # Write to file
-        output_path = output_dir / f"_{name}.py"
+        output_path = output_dir / f"_{name.lower()}.py"
         output_path.write_text(content, encoding="utf-8")
 
     # Generate the __init__.py file
