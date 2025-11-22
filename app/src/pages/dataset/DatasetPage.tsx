@@ -303,13 +303,7 @@ function DatasetPageContent({
         </Flex>
       </View>
       <Tabs
-        defaultSelectedKey={
-          initialIndex === 0
-            ? "experiments"
-            : initialIndex === 1
-              ? "examples"
-              : "versions"
-        }
+        selectedKey={TABS_LIST[initialIndex]}
         onSelectionChange={(key) => {
           if (isTabName(key)) {
             onTabChange(TABS_LIST.indexOf(key));

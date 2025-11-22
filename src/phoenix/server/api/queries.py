@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -30,6 +30,7 @@ from phoenix.db.models import LatencyMs
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
+from phoenix.server.api.evaluators import get_builtin_evaluators
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.experiment_run_filters import (
@@ -43,6 +44,8 @@ from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
+from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
@@ -59,6 +62,12 @@ from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_MIN_CLUSTER_SIZE,
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
+)
+from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluator,
+    CodeEvaluator,
+    Evaluator,
+    LLMEvaluator,
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
@@ -952,6 +961,12 @@ class Query:
             return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
             return GenerativeModel(id=node_id)
+        elif type_name == LLMEvaluator.__name__:
+            return LLMEvaluator(id=node_id)
+        elif type_name == CodeEvaluator.__name__:
+            return CodeEvaluator(id=node_id)
+        elif type_name == BuiltInEvaluator.__name__:
+            return BuiltInEvaluator(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -1084,6 +1099,71 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        sort: Optional[EvaluatorSort] = UNSET,
+        filter: Optional[EvaluatorFilter] = UNSET,
+    ) -> Connection[Evaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        # The resolvers on the various evaluator GraphQL types read from the ORM, so we need to
+        # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
+        # base `evaluators` table.
+        PolymorphicEvaluator = with_polymorphic(
+            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+        )  # eagerly join sub-classed evaluator tables
+        query = select(PolymorphicEvaluator)
+
+        if filter:
+            column = getattr(PolymorphicEvaluator, filter.col.value)
+            # Cast Identifier columns to String for ilike operations
+            if filter.col.value == "name":
+                column = cast(column, String)
+            query = query.where(column.ilike(f"%{filter.value}%"))
+
+        if sort:
+            if sort.col.value == "updated_at":
+                # updated_at exists in sub-tables, not base table
+                # Use case to pick the value based on kind
+                # this special case can be removed if we add updated_at to the base table
+                sort_col = case(
+                    (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
+                    else_=None,
+                )
+            else:
+                sort_col = getattr(PolymorphicEvaluator, sort.col.value)
+            query = query.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        else:
+            query = query.order_by(PolymorphicEvaluator.name.asc())
+
+        async with info.context.db() as session:
+            evaluators = await session.scalars(query)
+        data: list[Evaluator] = []
+        for evaluator in evaluators:
+            if isinstance(evaluator, models.LLMEvaluator):
+                data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
+            elif isinstance(evaluator, models.CodeEvaluator):
+                data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
+            else:
+                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+
+        builtin_evaluators = get_builtin_evaluators()
+        for builtin_id, _ in builtin_evaluators:
+            data.append(BuiltInEvaluator(id=builtin_id))
+
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     async def annotation_configs(

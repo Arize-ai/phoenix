@@ -25,6 +25,8 @@ dependencies = [
   "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
   "pandas>=1.0",
   "jinja2",
+  "jsonpath-ng",
+  "jsonschema",
   "starlette",
   "uvicorn",
   "psutil",
@@ -282,6 +284,7 @@ module = [
   "authlib.*",
   "google.*",
   "mistralai.*",
+  "jsonpath_ng",
 ]
 ignore_missing_imports = true
 
