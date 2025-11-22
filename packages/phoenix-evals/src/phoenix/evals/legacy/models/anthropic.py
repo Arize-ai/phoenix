@@ -111,13 +111,16 @@ class AnthropicModel(BaseModel):
         )
 
     def invocation_parameters(self) -> Dict[str, Any]:
-        return {
+        params = {
             "max_tokens": self.max_tokens,
             "stop_sequences": self.stop_sequences,
-            "temperature": self.temperature,
-            "top_p": self.top_p,
             "top_k": self.top_k,
         }
+        if self.temperature is not None:
+            params["temperature"] = self.temperature
+        if self.top_p is not None:
+            params["top_p"] = self.top_p
+        return params
 
     @override
     def _generate_with_extra(
