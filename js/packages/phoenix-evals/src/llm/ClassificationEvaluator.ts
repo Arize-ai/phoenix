@@ -10,7 +10,7 @@ import { ObjectMapping } from "../types/data";
 import { remapObject } from "../utils/objectMappingUtils";
 
 import { createClassifierFn } from "./createClassifierFn";
-import { LLMEvaluator } from "./LLMEvaluatorBase";
+import { LLMEvaluatorBase } from "./LLMEvaluatorBase";
 
 import { LanguageModel } from "ai";
 
@@ -18,19 +18,29 @@ import { LanguageModel } from "ai";
  * An LLM evaluator that performs evaluation via classification
  */
 export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
-  extends LLMEvaluator<RecordType>
+  extends LLMEvaluatorBase<RecordType>
   implements WithPromptTemplate
 {
   readonly evaluatorFn: EvaluatorFn<RecordType>;
   readonly promptTemplate: PromptTemplate;
+  /**
+   * A dynamically computed set of prompt template variables
+   */
   private _promptTemplateVariables: string[] | undefined;
-  readonly _model: LanguageModel;
-  readonly _choices: ClassificationChoicesMap;
+  /**
+   * The model to use for classification
+   */
+  readonly model: LanguageModel;
+  /**
+   * The choices to classify the example into
+   */
+  readonly choices: ClassificationChoicesMap;
+
   constructor(args: CreateClassificationEvaluatorArgs<RecordType>) {
     super(args);
     this.promptTemplate = args.promptTemplate;
-    this._model = args.model;
-    this._choices = args.choices;
+    this.model = args.model;
+    this.choices = args.choices;
     this.evaluatorFn = createClassifierFn<RecordType>({
       ...args,
     });
@@ -62,11 +72,7 @@ export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
     inputMapping: ObjectMapping<RecordType>
   ): ClassificationEvaluator<RecordType> {
     return new ClassificationEvaluator({
-      name: this.name,
-      optimizationDirection: this.optimizationDirection,
-      model: this._model,
-      choices: this._choices,
-      promptTemplate: this.promptTemplate,
+      ...this,
       inputMapping,
     });
   }

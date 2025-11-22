@@ -4,14 +4,10 @@ import { CreateLLMEvaluatorArgs } from "../types";
 /**
  * Base class for llm evaluation metrics / scores
  */
-export abstract class LLMEvaluator<
+export abstract class LLMEvaluatorBase<
   RecordType extends Record<string, unknown>,
 > extends EvaluatorBase<RecordType> {
-  constructor({
-    name,
-    optimizationDirection,
-    inputMapping,
-  }: CreateLLMEvaluatorArgs<RecordType>) {
-    super({ name, kind: "LLM", optimizationDirection, inputMapping });
+  constructor({ ...args }: CreateLLMEvaluatorArgs<RecordType>) {
+    super({ kind: "LLM", ...args });
   }
 }

@@ -84,7 +84,7 @@ export interface CreateClassifierArgs extends WithTelemetry {
 
 export interface CreateEvaluatorArgs<
   ExampleType extends Record<string, unknown> = Record<string, unknown>,
-> {
+> extends WithTelemetry {
   /**
    * The name of the metric that the evaluator produces
    * E.x. "correctness"

@@ -4,6 +4,7 @@ import {
   EvaluationResult,
   EvaluatorInterface,
   OptimizationDirection,
+  TelemetryConfig,
 } from "../types";
 import { ObjectMapping } from "../types/data";
 
@@ -17,16 +18,19 @@ export abstract class EvaluatorBase<RecordType extends Record<string, unknown>>
   readonly kind: EvaluationKind;
   readonly optimizationDirection?: OptimizationDirection;
   readonly inputMapping?: ObjectMapping<RecordType>;
+  readonly telemetry?: TelemetryConfig;
   constructor({
     name,
     kind,
     optimizationDirection,
     inputMapping,
+    telemetry,
   }: CreateEvaluatorArgs<RecordType>) {
     this.name = name;
     this.kind = kind;
     this.optimizationDirection = optimizationDirection;
     this.inputMapping = inputMapping;
+    this.telemetry = telemetry;
   }
   abstract evaluate(_example: RecordType): Promise<EvaluationResult>;
 
