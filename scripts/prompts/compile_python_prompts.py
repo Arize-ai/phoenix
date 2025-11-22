@@ -6,7 +6,7 @@ import yaml
 # Add src to path to import models directly
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phoenix.prompts._models import _BuiltInLLMEvaluatorConfig
+from phoenix.prompts._models import _ClassificationEvaluatorConfig
 
 
 def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
@@ -15,7 +15,7 @@ def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
         raw = yaml.safe_load(f)
 
     # Validate & coerce via Pydantic
-    config = _BuiltInLLMEvaluatorConfig.model_validate(raw)
+    config = _ClassificationEvaluatorConfig.model_validate(raw)
 
     # Use the name field to determine the variable name and filename
     name = config.name
@@ -24,7 +24,9 @@ def compile_prompt(yaml_path: Path, output_dir: Path) -> str:
     lines: list[str] = []
     lines.append("# This file is generated. Do not edit by hand.\n")
     lines.append("# ruff: noqa: E501\n")
-    lines.append("from .._models import _BuiltInLLMEvaluatorConfig, _PromptMessage\n")
+    lines.append(
+        "from phoenix.prompts._models import _ClassificationEvaluatorConfig, _PromptMessage\n"
+    )
     lines.append(f"\n{name} = {repr(config)}\n")
 
     output_path = output_dir / f"_{name}.py"

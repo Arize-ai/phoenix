@@ -2,10 +2,10 @@
 
 # ruff: noqa: E501
 
-from .._models import _BuiltInLLMEvaluatorConfig, _PromptMessage
+from phoenix.prompts._models import _ClassificationEvaluatorConfig, _PromptMessage
 
-HallucinationEvaluatorConfig = _BuiltInLLMEvaluatorConfig(
-    name="HallucinationEvaluatorConfig",
+HallucinationClassificationEvaluatorConfig = _ClassificationEvaluatorConfig(
+    name="HallucinationClassificationEvaluatorConfig",
     description="Detects hallucinations\n",
     messages=[
         _PromptMessage(

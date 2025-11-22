@@ -1,4 +1,4 @@
-name: HallucinationEvaluatorConfig
+name: HallucinationClassificationEvaluatorConfig
 description: |
   Detects hallucinations
 messages:

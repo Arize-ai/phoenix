@@ -8,7 +8,7 @@ class _PromptMessage(BaseModel):
     content: str
 
 
-class _BuiltInLLMEvaluatorConfig(BaseModel):
+class _ClassificationEvaluatorConfig(BaseModel):
     name: str
     description: str
     messages: list[_PromptMessage]
