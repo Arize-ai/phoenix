@@ -291,10 +291,8 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           version: 0.8.6
-      - name: Compile Phoenix Prompts
-        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e compile_prompts -- src/phoenix/__generated__/classification_evaluator_configs
-      - name: Compile Phoenix Evals Prompts
-        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e compile_prompts -- packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
+      - name: Compile Prompts
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e compile_prompts
       - name: Check for changes
         run: git diff --exit-code
 
