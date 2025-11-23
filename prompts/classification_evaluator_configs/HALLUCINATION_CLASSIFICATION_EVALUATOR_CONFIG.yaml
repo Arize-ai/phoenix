@@ -19,11 +19,11 @@ messages:
       
       [BEGIN DATA]
       ************
-      [Query]: {input}
+      [Query]: {{input}}
       ************
-      [Context]: {context}
+      [Context]: {{context}}
       ************
-      [Response]: {output}
+      [Response]: {{output}}
       ************
       [END DATA]
       

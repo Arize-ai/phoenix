@@ -5,7 +5,7 @@ from ..__generated__.classification_evaluator_configs import (
 )
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
-from ..templating import Template
+from ..templating import Template, TemplateFormat
 
 
 class HallucinationEvaluator(ClassificationEvaluator):
@@ -41,7 +41,10 @@ class HallucinationEvaluator(ClassificationEvaluator):
     """
 
     NAME = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.name
-    PROMPT = Template(template=HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.messages[0].content)
+    PROMPT = Template(
+        template=HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.messages[0].content,
+        template_format=TemplateFormat.MUSTACHE,
+    )
     CHOICES = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.choices
 
     class HallucinationInputSchema(BaseModel):
