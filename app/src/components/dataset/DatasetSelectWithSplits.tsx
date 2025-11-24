@@ -158,20 +158,32 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         size={props.size ?? "S"}
         isDisabled={props.isDisabled}
       >
-        <Flex alignItems="center" width="100%">
+        <Flex
+          alignItems="center"
+          width="100%"
+          css={css`
+            overflow: hidden;
+          `}
+        >
           {selectedDataset ? (
             <>
-              <Text>{selectedDataset.name}</Text>
-              {selectedSplits.length > 0 ? (
-                <Text color="text-300">
-                  &nbsp;/{" "}
-                  {selectedSplits.length === 1
-                    ? selectedSplits[0].name
-                    : `${selectedSplits.length} splits`}
-                </Text>
-              ) : (
-                <Text color="text-300">&nbsp;/ All Examples</Text>
-              )}
+              <Text>
+                <Truncate maxWidth="10rem">{selectedDataset.name}</Truncate>
+              </Text>
+              <Text color="text-300" minWidth={0}>
+                <Truncate maxWidth="100%">
+                  {selectedSplits.length > 0 ? (
+                    <>
+                      &nbsp;/&nbsp;
+                      {selectedSplits.length === 1
+                        ? selectedSplits[0].name
+                        : `${selectedSplits.length} splits`}
+                    </>
+                  ) : (
+                    <>&nbsp;/ All Examples</>
+                  )}
+                </Truncate>
+              </Text>
             </>
           ) : (
             <Text color="text-300">

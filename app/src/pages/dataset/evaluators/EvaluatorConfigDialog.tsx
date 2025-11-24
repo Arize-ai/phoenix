@@ -29,6 +29,7 @@ import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/Evaluato
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorConfigDialog_dataset$key } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_dataset.graphql";
 import {
@@ -241,17 +242,38 @@ function EvaluatorConfigDialogContent({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          <Flex direction="row" alignItems="center" gap="size-50">
+        <DialogTitle
+          css={css`
+            overflow: hidden;
+          `}
+        >
+          <Flex
+            direction="row"
+            alignItems="center"
+            gap="size-50"
+            maxWidth="100%"
+          >
             Add
-            <Flex direction="row" alignItems="center" gap="size-25">
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-25"
+              flexBasis="100%"
+              minWidth={0}
+            >
               <Icon svg={<Icons.Scale />} />
-              {evaluator.name}
+              <Truncate maxWidth="100%">{evaluator.name}</Truncate>
             </Flex>
             to
-            <Flex direction="row" alignItems="center" gap="size-25">
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-25"
+              flexBasis="100%"
+              minWidth={0}
+            >
               <Icon svg={<Icons.DatabaseOutline />} />
-              {dataset.name}
+              <Truncate maxWidth="100%">{dataset.name}</Truncate>
             </Flex>
           </Flex>
         </DialogTitle>
