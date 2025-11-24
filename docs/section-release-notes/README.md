@@ -6,6 +6,46 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [11.14.2025: Expanded Provider Support with OpenAI 5.1 Reasoning + Gemini](11.2025/11.14.2025-expanded-provider-support-with-openai-5.1-reasoning-+-gemini.md) 🔧
+
+**Available in Phoenix 12.15+**
+
+This update enhances LLM provider support by adding **OpenAI v5.1** compatibility (including reasoning capabilities), expanding support for **Google DeepMind/Gemini** models, and introducing the **gemini-3** model variant.
+
+## [11.12.2025: Updated Anthropic Model List](11.2025/11.12.2025-updated-anthropic-model-list.md) 🧠
+
+**Available in Phoenix 12.15+**
+
+This update enhances the Anthropic model registrations in Arize Phoenix by adding support for the **4.5 Sonnet/Haiku variants** and removing several legacy **3.x Sonnet/Opus entries.**&#x20;
+
+## [11.09.2025 OpenInference TypeScript 2.0](11.2025/11.09.2025-openinference-typescript-2.0.md) 💻
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/traced_agent.mp4" %}
+
+## [11.07.2025: Timezone Preference](11.2025/11.07.2025-timezone-preference.md) 🌍
+
+**Available in Phoenix 12.11+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/timezone_preferences.mp4" %}
+
+## [11.05.2025: Metadata for Prompts](11.2025/11.05.2025-metadata-for-prompts.md) 🗂️
+
+**Available in Phoenix 12.11+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/metadata_for_prompts.png" %}
+
+## [11.03.2025: Playground Dataset Label Display](11.2025/11.03.2025-playground-dataset-label-display.md) 🏷️
+
+**Available in Phoenix 12.10+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/dataset_labels_phoenix.png" %}
+
+## [11.01.2025: Resume Experiments and Evaluations](11.2025/11.01.2025-resume-experiments-and-evaluations.md) 🔄
+
+**Available in Phoenix 12.10+**
+
+This feature introduces the ability to resume experiments and evaluations. This is particularly useful when a few examples in the experiment have failed, but you don't want to re-run the entire task. We provide new endpoints, APIs, and improved management tools for this.
+
 ## [10.30.2025: Metadata Support for Experiment Run Annotations](10.2025/10.30.2025-metadata-support-for-experiment-run-annotations.md) 🧩
 
 **Available in Phoenix 12.9+**
