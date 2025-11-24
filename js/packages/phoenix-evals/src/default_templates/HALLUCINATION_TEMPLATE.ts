@@ -1,4 +1,9 @@
-export const HALLUCINATION_TEMPLATE = `
+import type { ModelMessage } from "ai";
+
+export const HALLUCINATION_TEMPLATE: Array<ModelMessage> = [
+  {
+    role: "user",
+    content: `
 In this task, you will be presented with a query, a reference text and an answer. The answer is
 generated to the question based on the reference text. The answer may contain false information. You
 must use the reference text to determine if the answer to the question contains false information,
@@ -23,7 +28,9 @@ your response.
     [END DATA]
 
 Is the answer above factual or hallucinated based on the query and reference text?
-`;
+`,
+  },
+];
 
 export const HALLUCINATION_CHOICES = {
   hallucinated: 1,
