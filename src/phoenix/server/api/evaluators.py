@@ -146,7 +146,7 @@ def evaluation_result_to_span_annotation(
 
 @register_builtin_evaluator
 class ContainsEvaluator(BuiltInEvaluator):
-    name = "ContainsEvaluator"
+    name = "Contains"
     description = "Evaluates whether the output contains a specific string"
     metadata = {"type": "string_matching"}
     input_schema = {
