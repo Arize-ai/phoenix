@@ -7,11 +7,11 @@ import { CreateClassificationEvaluatorArgs } from "../types/evals";
 import { ClassificationEvaluator } from "./ClassificationEvaluator";
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
-export interface DocumentRelevancyEvaluatorArgs<
+export interface DocumentRelevanceEvaluatorArgs<
   RecordType extends Record<
     string,
     unknown
-  > = DocumentRelevancyEvaluationRecord,
+  > = DocumentRelevanceEvaluationRecord,
 > extends Omit<
     CreateClassificationEvaluatorArgs<RecordType>,
     "promptTemplate" | "choices" | "optimizationDirection" | "name"
@@ -25,7 +25,7 @@ export interface DocumentRelevancyEvaluatorArgs<
 /**
  * A record to be evaluated by the document relevancy evaluator.
  */
-export interface DocumentRelevancyEvaluationRecord {
+export interface DocumentRelevanceEvaluationRecord {
   input: string;
   documentText: string;
   [key: string]: unknown;
@@ -44,12 +44,12 @@ export interface DocumentRelevancyEvaluationRecord {
  * @param args.promptTemplate - The prompt template to use (defaults to DOCUMENT_RELEVANCE_TEMPLATE).
  * @param args.telemetry - The telemetry to use for the evaluator.
  *
- * @returns An evaluator function that takes a {@link DocumentRelevancyExample} and returns a classification result
+ * @returns An evaluator function that takes a {@link DocumentRelevanceExample} and returns a classification result
  * indicating whether the document is relevant to the input question.
  *
  * @example
  * ```ts
- * const evaluator = createDocumentRelevancyEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createDocumentRelevanceEvaluator({ model: openai("gpt-4o-mini") });
  * const result = await evaluator.evaluate({
  *   input: "What is the capital of France?",
  *   documentText: "Paris is the capital and most populous city of France.",
@@ -57,13 +57,13 @@ export interface DocumentRelevancyEvaluationRecord {
  * console.log(result.label); // "relevant" or "unrelated"
  * ```
  */
-export function createDocumentRelevancyEvaluator<
+export function createDocumentRelevanceEvaluator<
   RecordType extends Record<
     string,
     unknown
-  > = DocumentRelevancyEvaluationRecord,
+  > = DocumentRelevanceEvaluationRecord,
 >(
-  args: DocumentRelevancyEvaluatorArgs<RecordType>
+  args: DocumentRelevanceEvaluatorArgs<RecordType>
 ): ClassificationEvaluator<RecordType> {
   const {
     choices = DOCUMENT_RELEVANCE_CHOICES,

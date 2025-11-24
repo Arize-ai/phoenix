@@ -1,10 +1,10 @@
-import { createDocumentRelevancyEvaluator } from "../../src/llm/createDocumentRelevancyEvaluator";
+import { createDocumentRelevanceEvaluator } from "../../src/llm/createDocumentRelevanceEvaluator";
 import * as generateClassificationModule from "../../src/llm/generateClassification";
 
 import { openai } from "@ai-sdk/openai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-describe("createDocumentRelevancyEvaluator", () => {
+describe("createDocumentRelevanceEvaluator", () => {
   beforeEach(() => {
     // Mock the OpenAI API key environment variable
     vi.stubEnv("OPENAI_API_KEY", "sk-dummy-test-key-12345");
@@ -18,7 +18,7 @@ describe("createDocumentRelevancyEvaluator", () => {
 
   const model = openai("gpt-4o-mini");
 
-  const customDocumentRelevancyTemplate = `
+  const customDocumentRelevanceTemplate = `
     Custom template for document relevancy detection:
     Question: {{input}}
     Document text: {{documentText}}
@@ -34,7 +34,7 @@ describe("createDocumentRelevancyEvaluator", () => {
         explanation: "The document text is relevant to the question",
       });
 
-    const evaluator = createDocumentRelevancyEvaluator({
+    const evaluator = createDocumentRelevanceEvaluator({
       model,
     });
 
@@ -75,9 +75,9 @@ describe("createDocumentRelevancyEvaluator", () => {
         explanation: "The document text is not relevant to the question",
       });
 
-    const evaluator = createDocumentRelevancyEvaluator({
+    const evaluator = createDocumentRelevanceEvaluator({
       model,
-      promptTemplate: customDocumentRelevancyTemplate,
+      promptTemplate: customDocumentRelevanceTemplate,
       choices: { yes: 0, no: 1 }, // Custom choices for custom template
     });
 
@@ -113,7 +113,7 @@ describe("createDocumentRelevancyEvaluator", () => {
 
     const customChoices = { relevant: 0.8, unrelated: 0.2 };
 
-    const evaluator = createDocumentRelevancyEvaluator({
+    const evaluator = createDocumentRelevanceEvaluator({
       model,
       choices: customChoices,
     });
@@ -137,7 +137,7 @@ describe("createDocumentRelevancyEvaluator", () => {
         explanation: "This is a test explanation",
       });
 
-    const evaluator = createDocumentRelevancyEvaluator({
+    const evaluator = createDocumentRelevanceEvaluator({
       model,
       // Note: we're not explicitly setting telemetry options here
     });
@@ -165,7 +165,7 @@ describe("createDocumentRelevancyEvaluator", () => {
         explanation: "This is a test explanation",
       });
 
-    const evaluator = createDocumentRelevancyEvaluator({
+    const evaluator = createDocumentRelevanceEvaluator({
       model,
       telemetry: { isEnabled: false }, // Explicitly disable telemetry
     });
@@ -195,7 +195,7 @@ describe("createDocumentRelevancyEvaluator", () => {
 
     const customTracer = {} as import("@opentelemetry/api").Tracer; // Mock tracer object
 
-    const evaluator = createDocumentRelevancyEvaluator({
+    const evaluator = createDocumentRelevanceEvaluator({
       model,
       telemetry: {
         isEnabled: true,
@@ -229,7 +229,7 @@ describe("createDocumentRelevancyEvaluator", () => {
         explanation: "Template variables correctly interpolated",
       });
 
-    const evaluator = createDocumentRelevancyEvaluator({
+    const evaluator = createDocumentRelevanceEvaluator({
       model,
     });
 
