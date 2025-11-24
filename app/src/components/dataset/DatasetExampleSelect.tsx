@@ -1,13 +1,11 @@
 import { Suspense, useMemo } from "react";
 import { useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
-import { css } from "@emotion/react";
 
 import { Button } from "@phoenix/components/button";
 import { DatasetExampleSelect_ExampleSelectPopoverContentQuery } from "@phoenix/components/dataset/__generated__/DatasetExampleSelect_ExampleSelectPopoverContentQuery.graphql";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import { ListBox } from "@phoenix/components/listbox";
-import { Loading } from "@phoenix/components/loading";
 import { Popover } from "@phoenix/components/overlay";
 import { Select, SelectItem, SelectValue } from "@phoenix/components/select";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -26,25 +24,17 @@ export const DatasetExampleSelect = (props: DatasetExampleSelectProps) => {
       selectionMode="single"
       value={selectedExampleId}
       onChange={(value) => onSelectExampleId(value as string | null)}
-      css={css`
-        min-width: 0;
-      `}
       aria-label="Select an example"
       placeholder="Select an example"
+      minWidth="0"
     >
-      <Button
-        css={css`
-          min-width: 0 !important;
-        `}
-        trailingVisual={<SelectChevronUpDownIcon />}
-        size="S"
-      >
+      <Button trailingVisual={<SelectChevronUpDownIcon />} size="S">
         <Truncate maxWidth="100%">
           <SelectValue />
         </Truncate>
       </Button>
       <Popover>
-        <Suspense fallback={<Loading />}>
+        <Suspense>
           <ExampleSelectPopoverContent {...props} />
         </Suspense>
       </Popover>
