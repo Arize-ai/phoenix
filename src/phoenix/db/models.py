@@ -2201,12 +2201,10 @@ class DatasetsEvaluators(HasId):
         UniqueConstraint(
             "dataset_id",
             "evaluator_id",
-            name="uq_datasets_evaluators_dataset_evaluator",
         ),
         UniqueConstraint(
             "dataset_id",
             "builtin_evaluator_id",
-            name="uq_datasets_evaluators_dataset_builtin",
         ),
         # Partial unique indexes to enforce uniqueness on non-NULL values
         Index(

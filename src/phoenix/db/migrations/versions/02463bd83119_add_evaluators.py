@@ -166,12 +166,10 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "dataset_id",
             "evaluator_id",
-            name="uq_datasets_evaluators_dataset_evaluator",
         ),
         sa.UniqueConstraint(
             "dataset_id",
             "builtin_evaluator_id",
-            name="uq_datasets_evaluators_dataset_builtin",
         ),
     )
     # Create partial unique indexes to enforce uniqueness on non-NULL values
