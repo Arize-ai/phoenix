@@ -23,7 +23,7 @@ export interface DocumentRelevanceEvaluatorArgs<
 }
 
 /**
- * A record to be evaluated by the document relevancy evaluator.
+ * A record to be evaluated by the document relevance evaluator.
  */
 export interface DocumentRelevanceEvaluationRecord {
   input: string;
@@ -32,13 +32,13 @@ export interface DocumentRelevanceEvaluationRecord {
 }
 
 /**
- * Creates a document relevancy evaluator function.
+ * Creates a document relevance evaluator function.
  *
  * This function returns an evaluator that determines whether a given document text
  * is relevant to a provided input question. The evaluator uses a classification model
  * and a prompt template to make its determination.
  *
- * @param args - The arguments for creating the document relevancy evaluator.
+ * @param args - The arguments for creating the document relevance evaluator.
  * @param args.model - The model to use for classification.
  * @param args.choices - The possible classification choices (defaults to DOCUMENT_RELEVANCE_CHOICES).
  * @param args.promptTemplate - The prompt template to use (defaults to DOCUMENT_RELEVANCE_TEMPLATE).

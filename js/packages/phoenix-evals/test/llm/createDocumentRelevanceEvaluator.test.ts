@@ -19,13 +19,13 @@ describe("createDocumentRelevanceEvaluator", () => {
   const model = openai("gpt-4o-mini");
 
   const customDocumentRelevanceTemplate = `
-    Custom template for document relevancy detection:
+    Custom template for document relevance detection:
     Question: {{input}}
     Document text: {{documentText}}
     Is the document text relevant to the question? Respond with "relevant" or "unrelated".
   `;
 
-  it("should create a document relevancy evaluator with default template and choices", async () => {
+  it("should create a document relevance evaluator with default template and choices", async () => {
     // Mock the generateClassification function
     const mockGenerateClassification = vi
       .spyOn(generateClassificationModule, "generateClassification")
@@ -92,7 +92,7 @@ describe("createDocumentRelevanceEvaluator", () => {
       expect.objectContaining({
         labels: ["yes", "no"],
         prompt: expect.stringContaining(
-          "Custom template for document relevancy detection"
+          "Custom template for document relevance detection"
         ),
       })
     );
