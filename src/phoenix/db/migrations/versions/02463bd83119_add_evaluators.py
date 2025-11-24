@@ -162,6 +162,7 @@ def upgrade() -> None:
             "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
             name="evaluator_id_xor_builtin_evaluator_id",
         ),
+        # Use UniqueConstraints for SQLite ON CONFLICT support
         sa.UniqueConstraint(
             "dataset_id",
             "evaluator_id",
@@ -172,6 +173,23 @@ def upgrade() -> None:
             "builtin_evaluator_id",
             name="uq_datasets_evaluators_dataset_builtin",
         ),
+    )
+    # Create partial unique indexes to enforce uniqueness on non-NULL values
+    op.create_index(
+        "ix_datasets_evaluators_dataset_evaluator_notnull",
+        "datasets_evaluators",
+        ["dataset_id", "evaluator_id"],
+        unique=True,
+        postgresql_where=sa.text("evaluator_id IS NOT NULL"),
+        sqlite_where=sa.text("evaluator_id IS NOT NULL"),
+    )
+    op.create_index(
+        "ix_datasets_evaluators_dataset_builtin_notnull",
+        "datasets_evaluators",
+        ["dataset_id", "builtin_evaluator_id"],
+        unique=True,
+        postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
+        sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),
     )
 
 
