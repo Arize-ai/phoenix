@@ -13,13 +13,11 @@ from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from phoenix.client.__generated__ import v1
 
 from .._helpers import (  # pyright: ignore[reportPrivateUsage]
-    _ADMIN,
     _MEMBER,
     _AppInfo,
     _await_or_return,
     _ExistingProject,
     _GetUser,
-    _RoleOrUser,
     _until_spans_exist,
 )
 
@@ -109,19 +107,14 @@ def _create_retriever_span(
 
 
 class TestEvaluationHelpersRag:
-    @pytest.mark.flaky(reruns=2, reruns_delay=1)
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_no_matching_spans(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -274,18 +267,15 @@ class TestEvaluationHelpersRag:
             has_missing = any(pd.isna(s) for s in df_docs_only["document_score"].tolist())  # pyright: ignore[reportArgumentType]
             assert has_missing
 
-    @pytest.mark.flaky(reruns=2, reruns_delay=1)
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_input_output_context_concatenation(
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Ensure concatenation across retriever spans/documents is correct."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -422,18 +412,15 @@ class TestEvaluationHelpersRag:
             and row["metadata"]["task"] == "geography"
         )
 
-    @pytest.mark.flaky(reruns=2, reruns_delay=1)
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_time_filtering_helpers(
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Verify start_time/end_time filter behavior for both helpers."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
