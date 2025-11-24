@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.6.0
+
+### Minor Changes
+
+- 84877d6: add data mapping helpers for evaluators
+
 ## 0.5.1
 
 ### Patch Changes
