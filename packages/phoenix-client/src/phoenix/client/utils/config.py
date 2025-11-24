@@ -98,3 +98,7 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
     if (value := os.getenv(key)) is None:
         return default
     return value.strip()
+
+
+def get_env_project_name() -> str:
+    return getenv("PHOENIX_PROJECT_NAME", "default")

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 
 from phoenix.client.types.spans import SpanQuery
-from phoenix.config import get_env_project_name
+from phoenix.client.utils.config import get_env_project_name
 
 if TYPE_CHECKING:
     import pandas as pd
