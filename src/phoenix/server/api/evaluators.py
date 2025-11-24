@@ -171,10 +171,10 @@ class ContainsEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
         inputs = apply_input_mapping(self.input_schema, input_mapping, context)
-        contains = inputs.get("contains", "").lower()
-        output = inputs.get("output", "").lower()
+        contains = inputs.get("contains", "")
+        output = inputs.get("output", "")
         now = datetime.now(timezone.utc)
-        matched = str(contains) in str(output)
+        matched = str(contains).lower() in str(output).lower()
         return EvaluationResult(
             name=self.name,
             annotator_kind="CODE",
