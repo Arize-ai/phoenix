@@ -9,13 +9,19 @@ import pandas as pd
 import pytest
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 
+from phoenix.client import AsyncClient
+from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1
+from phoenix.client.helpers.spans.rag import (
+    async_get_input_output_context,
+    async_get_retrieved_documents,
+    get_input_output_context,
+    get_retrieved_documents,
+)
 
 from .._helpers import (  # pyright: ignore[reportPrivateUsage]
-    _MEMBER,
     _AppInfo,
     _ExistingProject,
-    _GetUser,
     _until_spans_exist,
 )
 
@@ -116,15 +122,6 @@ class TestEvaluationHelpersRag:
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-        from phoenix.client.helpers.spans.rag import (
-            async_get_input_output_context,
-            async_get_retrieved_documents,
-            get_input_output_context,
-            get_retrieved_documents,
-        )
-
         project_name = _existing_project.name
 
         if is_async:
@@ -159,19 +156,10 @@ class TestEvaluationHelpersRag:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Covers basic explosion to rows, missing fields, and empty docs."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-        from phoenix.client.helpers.spans.rag import (
-            async_get_retrieved_documents,
-            get_retrieved_documents,
-        )
+        api_key = _app.admin_secret
 
         if is_async:
             client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
@@ -253,13 +241,6 @@ class TestEvaluationHelpersRag:
     ) -> None:
         """Ensure concatenation across retriever spans/documents is correct."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-        from phoenix.client.helpers.spans.rag import (
-            async_get_input_output_context,
-            get_input_output_context,
-        )
 
         if is_async:
             client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
@@ -343,15 +324,6 @@ class TestEvaluationHelpersRag:
     ) -> None:
         """Verify start_time/end_time filter behavior for both helpers."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-        from phoenix.client.helpers.spans.rag import (
-            async_get_input_output_context,
-            async_get_retrieved_documents,
-            get_input_output_context,
-            get_retrieved_documents,
-        )
 
         if is_async:
             client_async = AsyncClient(base_url=_app.base_url, api_key=api_key)
