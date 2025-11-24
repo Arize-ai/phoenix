@@ -1,6 +1,6 @@
-import type { ModelMessage } from "ai";
+import { PromptTemplate } from "../types";
 
-export const HALLUCINATION_TEMPLATE: Array<ModelMessage> = [
+export const HALLUCINATION_TEMPLATE: PromptTemplate = [
   {
     role: "user",
     content: `

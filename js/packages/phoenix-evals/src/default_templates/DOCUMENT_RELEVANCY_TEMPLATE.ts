@@ -1,6 +1,6 @@
-import type { ModelMessage } from "ai";
+import { PromptTemplate } from "../types";
 
-export const DOCUMENT_RELEVANCY_TEMPLATE: Array<ModelMessage> = [
+export const DOCUMENT_RELEVANCY_TEMPLATE: PromptTemplate = [
   {
     role: "user",
     content: `
