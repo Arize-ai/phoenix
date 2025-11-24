@@ -1,7 +1,7 @@
 import {
   HALLUCINATION_CHOICES,
   HALLUCINATION_TEMPLATE,
-} from "../default_templates/HALLUCINATION_TEMPLATE";
+} from "../__generated__/default_templates";
 import { CreateClassificationEvaluatorArgs } from "../types/evals";
 
 import { ClassificationEvaluator } from "./ClassificationEvaluator";

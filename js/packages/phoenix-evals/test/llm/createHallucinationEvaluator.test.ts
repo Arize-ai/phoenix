@@ -42,7 +42,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const result = await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
-      reference:
+      context:
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
@@ -62,7 +62,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     );
 
     expect(result.label).toBe("factual");
-    expect(result.score).toBe(0); // factual = 1 in default choices
+    expect(result.score).toBe(1); // factual = 1 in default choices
     expect(result.explanation).toBe(
       "The answer is based on the reference text"
     );
@@ -72,7 +72,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const hallucination = createHallucinationEvaluator({ model });
     expect(hallucination.promptTemplateVariables).toEqual([
       "input",
-      "reference",
+      "context",
       "output",
     ]);
   });
@@ -133,7 +133,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const result = await evaluator.evaluate({
       output: "Arize Phoenix is not open source.",
       input: "Is Arize Phoenix Open Source?",
-      reference:
+      context:
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
@@ -158,7 +158,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
-      reference:
+      context:
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
@@ -187,7 +187,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
-      reference:
+      context:
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
@@ -221,7 +221,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
-      reference:
+      context:
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
@@ -251,12 +251,12 @@ Is the answer hallucinated? Respond with "yes" or "no".
 
     const testInput = "What is the capital of France?";
     const testOutput = "The capital of France is Paris.";
-    const testReference = "Paris is the capital and largest city of France.";
+    const testContext = "Paris is the capital and largest city of France.";
 
     await evaluator.evaluate({
       output: testOutput,
       input: testInput,
-      reference: testReference,
+      context: testContext,
     });
 
     // Verify that the prompt contains the interpolated values
@@ -285,7 +285,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
         prompt: expect.arrayContaining([
           expect.objectContaining({
             role: "user",
-            content: expect.stringContaining(testReference),
+            content: expect.stringContaining(testContext),
           }),
         ]),
       })

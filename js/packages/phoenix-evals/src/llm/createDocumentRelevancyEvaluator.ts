@@ -1,7 +1,7 @@
 import {
-  DOCUMENT_RELEVANCY_CHOICES,
-  DOCUMENT_RELEVANCY_TEMPLATE,
-} from "../default_templates/DOCUMENT_RELEVANCY_TEMPLATE";
+  DOCUMENT_RELEVANCE_CHOICES,
+  DOCUMENT_RELEVANCE_TEMPLATE,
+} from "../__generated__/default_templates";
 import { CreateClassificationEvaluatorArgs } from "../types/evals";
 
 import { ClassificationEvaluator } from "./ClassificationEvaluator";
@@ -40,8 +40,8 @@ export interface DocumentRelevancyEvaluationRecord {
  *
  * @param args - The arguments for creating the document relevancy evaluator.
  * @param args.model - The model to use for classification.
- * @param args.choices - The possible classification choices (defaults to DOCUMENT_RELEVANCY_CHOICES).
- * @param args.promptTemplate - The prompt template to use (defaults to DOCUMENT_RELEVANCY_TEMPLATE).
+ * @param args.choices - The possible classification choices (defaults to DOCUMENT_RELEVANCE_CHOICES).
+ * @param args.promptTemplate - The prompt template to use (defaults to DOCUMENT_RELEVANCE_TEMPLATE).
  * @param args.telemetry - The telemetry to use for the evaluator.
  *
  * @returns An evaluator function that takes a {@link DocumentRelevancyExample} and returns a classification result
@@ -66,10 +66,10 @@ export function createDocumentRelevancyEvaluator<
   args: DocumentRelevancyEvaluatorArgs<RecordType>
 ): ClassificationEvaluator<RecordType> {
   const {
-    choices = DOCUMENT_RELEVANCY_CHOICES,
-    promptTemplate = DOCUMENT_RELEVANCY_TEMPLATE,
+    choices = DOCUMENT_RELEVANCE_CHOICES,
+    promptTemplate = DOCUMENT_RELEVANCE_TEMPLATE,
     optimizationDirection = "MAXIMIZE",
-    name = "document_relevancy",
+    name = "document_relevance",
     ...rest
   } = args;
   return createClassificationEvaluator<RecordType>({
