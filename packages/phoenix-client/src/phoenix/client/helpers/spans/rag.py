@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
+from typing_extensions import deprecated
 
 from phoenix.client.types.spans import SpanQuery
 from phoenix.client.utils.config import get_env_project_name
@@ -221,6 +222,11 @@ def get_input_output_context(
     return df_qa_ref
 
 
+@deprecated(
+    "get_qa_with_reference is deprecated and will be removed in a future release. "
+    "Use get_input_output_context instead.",
+    stacklevel=2,
+)
 def get_qa_with_reference(
     client: "Client",
     *,
@@ -281,14 +287,6 @@ def get_qa_with_reference(
                     dataframe=qa_df,
                 )
     """
-    import warnings
-
-    warnings.warn(
-        "get_qa_with_reference is deprecated and will be removed in a future release. "
-        "Use get_input_output_context instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
     return get_input_output_context(
         client,
         start_time=start_time,
