@@ -293,22 +293,24 @@ function EvaluatorConfigDialogContent({
               direction="row"
               alignItems="center"
               gap="size-25"
-              flexBasis="100%"
               minWidth={0}
             >
               <Icon svg={<Icons.Scale />} />
-              <Truncate maxWidth="100%">{evaluator.name}</Truncate>
+              <Truncate maxWidth="100%" title={evaluator.name}>
+                {evaluator.name}
+              </Truncate>
             </Flex>
             to
             <Flex
               direction="row"
               alignItems="center"
               gap="size-25"
-              flexBasis="100%"
               minWidth={0}
             >
               <Icon svg={<Icons.DatabaseOutline />} />
-              <Truncate maxWidth="100%">{dataset.name}</Truncate>
+              <Truncate maxWidth="100%" title={dataset.name}>
+                {dataset.name}
+              </Truncate>
             </Flex>
           </Flex>
         </DialogTitle>
