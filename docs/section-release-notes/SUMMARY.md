@@ -2,7 +2,7 @@
 
 * [Release Notes](README.md)
 * [11.2025](11.2025/README.md)
-  * [11.14.2025: Expanded Provider Support with OpenAI 5.1 + Gemini 3🔧](11.2025/11.14.2025-expanded-provider-support-with-openai-5.1-+-gemini-3.md)
+  * [11.19.2025: Expanded Provider Support with OpenAI 5.1 + Gemini 3🔧](11.2025/11.19.2025-expanded-provider-support-with-openai-5.1-+-gemini-3.md)
   * [11.12.2025: Updated Anthropic Model List 🧠](11.2025/11.12.2025-updated-anthropic-model-list.md)
   * [11.09.2025 OpenInference TypeScript 2.0 💻](11.2025/11.09.2025-openinference-typescript-2.0.md)
   * [11.07.2025: Timezone Preference 🌍](11.2025/11.07.2025-timezone-preference.md)

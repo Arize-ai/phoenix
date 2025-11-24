@@ -6,7 +6,7 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
-## [11.14.2025: Expanded Provider Support with OpenAI 5.1 + Gemini 3](11.2025/11.14.2025-expanded-provider-support-with-openai-5.1-+-gemini-3.md) 🔧
+## [11.19.2025: Expanded Provider Support with OpenAI 5.1 + Gemini 3](11.2025/11.19.2025-expanded-provider-support-with-openai-5.1-+-gemini-3.md) 🔧
 
 **Available in Phoenix 12.15+**
 
