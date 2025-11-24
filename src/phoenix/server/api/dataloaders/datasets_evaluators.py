@@ -31,8 +31,12 @@ class DatasetsEvaluatorsDataLoader(DataLoader[Key, Result]):
             ):
                 dataset_id = junction.dataset_id
                 evaluator_id = junction.evaluator_id
+                builtin_evaluator_id = junction.builtin_evaluator_id
                 if evaluator_id is not None:
                     key = (dataset_id, evaluator_id)
+                    datasets_evaluators_by_key[key] = junction
+                elif builtin_evaluator_id is not None:
+                    key = (dataset_id, builtin_evaluator_id)
                     datasets_evaluators_by_key[key] = junction
 
             return [datasets_evaluators_by_key.get(key) for key in keys]
