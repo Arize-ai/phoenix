@@ -37,7 +37,9 @@ export async function createDataset({
   const inputs = examples.map((example) => example.input);
   const outputs = examples.map((example) => example?.output ?? {}); // Treat null as an empty object
   const metadata = examples.map((example) => example?.metadata ?? {});
-  const splits = examples.map((example) => example?.splits ?? {});
+  const splits = examples.map((example) =>
+    example?.splits !== undefined ? example.splits : {}
+  );
   const createDatasetResponse = await client.POST("/v1/datasets/upload", {
     params: {
       query: {

@@ -1170,8 +1170,25 @@
                   "splits": {
                     "type": "array",
                     "items": {
-                      "type": "object"
-                    }
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "description": "Split per example: string, array, dict, or null"
                   }
                 }
               }

@@ -45,7 +45,14 @@ export interface Example {
   input: Record<string, unknown>;
   output?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
-  splits?: Record<string, string> | null;
+  /**
+   * Split assignment for this example. Can be:
+   * - A dict mapping split keys to split names: {"data_split": "train", "category": "general"}
+   * - A single string for one split: "train"
+   * - An array of strings for multiple splits: ["train", "easy"]
+   * - null for no split assignment
+   */
+  splits?: Record<string, string> | string | string[] | null;
 }
 
 /**
