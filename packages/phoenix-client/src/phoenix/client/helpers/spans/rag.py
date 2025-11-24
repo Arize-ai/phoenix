@@ -325,7 +325,7 @@ async def async_get_retrieved_documents(
             and columns:
             - context.trace_id: Trace ID
             - input: Input value from the retriever span
-            - context: Document content
+            - document: Document content
             - document_score: Document relevance score
             - document_metadata: Document metadata
     Examples:
