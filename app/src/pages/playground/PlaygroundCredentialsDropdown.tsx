@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { css } from "@emotion/react";
 
 import {
@@ -15,6 +16,8 @@ import {
   Label,
   Popover,
   Text,
+  ToggleButton,
+  ToggleButtonGroup,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
@@ -33,6 +36,10 @@ export function PlaygroundCredentialsDropdown() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
 
+  const [credentialView, setCredentialView] = useState<"local" | "server">(
+    "local"
+  );
+
   return (
     <div
       css={css`
@@ -49,7 +56,7 @@ export function PlaygroundCredentialsDropdown() {
         >
           API Keys
         </Button>
-        <Popover>
+        <Popover style={{ width: "500px" }}>
           <Dialog>
             {({ close }) => (
               <View padding="size-200">
@@ -59,42 +66,41 @@ export function PlaygroundCredentialsDropdown() {
                     close();
                   }}
                 >
-                  <Heading level={2} weight="heavy">
-                    API Keys
-                  </Heading>
-                  <View paddingY="size-50">
-                    <Text color="text-700" size="XS">
-                      API keys are stored in your browser and used to
-                      communicate with their respective APIs.
-                    </Text>
-                  </View>
-                  <Flex direction="column" gap="size-100">
-                    {currentProviders.map((provider) => {
-                      const providerHasNoCredentials =
-                        !ProviderToCredentialsConfigMap[provider].length;
-                      if (providerHasNoCredentials) {
-                        // Do not show the credential field
-                        return null;
-                      }
-                      return (
-                        <View key={provider} paddingY="size-50">
-                          <Flex
-                            direction="row"
-                            gap="size-100"
-                            alignItems="center"
-                          >
-                            <GenerativeProviderIcon provider={provider} />
-                            <Heading level={3} weight="heavy">
-                              {getProviderName(provider)}
-                            </Heading>
-                          </Flex>
-                          <View paddingBottom="size-100" paddingTop="size-100">
-                            <ProviderCredentials provider={provider} />
-                          </View>
-                        </View>
-                      );
-                    })}
+                  <Flex
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <Heading level={2} weight="heavy">
+                      API Keys
+                    </Heading>
+                    <ToggleButtonGroup
+                      selectedKeys={[credentialView]}
+                      size="S"
+                      aria-label="Credential Source"
+                      onSelectionChange={(v) => {
+                        if (v.size === 0) {
+                          return;
+                        }
+                        const view = v.keys().next().value;
+                        if (view === "local" || view === "server") {
+                          setCredentialView(view);
+                        }
+                      }}
+                    >
+                      <ToggleButton aria-label="Local" id="local">
+                        Local
+                      </ToggleButton>
+                      <ToggleButton aria-label="Server" id="server">
+                        Server
+                      </ToggleButton>
+                    </ToggleButtonGroup>
                   </Flex>
+                  {credentialView === "local" ? (
+                    <LocalCredentialsView providers={currentProviders} />
+                  ) : (
+                    <ServerCredentialsView providers={currentProviders} />
+                  )}
                   <View paddingTop="size-100">
                     <Flex
                       direction="row"
@@ -114,6 +120,92 @@ export function PlaygroundCredentialsDropdown() {
         </Popover>
       </DialogTrigger>
     </div>
+  );
+}
+
+function LocalCredentialsView({ providers }: { providers: ModelProvider[] }) {
+  return (
+    <>
+      <View paddingY="size-50">
+        <Text color="text-700" size="XS">
+          Local API keys are stored in your browser and are not shared with
+          other users.
+        </Text>
+      </View>
+      <Flex direction="column" gap="size-100">
+        {providers.map((provider) => {
+          const providerHasNoCredentials =
+            !ProviderToCredentialsConfigMap[provider].length;
+          if (providerHasNoCredentials) {
+            // Do not show the credential field
+            return null;
+          }
+          return (
+            <View key={provider} paddingY="size-50">
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <GenerativeProviderIcon provider={provider} />
+                <Heading level={3} weight="heavy">
+                  {getProviderName(provider)}
+                </Heading>
+              </Flex>
+              <View paddingBottom="size-100" paddingTop="size-100">
+                <ProviderCredentials provider={provider} />
+              </View>
+            </View>
+          );
+        })}
+      </Flex>
+    </>
+  );
+}
+
+function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
+  return (
+    <View paddingY="size-100">
+      <Text color="text-700" size="S">
+        Server-side API keys are configured via environment variables and will
+        be available to all users.
+      </Text>
+      <View paddingTop="size-100">
+        <Flex direction="column" gap="size-100">
+          {providers.map((provider) => {
+            const credentialsConfig = ProviderToCredentialsConfigMap[provider];
+            if (!credentialsConfig.length) {
+              return null;
+            }
+            return (
+              <View key={provider} paddingY="size-50">
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <GenerativeProviderIcon provider={provider} />
+                  <Heading level={3} weight="heavy">
+                    {getProviderName(provider)}
+                  </Heading>
+                </Flex>
+                <View paddingTop="size-100">
+                  <Flex direction="column" gap="size-50">
+                    {credentialsConfig.map((credentialConfig) => (
+                      <Text
+                        key={credentialConfig.envVarName}
+                        color="text-600"
+                        size="S"
+                      >
+                        • {credentialConfig.envVarName}
+                        {credentialConfig.isRequired && (
+                          <Text color="text-700" weight="heavy">
+                            {" "}
+                            (required)
+                          </Text>
+                        )}
+                      </Text>
+                    ))}
+                  </Flex>
+                </View>
+              </View>
+            );
+          })}
+        </Flex>
+      </View>
+    </View>
   );
 }
 
