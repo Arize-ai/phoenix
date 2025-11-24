@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 4.0.6](https://img.shields.io/badge/Version-4.0.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.7.1](https://img.shields.io/badge/AppVersion-12.7.1-informational?style=flat-square)
+![Version: 4.0.15](https://img.shields.io/badge/Version-4.0.15-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.17.0](https://img.shields.io/badge/AppVersion-12.17.0-informational?style=flat-square)
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For instructions on how to deploy this Helm chart, see the [self-hosting docs](https://arize.com/docs/phoenix/self-hosting).
   - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
@@ -34,13 +34,16 @@ Phoenix is an open-source AI observability platform designed for experimentation
 |-----|------|---------|-------------|
 | additionalEnv | list | `[]` | Additional environment variables to add to the deployments pod spec For supported environment variables see https://arize.com/docs/phoenix/self-hosting/configuration#environment-variables Should only be used for capabilities not exposed via the helm chart directly |
 | auth.accessTokenExpiryMinutes | int | `60` | Duration in minutes before access tokens expire and require renewal (PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES) |
+| auth.admins | string | `""` | Semicolon-separated list of username and email pairs to create as admin users on startup (PHOENIX_ADMINS) Format: "username=email;username2=email2" (e.g., "John Doe=john@example.com;Jane Doe=jane@example.com") These users will be created with random passwords that must be reset on first login |
 | auth.allowedOrigins | list | `[]` | List of allowed CORS origins for cross-origin requests to the Phoenix API (PHOENIX_ALLOWED_ORIGINS) |
+| auth.cookiesPath | string | `"/"` | Cookie path for authentication cookies (PHOENIX_COOKIES_PATH) Set this when Phoenix is hosted under a sub-path |
 | auth.csrfTrustedOrigins | list | `[]` | List of trusted origins for CSRF protection to prevent cross-site request forgery attacks (PHOENIX_CSRF_TRUSTED_ORIGINS) |
 | auth.defaultAdminPassword | string | `"admin"` | Default password for the admin user on initial setup (PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) |
+| auth.disableBasicAuth | bool | `false` | Disable password-based authentication (PHOENIX_DISABLE_BASIC_AUTH) When true, users can only authenticate via OAuth2/OIDC. Useful for SSO-only deployments. |
 | auth.enableAuth | bool | `true` | Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH) |
 | auth.name | string | `"phoenix-secret"` | Name of the Kubernetes secret containing authentication credentials |
 | auth.oauth2.enabled | bool | `false` | Enable OAuth2/OIDC authentication |
-| auth.oauth2.providers | string | `nil` | List of OAuth2 identity providers to configure Each provider requires client_id, client_secret, and oidc_config_url Optional settings include display_name, allow_sign_up, and auto_login |
+| auth.oauth2.providers | string | `nil` | List of OAuth2 identity providers to configure Each provider requires client_id, client_secret (unless token_endpoint_auth_method="none"), and oidc_config_url You can also define corresponding ENVs via auth.secrets[].valueFrom to use existing secrets ENVs: PHOENIX_OAUTH2_{{ $provider_upper }}_{{ setting }}, e.g. PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET |
 | auth.passwordResetTokenExpiryMinutes | int | `60` | Duration in minutes before password reset tokens expire (PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES) |
 | auth.refreshTokenExpiryMinutes | int | `43200` | Duration in minutes before refresh tokens expire (PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES) |
 | auth.secret[0] | object | `{"key":"PHOENIX_SECRET","value":""}` | Environment variable name for the main Phoenix secret key used for encryption |
@@ -56,11 +59,13 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.useSecureCookies | bool | `false` | Enable secure cookies (should be true when using HTTPS) |
 | database.allocatedStorageGiB | int | `20` | Storage allocation in GiB for the database persistent volume |
 | database.defaultRetentionPolicyDays | int | `0` | Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS) Set to 0 to disable automatic trace cleanup. When set to a positive value, traces older than this many days will be automatically removed from the database. |
+| database.postgres.awsIamTokenLifetimeSeconds | int | `840` | Token lifetime in seconds for AWS RDS IAM authentication pool recycling (PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS) AWS RDS IAM tokens are valid for 15 minutes (900 seconds). Set slightly lower to ensure tokens are refreshed before expiration. Only used when useAwsIamAuth is true. |
 | database.postgres.db | string | `"phoenix"` | Name of the PostgreSQL database (PHOENIX_POSTGRES_DB) |
 | database.postgres.host | string | `""` | Postgres Host (PHOENIX_POSTGRES_HOST) Default points to the groundhog2k PostgreSQL service when postgresql.enabled=true IMPORTANT: Only change this when using external PostgreSQL (postgresql.enabled=false, database.url empty) Examples: "localhost", "postgres.example.com", "your-rds-endpoint.region.rds.amazonaws.com" |
 | database.postgres.password | string | `"postgres"` | PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD) |
 | database.postgres.port | int | `5432` | Port number for PostgreSQL connections (PHOENIX_POSTGRES_PORT) |
 | database.postgres.schema | string | `""` | PostgreSQL schema to use (PHOENIX_SQL_DATABASE_SCHEMA) |
+| database.postgres.useAwsIamAuth | bool | `false` | Enable AWS RDS IAM authentication for PostgreSQL (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH) When enabled, Phoenix will use AWS IAM credentials to generate short-lived authentication tokens instead of using a static password. Requires boto3 to be installed: pip install 'arize-phoenix[aws]' IMPORTANT: When enabled, do not set database.postgres.password |
 | database.postgres.user | string | `"postgres"` | PostgreSQL username (PHOENIX_POSTGRES_USER) |
 | database.url | string | `""` | Full database connection URL (overrides postgres settings if provided) IMPORTANT: Only set this for external databases (Strategy 3) - When using SQLite (Strategy 1): MUST be empty - SQLite auto-uses persistent volume - When using built-in PostgreSQL (Strategy 2): MUST be empty - auto-configured - When using external database (Strategy 3): MUST be configured with full connection string  Examples for external databases: PostgreSQL: "postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix" SQLite: "sqlite:///path/to/database.db" (only for external SQLite files, not recommended)  WARNING: Setting this will override all database.postgres.* settings and disable built-in PostgreSQL validation |
 | deployment.affinity | object | `{}` |  |
@@ -92,7 +97,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-12.7.1-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-12.17.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
@@ -113,14 +118,6 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | persistence.labels | object | `{}` | Labels to add to the PVC |
 | persistence.size | string | `"20Gi"` | Size of the persistent volume for Phoenix home directory |
 | persistence.storageClass | string | `""` | Kubernetes storage class for Phoenix home volume |
-| postgres.image | string | `"postgres:14.5"` | Docker image for PostgreSQL (DEPRECATED for new postgresql.image) |
-| postgres.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data (DEPRECATED for new postgresql.primary.persistence) |
-| postgres.persistence.size | string | `"20Gi"` | Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence) |
-| postgres.persistence.storageClass | string | `"standard"` | Kubernetes storage class for PostgreSQL volume (DEPRECATED for new postgresql.primary.persistence) |
-| postgres.resources.limits.cpu | string | `"500m"` | CPU limit for PostgreSQL container (DEPRECATED for new postgresql) |
-| postgres.resources.limits.memory | string | `"512Mi"` | Memory limit for PostgreSQL container (DEPRECATED for new postgresql) |
-| postgres.resources.requests.cpu | string | `"100m"` | CPU request for PostgreSQL container (DEPRECATED for new postgresql) |
-| postgres.resources.requests.memory | string | `"256Mi"` | Memory request for PostgreSQL container (DEPRECATED for new postgresql) |
 | postgresql.enabled | bool | `true` | Enable PostgreSQL deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL) When disabled, you must configure database.url or database.postgres settings to point to your external database IMPORTANT: Cannot be enabled simultaneously with persistence.enabled=true (for SQLite) Choose one persistence strategy:   - groundhog2k PostgreSQL: postgresql.enabled=true, persistence.enabled=false   - SQLite: postgresql.enabled=false, persistence.enabled=true   - External DB: postgresql.enabled=false, persistence.enabled=false, database.url configured |
 | postgresql.image.registry | string | `"docker.io"` |  |
 | postgresql.image.repository | string | `"postgres"` |  |
@@ -149,6 +146,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | server.host | string | `"::"` | Host IP to bind Phoenix server (PHOENIX_HOST) |
 | server.hostRootPath | string | `""` | Root path prefix for Phoenix UI and API (PHOENIX_HOST_ROOT_PATH) |
 | server.labels | object | `{}` | Labels to add to the Phoenix service |
+| server.maxSpansQueueSize | int | `20000` | Maximum number of spans to hold in the processing queue before rejecting new requests (PHOENIX_MAX_SPANS_QUEUE_SIZE) This is a heuristic to prevent memory issues when spans accumulate faster than they can be written to the database. Memory usage: ~50KiB per span means 20,000 spans = ~1GiB. Adjust based on available memory and database throughput. |
 | server.port | int | `6006` | Port for Phoenix web UI and HTTP API (PHOENIX_PORT) |
 | server.rootUrl | string | `""` | External root URL for Phoenix (PHOENIX_ROOT_URL) |
 | server.workingDir | string | `"/data"` | The working directory for saving, loading, and exporting data (PHOENIX_WORKING_DIR) Set to empty string to use container's $HOME directory (not recommended for persistence) Use `/data` as a default for volume mount - enables proper permissions in both strict and normal security contexts IMPORTANT: When persistence.enabled=true, this directory must be writable by the Phoenix container (UID 65532) The fsGroup setting in securityContext.pod ensures proper permissions when enabled |

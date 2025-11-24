@@ -128,36 +128,6 @@ postgresql:
       cpu: 100m
       memory: 256Mi
 
-## DEPRECATED
-postgres:
-  # -- Docker image for PostgreSQL (DEPRECATED for new postgresql.image)
-  image: "postgres:14.5"
-
-  persistence:
-    # -- Enable persistent storage for PostgreSQL data (DEPRECATED for new postgresql.primary.persistence)
-    enabled: true
-
-    # -- Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence)
-    size: "20Gi"
-
-    # -- Kubernetes storage class for PostgreSQL volume (DEPRECATED for new postgresql.primary.persistence)
-    storageClass: "standard"
-
-  resources:
-    limits:
-      # -- CPU limit for PostgreSQL container (DEPRECATED for new postgresql)
-      cpu: "500m"
-
-      # -- Memory limit for PostgreSQL container (DEPRECATED for new postgresql)
-      memory: "512Mi"
-
-    requests:
-      # -- CPU request for PostgreSQL container (DEPRECATED for new postgresql)
-      cpu: "100m"
-
-      # -- Memory request for PostgreSQL container (DEPRECATED for new postgresql)
-      memory: "256Mi"
-
 server:
   # -- Annotations to add to the Phoenix service
   annotations: {}
