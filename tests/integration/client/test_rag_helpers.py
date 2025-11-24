@@ -1,3 +1,4 @@
+# pyright: reportUnknownArgumentType=false, reportUnknownMemberType=false, reportAssignmentType=false
 from __future__ import annotations
 
 import asyncio
