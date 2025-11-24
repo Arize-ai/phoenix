@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
@@ -15,6 +16,7 @@ import {
   Icons,
   Label,
   Popover,
+  Skeleton,
   Text,
   ToggleButton,
   ToggleButtonGroup,
@@ -24,7 +26,12 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative/Generativ
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { getProviderName } from "@phoenix/utils/generativeUtils";
+import {
+  getProviderName,
+  isModelProvider,
+} from "@phoenix/utils/generativeUtils";
+
+import type { PlaygroundCredentialsDropdownQuery } from "./__generated__/PlaygroundCredentialsDropdownQuery.graphql";
 
 export function PlaygroundCredentialsDropdown() {
   const currentProviders = usePlaygroundContext((state) =>
@@ -99,7 +106,9 @@ export function PlaygroundCredentialsDropdown() {
                   {credentialView === "local" ? (
                     <LocalCredentialsView providers={currentProviders} />
                   ) : (
-                    <ServerCredentialsView providers={currentProviders} />
+                    <Suspense fallback={<ServerCredentialsSkeleton />}>
+                      <ServerCredentialsView providers={currentProviders} />
+                    </Suspense>
                   )}
                   <View paddingTop="size-100">
                     <Flex
@@ -120,6 +129,30 @@ export function PlaygroundCredentialsDropdown() {
         </Popover>
       </DialogTrigger>
     </div>
+  );
+}
+
+function ServerCredentialsSkeleton() {
+  return (
+    <View paddingY="size-100">
+      <Skeleton width="100%" height={20} animation="wave" />
+      <View paddingTop="size-100">
+        <Flex direction="column" gap="size-100">
+          <View paddingY="size-50">
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <Skeleton width={24} height={24} borderRadius="circle" />
+              <Skeleton width={120} height={20} animation="wave" />
+            </Flex>
+            <View paddingTop="size-100">
+              <Flex direction="column" gap="size-50">
+                <Skeleton width="80%" height={16} animation="wave" />
+                <Skeleton width="70%" height={16} animation="wave" />
+              </Flex>
+            </View>
+          </View>
+        </Flex>
+      </View>
+    </View>
   );
 }
 
@@ -160,6 +193,31 @@ function LocalCredentialsView({ providers }: { providers: ModelProvider[] }) {
 }
 
 function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
+  const data = useLazyLoadQuery<PlaygroundCredentialsDropdownQuery>(
+    graphql`
+      query PlaygroundCredentialsDropdownQuery {
+        modelProviders {
+          key
+          credentialRequirements {
+            envVarName
+            isRequired
+          }
+          credentialsSet
+        }
+      }
+    `,
+    {},
+    { fetchPolicy: "network-only" }
+  );
+
+  // Create a map of provider key to credentialsSet status
+  const credentialsStatusMap = new Map<ModelProvider, boolean | undefined>();
+  data.modelProviders.forEach((provider) => {
+    if (isModelProvider(provider.key)) {
+      credentialsStatusMap.set(provider.key, provider.credentialsSet);
+    }
+  });
+
   return (
     <View paddingY="size-100">
       <Text color="text-700" size="S">
@@ -173,13 +231,32 @@ function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
             if (!credentialsConfig.length) {
               return null;
             }
+            const credentialsSet = credentialsStatusMap.get(provider);
             return (
               <View key={provider} paddingY="size-50">
-                <Flex direction="row" gap="size-100" alignItems="center">
-                  <GenerativeProviderIcon provider={provider} />
-                  <Heading level={3} weight="heavy">
-                    {getProviderName(provider)}
-                  </Heading>
+                <Flex
+                  direction="row"
+                  gap="size-100"
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <GenerativeProviderIcon provider={provider} />
+                    <Heading level={3} weight="heavy">
+                      {getProviderName(provider)}
+                    </Heading>
+                  </Flex>
+                  {credentialsSet && (
+                    <Flex direction="row" gap="size-50" alignItems="center">
+                      <Icon
+                        color="success"
+                        svg={<Icons.CheckmarkCircleFilled />}
+                      />
+                      <Text color="success" size="S">
+                        Configured
+                      </Text>
+                    </Flex>
+                  )}
                 </Flex>
                 <View paddingTop="size-100">
                   <Flex direction="column" gap="size-50">
