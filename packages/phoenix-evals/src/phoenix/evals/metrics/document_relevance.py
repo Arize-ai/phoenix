@@ -1,30 +1,11 @@
 from pydantic import BaseModel, Field
 
+from ..__generated__.classification_evaluator_configs import (
+    DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG,
+)
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
-from ..templating import Template
-
-_DEFAULT_DOCUMENT_RELEVANCY_TEMPLATE = """\
-You are comparing a document text to a question and trying to determine
-if the document text contains information relevant to answering the
-question. Here is the data:
-
-[BEGIN DATA]
-************
-[Question]: {input}
-************
-[Document text]: {document}
-************
-[END DATA]
-
-Compare the question above to the document text. You must determine
-whether the document text contains information that can answer the
-question. Please focus on whether the very specific question can be
-answered by the information in the document text. Your response must be
-either "relevant" or "unrelated". "unrelated" means that the document
-text does not contain an answer to the question. "relevant" means the
-document text contains an answer to the question.
-"""
+from ..templating import Template, TemplateFormat
 
 
 class DocumentRelevanceEvaluator(ClassificationEvaluator):
@@ -57,9 +38,12 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         print(scores)
     """
 
-    NAME = "document_relevance"
-    PROMPT = Template(template=_DEFAULT_DOCUMENT_RELEVANCY_TEMPLATE)
-    CHOICES = {"unrelated": 0.0, "relevant": 1.0}
+    NAME = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.name
+    PROMPT = Template(
+        template=DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.messages[0].content,
+        template_format=TemplateFormat.MUSTACHE,
+    )
+    CHOICES = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.choices
 
     class DocumentRelevanceInputSchema(BaseModel):
         input: str = Field(description="The input query.")
