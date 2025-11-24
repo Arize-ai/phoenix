@@ -1,4 +1,9 @@
-export const DOCUMENT_RELEVANCY_TEMPLATE = `
+import { PromptTemplate } from "../types";
+
+export const DOCUMENT_RELEVANCY_TEMPLATE: PromptTemplate = [
+  {
+    role: "user",
+    content: `
 You are comparing a document to a question and trying to determine if the document text
 contains information relevant to answering the question. Here is the data:
 
@@ -17,7 +22,9 @@ Your response must be single word, either "relevant" or "unrelated",
 and should not contain any text or characters aside from that word.
 "unrelated" means that the document text does not contain an answer to the Question.
 "relevant" means the document text contains an answer to the Question.
-`;
+`,
+  },
+];
 
 export const DOCUMENT_RELEVANCY_CHOICES = {
   relevant: 1,
