@@ -1,10 +1,9 @@
 # pyright: reportUnknownArgumentType=false, reportUnknownMemberType=false, reportAssignmentType=false
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, Awaitable, Optional, cast
+from typing import Any, Optional, cast
 
 import pandas as pd
 import pytest
@@ -15,7 +14,6 @@ from phoenix.client.__generated__ import v1
 from .._helpers import (  # pyright: ignore[reportPrivateUsage]
     _MEMBER,
     _AppInfo,
-    _await_or_return,
     _ExistingProject,
     _GetUser,
     _until_spans_exist,
@@ -34,11 +32,11 @@ METADATA = SpanAttributes.METADATA
 def _doc(
     content: str, score: float | None = None, metadata: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    d: dict[str, Any] = {DOCUMENT_CONTENT: content}
+    d: dict[str, Any] = {"content": content}
     if score is not None:
-        d[DOCUMENT_SCORE] = score
+        d["score"] = score
     if metadata is not None:
-        d[DOCUMENT_METADATA] = metadata
+        d["metadata"] = metadata
     return d
 
 
@@ -80,6 +78,7 @@ def _create_retriever_span(
     *,
     trace_id: str,
     span_id: str,
+    parent_id: Optional[str] = None,
     name: str = "retriever",
     start: datetime | None = None,
     duration_secs: float = 1.0,
@@ -94,13 +93,14 @@ def _create_retriever_span(
         {
             "name": name,
             "context": {"trace_id": trace_id, "span_id": span_id},
+            "parent_id": parent_id,
             "span_kind": "RETRIEVER",
             "start_time": start_time,
             "end_time": end_time,
             "status_code": "OK",
             "attributes": {
-                INPUT_VALUE: input_text,
-                RETRIEVAL_DOCUMENTS: docs,
+                "input": {"value": input_text},
+                "retrieval": {"documents": [{"document": doc} for doc in docs]},
             },
         },
     )
@@ -138,28 +138,20 @@ class TestEvaluationHelpersRag:
         docs_df: pd.DataFrame
         if is_async:
             assert client_async is not None
-            docs_df = await _await_or_return(
-                cast(Any, async_get_retrieved_documents(client_async, project_name=project_name))
-            )
+            docs_df = await async_get_retrieved_documents(client_async, project_name=project_name)
         else:
             assert client_sync is not None
-            docs_df = await _await_or_return(
-                cast(Any, get_retrieved_documents(client_sync, project_name=project_name))
-            )
+            docs_df = get_retrieved_documents(client_sync, project_name=project_name)
         assert isinstance(docs_df, pd.DataFrame)
         assert docs_df.empty
 
         qa_df: Optional[pd.DataFrame]
         if is_async:
             assert client_async is not None
-            qa_df = await _await_or_return(
-                cast(Any, async_get_input_output_context(client_async, project_name=project_name))
-            )
+            qa_df = await async_get_input_output_context(client_async, project_name=project_name)
         else:
             assert client_sync is not None
-            qa_df = await _await_or_return(
-                cast(Any, get_input_output_context(client_sync, project_name=project_name))
-            )
+            qa_df = get_input_output_context(client_sync, project_name=project_name)
         assert qa_df is None
 
     @pytest.mark.parametrize("is_async", [True, False])
@@ -213,26 +205,15 @@ class TestEvaluationHelpersRag:
         )
 
         # Log spans
-        create_result: dict[str, Any]
         if is_async:
             assert client_async is not None
-            create_result = await _await_or_return(
-                cast(
-                    "Awaitable[dict[str, Any]]",
-                    client_async.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                        project_identifier=project_name, spans=[retriever, empty_retriever]
-                    ),
-                )
+            create_result = await client_async.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name, spans=[retriever, empty_retriever]
             )
         else:
             assert client_sync is not None
-            create_result = await _await_or_return(
-                cast(
-                    dict[str, Any],
-                    client_sync.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                        project_identifier=project_name, spans=[retriever, empty_retriever]
-                    ),
-                )
+            create_result = client_sync.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name, spans=[retriever, empty_retriever]
             )
         assert create_result["total_queued"] == 2
         await _until_spans_exist(_app, [retriever_span_id])
@@ -240,14 +221,10 @@ class TestEvaluationHelpersRag:
         df: pd.DataFrame
         if is_async:
             assert client_async is not None
-            df = await _await_or_return(
-                cast(Any, async_get_retrieved_documents(client_async, project_name=project_name))
-            )
+            df = await async_get_retrieved_documents(client_async, project_name=project_name)
         else:
             assert client_sync is not None
-            df = await _await_or_return(
-                cast(Any, get_retrieved_documents(client_sync, project_name=project_name))
-            )
+            df = get_retrieved_documents(client_sync, project_name=project_name)
 
         assert isinstance(df, pd.DataFrame)
         # Focus only on rows for the retriever that has docs
@@ -281,9 +258,7 @@ class TestEvaluationHelpersRag:
         from phoenix.client import Client as SyncClient
         from phoenix.client.helpers.spans.rag import (
             async_get_input_output_context,
-            async_get_retrieved_documents,
             get_input_output_context,
-            get_retrieved_documents,
         )
 
         if is_async:
@@ -308,90 +283,37 @@ class TestEvaluationHelpersRag:
         retr1 = _create_retriever_span(
             trace_id=trace_id,
             span_id=retr1_id,
+            parent_id=root_span_id,
             documents=[_doc("Paris is the capital city of France.", score=0.95)],
         )
         retr2 = _create_retriever_span(
             trace_id=trace_id,
             span_id=retr2_id,
+            parent_id=root_span_id,
             documents=[_doc("France is a country in Western Europe.", score=0.8)],
         )
 
-        create_result: dict[str, Any]
         if is_async:
             assert client_async is not None
-            create_result = await _await_or_return(
-                cast(
-                    "Awaitable[dict[str, Any]]",
-                    client_async.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                        project_identifier=project_name, spans=[root, retr1, retr2]
-                    ),
-                )
+            create_result = await client_async.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name, spans=[root, retr1, retr2]
             )
         else:
             assert client_sync is not None
-            create_result = await _await_or_return(
-                cast(
-                    dict[str, Any],
-                    client_sync.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                        project_identifier=project_name, spans=[root, retr1, retr2]
-                    ),
-                )
+            create_result = client_sync.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name, spans=[root, retr1, retr2]
             )
         assert create_result["total_queued"] == 3
         await _until_spans_exist(_app, [root_span_id, retr1_id, retr2_id])
-
-        # Ensure retriever docs are visible first
-        for _ in range(50):
-            if is_async:
-                assert client_async is not None
-                docs_df = await _await_or_return(
-                    cast(
-                        Any,
-                        async_get_retrieved_documents(
-                            client_async, project_name=project_name, timeout=15
-                        ),
-                    )
-                )
-            else:
-                assert client_sync is not None
-                docs_df = await _await_or_return(
-                    cast(
-                        Any,
-                        get_retrieved_documents(client_sync, project_name=project_name, timeout=15),
-                    )
-                )
-            if isinstance(docs_df, pd.DataFrame) and not docs_df.empty:
-                break
-            await asyncio.sleep(0.2)
-
-        # Give the concat view a moment to materialize before polling
-        await asyncio.sleep(1.0)
         # Poll to account for eventual consistency of dataframe endpoints
-        qa_df2: Optional[pd.DataFrame] = None
-        for _ in range(60):
-            if is_async:
-                assert client_async is not None
-                qa_df2 = await _await_or_return(
-                    cast(
-                        Any,
-                        async_get_input_output_context(
-                            client_async, project_name=project_name, timeout=15
-                        ),
-                    )
-                )
-            else:
-                assert client_sync is not None
-                qa_df2 = await _await_or_return(
-                    cast(
-                        Any,
-                        get_input_output_context(
-                            client_sync, project_name=project_name, timeout=15
-                        ),
-                    )
-                )
-            if qa_df2 is not None and not qa_df2.empty:
-                break
-            await asyncio.sleep(0.25)
+        if is_async:
+            assert client_async is not None
+            qa_df2 = await async_get_input_output_context(
+                client_async, project_name=project_name, timeout=15
+            )
+        else:
+            assert client_sync is not None
+            qa_df2 = get_input_output_context(client_sync, project_name=project_name, timeout=15)
         assert qa_df2 is not None
         assert isinstance(qa_df2, pd.DataFrame)
         # Index should be context.span_id, which should include the root span
@@ -454,6 +376,7 @@ class TestEvaluationHelpersRag:
         retr_early = _create_retriever_span(
             trace_id=trace_early,
             span_id=retr_early_id,
+            parent_id=root_early["context"]["span_id"],
             start=base_time,
             documents=[_doc("early doc")],
         )
@@ -472,32 +395,22 @@ class TestEvaluationHelpersRag:
         retr_late = _create_retriever_span(
             trace_id=trace_late,
             span_id=retr_late_id,
+            parent_id=root_late["context"]["span_id"],
             start=later_start,
             documents=[_doc("late doc")],
         )
 
-        create_result: dict[str, Any]
         if is_async:
             assert client_async is not None
-            create_result = await _await_or_return(
-                cast(
-                    "Awaitable[dict[str, Any]]",
-                    client_async.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                        project_identifier=project_name,
-                        spans=[root_early, retr_early, root_late, retr_late],
-                    ),
-                )
+            create_result = await client_async.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name,
+                spans=[root_early, retr_early, root_late, retr_late],
             )
         else:
             assert client_sync is not None
-            create_result = await _await_or_return(
-                cast(
-                    dict[str, Any],
-                    client_sync.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                        project_identifier=project_name,
-                        spans=[root_early, retr_early, root_late, retr_late],
-                    ),
-                )
+            create_result = client_sync.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name,
+                spans=[root_early, retr_early, root_late, retr_late],
             )
         assert create_result["total_queued"] == 4
         await _until_spans_exist(
@@ -517,31 +430,21 @@ class TestEvaluationHelpersRag:
         docs_df: pd.DataFrame
         if is_async:
             assert client_async is not None
-            docs_df = await _await_or_return(
-                cast(
-                    Any,
-                    async_get_retrieved_documents(
-                        client_async,
-                        project_name=project_name,
-                        start_time=start_time,
-                        end_time=end_time,
-                        timeout=15,
-                    ),
-                )
+            docs_df = await async_get_retrieved_documents(
+                client_async,
+                project_name=project_name,
+                start_time=start_time,
+                end_time=end_time,
+                timeout=15,
             )
         else:
             assert client_sync is not None
-            docs_df = await _await_or_return(
-                cast(
-                    Any,
-                    get_retrieved_documents(
-                        client_sync,
-                        project_name=project_name,
-                        start_time=start_time,
-                        end_time=end_time,
-                        timeout=15,
-                    ),
-                )
+            docs_df = get_retrieved_documents(
+                client_sync,
+                project_name=project_name,
+                start_time=start_time,
+                end_time=end_time,
+                timeout=15,
             )
         assert isinstance(docs_df, pd.DataFrame)
         # Should only include "late doc"
@@ -555,76 +458,24 @@ class TestEvaluationHelpersRag:
             assert set(docs_df["context.trace_id"].astype(str).tolist()) == {trace_late}  # pyright: ignore[reportAttributeAccessIssue]
             assert docs_df.shape[0] == 1
 
-        # Ensure retriever docs for the filtered window are visible first (handles lag)
-        for _ in range(50):
-            if is_async:
-                assert client_async is not None
-                docs_df = await _await_or_return(
-                    cast(
-                        Any,
-                        async_get_retrieved_documents(
-                            client_async,
-                            project_name=project_name,
-                            start_time=start_time,
-                            end_time=end_time,
-                            timeout=15,
-                        ),
-                    )
-                )
-            else:
-                assert client_sync is not None
-                docs_df = await _await_or_return(
-                    cast(
-                        Any,
-                        get_retrieved_documents(
-                            client_sync,
-                            project_name=project_name,
-                            start_time=start_time,
-                            end_time=end_time,
-                            timeout=15,
-                        ),
-                    )
-                )
-            if isinstance(docs_df, pd.DataFrame) and not docs_df.empty:
-                break
-            await asyncio.sleep(0.2)
-
-        # Give the concat view a moment to materialize before polling
-        await asyncio.sleep(1.0)
-        # Then poll the combined QA+context helper until non-empty
-        qa_df: Optional[pd.DataFrame] = None
-        for _ in range(60):
-            if is_async:
-                assert client_async is not None
-                qa_df = await _await_or_return(
-                    cast(
-                        Any,
-                        async_get_input_output_context(
-                            client_async,
-                            project_name=project_name,
-                            start_time=start_time,
-                            end_time=end_time,
-                            timeout=15,
-                        ),
-                    )
-                )
-            else:
-                assert client_sync is not None
-                qa_df = await _await_or_return(
-                    cast(
-                        Any,
-                        get_input_output_context(
-                            client_sync,
-                            project_name=project_name,
-                            start_time=start_time,
-                            end_time=end_time,
-                            timeout=15,
-                        ),
-                    )
-                )
-            if qa_df is not None and not qa_df.empty:
-                break
-            await asyncio.sleep(0.25)
+        if is_async:
+            assert client_async is not None
+            qa_df = await async_get_input_output_context(
+                client_async,
+                project_name=project_name,
+                start_time=start_time,
+                end_time=end_time,
+                timeout=15,
+            )
+        else:
+            assert client_sync is not None
+            qa_df = get_input_output_context(
+                client_sync,
+                project_name=project_name,
+                start_time=start_time,
+                end_time=end_time,
+                timeout=15,
+            )
         assert qa_df is not None
         assert isinstance(qa_df, pd.DataFrame)
         # Only the late root span should be present
