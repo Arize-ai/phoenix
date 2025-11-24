@@ -154,7 +154,13 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         size={props.size ?? "S"}
         isDisabled={props.isDisabled}
       >
-        <Flex alignItems="center" width="100%">
+        <Flex
+          alignItems="center"
+          width="100%"
+          css={css`
+            overflow: hidden;
+          `}
+        >
           {selectedDataset ? (
             <>
               <Text>

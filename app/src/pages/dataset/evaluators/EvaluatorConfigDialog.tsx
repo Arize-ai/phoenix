@@ -247,16 +247,33 @@ function EvaluatorConfigDialogContent({
             overflow: hidden;
           `}
         >
-          <Flex direction="row" alignItems="center" gap="size-50">
+          <Flex
+            direction="row"
+            alignItems="center"
+            gap="size-50"
+            maxWidth="100%"
+          >
             Add
-            <Flex direction="row" alignItems="center" gap="size-25">
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-25"
+              flexBasis="100%"
+              minWidth={0}
+            >
               <Icon svg={<Icons.Scale />} />
-              <Truncate maxWidth="18rem">{evaluator.name}</Truncate>
+              <Truncate maxWidth="100%">{evaluator.name}</Truncate>
             </Flex>
             to
-            <Flex direction="row" alignItems="center" gap="size-25">
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-25"
+              flexBasis="100%"
+              minWidth={0}
+            >
               <Icon svg={<Icons.DatabaseOutline />} />
-              <Truncate maxWidth="18rem">{dataset.name}</Truncate>
+              <Truncate maxWidth="100%">{dataset.name}</Truncate>
             </Flex>
           </Flex>
         </DialogTitle>
