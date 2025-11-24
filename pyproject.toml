@@ -57,7 +57,7 @@ dependencies = [
   "fastapi",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
-  "arize-phoenix-client>=1.24.0",
+  "arize-phoenix-client>=1.25.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
