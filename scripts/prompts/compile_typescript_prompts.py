@@ -76,15 +76,26 @@ def convert_mustache_variables_to_camel_case(content: str) -> str:
     return re.sub(r"\{\{(\w+)\}\}", replace_var, content)
 
 
+def get_template_name(config: ClassificationEvaluatorConfig) -> str:
+    return f"{config.name.upper()}_TEMPLATE"
+
+
+def get_choices_name(config: ClassificationEvaluatorConfig) -> str:
+    return f"{config.name.upper()}_CHOICES"
+
+
+def get_optimization_direction_name(config: ClassificationEvaluatorConfig) -> str:
+    return f"{config.name.upper()}_OPTIMIZATION_DIRECTION"
+
+
 def get_template_file_contents(config: ClassificationEvaluatorConfig) -> str:
     """
     Gets the TypeScript code contents for a classification evaluator template.
     """
     template = Template(TEMPLATE_FILE_TEMPLATE)
-    evaluator_name = config.name.upper()
-    template_name = f"{evaluator_name}_TEMPLATE"
-    choices_name = f"{evaluator_name}_CHOICES"
-    optimization_direction_name = f"{evaluator_name}_OPTIMIZATION_DIRECTION"
+    template_name = get_template_name(config)
+    choices_name = get_choices_name(config)
+    optimization_direction_name = get_optimization_direction_name(config)
 
     choices = {label: int(score) for label, score in config.choices.items()}
 
@@ -111,10 +122,9 @@ def get_index_file_contents(configs: list[ClassificationEvaluatorConfig]) -> str
     template = Template(INDEX_TEMPLATE)
     exports = []
     for config in configs:
-        evaluator_name = config.name.upper()
-        template_name = f"{evaluator_name}_TEMPLATE"
-        choices_name = f"{evaluator_name}_CHOICES"
-        optimization_direction_name = f"{evaluator_name}_OPTIMIZATION_DIRECTION"
+        template_name = get_template_name(config)
+        choices_name = get_choices_name(config)
+        optimization_direction_name = get_optimization_direction_name(config)
         file_name = template_name.lower()
         exports.append((template_name, choices_name, optimization_direction_name, file_name))
 
@@ -153,8 +163,7 @@ if __name__ == "__main__":
         configs.append(config)
 
         # Write to file
-        evaluator_name = config.name.upper()
-        template_name = f"{evaluator_name}_TEMPLATE"
+        template_name = get_template_name(config)
         output_path = output_dir / f"{template_name.lower()}.ts"
         output_path.write_text(content, encoding="utf-8")
 
