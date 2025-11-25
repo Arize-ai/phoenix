@@ -324,16 +324,10 @@ async def add_dataset_examples(
             raise
 
         # Convert name-based assignments to ID-based assignments
-        id_assignments: list[tuple[DatasetExampleId, int]] = []
-        for example_id, split_name in split_assignments:
-            split_id = split_name_to_id.get(split_name)
-            if split_id is not None:
-                id_assignments.append((example_id, split_id))
-            else:
-                logger.warning(
-                    f"Split '{split_name}' not found in mapping for {example_id=}, "
-                    "skipping assignment"
-                )
+        id_assignments = [
+            (example_id, split_name_to_id[split_name])
+            for example_id, split_name in split_assignments
+        ]
 
         try:
             await bulk_assign_examples_to_splits(

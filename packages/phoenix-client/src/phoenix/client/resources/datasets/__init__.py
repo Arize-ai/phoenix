@@ -914,7 +914,7 @@ class Datasets:
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
-            splits_from_examples = [example.get("splits", None) for example in examples_list]
+            splits_from_examples = [example.get("splits") for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1082,7 +1082,7 @@ class Datasets:
                 if not _is_all_dict(data):
                     raise ValueError(f"{name} must contain only dictionaries")
 
-        # Validate splits separately (can be string, list, dict, or None)
+        # Validate splits separately (can be string, list of strings, or None)
         if splits_list and len(splits_list) != len(inputs_list):
             raise ValueError(
                 f"splits must have same length as inputs ({len(splits_list)} != {len(inputs_list)})"
@@ -1657,7 +1657,7 @@ class AsyncDatasets:
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
-            splits_from_examples = [example.get("splits", None) for example in examples_list]
+            splits_from_examples = [example.get("splits") for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1808,7 +1808,7 @@ class AsyncDatasets:
                 if not _is_all_dict(data):
                     raise ValueError(f"{name} must contain only dictionaries")
 
-        # Validate splits separately (can be string, list, dict, or None)
+        # Validate splits separately (can be string, list of strings, or None)
         if splits_list and len(splits_list) != len(inputs_list):
             raise ValueError(
                 f"splits must have same length as inputs ({len(splits_list)} != {len(inputs_list)})"
