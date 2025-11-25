@@ -181,6 +181,7 @@ async def add_dataset_examples(
         dataset_version_id = await insert_dataset_version(
             session=session,
             dataset_id=dataset_id,
+            description=description,
             created_at=created_at,
             user_id=user_id,
         )
