@@ -56,7 +56,7 @@ async function globalSetup(config: FullConfig) {
   await page.getByRole("button", { name: "Log Out" }).click();
 
   // Log in as member
-  page.goto(`${baseURL}/login`);
+  await page.goto(`${baseURL}/login`);
   await page.getByLabel("Email").fill("member@localhost.com");
   await page.getByLabel("Password").fill("member");
   await page.getByRole("button", { name: "Log In", exact: true }).click();
@@ -68,11 +68,8 @@ async function globalSetup(config: FullConfig) {
   await page.getByLabel("Confirm Password").fill("member123");
   await page.getByRole("button", { name: "Reset Password" }).click();
 
-  // Logout of the member account
-  await page.getByRole("button", { name: "Log Out" }).click();
-
   // Log in as viewer
-  page.goto(`${baseURL}/login`);
+  await page.goto(`${baseURL}/login`);
   await page.getByLabel("Email").fill("viewer@localhost.com");
   await page.getByLabel("Password").fill("viewer");
   await page.getByRole("button", { name: "Log In", exact: true }).click();
