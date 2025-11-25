@@ -62,10 +62,15 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
             f"or {BuiltInEvaluator.__name__}"
         )
     # Convert class name to EvaluatorKind literal
+    evaluator_kind: EvaluatorKind
     if type_name == BuiltInEvaluator.__name__:
         evaluator_kind: EvaluatorKind = "CODE"
+    elif type_name == LLMEvaluator.__name__:
+        evaluator_kind = "LLM"
+    elif type_name == CodeEvaluator.__name__:
+        evaluator_kind = "CODE"
     else:
-        evaluator_kind = "LLM" if type_name == LLMEvaluator.__name__ else "CODE"
+        assert_never(type_name)
     return evaluator_rowid, evaluator_kind
 
 
@@ -118,7 +123,7 @@ class EvaluatorMutationPayload:
 class AssignEvaluatorToDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
-    input_config: Optional[EvaluatorInputMappingInput] = None
+    input_mapping: Optional[EvaluatorInputMappingInput] = None
 
 
 @strawberry.input
