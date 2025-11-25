@@ -1,14 +1,19 @@
 import { useState } from "react";
 import { css } from "@emotion/react";
 
-import { GridListItem, Text } from "@phoenix/components";
+import {
+  GridListItem,
+  Icon,
+  IconButton,
+  Icons,
+  Text,
+} from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
 export type EvaluatorItem = {
   id: string;
   name: string;
-  kind: "CODE" | "LLM";
   alreadyAdded?: boolean;
   annotationName?: string;
 };
@@ -17,12 +22,14 @@ type EvaluatorMenuItemProps = {
   evaluator: EvaluatorItem;
   onSelectionChange: () => void;
   isSelected?: boolean;
+  onEdit: () => void;
 };
 
 export function EvaluatorSelectMenuItem({
   evaluator,
   onSelectionChange,
   isSelected,
+  onEdit,
 }: EvaluatorMenuItemProps) {
   const { name, alreadyAdded } = evaluator;
 
@@ -60,6 +67,11 @@ export function EvaluatorSelectMenuItem({
             />
           </div>
         ) : undefined
+      }
+      trailingContent={
+        <IconButton size="S" aria-label="Edit evaluator" onPress={onEdit}>
+          <Icon svg={<Icons.EditOutline />} />
+        </IconButton>
       }
     >
       <StableWidthText
