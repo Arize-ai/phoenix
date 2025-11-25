@@ -877,7 +877,6 @@ async def test_experiments_without_filter(
     assert len(data["node"]["experiments"]["edges"]) == 4
 
 
-@pytest.mark.xfail(reason="Temporarily associating builtin evaluators with all datasets as well")
 class TestDatasetsEvaluatorsResolver:
     async def test_returns_associated_evaluators(
         self,
@@ -1000,12 +999,12 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
         dataset_evaluator_1 = models.DatasetsEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_1.id,
-            input_config={},
+            input_mapping={},
         )
         dataset_evaluator_2 = models.DatasetsEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_2.id,
-            input_config={},
+            input_mapping={},
         )
         session.add_all([dataset_evaluator_1, dataset_evaluator_2])
 

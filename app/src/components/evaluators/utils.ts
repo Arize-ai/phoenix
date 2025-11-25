@@ -1,4 +1,7 @@
+import { graphql, readInlineData } from "relay-runtime";
+
 import { UpdateLLMEvaluatorInput } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
+import { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
 import { InputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { ChoiceConfig } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
@@ -119,3 +122,45 @@ export const createLLMEvaluatorPayload = ({
 export type CreateLLMEvaluatorPayload = ReturnType<
   typeof createLLMEvaluatorPayload
 >;
+
+export type EvaluatorInput = {
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
+  expected: Record<string, unknown>;
+};
+
+export const datasetExampleToEvaluatorInput = ({
+  exampleRef,
+  taskOutput = {},
+}: {
+  exampleRef: utils_datasetExampleToEvaluatorInput_example$key;
+  taskOutput?: Record<string, unknown>;
+}): EvaluatorInput => {
+  const example = readInlineData(
+    graphql`
+      fragment utils_datasetExampleToEvaluatorInput_example on DatasetExampleRevision
+      @inline {
+        input
+        output
+      }
+    `,
+    exampleRef
+  );
+  return {
+    input: example.input,
+    output: taskOutput,
+    expected: example.output,
+  };
+};
+
+export const EMPTY_EVALUATOR_INPUT: EvaluatorInput = {
+  input: {},
+  output: {},
+  expected: {},
+};
+
+export const EMPTY_EVALUATOR_INPUT_STRING = JSON.stringify(
+  EMPTY_EVALUATOR_INPUT,
+  null,
+  2
+);
