@@ -6,7 +6,6 @@ import {
   useState,
 } from "react";
 import { Control, Controller } from "react-hook-form";
-import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
@@ -18,8 +17,11 @@ import {
   Text,
 } from "@phoenix/components";
 import { Heading } from "@phoenix/components/content/Heading";
-import { EvaluatorInputMappingControlsQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorInputMappingControlsQuery.graphql";
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
+import {
+  EMPTY_EVALUATOR_INPUT,
+  EvaluatorInput,
+} from "@phoenix/components/evaluators/utils";
 import { Flex } from "@phoenix/components/layout/Flex";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
@@ -28,29 +30,21 @@ export type InputMapping = Record<string, string>;
 
 type EvaluatorInputMappingProps = {
   control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
+  evaluatorInput: EvaluatorInput | null;
   exampleId?: string;
   variables: string[];
 };
 
 export const EvaluatorInputMapping = ({
+  evaluatorInput,
   control,
-  exampleId,
   variables,
 }: EvaluatorInputMappingProps) => {
-  if (!exampleId) {
-    return (
-      <EvaluatorInputMappingTitle>
-        <Text color="text-500">
-          Select a dataset example to view available fields.
-        </Text>
-      </EvaluatorInputMappingTitle>
-    );
-  }
   return (
     <EvaluatorInputMappingTitle>
       <Suspense fallback={<Loading />}>
         <EvaluatorInputMappingControls
-          exampleId={exampleId}
+          evaluatorInput={evaluatorInput}
           control={control}
           variables={variables}
         />
@@ -62,9 +56,10 @@ export const EvaluatorInputMapping = ({
 const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
   return (
     <Flex direction="column" gap="size-100">
-      <Heading level={3}>Mapping</Heading>
+      <Heading level={3}>Map fields</Heading>
       <Text color="text-500">
-        Map the evaluator input fields to the example input fields.
+        Your evaluator requires certain fields to be available in its input. Map
+        these fields to those available in its context.
       </Text>
       {children}
     </Flex>
@@ -74,54 +69,29 @@ const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
 type ExampleKeyItem = {
   id: string;
   label: string;
-  section: "Input" | "Reference Output" | "Metadata";
 };
 
 const EvaluatorInputMappingControls = ({
-  exampleId,
   control,
+  evaluatorInput,
   variables,
 }: {
-  exampleId: string;
+  evaluatorInput: EvaluatorInput | null;
   control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
   variables: string[];
 }) => {
-  const data = useLazyLoadQuery<EvaluatorInputMappingControlsQuery>(
-    graphql`
-      query EvaluatorInputMappingControlsQuery($exampleId: ID!) {
-        example: node(id: $exampleId) {
-          ... on DatasetExample {
-            revision {
-              input
-              output
-              metadata
-            }
-          }
-        }
-      }
-    `,
-    { exampleId }
-  );
   const allExampleKeys: ExampleKeyItem[] = useMemo(() => {
-    if (!data.example?.revision) {
-      return [];
-    }
     const flat = flattenObject({
-      obj: data.example.revision,
+      obj: evaluatorInput ?? EMPTY_EVALUATOR_INPUT,
       keepNonTerminalValues: true,
     });
     return [
       ...Object.keys(flat).map((key) => ({
         id: key,
         label: key,
-        section: key.startsWith("input.")
-          ? ("Input" as const)
-          : key.startsWith("output.")
-            ? ("Reference Output" as const)
-            : ("Metadata" as const),
       })),
     ];
-  }, [data]);
+  }, [evaluatorInput]);
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const setInputValue = useCallback((key: string, value: string) => {
     setInputValues((prev) => ({ ...prev, [key]: value }));
@@ -160,6 +130,14 @@ const EvaluatorInputMappingControls = ({
                 inputValue={inputValues[variable] ?? ""}
                 css={css`
                   width: 100%;
+                  min-width: 0 !important;
+                  // allow the combobox to shrink to prevent blowing up page layout
+                  .px-combobox-container {
+                    min-width: 0 !important;
+                    input {
+                      min-width: 0 !important;
+                    }
+                  }
                 `}
               >
                 {(item) => (

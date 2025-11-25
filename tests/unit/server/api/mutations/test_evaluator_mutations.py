@@ -140,7 +140,7 @@ class TestDatasetLLMEvaluatorMutations:
                     models.DatasetsEvaluators.evaluator_id == evaluator_id,
                 )
             )
-            assert dataset_evaluator and dataset_evaluator.input_config == {}
+            assert dataset_evaluator and dataset_evaluator.input_mapping == {}
 
         result = await self._create(
             gql_client,
@@ -615,7 +615,7 @@ async def code_evaluator(
         datasets_evaluators=[
             models.DatasetsEvaluators(
                 dataset_id=empty_dataset.id,
-                input_config={},
+                input_mapping={},
             )
         ],
     )
@@ -671,7 +671,7 @@ async def llm_evaluator(
         datasets_evaluators=[
             models.DatasetsEvaluators(
                 dataset_id=empty_dataset.id,
-                input_config={},
+                input_mapping={},
             )
         ],
     )
