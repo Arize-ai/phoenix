@@ -246,15 +246,22 @@ function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
                       {getProviderName(provider)}
                     </Heading>
                   </Flex>
-                  {credentialsSet && (
+                  {credentialsSet ? (
                     <Flex direction="row" gap="size-50" alignItems="center">
-                      <Icon
-                        color="success"
-                        svg={<Icons.CheckmarkCircleFilled />}
-                      />
                       <Text color="success" size="S">
                         Configured
                       </Text>
+                      <Icon
+                        color="success"
+                        svg={<Icons.CheckmarkCircleOutline />}
+                      />
+                    </Flex>
+                  ) : (
+                    <Flex direction="row" gap="size-50" alignItems="center">
+                      <Text color="text-700" size="S">
+                        Not Configured
+                      </Text>
+                      <Icon svg={<Icons.MinusCircleOutline />} />
                     </Flex>
                   )}
                 </Flex>
