@@ -414,7 +414,15 @@ export function getDefaultSpanProcessor({
  */
 export function ensureCollectorEndpoint(url: string): string {
   if (!url.includes("/v1/traces")) {
-    return new URL("/v1/traces", url).toString();
+    // Ensure the base URL has a trailing slash for proper path concatenation
+    // Without this, the URL constructor treats the last segment as a file and replaces it
+    const baseUrl = new URL(url);
+    if (!baseUrl.pathname.endsWith("/")) {
+      baseUrl.pathname += "/";
+    }
+    // Append v1/traces to the pathname (without leading slash to append, not replace)
+    baseUrl.pathname += "v1/traces";
+    return baseUrl.toString();
   }
   return new URL(url).toString();
 }
