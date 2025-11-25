@@ -31,6 +31,7 @@ import {
   generateMessageId,
   generateToolId,
   ModelConfig,
+  ModelInvocationParameterInput,
   PlaygroundInput,
   PlaygroundInstance,
   PlaygroundNormalizedInstance,
@@ -1069,19 +1070,23 @@ function toGqlChatCompletionRole(
  * @returns the normalized invocation parameters
  */
 export const normalizeInvocationParameters = (
-  invocationParameters: InvocationParameterInput[]
+  invocationParameters: ModelInvocationParameterInput[]
 ): InvocationParameterInput[] => {
-  return invocationParameters.filter((param) => {
-    // Remove unset float values or invalid float values
-    if (
-      param.valueFloat !== null &&
-      typeof param.valueFloat === "number" &&
-      isNaN(param.valueFloat)
-    ) {
-      return false;
-    }
-    return true;
-  });
+  return invocationParameters
+    .filter((param) => {
+      // Remove unset float values or invalid float values
+      if (
+        param.valueFloat !== null &&
+        typeof param.valueFloat === "number" &&
+        isNaN(param.valueFloat)
+      ) {
+        return false;
+      }
+      return true;
+    })
+    .map(({ dirty: _dirty, ...param }) => {
+      return param;
+    });
 };
 
 /**

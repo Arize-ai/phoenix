@@ -309,7 +309,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -647,13 +646,17 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
-        "anthropic.claude-3-5-sonnet-20240620-v1:0",
-        "anthropic.claude-3-7-sonnet-20250219-v1:0",
-        "anthropic.claude-3-haiku-20240307-v1:0",
-        "anthropic.claude-3-5-sonnet-20241022-v2:0",
-        "anthropic.claude-3-5-haiku-20241022-v1:0",
+        "anthropic.claude-opus-4-5-20251101-v1:0",
+        "anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "anthropic.claude-haiku-4-5-20251001-v1:0",
+        "anthropic.claude-opus-4-1-20250805-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
         "anthropic.claude-sonnet-4-20250514-v1:0",
+        "anthropic.claude-3-7-sonnet-20250219-v1:0",
+        "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "anthropic.claude-3-5-haiku-20241022-v1:0",
+        "anthropic.claude-3-haiku-20240307-v1:0",
         "amazon.titan-embed-text-v2:0",
         "amazon.nova-pro-v1:0",
         "amazon.nova-premier-v1:0:8k",
@@ -688,31 +691,36 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         import boto3  # type: ignore[import-untyped]
 
         super().__init__(model=model, credentials=credentials)
-        self.region = model.region or "us-east-1"
+        region = model.region or "us-east-1"
         self.api = "converse"
-        self.custom_headers = model.custom_headers or {}
-        self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
+        custom_headers = model.custom_headers
+        aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
             "AWS_ACCESS_KEY_ID"
         )
-        self.aws_secret_access_key = _get_credential_value(
+        aws_secret_access_key = _get_credential_value(
             credentials, "AWS_SECRET_ACCESS_KEY"
         ) or getenv("AWS_SECRET_ACCESS_KEY")
-        self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
+        aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
             "AWS_SESSION_TOKEN"
         )
         self.model_name = model.name
-        self.client = boto3.client(
-            service_name="bedrock-runtime",
-            region_name=self.region,
-            aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
-            aws_session_token=self.aws_session_token,
+        session = boto3.Session(
+            region_name=region,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
         )
+        client = session.client(service_name="bedrock-runtime")
 
         # Add custom headers support via boto3 event system
-        if self.custom_headers:
-            self._setup_custom_headers(self.client, self.custom_headers)
+        if custom_headers:
 
+            def add_custom_headers(request: "AWSPreparedRequest", **kwargs: Any) -> None:
+                request.headers.update(custom_headers)
+
+            client.meta.events.register("before-send.*", add_custom_headers)
+
+        self.client = client
         self._attributes[LLM_PROVIDER] = "aws"
         self._attributes[LLM_SYSTEM] = "aws"
 
@@ -721,11 +729,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         """Setup custom headers using boto3's event system."""
         if not custom_headers:
             return
-
-        def add_custom_headers(request: "AWSPreparedRequest", **kwargs: Any) -> None:
-            request.headers.update(custom_headers)
-
-        client.meta.events.register("before-send.*", add_custom_headers)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -752,7 +755,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -771,21 +773,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        import boto3
-
-        if (
-            self.client.meta.region_name != self.region
-        ):  # override the region if it's different from the default
-            self.client = boto3.client(
-                "bedrock-runtime",
-                region_name=self.region,
-                aws_access_key_id=self.aws_access_key_id,
-                aws_secret_access_key=self.aws_secret_access_key,
-                aws_session_token=self.aws_session_token,
-            )
-            # Re-setup custom headers for the new client
-            if self.custom_headers:
-                self._setup_custom_headers(self.client, self.custom_headers)
         if self.api == "invoke":
             async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
                 yield chunk
@@ -807,15 +794,19 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         # Build messages in Converse API format
         converse_messages = self._build_converse_messages(messages)
 
+        inference_config = {}
+        if "max_tokens" in invocation_parameters:
+            inference_config["maxTokens"] = invocation_parameters["max_tokens"]
+        if "temperature" in invocation_parameters:
+            inference_config["temperature"] = invocation_parameters["temperature"]
+        if "top_p" in invocation_parameters:
+            inference_config["topP"] = invocation_parameters["top_p"]
+
         # Build the request parameters for Converse API
         converse_params: dict[str, Any] = {
             "modelId": self.model_name,
             "messages": converse_messages,
-            "inferenceConfig": {
-                "maxTokens": invocation_parameters["max_tokens"],
-                "temperature": invocation_parameters["temperature"],
-                "topP": invocation_parameters["top_p"],
-            },
+            "inferenceConfig": inference_config,
         }
 
         # Add system prompt if available
@@ -948,13 +939,17 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         bedrock_messages, system_prompt = self._build_bedrock_messages(messages)
         bedrock_params = {
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": invocation_parameters["max_tokens"],
             "messages": bedrock_messages,
             "system": system_prompt,
-            "temperature": invocation_parameters["temperature"],
-            "top_p": invocation_parameters["top_p"],
             "tools": tools,
         }
+
+        if "max_tokens" in invocation_parameters:
+            bedrock_params["max_tokens"] = invocation_parameters["max_tokens"]
+        if "temperature" in invocation_parameters:
+            bedrock_params["temperature"] = invocation_parameters["temperature"]
+        if "top_p" in invocation_parameters:
+            bedrock_params["top_p"] = invocation_parameters["top_p"]
 
         response = self.client.invoke_model_with_response_stream(
             modelId=self.model_name,
@@ -1538,7 +1533,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=None,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -1792,7 +1786,6 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -1893,7 +1886,6 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
