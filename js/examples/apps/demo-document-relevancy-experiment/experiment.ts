@@ -1,13 +1,15 @@
-import "dotenv/config";
-import "./app";
-import { spaceKnowledgeApplication } from "./app";
-import { openai } from "@ai-sdk/openai";
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {
   asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 import { createDocumentRelevancyEvaluator } from "@arizeai/phoenix-evals/llm/createDocumentRelevancyEvaluator";
+
+import "dotenv/config";
+
+import { spaceKnowledgeApplication } from "./app";
+
+import { openai } from "@ai-sdk/openai";
 
 const DATASET = [
   "Which moon might harbor life due to its unique geological features?",
@@ -73,4 +75,8 @@ async function main() {
   });
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  // eslint-disable-next-line no-console
+  console.error(error);
+  process.exit(1);
+});

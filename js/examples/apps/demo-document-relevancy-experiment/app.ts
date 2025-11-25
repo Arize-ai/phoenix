@@ -1,5 +1,7 @@
-import "dotenv/config";
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+
+import "dotenv/config";
+
 import OpenAI from "openai";
 
 const instrumentation = new OpenAIInstrumentation();
