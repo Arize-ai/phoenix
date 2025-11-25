@@ -595,11 +595,14 @@ export const MemoizedTableBody = memo(
 export function PlaygroundDatasetExamplesTable({
   datasetId,
   splitIds,
-  evaluators,
+  evaluatorMappings,
 }: {
   datasetId: string;
   splitIds?: string[];
-  evaluators: Record<string, EvaluatorInputMappingInput>;
+  /**
+   * Record of evaluator id to input mappings
+   */
+  evaluatorMappings: Record<string, EvaluatorInputMappingInput>;
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
@@ -877,7 +880,7 @@ export function PlaygroundDatasetExamplesTable({
             playgroundStore,
             datasetId,
             splitIds,
-            evaluators,
+            evaluatorMappings,
           }),
         };
         const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
@@ -935,7 +938,7 @@ export function PlaygroundDatasetExamplesTable({
             playgroundStore,
             datasetId,
             splitIds,
-            evaluators,
+            evaluatorMappings,
           }),
         };
         const disposable = generateChatCompletion({
@@ -972,7 +975,7 @@ export function PlaygroundDatasetExamplesTable({
     datasetId,
     splitIds,
     environment,
-    evaluators,
+    evaluatorMappings,
     generateChatCompletion,
     hasSomeRunIds,
     markPlaygroundInstanceComplete,

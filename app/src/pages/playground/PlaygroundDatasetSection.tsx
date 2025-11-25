@@ -241,7 +241,7 @@ export function PlaygroundDatasetSection({
           <PlaygroundDatasetExamplesTable
             datasetId={datasetId}
             splitIds={splitIds}
-            evaluators={selectedEvaluatorWithInputMapping}
+            evaluatorMappings={selectedEvaluatorWithInputMapping}
           />
         </PlaygroundDatasetExamplesTableProvider>
       </Flex>
