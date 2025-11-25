@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { CreateEvaluator } from "../src/helpers/createEvaluator";
+import { createEvaluator } from "../src/helpers/createEvaluator";
 
 /**
  * Example demonstrating how to use CreateEvaluator to create custom evaluators
@@ -10,7 +10,7 @@ async function main() {
   // Example 1: Simple accuracy evaluator (sync function returning a number)
   console.log("\n=== Example 1: Accuracy Evaluator ===");
 
-  const accuracyEvaluator = CreateEvaluator(
+  const accuracyEvaluator = createEvaluator(
     ({ output, expected }: { output: string; expected: string }) => {
       return output === expected ? 1 : 0;
     },
@@ -35,7 +35,7 @@ async function main() {
 
   console.log("\n=== Example 2: Quality Evaluator ===");
 
-  const qualityEvaluator = CreateEvaluator(
+  const qualityEvaluator = createEvaluator(
     ({ output }: { output: string }) => {
       const score = output.length > 50 ? 0.9 : output.length > 20 ? 0.7 : 0.4;
       return {

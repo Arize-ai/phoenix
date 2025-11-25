@@ -1,4 +1,4 @@
-import { CreateEvaluator } from "../../src/helpers/createEvaluator";
+import { createEvaluator } from "../../src/helpers/createEvaluator";
 import { EvaluationResult } from "../../src/types";
 
 import { SpanKind } from "@opentelemetry/api";
@@ -41,7 +41,7 @@ describe("CreateEvaluator", () => {
         return output === expected ? 1 : 0;
       };
 
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "accuracy",
       });
 
@@ -61,7 +61,7 @@ describe("CreateEvaluator", () => {
         return output === expected ? 1 : 0;
       };
 
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "async-accuracy",
       });
 
@@ -83,7 +83,7 @@ describe("CreateEvaluator", () => {
         };
       };
 
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "quality",
       });
 
@@ -104,7 +104,7 @@ describe("CreateEvaluator", () => {
         return output.length > 10 ? "long" : "short";
       };
 
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "length-checker",
       });
 
@@ -118,7 +118,7 @@ describe("CreateEvaluator", () => {
 
     it("should return an EvaluatorInterface", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       expect(evaluator).toHaveProperty("evaluate");
       expect(evaluator).toHaveProperty("name");
@@ -130,7 +130,7 @@ describe("CreateEvaluator", () => {
   describe("name inference", () => {
     it("should use the provided name when given", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, { name: "custom-name" });
+      const evaluator = createEvaluator(fn, { name: "custom-name" });
 
       expect(evaluator.name).toBe("custom-name");
     });
@@ -140,7 +140,7 @@ describe("CreateEvaluator", () => {
         return 1;
       }
 
-      const evaluator = CreateEvaluator(accuracyChecker);
+      const evaluator = createEvaluator(accuracyChecker);
 
       expect(evaluator.name).toBe("accuracyChecker");
     });
@@ -150,7 +150,7 @@ describe("CreateEvaluator", () => {
       const fn = () => 1;
       // Override the name property to be empty/falsy
       Object.defineProperty(fn, "name", { value: "", configurable: true });
-      const evaluator = CreateEvaluator(fn);
+      const evaluator = createEvaluator(fn);
 
       expect(evaluator.name).toMatch(/^evaluator-[a-z0-9]+$/);
     });
@@ -160,7 +160,7 @@ describe("CreateEvaluator", () => {
         return 1;
       }
 
-      const evaluator = CreateEvaluator(myFunction, {
+      const evaluator = createEvaluator(myFunction, {
         name: "overridden-name",
       });
 
@@ -171,21 +171,21 @@ describe("CreateEvaluator", () => {
   describe("default values", () => {
     it("should default kind to CODE", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       expect(evaluator.kind).toBe("CODE");
     });
 
     it("should default optimizationDirection to MAXIMIZE", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       expect(evaluator.optimizationDirection).toBe("MAXIMIZE");
     });
 
     it("should default telemetry to enabled", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       expect(evaluator.telemetry).toEqual({ isEnabled: true });
     });
@@ -194,7 +194,7 @@ describe("CreateEvaluator", () => {
   describe("custom options", () => {
     it("should set kind to LLM when provided", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "test",
         kind: "LLM",
       });
@@ -204,7 +204,7 @@ describe("CreateEvaluator", () => {
 
     it("should set optimizationDirection to MINIMIZE when provided", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "test",
         optimizationDirection: "MINIMIZE",
       });
@@ -215,7 +215,7 @@ describe("CreateEvaluator", () => {
     it("should accept custom telemetry configuration", () => {
       const tracer = tracerProvider.getTracer("test");
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "test",
         telemetry: { isEnabled: true, tracer },
       });
@@ -229,7 +229,7 @@ describe("CreateEvaluator", () => {
     it("should accept all options together", () => {
       const tracer = tracerProvider.getTracer("test");
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "comprehensive-test",
         kind: "LLM",
         optimizationDirection: "MINIMIZE",
@@ -249,7 +249,7 @@ describe("CreateEvaluator", () => {
   describe("telemetry", () => {
     it("should enable telemetry by default", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       expect(evaluator.telemetry?.isEnabled).toBe(true);
     });
@@ -259,7 +259,7 @@ describe("CreateEvaluator", () => {
         return output.length;
       };
 
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "test",
         telemetry: { isEnabled: false },
       });
@@ -284,7 +284,7 @@ describe("CreateEvaluator", () => {
         return output.length;
       };
 
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "test-evaluator",
         telemetry: { isEnabled: true, tracer },
       });
@@ -313,7 +313,7 @@ describe("CreateEvaluator", () => {
         return output.length;
       };
 
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "async-evaluator",
         telemetry: { isEnabled: true, tracer },
       });
@@ -339,7 +339,7 @@ describe("CreateEvaluator", () => {
         throw new Error("Test error");
       };
 
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "error-evaluator",
         telemetry: { isEnabled: true, tracer },
       });
@@ -367,7 +367,7 @@ describe("CreateEvaluator", () => {
         return output.length;
       };
 
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "global-tracer-test",
         telemetry: { isEnabled: true },
       });
@@ -391,7 +391,7 @@ describe("CreateEvaluator", () => {
         return output === expected ? 1 : 0;
       };
 
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       const result1 = await evaluator.evaluate({
         input: "test",
@@ -415,7 +415,7 @@ describe("CreateEvaluator", () => {
         throw new Error("Test error");
       };
 
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       await expect(
         evaluator.evaluate({
@@ -430,7 +430,7 @@ describe("CreateEvaluator", () => {
         throw new Error("Async error");
       };
 
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       await expect(
         evaluator.evaluate({
@@ -452,7 +452,7 @@ describe("CreateEvaluator", () => {
         return question.length + answer.length;
       };
 
-      const evaluator = CreateEvaluator<CustomRecord>(fn, { name: "test" });
+      const evaluator = createEvaluator<CustomRecord>(fn, { name: "test" });
 
       const result = await evaluator.evaluate({
         question: "What is AI?",
@@ -470,7 +470,7 @@ describe("CreateEvaluator", () => {
 
       const fn = ({ value }: CustomRecord) => value * 2;
 
-      const evaluator = CreateEvaluator<CustomRecord>(fn, { name: "test" });
+      const evaluator = createEvaluator<CustomRecord>(fn, { name: "test" });
 
       // TypeScript should enforce the correct type
       expect(evaluator).toBeDefined();
@@ -480,7 +480,7 @@ describe("CreateEvaluator", () => {
   describe("edge cases", () => {
     it("should handle functions returning 0", async () => {
       const fn = () => 0;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       const result = await evaluator.evaluate({
         input: "test",
@@ -492,7 +492,7 @@ describe("CreateEvaluator", () => {
 
     it("should handle functions returning negative numbers", async () => {
       const fn = () => -1;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       const result = await evaluator.evaluate({
         input: "test",
@@ -504,7 +504,7 @@ describe("CreateEvaluator", () => {
 
     it("should handle functions returning null", async () => {
       const fn = () => null;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       const result = await evaluator.evaluate({
         input: "test",
@@ -516,7 +516,7 @@ describe("CreateEvaluator", () => {
 
     it("should handle functions returning undefined", async () => {
       const fn = () => undefined;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       const result = await evaluator.evaluate({
         input: "test",
@@ -528,7 +528,7 @@ describe("CreateEvaluator", () => {
 
     it("should handle functions with no parameters", async () => {
       const fn = () => 42;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       const result = await evaluator.evaluate({
         input: "test",
@@ -542,7 +542,7 @@ describe("CreateEvaluator", () => {
   describe("integration", () => {
     it("should create a FunctionEvaluator instance", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       // FunctionEvaluator should have evaluateFn property
       expect(evaluator).toHaveProperty("evaluateFn");
@@ -552,7 +552,7 @@ describe("CreateEvaluator", () => {
 
     it("should work with bindInputMapping", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, { name: "test" });
+      const evaluator = createEvaluator(fn, { name: "test" });
 
       const boundEvaluator = evaluator.bindInputMapping({
         mappedInput: "input",
@@ -566,7 +566,7 @@ describe("CreateEvaluator", () => {
 
     it("should maintain evaluator properties after binding", () => {
       const fn = () => 1;
-      const evaluator = CreateEvaluator(fn, {
+      const evaluator = createEvaluator(fn, {
         name: "test",
         kind: "LLM",
         optimizationDirection: "MINIMIZE",

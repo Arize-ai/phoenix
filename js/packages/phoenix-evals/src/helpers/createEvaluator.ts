@@ -166,7 +166,7 @@ export type CreateEvaluatorOptions = {
  * );
  * ```
  */
-export function CreateEvaluator<
+export function createEvaluator<
   RecordType extends Record<string, unknown> = Record<string, unknown>,
   Fn extends AnyFn = AnyFn,
 >(fn: Fn, options?: CreateEvaluatorOptions): EvaluatorBase<RecordType> {

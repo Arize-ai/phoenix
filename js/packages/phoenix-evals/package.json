@@ -25,6 +25,10 @@
     "./types/*": {
       "import": "./dist/esm/types/*.d.ts",
       "require": "./dist/src/types/*.d.ts"
+    },
+    "./helpers/*": {
+      "import": "./dist/esm/helpers/*.js",
+      "require": "./dist/src/helpers/*.js"
     }
   },
   "files": [
