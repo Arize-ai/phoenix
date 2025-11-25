@@ -46,6 +46,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
         template_format=TemplateFormat.MUSTACHE,
     )
     CHOICES = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.choices
+    DIRECTION = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.optimization_direction
 
     class HallucinationInputSchema(BaseModel):
         input: str = Field(description="The input query.")
@@ -61,6 +62,6 @@ class HallucinationEvaluator(ClassificationEvaluator):
             llm=llm,
             prompt_template=self.PROMPT,
             choices=self.CHOICES,
-            direction="maximize",
+            direction=self.DIRECTION,
             input_schema=self.HallucinationInputSchema,
         )

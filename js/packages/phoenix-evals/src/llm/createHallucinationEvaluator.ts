@@ -1,5 +1,6 @@
 import {
   HALLUCINATION_CHOICES,
+  HALLUCINATION_OPTIMIZATION_DIRECTION,
   HALLUCINATION_TEMPLATE,
 } from "../__generated__/default_templates";
 import { CreateClassificationEvaluatorArgs } from "../types/evals";
@@ -42,7 +43,7 @@ export function createHallucinationEvaluator<
   const {
     choices = HALLUCINATION_CHOICES,
     promptTemplate = HALLUCINATION_TEMPLATE,
-    optimizationDirection = "MINIMIZE",
+    optimizationDirection = HALLUCINATION_OPTIMIZATION_DIRECTION,
     name = "hallucination",
     ...rest
   } = args;

@@ -32,3 +32,5 @@ export const DOCUMENT_RELEVANCE_CHOICES = {
   "relevant": 1,
   "unrelated": 0
 };
+
+export const DOCUMENT_RELEVANCE_OPTIMIZATION_DIRECTION = "MAXIMIZE";

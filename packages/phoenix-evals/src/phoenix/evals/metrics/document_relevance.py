@@ -44,6 +44,7 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         template_format=TemplateFormat.MUSTACHE,
     )
     CHOICES = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.choices
+    DIRECTION = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.optimization_direction
 
     class DocumentRelevanceInputSchema(BaseModel):
         input: str = Field(description="The input query.")
@@ -58,6 +59,6 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
             llm=llm,
             prompt_template=self.PROMPT,
             choices=self.CHOICES,
-            direction="maximize",
+            direction=self.DIRECTION,
             input_schema=self.DocumentRelevanceInputSchema,
         )

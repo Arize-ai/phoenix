@@ -1,5 +1,6 @@
 import {
   DOCUMENT_RELEVANCE_CHOICES,
+  DOCUMENT_RELEVANCE_OPTIMIZATION_DIRECTION,
   DOCUMENT_RELEVANCE_TEMPLATE,
 } from "../__generated__/default_templates";
 import { CreateClassificationEvaluatorArgs } from "../types/evals";
@@ -68,7 +69,7 @@ export function createDocumentRelevanceEvaluator<
   const {
     choices = DOCUMENT_RELEVANCE_CHOICES,
     promptTemplate = DOCUMENT_RELEVANCE_TEMPLATE,
-    optimizationDirection = "MAXIMIZE",
+    optimizationDirection = DOCUMENT_RELEVANCE_OPTIMIZATION_DIRECTION,
     name = "document_relevance",
     ...rest
   } = args;

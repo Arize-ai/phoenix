@@ -6,6 +6,7 @@ from ._models import ClassificationEvaluatorConfig, PromptMessage
 HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="hallucination",
     description="A specialized evaluator for detecting hallucinations in grounded LLM responses.",
+    optimization_direction="maximize",
     messages=[
         PromptMessage(
             role="user",

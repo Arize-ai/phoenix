@@ -38,3 +38,5 @@ export const HALLUCINATION_CHOICES = {
   "hallucinated": 0,
   "factual": 1
 };
+
+export const HALLUCINATION_OPTIMIZATION_DIRECTION = "MAXIMIZE";

@@ -6,6 +6,7 @@ from ._models import ClassificationEvaluatorConfig, PromptMessage
 DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="document_relevance",
     description="A specialized evaluator for determining document relevance to a given question.",
+    optimization_direction="maximize",
     messages=[
         PromptMessage(
             role="user",

@@ -3,6 +3,7 @@ Compiles YAML prompts into TypeScript code.
 """
 
 import argparse
+import json
 import re
 from pathlib import Path
 from typing import Literal
@@ -20,6 +21,7 @@ class PromptMessage(BaseModel):
 class ClassificationEvaluatorConfig(BaseModel):
     name: str
     description: str
+    optimization_direction: Literal["minimize", "maximize"]
     messages: list[PromptMessage]
     choices: dict[str, float]
 
@@ -38,15 +40,17 @@ export const {{ template_name }}: PromptTemplate = [
 ];
 
 export const {{ choices_name }} = {{ choices_json }};
+
+export const {{ optimization_direction_name }} = "{{ optimization_direction }}";
 """
 
 INDEX_TEMPLATE = """\
 // This file is generated. Do not edit by hand.
 
-{% for template_name, choices_name, file_name in exports -%}
-export { {{ template_name }}, {{ choices_name }} } from "./{{ file_name }}";
+{% for template_name, choices_name, optimization_direction_name, file_name in exports -%}
+export { {{ template_name }}, {{ choices_name }}, {{ optimization_direction_name }} } from "./{{ file_name }}";
 {% endfor -%}
-"""
+"""  # noqa: E501
 
 
 def snake_to_camel(snake_str: str) -> str:
@@ -80,17 +84,13 @@ def get_template_file_contents(config: ClassificationEvaluatorConfig) -> str:
     evaluator_name = config.name.upper()
     template_name = f"{evaluator_name}_TEMPLATE"
     choices_name = f"{evaluator_name}_CHOICES"
+    optimization_direction_name = f"{evaluator_name}_OPTIMIZATION_DIRECTION"
 
-    # Convert choices to integers for TypeScript
     choices = {label: int(score) for label, score in config.choices.items()}
 
-    # Format choices as JSON with 2-space indent
-    import json
-
     choices_json = json.dumps(choices, indent=2)
-
-    # Convert mustache variables from snake_case to camelCase for TypeScript
     template_content = convert_mustache_variables_to_camel_case(config.messages[0].content.strip())
+    optimization_direction = config.optimization_direction.upper()
 
     content = template.render(
         template_name=template_name,
@@ -98,6 +98,8 @@ def get_template_file_contents(config: ClassificationEvaluatorConfig) -> str:
         content=template_content,
         choices_name=choices_name,
         choices_json=choices_json,
+        optimization_direction_name=optimization_direction_name,
+        optimization_direction=optimization_direction,
     )
     return content
 
@@ -112,8 +114,9 @@ def get_index_file_contents(configs: list[ClassificationEvaluatorConfig]) -> str
         evaluator_name = config.name.upper()
         template_name = f"{evaluator_name}_TEMPLATE"
         choices_name = f"{evaluator_name}_CHOICES"
+        optimization_direction_name = f"{evaluator_name}_OPTIMIZATION_DIRECTION"
         file_name = template_name.lower()
-        exports.append((template_name, choices_name, file_name))
+        exports.append((template_name, choices_name, optimization_direction_name, file_name))
 
     content = template.render(exports=exports)
     return content

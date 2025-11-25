@@ -1,5 +1,6 @@
 name: document_relevance
 description: A specialized evaluator for determining document relevance to a given question.
+optimization_direction: maximize
 messages:
   - role: user
     content: |
