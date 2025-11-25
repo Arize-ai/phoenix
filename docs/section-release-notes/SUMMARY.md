@@ -1,6 +1,14 @@
 # Table of contents
 
 * [Release Notes](README.md)
+* [11.2025](11.2025/README.md)
+  * [11.19.2025: Expanded Provider Support with OpenAI 5.1 + Gemini 3🔧](11.2025/11.19.2025-expanded-provider-support-with-openai-5.1-+-gemini-3.md)
+  * [11.12.2025: Updated Anthropic Model List 🧠](11.2025/11.12.2025-updated-anthropic-model-list.md)
+  * [11.09.2025 OpenInference TypeScript 2.0 💻](11.2025/11.09.2025-openinference-typescript-2.0.md)
+  * [11.07.2025: Timezone Preference 🌍](11.2025/11.07.2025-timezone-preference.md)
+  * [11.05.2025: Metadata for Prompts 🗂️](11.2025/11.05.2025-metadata-for-prompts.md)
+  * [11.03.2025: Playground Dataset Label Display 🏷️](11.2025/11.03.2025-playground-dataset-label-display.md)
+  * [11.01.2025:  Resume Experiments and Evaluations 🔄](11.2025/11.01.2025-resume-experiments-and-evaluations.md)
 * [10.2025](10.2025/README.md)
   * [10.30.2025: Metadata Support for Experiment Run Annotations 🧩](10.2025/10.30.2025-metadata-support-for-experiment-run-annotations.md)
   * [10.28.2025: Enable AWS IAM Auth for DB Configuration 🔐](10.2025/10.28.2025-enable-aws-iam-auth-for-db-configuration.md)
@@ -33,7 +41,7 @@
   * [08.28.2025: New arize-phoenix-client Package 📦](08.2025/08.28.2025-new-arize-phoenix-client-package.md)
   * [08.22.2025: New Trace Timeline View 🔭](08.2025/08.22.2025-new-trace-timeline-view.md)
   * [08.20.2025: New Experiment and Annotation Quick Filters 🏎️](08.2025/08.20.2025-new-experiment-and-annotation-quick-filters.md)
-  * [08.15.2025:  Enhance Experiment Comparison Views 🧪](08.2025/08.15.2025-enhance-experiment-comparison-views.md)
+  * [08.15.2025: Enhance Experiment Comparison Views 🧪](08.2025/08.15.2025-enhance-experiment-comparison-views.md)
   * [08.14.2025: Trace Transfer for Long-Term Storage 📦](08.2025/08.14.2025-trace-transfer-for-long-term-storage.md)
   * [08.12.2025: UI Design Overhauls 🎨](08.2025/08.12.2025-ui-design-overhauls.md)
   * [08.09.2025: Playground Support for GPT-5 🚀](08.2025/08.09.2025-playground-support-for-gpt-5.md)
