@@ -209,14 +209,18 @@ async def bulk_assign_examples_to_splits(
     # Use index_elements instead of constraint name because the table uses
     # a PrimaryKeyConstraint, not a unique constraint
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        stmt = pg_insert(models.DatasetSplitDatasetExample).values(records)
+        pg_stmt = pg_insert(models.DatasetSplitDatasetExample).values(records)
         await session.execute(
-            stmt.on_conflict_do_nothing(index_elements=["dataset_split_id", "dataset_example_id"])
+            pg_stmt.on_conflict_do_nothing(
+                index_elements=["dataset_split_id", "dataset_example_id"]
+            )
         )
     elif dialect is SupportedSQLDialect.SQLITE:
-        stmt = sqlite_insert(models.DatasetSplitDatasetExample).values(records)
+        sqlite_stmt = sqlite_insert(models.DatasetSplitDatasetExample).values(records)
         await session.execute(
-            stmt.on_conflict_do_nothing(index_elements=["dataset_split_id", "dataset_example_id"])
+            sqlite_stmt.on_conflict_do_nothing(
+                index_elements=["dataset_split_id", "dataset_example_id"]
+            )
         )
     else:
         assert_never(dialect)
