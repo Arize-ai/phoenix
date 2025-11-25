@@ -276,30 +276,9 @@ async def add_dataset_examples(
         logger.exception(f"Failed to insert dataset version for {dataset_id=}")
         raise
 
-    # Convert to list to allow multiple passes (for split collection)
-    examples_list = list((await examples) if isinstance(examples, Awaitable) else examples)
-
-    # Collect all unique split names across all examples
-    all_split_names: set[str] = set()
-    for example in examples_list:
-        all_split_names.update(example.splits)
-
-    # Bulk create all splits upfront and get name->id mapping
-    split_name_to_id: dict[str, int] = {}
-    if all_split_names:
-        try:
-            split_name_to_id = await bulk_create_dataset_splits(
-                session=session,
-                split_names=all_split_names,
-                user_id=user_id,
-            )
-        except Exception:
-            logger.exception(f"Failed to bulk create dataset splits: {all_split_names}")
-            raise
-
-    # Process examples and collect split assignments
-    split_assignments: list[tuple[DatasetExampleId, int]] = []
-    for example in examples_list:
+    # Process examples and collect split assignments (by name, resolved to IDs after iteration)
+    split_assignments: list[tuple[DatasetExampleId, str]] = []
+    for example in (await examples) if isinstance(examples, Awaitable) else examples:
         try:
             dataset_example_id = await insert_dataset_example(
                 session=session,
@@ -326,23 +305,40 @@ async def add_dataset_examples(
             )
             raise
 
-        # Collect split assignments for bulk insert later
+        # Collect split assignments by name for bulk insert later
         for split_name in example.splits:
+            split_assignments.append((dataset_example_id, split_name))
+
+    # Bulk create splits and assign examples after iteration
+    if split_assignments:
+        # Collect all unique split names
+        all_split_names = {name for _, name in split_assignments}
+        try:
+            split_name_to_id = await bulk_create_dataset_splits(
+                session=session,
+                split_names=all_split_names,
+                user_id=user_id,
+            )
+        except Exception:
+            logger.exception(f"Failed to bulk create dataset splits: {all_split_names}")
+            raise
+
+        # Convert name-based assignments to ID-based assignments
+        id_assignments: list[tuple[DatasetExampleId, int]] = []
+        for example_id, split_name in split_assignments:
             split_id = split_name_to_id.get(split_name)
             if split_id is not None:
-                split_assignments.append((dataset_example_id, split_id))
+                id_assignments.append((example_id, split_id))
             else:
                 logger.warning(
-                    f"Split '{split_name}' not found in mapping for {dataset_example_id=}, "
+                    f"Split '{split_name}' not found in mapping for {example_id=}, "
                     "skipping assignment"
                 )
 
-    # Bulk assign all examples to splits
-    if split_assignments:
         try:
             await bulk_assign_examples_to_splits(
                 session=session,
-                assignments=split_assignments,
+                assignments=id_assignments,
             )
         except Exception:
             logger.exception("Failed to bulk assign examples to splits")
