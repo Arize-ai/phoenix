@@ -7,7 +7,7 @@ from enum import Enum
 from inspect import BoundArguments
 from string import Formatter
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Literal, Optional, TypedDict, Union, cast
 
 import pystache  # type: ignore
 from opentelemetry.trace import Tracer
@@ -29,6 +29,35 @@ def _get_output(result: str) -> str:
 class TemplateFormat(str, Enum):
     MUSTACHE = "mustache"
     F_STRING = "f-string"
+
+
+class MessageRole(str, Enum):
+    USER = "user"
+    AI = "assistant"
+    SYSTEM = "system"
+
+
+class TextContentPart(TypedDict):
+    """Text content part for messages (OpenAI format)."""
+
+    type: Literal["text"]
+    text: str
+
+
+class ImageUrlContentPart(TypedDict):
+    """Image URL content part for messages (OpenAI format)."""
+
+    type: Literal["image_url"]
+    image_url: Dict[str, Any]
+
+
+# alias for the content part types
+ContentPart = Union[TextContentPart, ImageUrlContentPart]
+
+
+class Message(TypedDict):
+    role: MessageRole
+    content: Union[str, List[ContentPart]]
 
 
 class TemplateFormatter(ABC):
@@ -239,6 +268,258 @@ class FormatterFactory:
         return cls.create(format_type)
 
 
+class ContentPartTemplate(ABC):
+    """Abstract base class for content part templates.
+
+    Each content type (text, image, etc.) has its own template subclass
+    that knows how to extract variables and render to the appropriate ContentPart format.
+    """
+
+    type: str
+    format: TemplateFormat
+    _formatter: TemplateFormatter
+
+    @abstractmethod
+    def variables(self) -> List[str]:
+        """Extract variable names from this content part template.
+
+        Returns:
+            List[str]: A list of variable names found in the template.
+        """
+        pass
+
+    @abstractmethod
+    def render(self, variables: Dict[str, Any]) -> ContentPart:
+        """Render this template to a concrete ContentPart.
+
+        Args:
+            variables: The variables to substitute into the template.
+
+        Returns:
+            ContentPart: The rendered content part (e.g., TextContentPart).
+        """
+        pass
+
+
+class TextContentPartTemplate(ContentPartTemplate):
+    """Template for text content parts."""
+
+    def __init__(
+        self,
+        text: str,
+        format: Optional[TemplateFormat] = None,
+    ):
+        """Initialize a text content part template.
+
+        Args:
+            text: The template text string.
+            format: Optional format specification. If None, will be auto-detected.
+        """
+        self.type = "text"
+        self.text = text
+
+        if format is None:
+            self.format = detect_template_format(text)
+            self._formatter = FormatterFactory.auto_detect_and_create(text)
+        else:
+            self.format = format
+            self._formatter = FormatterFactory.create(format)
+
+    def variables(self) -> List[str]:
+        """Extract variables from the text template."""
+        return self._formatter.extract_variables(self.text)
+
+    def render(self, variables: Dict[str, Any]) -> TextContentPart:
+        """Render the text template to a TextContentPart."""
+        rendered_text = self._formatter.render(self.text, variables)
+        return TextContentPart(type="text", text=rendered_text)
+
+
+class ImageUrlContentPartTemplate(ContentPartTemplate):
+    """Template for image URL content parts.
+
+    Note: Currently treats image_url as static (no variable substitution).
+    Future enhancement could support templating in URL strings.
+    """
+
+    def __init__(
+        self,
+        image_url: Dict[str, Any],
+        format: Optional[TemplateFormat] = None,
+    ):
+        """Initialize an image URL content part template.
+
+        Args:
+            image_url: The image URL data (e.g., {"url": "..."}).
+            format: Optional format specification.
+        """
+        self.type = "image_url"
+        self.image_url = image_url
+        self.format = format or TemplateFormat.MUSTACHE
+
+    def variables(self) -> List[str]:
+        """Extract variables from the image URL.
+
+        Returns:
+            Empty list (no variable substitution in images yet).
+        """
+        raise NotImplementedError("Image URL content parts are not supported yet.")
+
+    def render(self, variables: Dict[str, Any]) -> ImageUrlContentPart:
+        """Render the image URL template to an ImageUrlContentPart."""
+        raise NotImplementedError("Image URL content parts are not supported yet.")
+
+
+def create_content_part_template(
+    content_part: Dict[str, Any],
+    format: Optional[TemplateFormat] = None,
+) -> ContentPartTemplate:
+    """Factory function to create appropriate ContentPartTemplate from a dict.
+
+    Args:
+        content_part: Dictionary with 'type' key and type-specific content.
+        format: Optional format specification for templating.
+
+    Returns:
+        ContentPartTemplate: Appropriate subclass instance.
+
+    Raises:
+        ValueError: If content type is unsupported or required fields are missing.
+
+    Examples:
+        >>> create_content_part_template({"type": "text", "text": "Hello {{name}}"})
+        TextContentPartTemplate(...)
+
+        >>> create_content_part_template({"type": "image_url", "image_url": {"url": "..."}})
+        ImageUrlContentPartTemplate(...)
+    """
+    if "type" not in content_part:
+        raise ValueError("Content part must have a 'type' field")
+
+    content_type = content_part["type"]
+
+    if content_type == "text":
+        # Support both 'text' and 'content' keys for flexibility
+        text = content_part.get("text") or content_part.get("content")
+        if not text:
+            raise ValueError("Text content part must have 'text' or 'content' field")
+        return TextContentPartTemplate(text=text, format=format)
+
+    elif content_type == "image_url":
+        image_url = content_part.get("image_url")
+        if not image_url:
+            raise ValueError("Image content part must have 'image_url' field")
+        return ImageUrlContentPartTemplate(image_url=image_url, format=format)
+
+    else:
+        raise ValueError(f"Unsupported content type: {content_type}")
+
+
+class MessageTemplate:
+    """Template for a single message with role and content.
+
+    Handles both simple string content and structured content parts (text, image, etc.).
+    Supports variable extraction and rendering across all content parts.
+    """
+
+    def __init__(
+        self,
+        role: Union[MessageRole, str],
+        content: Union[str, List[Dict[str, Any]]],
+        format: Optional[TemplateFormat] = None,
+    ):
+        """Initialize a message template.
+
+        Args:
+            role: The role of the message (system, user, or assistant).
+            content: Either a string or a list of content part dictionaries.
+            format: Optional format specification for templating.
+
+        Raises:
+            ValueError: If role is invalid or content is empty.
+            TypeError: If content is not str or list.
+        """
+        # Convert string to MessageRole if needed
+        if isinstance(role, str):
+            try:
+                self.role = MessageRole(role)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid role: {role}. Must be one of: {[r.value for r in MessageRole]}"
+                )
+        elif isinstance(role, MessageRole):
+            self.role = role
+        else:
+            raise TypeError(f"Role must be MessageRole or str, got {type(role)}")
+
+        self._format = format
+        self._original_content = content  # Store original for content property
+
+        # Handle string content
+        if isinstance(content, str):
+            if not content:
+                raise ValueError("Content cannot be empty")
+            self._content_templates: List[ContentPartTemplate] = [
+                TextContentPartTemplate(text=content, format=format)
+            ]
+            self._is_string_content = True
+
+        # Handle list of content parts
+        elif isinstance(content, list):
+            if not content:
+                raise ValueError("Content list cannot be empty")
+
+            self._content_templates = [
+                create_content_part_template(part, format) for part in content
+            ]
+            self._is_string_content = False
+
+        else:
+            raise TypeError(f"Content must be str or list, got {type(content)}")
+
+    @property
+    def content(self) -> Union[str, List[Dict[str, Any]]]:
+        """Get the original content in its input format.
+
+        Returns:
+            The content as originally provided (str or List[Dict]).
+        """
+        return self._original_content
+
+    def variables(self) -> List[str]:
+        """Extract all variables from the message content.
+
+        Returns:
+            List[str]: Unique list of variable names found across all content parts.
+        """
+        variables_set: set[str] = set()
+        for template in self._content_templates:
+            variables_set.update(template.variables())
+        return list(variables_set)
+
+    def render(self, variables: Dict[str, Any]) -> Message:
+        """Render the message template with the given variables.
+
+        Args:
+            variables: The variables to substitute into the template.
+
+        Returns:
+            Message: A rendered message TypedDict with role and content.
+            Content will be a string if the original input was a string,
+            or a list of ContentPart if the original input was a list.
+        """
+        # For simple string content, return as string
+        if self._is_string_content:
+            rendered_part = cast(TextContentPart, self._content_templates[0].render(variables))
+            return Message(role=self.role, content=rendered_part["text"])
+
+        # For multiple content parts, return as list
+        rendered_parts: List[ContentPart] = [
+            template.render(variables) for template in self._content_templates
+        ]
+        return Message(role=self.role, content=rendered_parts)
+
+
 class Template:
     """
     Template for rendering prompts with mustache ({{variable}}) or f-string ({variable}) formats.
@@ -320,16 +601,17 @@ class PromptTemplate:
     Supports:
     - String templates with mustache ({{variable}}) or f-string ({variable}) formats
     - OpenAI-style message lists with role and content fields
+    - Structured content parts (text, image_url, etc.) within messages
 
-    Provides a uniform interface regardless of the internal template format.
+    Format detection is delegated to individual content parts, allowing mixed formats
+    within a single template (e.g., one message with mustache, another with f-string).
     """
 
     _template: Union[str, List[Dict[str, Any]]]
+    _messages: List[MessageTemplate]
     _is_string: bool
     _variables: List[str]
-    template_format: TemplateFormat
-    _template_format: Optional[TemplateFormat]
-    _formatter: TemplateFormatter
+    template_format: Optional[TemplateFormat]
 
     def __init__(
         self,
@@ -342,67 +624,60 @@ class PromptTemplate:
         Args:
             template: Either a string template or a list of message dicts with role and content.
             template_format: Optional format specification (F_STRING or MUSTACHE).
-                If None, format will be auto-detected for string templates.
+                If None, format will be auto-detected by each content part independently.
+                If specified, forces all content parts to use the same format.
 
         Raises:
-            ValueError: If the template is empty.
+            ValueError: If the template is empty or messages are invalid.
             TypeError: If template is not a string or list.
         """
+        self.template_format = template_format
+
         if isinstance(template, str):
             if not template:
                 raise ValueError("Template cannot be empty")
             self._is_string = True
             self._template = template
 
-            # Create formatter for string template
-            if template_format is None:
-                self.template_format = detect_template_format(template)
-                self._formatter = FormatterFactory.auto_detect_and_create(template)
-            else:
-                self.template_format = template_format
-                self._formatter = FormatterFactory.create(self.template_format)
+            # Create a single user message template - it will handle format detection
+            self._messages = [
+                MessageTemplate(role=MessageRole.USER, content=template, format=template_format)
+            ]
 
-            # Extract variables from string template
-            self._variables = self._formatter.extract_variables(self._template)
+            # Extract variables from the MessageTemplate
+            self._variables = self._messages[0].variables()
 
         elif isinstance(template, list):
+            if not template:
+                raise ValueError("Template list cannot be empty")
+
             self._is_string = False
             self._template = template
-            # Store user-specified format (None means auto-detect per message)
-            self._template_format = template_format
-            self.template_format = template_format or TemplateFormat.F_STRING
 
-            # Extract variables from all message content fields
+            # Validate and create MessageTemplate instances
+            self._messages = []
+            for i, msg in enumerate(template):
+                if not isinstance(msg, dict):
+                    raise TypeError(f"Message {i} must be a dict, got {type(msg)}")
+                if "role" not in msg:
+                    raise ValueError(f"Message {i} must have a 'role' field")
+                if "content" not in msg:
+                    raise ValueError(f"Message {i} must have a 'content' field")
+
+                self._messages.append(
+                    MessageTemplate(
+                        role=msg["role"], content=msg["content"], format=template_format
+                    )
+                )
+
+            # Extract variables from all messages
             variables_set: set[str] = set()
-            for msg in template:
-                if "content" in msg and msg["content"]:
-                    formatter = self._get_formatter_for_content(msg["content"])
-                    msg_variables = formatter.extract_variables(msg["content"])
-                    variables_set.update(msg_variables)
-
+            for msg_template in self._messages:
+                variables_set.update(msg_template.variables())
             self._variables = list(variables_set)
+
         else:
-            raise TypeError(
-                f"Template must be a string or list of message dicts, got {type(template)}"
-            )
-
-    def _get_formatter_for_content(self, content: str) -> TemplateFormatter:
-        """Get the appropriate formatter for message content.
-
-        Args:
-            content: The message content to format.
-
-        Returns:
-            TemplateFormatter: Auto-detected formatter if template_format was None,
-                otherwise formatter for the user-specified format.
-        """
-        if self._template_format is None:
-            # Auto-detect format for this specific content
-            msg_format = detect_template_format(content)
-            return FormatterFactory.create(msg_format)
-        else:
-            # Use user-specified format
-            return FormatterFactory.create(self._template_format)
+            raise TypeError(f"Template must be str or list, got {type(template)}")
 
     @property
     def template(self) -> Union[str, List[Dict[str, Any]]]:
@@ -422,9 +697,7 @@ class PromptTemplate:
         """
         return self._variables
 
-    def render(
-        self, variables: Dict[str, Any], tracer: Optional[Tracer] = None
-    ) -> Union[str, List[Dict[str, Any]]]:
+    def render(self, variables: Dict[str, Any], tracer: Optional[Tracer] = None) -> List[Message]:
         """Render the template with the given variables.
 
         Args:
@@ -432,7 +705,8 @@ class PromptTemplate:
             tracer: Optional tracer for tracing operations.
 
         Returns:
-            Rendered template in the same format as input (str or List[Dict]).
+            List of rendered Message TypedDicts. String templates are converted
+            to a single user message.
 
         Raises:
             TypeError: If variables is not a dictionary.
@@ -440,20 +714,14 @@ class PromptTemplate:
         if not isinstance(variables, dict):  # pyright: ignore
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
 
-        if self._is_string:
-            # Render string template
-            assert isinstance(self._template, str)
-            rendered = self._formatter.render(self._template, variables)
-            return dedent(rendered)
-        else:
-            # Render message list
-            assert isinstance(self._template, list)
-            rendered_messages = []
-            for msg in self._template:
-                rendered_msg = msg.copy()  # Preserve all fields including extras
-                if "content" in msg:
-                    formatter = self._get_formatter_for_content(msg["content"])
-                    rendered_content = formatter.render(msg["content"], variables)
-                    rendered_msg["content"] = dedent(rendered_content)
-                rendered_messages.append(rendered_msg)
-            return rendered_messages
+        # Render all messages using MessageTemplate instances
+        rendered_messages: List[Message] = []
+        for msg_template in self._messages:
+            rendered_msg = msg_template.render(variables)
+            # Apply dedent to string content
+            if isinstance(rendered_msg["content"], str):
+                rendered_msg = Message(
+                    role=rendered_msg["role"], content=dedent(rendered_msg["content"])
+                )
+            rendered_messages.append(rendered_msg)
+        return rendered_messages
