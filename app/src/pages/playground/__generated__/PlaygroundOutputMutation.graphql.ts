@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f9c9a23dba3634bf27fc52462dda77af>>
+ * @generated SignedSource<<04549048458a6882d8608c1026a972a4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -60,9 +60,9 @@ export type PromptTemplateOptions = {
 };
 export type PlaygroundEvaluatorInput = {
   id: string;
-  inputMapping?: EvaluatorInputMapping;
+  inputMapping?: EvaluatorInputMappingInput;
 };
-export type EvaluatorInputMapping = {
+export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
