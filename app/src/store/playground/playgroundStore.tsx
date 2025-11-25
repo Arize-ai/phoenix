@@ -379,10 +379,13 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
               // when the user has saved an azure prompt and we load it back in
               const { baseUrl, endpoint, apiVersion, region } =
                 modelConfigByProvider[instance.model.provider] ?? {};
+              // try to port dirty invocation parameters to the new supported invocation parameters
               // ensure that the invocation parameters are only the ones that are supported by the model
+              const dirtyInvocationParameters =
+                instance.model.invocationParameters.filter((p) => p.dirty);
               const filteredInvocationParameters =
                 constrainInvocationParameterInputsToDefinition(
-                  instance.model.invocationParameters,
+                  dirtyInvocationParameters,
                   supportedInvocationParameters
                 );
               // merge the current invocation parameters with the defaults defined in supportedInvocationParameters

@@ -16,10 +16,10 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { AnthropicReasoningConfigField } from "@phoenix/pages/playground/AnthropicReasoningConfigField";
 import { OpenAIReasoningEffortConfigField } from "@phoenix/pages/playground/OpenAIReasoningEffortConfigField";
+import { ModelInvocationParameterInput } from "@phoenix/store";
 import { Mutable } from "@phoenix/typeUtils";
 
 import { ModelSupportedParamsFetcherQuery$data } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
-import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
 import { areInvocationParamsEqual, toCamelCase } from "./playgroundUtils";
@@ -232,7 +232,7 @@ const InvocationParameterFormField = ({
 
 const getInvocationParameterValue = (
   field: InvocationParameter,
-  parameterInput: InvocationParameterInput
+  parameterInput: ModelInvocationParameterInput
 ):
   | string
   | number
@@ -247,7 +247,9 @@ const getInvocationParameterValue = (
   }
   const maybeValue =
     parameterInput[
-      toCamelCase(field.invocationInputField) as keyof InvocationParameterInput
+      toCamelCase(
+        field.invocationInputField
+      ) as keyof ModelInvocationParameterInput
     ];
   return maybeValue;
 };
@@ -255,7 +257,7 @@ const getInvocationParameterValue = (
 const makeInvocationParameterInput = (
   field: InvocationParameter,
   value: unknown
-): InvocationParameterInput => {
+): ModelInvocationParameterInput => {
   if (field.invocationName === undefined) {
     throw new Error("Invocation name is required");
   }
@@ -265,6 +267,7 @@ const makeInvocationParameterInput = (
   return {
     invocationName: field.invocationName,
     canonicalName: field.canonicalName,
+    dirty: true,
     [toCamelCase(field.invocationInputField)]: value,
   };
 };
