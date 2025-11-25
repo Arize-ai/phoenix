@@ -109,7 +109,7 @@ In most cases, stick with `BatchSpanProcessor` over `SimpleSpanProcessor`.
 Now that you have configured a tracer provider, and instrumented the `openai` package, lets see how we can generate traces for a sample application.
 
 {% hint style="info" %}
-The following code assumes you have Phoenix running locally, on its default port of 6006. See our [Quickstart: Tracing (TS)](broken-reference) documentation if you'd like to learn more about running Phoenix.
+The following code assumes you have Phoenix running locally, on its default port of 6006. See our [Quickstart: Tracing (TS)](/broken/pages/QtJuaOiP0OM9DKwXyHW2) documentation if you'd like to learn more about running Phoenix.
 {% endhint %}
 
 First, install the dependencies required for our sample app.
@@ -156,7 +156,7 @@ Then, we will start our application, loading the `instrumentation.ts` file befor
 {% hint style="info" %}
 We are using Node v23 above as this allows us to execute TypeScript code without a transpilation step. OpenTelemetry and OpenInference support Node versions from v18 onwards, and we are flexible with projects configured using CommonJS or ESM module syntaxes.
 
-Learn more by visiting the Node.js documentation on [TypeScript](https://nodejs.org/en/learn/typescript/run-natively#running-typescript-natively) and [ESM](https://nodejs.org/api/esm.html) or see our [Quickstart: Tracing (TS)](broken-reference) documentation for an end to end example.
+Learn more by visiting the Node.js documentation on [TypeScript](https://nodejs.org/en/learn/typescript/run-natively#running-typescript-natively) and [ESM](https://nodejs.org/api/esm.html) or see our [Quickstart: Tracing (TS)](/broken/pages/QtJuaOiP0OM9DKwXyHW2) documentation for an end to end example.
 {% endhint %}
 
 Finally, we can execute a request against our server

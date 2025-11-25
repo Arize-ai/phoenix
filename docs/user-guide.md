@@ -86,7 +86,7 @@ With a stable set of test cases and evaluations defined, you can now easily iter
 
 Phoenix's flexible evaluation framework supports thorough testing of LLM outputs. Teams can define custom metrics, collect user feedback, and leverage separate LLMs for automated assessment. Phoenix offers tools for analyzing evaluation results, identifying trends, and tracking improvements over time.
 
-* [Broken link](broken-reference "mention")
+* [Broken link](/broken/pages/W8YffRpSr4ABiZZOeiZL "mention")
 {% endtab %}
 
 {% tab title="Curate Data" %}
@@ -96,7 +96,7 @@ Phoenix's flexible evaluation framework supports thorough testing of LLM outputs
 
 Phoenix assists in curating high-quality data for testing and fine-tuning. It provides tools for data exploration, cleaning, and labeling, enabling teams to curate representative data that covers a wide range of use cases and edge conditions.
 
-* [Broken link](broken-reference "mention")
+* [Broken link](/broken/pages/Kx7pvbTkjXQ4SIkNak0f "mention")
 {% endtab %}
 
 {% tab title="Guardrails" %}
@@ -122,7 +122,7 @@ In production, Phoenix works hand-in-hand with Arize AX, which focuses on the pr
 
 Phoenix and Arize AX use the same collector frameworks in development and production. This allows teams to monitor latency, token usage, and other performance metrics, setting up alerts when thresholds are exceeded.
 
-* [Broken link](broken-reference "mention")
+* [Broken link](/broken/pages/Al4CiMqiRM8iJA2EJXxv "mention")
 {% endtab %}
 
 {% tab title="Evals for Production" %}
