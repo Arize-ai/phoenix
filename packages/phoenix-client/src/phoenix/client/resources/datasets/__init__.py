@@ -796,7 +796,7 @@ class Datasets:
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
-            splits_from_examples = [example.get("splits", {}) for example in examples_list]
+            splits_from_examples = [example.get("splits", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -914,7 +914,7 @@ class Datasets:
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
-            splits_from_examples = [example.get("splits", {}) for example in examples_list]
+            splits_from_examples = [example.get("splits", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1049,7 +1049,7 @@ class Datasets:
         inputs: Iterable[Mapping[str, Any]],
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
-        splits: Iterable[Mapping[str, Any]] = (),
+        splits: Iterable[Any] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1094,7 +1094,7 @@ class Datasets:
             "inputs": inputs_list,
             "outputs": outputs_list or [{}] * len(inputs_list),
             "metadata": metadata_list or [{}] * len(inputs_list),
-            "splits": splits_list or [{}] * len(inputs_list),
+            "splits": splits_list or [None] * len(inputs_list),
         }
 
         if dataset_description is not None:
@@ -1539,7 +1539,7 @@ class AsyncDatasets:
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
-            splits_from_examples = [example.get("splits", {}) for example in examples_list]
+            splits_from_examples = [example.get("splits", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1657,7 +1657,7 @@ class AsyncDatasets:
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
-            splits_from_examples = [example.get("splits", {}) for example in examples_list]
+            splits_from_examples = [example.get("splits", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1777,7 +1777,7 @@ class AsyncDatasets:
         inputs: Iterable[Mapping[str, Any]],
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
-        splits: Iterable[Mapping[str, Any]] = (),
+        splits: Iterable[Any] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1820,7 +1820,7 @@ class AsyncDatasets:
             "inputs": inputs_list,
             "outputs": outputs_list or [{}] * len(inputs_list),
             "metadata": metadata_list or [{}] * len(inputs_list),
-            "splits": splits_list or [{}] * len(inputs_list),
+            "splits": splits_list or [None] * len(inputs_list),
         }
 
         if dataset_description is not None:

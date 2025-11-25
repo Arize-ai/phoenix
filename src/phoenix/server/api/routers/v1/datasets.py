@@ -601,7 +601,7 @@ def _process_json(
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
         # Extract split values, validating they're non-empty strings
-        split_dict = {}
+        split_set: set[str] = set()
         if splits:
             split_value = splits[i]
             if split_value is None:
@@ -610,10 +610,10 @@ def _process_json(
             elif isinstance(split_value, str):
                 # Format 1: Single string value
                 if split_value.strip():
-                    split_dict["split"] = split_value.strip()
+                    split_set.add(split_value.strip())
             elif isinstance(split_value, list):
                 # Format 2: List of strings (multiple splits)
-                for idx, v in enumerate(split_value):
+                for v in split_value:
                     if v is None:
                         continue  # Skip None values in the list
                     if not isinstance(v, str):
@@ -621,7 +621,7 @@ def _process_json(
                             f"Split value must be a string or None, got {type(v).__name__}"
                         )
                     if v.strip():
-                        split_dict[f"split_{idx}"] = v.strip()
+                        split_set.add(v.strip())
             else:
                 raise ValueError(
                     f"Split value must be a string, list of strings, or None, "
@@ -631,7 +631,7 @@ def _process_json(
             input=obj,
             output=outputs[i] if outputs else {},
             metadata=metadata[i] if metadata else {},
-            splits=split_dict,
+            splits=frozenset(split_set),
         )
         examples.append(example)
     action = DatasetAction(cast(Optional[str], data.get("action")) or "create")
@@ -665,9 +665,9 @@ async def _process_csv(
             input={k: row.get(k) for k in input_keys},
             output={k: row.get(k) for k in output_keys},
             metadata={k: row.get(k) for k in metadata_keys},
-            splits={
-                k: str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
-            },  # Only include non-empty, non-whitespace split values, convert to string
+            splits=frozenset(
+                str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
+            ),  # Only include non-empty, non-whitespace split values
         )
         for row in iter(reader)
     )
@@ -693,9 +693,9 @@ async def _process_pyarrow(
                 input={k: row.get(k) for k in input_keys},
                 output={k: row.get(k) for k in output_keys},
                 metadata={k: row.get(k) for k in metadata_keys},
-                splits={
-                    k: str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
-                },  # Only include non-empty, non-whitespace split values, convert to string
+                splits=frozenset(
+                    str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
+                ),  # Only include non-empty, non-whitespace split values
             )
 
     return run_in_threadpool(get_examples)
