@@ -37,7 +37,7 @@ export async function appendDatasetExamples({
   const outputs = examples.map((example) => example.output ?? {}); // Treat null as an empty object
   const metadata = examples.map((example) => example.metadata ?? {});
   const splits = examples.map((example) =>
-    example.splits !== undefined ? example.splits : {}
+    example.splits !== undefined ? example.splits : null
   );
   let datasetName: string;
   if ("datasetName" in dataset) {

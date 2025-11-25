@@ -376,11 +376,10 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                     "oneOf": [
                                         {"type": "string"},
                                         {"type": "array", "items": {"type": "string"}},
-                                        {"type": "object"},
                                         {"type": "null"},
                                     ]
                                 },
-                                "description": "Split per example: string, array, dict, or null",
+                                "description": "Split per example: string, string array, or null",
                             },
                         },
                     }
@@ -623,18 +622,9 @@ def _process_json(
                         )
                     if v.strip():
                         split_dict[f"split_{idx}"] = v.strip()
-            elif isinstance(split_value, dict):
-                # Format 3: Dictionary of split keys (current format)
-                for k, v in split_value.items():
-                    if not isinstance(v, str):
-                        raise ValueError(
-                            f"Split value for key '{k}' must be a string, got {type(v).__name__}"
-                        )
-                    if v and v.strip():  # Filter out empty and whitespace-only strings
-                        split_dict[k] = v.strip()
             else:
                 raise ValueError(
-                    f"Split value must be a string, list, dict, or None, "
+                    f"Split value must be a string, list of strings, or None, "
                     f"got {type(split_value).__name__}"
                 )
         example = ExampleContent(

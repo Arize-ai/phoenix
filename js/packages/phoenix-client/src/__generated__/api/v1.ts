@@ -3527,7 +3527,8 @@ export interface operations {
                     inputs: Record<string, unknown>[];
                     outputs?: Record<string, unknown>[];
                     metadata?: Record<string, unknown>[];
-                    splits?: Record<string, unknown>[];
+                    /** @description Split per example: string, array of strings, or null */
+                    splits?: (string | string[] | null)[];
                 };
                 "multipart/form-data": {
                     /** @enum {string} */

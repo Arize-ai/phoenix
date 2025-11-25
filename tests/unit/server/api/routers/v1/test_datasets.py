@@ -918,8 +918,8 @@ async def test_post_dataset_upload_json_with_splits(
             "outputs": [{"answer": "Artificial Intelligence"}, {"answer": "Machine Learning"}],
             "metadata": [{"difficulty": "easy"}, {"difficulty": "hard"}],
             "splits": [
-                {"data_split": "train", "category": "general"},
-                {"data_split": "test", "category": "technical"},
+                ["train", "general"],
+                ["test", "technical"],
             ],
         },
     )
@@ -1114,9 +1114,9 @@ async def test_post_dataset_upload_with_empty_split_values(
             "inputs": [{"question": "Q1"}, {"question": "Q2"}, {"question": "Q3"}],
             "outputs": [{"answer": "A1"}, {"answer": "A2"}, {"answer": "A3"}],
             "splits": [
-                {"data_split": "train"},  # Has split value
-                {"data_split": ""},  # Empty split value
-                {},  # No split value
+                "train",  # Has split value
+                "",  # Empty split value
+                None,  # No split value (null)
             ],
         },
     )
@@ -1183,7 +1183,7 @@ async def test_post_dataset_upload_reuses_existing_splits(
             "name": name1,
             "inputs": [{"question": "Q1"}],
             "outputs": [{"answer": "A1"}],
-            "splits": [{"data_split": "train"}],
+            "splits": ["train"],
         },
     )
     assert response1.status_code == 200
@@ -1206,7 +1206,7 @@ async def test_post_dataset_upload_reuses_existing_splits(
             "name": name2,
             "inputs": [{"question": "Q2"}],
             "outputs": [{"answer": "A2"}],
-            "splits": [{"data_split": "train"}],
+            "splits": ["train"],
         },
     )
     assert response2.status_code == 200
@@ -1222,13 +1222,13 @@ async def test_post_dataset_upload_reuses_existing_splits(
         assert splits_after[0].id == train_split_id  # Same split ID
 
 
-async def test_post_dataset_upload_rejects_non_string_split_values(
+async def test_post_dataset_upload_rejects_invalid_split_formats(
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    """Test that JSON upload rejects non-string split values."""
+    """Test that JSON upload rejects invalid split formats (dict, integer, boolean)."""
     name = inspect.stack()[0][3]
 
-    # Test with integer split value
+    # Test with dict split value (no longer supported)
     response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
         json={
@@ -1236,11 +1236,25 @@ async def test_post_dataset_upload_rejects_non_string_split_values(
             "name": name,
             "inputs": [{"question": "Q1"}],
             "outputs": [{"answer": "A1"}],
-            "splits": [{"data_split": 123}],  # Integer instead of string
+            "splits": [{"data_split": "train"}],  # Dict format no longer supported
         },
     )
     assert response.status_code == 422
-    assert "must be a string" in response.text
+    assert "must be a string, list of strings, or None" in response.text
+
+    # Test with integer split value
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": f"{name}_int",
+            "inputs": [{"question": "Q1"}],
+            "outputs": [{"answer": "A1"}],
+            "splits": [123],  # Integer not allowed
+        },
+    )
+    assert response.status_code == 422
+    assert "must be a string, list of strings, or None" in response.text
 
     # Test with boolean split value
     response = await httpx_client.post(
@@ -1250,25 +1264,11 @@ async def test_post_dataset_upload_rejects_non_string_split_values(
             "name": f"{name}_bool",
             "inputs": [{"question": "Q1"}],
             "outputs": [{"answer": "A1"}],
-            "splits": [{"data_split": True}],  # Boolean instead of string
+            "splits": [True],  # Boolean not allowed
         },
     )
     assert response.status_code == 422
-    assert "must be a string" in response.text
-
-    # Test with object split value
-    response = await httpx_client.post(
-        url="v1/datasets/upload?sync=true",
-        json={
-            "action": "create",
-            "name": f"{name}_obj",
-            "inputs": [{"question": "Q1"}],
-            "outputs": [{"answer": "A1"}],
-            "splits": [{"data_split": {"nested": "object"}}],  # Object instead of string
-        },
-    )
-    assert response.status_code == 422
-    assert "must be a string" in response.text
+    assert "must be a string, list of strings, or None" in response.text
 
 
 async def test_post_dataset_upload_filters_whitespace_only_splits(
@@ -1285,9 +1285,9 @@ async def test_post_dataset_upload_filters_whitespace_only_splits(
             "inputs": [{"question": "Q1"}, {"question": "Q2"}, {"question": "Q3"}],
             "outputs": [{"answer": "A1"}, {"answer": "A2"}, {"answer": "A3"}],
             "splits": [
-                {"data_split": "train"},  # Valid split
-                {"data_split": "   "},  # Whitespace-only
-                {"data_split": "\t\n"},  # Tab and newline only
+                "train",  # Valid split
+                "   ",  # Whitespace-only
+                "\t\n",  # Tab and newline only
             ],
         },
     )
@@ -1513,7 +1513,7 @@ async def test_post_dataset_upload_json_with_sparse_splits(
                 "train",  # String format
                 ["test", "hard"],  # List format
                 None,  # Null - no splits for this example
-                {"data_split": "validate", "category": "medium"},  # Dict format
+                ["validate", "medium"],  # List format with multiple splits
             ],
         },
     )
@@ -1562,7 +1562,7 @@ async def test_post_dataset_upload_json_with_sparse_splits(
         )
         assert len(ex3_splits) == 0
 
-        # Example 4: dict format splits
+        # Example 4: list format with multiple splits
         ex4_splits = list(
             await session.scalars(
                 select(models.DatasetSplit)
