@@ -46,7 +46,10 @@ import {
 } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { ChatCompletionOverDatasetInput } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import {
+  ChatCompletionOverDatasetInput,
+  EvaluatorInputMappingInput,
+} from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
   ChatCompletionInput,
   ChatCompletionMessageInput,
@@ -1293,14 +1296,17 @@ export const getChatCompletionOverDatasetInput = ({
   credentials,
   datasetId,
   splitIds,
-  evaluatorIds,
+  evaluatorMappings,
 }: {
   playgroundStore: PlaygroundStore;
   instanceId: number;
   credentials: CredentialsState;
   datasetId: string;
   splitIds?: string[];
-  evaluatorIds: string[];
+  /**
+   * Record of evaluator id to input mappings
+   */
+  evaluatorMappings: Record<string, EvaluatorInputMappingInput>;
 }): ChatCompletionOverDatasetInput => {
   const baseChatCompletionVariables = getBaseChatCompletionInput({
     playgroundStore,
@@ -1314,10 +1320,12 @@ export const getChatCompletionOverDatasetInput = ({
     repetitions: playgroundStore.getState().repetitions,
     datasetId,
     splitIds: splitIds ?? null,
-    evaluators: evaluatorIds.map((evaluatorId) => ({
-      id: evaluatorId,
-      inputMapping: {}, // todo: handle input mapping
-    })),
+    evaluators: Object.entries(evaluatorMappings).map(
+      ([evaluatorId, inputMapping]) => ({
+        id: evaluatorId,
+        inputMapping,
+      })
+    ),
   };
 };
 

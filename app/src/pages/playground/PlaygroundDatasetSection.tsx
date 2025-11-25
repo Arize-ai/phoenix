@@ -15,6 +15,7 @@ import {
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/EvaluatorConfigDialog";
+import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import { PlaygroundDatasetSection_evaluators$key } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluators.graphql";
 import { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
@@ -68,6 +69,10 @@ export function PlaygroundDatasetSection({
               name
               kind
               isAssignedToDataset(datasetId: $datasetId)
+              datasetInputMapping(datasetId: $datasetId) {
+                literalMapping
+                pathMapping
+              }
               ... on LLMEvaluator {
                 outputConfig {
                   name
@@ -81,17 +86,32 @@ export function PlaygroundDatasetSection({
     data.dataset
   );
 
-  const evaluators =
-    evaluatorsData.evaluators.edges.map((edge) => ({
-      ...edge.evaluator,
-      annotationName: edge.evaluator.outputConfig?.name,
-    })) ?? [];
+  const evaluators = useMemo(
+    () =>
+      evaluatorsData.evaluators?.edges?.map((edge) => ({
+        ...edge.evaluator,
+        annotationName: edge.evaluator.outputConfig?.name,
+      })) ?? [],
+    [evaluatorsData]
+  );
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
     () =>
       evaluators
         .filter((evaluator) => evaluator.isAssignedToDataset)
         .map((evaluator) => evaluator.id) ?? []
   );
+  const selectedEvaluatorWithInputMapping = useMemo(() => {
+    return evaluators
+      .filter((evaluator) => selectedEvaluatorIds.includes(evaluator.id))
+      .reduce(
+        (acc, evaluator) => {
+          acc[evaluator.id] =
+            evaluator.datasetInputMapping as Mutable<EvaluatorInputMappingInput>;
+          return acc;
+        },
+        {} as Record<string, EvaluatorInputMappingInput>
+      );
+  }, [evaluators, selectedEvaluatorIds]);
   const [addingEvaluatorId, setAddingEvaluatorId] = useState<string | null>(
     null
   );
@@ -239,7 +259,7 @@ export function PlaygroundDatasetSection({
           <PlaygroundDatasetExamplesTable
             datasetId={datasetId}
             splitIds={splitIds}
-            evaluatorIds={selectedEvaluatorIds}
+            evaluatorMappings={selectedEvaluatorWithInputMapping}
           />
         </PlaygroundDatasetExamplesTableProvider>
       </Flex>
