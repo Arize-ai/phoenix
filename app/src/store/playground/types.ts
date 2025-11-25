@@ -84,9 +84,12 @@ export type ModelConfig = {
    * Custom headers to be sent with requests to the LLM provider
    */
   customHeaders?: Record<string, string> | null;
-  invocationParameters: InvocationParameterInput[];
+  invocationParameters: (InvocationParameterInput & { dirty?: boolean })[];
   supportedInvocationParameters: InvocationParameter[];
 };
+
+export type ModelInvocationParameterInput =
+  ModelConfig["invocationParameters"][number];
 
 /**
  * The type of a tool in the playground
