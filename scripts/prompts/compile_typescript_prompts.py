@@ -65,7 +65,7 @@ def convert_mustache_variables_to_camel_case(content: str) -> str:
     e.g., "{{document_text}}" -> "{{documentText}}"
     """
 
-    def replace_var(match):
+    def replace_var(match: re.Match[str]) -> str:
         var_name = match.group(1)
         camel_case = snake_to_camel(var_name)
         return f"{{{{{camel_case}}}}}"

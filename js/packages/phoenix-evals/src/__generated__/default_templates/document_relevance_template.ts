@@ -6,8 +6,9 @@ export const DOCUMENT_RELEVANCE_TEMPLATE: PromptTemplate = [
   {
     role: "user",
     content: `
-You are comparing a document to a question and trying to determine if the document text
-contains information relevant to answering the question. Here is the data:
+You are comparing a document to a question and trying to determine
+if the document text contains information relevant to answering the
+question. Here is the data:
 
 [BEGIN DATA]
 ************
