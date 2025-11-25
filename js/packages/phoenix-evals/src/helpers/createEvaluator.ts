@@ -36,19 +36,6 @@ export type CreateEvaluatorOptions = {
    */
   name?: string;
   /**
-   * The description of the evaluator.
-   *
-   * Defaults to the name of the function if not provided.
-   *
-   * @example
-   * ```typescript
-   * const evaluator = CreateEvaluator(myFunction, {
-   *   description: "Evaluates the correctness of the model output"
-   * });
-   * ```
-   */
-  description?: string;
-  /**
    * The kind of the evaluation.
    *
    * - `"CODE"`: Code-based evaluator that runs custom logic
