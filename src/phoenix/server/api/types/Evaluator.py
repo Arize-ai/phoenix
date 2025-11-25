@@ -128,12 +128,12 @@ class Evaluator(Node):
             dataset_evaluator = await session.scalar(stmt)
             if dataset_evaluator is None:
                 return None
-            if dataset_evaluator.input_config is None:
+            if dataset_evaluator.input_mapping is None:
                 return None
 
             return EvaluatorInputMapping(
-                literal_mapping=dataset_evaluator.input_config.get("literal_mapping", {}),
-                path_mapping=dataset_evaluator.input_config.get("path_mapping", {}),
+                literal_mapping=dataset_evaluator.input_mapping.get("literal_mapping", {}),
+                path_mapping=dataset_evaluator.input_mapping.get("path_mapping", {}),
             )
 
 
