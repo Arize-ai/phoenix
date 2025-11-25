@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from phoenix.db.types.db_models import UNDEFINED
+from phoenix.db.types.db_helper_types import UNDEFINED
 
 
 def datetime_encoder(dt: datetime) -> str:
