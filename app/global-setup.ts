@@ -23,9 +23,9 @@ async function globalSetup(config: FullConfig) {
   await page.waitForURL("**/projects");
   await page.goto(`${baseURL}/settings/general`);
   await page.waitForURL("**/settings/general");
-  await page.getByRole("button", { name: "Add User" }).click();
 
   // Add member user
+  await page.getByRole("button", { name: "Add User" }).click();
   await page.getByLabel("Email").fill("member@localhost.com");
   await page.getByLabel("Username").fill("member");
   await page.getByLabel("Password", { exact: true }).fill("member");
@@ -39,6 +39,7 @@ async function globalSetup(config: FullConfig) {
     .click();
 
   // Add viewer user
+  await page.getByRole("button", { name: "Add User" }).click();
   await page.getByLabel("Email").fill("viewer@localhost.com");
   await page.getByLabel("Username").fill("viewer");
   await page.getByLabel("Password", { exact: true }).fill("viewer");
