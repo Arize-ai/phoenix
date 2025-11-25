@@ -1,9 +1,12 @@
 import "dotenv/config";
-import "./app"; 
+import "./app";
 import { spaceKnowledgeApplication } from "./app";
 import { openai } from "@ai-sdk/openai";
 import { createDataset } from "@arizeai/phoenix-client/datasets";
-import { asExperimentEvaluator, runExperiment } from "@arizeai/phoenix-client/experiments";
+import {
+  asExperimentEvaluator,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
 import { createDocumentRelevancyEvaluator } from "@arizeai/phoenix-evals/llm/createDocumentRelevancyEvaluator";
 
 const DATASET = [
@@ -33,14 +36,14 @@ async function main() {
 
   const dataset = await createDataset({
     name: "document-relevancy-eval",
-    description: "Queries that are answered by extracting context from the space knowledge base",
-    examples: DATASET.map(question => ({
+    description:
+      "Queries that are answered by extracting context from the space knowledge base",
+    examples: DATASET.map((question) => ({
       input: {
         question: question,
       },
     })),
   });
-
 
   const documentRelevancyEvaluator = createDocumentRelevancyEvaluator({
     model: openai("gpt-5"),
@@ -55,14 +58,15 @@ async function main() {
         input: String(input.question),
         documentText: String(output),
       });
-  
-      return result; 
+
+      return result;
     },
   });
 
   await runExperiment({
     experimentName: "document-relevancy-experiment",
-    experimentDescription: "Evaluate the relevancy of extracted context from a knowledge base",
+    experimentDescription:
+      "Evaluate the relevancy of extracted context from a knowledge base",
     dataset: dataset,
     task,
     evaluators: [documentRelevancyCheck],
@@ -70,4 +74,3 @@ async function main() {
 }
 
 main().catch(console.error);
-
