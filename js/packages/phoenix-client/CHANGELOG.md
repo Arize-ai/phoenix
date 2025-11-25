@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 5.4.1
+
+### Patch Changes
+
+- b87d2a4: account for sub-paths in baseURLs properly
+
 ## 5.4.0
 
 ### Minor Changes
