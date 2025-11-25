@@ -17,8 +17,8 @@ class HallucinationEvaluator(ClassificationEvaluator):
 
     Notes:
         - Evaluates whether the output to an input is factual or hallucinated based on the context.
-        - Returns one `Score` with `label` (factual or hallucinated), `score` (1.0 if factual, 0.0
-          if hallucinated), and an `explanation` from the LLM judge.
+        - Returns one `Score` with `label` (factual or hallucinated), `score` (1.0 if hallucinated,
+          0.0 if factual), and an `explanation` from the LLM judge.
         - Requires an LLM that supports tool calling or structured output.
 
     Examples::
@@ -34,9 +34,9 @@ class HallucinationEvaluator(ClassificationEvaluator):
             }
         scores = hallucination_eval.evaluate(eval_input)
         print(scores)
-        [Score(name='hallucination', score=1.0, label='factual',
+        [Score(name='hallucination', score=0.0, label='factual',
             explanation='Information is supported by context', metadata={'model': 'gpt-4o-mini'},
-            kind="llm", direction="maximize")]
+            kind="llm", direction="minimize")]
 
     """
 
@@ -46,6 +46,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
         template_format=TemplateFormat.MUSTACHE,
     )
     CHOICES = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.choices
+    DIRECTION = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.optimization_direction
 
     class HallucinationInputSchema(BaseModel):
         input: str = Field(description="The input query.")
@@ -61,6 +62,6 @@ class HallucinationEvaluator(ClassificationEvaluator):
             llm=llm,
             prompt_template=self.PROMPT,
             choices=self.CHOICES,
-            direction="maximize",
+            direction=self.DIRECTION,
             input_schema=self.HallucinationInputSchema,
         )

@@ -32,7 +32,7 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         relevance_eval = DocumentRelevanceEvaluator(llm=llm)
         eval_input = {
             "input": "What is the capital of France?",
-            "document": "Paris is the capital and largest city of France"
+            "document_text": "Paris is the capital and largest city of France"
             }
         scores = relevance_eval.evaluate(eval_input)
         print(scores)
@@ -44,10 +44,11 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         template_format=TemplateFormat.MUSTACHE,
     )
     CHOICES = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.choices
+    DIRECTION = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.optimization_direction
 
     class DocumentRelevanceInputSchema(BaseModel):
         input: str = Field(description="The input query.")
-        document: str = Field(description="The document being evaluated for relevance.")
+        document_text: str = Field(description="The document being evaluated for relevance.")
 
     def __init__(
         self,
@@ -58,6 +59,6 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
             llm=llm,
             prompt_template=self.PROMPT,
             choices=self.CHOICES,
-            direction="maximize",
+            direction=self.DIRECTION,
             input_schema=self.DocumentRelevanceInputSchema,
         )
