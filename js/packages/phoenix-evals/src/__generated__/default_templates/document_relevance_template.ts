@@ -2,6 +2,8 @@
 
 import type { PromptTemplate } from "../../types/templating";
 
+export const DOCUMENT_RELEVANCE_NAME = "document_relevance";
+
 export const DOCUMENT_RELEVANCE_TEMPLATE: PromptTemplate = [
   {
     role: "user",

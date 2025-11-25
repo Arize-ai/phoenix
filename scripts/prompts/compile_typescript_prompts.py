@@ -31,6 +31,8 @@ TEMPLATE_FILE_TEMPLATE = """\
 
 import type { PromptTemplate } from "../../types/templating";
 
+export const {{ evaluator_name_constant }} = "{{ evaluator_name }}";
+
 export const {{ template_name }}: PromptTemplate = [
   {
     role: "{{ role }}",
@@ -47,8 +49,8 @@ export const {{ optimization_direction_name }} = "{{ optimization_direction }}";
 INDEX_TEMPLATE = """\
 // This file is generated. Do not edit by hand.
 
-{% for template_name, choices_name, optimization_direction_name, file_name in exports -%}
-export { {{ template_name }}, {{ choices_name }}, {{ optimization_direction_name }} } from "./{{ file_name }}";
+{% for evaluator_name_constant, template_name, choices_name, optimization_direction_name, file_name in exports -%}
+export { {{ evaluator_name_constant }}, {{ template_name }}, {{ choices_name }}, {{ optimization_direction_name }} } from "./{{ file_name }}";
 {% endfor -%}
 """  # noqa: E501
 
@@ -88,11 +90,16 @@ def get_optimization_direction_name(config: ClassificationEvaluatorConfig) -> st
     return f"{config.name.upper()}_OPTIMIZATION_DIRECTION"
 
 
+def get_evaluator_name_constant(config: ClassificationEvaluatorConfig) -> str:
+    return f"{config.name.upper()}_NAME"
+
+
 def get_template_file_contents(config: ClassificationEvaluatorConfig) -> str:
     """
     Gets the TypeScript code contents for a classification evaluator template.
     """
     template = Template(TEMPLATE_FILE_TEMPLATE)
+    evaluator_name_constant = get_evaluator_name_constant(config)
     template_name = get_template_name(config)
     choices_name = get_choices_name(config)
     optimization_direction_name = get_optimization_direction_name(config)
@@ -104,6 +111,8 @@ def get_template_file_contents(config: ClassificationEvaluatorConfig) -> str:
     optimization_direction = config.optimization_direction.upper()
 
     content = template.render(
+        evaluator_name_constant=evaluator_name_constant,
+        evaluator_name=config.name,
         template_name=template_name,
         role=config.messages[0].role,
         content=template_content,
@@ -122,11 +131,20 @@ def get_index_file_contents(configs: list[ClassificationEvaluatorConfig]) -> str
     template = Template(INDEX_TEMPLATE)
     exports = []
     for config in configs:
+        evaluator_name_constant = get_evaluator_name_constant(config)
         template_name = get_template_name(config)
         choices_name = get_choices_name(config)
         optimization_direction_name = get_optimization_direction_name(config)
         file_name = template_name.lower()
-        exports.append((template_name, choices_name, optimization_direction_name, file_name))
+        exports.append(
+            (
+                evaluator_name_constant,
+                template_name,
+                choices_name,
+                optimization_direction_name,
+                file_name,
+            )
+        )
 
     content = template.render(exports=exports)
     return content

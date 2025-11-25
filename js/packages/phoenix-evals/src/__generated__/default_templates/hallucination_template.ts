@@ -2,6 +2,8 @@
 
 import type { PromptTemplate } from "../../types/templating";
 
+export const HALLUCINATION_NAME = "hallucination";
+
 export const HALLUCINATION_TEMPLATE: PromptTemplate = [
   {
     role: "user",

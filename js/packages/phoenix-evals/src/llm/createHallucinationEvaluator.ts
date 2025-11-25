@@ -1,5 +1,6 @@
 import {
   HALLUCINATION_CHOICES,
+  HALLUCINATION_NAME,
   HALLUCINATION_OPTIMIZATION_DIRECTION,
   HALLUCINATION_TEMPLATE,
 } from "../__generated__/default_templates";
@@ -44,7 +45,7 @@ export function createHallucinationEvaluator<
     choices = HALLUCINATION_CHOICES,
     promptTemplate = HALLUCINATION_TEMPLATE,
     optimizationDirection = HALLUCINATION_OPTIMIZATION_DIRECTION,
-    name = "hallucination",
+    name = HALLUCINATION_NAME,
     ...rest
   } = args;
   return createClassificationEvaluator<RecordType>({
