@@ -81,7 +81,7 @@ const GridListItemContent = ({
     <Flex
       direction="row"
       alignItems="center"
-      gap="size-150"
+      gap="size-100"
       minWidth={0}
       flex={1}
       className="GridListItem__content"

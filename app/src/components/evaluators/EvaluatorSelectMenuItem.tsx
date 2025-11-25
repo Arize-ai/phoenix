@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, MenuItem, Text } from "@phoenix/components";
+import { GridListItem, Text } from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
@@ -24,7 +24,7 @@ export function EvaluatorSelectMenuItem({
   onSelectionChange,
   isSelected,
 }: EvaluatorMenuItemProps) {
-  const { name, kind, alreadyAdded } = evaluator;
+  const { name, alreadyAdded } = evaluator;
 
   const [isHovered, setIsHovered] = useState(false);
   const showAlreadyAddedState = Boolean(
@@ -38,29 +38,19 @@ export function EvaluatorSelectMenuItem({
     setIsHovered(false);
   };
 
-  let icon =
-    kind === "CODE" ? (
-      <Icon svg={<Icons.Code />} />
-    ) : (
-      <Icon svg={<Icons.Robot />} />
-    );
-  if (showAlreadyAddedState) {
-    icon = <Icon svg={<Icons.Checkmark />} />;
-  }
-
   return (
-    <MenuItem
+    <GridListItem
       id={evaluator.id}
       textValue={name}
-      onAction={onSelectionChange}
+      onPress={onSelectionChange}
       isDisabled={alreadyAdded}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      trailingContent={
+      subtitle={
         evaluator.annotationName ? (
           <div
             css={css`
-              color: var(--ac-global-color-grey-600);
+              color: var(--ac-global-color-grey-900);
             `}
           >
             <AnnotationNameAndValue
@@ -72,26 +62,16 @@ export function EvaluatorSelectMenuItem({
         ) : undefined
       }
     >
-      <Flex
-        alignItems="center"
-        gap="size-100"
-        css={css`
-          color: var(--ac-global-color-grey-700);
-          font-size: var(--ac-global-font-size-s);
-          overflow: hidden;
-        `}
-      >
-        {icon}
-        <StableWidthText
-          primaryText={name}
-          secondaryText="Already added"
-          showSecondary={showAlreadyAddedState}
-        />
-      </Flex>
-    </MenuItem>
+      <StableWidthText
+        primaryText={name}
+        secondaryText="Already added"
+        showSecondary={showAlreadyAddedState}
+      />
+    </GridListItem>
   );
 }
 
+// TODO: can we get rid of this
 /**
  * Prevents menu flicker when toggling between two text values by maintaining a stable width.
  * Uses absolute positioning to swap visibility, with a hidden grid underneath to reserve
@@ -108,7 +88,7 @@ function StableWidthText({
 }) {
   return (
     <Text
-      color="inherit"
+      color="grey-700"
       css={css`
         overflow: hidden;
         position: relative;

@@ -3,14 +3,14 @@ import { css } from "@emotion/react";
 
 import {
   Button,
+  DialogTrigger,
+  GridList,
   Icon,
   Icons,
   LinkButton,
-  Menu,
-  MenuContainer,
   MenuFooter,
   MenuHeader,
-  MenuTrigger,
+  Popover,
   SearchField,
   SearchIcon,
   Text,
@@ -35,11 +35,11 @@ export function PlaygroundEvaluatorSelect(
   const { contains } = useFilter({ sensitivity: "base" });
 
   return (
-    <MenuTrigger>
+    <DialogTrigger>
       <Button size="S" leadingVisual={<Icon svg={<Icons.PlusOutline />} />}>
         Add evaluator
       </Button>
-      <MenuContainer placement="top end">
+      <Popover placement="top end">
         <Autocomplete filter={contains}>
           <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
@@ -47,7 +47,7 @@ export function PlaygroundEvaluatorSelect(
               <Input placeholder="Search evaluators" />
             </SearchField>
           </MenuHeader>
-          <Menu
+          <GridList
             selectionMode="multiple"
             selectedKeys={selectedIds}
             items={evaluators}
@@ -67,14 +67,14 @@ export function PlaygroundEvaluatorSelect(
                 isSelected={selectedIds?.includes(evaluator.id) ?? false}
               />
             )}
-          </Menu>
+          </GridList>
         </Autocomplete>
         <MenuFooter>
           <LinkButton variant="quiet" to={addNewEvaluatorLink}>
             New evaluator
           </LinkButton>
         </MenuFooter>
-      </MenuContainer>
-    </MenuTrigger>
+      </Popover>
+    </DialogTrigger>
   );
 }
