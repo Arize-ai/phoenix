@@ -66,6 +66,19 @@ describe("createDocumentRelevanceEvaluator", () => {
     );
   });
 
+  it("should use default optimization direction from config", () => {
+    const evaluator = createDocumentRelevanceEvaluator({ model });
+    expect(evaluator.optimizationDirection).toBe("MAXIMIZE");
+  });
+
+  it("should allow overriding optimization direction", () => {
+    const evaluator = createDocumentRelevanceEvaluator({
+      model,
+      optimizationDirection: "MINIMIZE",
+    });
+    expect(evaluator.optimizationDirection).toBe("MINIMIZE");
+  });
+
   it("should support custom template", async () => {
     // Mock the generateClassification function
     const mockGenerateClassification = vi

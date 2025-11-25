@@ -77,6 +77,19 @@ Is the answer hallucinated? Respond with "yes" or "no".
     ]);
   });
 
+  it("should use default optimization direction from config", () => {
+    const evaluator = createHallucinationEvaluator({ model });
+    expect(evaluator.optimizationDirection).toBe("MAXIMIZE");
+  });
+
+  it("should allow overriding optimization direction", () => {
+    const evaluator = createHallucinationEvaluator({
+      model,
+      optimizationDirection: "MINIMIZE",
+    });
+    expect(evaluator.optimizationDirection).toBe("MINIMIZE");
+  });
+
   it("should support custom template", async () => {
     // Mock the generateClassification function
     const mockGenerateClassification = vi
