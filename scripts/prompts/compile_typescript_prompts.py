@@ -55,7 +55,6 @@ def snake_to_camel(snake_str: str) -> str:
     e.g., "document_text" -> "documentText"
     """
     components = snake_str.split("_")
-    # Keep the first component lowercase, capitalize the rest
     return components[0] + "".join(x.title() for x in components[1:])
 
 
@@ -70,7 +69,6 @@ def convert_mustache_variables_to_camel_case(content: str) -> str:
         camel_case = snake_to_camel(var_name)
         return f"{{{{{camel_case}}}}}"
 
-    # Match mustache variables like {{variable_name}}
     return re.sub(r"\{\{(\w+)\}\}", replace_var, content)
 
 
