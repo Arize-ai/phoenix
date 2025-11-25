@@ -1101,6 +1101,10 @@ class Query:
             )
 
     @strawberry.field
+    async def built_in_evaluators(self) -> list[BuiltInEvaluator]:
+        return [BuiltInEvaluator(id=builtin_id) for builtin_id, _ in get_builtin_evaluators()]
+
+    @strawberry.field
     async def evaluators(
         self,
         info: Info[Context, None],
@@ -1158,10 +1162,6 @@ class Query:
                 data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
             else:
                 raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
-
-        builtin_evaluators = get_builtin_evaluators()
-        for builtin_id, _ in builtin_evaluators:
-            data.append(BuiltInEvaluator(id=builtin_id))
 
         return connection_from_list(data=data, args=args)
 

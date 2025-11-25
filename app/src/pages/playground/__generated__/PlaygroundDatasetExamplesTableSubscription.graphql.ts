@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dbc7076e06d24a214e8567171d3463b9>>
+ * @generated SignedSource<<a9d3aab95b7f57860f0d9109fbd8a428>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -63,9 +63,9 @@ export type GenerativeCredentialInput = {
 };
 export type PlaygroundEvaluatorInput = {
   id: string;
-  inputMapping?: EvaluatorInputMapping;
+  inputMapping?: EvaluatorInputMappingInput;
 };
-export type EvaluatorInputMapping = {
+export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };

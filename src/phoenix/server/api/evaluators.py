@@ -8,7 +8,7 @@ from jsonschema import ValidationError, validate
 from typing_extensions import TypedDict
 
 from phoenix.db import models
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMapping
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 
 
 class EvaluationResult(TypedDict):
@@ -35,7 +35,7 @@ class BuiltInEvaluator(ABC):
         self,
         *,
         context: dict[str, Any],
-        input_mapping: EvaluatorInputMapping,
+        input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
         raise NotImplementedError
 
@@ -69,15 +69,11 @@ def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvalu
 
 def apply_input_mapping(
     input_schema: dict[str, Any],
-    input_mapping: "EvaluatorInputMapping",
+    input_mapping: "EvaluatorInputMappingInput",
     context: dict[str, Any],
 ) -> dict[str, Any]:
     result: dict[str, Any] = {}
-    # apply literal mappings
-    if hasattr(input_mapping, "literal_mapping"):
-        for key, value in input_mapping.literal_mapping.items():
-            result[key] = value
-
+    # apply path mappings
     if hasattr(input_mapping, "path_mapping"):
         for key, path_expr in input_mapping.path_mapping.items():
             try:
@@ -87,6 +83,17 @@ def apply_input_mapping(
                     result[key] = matches[0].value
             except Exception:
                 pass
+
+    # literal mappings take priority over path mappings
+    if hasattr(input_mapping, "literal_mapping"):
+        for key, value in input_mapping.literal_mapping.items():
+            result[key] = value
+
+    # for any key in the input schema that is still not in result,
+    # set result[input_schema_key] to context[input_schema_key]
+    for key in input_schema.get("properties", {}).keys():
+        if key not in result:
+            result[key] = context.get(key, None)
 
     try:
         validate(instance=result, schema=input_schema)
@@ -139,7 +146,7 @@ def evaluation_result_to_span_annotation(
 
 @register_builtin_evaluator
 class ContainsEvaluator(BuiltInEvaluator):
-    name = "ContainsEvaluator"
+    name = "Contains"
     description = "Evaluates whether the output contains a specific string"
     metadata = {"type": "string_matching"}
     input_schema = {
@@ -161,13 +168,13 @@ class ContainsEvaluator(BuiltInEvaluator):
         self,
         *,
         context: dict[str, Any],
-        input_mapping: EvaluatorInputMapping,
+        input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
         inputs = apply_input_mapping(self.input_schema, input_mapping, context)
-        contains = inputs.get("contains")
-        output = context.get("output", "")
+        contains = inputs.get("contains", "")
+        output = inputs.get("output", "")
         now = datetime.now(timezone.utc)
-        matched = str(contains) in str(output)
+        matched = str(contains).lower() in str(output).lower()
         return EvaluationResult(
             name=self.name,
             annotator_kind="CODE",

@@ -134,8 +134,12 @@ const menuItemCss = css`
 export const MenuItem = <T extends object>({
   className,
   trailingContent,
+  leadingContent,
   ...props
-}: AriaMenuItemProps<T> & { trailingContent?: ReactNode }) => {
+}: AriaMenuItemProps<T> & {
+  trailingContent?: ReactNode;
+  leadingContent?: ReactNode;
+}) => {
   const textValue =
     props.textValue ||
     (typeof props.children === "string" ? props.children : undefined);
@@ -159,7 +163,10 @@ export const MenuItem = <T extends object>({
                 `}
               />
             )}
-            <MenuItemContent trailingContent={trailingContent}>
+            <MenuItemContent
+              trailingContent={trailingContent}
+              leadingContent={leadingContent}
+            >
               {typeof props.children === "function"
                 ? props.children(renderProps)
                 : props.children}
@@ -177,9 +184,11 @@ export const MenuItem = <T extends object>({
 const MenuItemContent = ({
   children,
   trailingContent,
+  leadingContent,
 }: {
   children: ReactNode;
   trailingContent?: ReactNode;
+  leadingContent?: ReactNode;
 }) => {
   return (
     <Flex
@@ -193,7 +202,13 @@ const MenuItemContent = ({
         padding: var(--ac-global-menu-item-gap);
       `}
     >
-      {children}
+      {leadingContent ? (
+        <Flex alignItems="center" gap="var(--ac-global-menu-item-gap)">
+          {leadingContent} {children}
+        </Flex>
+      ) : (
+        children
+      )}
       {trailingContent}
     </Flex>
   );

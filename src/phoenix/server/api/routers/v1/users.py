@@ -27,7 +27,7 @@ from phoenix.auth import (
     validate_password_format,
 )
 from phoenix.db import models
-from phoenix.db.types.db_models import UNDEFINED
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,

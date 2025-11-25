@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<103077b64b52cda977a43e646bbedf76>>
+ * @generated SignedSource<<8015a3f86a970ca953a0c9bfe9e38196>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,10 @@ export type PlaygroundDatasetSection_evaluators$data = {
   readonly evaluators: {
     readonly edges: ReadonlyArray<{
       readonly evaluator: {
+        readonly datasetInputMapping: {
+          readonly literalMapping: any;
+          readonly pathMapping: any;
+        } | null;
         readonly id: string;
         readonly isAssignedToDataset: boolean;
         readonly kind: EvaluatorKind;
@@ -39,7 +43,14 @@ var v0 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "datasetId",
+    "variableName": "datasetId"
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -99,15 +110,34 @@ return {
                 },
                 {
                   "alias": null,
-                  "args": [
-                    {
-                      "kind": "Variable",
-                      "name": "datasetId",
-                      "variableName": "datasetId"
-                    }
-                  ],
+                  "args": (v1/*: any*/),
                   "kind": "ScalarField",
                   "name": "isAssignedToDataset",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": (v1/*: any*/),
+                  "concreteType": "EvaluatorInputMapping",
+                  "kind": "LinkedField",
+                  "name": "datasetInputMapping",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "literalMapping",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "pathMapping",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 },
                 {
@@ -144,6 +174,6 @@ return {
 };
 })();
 
-(node as any).hash = "d42376613ad61049e8a3567df027b4e0";
+(node as any).hash = "1d791ea65eaf6a922c177101b2eb735f";
 
 export default node;

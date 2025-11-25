@@ -528,10 +528,18 @@ class Dataset(Node):
             else:
                 raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 
-        builtin_evaluators = get_builtin_evaluators()
-        for builtin_id, _ in builtin_evaluators:
-            data.append(BuiltInEvaluator(id=builtin_id))
-
+        builtin_evaluators_ids = [builtin_id for builtin_id, _ in get_builtin_evaluators()]
+        builtin_stmt = select(models.DatasetsEvaluators).where(
+            models.DatasetsEvaluators.dataset_id == self.id,
+            models.DatasetsEvaluators.builtin_evaluator_id.is_not(None),
+        )
+        async with info.context.db() as session:
+            builtin_assigned_evaluators = await session.scalars(builtin_stmt)
+            for builtin_assigned_evaluator in builtin_assigned_evaluators:
+                if builtin_assigned_evaluator.builtin_evaluator_id in builtin_evaluators_ids:
+                    data.append(
+                        BuiltInEvaluator(id=builtin_assigned_evaluator.builtin_evaluator_id)
+                    )
         return connection_from_list(data=data, args=args)
 
     @strawberry.field

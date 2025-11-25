@@ -642,7 +642,7 @@ class Subscription:
                         context_dict: dict[str, Any] = {
                             "input": revision.input,
                             "expected": revision.output,
-                            "output": run.output,
+                            "output": str(run.output),
                         }
                         for ii, evaluator in enumerate(input.evaluators):
                             _, db_id = from_global_id(evaluator.id)  # pyright: ignore
