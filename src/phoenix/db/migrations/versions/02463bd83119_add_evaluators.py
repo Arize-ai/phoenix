@@ -157,7 +157,7 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("builtin_evaluator_id", _Integer, nullable=True, index=True),
-        sa.Column("input_config", JSON_, nullable=False),
+        sa.Column("input_mapping", JSON_, nullable=False),
         sa.CheckConstraint(
             "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
             name="evaluator_id_xor_builtin_evaluator_id",

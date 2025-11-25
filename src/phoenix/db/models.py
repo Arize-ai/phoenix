@@ -2186,7 +2186,7 @@ class DatasetsEvaluators(HasId):
         nullable=True,
         index=True,
     )
-    input_config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    input_mapping: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_evaluators")
     evaluator: Mapped[Optional["Evaluator"]] = relationship(
         "Evaluator", back_populates="datasets_evaluators"

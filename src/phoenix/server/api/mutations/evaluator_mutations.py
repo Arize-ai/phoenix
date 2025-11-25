@@ -171,7 +171,7 @@ class EvaluatorMutationMixin:
             datasets_evaluators=[
                 models.DatasetsEvaluators(
                     dataset_id=dataset_id,
-                    input_config={},
+                    input_mapping={},
                 )
             ]
             # only add dataset relationship if dataset_id is provided
@@ -230,7 +230,7 @@ class EvaluatorMutationMixin:
             datasets_evaluators=[
                 models.DatasetsEvaluators(
                     dataset_id=dataset_id,
-                    input_config={},
+                    input_mapping={},
                 )
             ]
             # only add dataset relationship if dataset_id is provided
@@ -371,8 +371,8 @@ class EvaluatorMutationMixin:
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
-        input_config: EvaluatorInputMappingInput = (
-            input.input_config if input.input_config is not None else EvaluatorInputMappingInput()
+        input_mapping: EvaluatorInputMappingInput = (
+            input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
         )
 
         # Use upsert for idempotent assignment
@@ -380,7 +380,7 @@ class EvaluatorMutationMixin:
         is_builtin = evaluator_rowid < 0
         values: dict[str, Any] = {
             "dataset_id": dataset_rowid,
-            "input_config": input_config.to_dict(),
+            "input_mapping": input_mapping.to_dict(),
         }
         if is_builtin:
             values["builtin_evaluator_id"] = evaluator_rowid
