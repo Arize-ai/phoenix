@@ -27,8 +27,26 @@ eval_input = {
 ```
 {% endtab %}
 
-{% tab title="Typeccript" %}
+{% tab title="Typescript" %}
+```typescript
+type EvalInput = {
+  input: {
+    query: string;
+    documents: string[];
+  };
+  output: { response: string };
+  expected: string;
+};
 
+const evalInput: EvalInput = {
+  input: {
+    query: "user input query",
+    documents: ["doc A", "doc B"],
+  },
+  output: { response: "model answer" },
+  expected: "correct answer",
+};
+```
 {% endtab %}
 {% endtabs %}
 
@@ -60,7 +78,41 @@ result = hallucination_evaluator.evaluate(eval_input, input_mapping)
 {% endtab %}
 
 {% tab title="Typescript" %}
+```typescript
+import { bindEvaluator, createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
 
+type EvalInput = {
+  input: {
+    query: string;
+    documents: string[];
+  };
+  output: { response: string };
+  expected: string;
+};
+
+// Define an input mapping to map inputs required by hallucination evaluator to our data
+const evaluator = bindEvaluator<EvalInput>(
+  createHallucinationEvaluator({ model: openai("gpt-4") }),
+  {
+    inputMapping: {
+      input: "input.query",  // dot notation to access nested keys
+      output: "output.response",  // dot notation to access nested keys
+      reference: (data) => data.input.documents.join(" "),  // function to combine document chunks
+    },
+  }
+);
+
+// The evaluator uses the inputMapping to transform the evalInput into the expected input schema
+const result = await evaluator.evaluate({
+  input: {
+    query: "user input query",
+    documents: ["doc A", "doc B"],
+  },
+  output: { response: "model answer" },
+  expected: "correct answer",
+});
+```
 {% endtab %}
 {% endtabs %}
 
@@ -99,8 +151,26 @@ input_mapping = {
 
 {% endtab %}
 
-{% tab title="Typescrpt" %}
+{% tab title="Typescript" %}
+```typescript
+// Nested dictionary access
+const inputMapping = {
+  query: "input.query",
+  context: "input.documents",
+  response: "output.answer",
+};
 
+// Array indexing
+const inputMapping = {
+  firstDoc: "input.documents[0]",
+  lastDoc: "input.documents[-1]",
+};
+
+// Combined nesting and list indexing
+const inputMapping = {
+  userQuery: "data.user.messages[0].content",
+};
+```
 {% endtab %}
 {% endtabs %}
 
@@ -133,7 +203,33 @@ input_mapping = {
 {% endtab %}
 
 {% tab title="Typescript" %}
+```typescript
+type EvalInput = {
+  input: {
+    query: string;
+    documents: string[];
+  };
+  output: { answer: string };
+};
 
+// Function-based mapping example
+function extractContext(evalInput: EvalInput): string {
+  const docs = evalInput.input?.documents || [];
+  return docs.slice(0, 3).join(" ");  // Join first 3 documents
+}
+
+const inputMapping = {
+  query: "input.query",
+  context: extractContext,
+  response: "output.answer",
+};
+
+// Arrow function example
+const inputMapping = {
+  userQuery: (data: EvalInput) => data.input.query.toLowerCase(),
+  context: (data: EvalInput) => data.input.documents.slice(0, 3).join(" "),
+};
+```
 {% endtab %}
 {% endtabs %}
 
@@ -177,7 +273,42 @@ evaluator = LLMEvaluator(
 {% endtab %}
 
 {% tab title="Typescript" %}
+```typescript
+import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
 
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+// Define the structure of input records your evaluator will receive
+type MyEvalInput = {
+  input: {
+    query: string;
+    documents: string[];
+  };
+  output: { response: string };
+  expected: string;
+};
+
+// Construct a custom evaluator using the factory method
+const myCustomEvaluator = createClassificationEvaluator<MyEvalInput>({
+  name: "my_custom_eval",
+  model: openai("gpt-4"),
+  promptTemplate: `
+    Determine if the following response correctly answer's the user query using the provided context.
+    Query: {input.query}
+    Context: {input.documents}
+    Response: {output.response}
+  `,
+  choices: ["Correct", "Incorrect"],
+  // ...other options, scoring logic, etc. can be set here
+});
+
+// View the actual required fields to make sure they align with the type
+console.log(myCustomEvaluator.promtTemplateVariables)
+```
+
+```
 {% endtab %}
 {% endtabs %}
 
@@ -236,6 +367,35 @@ scores = bound_evaluator({
 {% endtab %}
 
 {% tab title="Typescript" %}
+```typescript
+import { bindEvaluator, createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
 
+type EvalInput = {
+  input: {
+    query: string;
+    documents: string[];
+  };
+  output: { answer: string };
+};
+
+// Create a bound evaluator with fixed mapping
+const boundEvaluator = bindEvaluator<EvalInput>(
+  createHallucinationEvaluator({ model: openai("gpt-4") }),
+  {
+    inputMapping: {
+      input: "input.query",
+      reference: "input.documents",
+      output: "output.answer",
+    },
+  }
+);
+
+// Run evaluation
+const scores = await boundEvaluator.evaluate({
+  input: { query: "How do I reset?", documents: ["Manual", "Guide"] },
+  output: { answer: "  Go to settings > reset.  " },
+});
+```
 {% endtab %}
 {% endtabs %}
