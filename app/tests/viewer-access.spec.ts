@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
 test.beforeEach(async ({ page }) => {
-  page.goto(`/login`);
+  await page.goto(`/login`);
   await page.getByLabel("Email").fill("viewer@localhost.com");
   await page.getByLabel("Password").fill("viewer123");
   await page.getByRole("button", { name: "Log In", exact: true }).click();
