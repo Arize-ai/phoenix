@@ -36,8 +36,8 @@ from .legacy.evaluators import (
     ToxicityEvaluator,
 )
 from .llm import LLM
+from .llm.prompts import PromptTemplate
 from .llm.types import ObjectGenerationMethod, PromptLike
-from .templating import PromptTemplate
 from .utils import (
     _deprecate_positional_args,
     _deprecate_source_and_heuristic,

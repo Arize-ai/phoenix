@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 
 import pytest
 
-from phoenix.evals.templating import (
+from phoenix.evals.llm.prompts import (
     FormatterFactory,
     FStringFormatter,
     MustacheFormatter,
@@ -237,7 +237,8 @@ class TestPromptTemplate:
         template = PromptTemplate(template="Hello {name}")
         assert template.template == "Hello {name}"
         assert template.variables == ["name"]
-        assert template.template_format == TemplateFormat.F_STRING
+        # template_format is None when auto-detected (delegated to content parts)
+        assert template.template_format is None
 
     def test_message_list_template_creation(self) -> None:
         """Test creating PromptTemplate with a message list."""
@@ -253,7 +254,11 @@ class TestPromptTemplate:
         """Test rendering a string template."""
         template = PromptTemplate(template="Hello {name}, welcome to {place}")
         result = template.render({"name": "Alice", "place": "Phoenix"})
-        assert result == "Hello Alice, welcome to Phoenix"
+        # String templates now return List[Message] with single user message
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["role"].value == "user"  # MessageRole enum
+        assert result[0]["content"] == "Hello Alice, welcome to Phoenix"
 
     def test_message_list_rendering(self) -> None:
         """Test rendering a message list template."""
@@ -266,9 +271,9 @@ class TestPromptTemplate:
 
         assert isinstance(result, list)
         assert len(result) == 2
-        assert result[0]["role"] == "system"
+        assert result[0]["role"].value == "system"
         assert result[0]["content"] == "You are a helpful assistant"
-        assert result[1]["role"] == "user"
+        assert result[1]["role"].value == "user"
         assert result[1]["content"] == "Score this: hello world"
 
     def test_mustache_string_template(self) -> None:
@@ -279,7 +284,10 @@ class TestPromptTemplate:
         assert template.template_format == TemplateFormat.MUSTACHE
         assert template.variables == ["name"]
         result = template.render({"name": "Bob"})
-        assert result == "Hello Bob"
+        # String templates now return List[Message]
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["content"] == "Hello Bob"
 
     def test_mustache_message_list(self) -> None:
         """Test PromptTemplate with mustache format in messages."""
@@ -291,7 +299,7 @@ class TestPromptTemplate:
         assert result[0]["content"] == "Hello Alice, rate document"
 
     def test_message_list_preserves_extra_fields(self) -> None:
-        """Test that extra fields in messages are preserved."""
+        """Test that extra fields in messages are NOT preserved (Message TypedDict has only role and content)."""
         messages = [
             {"role": "user", "content": "Hello {name}", "id": 123, "metadata": {"key": "value"}}
         ]
@@ -299,10 +307,11 @@ class TestPromptTemplate:
         result = template.render({"name": "Alice"})
 
         assert isinstance(result, list)
-        assert result[0]["role"] == "user"
+        assert result[0]["role"].value == "user"
         assert result[0]["content"] == "Hello Alice"
-        assert result[0]["id"] == 123
-        assert result[0]["metadata"] == {"key": "value"}
+        # Extra fields are not preserved - Message TypedDict only has role and content
+        assert "id" not in result[0]
+        assert "metadata" not in result[0]
 
     def test_empty_string_raises_error(self) -> None:
         """Test that empty string template raises ValueError."""
@@ -316,15 +325,11 @@ class TestPromptTemplate:
             template.render("invalid")  # type: ignore
 
     def test_message_without_content(self) -> None:
-        """Test handling messages without content field."""
+        """Test handling messages without content field - should raise error."""
         messages = [{"role": "user"}]
-        template = PromptTemplate(template=messages)
-        result = template.render({})
-
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert result[0]["role"] == "user"
-        assert "content" not in result[0]
+        # Messages without content should raise an error
+        with pytest.raises(ValueError, match="must have a 'content' field"):
+            PromptTemplate(template=messages)
 
     def test_mixed_variables_in_multiple_messages(self) -> None:
         """Test extracting variables from multiple messages with different variables."""
@@ -349,5 +354,5 @@ class TestPromptTemplate:
 
     def test_invalid_template_type(self) -> None:
         """Test that invalid template type raises TypeError."""
-        with pytest.raises(TypeError, match="Template must be a string or list of message dicts"):
+        with pytest.raises(TypeError, match="Template must be str or list"):
             PromptTemplate(template=123)  # type: ignore

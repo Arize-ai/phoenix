@@ -16,8 +16,7 @@ from phoenix.evals.evaluators import (
     evaluate_dataframe,
     to_thread,
 )
-from phoenix.evals.llm import LLM
-from phoenix.evals.templating import PromptTemplate
+from phoenix.evals.llm import LLM, PromptTemplate
 
 
 # --- Shared Mock Classes ---
