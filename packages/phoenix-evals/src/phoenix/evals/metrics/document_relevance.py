@@ -32,7 +32,7 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         relevance_eval = DocumentRelevanceEvaluator(llm=llm)
         eval_input = {
             "input": "What is the capital of France?",
-            "document": "Paris is the capital and largest city of France"
+            "document_text": "Paris is the capital and largest city of France"
             }
         scores = relevance_eval.evaluate(eval_input)
         print(scores)
@@ -48,7 +48,7 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
 
     class DocumentRelevanceInputSchema(BaseModel):
         input: str = Field(description="The input query.")
-        document: str = Field(description="The document being evaluated for relevance.")
+        document_text: str = Field(description="The document being evaluated for relevance.")
 
     def __init__(
         self,
