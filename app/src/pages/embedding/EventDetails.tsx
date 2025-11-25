@@ -72,6 +72,7 @@ function TextPre(props: PropsWithChildren) {
  * Displays the details of an event in a slide over panel
  */
 export function EventDetails({ event }: { event: ModelEvent }) {
+  "use no memo";
   const hasRetrievals =
     event.retrievedDocuments && event.retrievedDocuments.length > 0;
   const isPredictionRecord = !event.id.includes("CORPUS");
@@ -274,6 +275,7 @@ function EmbeddingDimensionsTable({
     []
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<DimensionRow>({
     columns,
     data,
@@ -413,9 +415,7 @@ function EventPreview({ event }: { event: ModelEvent }) {
       </DisclosureGroup>
     );
   } else if (event.rawData) {
-    {
-      event.rawData ? <TextPre>{event.rawData}</TextPre> : null;
-    }
+    content = <TextPre>{event.rawData}</TextPre>;
   }
   return content;
 }

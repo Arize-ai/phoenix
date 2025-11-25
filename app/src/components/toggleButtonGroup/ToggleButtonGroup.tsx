@@ -4,9 +4,9 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@phoenix/components";
 import { SizingProps, StylableProps } from "@phoenix/components/types";
 import { SizeProvider } from "@phoenix/contexts";
+import { classNames } from "@phoenix/utils";
 
 const baseToggleButtonGroupCSS = css(`
   position: relative;

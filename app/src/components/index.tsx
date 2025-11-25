@@ -18,7 +18,6 @@ export type {
   TimeValue,
   Selection,
 } from "react-aria-components";
-export { classNames } from "@arizeai/components";
 
 export * from "./Link";
 export * from "./ExternalLink";

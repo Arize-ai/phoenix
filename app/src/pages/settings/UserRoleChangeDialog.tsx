@@ -22,21 +22,25 @@ export function UserRoleChangeDialog({
   email,
   currentRole,
   newRole,
-  onRoleChanged,
   onClose,
 }: {
   userId: string;
   email: string;
   newRole: UserRoleInput;
   currentRole: string;
-  onRoleChanged: () => void;
   onClose: () => void;
 }) {
   const [commit, isCommitting] = useMutation<UserRoleChangeDialogMutation>(
     graphql`
       mutation UserRoleChangeDialogMutation($input: PatchUserInput!) {
         patchUser(input: $input) {
-          __typename
+          user {
+            id
+            role {
+              id
+              name
+            }
+          }
         }
       }
     `
@@ -58,7 +62,6 @@ export function UserRoleChangeDialog({
           title: "Role Changed",
           message: "Users role has been changed.",
         });
-        onRoleChanged();
         onClose();
       },
       onError: (error) => {
@@ -68,15 +71,7 @@ export function UserRoleChangeDialog({
         });
       },
     });
-  }, [
-    commit,
-    newRole,
-    notifyError,
-    notifySuccess,
-    onClose,
-    onRoleChanged,
-    userId,
-  ]);
+  }, [commit, newRole, notifyError, notifySuccess, onClose, userId]);
   return (
     <Dialog>
       <DialogContent>

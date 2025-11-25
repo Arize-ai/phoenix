@@ -27,3 +27,5 @@ export async function projectLoader(args: LoaderFunctionArgs) {
     }
   ).toPromise();
 }
+
+export type ProjectLoaderData = Awaited<ReturnType<typeof projectLoader>>;

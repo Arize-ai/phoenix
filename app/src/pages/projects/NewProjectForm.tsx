@@ -115,6 +115,7 @@ export function NewProjectForm({
   isSubmitting: boolean;
   submitButtonText: string;
 }) {
+  "use no memo";
   const {
     control,
     handleSubmit,
@@ -129,6 +130,7 @@ export function NewProjectForm({
   });
 
   // Watch form values for preview
+  // eslint-disable-next-line react-hooks/incompatible-library
   const currentPreset = watch("gradientPreset");
 
   // Get current gradient colors based on selection

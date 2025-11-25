@@ -1024,3 +1024,226 @@ class TestCostModelLookup:
             assert ans.id == expected_model_id, (
                 f"Expected model ID {expected_model_id} but got {ans.id}"
             )
+
+
+class TestCostModelLookupMerge:
+    """Test cases for CostModelLookup.merge() method."""
+
+    def test_merge_handles_additions_updates_and_deletions(self) -> None:
+        """Test merge with additions, updates, and deletions in one call."""
+        initial_models = [
+            models.GenerativeModel(
+                id=1,
+                name="model-to-update",
+                provider="openai",
+                start_time=None,
+                name_pattern=re.compile("gpt-3\\.5-turbo"),
+                is_built_in=True,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            ),
+            models.GenerativeModel(
+                id=2,
+                name="model-to-delete",
+                provider="openai",
+                start_time=None,
+                name_pattern=re.compile("gpt-4"),
+                is_built_in=True,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            ),
+        ]
+        lookup = CostModelLookup(initial_models)
+
+        # Merge with: updated model 1, deleted model 2, new model 3
+        merged_models = [
+            models.GenerativeModel(
+                id=1,
+                name="updated-model",
+                provider="openai",
+                start_time=None,
+                name_pattern=re.compile("gpt-3\\.5-turbo"),
+                is_built_in=True,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            ),
+            models.GenerativeModel(
+                id=2,
+                name="model-to-delete",
+                provider="openai",
+                start_time=None,
+                name_pattern=re.compile("gpt-4"),
+                is_built_in=True,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+                deleted_at=datetime.now(timezone.utc),
+            ),
+            models.GenerativeModel(
+                id=3,
+                name="new-model",
+                provider="anthropic",
+                start_time=None,
+                name_pattern=re.compile("claude-.*"),
+                is_built_in=True,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            ),
+        ]
+
+        lookup.merge(merged_models)
+
+        # Verify model 1 was updated
+        result1 = lookup.find_model(
+            start_time=datetime.now(timezone.utc),
+            attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+        )
+        assert result1 is not None
+        assert result1.id == 1
+        assert result1.name == "updated-model"
+
+        # Verify model 2 was deleted
+        result2 = lookup.find_model(
+            start_time=datetime.now(timezone.utc),
+            attributes={"llm": {"model_name": "gpt-4", "provider": "openai"}},
+        )
+        assert result2 is None
+
+        # Verify model 3 was added
+        result3 = lookup.find_model(
+            start_time=datetime.now(timezone.utc),
+            attributes={"llm": {"model_name": "claude-3", "provider": "anthropic"}},
+        )
+        assert result3 is not None
+        assert result3.id == 3
+
+    def test_merge_sequential_incremental_updates(self) -> None:
+        """Test multiple sequential merge operations."""
+        lookup = CostModelLookup()
+
+        # First merge: add model 1
+        lookup.merge(
+            [
+                models.GenerativeModel(
+                    id=1,
+                    name="model-1",
+                    provider="openai",
+                    start_time=None,
+                    name_pattern=re.compile("gpt-3\\.5-turbo"),
+                    is_built_in=True,
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                )
+            ]
+        )
+
+        # Second merge: add model 2
+        lookup.merge(
+            [
+                models.GenerativeModel(
+                    id=2,
+                    name="model-2",
+                    provider="openai",
+                    start_time=None,
+                    name_pattern=re.compile("gpt-4"),
+                    is_built_in=True,
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                )
+            ]
+        )
+
+        # Third merge: delete model 1, update model 2, add model 3
+        lookup.merge(
+            [
+                models.GenerativeModel(
+                    id=1,
+                    name="model-1",
+                    provider="openai",
+                    start_time=None,
+                    name_pattern=re.compile("gpt-3\\.5-turbo"),
+                    is_built_in=True,
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                    deleted_at=datetime.now(timezone.utc),
+                ),
+                models.GenerativeModel(
+                    id=2,
+                    name="updated-model-2",
+                    provider="openai",
+                    start_time=None,
+                    name_pattern=re.compile("gpt-4"),
+                    is_built_in=True,
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                ),
+                models.GenerativeModel(
+                    id=3,
+                    name="model-3",
+                    provider="anthropic",
+                    start_time=None,
+                    name_pattern=re.compile("claude-.*"),
+                    is_built_in=True,
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                ),
+            ]
+        )
+
+        # Verify final state
+        result1 = lookup.find_model(
+            start_time=datetime.now(timezone.utc),
+            attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+        )
+        assert result1 is None  # Deleted
+
+        result2 = lookup.find_model(
+            start_time=datetime.now(timezone.utc),
+            attributes={"llm": {"model_name": "gpt-4", "provider": "openai"}},
+        )
+        assert result2 is not None
+        assert result2.name == "updated-model-2"  # Updated
+
+        result3 = lookup.find_model(
+            start_time=datetime.now(timezone.utc),
+            attributes={"llm": {"model_name": "claude-3", "provider": "anthropic"}},
+        )
+        assert result3 is not None
+        assert result3.id == 3  # Added
+
+    def test_merge_gracefully_handles_nonexistent_deletions(self) -> None:
+        """Test that deleting a non-existent model doesn't cause errors."""
+        initial_model = models.GenerativeModel(
+            id=1,
+            name="existing-model",
+            provider="openai",
+            start_time=None,
+            name_pattern=re.compile("gpt-3\\.5-turbo"),
+            is_built_in=True,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+        lookup = CostModelLookup([initial_model])
+
+        # Try to delete a model that doesn't exist
+        nonexistent_deleted_model = models.GenerativeModel(
+            id=999,
+            name="nonexistent-model",
+            provider="openai",
+            start_time=None,
+            name_pattern=re.compile("gpt-4"),
+            is_built_in=True,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            deleted_at=datetime.now(timezone.utc),
+        )
+
+        # Should not raise an error
+        lookup.merge([nonexistent_deleted_model])
+
+        # Verify the existing model is still there
+        result = lookup.find_model(
+            start_time=datetime.now(timezone.utc),
+            attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+        )
+        assert result is not None
+        assert result.id == 1

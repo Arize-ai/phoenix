@@ -43,6 +43,7 @@ type PromptsTableProps = {
 };
 
 export function PromptsTable(props: PromptsTableProps) {
+  "use no memo";
   const { filter, selectedPromptLabelIds } = usePromptsFilterContext();
   const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
@@ -214,6 +215,7 @@ export function PromptsTable(props: PromptsTableProps) {
     return cols;
   }, [refetch, queryArgs, canModify]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

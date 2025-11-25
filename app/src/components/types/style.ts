@@ -297,7 +297,6 @@ export type DimensionValue =
   | number
   // This allows autocomplete to work properly and not collapse the above options into just `string`.
   // https://github.com/microsoft/TypeScript/issues/29729.
-  // eslint-disable-next-line @typescript-eslint/ban-types
   | (string & {});
 
 export type BorderRadiusValue = "small" | "medium";

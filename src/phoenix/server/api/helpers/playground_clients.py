@@ -1182,6 +1182,10 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 _OPENAI_REASONING_MODELS = [
+    "gpt-5.1",
+    "gpt-5.1-2025-11-13",
+    "gpt-5.1-chat-latest",
+    "gpt-5.1-codex-mini",
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
@@ -1470,13 +1474,8 @@ class AzureOpenAIReasoningNonStreamingClient(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-3-5-sonnet-latest",
         "claude-3-5-haiku-latest",
-        "claude-3-5-sonnet-20241022",
         "claude-3-5-haiku-20241022",
-        "claude-3-5-sonnet-20240620",
-        "claude-3-opus-latest",
-        "claude-3-sonnet-20240229",
         "claude-3-haiku-20240307",
     ],
 )
@@ -1685,11 +1684,16 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
+        "claude-opus-4-5",
+        "claude-opus-4-5-20251101",
         "claude-sonnet-4-5",
-        "claude-sonnet-4-0",
-        "claude-sonnet-4-20250514",
+        "claude-sonnet-4-5-20250929",
+        "claude-haiku-4-5",
+        "claude-haiku-4-5-20251001",
         "claude-opus-4-1",
         "claude-opus-4-1-20250805",
+        "claude-sonnet-4-0",
+        "claude-sonnet-4-20250514",
         "claude-opus-4-0",
         "claude-opus-4-20250514",
         "claude-3-7-sonnet-latest",
@@ -1827,7 +1831,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                     LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
                 }
             )
-            yield TextChunk(content=event.text)
+            # google genai thinking returns thought tokens captured under
+            # event.candidates and event.parts
+            yield TextChunk(content=event.text or "")
 
     def _build_google_messages(
         self,
@@ -1896,6 +1902,61 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
                 label="Top K",
             ),
         ]
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.GOOGLE,
+    model_names=[
+        "gemini-3-pro-preview",
+    ],
+)
+class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        return [
+            StringInvocationParameter(
+                invocation_name="thinking_level",
+                label="Thinking Level",
+                canonical_name=CanonicalParameterName.REASONING_EFFORT,
+            ),
+            *super().supported_invocation_parameters(),
+        ]
+
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        # Extract thinking_level and construct thinking_config
+        thinking_level = invocation_parameters.pop("thinking_level", None)
+
+        if thinking_level:
+            try:
+                import google.genai
+                from packaging.version import parse as parse_version
+
+                if parse_version(google.genai.__version__) < parse_version("1.50.0"):
+                    raise ImportError
+            except (ImportError, AttributeError):
+                raise BadRequest(
+                    "Reasoning capabilities for Gemini models require `google-genai>=1.50.0` "
+                    "and Python >= 3.10."
+                )
+
+            # NOTE: as of gemini 1.51.0 medium thinking is not supported
+            # but will eventually be added in a future version
+            # we are purposefully allowing users to select medium knowing
+            # it does not work.
+            invocation_parameters["thinking_config"] = {
+                "include_thoughts": True,
+                "thinking_level": thinking_level.upper(),
+            }
+
+        async for chunk in super().chat_completion_create(messages, tools, **invocation_parameters):
+            yield chunk
 
 
 def initialize_playground_clients() -> None:

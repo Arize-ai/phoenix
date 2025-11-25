@@ -1,4 +1,3 @@
-import re
 from datetime import datetime
 from typing import Any, Iterable, Mapping, Optional
 
@@ -20,24 +19,53 @@ class CostModelLookup:
         self,
         generative_models: Iterable[models.GenerativeModel] = (),
     ) -> None:
-        self._models = tuple(generative_models)
+        self._models_by_id: dict[int, models.GenerativeModel] = {}
         self._model_priority: dict[
             int, tuple[_RegexSpecificityScore, float, _TieBreakerId]
         ] = {}  # higher is better
-        self._regex_specificity_score: dict[re.Pattern[str], _RegexSpecificityScore] = {}
 
-        for m in self._models:
-            self._regex_specificity_score[m.name_pattern] = regex_specificity.score(m.name_pattern)
+        for m in generative_models:
+            self._add_or_update_model(m)
 
-            # For built-in models, use negative ID so that earlier IDs win
-            # For user-defined models, use positive ID so later IDs win
-            tie_breaker = -m.id if m.is_built_in else m.id
+    def _add_or_update_model(self, model: models.GenerativeModel) -> None:
+        """Add or update a single model in the lookup."""
+        self._models_by_id[model.id] = model
 
-            self._model_priority[m.id] = (
-                self._regex_specificity_score[m.name_pattern],
-                m.start_time.timestamp() if m.start_time else 0.0,
-                tie_breaker,
-            )
+        specificity_score = regex_specificity.score(model.name_pattern)
+
+        # For built-in models, use negative ID so that earlier IDs win
+        # For user-defined models, use positive ID so later IDs win
+        tie_breaker = -model.id if model.is_built_in else model.id
+
+        self._model_priority[model.id] = (
+            specificity_score,
+            model.start_time.timestamp() if model.start_time else 0.0,
+            tie_breaker,
+        )
+
+    def _remove_model(self, model_id: int) -> None:
+        """Remove a model from the lookup."""
+        if model_id in self._models_by_id:
+            del self._models_by_id[model_id]
+        if model_id in self._model_priority:
+            del self._model_priority[model_id]
+
+    def merge(self, models: Iterable[models.GenerativeModel]) -> None:
+        """
+        Merge a collection of models into the existing lookup.
+
+        For each model:
+        - If deleted_at is set, remove it from the lookup
+        - Otherwise, add or update it in the lookup
+
+        Args:
+            models: An iterable of GenerativeModel objects to merge
+        """
+        for model in models:
+            if model.deleted_at is not None:
+                self._remove_model(model.id)
+            else:
+                self._add_or_update_model(model)
 
     def find_model(
         self,
@@ -107,7 +135,7 @@ class CostModelLookup:
         # 2. only include models that are active and match the regex pattern
         candidates = [
             model
-            for model in self._models
+            for model in self._models_by_id.values()
             if (not model.start_time or model.start_time <= start_time)
             and model.name_pattern.search(model_name)
         ]

@@ -1,6 +1,6 @@
 import { useMatches, useRouteLoaderData } from "react-router";
 
-import { promptLoaderQuery$data } from "./__generated__/promptLoaderQuery.graphql";
+import { PromptLoaderData } from "./promptLoader";
 
 /**
  * Returns the loader data for the prompt/:promptId route.
@@ -22,5 +22,5 @@ export const usePromptIdLoader = () => {
     );
   }
 
-  return useRouteLoaderData(loader.id) as promptLoaderQuery$data;
+  return useRouteLoaderData(loader.id) as PromptLoaderData;
 };

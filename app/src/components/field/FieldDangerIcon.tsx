@@ -5,7 +5,7 @@ export const FieldDangerIcon = () => {
     <Icon
       color="danger"
       className="ac-field-icon"
-      svg={<Icons.CloseCircle />}
+      svg={<Icons.CloseCircleOutline />}
     />
   );
 };

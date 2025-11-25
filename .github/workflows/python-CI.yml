@@ -36,6 +36,7 @@ jobs:
       ipynb: ${{ steps.filter.outputs.ipynb }}
       ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
       proto: ${{ steps.filter.outputs.proto }}
+      prompts: ${{ steps.filter.outputs.prompts }}
       phoenix: ${{ steps.filter.outputs.phoenix }}
       phoenix_client: ${{ steps.filter.outputs.phoenix_client }}
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
@@ -53,6 +54,9 @@ jobs:
             proto:
               - "src/phoenix/proto/**"
               - "src/phoenix/trace/v1/**"
+            prompts:
+              - "prompts/**"
+              - "scripts/prompts/compile_python_prompts.py"
             phoenix:
               - "src/**"
               - "tests/**"
@@ -75,6 +79,7 @@ jobs:
           echo "ipynb: ${{ steps.filter.outputs.ipynb }}"
           echo "ipynb_files: ${{ steps.filter.outputs.ipynb_files }}"
           echo "proto: ${{ steps.filter.outputs.proto }}"
+          echo "prompts: ${{ steps.filter.outputs.prompts }}"
           echo "phoenix: ${{ steps.filter.outputs.phoenix }}"
           echo "phoenix_client: ${{ steps.filter.outputs.phoenix_client }}"
           echo "phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}"
@@ -89,7 +94,7 @@ jobs:
     strategy:
       matrix:
         py: [3.9, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -113,7 +118,7 @@ jobs:
       fail-fast: false
       matrix:
         py: [3.9, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -136,7 +141,7 @@ jobs:
     strategy:
       matrix:
         py: [3.9, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -157,7 +162,7 @@ jobs:
     if: ${{ needs.changes.outputs.ipynb == 'true' }}
     strategy:
       matrix:
-        py: [3.13]
+        py: ["3.13"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -186,7 +191,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [3.9]
+        py: ["3.10"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -215,7 +220,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [3.9]
+        py: ["3.10"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -243,7 +248,7 @@ jobs:
     if: ${{ needs.changes.outputs.proto == 'true' }}
     strategy:
       matrix:
-        py: [3.9]
+        py: ["3.10"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -266,13 +271,38 @@ jobs:
         run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e compile_protobuf
       - run: git diff --exit-code
 
+  compile-prompts:
+    name: Compile Prompts
+    needs: changes
+    if: ${{ needs.changes.outputs.prompts == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.10"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.8.6
+      - name: Compile Prompts
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e compile_prompts
+      - name: Check for changes
+        run: git diff --exit-code
+
   ruff:
     name: Ruff
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        py: [3.13]
+        py: ["3.13"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -297,7 +327,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.13]
+        py: ["3.10", "3.13"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -335,7 +365,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.13]
+        py: ["3.10", "3.13"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -374,11 +404,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.13]
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
-        exclude:
-          - py: 3.13
-            os: macos-13
+        py: ["3.10", "3.13"]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -422,7 +449,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.13]
+        py: ["3.10", "3.13"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -460,7 +487,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.13]
+        py: ["3.10", "3.13"]
         db: [sqlite, postgresql]
         os: [ubuntu-latest, windows-latest]
         exclude:

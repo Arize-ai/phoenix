@@ -50,7 +50,9 @@ export function ModelComboBoxLoader({
   const onSelectionChange = (key: Key | null) => {
     if (typeof key === "string") {
       const item = items.find((item) => item.id === key);
-      item?.name != null && onChange(item.name);
+      if (item?.name != null) {
+        onChange(item.name);
+      }
     }
   };
 
@@ -121,6 +123,7 @@ export function ModelComboBox(props: ModelComboBoxProps) {
   ) : null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 graphql`
   query ModelComboBoxQuery($providerKey: GenerativeProviderKey!) {
     playgroundModels(input: { providerKey: $providerKey }) {

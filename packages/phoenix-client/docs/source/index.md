@@ -229,6 +229,102 @@ df = pd.DataFrame({
 client.spans.log_span_annotations_dataframe(dataframe=df)
 ```
 
+### Evaluation Helpers
+
+The Phoenix Client provides helper functions to extract span data in formats optimized for RAG evaluation workflows. These helpers streamline the process of preparing data for evaluation with `phoenix.evals`.
+
+#### RAG Retrieval Evaluation
+
+Extract retrieved documents from retriever spans for relevance evaluation:
+
+```python
+from phoenix.client import Client
+from phoenix.client.helpers.spans import get_retrieved_documents
+
+client = Client()
+
+# Extract retrieved documents for evaluation
+retrieved_docs_df = get_retrieved_documents(
+    client,
+    project_name="my-rag-app"
+)
+
+# Each row is a retrieved document with its metadata
+print(retrieved_docs_df.head())
+# Index: context.span_id, document_position
+# Columns: context.trace_id, input, document, document_score, document_metadata
+
+# Use with phoenix.evals for relevance evaluation
+from phoenix.evals import LLM, async_evaluate_dataframe
+from phoenix.evals.metrics import DocumentRelevanceEvaluator
+
+llm = LLM(model="gpt-4o", provider="openai")
+relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
+
+relevance_results = await async_evaluate_dataframe(
+    dataframe=retrieved_docs_df,
+    evaluators=[relevance_evaluator],
+    concurrency=10,
+    exit_on_error=True,
+)
+relevance_results.head()
+```
+
+#### RAG Q&A Evaluation
+
+Extract Q&A pairs with reference context for hallucination evaluation:
+
+```python
+from phoenix.client.helpers.spans import get_input_output_context
+from phoenix.evals.metrics import HallucinationEvaluator
+
+# Extract Q&A with context documents
+qa_df = get_input_output_context(
+    client,
+    project_name="my-rag-app"
+)
+
+# Each row combines a Q&A pair with concatenated retrieval documents
+# Index: context.span_id
+# Columns: context.trace_id, input, output, context, metadata
+if qa_df is not None:
+    print(qa_df.head())
+
+    # Run hallucination evaluations
+    hallucination_evaluator = HallucinationEvaluator(llm=llm)
+
+    hallucination_results = await async_evaluate_dataframe(
+        dataframe=qa_df,
+        evaluators=[hallucination_evaluator],
+        concurrency=10,
+        exit_on_error=True,
+    )
+    hallucination_results.head()
+```
+
+#### Time-Filtered RAG Spans
+
+Filter spans by time range for evaluation:
+
+```python
+from datetime import datetime, timedelta
+
+# Get documents from last 24 hours
+recent_docs = get_retrieved_documents(
+    client,
+    project_name="my-rag-app",
+    start_time=datetime.now() - timedelta(hours=24),
+    end_time=datetime.now()
+)
+
+# Get Q&A from last week
+weekly_qa = get_input_output_context(
+    client,
+    project_name="my-rag-app",
+    start_time=datetime.now() - timedelta(days=7)
+)
+```
+
 ### Datasets
 
 Manage evaluation datasets and examples for experiments and testing:

@@ -20,14 +20,16 @@ import { getChatRole } from "./playgroundUtils";
 
 export const PlaygroundOutputMoveButton = ({
   instance,
-  outputContent,
+  output,
   toolCalls,
   cleanupOutput,
+  isDisabled,
 }: {
   instance: PlaygroundNormalizedInstance;
-  outputContent?: string | ChatMessage[];
+  output?: string | ChatMessage[] | null | undefined;
   toolCalls: PartialOutputToolCall[];
   cleanupOutput: () => void;
+  isDisabled: boolean;
 }) => {
   const instanceId = instance.id;
   const addMessage = usePlaygroundContext((state) => state.addMessage);
@@ -35,20 +37,21 @@ export const PlaygroundOutputMoveButton = ({
     <TooltipTrigger delay={500}>
       <Button
         size="S"
+        isDisabled={isDisabled}
         leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         aria-label="Move the output message to the end of the prompt"
         onPress={() => {
           if (instance.template.__type !== "chat") {
             return;
           }
-          const messages = Array.isArray(outputContent)
-            ? outputContent
-            : outputContent
+          const messages = Array.isArray(output)
+            ? output
+            : output
               ? [
                   {
                     id: generateMessageId(),
                     role: getChatRole("ai"),
-                    content: outputContent,
+                    content: output,
                   },
                 ]
               : [];

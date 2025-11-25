@@ -6,10 +6,10 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@phoenix/components";
 import { buttonCSS, ButtonProps } from "@phoenix/components/button";
 import { StylableProps } from "@phoenix/components/types";
 import { useSize } from "@phoenix/contexts";
+import { classNames } from "@phoenix/utils";
 
 const baseToggleButtonCSS = css(
   buttonCSS,

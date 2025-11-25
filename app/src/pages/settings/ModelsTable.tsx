@@ -26,10 +26,7 @@ import {
   getCommonPinningStyles,
   tableCSS,
 } from "@phoenix/components/table/styles";
-import {
-  DEFAULT_FORMAT,
-  TimestampCell,
-} from "@phoenix/components/table/TimestampCell";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import {
   RichTooltip,
   Tooltip,
@@ -65,9 +62,7 @@ type ModelsTableProps = {
  * @returns the date, as a string, in the format of the DEFAULT_FORMAT
  */
 function filterableDateAccessorFn(row?: string | null | undefined) {
-  return row != null
-    ? new Date(row).toLocaleString([], DEFAULT_FORMAT)
-    : undefined;
+  return row != null ? new Date(row).toISOString() : undefined;
 }
 
 /**
@@ -122,6 +117,7 @@ export function ModelsTable({
   kindFilter,
   search,
 }: ModelsTableProps) {
+  "use no memo";
   const data = useFragment(
     graphql`
       fragment ModelsTable_generativeModels on Query
@@ -367,18 +363,7 @@ export function ModelsTable({
         header: "start date",
         sortUndefined: "last",
         accessorFn: (row) => filterableDateAccessorFn(row.startTime),
-        cell: (props) => {
-          return (
-            <TimestampCell
-              {...props}
-              format={{
-                year: "numeric",
-                month: "numeric",
-                day: "numeric",
-              }}
-            />
-          );
-        },
+        cell: TimestampCell,
       },
       {
         header: "created at",
@@ -457,6 +442,7 @@ export function ModelsTable({
     ];
   }, [kindFilter]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

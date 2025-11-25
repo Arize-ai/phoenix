@@ -1,4 +1,11 @@
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import {
@@ -75,6 +82,8 @@ export const ExamplesSplitMenu = ({
   const [mode, setMode] = useState<"filter" | "apply" | "create">(() =>
     getInitialMode(selectedExampleIds)
   );
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // used to keep the menu open when a split is applied
+  const shouldKeepMenuOpenRef = useRef(false); // required as menu is no longer multi-select
   useEffect(() => {
     setMode(getInitialMode(selectedExampleIds));
   }, [selectedExampleIds]);
@@ -92,10 +101,21 @@ export const ExamplesSplitMenu = ({
   const selectedPartialExamples = useMemo(() => {
     return selectedExampleIds.map((id) => examplesCache[id]).filter(Boolean);
   }, [selectedExampleIds, examplesCache]);
+  const requestKeepMenuOpen = useCallback(() => {
+    shouldKeepMenuOpenRef.current = true;
+  }, []);
 
   return (
     <MenuTrigger
+      isOpen={isMenuOpen}
       onOpenChange={(open) => {
+        if (!open && shouldKeepMenuOpenRef.current) {
+          shouldKeepMenuOpenRef.current = false;
+          setIsMenuOpen(true);
+          return;
+        }
+        shouldKeepMenuOpenRef.current = false;
+        setIsMenuOpen(open);
         if (!open) {
           setMode(getInitialMode(selectedExampleIds));
         }
@@ -118,6 +138,7 @@ export const ExamplesSplitMenu = ({
               onExampleSelectionChange={onExampleSelectionChange}
               selectedPartialExamples={selectedPartialExamples}
               setMode={setMode}
+              onRequestKeepMenuOpen={requestKeepMenuOpen}
             />
           )}
           {mode === "create" && (
@@ -144,6 +165,7 @@ const SplitMenu = ({
   onSelectionChange,
   selectedPartialExamples,
   setMode,
+  onRequestKeepMenuOpen,
 }: {
   selectedSplitIds: string[];
   selectedExampleIds: string[];
@@ -154,6 +176,7 @@ const SplitMenu = ({
     datasetSplits: { id: string; name: string }[];
   }[];
   setMode: (mode: "filter" | "apply" | "create") => void;
+  onRequestKeepMenuOpen: () => void;
 }) => {
   const { contains } = useFilter({ sensitivity: "base" });
   const data = useLazyLoadQuery<ExamplesSplitMenuQuery>(
@@ -174,28 +197,12 @@ const SplitMenu = ({
     // fetch when menu is opened, but show cache data first to prevent flickering
     { fetchPolicy: "store-and-network" }
   );
-  const [addExamplesToSplits] = useMutation(graphql`
-    mutation ExamplesSplitMenuAddDatasetExamplesToDatasetSplitsMutation(
-      $input: AddDatasetExamplesToDatasetSplitsInput!
+  const [setExampleSplits] = useMutation(graphql`
+    mutation ExamplesSplitMenuSetDatasetExampleSplitsMutation(
+      $input: SetDatasetExampleSplitsInput!
     ) {
-      addDatasetExamplesToDatasetSplits(input: $input) {
-        examples {
-          id
-          datasetSplits {
-            id
-            name
-            color
-          }
-        }
-      }
-    }
-  `);
-  const [removeExamplesFromSplit] = useMutation(graphql`
-    mutation ExamplesSplitMenuRemoveDatasetExamplesFromDatasetSplitMutation(
-      $input: RemoveDatasetExamplesFromDatasetSplitsInput!
-    ) {
-      removeDatasetExamplesFromDatasetSplits(input: $input) {
-        examples {
+      setDatasetExampleSplits(input: $input) {
+        example {
           id
           datasetSplits {
             id
@@ -207,33 +214,17 @@ const SplitMenu = ({
     }
   `);
   const onUpdateSplits = useCallback(
-    (changes: {
-      selectedExampleIds: string[];
-      addSplitIds?: string[];
-      removeSplitIds?: string[];
-    }) => {
-      if (changes.addSplitIds) {
-        addExamplesToSplits({
-          variables: {
-            input: {
-              exampleIds: changes.selectedExampleIds,
-              datasetSplitIds: changes.addSplitIds,
-            },
+    (changes: { exampleId: string; splitIds: string[] }) => {
+      setExampleSplits({
+        variables: {
+          input: {
+            exampleId: changes.exampleId,
+            datasetSplitIds: changes.splitIds,
           },
-        });
-      }
-      if (changes.removeSplitIds) {
-        removeExamplesFromSplit({
-          variables: {
-            input: {
-              exampleIds: changes.selectedExampleIds,
-              datasetSplitIds: changes.removeSplitIds,
-            },
-          },
-        });
-      }
+        },
+      });
     },
-    [addExamplesToSplits, removeExamplesFromSplit]
+    [setExampleSplits]
   );
   const splits = useMemo(() => {
     return data.datasetSplits.edges.map((edge) => edge.split);
@@ -274,6 +265,7 @@ const SplitMenu = ({
           onSelectionChange={onUpdateSplits}
           splits={splits as Mutable<typeof splits>}
           selectedPartialExamples={selectedPartialExamples}
+          onRequestKeepMenuOpen={onRequestKeepMenuOpen}
         />
       )}
     </Autocomplete>
@@ -331,17 +323,18 @@ const SplitMenuApplyContent = ({
   onSelectionChange,
   splits,
   selectedPartialExamples,
+  onRequestKeepMenuOpen,
 }: {
   onSelectionChange: (changes: {
-    selectedExampleIds: string[];
-    addSplitIds?: string[];
-    removeSplitIds?: string[];
+    exampleId: string;
+    splitIds: string[];
   }) => void;
   splits: { id: string; name: string; color: string }[];
   selectedPartialExamples: {
     id: string;
     datasetSplits: { id: string; name: string }[];
   }[];
+  onRequestKeepMenuOpen: () => void;
 }) => {
   // derive checkbox states for each split based on the selectedPartialExamples
   type SplitState = Record<string, "checked" | "indeterminate" | "unchecked">;
@@ -368,32 +361,44 @@ const SplitMenuApplyContent = ({
       return acc;
     }, {} as SplitState);
   }, [splits, selectedPartialExamples]);
+  const handleSplitToggle = useCallback(
+    (selectedId: string) => {
+      // because the menu is no longer multi-select, we need to keep the menu open when a split is applied
+      onRequestKeepMenuOpen();
+      for (const example of selectedPartialExamples) {
+        const currentSplitIds = example.datasetSplits.map((s) => s.id);
+        let newSplitIds: string[];
+
+        if (splitStates[selectedId] === "checked") {
+          newSplitIds = currentSplitIds.filter((id) => id !== selectedId);
+        } else {
+          newSplitIds = currentSplitIds.includes(selectedId)
+            ? currentSplitIds
+            : [...currentSplitIds, selectedId];
+        }
+
+        onSelectionChange({
+          exampleId: example.id,
+          splitIds: newSplitIds,
+        });
+      }
+    },
+    [
+      onRequestKeepMenuOpen,
+      onSelectionChange,
+      selectedPartialExamples,
+      splitStates,
+    ]
+  );
   return (
     <Menu
       items={splits}
       renderEmptyState={() => "No splits found"}
-      // hack to keep the menu open when splits are changed
-      selectedKeys={[]}
-      selectionMode="multiple"
+      // NOTE: Menu is no longer multi-select, so we track the menu open state manually
+      selectionMode="none"
       // ensure that menu items are re-rendered when splitStates changes
       dependencies={[splitStates]}
-      // update selection state externally, the menu does not actually know what is selected
-      onSelectionChange={(keys) => {
-        const selectedId = Array.from(keys as Set<string>)[0];
-        if (splitStates[selectedId] === "checked") {
-          // remove split from all selected examples
-          onSelectionChange({
-            selectedExampleIds: selectedPartialExamples.map((e) => e.id),
-            removeSplitIds: [selectedId],
-          });
-        } else {
-          // state is indeterminate or unchecked, add split to all selected examples
-          onSelectionChange({
-            selectedExampleIds: selectedPartialExamples.map((e) => e.id),
-            addSplitIds: [selectedId],
-          });
-        }
-      }}
+      onAction={(key) => handleSplitToggle(key as string)}
     >
       {({ id, name, color }) => (
         <MenuItem id={id} textValue={name}>

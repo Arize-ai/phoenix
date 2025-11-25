@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-evals",
-  "version": "0.3.0",
+  "version": "0.6.0",
   "description": "A library for running evaluations for AI use cases",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
@@ -38,7 +38,8 @@
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "type:check": "tsc --noEmit",
-    "test": "vitest --typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
     "docs": "typedoc",
     "docs:preview": "pnpx http-server ./docs -p 8080 -o"
   },
@@ -52,9 +53,9 @@
   "author": "oss@arize.com",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@ai-sdk/google": "^2.0.40",
     "@ai-sdk/openai": "^2.0.0",
     "@arizeai/openinference-instrumentation-openai": "^2.3.0",
-    "@arizeai/phoenix-client": "workspace:*",
     "@types/mustache": "^4.2.6",
     "@types/node": "^24.0.10",
     "msw": "^2.11.6",
@@ -62,7 +63,7 @@
     "tsx": "^4.19.3",
     "typedoc": "^0.27.9",
     "typescript": "^5.8.2",
-    "vitest": "^2.1.9"
+    "vitest": "^4.0.10"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {
@@ -71,6 +72,7 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "ai": "^5.0.0",
+    "jsonpath-plus": "^10.3.0",
     "mustache": "^4.2.0",
     "zod": "^4.0.14"
   }

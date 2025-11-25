@@ -135,6 +135,7 @@ export function ProjectsPageContent({
   timeRange: OpenTimeRange;
   query: ProjectsPageProjectsFragment$key;
 }) {
+  "use no memo";
   const { projectViewMode } = usePreferencesContext((state) => ({
     projectViewMode: state.projectViewMode,
   }));
@@ -828,6 +829,7 @@ function ProjectsTable({
     },
     [setProjectSortOrder, sortingRowModel, onSort]
   );
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: projects,
     columns,

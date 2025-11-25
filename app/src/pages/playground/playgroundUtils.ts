@@ -649,7 +649,15 @@ export function transformSpanAttributesToPlaygroundInstance(
     return {
       playgroundInstance: {
         ...basePlaygroundInstance,
-        spanId: span?.id ?? null,
+        repetitions: {
+          1: {
+            output: null,
+            spanId: span.id,
+            error: null,
+            toolCalls: {},
+            status: "notStarted",
+          },
+        },
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     };
@@ -730,8 +738,18 @@ export function transformSpanAttributesToPlaygroundInstance(
               messages,
             }
           : basePlaygroundInstance.template,
-      output,
-      spanId: span.id,
+      repetitions: {
+        ...basePlaygroundInstance.repetitions,
+        ...{
+          1: {
+            output: output ?? null,
+            spanId: span.id,
+            error: null,
+            toolCalls: {}, // when parsed from span attributes, tool calls are contained in the output
+            status: "finished",
+          },
+        },
+      },
       tools: tools ?? basePlaygroundInstance.tools,
     },
     playgroundInput:
@@ -1172,6 +1190,7 @@ const getBaseChatCompletionInput = ({
       : undefined,
     credentials: getCredentials(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
+    repetitions: playgroundStore.getState().repetitions,
   } satisfies Partial<ChatCompletionInput>;
 };
 
@@ -1186,7 +1205,6 @@ export const denormalizePlaygroundInstance = (
   allInstanceMessages: Record<number, ChatMessage>
 ): PlaygroundInstance => {
   if (instance.template.__type === "chat") {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { messageIds: _, ...rest } = instance.template;
     return {
       ...instance,
@@ -1263,7 +1281,6 @@ export const getChatCompletionInput = ({
 
   return {
     ...baseChatCompletionVariables,
-    repetitions: 1, // configurable repetitions aren't currently supported for variable input
     template: {
       variables: variablesMap,
       format: templateFormat,

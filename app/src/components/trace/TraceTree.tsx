@@ -33,7 +33,7 @@ import { TraceTreeProvider, useTraceTree } from "./TraceTreeContext";
 import { ISpanItem, SpanStatusCodeType } from "./types";
 import { createSpanTree, SpanTreeNode } from "./utils";
 
-type TraceTreeProps = {
+export type TraceTreeProps = {
   spans: ISpanItem[];
   onSpanClick?: (span: ISpanItem) => void;
   selectedSpanNodeId: string;
@@ -294,8 +294,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   const { name, latencyMs, statusCode, tokenCountTotal } = node.span;
   return (
     <div ref={itemRef}>
-      <button
-        className="button--reset"
+      <div
+        role="button"
+        tabIndex={0}
         css={css`
           width: 100%;
           overflow: hidden;
@@ -303,7 +304,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
         `}
         onClick={() => {
           startTransition(() => {
-            onSpanClick && onSpanClick(node.span);
+            if (onSpanClick) {
+              onSpanClick(node.span);
+            }
           });
         }}
       >
@@ -375,7 +378,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             ) : null}
           </div>
         </SpanNodeWrap>
-      </button>
+      </div>
       {childNodes.length ? (
         <ul
           css={css`

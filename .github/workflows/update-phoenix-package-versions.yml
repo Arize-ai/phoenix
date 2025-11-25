@@ -1,0 +1,173 @@
+name: Update Phoenix Package Versions
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package name (client, evals, or otel)'
+        required: true
+        type: choice
+        options:
+          - client
+          - evals
+          - otel
+      version:
+        description: 'Version to update to (e.g., 1.23.0)'
+        required: true
+        type: string
+
+jobs:
+  update-package-version:
+    name: Update Phoenix Package Version in pyproject.toml
+    runs-on: ubuntu-latest
+    # Only run if this is a package release or manual trigger
+    # Note: If this workflow doesn't trigger (GitHub may prevent workflows triggered by
+    # other workflows to avoid recursion), use workflow_dispatch to trigger manually.
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      startsWith(github.event.release.tag_name, 'arize-phoenix-client-v') ||
+      startsWith(github.event.release.tag_name, 'arize-phoenix-evals-v') ||
+      startsWith(github.event.release.tag_name, 'arize-phoenix-otel-v')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Determine package and extract version
+        id: extract-version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger - use inputs
+            PACKAGE="${{ inputs.package }}"
+            VERSION="${{ inputs.version }}"
+            TRIGGER="manual"
+            echo "Manual trigger: arize-phoenix-$PACKAGE $VERSION"
+          else
+            # Release trigger - extract from tag
+            TAG_NAME="${{ github.event.release.tag_name }}"
+            
+            # Determine which package from tag (using case for clarity and POSIX compatibility)
+            case "$TAG_NAME" in
+              arize-phoenix-client-v*)
+                PACKAGE="client"
+                VERSION=${TAG_NAME#arize-phoenix-client-v}
+                ;;
+              arize-phoenix-evals-v*)
+                PACKAGE="evals"
+                VERSION=${TAG_NAME#arize-phoenix-evals-v}
+                ;;
+              arize-phoenix-otel-v*)
+                PACKAGE="otel"
+                VERSION=${TAG_NAME#arize-phoenix-otel-v}
+                ;;
+              *)
+                echo "❌ Error: Unknown package from tag $TAG_NAME"
+                exit 1
+                ;;
+            esac
+            
+            TRIGGER="automatic"
+            echo "Release tag: $TAG_NAME"
+            echo "Package: arize-phoenix-$PACKAGE"
+            echo "Extracted version: $VERSION"
+          fi
+          
+          # Validate version format (basic semver check)
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$'; then
+            echo "❌ Error: Invalid version format: $VERSION"
+            echo "Expected semantic version (e.g., 1.2.3, 1.2.3-alpha.1, 1.2.3+build.1)"
+            exit 1
+          fi
+          
+          echo "package=$PACKAGE" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "trigger=$TRIGGER" >> $GITHUB_OUTPUT
+          echo "tag_name=${TAG_NAME:-manual}" >> $GITHUB_OUTPUT
+
+      - name: Check if update is needed
+        id: check-update
+        run: |
+          PACKAGE="${{ steps.extract-version.outputs.package }}"
+          NEW_VERSION="${{ steps.extract-version.outputs.version }}"
+          PACKAGE_NAME="arize-phoenix-$PACKAGE"
+          
+          # Extract current version from pyproject.toml
+          CURRENT_VERSION=$(grep -E "^\s*\"$PACKAGE_NAME>=" pyproject.toml | head -n 1 | sed -n "s/.*$PACKAGE_NAME>=\([0-9.]*\).*/\1/p")
+          
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            echo "❌ Error: Could not find $PACKAGE_NAME dependency in pyproject.toml"
+            exit 0
+          fi
+          
+          if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+            echo "📦 Update needed for $PACKAGE_NAME: $CURRENT_VERSION → $NEW_VERSION"
+          else
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            echo "✓ Versions already match for $PACKAGE_NAME: $CURRENT_VERSION"
+          fi
+
+      - name: Update pyproject.toml
+        if: steps.check-update.outputs.needs_update == 'true'
+        run: |
+          PACKAGE="${{ steps.extract-version.outputs.package }}"
+          NEW_VERSION="${{ steps.extract-version.outputs.version }}"
+          PACKAGE_NAME="arize-phoenix-$PACKAGE"
+          
+          # Surgically replace only the version number, preserving all formatting
+          # Escape special chars in version for sed (periods, forward slashes, etc.)
+          ESCAPED_VERSION=$(printf '%s\n' "$NEW_VERSION" | sed 's/[.[\*^$/]/\\&/g')
+          
+          if ! sed -i.bak "s/\($PACKAGE_NAME>=\)[0-9.]*/\1$ESCAPED_VERSION/" pyproject.toml; then
+            echo "❌ Error: Failed to update pyproject.toml"
+            exit 1
+          fi
+          rm pyproject.toml.bak
+          
+          echo "✓ Updated $PACKAGE_NAME to $NEW_VERSION"
+          grep "$PACKAGE_NAME" pyproject.toml
+
+      - name: Verify changes
+        id: verify-changed-files
+        if: steps.check-update.outputs.needs_update == 'true'
+        run: |
+          # Safety check: verify that sed actually modified the file
+          if git diff --exit-code pyproject.toml; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Warning: No changes detected - sed may have failed silently"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✓ Changes verified:"
+            git diff pyproject.toml
+          fi
+
+      - name: Create Pull Request
+        if: steps.check-update.outputs.needs_update == 'true' && steps.verify-changed-files.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "fix(deps): update arize-phoenix-${{ steps.extract-version.outputs.package }} to ${{ steps.extract-version.outputs.version }}"
+          title: "fix(deps): update arize-phoenix-${{ steps.extract-version.outputs.package }} to ${{ steps.extract-version.outputs.version }}"
+          body: |
+            ## 📦 Dependency Update
+            
+            Updates `arize-phoenix-${{ steps.extract-version.outputs.package }}` to version **${{ steps.extract-version.outputs.version }}**
+            
+            **Trigger:** ${{ steps.extract-version.outputs.trigger == 'manual' && 'Manual workflow dispatch' || format('Release {0}', steps.extract-version.outputs.tag_name) }}
+            
+            ---
+            
+            <sub>This PR was automatically generated by the `update-phoenix-package-versions` workflow.</sub>
+          branch: update-phoenix-${{ steps.extract-version.outputs.package }}-${{ steps.extract-version.outputs.version }}
+          base: main
+          delete-branch: true
+

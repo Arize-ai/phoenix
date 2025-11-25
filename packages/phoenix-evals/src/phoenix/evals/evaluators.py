@@ -3,6 +3,7 @@ import copy
 import inspect
 import itertools
 import json
+import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -37,12 +38,17 @@ from .legacy.evaluators import (
 from .llm import LLM
 from .llm.types import ObjectGenerationMethod
 from .templating import Template
-from .utils import _deprecate_positional_args, default_tqdm_progress_bar_formatter, remap_eval_input
+from .utils import (
+    _deprecate_positional_args,
+    _deprecate_source_and_heuristic,
+    default_tqdm_progress_bar_formatter,
+    remap_eval_input,
+)
 
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
 ToolSchema = Optional[Dict[str, Any]]
-SourceType = Literal["human", "llm", "heuristic"]
+KindType = Literal["human", "llm", "heuristic", "code"]
 DirectionType = Literal["maximize", "minimize"]
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
@@ -55,7 +61,7 @@ EnforcedString = Annotated[str, BeforeValidator(_coerce_to_str)]
 
 
 # --- Score model ---
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class Score:
     """
     Represents the result of an evaluation.
@@ -72,7 +78,7 @@ class Score:
             numeric_score = Score(
                 name="accuracy",
                 score=0.85,
-                source="llm",
+                kind="llm",
                 direction="maximize"
             )
 
@@ -80,7 +86,7 @@ class Score:
             label_score = Score(
                 name="sentiment",
                 label="positive",
-                source="llm",
+                kind="llm",
                 direction="maximize"
             )
 
@@ -91,7 +97,7 @@ class Score:
                 label="highly_relevant",
                 explanation="The answer directly addresses all aspects of the question",
                 metadata={"model": "gpt-4", "confidence": 0.95},
-                source="llm",
+                kind="llm",
                 direction="maximize"
             )
 
@@ -101,7 +107,7 @@ class Score:
                 score=1.0,
                 label="true",
                 explanation="Found 3 citations in the text",
-                source="heuristic",
+                kind="code",
                 direction="maximize"
             )
     """
@@ -111,8 +117,39 @@ class Score:
     label: Optional[str] = None
     explanation: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
-    source: Optional[SourceType] = None
+    kind: Optional[KindType] = None
     direction: DirectionType = "maximize"
+
+    @_deprecate_source_and_heuristic
+    def __init__(
+        self,
+        *,
+        name: Optional[str] = None,
+        score: Optional[Union[float, int]] = None,
+        label: Optional[str] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        direction: DirectionType = "maximize",
+        kind: Optional[KindType] = None,
+    ) -> None:
+        object.__setattr__(self, "name", name)
+        object.__setattr__(self, "score", score)
+        object.__setattr__(self, "label", label)
+        object.__setattr__(self, "explanation", explanation)
+        object.__setattr__(self, "metadata", {} if metadata is None else metadata)
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(self, "direction", direction)
+
+    @property
+    def source(self) -> Optional[KindType]:
+        """The source of this score (deprecated)."""
+        # TODO: Remove this once we deprecate the source attribute
+        warnings.warn(
+            "Score.source is deprecated; use Score.kind instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.kind
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -126,7 +163,6 @@ class Score:
         for field_name, field_value in self.__dict__.items():
             if field_value is not None:
                 result[field_name] = field_value
-
         return result
 
     def pretty_print(self, indent: int = 2) -> None:
@@ -162,7 +198,7 @@ class Evaluator(ABC):
 
     Args:
         name: The name of this evaluator, used for identification and Score naming.
-        source: The source of this evaluator (human, llm, or heuristic).
+        kind: The kind of this evaluator (human, llm, or code).
         input_schema: Optional Pydantic BaseModel for input typing and validation. If None,
             subclasses infer fields from prompts or function signatures and may construct a
             model dynamically.
@@ -170,16 +206,17 @@ class Evaluator(ABC):
             to "maximize".
     """
 
+    @_deprecate_source_and_heuristic
     def __init__(
         self,
         *,
         name: str,
-        source: SourceType,
+        kind: KindType,
         direction: DirectionType = "maximize",
         input_schema: Optional[type[BaseModel]] = None,
     ):
         self._name = name
-        self._source = source
+        self._kind = kind
         self._direction = direction
         self._input_schema: Optional[type[BaseModel]] = input_schema
         self._input_mapping: Optional[InputMappingType] = None
@@ -190,9 +227,20 @@ class Evaluator(ABC):
         return self._name
 
     @property
-    def source(self) -> SourceType:
-        """The source of this evaluator."""
-        return self._source
+    def source(self) -> KindType:
+        # TODO: Remove this once we deprecate the source attribute
+        """The source of this evaluator (deprecated)."""
+        warnings.warn(
+            "Evaluator.source is deprecated; use Evaluator.kind instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._kind
+
+    @property
+    def kind(self) -> KindType:
+        """The kind of this evaluator."""
+        return self._kind
 
     @property
     def direction(self) -> DirectionType:
@@ -301,7 +349,7 @@ class Evaluator(ABC):
     def describe(self) -> Dict[str, Any]:
         """
         Return a JSON-serializable description of the evaluator, including
-        its name, source, direction, and input fields derived from the
+        its name, kind, direction, and input fields derived from the
         Pydantic input schema when available.
         """
         # TODO add other serializable properties from subclasses
@@ -311,7 +359,7 @@ class Evaluator(ABC):
             schema = {"unspecified": {"type": "any", "required": False}}
         return {
             "name": self.name,
-            "source": self.source,
+            "kind": self.kind,
             "direction": self.direction,
             "input_schema": schema,
         }
@@ -370,7 +418,7 @@ class LLMEvaluator(Evaluator):
 
         super().__init__(
             name=name,
-            source="llm",
+            kind="llm",
             direction=direction,
             input_schema=input_schema,
         )
@@ -572,7 +620,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 label=label,
                 explanation=explanation,
                 metadata={"model": self.llm.model},  # could add more metadata here
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
             )
         ]
@@ -612,14 +660,17 @@ class ClassificationEvaluator(LLMEvaluator):
                 label=label,
                 explanation=explanation,
                 metadata={"model": self.llm.model},  # could add more metadata here
-                source=self.source,
+                kind=self.kind,
                 direction=self.direction,
             )
         ]
 
 
 def create_evaluator(
-    name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
+    name: str,
+    source: Optional[KindType] = None,
+    direction: DirectionType = "maximize",
+    kind: Optional[KindType] = None,
 ) -> Callable[[Callable[..., Any]], Evaluator]:
     """
     Decorator that turns a simple function into an Evaluator instance.
@@ -630,8 +681,8 @@ def create_evaluator(
 
     Args:
         name: Identifier for the evaluator and the name used in produced Scores.
-        source: The source of this evaluator ("human", "llm", or "heuristic"). Defaults to
-            "heuristic".
+        kind: The kind of this evaluator ("human", "llm", or "code"). Defaults to
+            "code".
         direction: The score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
 
@@ -716,9 +767,31 @@ def create_evaluator(
 
         The decorator automatically handles conversion to a valid Score object.
     """
+    # TODO: Remove this once we deprecate the source attribute
+    if kind is not None and source is not None and kind != source:
+        raise ValueError("Provide only one of 'kind' or 'source' (they differ). Use 'kind'.")
+    # If neither is provided, default to "code".
+    resolved_kind: KindType = (
+        kind if kind is not None else (source if source is not None else "code")
+    )
+    if source is not None and (kind is None or kind == source):
+        warnings.warn(
+            "'source' is deprecated; next time, use 'kind' instead. This time, \
+            we'll automatically convert it for you.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    if resolved_kind == "heuristic":
+        warnings.warn(
+            "kind='heuristic' is deprecated; next time, use kind='code' instead. This time, we'll \
+                automatically convert it for you.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        resolved_kind = "code"
 
     def _convert_to_score(
-        result: Any, name: str, source: SourceType, direction: DirectionType
+        result: Any, name: str, kind: KindType, direction: DirectionType
     ) -> Score:
         """Convert various return types to a Score object."""
         LABEL_WORD_COUNT_THRESHOLD = 3  # ≤3 words = label, ≥4 words = explanation
@@ -728,16 +801,16 @@ def create_evaluator(
             f"tuples of numbers, booleans, and strings. "
             f"Got: {repr(result)}"
         )
-        # If already a Score object, ensure name, source, and direction are set correctly
+        # If already a Score object, ensure name, kind, and direction are set correctly
         if isinstance(result, Score):
-            # Create a new Score with the correct name, source, and direction
+            # Create a new Score with the correct name, kind, and direction
             return Score(
                 score=result.score,
                 name=name,
                 label=result.label,
                 explanation=result.explanation,
                 metadata=result.metadata,
-                source=source,
+                kind=kind,
                 direction=direction,
             )
 
@@ -756,7 +829,7 @@ def create_evaluator(
                         tuple_score_data["explanation"] = item
                 else:
                     raise ValueError(ERROR_MESSAGE)
-            return Score(name=name, source=source, direction=direction, **tuple_score_data)
+            return Score(name=name, kind=kind, direction=direction, **tuple_score_data)
 
         # Handle dictionaries
         if isinstance(result, dict):
@@ -764,7 +837,7 @@ def create_evaluator(
             for key, value in result.items():
                 if key in ["score", "label", "explanation"]:
                     dict_score_data[key] = value
-            return Score(name=name, source=source, direction=direction, **dict_score_data)
+            return Score(name=name, kind=kind, direction=direction, **dict_score_data)
 
         # Handle numbers and booleans
         if isinstance(result, (int, float, bool)):
@@ -772,7 +845,7 @@ def create_evaluator(
                 score=float(result) if isinstance(result, bool) else result,
                 label=str(result) if isinstance(result, bool) else None,
                 name=name,
-                source=source,
+                kind=kind,
                 direction=direction,
             )
 
@@ -782,14 +855,14 @@ def create_evaluator(
                 return Score(
                     label=result,
                     name=name,
-                    source=source,
+                    kind=kind,
                     direction=direction,
                 )
             else:
                 return Score(
                     explanation=result,
                     name=name,
-                    source=source,
+                    kind=kind,
                     direction=direction,
                 )
 
@@ -807,7 +880,7 @@ def create_evaluator(
                 def __init__(self) -> None:
                     super().__init__(
                         name=name,
-                        source=source,
+                        kind=resolved_kind,
                         direction=direction,
                         input_schema=create_model(
                             f"{name.capitalize()}Input",
@@ -839,7 +912,7 @@ def create_evaluator(
 
                 async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
                     result = await self._fn(**eval_input)
-                    score = _convert_to_score(result, name, source, direction)
+                    score = _convert_to_score(result, name, resolved_kind, direction)
                     return [score]
 
                 async def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -854,7 +927,7 @@ def create_evaluator(
                 def __init__(self) -> None:
                     super().__init__(
                         name=name,
-                        source=source,
+                        kind=resolved_kind,
                         direction=direction,
                         input_schema=create_model(
                             f"{name.capitalize()}Input",
@@ -883,7 +956,7 @@ def create_evaluator(
 
                 def _evaluate(self, eval_input: EvalInput) -> List[Score]:
                     result = self._fn(**eval_input)
-                    score = _convert_to_score(result, name, source, direction)
+                    score = _convert_to_score(result, name, resolved_kind, direction)
                     return [score]
 
                 def __call__(self, *args: Any, **kwargs: Any) -> Any:

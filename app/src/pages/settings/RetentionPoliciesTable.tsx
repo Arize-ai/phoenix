@@ -55,6 +55,7 @@ export const RetentionPoliciesTable = ({
 }: {
   query: RetentionPoliciesTable_policies$key;
 }) => {
+  "use no memo";
   const notifySuccess = useNotifySuccess();
   const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
   const { data } = usePaginationFragment<
@@ -192,6 +193,7 @@ export const RetentionPoliciesTable = ({
     return columns;
   }, [canManageRetentionPolicy, notifySuccess]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

@@ -85,7 +85,7 @@ class MustacheTemplateFormatter(TemplateFormatter):
         for variable_name in variable_names:
             template = re.sub(
                 pattern=rf"(?<!\\){{{{\s*{variable_name}\s*}}}}",
-                repl=variables[variable_name],
+                repl=str(variables[variable_name]),
                 string=template,
             )
         return template

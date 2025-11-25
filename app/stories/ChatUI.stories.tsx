@@ -2,8 +2,11 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { css } from "@emotion/react";
 
+import { Card, Flex, View } from "@phoenix/components";
 import { MessageBar } from "@phoenix/components/chat/MessageBar";
 import { MessageBubble } from "@phoenix/components/chat/MessageBubble";
+import { PreferencesProvider } from "@phoenix/contexts";
+import { ViewerPreferences } from "@phoenix/pages/profile/ViewerPreferences";
 
 interface Message {
   id: string;
@@ -144,6 +147,13 @@ function ChatUI() {
 const meta = {
   title: "Chat/ChatUI",
   component: ChatUI,
+  decorators: [
+    (Story) => (
+      <PreferencesProvider>
+        <Story />
+      </PreferencesProvider>
+    ),
+  ],
   parameters: {
     layout: "centered",
     docs: {
@@ -157,6 +167,7 @@ Features:
 - Message history display
 - Proper message threading and timestamps
 - Visual distinction between sent and received messages
+- Timezone-aware timestamp formatting
 `,
       },
     },
@@ -167,5 +178,26 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
+  render: () => <ChatUI />,
+};
+
+/**
+ * Demonstrates how message timestamps respect timezone preferences.
+ * Change the timezone in the preferences and observe how all message
+ * timestamps update to reflect the selected timezone.
+ */
+export const WithTimezonePreferences: Story = {
+  decorators: [
+    (Story) => (
+      <Flex direction="column" gap="size-200" width="100%">
+        <ViewerPreferences />
+        <Card title="Chat with Timezone-Aware Timestamps">
+          <View padding="size-200">
+            <Story />
+          </View>
+        </Card>
+      </Flex>
+    ),
+  ],
   render: () => <ChatUI />,
 };

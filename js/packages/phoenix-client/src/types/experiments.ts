@@ -1,3 +1,5 @@
+import type { LLMEvaluator } from "@arizeai/phoenix-evals";
+
 import { AnnotatorKind } from "./annotations";
 import { Node } from "./core";
 import { Example, ExampleWithId } from "./datasets";
@@ -176,3 +178,11 @@ export interface ExperimentParameters {
    */
   nExamples: number;
 }
+
+/**
+ * A type that represents any type of evaluator that can be used in an experiment.
+ * Unknown is used to capture evaluators from an external library such as phoenix-evals.
+ */
+export type ExperimentEvaluatorLike =
+  | Evaluator
+  | LLMEvaluator<Record<string, unknown>>;

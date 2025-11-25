@@ -1,7 +1,7 @@
 import { interpolateSinebow } from "d3-scale-chromatic";
 import { darken, getContrast, lighten } from "polished";
 
-import { ProviderTheme } from "@arizeai/components";
+import { ProviderTheme } from "@phoenix/contexts";
 
 // The amount to adjust the color by when we're trying to get a better contrast
 const ADJUST_PCT = 0.05;

@@ -58,6 +58,7 @@ export const AnnotationConfigDialog = ({
   ) => void;
   initialAnnotationConfig?: Partial<AnnotationConfig>;
 }) => {
+  "use no memo";
   const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
   const mode: "new" | "edit" = initialAnnotationConfig ? "edit" : "new";
@@ -300,6 +301,7 @@ export const AnnotationConfigDialog = ({
                       name="upperBound"
                       rules={{
                         validate: (value) => {
+                          // eslint-disable-next-line react-hooks/incompatible-library
                           const lowerBound = watch("lowerBound");
                           if (
                             lowerBound != null &&

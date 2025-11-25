@@ -12,12 +12,11 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 export function PlaygroundRunButton() {
   const modifierKey = useModifierKey();
-  const runPlaygroundInstances = usePlaygroundContext(
-    (state) => state.runPlaygroundInstances
-  );
-  const cancelPlaygroundInstances = usePlaygroundContext(
-    (state) => state.cancelPlaygroundInstances
-  );
+  const { runPlaygroundInstances, cancelPlaygroundInstances } =
+    usePlaygroundContext((state) => ({
+      runPlaygroundInstances: state.runPlaygroundInstances,
+      cancelPlaygroundInstances: state.cancelPlaygroundInstances,
+    }));
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );

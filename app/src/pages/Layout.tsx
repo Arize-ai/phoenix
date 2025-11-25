@@ -11,6 +11,7 @@ import {
   NavBreadcrumb,
   NavButton,
   NavLink,
+  NavTitle,
   SideNavbar,
   SideNavToggleButton,
   ThemeSelector,
@@ -65,6 +66,7 @@ const sideLinksCSS = css`
 export function Layout() {
   return (
     <div css={layoutCSS} data-testid="layout">
+      <NavTitle />
       <SideNav />
       <div css={mainViewCSS}>
         <TopNavbar>
@@ -174,16 +176,16 @@ function SideNav() {
           <li key="theme-toggle">
             <ThemeSelector isExpanded={isSideNavExpanded} />
           </li>
+          <li key="profile">
+            <NavLink
+              to="/profile"
+              text="Profile"
+              leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
+              isExpanded={isSideNavExpanded}
+            />
+          </li>
           {authenticationEnabled && (
             <>
-              <li key="profile">
-                <NavLink
-                  to="/profile"
-                  text="Profile"
-                  leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
-                  isExpanded={isSideNavExpanded}
-                />
-              </li>
               <Suspense>
                 <ManagementLink isExpanded={isSideNavExpanded} />
               </Suspense>

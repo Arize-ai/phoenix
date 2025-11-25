@@ -7,15 +7,16 @@ import { CreateClassificationEvaluatorArgs } from "../types/evals";
 import { ClassificationEvaluator } from "./ClassificationEvaluator";
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
-export interface HallucinationEvaluatorArgs
-  extends Omit<
-    CreateClassificationEvaluatorArgs,
+export interface HallucinationEvaluatorArgs<
+  RecordType extends Record<string, unknown> = HallucinationEvaluationRecord,
+> extends Omit<
+    CreateClassificationEvaluatorArgs<RecordType>,
     "promptTemplate" | "choices" | "optimizationDirection" | "name"
   > {
-  optimizationDirection?: CreateClassificationEvaluatorArgs["optimizationDirection"];
-  name?: CreateClassificationEvaluatorArgs["name"];
-  choices?: CreateClassificationEvaluatorArgs["choices"];
-  promptTemplate?: CreateClassificationEvaluatorArgs["promptTemplate"];
+  optimizationDirection?: CreateClassificationEvaluatorArgs<RecordType>["optimizationDirection"];
+  name?: CreateClassificationEvaluatorArgs<RecordType>["name"];
+  choices?: CreateClassificationEvaluatorArgs<RecordType>["choices"];
+  promptTemplate?: CreateClassificationEvaluatorArgs<RecordType>["promptTemplate"];
 }
 
 /**
@@ -35,7 +36,9 @@ export type HallucinationEvaluationRecord = {
  */
 export function createHallucinationEvaluator<
   RecordType extends Record<string, unknown> = HallucinationEvaluationRecord,
->(args: HallucinationEvaluatorArgs): ClassificationEvaluator<RecordType> {
+>(
+  args: HallucinationEvaluatorArgs<RecordType>
+): ClassificationEvaluator<RecordType> {
   const {
     choices = HALLUCINATION_CHOICES,
     promptTemplate = HALLUCINATION_TEMPLATE,
@@ -44,11 +47,10 @@ export function createHallucinationEvaluator<
     ...rest
   } = args;
   return createClassificationEvaluator<RecordType>({
-    ...args,
+    ...rest,
     promptTemplate,
     choices,
     optimizationDirection,
     name,
-    ...rest,
   });
 }

@@ -1,7 +1,7 @@
 import { createClient, type PhoenixClient } from "../../src/client";
 import * as getExperimentInfoModule from "../../src/experiments/getExperimentInfo";
+import { asExperimentEvaluator } from "../../src/experiments/helpers";
 import { resumeEvaluation } from "../../src/experiments/resumeEvaluation";
-import { asEvaluator } from "../../src/experiments/runExperiment";
 import type { EvaluatorParams } from "../../src/types/experiments";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -179,13 +179,13 @@ describe("resumeEvaluation", () => {
       label: "relevant",
     }));
 
-    const correctnessEvaluator = asEvaluator({
+    const correctnessEvaluator = asExperimentEvaluator({
       name: "correctness",
       kind: "CODE",
       evaluate: correctnessFn,
     });
 
-    const relevanceEvaluator = asEvaluator({
+    const relevanceEvaluator = asExperimentEvaluator({
       name: "relevance",
       kind: "LLM",
       evaluate: relevanceFn,
@@ -237,7 +237,7 @@ describe("resumeEvaluation", () => {
   });
 
   it("should handle pagination of incomplete evaluations", async () => {
-    const evaluator = asEvaluator({
+    const evaluator = asExperimentEvaluator({
       name: "correctness",
       kind: "CODE",
       evaluate: async () => ({ score: 1, label: "correct" }),
@@ -294,7 +294,7 @@ describe("resumeEvaluation", () => {
   });
 
   it("should handle empty incomplete evaluations", async () => {
-    const evaluator = asEvaluator({
+    const evaluator = asExperimentEvaluator({
       name: "correctness",
       kind: "CODE",
       evaluate: async () => ({ score: 1, label: "correct" }),
@@ -332,7 +332,7 @@ describe("resumeEvaluation", () => {
       return { score: 1, label: "correct" };
     });
 
-    const failingEvaluator = asEvaluator({
+    const failingEvaluator = asExperimentEvaluator({
       name: "correctness",
       kind: "CODE",
       evaluate: failingFn,
@@ -364,7 +364,7 @@ describe("resumeEvaluation", () => {
   });
 
   it("should respect custom concurrency", async () => {
-    const evaluator = asEvaluator({
+    const evaluator = asExperimentEvaluator({
       name: "correctness",
       kind: "CODE",
       evaluate: async () => {
@@ -400,7 +400,7 @@ describe("resumeEvaluation", () => {
       });
 
       return {
-        evaluator: asEvaluator({
+        evaluator: asExperimentEvaluator({
           name,
           kind: "CODE" as const,
           evaluate: evaluateFn,
@@ -540,7 +540,7 @@ describe("resumeEvaluation", () => {
         return { score: 1, label: "correct" };
       });
 
-      const failingEvaluator = asEvaluator({
+      const failingEvaluator = asExperimentEvaluator({
         name: "correctness",
         kind: "CODE",
         evaluate: failingFn,

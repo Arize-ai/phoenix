@@ -59,6 +59,7 @@ function toGqlSort(sort: SortingState[number]): DatasetSort {
 }
 
 export function DatasetsTable(props: DatasetsTableProps) {
+  "use no memo";
   const { filter, labelFilter } = props;
   const [sorting, setSorting] = useState<SortingState>([]);
   //we need a reference to the scrolling element for logic down below
@@ -292,6 +293,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     }
     return cols;
   }, [filter, labelFilter, notifyError, notifySuccess, refetch, canModify]);
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

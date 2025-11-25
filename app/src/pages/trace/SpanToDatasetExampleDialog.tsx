@@ -200,7 +200,7 @@ export function SpanToDatasetExampleDialog({
                       <Flex direction="row" gap="size-100" alignItems="end">
                         <DatasetSelect
                           isRequired
-                          onSelectionChange={onChange}
+                          onChange={onChange}
                           onBlur={onBlur}
                           validationState={invalid ? "invalid" : "valid"}
                           errorMessage={error?.message}

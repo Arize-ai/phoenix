@@ -16,7 +16,6 @@ import CodeMirror, {
 } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { TabbedCard } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
@@ -78,7 +77,7 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import { useDimensions } from "@phoenix/hooks";
+import { useDimensions, useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
@@ -810,7 +809,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         </Tabs>
       </Card>
       {hasOutput || hasOutputMessages ? (
-        <TabbedCard {...defaultCardProps}>
+        <Card {...defaultCardProps} title="Output" titleSeparator={false}>
           <Tabs>
             <TabList>
               {hasOutputMessages && (
@@ -845,7 +844,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
               </LazyTabPanel>
             )}
           </Tabs>
-        </TabbedCard>
+        </Card>
       ) : null}
     </Flex>
   );
@@ -1386,7 +1385,7 @@ function DocumentItem({
                               </Token>
                             )}
                           </Flex>
-                          {typeof documentEvaluation.explanation && (
+                          {documentEvaluation.explanation ? (
                             <p
                               css={css`
                                 margin-top: var(
@@ -1397,7 +1396,7 @@ function DocumentItem({
                             >
                               {documentEvaluation.explanation}
                             </p>
-                          )}
+                          ) : null}
                         </Flex>
                       </View>
                     </li>
@@ -1878,7 +1877,7 @@ function JSONBlock({
         value: JSON.stringify(JSON.parse(children), null, 2),
         mimeType: "json" as const,
       };
-    } catch (e) {
+    } catch (_e) {
       // Fall back to string
       return { value: children, mimeType: "text" as const };
     }
@@ -1952,6 +1951,7 @@ function EmptyIndicator({ text }: { text: string }) {
   );
 }
 function SpanEventsList({ events }: { events: Span["events"] }) {
+  const { fullTimeFormatter } = useTimeFormatters();
   if (events.length === 0) {
     return <EmptyIndicator text="No events" />;
   }
@@ -1995,7 +1995,7 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
               </Flex>
               <View>
                 <Text color="text-700">
-                  {new Date(event.timestamp).toLocaleString()}
+                  {fullTimeFormatter(new Date(event.timestamp))}
                 </Text>
               </View>
             </Flex>

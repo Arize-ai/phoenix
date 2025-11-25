@@ -18,14 +18,10 @@ import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
-import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
-import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
-import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
-import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
 import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
 import { PromptLayout } from "./pages/prompt/PromptLayout";
@@ -48,6 +44,7 @@ import {
   AuthenticatedRoot,
   authenticatedRootLoader,
   datasetLoader,
+  DatasetLoaderData,
   DatasetPage,
   DatasetsPage,
   datasetVersionsLoader,
@@ -72,6 +69,7 @@ import {
   ProfilePage,
   ProjectIndexPage,
   projectLoader,
+  ProjectLoaderData,
   ProjectMetricsPage,
   ProjectPage,
   ProjectSessionsPage,
@@ -81,6 +79,7 @@ import {
   ProjectTracesPage,
   PromptConfigPage,
   promptLoader,
+  PromptLoaderData,
   promptsLoader,
   PromptsPage,
   resetPasswordLoader,
@@ -93,6 +92,7 @@ import {
   SettingsPromptsPage,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
+  SpanPlaygroundPageLoaderData,
   SupportPage,
   TracePage,
 } from "./pages";
@@ -169,7 +169,7 @@ const router = createBrowserRouter(
               path=":projectId"
               loader={projectLoader}
               handle={{
-                crumb: (data: projectLoaderQuery$data) => data.project.name,
+                crumb: (data: ProjectLoaderData) => data?.project?.name,
               }}
               element={<ProjectRoot />}
             >
@@ -199,7 +199,7 @@ const router = createBrowserRouter(
               path=":datasetId"
               loader={datasetLoader}
               handle={{
-                crumb: (data: datasetLoaderQuery$data) => data.dataset.name,
+                crumb: (data: DatasetLoaderData) => data?.dataset?.name,
               }}
             >
               <Route element={<DatasetPage />} loader={datasetLoader}>
@@ -238,9 +238,9 @@ const router = createBrowserRouter(
               element={<SpanPlaygroundPage />}
               loader={spanPlaygroundPageLoader}
               handle={{
-                crumb: (data: spanPlaygroundPageLoaderQuery$data) => {
-                  if (data.span.__typename === "Span") {
-                    return `span ${data.span.spanId}`;
+                crumb: (data: SpanPlaygroundPageLoaderData) => {
+                  if (data?.span.__typename === "Span") {
+                    return `span ${data?.span?.spanId}`;
                   }
                   return "span unknown";
                 },
@@ -261,11 +261,11 @@ const router = createBrowserRouter(
               // displayed when navigating back to the prompt page after gql mutation
               shouldRevalidate={() => true}
               handle={{
-                crumb: (data: promptLoaderQuery$data) => {
-                  if (data.prompt.__typename === "Prompt") {
-                    return data.prompt.name;
+                crumb: (data: PromptLoaderData) => {
+                  if (data?.prompt?.__typename === "Prompt") {
+                    return data?.prompt?.name;
                   }
-                  return "unknown";
+                  return "prompt unknown";
                 },
               }}
             >

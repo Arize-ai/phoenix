@@ -50,9 +50,14 @@ Is the answer hallucinated? Respond with "yes" or "no".
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
         labels: ["hallucinated", "factual"],
-        prompt: expect.stringContaining(
-          "In this task, you will be presented with a query"
-        ),
+        prompt: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining(
+              "In this task, you will be presented with a query"
+            ),
+          }),
+        ]),
       })
     );
 
@@ -257,17 +262,32 @@ Is the answer hallucinated? Respond with "yes" or "no".
     // Verify that the prompt contains the interpolated values
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining(testInput),
+        prompt: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining(testInput),
+          }),
+        ]),
       })
     );
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining(testOutput),
+        prompt: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining(testOutput),
+          }),
+        ]),
       })
     );
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining(testReference),
+        prompt: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining(testReference),
+          }),
+        ]),
       })
     );
   });

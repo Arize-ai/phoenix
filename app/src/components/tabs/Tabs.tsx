@@ -49,7 +49,7 @@ export function Tabs({
   return (
     <AriaTabs
       css={css(tabsCSS, _css)}
-      className={classNames("react-aria-Tabs", className)}
+      className={classNames("react-aria-Tabs", "ac-tabs", className)}
       orientation={orientation}
       {...props}
     >

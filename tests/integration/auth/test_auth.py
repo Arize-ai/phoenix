@@ -893,10 +893,11 @@ class TestDeleteUsers:
         logged_in_user = u.log_in(_app)
         non_self = _get_user(_app, role)
         with expectation as e:
-            logged_in_user.delete_users(_app, non_self)
+            deleted_user_ids = logged_in_user.delete_users(_app, non_self)
         if e:
             non_self.log_in(_app)
         else:
+            assert deleted_user_ids == [non_self.gid]
             with _EXPECTATION_401:
                 non_self.log_in(_app)
 
