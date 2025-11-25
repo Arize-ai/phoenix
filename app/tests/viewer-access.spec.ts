@@ -3,8 +3,8 @@ import { randomUUID } from "crypto";
 
 test.beforeEach(async ({ page }) => {
   page.goto(`/login`);
-  await page.getByLabel("Email").fill("member@localhost.com");
-  await page.getByLabel("Password").fill("member123");
+  await page.getByLabel("Email").fill("viewer@localhost.com");
+  await page.getByLabel("Password").fill("viewer123");
   await page.getByRole("button", { name: "Log In", exact: true }).click();
   await page.waitForURL("**/projects");
 });
@@ -35,7 +35,7 @@ test("can create user key", async ({ page }) => {
   });
 });
 
-test("should be able to create a new project", async ({ page }) => {
+test("should not be able to create a new project", async ({ page }) => {
   await page.goto("/projects");
   await page.waitForURL("**/projects");
 
@@ -44,5 +44,7 @@ test("should be able to create a new project", async ({ page }) => {
     page.getByRole("searchbox", { name: "Search projects by name" })
   ).toBeVisible();
 
-  await expect(page.getByRole("button", { name: "New Project" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "New Project" })
+  ).not.toBeVisible();
 });
