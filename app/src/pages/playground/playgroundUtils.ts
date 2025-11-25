@@ -1081,6 +1081,8 @@ export const normalizeInvocationParameters = (
       return false;
     }
     return true;
+  }).map(({dirty, ...param}) => {
+    return param;
   });
 };
 
