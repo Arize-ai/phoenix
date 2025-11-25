@@ -28,7 +28,7 @@ async function main() {
   async function task(example) {
     const question = example.input.question;
     const result = await spaceKnowledgeApplication(question);
-    return result.context || [];
+    return result.context || "";
   }
 
   const dataset = await createDataset({
@@ -53,7 +53,7 @@ async function main() {
       // Use the document relevancy evaluator from phoenix-evals
       const result = await documentRelevancyEvaluator.evaluate({
         input: String(input.question),
-        documentText: String(output || ""),
+        documentText: String(output),
       });
   
       return result; 
