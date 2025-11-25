@@ -308,7 +308,6 @@ const myCustomEvaluator = createClassificationEvaluator<MyEvalInput>({
 console.log(myCustomEvaluator.promtTemplateVariables)
 ```
 
-```
 {% endtab %}
 {% endtabs %}
 
