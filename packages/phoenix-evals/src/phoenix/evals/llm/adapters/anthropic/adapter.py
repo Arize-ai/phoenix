@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Type, Union, cast
 
 from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 
+from ...prompts import Message, MessageRole
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod, PromptLike
 from .factories import AnthropicClientWrapper, create_anthropic_client
@@ -219,6 +220,53 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         return tool_definition
 
+    def _transform_messages_to_anthropic(self, messages: List[Message]) -> list[dict[str, Any]]:
+        """Transform List[Message] TypedDict to Anthropic message format.
+
+        Note: System messages are NOT included in the returned messages.
+        They should be extracted separately and passed as the 'system' parameter.
+
+        Args:
+            messages: List of Message TypedDicts with MessageRole enum.
+
+        Returns:
+            List of Anthropic-formatted message dicts (excluding system messages).
+        """
+        anthropic_messages: list[dict[str, Any]] = []
+
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+
+            # Skip system messages - they should be handled separately
+            if role == MessageRole.SYSTEM:
+                continue
+
+            # Map MessageRole enum to Anthropic role strings
+            if role == MessageRole.AI:
+                anthropic_role = "assistant"
+            elif role == MessageRole.USER:
+                anthropic_role = "user"
+            else:
+                # Fallback
+                anthropic_role = role.value if isinstance(role, MessageRole) else str(role)
+
+            # Handle content - can be string or List[ContentPart]
+            if isinstance(content, str):
+                anthropic_messages.append({"role": anthropic_role, "content": content})
+            else:
+                # Extract text from TextContentPart items only
+                text_parts = []
+                for part in content:
+                    if part.get("type") == "text":
+                        text_parts.append(part["text"])
+
+                # Join all text parts with newlines
+                combined_text = "\n".join(text_parts)
+                anthropic_messages.append({"role": anthropic_role, "content": combined_text})
+
+        return anthropic_messages
+
     def _build_messages(
         self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
     ) -> list[dict[str, Any]]:
@@ -226,7 +274,11 @@ class AnthropicAdapter(BaseLLMAdapter):
             return [{"role": "user", "content": prompt}]
 
         if isinstance(prompt, list):
-            # Already in Anthropic-compatible message format
+            # Check if this is List[Message] with MessageRole enum
+            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+                # Transform List[Message] to Anthropic format
+                return self._transform_messages_to_anthropic(prompt)
+            # Otherwise, already in Anthropic-compatible message format
             return prompt
 
         # Handle legacy MultimodalPrompt

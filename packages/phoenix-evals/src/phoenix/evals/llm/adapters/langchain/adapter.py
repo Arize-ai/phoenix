@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Type, Union, cast
 
 from phoenix.evals.legacy.templates import MultimodalPrompt
 
+from ...prompts import Message, MessageRole
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod, PromptLike
 from .factories import (
@@ -278,6 +279,50 @@ class LangChainModelAdapter(BaseLLMAdapter):
         else:
             return f"langchain-{type(self.client).__name__}"
 
+    def _transform_messages_to_langchain(self, messages: List[Message]) -> List[Any]:
+        """Transform List[Message] TypedDict to LangChain message objects.
+
+        Args:
+            messages: List of Message TypedDicts with MessageRole enum.
+
+        Returns:
+            List of LangChain message objects.
+        """
+        from langchain_core.messages import (  # type: ignore
+            AIMessage,
+            HumanMessage,
+            SystemMessage,
+        )
+
+        lc_messages = []
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+
+            # Extract text content
+            if isinstance(content, str):
+                text_content = content
+            else:
+                # Extract text from TextContentPart items only
+                text_parts = []
+                for part in content:
+                    if part.get("type") == "text":
+                        text_parts.append(part["text"])
+                text_content = "\n".join(text_parts)
+
+            # Map MessageRole enum to LangChain message classes
+            if role == MessageRole.USER:
+                lc_messages.append(HumanMessage(content=text_content))
+            elif role == MessageRole.AI:
+                lc_messages.append(AIMessage(content=text_content))
+            elif role == MessageRole.SYSTEM:
+                lc_messages.append(SystemMessage(content=text_content))
+            else:
+                # Default to HumanMessage for unknown roles
+                lc_messages.append(HumanMessage(content=text_content))
+
+        return lc_messages
+
     def _build_prompt(
         self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
     ) -> Union[str, List[Any]]:
@@ -285,7 +330,11 @@ class LangChainModelAdapter(BaseLLMAdapter):
             return prompt
 
         if isinstance(prompt, list):
-            # Convert OpenAI-style messages to LangChain messages
+            # Check if this is List[Message] with MessageRole enum
+            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+                # Transform List[Message] to LangChain format
+                return self._transform_messages_to_langchain(prompt)
+            # Convert OpenAI-style messages to LangChain messages (backward compatibility)
             try:
                 from langchain_community.adapters.openai import (
                     convert_openai_messages,  # type: ignore

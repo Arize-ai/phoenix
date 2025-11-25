@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type
 
-# Type alias for prompt formats
-PromptLike = Union[str, List[Dict[str, Any]]]
+from .prompts import PromptLike
 
 
 class ObjectGenerationMethod(str, Enum):

@@ -8,6 +8,7 @@ from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
 from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
 
+from ...prompts import Message, MessageRole
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod, PromptLike
 from .factories import OpenAIClientWrapper, create_azure_openai_client, create_openai_client
@@ -376,6 +377,49 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         return tool_definition
 
+    def _transform_messages_to_openai(self, messages: List[Message]) -> list[dict[str, Any]]:
+        """Transform List[Message] TypedDict to OpenAI message format.
+
+        Args:
+            messages: List of Message TypedDicts with MessageRole enum.
+
+        Returns:
+            List of OpenAI-formatted message dicts.
+        """
+        openai_messages: list[dict[str, Any]] = []
+
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+
+            # Map MessageRole enum to OpenAI role strings
+            if role == MessageRole.AI:
+                openai_role = "assistant"
+            elif role == MessageRole.USER:
+                openai_role = "user"
+            elif role == MessageRole.SYSTEM:
+                openai_role = "system"
+            else:
+                # Fallback for any unexpected roles
+                openai_role = role.value if isinstance(role, MessageRole) else str(role)
+
+            # Handle content - can be string or List[ContentPart]
+            if isinstance(content, str):
+                openai_messages.append({"role": openai_role, "content": content})
+            else:
+                # Extract text from TextContentPart items only
+                # For now, skip image_url parts (as per plan)
+                text_parts = []
+                for part in content:
+                    if part.get("type") == "text":
+                        text_parts.append(part["text"])
+
+                # Join all text parts with newlines
+                combined_text = "\n".join(text_parts)
+                openai_messages.append({"role": openai_role, "content": combined_text})
+
+        return openai_messages
+
     def _build_messages(
         self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
     ) -> list[dict[str, Any]]:
@@ -384,7 +428,11 @@ class OpenAIAdapter(BaseLLMAdapter):
             return [{"role": "user", "content": prompt}]
 
         if isinstance(prompt, list):
-            # Already in OpenAI message format
+            # Check if this is List[Message] with MessageRole enum
+            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+                # Transform List[Message] to OpenAI format
+                return self._transform_messages_to_openai(prompt)
+            # Otherwise, already in OpenAI message format (backward compatibility)
             return prompt
 
         # Handle legacy MultimodalPrompt

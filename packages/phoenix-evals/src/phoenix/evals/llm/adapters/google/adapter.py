@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Type, Union, cast
 
 from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 
+from ...prompts import Message, MessageRole
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod, PromptLike
 from .factories import GoogleGenAIClientWrapper, create_google_genai_client
@@ -318,6 +319,53 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         return genai.types.Tool(function_declarations=[function_declaration])
 
+    def _transform_messages_to_google(self, messages: List[Message]) -> List[Dict[str, Any]]:
+        """Transform List[Message] TypedDict to Google GenAI format.
+
+        Args:
+            messages: List of Message TypedDicts with MessageRole enum.
+
+        Returns:
+            List of Google-formatted message dicts with 'parts' structure.
+        """
+        google_messages = []
+
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+
+            # Map MessageRole enum to Google role strings
+            # Google uses "model" instead of "assistant"
+            if role == MessageRole.AI:
+                google_role = "model"
+            elif role == MessageRole.USER:
+                google_role = "user"
+            elif role == MessageRole.SYSTEM:
+                # Google doesn't have a system role, map to user
+                google_role = "user"
+            else:
+                # Fallback
+                google_role = role.value if isinstance(role, MessageRole) else str(role)
+                # Special case for "assistant" string
+                if google_role == "assistant":
+                    google_role = "model"
+
+            # Handle content - can be string or List[ContentPart]
+            if isinstance(content, str):
+                google_messages.append({"role": google_role, "parts": [{"text": content}]})
+            else:
+                # Extract text from TextContentPart items only
+                text_parts = []
+                for part in content:
+                    if part.get("type") == "text":
+                        text_parts.append(part["text"])
+
+                # Join all text parts with newlines
+                combined_text = "\n".join(text_parts)
+                google_messages.append({"role": google_role, "parts": [{"text": combined_text}]})
+
+        return google_messages
+
     def _build_content(
         self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
     ) -> Union[str, List[Dict[str, Any]]]:
@@ -325,7 +373,11 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             return prompt
 
         if isinstance(prompt, list):
-            # Convert OpenAI-style messages to Google format
+            # Check if this is List[Message] with MessageRole enum
+            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+                # Transform List[Message] to Google format
+                return self._transform_messages_to_google(prompt)
+            # Convert OpenAI-style messages to Google format (backward compatibility)
             # Google uses "model" instead of "assistant" for role
             google_messages = []
             for msg in prompt:
