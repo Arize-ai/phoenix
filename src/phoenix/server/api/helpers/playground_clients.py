@@ -688,31 +688,36 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         import boto3  # type: ignore[import-untyped]
 
         super().__init__(model=model, credentials=credentials)
-        self.region = model.region or "us-east-1"
+        region = model.region or "us-east-1"
         self.api = "converse"
-        self.custom_headers = model.custom_headers or {}
-        self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
+        custom_headers = model.custom_headers
+        aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
             "AWS_ACCESS_KEY_ID"
         )
-        self.aws_secret_access_key = _get_credential_value(
+        aws_secret_access_key = _get_credential_value(
             credentials, "AWS_SECRET_ACCESS_KEY"
         ) or getenv("AWS_SECRET_ACCESS_KEY")
-        self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
+        aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
             "AWS_SESSION_TOKEN"
         )
         self.model_name = model.name
-        self.client = boto3.client(
-            service_name="bedrock-runtime",
-            region_name=self.region,
-            aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
-            aws_session_token=self.aws_session_token,
+        session = boto3.Session(
+            region_name=region,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
         )
+        client = session.client(service_name="bedrock-runtime")
 
         # Add custom headers support via boto3 event system
-        if self.custom_headers:
-            self._setup_custom_headers(self.client, self.custom_headers)
+        if custom_headers:
 
+            def add_custom_headers(request: "AWSPreparedRequest", **kwargs: Any) -> None:
+                request.headers.update(custom_headers)
+
+            client.meta.events.register("before-send.*", add_custom_headers)
+
+        self.client = client
         self._attributes[LLM_PROVIDER] = "aws"
         self._attributes[LLM_SYSTEM] = "aws"
 
@@ -721,11 +726,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         """Setup custom headers using boto3's event system."""
         if not custom_headers:
             return
-
-        def add_custom_headers(request: "AWSPreparedRequest", **kwargs: Any) -> None:
-            request.headers.update(custom_headers)
-
-        client.meta.events.register("before-send.*", add_custom_headers)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -771,21 +771,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        import boto3
-
-        if (
-            self.client.meta.region_name != self.region
-        ):  # override the region if it's different from the default
-            self.client = boto3.client(
-                "bedrock-runtime",
-                region_name=self.region,
-                aws_access_key_id=self.aws_access_key_id,
-                aws_secret_access_key=self.aws_secret_access_key,
-                aws_session_token=self.aws_session_token,
-            )
-            # Re-setup custom headers for the new client
-            if self.custom_headers:
-                self._setup_custom_headers(self.client, self.custom_headers)
         if self.api == "invoke":
             async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
                 yield chunk
