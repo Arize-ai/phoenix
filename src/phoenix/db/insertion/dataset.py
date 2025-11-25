@@ -193,6 +193,10 @@ async def bulk_assign_examples_to_splits(
     if not assignments:
         return
 
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+    from typing_extensions import assert_never
+
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     records = [
         {
@@ -205,25 +209,17 @@ async def bulk_assign_examples_to_splits(
     # Use index_elements instead of constraint name because the table uses
     # a PrimaryKeyConstraint, not a unique constraint
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        from sqlalchemy.dialects.postgresql import insert as pg_insert
-
         stmt = pg_insert(models.DatasetSplitDatasetExample).values(records)
-        stmt = stmt.on_conflict_do_nothing(
-            index_elements=["dataset_split_id", "dataset_example_id"]
+        await session.execute(
+            stmt.on_conflict_do_nothing(index_elements=["dataset_split_id", "dataset_example_id"])
         )
     elif dialect is SupportedSQLDialect.SQLITE:
-        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
         stmt = sqlite_insert(models.DatasetSplitDatasetExample).values(records)
-        stmt = stmt.on_conflict_do_nothing(
-            index_elements=["dataset_split_id", "dataset_example_id"]
+        await session.execute(
+            stmt.on_conflict_do_nothing(index_elements=["dataset_split_id", "dataset_example_id"])
         )
     else:
-        from typing_extensions import assert_never
-
         assert_never(dialect)
-
-    await session.execute(stmt)
 
 
 class DatasetAction(Enum):
@@ -328,8 +324,14 @@ async def add_dataset_examples(
 
         # Collect split assignments for bulk insert later
         for split_name in example.splits:
-            if split_id := split_name_to_id.get(split_name):
+            split_id = split_name_to_id.get(split_name)
+            if split_id is not None:
                 split_assignments.append((dataset_example_id, split_id))
+            else:
+                logger.warning(
+                    f"Split '{split_name}' not found in mapping for {dataset_example_id=}, "
+                    "skipping assignment"
+                )
 
     # Bulk assign all examples to splits
     if split_assignments:
