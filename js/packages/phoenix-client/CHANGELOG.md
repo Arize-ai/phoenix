@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 5.5.0
+
+### Minor Changes
+
+- cb45336: support splits when creating dataset or adding examples
+
 ## 5.4.1
 
 ### Patch Changes
