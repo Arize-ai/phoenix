@@ -22,7 +22,6 @@ export interface HallucinationEvaluatorArgs<
 export type HallucinationEvaluationRecord = {
   input: string;
   output: string;
-  reference?: string;
   context?: string;
 };
 /**
