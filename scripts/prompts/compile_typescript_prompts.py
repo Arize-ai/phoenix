@@ -72,30 +72,14 @@ def convert_mustache_variables_to_camel_case(content: str) -> str:
     return re.sub(r"\{\{(\w+)\}\}", replace_var, content)
 
 
-def get_template_name(yaml_file_stem: str) -> str:
-    """
-    Converts YAML filename to TypeScript template name.
-    e.g., "HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG" -> "HALLUCINATION_TEMPLATE"
-    """
-    base = yaml_file_stem.replace("_CLASSIFICATION_EVALUATOR_CONFIG", "")
-    return f"{base}_TEMPLATE"
-
-
-def get_choices_name(template_name: str) -> str:
-    """
-    Gets the choices constant name from template name.
-    e.g., "HALLUCINATION_TEMPLATE" -> "HALLUCINATION_CHOICES"
-    """
-    return template_name.replace("_TEMPLATE", "_CHOICES")
-
-
-def get_template_file_contents(config: ClassificationEvaluatorConfig, yaml_file_stem: str) -> str:
+def get_template_file_contents(config: ClassificationEvaluatorConfig) -> str:
     """
     Gets the TypeScript code contents for a classification evaluator template.
     """
     template = Template(TEMPLATE_FILE_TEMPLATE)
-    template_name = get_template_name(yaml_file_stem)
-    choices_name = get_choices_name(template_name)
+    evaluator_name = config.name.upper()
+    template_name = f"{evaluator_name}_TEMPLATE"
+    choices_name = f"{evaluator_name}_CHOICES"
 
     # Convert choices to integers for TypeScript
     choices = {label: int(score) for label, score in config.choices.items()}
@@ -118,15 +102,16 @@ def get_template_file_contents(config: ClassificationEvaluatorConfig, yaml_file_
     return content
 
 
-def get_index_file_contents(yaml_file_stems: list[str]) -> str:
+def get_index_file_contents(configs: list[ClassificationEvaluatorConfig]) -> str:
     """
     Gets the index.ts file contents with exports for all templates.
     """
     template = Template(INDEX_TEMPLATE)
     exports = []
-    for stem in yaml_file_stems:
-        template_name = get_template_name(stem)
-        choices_name = get_choices_name(template_name)
+    for config in configs:
+        evaluator_name = config.name.upper()
+        template_name = f"{evaluator_name}_TEMPLATE"
+        choices_name = f"{evaluator_name}_CHOICES"
         file_name = template_name.lower()
         exports.append((template_name, choices_name, file_name))
 
@@ -152,7 +137,7 @@ if __name__ == "__main__":
 
     # Compile all YAML prompts to TypeScript
     yaml_files = list(prompts_dir.glob("*.yaml"))
-    yaml_file_stems = []
+    configs = []
 
     for yaml_file in sorted(yaml_files):
         # Read and validate YAML
@@ -160,17 +145,17 @@ if __name__ == "__main__":
             raw_config = yaml.safe_load(f)
         config = ClassificationEvaluatorConfig.model_validate(raw_config)
 
-        # Generate TypeScript code using YAML filename
-        yaml_stem = yaml_file.stem
-        content = get_template_file_contents(config, yaml_stem)
-        yaml_file_stems.append(yaml_stem)
+        # Generate TypeScript code using config name
+        content = get_template_file_contents(config)
+        configs.append(config)
 
         # Write to file
-        template_name = get_template_name(yaml_stem)
+        evaluator_name = config.name.upper()
+        template_name = f"{evaluator_name}_TEMPLATE"
         output_path = output_dir / f"{template_name.lower()}.ts"
         output_path.write_text(content, encoding="utf-8")
 
     # Generate the index.ts file
-    index_content = get_index_file_contents(yaml_file_stems)
+    index_content = get_index_file_contents(configs)
     index_path = output_dir / "index.ts"
     index_path.write_text(index_content, encoding="utf-8")
