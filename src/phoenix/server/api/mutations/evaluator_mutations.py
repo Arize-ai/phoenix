@@ -51,27 +51,17 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
         tuple of (evaluator_rowid, evaluator_kind)
     """
     type_name, evaluator_rowid = from_global_id(global_id)
-    if type_name not in (
-        LLMEvaluator.__name__,
-        CodeEvaluator.__name__,
-        BuiltInEvaluator.__name__,
-    ):
+    evaluator_types: dict[str, EvaluatorKind] = {
+        LLMEvaluator.__name__: "LLM",
+        CodeEvaluator.__name__: "CODE",
+        BuiltInEvaluator.__name__: "CODE",
+    }
+    if type_name not in evaluator_types:
         raise ValueError(
             f"Invalid evaluator type: {type_name}. "
-            f"Expected {LLMEvaluator.__name__}, {CodeEvaluator.__name__} "
-            f"or {BuiltInEvaluator.__name__}"
+            f"Expected one of {', '.join(evaluator_types.keys())}"
         )
-    # Convert class name to EvaluatorKind literal
-    evaluator_kind: EvaluatorKind
-    if type_name == BuiltInEvaluator.__name__:
-        evaluator_kind: EvaluatorKind = "CODE"
-    elif type_name == LLMEvaluator.__name__:
-        evaluator_kind = "LLM"
-    elif type_name == CodeEvaluator.__name__:
-        evaluator_kind = "CODE"
-    else:
-        assert_never(type_name)
-    return evaluator_rowid, evaluator_kind
+    return evaluator_rowid, evaluator_types[type_name]
 
 
 @strawberry.input
