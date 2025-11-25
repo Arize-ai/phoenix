@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.insertion.helpers import DataManipulationEvent
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.helpers import DataManipulationEvent, OnConflict, insert_on_conflict
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class ExampleContent:
     input: dict[str, Any] = field(default_factory=dict)
     output: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    splits: frozenset[str] = field(default_factory=frozenset)  # Set of split names
 
 
 Examples: TypeAlias = Iterable[ExampleContent]
@@ -138,6 +140,92 @@ async def insert_dataset_example_revision(
     return cast(DatasetExampleRevisionId, id_)
 
 
+async def bulk_create_dataset_splits(
+    session: AsyncSession,
+    split_names: set[str],
+    user_id: Optional[int] = None,
+) -> dict[str, int]:
+    """
+    Bulk create dataset splits using upsert pattern.
+    Returns a mapping of split name to split ID.
+    """
+    if not split_names:
+        return {}
+
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    records = [
+        {
+            "name": name,
+            "color": "#808080",  # Default gray color
+            "metadata_": {},
+            "user_id": user_id,
+        }
+        for name in split_names
+    ]
+
+    # Bulk upsert all splits - uses ON CONFLICT DO NOTHING to handle race conditions
+    stmt = insert_on_conflict(
+        *records,
+        table=models.DatasetSplit,
+        dialect=dialect,
+        unique_by=["name"],
+        on_conflict=OnConflict.DO_NOTHING,
+    )
+    await session.execute(stmt)
+
+    # Fetch all split IDs by name
+    result = await session.execute(
+        select(models.DatasetSplit.name, models.DatasetSplit.id).where(
+            models.DatasetSplit.name.in_(split_names)
+        )
+    )
+    return {name: split_id for name, split_id in result.all()}
+
+
+async def bulk_assign_examples_to_splits(
+    session: AsyncSession,
+    assignments: list[tuple[DatasetExampleId, int]],
+) -> None:
+    """
+    Bulk assign examples to splits.
+    assignments is a list of (dataset_example_id, dataset_split_id) tuples.
+    """
+    if not assignments:
+        return
+
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+    from typing_extensions import assert_never
+
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    records = [
+        {
+            "dataset_example_id": example_id,
+            "dataset_split_id": split_id,
+        }
+        for example_id, split_id in assignments
+    ]
+
+    # Use index_elements instead of constraint name because the table uses
+    # a PrimaryKeyConstraint, not a unique constraint
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        pg_stmt = pg_insert(models.DatasetSplitDatasetExample).values(records)
+        await session.execute(
+            pg_stmt.on_conflict_do_nothing(
+                index_elements=["dataset_split_id", "dataset_example_id"]
+            )
+        )
+    elif dialect is SupportedSQLDialect.SQLITE:
+        sqlite_stmt = sqlite_insert(models.DatasetSplitDatasetExample).values(records)
+        await session.execute(
+            sqlite_stmt.on_conflict_do_nothing(
+                index_elements=["dataset_split_id", "dataset_example_id"]
+            )
+        )
+    else:
+        assert_never(dialect)
+
+
 class DatasetAction(Enum):
     CREATE = "create"
     APPEND = "append"
@@ -187,6 +275,9 @@ async def add_dataset_examples(
     except Exception:
         logger.exception(f"Failed to insert dataset version for {dataset_id=}")
         raise
+
+    # Process examples and collect split assignments (by name, resolved to IDs after iteration)
+    split_assignments: list[tuple[DatasetExampleId, str]] = []
     for example in (await examples) if isinstance(examples, Awaitable) else examples:
         try:
             dataset_example_id = await insert_dataset_example(
@@ -213,6 +304,40 @@ async def add_dataset_examples(
                 f"{dataset_example_id=}"
             )
             raise
+
+        # Collect split assignments by name for bulk insert later
+        for split_name in example.splits:
+            split_assignments.append((dataset_example_id, split_name))
+
+    # Bulk create splits and assign examples after iteration
+    if split_assignments:
+        # Collect all unique split names
+        all_split_names = {name for _, name in split_assignments}
+        try:
+            split_name_to_id = await bulk_create_dataset_splits(
+                session=session,
+                split_names=all_split_names,
+                user_id=user_id,
+            )
+        except Exception:
+            logger.exception(f"Failed to bulk create dataset splits: {all_split_names}")
+            raise
+
+        # Convert name-based assignments to ID-based assignments
+        id_assignments = [
+            (example_id, split_name_to_id[split_name])
+            for example_id, split_name in split_assignments
+        ]
+
+        try:
+            await bulk_assign_examples_to_splits(
+                session=session,
+                assignments=id_assignments,
+            )
+        except Exception:
+            logger.exception("Failed to bulk assign examples to splits")
+            raise
+
     return DatasetExampleAdditionEvent(dataset_id=dataset_id, dataset_version_id=dataset_version_id)
 
 
