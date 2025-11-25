@@ -62,7 +62,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     );
 
     expect(result.label).toBe("factual");
-    expect(result.score).toBe(1); // factual = 1 in default choices
+    expect(result.score).toBe(0); // factual = 1 in default choices
     expect(result.explanation).toBe(
       "The answer is based on the reference text"
     );
@@ -79,15 +79,15 @@ Is the answer hallucinated? Respond with "yes" or "no".
 
   it("should use default optimization direction from config", () => {
     const evaluator = createHallucinationEvaluator({ model });
-    expect(evaluator.optimizationDirection).toBe("MAXIMIZE");
+    expect(evaluator.optimizationDirection).toBe("MINIMIZE");
   });
 
   it("should allow overriding optimization direction", () => {
     const evaluator = createHallucinationEvaluator({
       model,
-      optimizationDirection: "MINIMIZE",
+      optimizationDirection: "MAXIMIZE",
     });
-    expect(evaluator.optimizationDirection).toBe("MINIMIZE");
+    expect(evaluator.optimizationDirection).toBe("MAXIMIZE");
   });
 
   it("should support custom template", async () => {

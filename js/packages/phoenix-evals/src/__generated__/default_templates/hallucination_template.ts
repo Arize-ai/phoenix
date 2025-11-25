@@ -37,8 +37,8 @@ Is the response above factual or hallucinated based on the query and context?`,
 ];
 
 export const HALLUCINATION_CHOICES = {
-  "hallucinated": 0,
-  "factual": 1
+  "hallucinated": 1,
+  "factual": 0
 };
 
-export const HALLUCINATION_OPTIMIZATION_DIRECTION = "MAXIMIZE";
+export const HALLUCINATION_OPTIMIZATION_DIRECTION = "MINIMIZE";
