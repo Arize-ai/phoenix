@@ -1,13 +1,15 @@
 // This file is generated. Do not edit by hand.
 
-import type { PromptTemplate } from "../../types/templating";
+import type { ClassificationEvaluatorConfig } from "../types";
 
-export const HALLUCINATION_NAME = "hallucination";
-
-export const HALLUCINATION_TEMPLATE: PromptTemplate = [
-  {
-    role: "user",
-    content: `
+export const HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluatorConfig = {
+  name: "hallucination",
+  description: "A specialized evaluator for detecting hallucinations in grounded LLM responses.",
+  optimizationDirection: "MINIMIZE",
+  template: [
+    {
+      role: "user",
+      content: `
 In this task, you will be presented with a query, some context and a response. The response
 is generated to the question based on the context. The response may contain false
 information. You must use the context to determine if the response to the question
@@ -32,13 +34,12 @@ response.
 ************
 [END DATA]
 
-Is the response above factual or hallucinated based on the query and context?`,
-  },
-];
-
-export const HALLUCINATION_CHOICES = {
+Is the response above factual or hallucinated based on the query and context?
+`,
+    },
+  ],
+  choices: {
   "hallucinated": 1,
   "factual": 0
+},
 };
-
-export const HALLUCINATION_OPTIMIZATION_DIRECTION = "MINIMIZE";

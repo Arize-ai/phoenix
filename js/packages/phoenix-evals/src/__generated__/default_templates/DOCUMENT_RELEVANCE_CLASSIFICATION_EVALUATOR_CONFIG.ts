@@ -1,13 +1,15 @@
 // This file is generated. Do not edit by hand.
 
-import type { PromptTemplate } from "../../types/templating";
+import type { ClassificationEvaluatorConfig } from "../types";
 
-export const DOCUMENT_RELEVANCE_NAME = "document_relevance";
-
-export const DOCUMENT_RELEVANCE_TEMPLATE: PromptTemplate = [
-  {
-    role: "user",
-    content: `
+export const DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluatorConfig = {
+  name: "document_relevance",
+  description: "A specialized evaluator for determining document relevance to a given question.",
+  optimizationDirection: "MAXIMIZE",
+  template: [
+    {
+      role: "user",
+      content: `
 You are comparing a document to a question and trying to determine
 if the document text contains information relevant to answering the
 question. Here is the data:
@@ -26,13 +28,12 @@ question. Please focus on whether the very specific question can be
 answered by the information in the document text. Your response must be
 either "relevant" or "unrelated". "unrelated" means that the document
 text does not contain an answer to the question. "relevant" means the
-document text contains an answer to the question.`,
-  },
-];
-
-export const DOCUMENT_RELEVANCE_CHOICES = {
+document text contains an answer to the question.
+`,
+    },
+  ],
+  choices: {
   "relevant": 1,
   "unrelated": 0
+},
 };
-
-export const DOCUMENT_RELEVANCE_OPTIMIZATION_DIRECTION = "MAXIMIZE";

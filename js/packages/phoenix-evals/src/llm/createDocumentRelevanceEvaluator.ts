@@ -1,9 +1,4 @@
-import {
-  DOCUMENT_RELEVANCE_CHOICES,
-  DOCUMENT_RELEVANCE_NAME,
-  DOCUMENT_RELEVANCE_OPTIMIZATION_DIRECTION,
-  DOCUMENT_RELEVANCE_TEMPLATE,
-} from "../__generated__/default_templates";
+import { DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG } from "../__generated__/default_templates";
 import { CreateClassificationEvaluatorArgs } from "../types/evals";
 
 import { ClassificationEvaluator } from "./ClassificationEvaluator";
@@ -68,10 +63,10 @@ export function createDocumentRelevanceEvaluator<
   args: DocumentRelevanceEvaluatorArgs<RecordType>
 ): ClassificationEvaluator<RecordType> {
   const {
-    choices = DOCUMENT_RELEVANCE_CHOICES,
-    promptTemplate = DOCUMENT_RELEVANCE_TEMPLATE,
-    optimizationDirection = DOCUMENT_RELEVANCE_OPTIMIZATION_DIRECTION,
-    name = DOCUMENT_RELEVANCE_NAME,
+    choices = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.choices,
+    promptTemplate = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.template,
+    optimizationDirection = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.optimizationDirection,
+    name = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.name,
     ...rest
   } = args;
   return createClassificationEvaluator<RecordType>({
