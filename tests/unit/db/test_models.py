@@ -765,12 +765,12 @@ class TestEvaluatorPolymorphism:
                     models.DatasetsEvaluators(
                         dataset_id=dataset.id,
                         evaluator_id=eval_1.id,
-                        input_config={},
+                        input_mapping={},
                     ),
                     models.DatasetsEvaluators(
                         dataset_id=dataset.id,
                         evaluator_id=eval_2.id,
-                        input_config={},
+                        input_mapping={},
                     ),
                 ]
             )
@@ -918,7 +918,7 @@ class TestEvaluatorPolymorphism:
             dataset_evaluator = models.DatasetsEvaluators(
                 dataset_id=dataset_id,
                 evaluator_id=new_eval_id,
-                input_config={},
+                input_mapping={},
             )
             session.add(dataset_evaluator)
 

@@ -1,4 +1,4 @@
-import { ComponentProps, useMemo } from "react";
+import { ComponentProps, useCallback, useMemo, useState } from "react";
 import {
   Autocomplete,
   Input,
@@ -50,6 +50,10 @@ type DatasetSelectWithSplitsProps = {
   placement?: ComponentProps<typeof MenuContainer>["placement"];
   shouldFlip?: ComponentProps<typeof MenuContainer>["shouldFlip"];
   isDisabled?: boolean;
+  isReadOnly?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideSplits?: boolean;
 };
 
 type SplitItem = {
@@ -74,6 +78,19 @@ type DatasetItem = {
 };
 
 export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
+  const [internalOpen, setInternalOpen] = useState(props.isOpen ?? false);
+  const _onOpenChange = props.onOpenChange;
+  const isOpen = props.isOpen ?? internalOpen;
+  const onOpenChange = useCallback(
+    (open: boolean) => {
+      if (_onOpenChange) {
+        _onOpenChange(open);
+      } else {
+        setInternalOpen(open);
+      }
+    },
+    [_onOpenChange]
+  );
   const { datasetId, splitIds = [] } = props.value || {};
   const data = useLazyLoadQuery<DatasetSelectWithSplitsQuery>(
     graphql`
@@ -149,8 +166,12 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
   );
 
   return (
-    <MenuTrigger>
+    <MenuTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <Button
+        css={css`
+          min-width: 0 !important;
+          justify-content: space-between;
+        `}
         data-testid="dataset-picker"
         className="dataset-picker-button"
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
@@ -222,7 +243,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               selectedSplitIds,
             }) => {
               const isDisabled = exampleCount === 0;
-              const hasSplits = splits.length > 0;
+              const hasSplits = !props.hideSplits && splits.length > 0;
 
               // If no splits, just select the dataset directly
               if (!hasSplits) {

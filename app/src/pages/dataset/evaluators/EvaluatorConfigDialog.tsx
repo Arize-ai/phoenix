@@ -28,6 +28,7 @@ import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
@@ -39,6 +40,7 @@ import {
 import { EvaluatorConfigDialogAssignEvaluatorToDatasetMutation } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialogAssignEvaluatorToDatasetMutation.graphql";
 import { promptVersionToInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { extractVariablesFromInstance } from "@phoenix/pages/playground/playgroundUtils";
+import { jsonSchemaZodSchema } from "@phoenix/schemas";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type OutputConfig = NonNullable<
@@ -125,6 +127,12 @@ function EvaluatorConfigDialogContent({
             name
             kind
           }
+          ... on BuiltInEvaluator {
+            inputSchema
+          }
+          ... on CodeEvaluator {
+            inputSchema
+          }
           ... on LLMEvaluator {
             outputConfig {
               name
@@ -181,41 +189,68 @@ function EvaluatorConfigDialogContent({
       }
     `);
 
-  const [promptVariables, setPromptVariables] = useState<string[]>([]);
+  /**
+   * The source of variables that need to be input mapped will change based on the evaluator kind.
+   * Kind:
+   * - LLM: The prompt variables
+   * - CODE: evaluator.inputSchema json schema arguments
+   *
+   * @todo: implement this
+   */
+  const [inputVariables, setInputVariables] = useState<string[]>([]);
 
-  const updatePromptVariables = useCallback(async () => {
-    if (!evaluator.prompt || !evaluator.promptVersion) {
-      return;
+  const updateInputVariables = useCallback(async () => {
+    setInputVariables([]);
+    if (evaluator.kind === "LLM") {
+      if (!evaluator.prompt || !evaluator.promptVersion) {
+        return;
+      }
+      const instance = promptVersionToInstance({
+        promptId: evaluator.prompt.id,
+        promptName: evaluator.prompt.name,
+        promptVersionRef: evaluator.promptVersion,
+        promptVersionTag: null,
+      });
+      const promptVariables = extractVariablesFromInstance({
+        instance: { id: 0, ...instance },
+        templateFormat: evaluator.promptVersion.templateFormat,
+      });
+      setInputVariables(promptVariables);
+    } else if (evaluator.kind === "CODE") {
+      if (!evaluator.inputSchema) {
+        return;
+      }
+      const inputSchema = jsonSchemaZodSchema.safeParse(evaluator.inputSchema);
+      if (!inputSchema.success) {
+        return;
+      }
+      if (!inputSchema.data.properties) {
+        return;
+      }
+      const inputVariables = Object.keys(inputSchema.data.properties);
+      setInputVariables(inputVariables);
     }
-    const instance = promptVersionToInstance({
-      promptId: evaluator.prompt.id,
-      promptName: evaluator.prompt.name,
-      promptVersionRef: evaluator.promptVersion,
-      promptVersionTag: null,
-    });
-    const promptVariables = extractVariablesFromInstance({
-      instance: { id: 0, ...instance },
-      templateFormat: evaluator.promptVersion.templateFormat,
-    });
-    setPromptVariables(promptVariables);
   }, [evaluator]);
 
   useEffect(() => {
-    updatePromptVariables();
-  }, [updatePromptVariables]);
+    updateInputVariables();
+  }, [updateInputVariables]);
+
+  const [evaluatorInput, setEvaluatorInput] = useState<EvaluatorInput | null>(
+    null
+  );
 
   const onAddEvaluator = () => {
     if (!isInputMappingValid) {
       return;
     }
-    // TODO: save input mapping
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const inputMapping = getInputMappingValues();
+    const pathMapping = getInputMappingValues().inputMapping;
     assignEvaluatorToDataset({
       variables: {
         input: {
           datasetId: dataset.id,
           evaluatorId: evaluator.id,
+          inputMapping: { pathMapping },
         },
         connectionIds: [datasetEvaluatorsTableConnection],
         datasetId: dataset.id,
@@ -258,22 +293,24 @@ function EvaluatorConfigDialogContent({
               direction="row"
               alignItems="center"
               gap="size-25"
-              flexBasis="100%"
               minWidth={0}
             >
               <Icon svg={<Icons.Scale />} />
-              <Truncate maxWidth="100%">{evaluator.name}</Truncate>
+              <Truncate maxWidth="100%" title={evaluator.name}>
+                {evaluator.name}
+              </Truncate>
             </Flex>
             to
             <Flex
               direction="row"
               alignItems="center"
               gap="size-25"
-              flexBasis="100%"
               minWidth={0}
             >
               <Icon svg={<Icons.DatabaseOutline />} />
-              <Truncate maxWidth="100%">{dataset.name}</Truncate>
+              <Truncate maxWidth="100%" title={dataset.name}>
+                {dataset.name}
+              </Truncate>
             </Flex>
           </Flex>
         </DialogTitle>
@@ -344,15 +381,16 @@ function EvaluatorConfigDialogContent({
                 onSelectDataset={() => {}}
                 selectedSplitIds={[]}
                 onSelectSplits={() => {}}
+                selectedExampleId={selectedExampleId}
                 onSelectExampleId={setSelectedExampleId}
-                assignEvaluatorToDataset
                 datasetSelectIsDisabled
+                onEvaluatorInputObjectChange={setEvaluatorInput}
               />
             </Flex>
             <EvaluatorInputMapping
-              exampleId={selectedExampleId ?? undefined}
               control={inputMappingControl}
-              variables={promptVariables}
+              variables={inputVariables}
+              evaluatorInput={evaluatorInput}
             />
           </Flex>
         </Flex>
