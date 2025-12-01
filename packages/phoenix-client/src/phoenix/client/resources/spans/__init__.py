@@ -256,7 +256,7 @@ class Spans:
 
         if spans_dataframe is not None:
             span_ids_raw: list[str] = cast(
-                list[str], spans_dataframe["context.span_id"].dropna().tolist()
+                list[str], spans_dataframe["context.span_id"].dropna().tolist()  # pyright: ignore[reportUnknownMemberType]
             )
             span_ids_list = list({*span_ids_raw})
         elif span_ids is not None:
@@ -308,7 +308,7 @@ class Spans:
 
         df = pd.DataFrame(annotations)
         df = _flatten_nested_column(df, "result")
-        df.rename(columns={"name": "annotation_name"}, inplace=True)
+        df.rename(columns={"name": "annotation_name"}, inplace=True)  # pyright: ignore[reportUnknownMemberType]
         if not df.empty:
             df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
         return df
@@ -1427,7 +1427,7 @@ class AsyncSpans:
 
         if spans_dataframe is not None:
             span_ids_raw: list[str] = cast(
-                list[str], spans_dataframe["context.span_id"].dropna().tolist()
+                list[str], spans_dataframe["context.span_id"].dropna().tolist()  # pyright: ignore[reportUnknownMemberType]
             )
             span_ids_list = list({*span_ids_raw})
         elif span_ids is not None:
@@ -1479,7 +1479,7 @@ class AsyncSpans:
 
         df = pd.DataFrame(annotations)
         df = _flatten_nested_column(df, "result")
-        df.rename(columns={"name": "annotation_name"}, inplace=True)
+        df.rename(columns={"name": "annotation_name"}, inplace=True)  # pyright: ignore[reportUnknownMemberType]
         if not df.empty:
             df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
         return df
@@ -2512,9 +2512,9 @@ def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFram
         # Flatten the nested dictionary column and prefix each resulting column with
         # the original column name (e.g., "result.label").
         nested_df = pd.json_normalize(df[column_name]).rename(  # type: ignore[arg-type]
-            columns=lambda col: f"{column_name}.{col}"
+            columns=lambda col: f"{column_name}.{col}"  # pyright: ignore[reportUnknownLambdaType]
         )
-        df = pd.concat([df.drop(columns=[column_name]), nested_df], axis=1)
+        df = pd.concat([df.drop(columns=[column_name]), nested_df], axis=1)  # pyright: ignore[reportUnknownMemberType]
     return df
 
 
