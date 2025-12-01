@@ -199,19 +199,7 @@ export function PlaygroundDatasetSection({
                   evaluators as Mutable<(typeof evaluators)[number]>[]
                 }
                 selectedIds={selectedEvaluatorIds}
-                onSelectionChange={(id: string) => {
-                  const evaluator = evaluators.find((e) => e.id === id);
-                  if (evaluator?.isAssignedToDataset) {
-                    setSelectedEvaluatorIds((prev) => {
-                      if (prev.includes(id)) {
-                        return prev.filter((evaluatorId) => evaluatorId !== id);
-                      }
-                      return [...prev, id];
-                    });
-                  } else {
-                    setAddingEvaluatorId(id);
-                  }
-                }}
+                onSelectionChange={setSelectedEvaluatorIds}
                 addNewEvaluatorLink={prependBasename(`/evaluators/new`)}
               />
               {experimentIds.length > 0 && (

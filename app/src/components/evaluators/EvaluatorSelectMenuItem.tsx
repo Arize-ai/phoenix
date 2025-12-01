@@ -20,14 +20,12 @@ export type EvaluatorItem = {
 
 type EvaluatorMenuItemProps = {
   evaluator: EvaluatorItem;
-  onSelectionChange: () => void;
   isSelected?: boolean;
   onEdit: () => void;
 };
 
 export function EvaluatorSelectMenuItem({
   evaluator,
-  onSelectionChange,
   isSelected,
   onEdit,
 }: EvaluatorMenuItemProps) {
@@ -49,7 +47,6 @@ export function EvaluatorSelectMenuItem({
     <GridListItem
       id={evaluator.id}
       textValue={name}
-      onPress={onSelectionChange}
       isDisabled={alreadyAdded}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}

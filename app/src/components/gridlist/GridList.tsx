@@ -1,4 +1,4 @@
-import { ComponentProps, ReactNode, Ref } from "react";
+import { ComponentProps, ReactNode, Ref, useState } from "react";
 import {
   GridList as AriaGridList,
   GridListHeader,
@@ -81,31 +81,39 @@ const GridListItemContent = ({
   selectionMode?: ComponentProps<typeof GridList>["selectionMode"];
   selectionBehavior?: ComponentProps<typeof GridList>["selectionBehavior"];
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   return (
-    <Flex
-      direction="row"
-      alignItems="center"
-      gap="size-100"
-      minWidth={0}
-      flex={1}
-      className="GridListItem__content"
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      css={css`
+        flex: 1;
+        min-width: 0;
+      `}
     >
-      {selectionMode === "multiple" && selectionBehavior === "toggle" && (
-        <Checkbox slot="selection" />
-      )}
       <Flex
-        direction="column"
-        gap="var(--ac-global-dimension-static-size-25)"
-        minWidth={0}
-        flex={1}
-        css={css`
-          padding: var(--ac-global-menu-item-gap);
-        `}
+        direction="row"
+        alignItems="center"
+        gap="size-100"
+        className="GridListItem__content"
       >
-        {children}
-        {subtitle}
+        {selectionMode === "multiple" && selectionBehavior === "toggle" && (
+          <Checkbox slot="selection" isHovered={isHovered} />
+        )}
+        <Flex
+          direction="column"
+          gap="var(--ac-global-dimension-static-size-25)"
+          minWidth={0}
+          flex={1}
+          css={css`
+            padding: var(--ac-global-menu-item-gap);
+          `}
+        >
+          {children}
+          {subtitle}
+        </Flex>
       </Flex>
-    </Flex>
+    </div>
   );
 };
 

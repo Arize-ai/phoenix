@@ -52,9 +52,7 @@ export const gridListItemCss = css`
     }
   }
 
-  &[data-open],
-  &[data-focused],
-  &[data-hovered] {
+  &[data-focus-visible] {
     .GridListItem__content {
       background-color: var(--ac-global-menu-item-background-color-hover);
     }

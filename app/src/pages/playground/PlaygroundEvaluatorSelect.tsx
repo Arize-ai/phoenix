@@ -27,11 +27,12 @@ import {
   EvaluatorItem,
   EvaluatorSelectMenuItem,
 } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import { isStringArray } from "@phoenix/typeUtils";
 
 type PlaygroundEvaluatorSelectProps = {
   evaluators: (EvaluatorItem & { isAssignedToDataset: boolean })[];
   selectedIds?: string[];
-  onSelectionChange: (id: string) => void;
+  onSelectionChange: (keys: string[]) => void;
   addNewEvaluatorLink: string;
 };
 
@@ -69,6 +70,13 @@ export function PlaygroundEvaluatorSelect(
             <GridList
               selectionMode="multiple"
               selectedKeys={selectedIds}
+              onSelectionChange={(keys) => {
+                const keysArray = Array.from(keys);
+                if (!isStringArray(keysArray)) {
+                  return;
+                }
+                onSelectionChange(keysArray);
+              }}
               items={evaluators}
               renderEmptyState={() => (
                 <Text color="grey-300" size="S">
@@ -85,7 +93,6 @@ export function PlaygroundEvaluatorSelect(
                   <EvaluatorSelectMenuItem
                     key={evaluator.id}
                     evaluator={evaluator}
-                    onSelectionChange={() => onSelectionChange(evaluator.id)}
                     isSelected={selectedIds?.includes(evaluator.id) ?? false}
                     onEdit={() => onEdit(evaluator.id)}
                   />
