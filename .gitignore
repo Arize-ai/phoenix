@@ -78,6 +78,9 @@ js/examples/notebooks/**/deno.lock
 # scrtach work
 /.scratch/
 
+# git worktrees
+/worktrees/
+
 # uv
 uv.lock
 packages/phoenix-otel/docs/build/
