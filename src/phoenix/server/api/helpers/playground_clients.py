@@ -795,9 +795,15 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         converse_messages = self._build_converse_messages(messages)
 
         inference_config = {}
-        if "max_tokens" in invocation_parameters and invocation_parameters["max_tokens"] is not None:
+        if (
+            "max_tokens" in invocation_parameters
+            and invocation_parameters["max_tokens"] is not None
+        ):
             inference_config["maxTokens"] = invocation_parameters["max_tokens"]
-        if "temperature" in invocation_parameters and invocation_parameters["temperature"] is not None:
+        if (
+            "temperature" in invocation_parameters
+            and invocation_parameters["temperature"] is not None
+        ):
             inference_config["temperature"] = invocation_parameters["temperature"]
         if "top_p" in invocation_parameters and invocation_parameters["top_p"] is not None:
             inference_config["topP"] = invocation_parameters["top_p"]
@@ -944,9 +950,15 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             "tools": tools,
         }
 
-        if "max_tokens" in invocation_parameters and invocation_parameters["max_tokens"] is not None:
+        if (
+            "max_tokens" in invocation_parameters
+            and invocation_parameters["max_tokens"] is not None
+        ):
             bedrock_params["max_tokens"] = invocation_parameters["max_tokens"]
-        if "temperature" in invocation_parameters and invocation_parameters["temperature"] is not None:
+        if (
+            "temperature" in invocation_parameters
+            and invocation_parameters["temperature"] is not None
+        ):
             bedrock_params["temperature"] = invocation_parameters["temperature"]
         if "top_p" in invocation_parameters and invocation_parameters["top_p"] is not None:
             bedrock_params["top_p"] = invocation_parameters["top_p"]
