@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a9d3aab95b7f57860f0d9109fbd8a428>>
+ * @generated SignedSource<<e977d08511558293d8442ad3db4b2932>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,6 @@ export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
-  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
@@ -38,13 +37,28 @@ export type ChatCompletionMessageInput = {
   toolCalls?: ReadonlyArray<any> | null;
 };
 export type GenerativeModelInput = {
+  builtin?: GenerativeModelBuiltinProviderInput | null;
+  custom?: GenerativeModelCustomProviderInput | null;
+};
+export type GenerativeModelBuiltinProviderInput = {
   apiVersion?: string | null;
   baseUrl?: string | null;
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   customHeaders?: any | null;
   endpoint?: string | null;
   name: string;
   providerKey: GenerativeProviderKey;
   region?: string | null;
+};
+export type GenerativeCredentialInput = {
+  envVarName: string;
+  value: string;
+};
+export type GenerativeModelCustomProviderInput = {
+  extraHeaders?: any | null;
+  modelName: string;
+  provider: string;
+  providerId: string;
 };
 export type InvocationParameterInput = {
   canonicalName?: CanonicalParameterName | null;
@@ -56,10 +70,6 @@ export type InvocationParameterInput = {
   valueJson?: any | null;
   valueString?: string | null;
   valueStringList?: ReadonlyArray<string> | null;
-};
-export type GenerativeCredentialInput = {
-  envVarName: string;
-  value: string;
 };
 export type PlaygroundEvaluatorInput = {
   id: string;

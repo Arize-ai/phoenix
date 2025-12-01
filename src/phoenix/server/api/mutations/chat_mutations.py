@@ -33,14 +33,13 @@ from phoenix.db.helpers import (
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundClientCredential,
     PlaygroundStreamingClient,
+    get_playground_client,
     initialize_playground_clients,
 )
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.playground_spans import (
     input_value_and_mime_type,
     llm_input_messages,
@@ -141,30 +140,7 @@ class ChatCompletionMutationMixin:
         info: Info[Context, None],
         input: ChatCompletionOverDatasetInput,
     ) -> ChatCompletionOverDatasetMutationPayload:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            credentials = None
-            if input.credentials:
-                credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
+        llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         dataset_version_id = (
             from_global_id_with_expected_type(
@@ -243,7 +219,6 @@ class ChatCompletionMutationMixin:
                         llm_client,
                         ChatCompletionInput(
                             model=input.model,
-                            credentials=input.credentials,
                             messages=input.messages,
                             tools=input.tools,
                             invocation_parameters=input.invocation_parameters,
@@ -353,31 +328,7 @@ class ChatCompletionMutationMixin:
     async def chat_completion(
         cls, info: Info[Context, None], input: ChatCompletionInput
     ) -> ChatCompletionMutationPayload:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            credentials = None
-            if input.credentials:
-                credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
-
+        llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
         batch_size = 3
         for batch in _get_batches(range(1, input.repetitions + 1), batch_size):
@@ -445,10 +396,15 @@ class ChatCompletionMutationMixin:
         text_content = ""
         tool_calls: dict[str, ChatCompletionToolCall] = {}
         events = []
+        if input.model.builtin:
+            model_name = input.model.builtin.name
+        else:
+            assert input.model.custom
+            model_name = input.model.custom.model_name
         attributes.update(
             chain(
                 llm_span_kind(),
-                llm_model_name(input.model.name),
+                llm_model_name(model_name),
                 llm_tools(input.tools or []),
                 llm_input_messages(messages),
                 llm_invocation_parameters(invocation_parameters),
