@@ -933,7 +933,11 @@ async def test_secrets_pagination(
             secret: node {
               id
               key
-              value
+              value {
+                ... on DecryptedSecret {
+                  value
+                }
+              }
             }
             cursor
           }
@@ -958,7 +962,7 @@ async def test_secrets_pagination(
     assert response.data is not None
     first_page = response.data["secrets"]
     first_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]) for edge in first_page["edges"]
+        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in first_page["edges"]
     ]
     assert first_page_secrets == [("secret-a", "value-a"), ("secret-b", "value-b")]
     assert first_page["pageInfo"]["hasNextPage"] is True
@@ -974,7 +978,7 @@ async def test_secrets_pagination(
     assert response.data is not None
     second_page = response.data["secrets"]
     second_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]) for edge in second_page["edges"]
+        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in second_page["edges"]
     ]
     assert second_page_secrets == [("secret-c", "value-c"), ("secret-d", "value-d")]
     assert second_page["pageInfo"]["hasNextPage"] is True
@@ -990,7 +994,7 @@ async def test_secrets_pagination(
     assert response.data is not None
     third_page = response.data["secrets"]
     third_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]) for edge in third_page["edges"]
+        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in third_page["edges"]
     ]
     assert third_page_secrets == [("secret-e", "value-e"), ("secret-f", "value-f")]
     assert third_page["pageInfo"]["hasNextPage"] is False
@@ -1006,7 +1010,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     filtered_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"])
+        (edge["secret"]["key"], edge["secret"]["value"]["value"])
         for edge in response.data["secrets"]["edges"]
     ]
     assert filtered_secrets == [
@@ -1032,7 +1036,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     mixed_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"])
+        (edge["secret"]["key"], edge["secret"]["value"]["value"])
         for edge in response.data["secrets"]["edges"]
     ]
     assert mixed_secrets == [("secret-b", "value-b")]

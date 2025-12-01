@@ -1638,7 +1638,7 @@ class TestSecretsCRUDAndValueVisibility:
     - Only admins can create/update secrets (upsertSecret mutation)
     - Only admins can delete secrets (deleteSecret mutation)
     - Admins see decrypted secret values (DecryptedSecret)
-    - Non-admins (Members, Viewers) see masked values (HiddenSecret)
+    - Non-admins (Members, Viewers) see masked values (MaskedSecret)
     """
 
     QUERY = """
@@ -1663,7 +1663,7 @@ class TestSecretsCRUDAndValueVisibility:
               ... on DecryptedSecret {
                 value
               }
-              ... on HiddenSecret {
+              ... on MaskedSecret {
                 maskedValue
               }
               ... on UnparsableSecret {
@@ -1686,7 +1686,7 @@ class TestSecretsCRUDAndValueVisibility:
         - Members/Viewers cannot upsert or delete secrets (admin-only)
         - Admin can upsert and delete secrets
         - Admin sees DecryptedSecret with actual value
-        - Members/Viewers see HiddenSecret with masked value
+        - Members/Viewers see MaskedSecret with masked value
         """
         admin = _get_user(_app, _ADMIN)
         member = _get_user(_app, _MEMBER)
@@ -1743,7 +1743,7 @@ class TestSecretsCRUDAndValueVisibility:
             )
             secret = response["data"]["node"]
             assert secret["key"] == secret_key
-            assert secret["value"]["__typename"] == "HiddenSecret"
+            assert secret["value"]["__typename"] == "MaskedSecret"
             assert secret["value"]["maskedValue"] == "*" * 32
 
         # Member and Viewer should not be able to delete the secret

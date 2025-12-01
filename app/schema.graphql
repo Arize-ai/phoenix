@@ -2214,10 +2214,6 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
-type HiddenSecret {
-  maskedValue: String!
-}
-
 scalar Identifier
 
 type InferenceModel {
@@ -2366,6 +2362,10 @@ type LLMEvaluatorMutationPayload {
 type LabelFraction {
   label: String!
   fraction: Float!
+}
+
+type MaskedSecret {
+  maskedValue: String!
 }
 
 enum MimeType {
@@ -3217,7 +3217,7 @@ type RemoveAnnotationConfigFromProjectPayload {
   project: Project!
 }
 
-union ResolvedSecret = DecryptedSecret | UnparsableSecret | HiddenSecret
+union ResolvedSecret = DecryptedSecret | UnparsableSecret | MaskedSecret
 
 type ResponseFormat {
   definition: JSON!

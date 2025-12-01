@@ -25,13 +25,13 @@ class UnparsableSecret:
 
 
 @strawberry.type
-class HiddenSecret:
+class MaskedSecret:
     masked_value: str = strawberry.field(default="*" * 32)
 
 
 ResolvedSecret: TypeAlias = Annotated[
-    DecryptedSecret | UnparsableSecret | HiddenSecret,
-    strawberry.union("ResolvedSecret", [DecryptedSecret, UnparsableSecret, HiddenSecret]),
+    DecryptedSecret | UnparsableSecret | MaskedSecret,
+    strawberry.union("ResolvedSecret", [DecryptedSecret, UnparsableSecret, MaskedSecret]),
 ]
 
 
@@ -62,7 +62,7 @@ class Secret(Node):
             return UnparsableSecret(parse_error=str(e))
         if not info.context.auth_enabled or info.context.user.is_admin:
             return DecryptedSecret(value=decrypted_value)
-        return HiddenSecret()
+        return MaskedSecret()
 
     @strawberry.field
     async def updated_at(self, info: Info[Context, None]) -> datetime:
