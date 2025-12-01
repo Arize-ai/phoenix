@@ -17,6 +17,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -917,6 +918,146 @@ async def experiment_run_metric_comparison_experiments(
         await session.commit()
 
         return base_experiment, (compare_experiment_1, compare_experiment_2)
+
+
+async def test_secrets_pagination(
+    gql_client: AsyncGraphQLClient,
+    secrets_for_pagination: Any,
+) -> None:
+    """Test that secrets query supports pagination and keys filter correctly."""
+    query = """
+      query ($first: Int, $after: String, $keys: [String!]) {
+        secrets(first: $first, after: $after, keys: $keys) {
+          edges {
+            secret: node {
+              id
+              key
+              value {
+                ... on DecryptedSecret {
+                  value
+                }
+              }
+            }
+            cursor
+          }
+          pageInfo {
+            hasNextPage
+            hasPreviousPage
+            startCursor
+            endCursor
+          }
+        }
+      }
+    """
+
+    # ===== PAGINATION TESTS =====
+
+    # Test first page with limit of 2
+    response = await gql_client.execute(
+        query=query,
+        variables={"first": 2, "after": None},
+    )
+    assert not response.errors
+    assert response.data is not None
+    first_page = response.data["secrets"]
+    first_page_secrets = [
+        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in first_page["edges"]
+    ]
+    assert first_page_secrets == [("secret-a", "value-a"), ("secret-b", "value-b")]
+    assert first_page["pageInfo"]["hasNextPage"] is True
+    assert first_page["pageInfo"]["hasPreviousPage"] is False
+
+    # Test second page
+    after_cursor = first_page["pageInfo"]["endCursor"]
+    response = await gql_client.execute(
+        query=query,
+        variables={"first": 2, "after": after_cursor},
+    )
+    assert not response.errors
+    assert response.data is not None
+    second_page = response.data["secrets"]
+    second_page_secrets = [
+        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in second_page["edges"]
+    ]
+    assert second_page_secrets == [("secret-c", "value-c"), ("secret-d", "value-d")]
+    assert second_page["pageInfo"]["hasNextPage"] is True
+    assert second_page["pageInfo"]["hasPreviousPage"] is True
+
+    # Test third page (last page)
+    after_cursor = second_page["pageInfo"]["endCursor"]
+    response = await gql_client.execute(
+        query=query,
+        variables={"first": 2, "after": after_cursor},
+    )
+    assert not response.errors
+    assert response.data is not None
+    third_page = response.data["secrets"]
+    third_page_secrets = [
+        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in third_page["edges"]
+    ]
+    assert third_page_secrets == [("secret-e", "value-e"), ("secret-f", "value-f")]
+    assert third_page["pageInfo"]["hasNextPage"] is False
+    assert third_page["pageInfo"]["hasPreviousPage"] is True
+
+    # ===== KEYS FILTER TESTS =====
+
+    # Test filtering by specific keys
+    response = await gql_client.execute(
+        query=query,
+        variables={"first": 10, "keys": ["secret-a", "secret-c", "secret-e"]},
+    )
+    assert not response.errors
+    assert response.data is not None
+    filtered_secrets = [
+        (edge["secret"]["key"], edge["secret"]["value"]["value"])
+        for edge in response.data["secrets"]["edges"]
+    ]
+    assert filtered_secrets == [
+        ("secret-a", "value-a"),
+        ("secret-c", "value-c"),
+        ("secret-e", "value-e"),
+    ]
+
+    # Test filtering with non-existent keys (should return empty)
+    response = await gql_client.execute(
+        query=query,
+        variables={"first": 10, "keys": ["nonexistent-key"]},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["secrets"]["edges"] == []
+
+    # Test filtering with mix of existing and non-existent keys
+    response = await gql_client.execute(
+        query=query,
+        variables={"first": 10, "keys": ["secret-b", "nonexistent-key"]},
+    )
+    assert not response.errors
+    assert response.data is not None
+    mixed_secrets = [
+        (edge["secret"]["key"], edge["secret"]["value"]["value"])
+        for edge in response.data["secrets"]["edges"]
+    ]
+    assert mixed_secrets == [("secret-b", "value-b")]
+
+
+@pytest.fixture
+async def secrets_for_pagination(db: DbSessionFactory) -> None:
+    """
+    Creates multiple secrets for testing pagination and filtering.
+    Creates 6 secrets for pagination tests.
+    """
+    encryption = EncryptionService()
+    secrets = [
+        models.Secret(key="secret-a", value=encryption.encrypt(b"value-a")),
+        models.Secret(key="secret-b", value=encryption.encrypt(b"value-b")),
+        models.Secret(key="secret-c", value=encryption.encrypt(b"value-c")),
+        models.Secret(key="secret-d", value=encryption.encrypt(b"value-d")),
+        models.Secret(key="secret-e", value=encryption.encrypt(b"value-e")),
+        models.Secret(key="secret-f", value=encryption.encrypt(b"value-f")),
+    ]
+    async with db() as session:
+        session.add_all(secrets)
 
 
 @pytest.fixture
