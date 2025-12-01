@@ -1855,7 +1855,9 @@ async def _resolve_secrets(
         BadRequest: If a secret exists but cannot be decrypted.
     """
     async with db() as session:
-        secrets = await session.scalars(sa.select(models.Secret).where(models.Secret.key.in_(keys)))
+        secrets = (
+            await session.scalars(sa.select(models.Secret).where(models.Secret.key.in_(keys)))
+        ).all()
     result: dict[str, str] = {}
     for secret in secrets:
         if secret.value is None:

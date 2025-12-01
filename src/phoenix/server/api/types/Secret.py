@@ -9,6 +9,7 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.bearer_auth import PhoenixUser
 
 if TYPE_CHECKING:
     from .User import User
@@ -60,7 +61,9 @@ class Secret(Node):
             decrypted_value = info.context.decrypt(raw_bytes).decode("utf-8")
         except Exception as e:
             return UnparsableSecret(parse_error=str(e))
-        if not info.context.auth_enabled or info.context.user.is_admin:
+        if not info.context.auth_enabled or (
+            isinstance((user := info.context.user), PhoenixUser) and user.is_admin
+        ):
             return DecryptedSecret(value=decrypted_value)
         return MaskedSecret()
 
