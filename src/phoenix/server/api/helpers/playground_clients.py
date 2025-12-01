@@ -1860,8 +1860,6 @@ async def _resolve_secrets(
         ).all()
     result: dict[str, str] = {}
     for secret in secrets:
-        if secret.value is None:
-            continue
         try:
             result[secret.key] = decrypt(secret.value).decode("utf-8")
         except Exception:
