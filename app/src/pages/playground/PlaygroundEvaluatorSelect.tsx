@@ -30,7 +30,7 @@ import {
 import { isStringArray } from "@phoenix/typeUtils";
 
 type PlaygroundEvaluatorSelectProps = {
-  evaluators: (EvaluatorItem & { isAssignedToDataset: boolean })[];
+  evaluators: EvaluatorItem[];
   selectedIds?: string[];
   onSelectionChange: (keys: string[]) => void;
   addNewEvaluatorLink: string;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b443115b5f26176877f1bb5536eb7889>>
+ * @generated SignedSource<<b28a71d7f694f8431b82008e760815ea>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -104,20 +104,6 @@ v10 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-},
-v11 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "kind",
-  "storageKey": null
-},
-v12 = {
-  "alias": null,
-  "args": (v5/*: any*/),
-  "kind": "ScalarField",
-  "name": "isAssignedToDataset",
-  "storageKey": null
 };
 return {
   "fragment": {
@@ -155,7 +141,7 @@ return {
                 "plural": false,
                 "selections": [
                   {
-                    "args": (v5/*: any*/),
+                    "args": null,
                     "kind": "FragmentSpread",
                     "name": "PlaygroundDatasetSection_evaluators"
                   },
@@ -244,8 +230,6 @@ return {
                                   (v7/*: any*/),
                                   (v8/*: any*/),
                                   (v10/*: any*/),
-                                  (v11/*: any*/),
-                                  (v12/*: any*/),
                                   {
                                     "alias": null,
                                     "args": (v5/*: any*/),
@@ -309,7 +293,13 @@ return {
                                   },
                                   (v8/*: any*/),
                                   (v10/*: any*/),
-                                  (v11/*: any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "kind",
+                                    "storageKey": null
+                                  },
                                   {
                                     "alias": null,
                                     "args": null,
@@ -331,7 +321,13 @@ return {
                                     "name": "updatedAt",
                                     "storageKey": null
                                   },
-                                  (v12/*: any*/)
+                                  {
+                                    "alias": null,
+                                    "args": (v5/*: any*/),
+                                    "kind": "ScalarField",
+                                    "name": "isAssignedToDataset",
+                                    "storageKey": null
+                                  }
                                 ],
                                 "storageKey": null
                               },
@@ -430,16 +426,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f43d9a94bf2edc5966778718e6833337",
+    "cacheID": "57a3b255badecc6dce1d8b95f1f4f6de",
     "id": null,
     "metadata": {},
     "name": "UnassignDatasetEvaluatorDialogDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation UnassignDatasetEvaluatorDialogDeleteMutation(\n  $input: DeleteEvaluatorsInput!\n  $datasetId: ID!\n) {\n  deleteEvaluators(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...PlaygroundDatasetSection_evaluators_1wYocp\n        ...DatasetEvaluatorsTable_evaluators_1wYocp\n        id\n      }\n    }\n    evaluatorIds\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $datasetId)\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation UnassignDatasetEvaluatorDialogDeleteMutation(\n  $input: DeleteEvaluatorsInput!\n  $datasetId: ID!\n) {\n  deleteEvaluators(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...PlaygroundDatasetSection_evaluators\n        ...DatasetEvaluatorsTable_evaluators_1wYocp\n        id\n      }\n    }\n    evaluatorIds\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n}\n\nfragment PlaygroundDatasetSection_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "403496f4a533149af78c11168fa32ac1";
+(node as any).hash = "bbb60206912d82fd75dc58ced1fbdcb9";
 
 export default node;

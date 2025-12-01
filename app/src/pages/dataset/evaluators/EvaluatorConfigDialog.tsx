@@ -173,7 +173,6 @@ function EvaluatorConfigDialogContent({
           query {
             dataset: node(id: $datasetId) {
               ...PlaygroundDatasetSection_evaluators
-                @arguments(datasetId: $datasetId)
               ...DatasetEvaluatorsTable_evaluators
                 @arguments(datasetId: $datasetId)
             }

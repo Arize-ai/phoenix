@@ -6,8 +6,6 @@ import {
   Icon,
   Icons,
   LinkButton,
-  Modal,
-  ModalOverlay,
   Text,
   Token,
   View,
@@ -15,7 +13,6 @@ import {
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/EvaluatorConfigDialog";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import { PlaygroundDatasetSection_evaluators$key } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluators.graphql";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
@@ -54,7 +51,6 @@ export function PlaygroundDatasetSection({
               color
             }
             ...PlaygroundDatasetSection_evaluators
-              @arguments(datasetId: $datasetId)
           }
           ...EvaluatorConfigDialog_dataset
         }
@@ -68,15 +64,12 @@ export function PlaygroundDatasetSection({
 
   const evaluatorsData = useFragment<PlaygroundDatasetSection_evaluators$key>(
     graphql`
-      fragment PlaygroundDatasetSection_evaluators on Dataset
-      @argumentDefinitions(datasetId: { type: "ID!" }) {
+      fragment PlaygroundDatasetSection_evaluators on Dataset {
         evaluators(first: 100) {
           edges {
             evaluator: node {
               id
               name
-              kind
-              isAssignedToDataset(datasetId: $datasetId)
               datasetInputMapping(datasetId: $datasetId) {
                 literalMapping
                 pathMapping
@@ -117,10 +110,7 @@ export function PlaygroundDatasetSection({
     [evaluatorsData]
   );
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
-    () =>
-      evaluators
-        .filter((evaluator) => evaluator.isAssignedToDataset)
-        .map((evaluator) => evaluator.id) ?? []
+    () => evaluators.map((evaluator) => evaluator.id) ?? []
   );
   const selectedEvaluatorWithInputMapping = useMemo(() => {
     return evaluators
@@ -134,13 +124,6 @@ export function PlaygroundDatasetSection({
         {} as Record<string, EvaluatorInputMappingInput>
       );
   }, [evaluators, selectedEvaluatorIds]);
-  const [addingEvaluatorId, setAddingEvaluatorId] = useState<string | null>(
-    null
-  );
-
-  const onCloseEvaluatorConfigDialog = () => {
-    setAddingEvaluatorId(null);
-  };
 
   return (
     <>
@@ -195,9 +178,7 @@ export function PlaygroundDatasetSection({
                   ])}
               </Flex>
               <PlaygroundEvaluatorSelect
-                evaluators={
-                  evaluators as Mutable<(typeof evaluators)[number]>[]
-                }
+                evaluators={evaluators}
                 selectedIds={selectedEvaluatorIds}
                 onSelectionChange={setSelectedEvaluatorIds}
                 addNewEvaluatorLink={prependBasename(`/evaluators/new`)}
@@ -233,27 +214,6 @@ export function PlaygroundDatasetSection({
           />
         </PlaygroundDatasetExamplesTableProvider>
       </Flex>
-      <ModalOverlay
-        isOpen={!!addingEvaluatorId}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setAddingEvaluatorId(null);
-          }
-        }}
-      >
-        <Modal size="L">
-          {addingEvaluatorId && (
-            <EvaluatorConfigDialog
-              evaluatorId={addingEvaluatorId}
-              onClose={onCloseEvaluatorConfigDialog}
-              onEvaluatorAssigned={() => {
-                setSelectedEvaluatorIds((prev) => [...prev, addingEvaluatorId]);
-              }}
-              datasetRef={data.dataset}
-            />
-          )}
-        </Modal>
-      </ModalOverlay>
     </>
   );
 }
