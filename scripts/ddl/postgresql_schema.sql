@@ -656,6 +656,7 @@ CREATE TABLE public.evaluators (
     id bigserial NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
+    metadata JSONB NOT NULL,
     kind VARCHAR NOT NULL,
     user_id BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -696,10 +697,17 @@ CREATE TABLE public.code_evaluators (
 -- Table: datasets_evaluators
 -- --------------------------
 CREATE TABLE public.datasets_evaluators (
+    id bigserial NOT NULL,
     dataset_id BIGINT NOT NULL,
-    evaluator_id BIGINT NOT NULL,
-    input_config JSONB NOT NULL,
-    CONSTRAINT pk_datasets_evaluators PRIMARY KEY (dataset_id, evaluator_id),
+    evaluator_id BIGINT,
+    builtin_evaluator_id BIGINT,
+    input_mapping JSONB NOT NULL,
+    CONSTRAINT pk_datasets_evaluators PRIMARY KEY (id),
+    CONSTRAINT uq_datasets_evaluators_dataset_id_builtin_evaluator_id
+        UNIQUE (dataset_id, builtin_evaluator_id),
+    CONSTRAINT uq_datasets_evaluators_dataset_id_evaluator_id
+        UNIQUE (dataset_id, evaluator_id),
+    CHECK (((evaluator_id IS NOT NULL) <> (builtin_evaluator_id IS NOT NULL))),
     CONSTRAINT fk_datasets_evaluators_dataset_id_datasets FOREIGN KEY
         (dataset_id)
         REFERENCES public.datasets (id)
@@ -710,6 +718,12 @@ CREATE TABLE public.datasets_evaluators (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_datasets_evaluators_builtin_evaluator_id ON public.datasets_evaluators
+    USING btree (builtin_evaluator_id);
+CREATE UNIQUE INDEX ix_datasets_evaluators_dataset_builtin_notnull ON public.datasets_evaluators
+    USING btree (dataset_id, builtin_evaluator_id) WHERE (builtin_evaluator_id IS NOT NULL);
+CREATE UNIQUE INDEX ix_datasets_evaluators_dataset_evaluator_notnull ON public.datasets_evaluators
+    USING btree (dataset_id, evaluator_id) WHERE (evaluator_id IS NOT NULL);
 CREATE INDEX ix_datasets_evaluators_evaluator_id ON public.datasets_evaluators
     USING btree (evaluator_id);
 
@@ -899,6 +913,29 @@ CREATE INDEX ix_experiments_dataset_splits_dataset_split_id ON public.experiment
     USING btree (dataset_split_id);
 
 
+-- Table: generative_model_custom_providers
+-- ----------------------------------------
+CREATE TABLE public.generative_model_custom_providers (
+    id bigserial NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    provider VARCHAR NOT NULL,
+    sdk VARCHAR NOT NULL,
+    config BYTEA NOT NULL,
+    user_id BIGINT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_generative_model_custom_providers PRIMARY KEY (id),
+    CONSTRAINT uq_generative_model_custom_providers_name
+        UNIQUE (name),
+    CONSTRAINT fk_generative_model_custom_providers_user_id_users
+        FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+
 -- Table: password_reset_tokens
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
@@ -1047,6 +1084,7 @@ CREATE TABLE public.llm_evaluators (
     kind VARCHAR NOT NULL DEFAULT 'LLM'::character varying,
     prompt_id BIGINT NOT NULL,
     prompt_version_tag_id BIGINT,
+    annotation_name VARCHAR NOT NULL,
     output_config JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),
@@ -1118,6 +1156,21 @@ CREATE UNIQUE INDEX ix_access_tokens_refresh_token_id ON public.access_tokens
     USING btree (refresh_token_id);
 CREATE INDEX ix_access_tokens_user_id ON public.access_tokens
     USING btree (user_id);
+
+
+-- Table: secrets
+-- --------------
+CREATE TABLE public.secrets (
+    key VARCHAR NOT NULL,
+    value BYTEA NOT NULL,
+    user_id BIGINT,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_secrets PRIMARY KEY (key),
+    CONSTRAINT fk_secrets_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
 
 
 -- Table: span_annotations

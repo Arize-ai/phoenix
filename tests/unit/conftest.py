@@ -15,6 +15,7 @@ from _pytest.terminal import TerminalReporter
 from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
+from fastapi import FastAPI
 from httpx import AsyncByteStream, Request, Response
 from psycopg import Connection
 from pytest import FixtureRequest
@@ -189,11 +190,11 @@ async def project(db: DbSessionFactory) -> None:
 @pytest.fixture
 async def app(
     db: DbSessionFactory,
-) -> AsyncIterator[ASGIApp]:
+) -> AsyncIterator[FastAPI]:
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_batched_caller())
         await stack.enter_async_context(patch_grpc_server())
-        app = create_app(
+        yield create_app(
             db=db,
             model=create_model_from_inferences(EMPTY_INFERENCES, None),
             authentication_enabled=False,
@@ -202,13 +203,17 @@ async def app(
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
         )
-        manager = await stack.enter_async_context(LifespanManager(app))
+
+
+@pytest.fixture
+async def asgi_app(app: FastAPI) -> AsyncIterator[ASGIApp]:
+    async with LifespanManager(app) as manager:
         yield manager.app
 
 
 @pytest.fixture
 def httpx_clients(
-    app: ASGIApp,
+    asgi_app: ASGIApp,
 ) -> tuple[httpx.Client, httpx.AsyncClient]:
     class Transport(httpx.BaseTransport):
         def __init__(self, asgi_transport: ASGIWebSocketTransport) -> None:
@@ -236,7 +241,7 @@ def httpx_clients(
                 request=request,
             )
 
-    asgi_transport = ASGIWebSocketTransport(app=app)
+    asgi_transport = ASGIWebSocketTransport(app=asgi_app)
     transport = Transport(asgi_transport=asgi_transport)
     base_url = "http://test"
     return (

@@ -19,6 +19,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     MetaData,
     Null,
     PrimaryKeyConstraint,
@@ -26,6 +27,7 @@ from sqlalchemy import (
     TypeDecorator,
     UniqueConstraint,
     case,
+    event,
     func,
     insert,
     select,
@@ -78,6 +80,7 @@ from phoenix.server.api.helpers.prompts.models import (
     is_prompt_invocation_parameters,
     is_prompt_template,
 )
+from phoenix.server.encryption import is_encrypted
 from phoenix.trace.attributes import get_attribute_value
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
@@ -161,6 +164,13 @@ def render_values_w_union(
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE"]
+GenerativeModelCustomProviderSDK: TypeAlias = Literal[
+    "openai",
+    "azure_openai",
+    "anthropic",
+    "google_genai",
+    "aws_bedrock",
+]
 
 
 class JSONB(JSON):
@@ -2272,3 +2282,65 @@ class DatasetsEvaluators(HasId):
             sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),
         ),
     )
+
+
+class Secret(Base):
+    __tablename__ = "secrets"
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+
+@event.listens_for(Secret, "before_insert")
+@event.listens_for(Secret, "before_update")
+def validate_secret_config(_: Any, __: Any, target: "Secret") -> None:
+    """Validate that secret value is encrypted before database write.
+
+    Note: This uses a heuristic check (is_encrypted), not cryptographic verification.
+    The check validates structural properties of Fernet tokens (base64 encoding,
+    version byte, minimum length) to catch accidental storage of plaintext data.
+
+    This is a defense-in-depth measure - the application layer should ensure
+    encryption happens correctly, and this check catches programming errors.
+    """
+    if not is_encrypted(target.value):
+        raise ValueError("Value is not encrypted")
+
+
+class GenerativeModelCustomProvider(HasId):
+    __tablename__ = "generative_model_custom_providers"
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    description: Mapped[Optional[str]]
+    provider: Mapped[str] = mapped_column(String, nullable=False)
+    sdk: Mapped[GenerativeModelCustomProviderSDK] = mapped_column(String, nullable=False)
+    config: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+
+@event.listens_for(GenerativeModelCustomProvider, "before_insert")
+@event.listens_for(GenerativeModelCustomProvider, "before_update")
+def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProvider") -> None:
+    """Validate that provider config is encrypted before database write.
+
+    Note: This uses a heuristic check (is_encrypted), not cryptographic verification.
+    The check validates structural properties of Fernet tokens (base64 encoding,
+    version byte, minimum length) to catch accidental storage of plaintext data.
+
+    This is a defense-in-depth measure - the application layer should ensure
+    encryption happens correctly, and this check catches programming errors.
+    """
+    if not is_encrypted(target.config):
+        raise ValueError("Config is not encrypted")

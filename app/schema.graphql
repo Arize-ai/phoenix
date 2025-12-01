@@ -1,5 +1,45 @@
 directive @oneOf on INPUT_OBJECT
 
+type AWSBedrockAuthenticationMethod {
+  awsAccessKeyId: String
+  awsSecretAccessKey: String
+  awsSessionToken: String
+}
+
+input AWSBedrockAuthenticationMethodInput {
+  awsAccessKeyId: String!
+  awsSecretAccessKey: String!
+  awsSessionToken: String
+}
+
+enum AWSBedrockClientInterface {
+  CONVERSE
+}
+
+type AWSBedrockClientKwargs {
+  regionName: String
+  endpointUrl: String
+}
+
+input AWSBedrockClientKwargsInput {
+  regionName: String!
+  endpointUrl: String
+}
+
+type AWSBedrockCustomProviderConfig {
+  supportsStreaming: Boolean!
+  awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethod!
+  awsBedrockClientKwargs: AWSBedrockClientKwargs
+  awsBedrockClientInterface: AWSBedrockClientInterface!
+}
+
+input AWSBedrockCustomProviderConfigInput {
+  awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput!
+  awsBedrockClientKwargs: AWSBedrockClientKwargsInput!
+}
+
+union AWSBedrockCustomProviderConfigUnparsableConfig = AWSBedrockCustomProviderConfig | UnparsableConfig
+
 input AddAnnotationConfigToProjectInput {
   projectId: ID!
   annotationConfigId: ID!
@@ -133,6 +173,42 @@ enum AnnotatorKind {
   CODE
 }
 
+type AnthropicAuthenticationMethod {
+  apiKey: String
+}
+
+input AnthropicAuthenticationMethodInput {
+  apiKey: String!
+}
+
+enum AnthropicClientInterface {
+  CHAT
+}
+
+type AnthropicClientKwargs {
+  baseUrl: String
+  defaultHeaders: JSON
+}
+
+input AnthropicClientKwargsInput {
+  baseUrl: String
+  defaultHeaders: JSON
+}
+
+type AnthropicCustomProviderConfig {
+  supportsStreaming: Boolean!
+  anthropicAuthenticationMethod: AnthropicAuthenticationMethod!
+  anthropicClientKwargs: AnthropicClientKwargs
+  anthropicClientInterface: AnthropicClientInterface!
+}
+
+input AnthropicCustomProviderConfigInput {
+  anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput!
+  anthropicClientKwargs: AnthropicClientKwargsInput
+}
+
+union AnthropicCustomProviderConfigUnparsableConfig = AnthropicCustomProviderConfig | UnparsableConfig
+
 interface ApiKey {
   """Name of the API key."""
   name: String!
@@ -158,6 +234,58 @@ enum AuthMethod {
   OAUTH2
   LDAP
 }
+
+type AzureADTokenProvider {
+  azureTenantId: String
+  azureClientId: String
+  azureClientSecret: String
+  scope: String
+}
+
+input AzureOpenAIADTokenProviderInput {
+  azureTenantId: String!
+  azureClientId: String!
+  azureClientSecret: String!
+  scope: String
+}
+
+type AzureOpenAIAuthenticationMethod {
+  apiKey: String
+  azureAdTokenProvider: AzureADTokenProvider
+}
+
+input AzureOpenAIAuthenticationMethodInput @oneOf {
+  apiKey: String
+  azureAdTokenProvider: AzureOpenAIADTokenProviderInput
+}
+
+type AzureOpenAIClientKwargs {
+  apiVersion: String
+  azureEndpoint: String
+  azureDeployment: String
+  defaultHeaders: JSON
+}
+
+input AzureOpenAIClientKwargsInput {
+  azureEndpoint: String!
+  azureDeployment: String!
+  apiVersion: String!
+  defaultHeaders: JSON
+}
+
+type AzureOpenAICustomProviderConfig {
+  supportsStreaming: Boolean!
+  azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethod!
+  azureOpenaiClientKwargs: AzureOpenAIClientKwargs
+  azureOpenaiClientInterface: OpenAIClientInterface!
+}
+
+input AzureOpenAICustomProviderConfigInput {
+  azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput!
+  azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput!
+}
+
+union AzureOpenAICustomProviderConfigUnparsableConfig = AzureOpenAICustomProviderConfig | UnparsableConfig
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
@@ -245,7 +373,6 @@ input ChatCompletionInput {
   model: GenerativeModelInput!
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
-  credentials: [GenerativeCredentialInput!]
   template: PromptTemplateOptions
   promptName: Identifier = null
   repetitions: Int!
@@ -283,7 +410,6 @@ input ChatCompletionOverDatasetInput {
   model: GenerativeModelInput!
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
-  credentials: [GenerativeCredentialInput!]
   templateFormat: PromptTemplateFormat! = MUSTACHE
   repetitions: Int!
   datasetId: ID!
@@ -522,6 +648,18 @@ input CreateDatasetSplitWithExamplesInput {
   color: String!
   metadata: JSON
   exampleIds: [ID!]!
+}
+
+input CreateGenerativeModelCustomProviderMutationInput {
+  name: String!
+  description: String
+  provider: String!
+  clientConfig: GenerativeModelCustomerProviderConfigInput!
+}
+
+type CreateGenerativeModelCustomProviderMutationPayload {
+  provider: GenerativeModelCustomProvider!
+  query: Query!
 }
 
 input CreateLLMEvaluatorInput {
@@ -903,6 +1041,10 @@ type DbTableStats {
   numBytes: Float!
 }
 
+type DecryptedSecret {
+  value: String!
+}
+
 input DeleteAnnotationConfigsInput {
   ids: [ID!]!
 }
@@ -965,6 +1107,15 @@ input DeleteExperimentsInput {
   experimentIds: [ID!]!
 }
 
+input DeleteGenerativeModelCustomProviderMutationInput {
+  id: ID!
+}
+
+type DeleteGenerativeModelCustomProviderMutationPayload {
+  id: ID!
+  query: Query!
+}
+
 input DeleteModelMutationInput {
   id: ID!
 }
@@ -992,6 +1143,15 @@ type DeletePromptMutationPayload {
 
 input DeletePromptVersionTagInput {
   promptVersionTagId: ID!
+}
+
+input DeleteSecretMutationInput {
+  keys: [String!]!
+}
+
+type DeleteSecretMutationPayload {
+  ids: [ID!]!
+  query: Query!
 }
 
 input DeleteUsersInput {
@@ -1716,6 +1876,17 @@ type GenerativeModel implements Node & ModelInterface {
   lastUsedAt: DateTime
 }
 
+input GenerativeModelBuiltinProviderInput {
+  providerKey: GenerativeProviderKey!
+  name: String!
+  baseUrl: String
+  endpoint: String
+  apiVersion: String
+  region: String
+  customHeaders: JSON
+  credentials: [GenerativeCredentialInput!]
+}
+
 """A connection to a list of items."""
 type GenerativeModelConnection {
   """Pagination data for this connection"""
@@ -1723,6 +1894,218 @@ type GenerativeModelConnection {
 
   """Contains the nodes in this connection"""
   edges: [GenerativeModelEdge!]!
+}
+
+interface GenerativeModelCustomProvider implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The name of this provider."""
+  name: String!
+
+  """The description of this provider."""
+  description: String
+
+  """The provider of this provider."""
+  provider: String!
+
+  """The creation timestamp of this provider."""
+  createdAt: DateTime!
+
+  """The last updated timestamp of this provider."""
+  updatedAt: DateTime!
+
+  """The SDK of this provider."""
+  sdk: GenerativeModelCustomProviderSDK!
+
+  """The user that created this provider."""
+  user: User
+}
+
+type GenerativeModelCustomProviderAWSBedrock implements GenerativeModelCustomProvider & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The name of this provider."""
+  name: String!
+
+  """The description of this provider."""
+  description: String
+
+  """The provider of this provider."""
+  provider: String!
+
+  """The creation timestamp of this provider."""
+  createdAt: DateTime!
+
+  """The last updated timestamp of this provider."""
+  updatedAt: DateTime!
+
+  """The SDK of this provider."""
+  sdk: GenerativeModelCustomProviderSDK!
+
+  """The user that created this provider."""
+  user: User
+
+  """The config of this provider."""
+  config: AWSBedrockCustomProviderConfigUnparsableConfig!
+}
+
+type GenerativeModelCustomProviderAnthropic implements GenerativeModelCustomProvider & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The name of this provider."""
+  name: String!
+
+  """The description of this provider."""
+  description: String
+
+  """The provider of this provider."""
+  provider: String!
+
+  """The creation timestamp of this provider."""
+  createdAt: DateTime!
+
+  """The last updated timestamp of this provider."""
+  updatedAt: DateTime!
+
+  """The SDK of this provider."""
+  sdk: GenerativeModelCustomProviderSDK!
+
+  """The user that created this provider."""
+  user: User
+
+  """The config of this provider."""
+  config: AnthropicCustomProviderConfigUnparsableConfig!
+}
+
+type GenerativeModelCustomProviderAzureOpenAI implements GenerativeModelCustomProvider & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The name of this provider."""
+  name: String!
+
+  """The description of this provider."""
+  description: String
+
+  """The provider of this provider."""
+  provider: String!
+
+  """The creation timestamp of this provider."""
+  createdAt: DateTime!
+
+  """The last updated timestamp of this provider."""
+  updatedAt: DateTime!
+
+  """The SDK of this provider."""
+  sdk: GenerativeModelCustomProviderSDK!
+
+  """The user that created this provider."""
+  user: User
+
+  """The config of this provider."""
+  config: AzureOpenAICustomProviderConfigUnparsableConfig!
+}
+
+"""A connection to a list of items."""
+type GenerativeModelCustomProviderConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [GenerativeModelCustomProviderEdge!]!
+}
+
+"""An edge in a connection."""
+type GenerativeModelCustomProviderEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: GenerativeModelCustomProvider!
+}
+
+type GenerativeModelCustomProviderGoogleGenAI implements GenerativeModelCustomProvider & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The name of this provider."""
+  name: String!
+
+  """The description of this provider."""
+  description: String
+
+  """The provider of this provider."""
+  provider: String!
+
+  """The creation timestamp of this provider."""
+  createdAt: DateTime!
+
+  """The last updated timestamp of this provider."""
+  updatedAt: DateTime!
+
+  """The SDK of this provider."""
+  sdk: GenerativeModelCustomProviderSDK!
+
+  """The user that created this provider."""
+  user: User
+
+  """The config of this provider."""
+  config: GoogleGenAICustomProviderConfigUnparsableConfig!
+}
+
+input GenerativeModelCustomProviderInput {
+  providerId: ID!
+  provider: String!
+  modelName: String!
+  extraHeaders: JSON
+}
+
+type GenerativeModelCustomProviderOpenAI implements GenerativeModelCustomProvider & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The name of this provider."""
+  name: String!
+
+  """The description of this provider."""
+  description: String
+
+  """The provider of this provider."""
+  provider: String!
+
+  """The creation timestamp of this provider."""
+  createdAt: DateTime!
+
+  """The last updated timestamp of this provider."""
+  updatedAt: DateTime!
+
+  """The SDK of this provider."""
+  sdk: GenerativeModelCustomProviderSDK!
+
+  """The user that created this provider."""
+  user: User
+
+  """The config of this provider."""
+  config: OpenAICustomProviderConfigUnparsableConfig!
+}
+
+enum GenerativeModelCustomProviderSDK {
+  OPENAI
+  AZURE_OPENAI
+  ANTHROPIC
+  AWS_BEDROCK
+  GOOGLE_GENAI
+}
+
+input GenerativeModelCustomerProviderConfigInput @oneOf {
+  openai: OpenAICustomProviderConfigInput
+  azureOpenai: AzureOpenAICustomProviderConfigInput
+  anthropic: AnthropicCustomProviderConfigInput
+  awsBedrock: AWSBedrockCustomProviderConfigInput
+  googleGenai: GoogleGenAICustomProviderConfigInput
 }
 
 """An edge in a connection."""
@@ -1734,14 +2117,9 @@ type GenerativeModelEdge {
   node: GenerativeModel!
 }
 
-input GenerativeModelInput {
-  providerKey: GenerativeProviderKey!
-  name: String!
-  baseUrl: String
-  endpoint: String
-  apiVersion: String
-  region: String
-  customHeaders: JSON
+input GenerativeModelInput @oneOf {
+  builtin: GenerativeModelBuiltinProviderInput
+  custom: GenerativeModelCustomProviderInput
 }
 
 enum GenerativeModelKind {
@@ -1776,6 +2154,50 @@ enum GenerativeProviderKey {
   XAI
   OLLAMA
   AWS
+}
+
+type GoogleGenAIAuthenticationMethod {
+  apiKey: String
+}
+
+input GoogleGenAIAuthenticationMethodInput {
+  apiKey: String!
+}
+
+enum GoogleGenAIClientInterface {
+  CHAT
+}
+
+type GoogleGenAIClientKwargs {
+  httpOptions: GoogleGenAIHttpOptions
+}
+
+input GoogleGenAIClientKwargsInput {
+  httpOptions: GoogleGenAIHttpOptionsInput
+}
+
+type GoogleGenAICustomProviderConfig {
+  supportsStreaming: Boolean!
+  googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethod!
+  googleGenaiClientKwargs: GoogleGenAIClientKwargs
+  googleGenaiClientInterface: GoogleGenAIClientInterface!
+}
+
+input GoogleGenAICustomProviderConfigInput {
+  googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput!
+  googleGenaiClientKwargs: GoogleGenAIClientKwargsInput
+}
+
+union GoogleGenAICustomProviderConfigUnparsableConfig = GoogleGenAICustomProviderConfig | UnparsableConfig
+
+type GoogleGenAIHttpOptions {
+  baseUrl: String
+  headers: JSON
+}
+
+input GoogleGenAIHttpOptionsInput {
+  baseUrl: String
+  headers: JSON
 }
 
 """
@@ -1943,6 +2365,10 @@ type LabelFraction {
   fraction: Float!
 }
 
+type MaskedSecret {
+  maskedValue: String!
+}
+
 enum MimeType {
   text
   json
@@ -2017,6 +2443,9 @@ type Mutation {
   Given a list of clusters, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
+  createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
+  patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
+  deleteGenerativeModelCustomProvider(input: DeleteGenerativeModelCustomProviderMutationInput!): DeleteGenerativeModelCustomProviderMutationPayload!
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
@@ -2038,6 +2467,8 @@ type Mutation {
   deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
   setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  upsertSecret(input: UpsertSecretMutationInput!): UpsertSecretMutationPayload!
+  deleteSecret(input: DeleteSecretMutationInput!): DeleteSecretMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
@@ -2070,6 +2501,46 @@ type NumericRange {
   start: Float!
   end: Float!
 }
+
+type OpenAIAuthenticationMethod {
+  apiKey: String
+}
+
+input OpenAIAuthenticationMethodInput {
+  apiKey: String!
+}
+
+enum OpenAIClientInterface {
+  CHAT
+}
+
+type OpenAIClientKwargs {
+  baseUrl: String
+  organization: String
+  project: String
+  defaultHeaders: JSON
+}
+
+input OpenAIClientKwargsInput {
+  baseUrl: String
+  organization: String
+  project: String
+  defaultHeaders: JSON
+}
+
+type OpenAICustomProviderConfig {
+  supportsStreaming: Boolean!
+  openaiAuthenticationMethod: OpenAIAuthenticationMethod!
+  openaiClientKwargs: OpenAIClientKwargs
+  openaiClientInterface: OpenAIClientInterface!
+}
+
+input OpenAICustomProviderConfigInput {
+  openaiAuthenticationMethod: OpenAIAuthenticationMethodInput!
+  openaiClientKwargs: OpenAIClientKwargsInput
+}
+
+union OpenAICustomProviderConfigUnparsableConfig = OpenAICustomProviderConfig | UnparsableConfig
 
 enum OptimizationDirection {
   MINIMIZE
@@ -2123,6 +2594,19 @@ input PatchDatasetSplitInput {
   description: String
   color: String
   metadata: JSON
+}
+
+input PatchGenerativeModelCustomProviderMutationInput {
+  id: ID!
+  name: String
+  description: String
+  provider: String
+  clientConfig: GenerativeModelCustomerProviderConfigInput
+}
+
+type PatchGenerativeModelCustomProviderMutationPayload {
+  provider: GenerativeModelCustomProvider!
+  query: Query!
 }
 
 input PatchProjectTraceRetentionPolicyInput {
@@ -2661,6 +3145,9 @@ type PromptVersionTagMutationPayload {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
+  generativeModelCustomProviders(first: Int = 50, last: Int, after: String, before: String): GenerativeModelCustomProviderConnection!
+  secrets(keys: [String!] = null, first: Int = 50, last: Int, after: String, before: String): SecretConnection!
+  testGenerativeModelCustomProviderCredentials(input: GenerativeModelCustomerProviderConfigInput!): TestGenerativeModelCustomProviderCredentialsResult!
   generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
@@ -2731,6 +3218,8 @@ type RemoveAnnotationConfigFromProjectPayload {
   project: Project!
 }
 
+union ResolvedSecret = DecryptedSecret | UnparsableSecret | MaskedSecret
+
 type ResponseFormat {
   definition: JSON!
 }
@@ -2755,6 +3244,38 @@ enum ScalarDriftMetric {
   psi
   klDivergence
   jsDistance
+}
+
+type Secret implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  key: String!
+  value: ResolvedSecret!
+  updatedAt: DateTime!
+  user: User
+}
+
+"""A connection to a list of items."""
+type SecretConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [SecretEdge!]!
+}
+
+"""An edge in a connection."""
+type SecretEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Secret!
+}
+
+input SecretKeyValueInput {
+  key: String!
+  value: String!
 }
 
 type Segment {
@@ -3135,6 +3656,10 @@ type SystemApiKey implements ApiKey & Node {
   id: ID!
 }
 
+type TestGenerativeModelCustomProviderCredentialsResult {
+  error: String
+}
+
 type TextChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
@@ -3458,6 +3983,14 @@ input UnassignEvaluatorFromDatasetInput {
   evaluatorId: ID!
 }
 
+type UnparsableConfig {
+  parseError: String!
+}
+
+type UnparsableSecret {
+  parseError: String!
+}
+
 input UnsetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
@@ -3503,6 +4036,15 @@ input UpdateModelMutationInput {
 
 type UpdateModelMutationPayload {
   model: GenerativeModel!
+  query: Query!
+}
+
+input UpsertSecretMutationInput {
+  secrets: [SecretKeyValueInput!]!
+}
+
+type UpsertSecretMutationPayload {
+  secrets: [Secret!]!
   query: Query!
 }
 

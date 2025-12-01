@@ -10,7 +10,7 @@ from typing import Any, Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import JSON
+from sqlalchemy import JSON, LargeBinary
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
@@ -51,6 +51,52 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    op.create_table(
+        "secrets",
+        sa.Column("key", sa.String, nullable=False, primary_key=True),
+        sa.Column("value", LargeBinary, nullable=False),
+        sa.Column(
+            "user_id",
+            _Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+    )
+    op.create_table(
+        "generative_model_custom_providers",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column("name", sa.String, nullable=False, unique=True),
+        sa.Column("description", sa.String),
+        sa.Column("provider", sa.String, nullable=False),
+        sa.Column("sdk", sa.String, nullable=False),
+        sa.Column("config", LargeBinary, nullable=False),
+        sa.Column(
+            "user_id",
+            _Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+    )
     op.create_table(
         "evaluators",
         sa.Column("id", _Integer, primary_key=True),
@@ -196,3 +242,5 @@ def downgrade() -> None:
     op.drop_table("code_evaluators")
     op.drop_table("llm_evaluators")
     op.drop_table("evaluators")
+    op.drop_table("generative_model_custom_providers")
+    op.drop_table("secrets")

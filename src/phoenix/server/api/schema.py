@@ -13,6 +13,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
 )
 from phoenix.server.api.types.Evaluator import Evaluator
+from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
 
 
 def build_graphql_schema(
@@ -29,6 +30,7 @@ def build_graphql_schema(
         types=list(
             chain(
                 _implementing_types(ChatCompletionSubscriptionPayload),
+                _implementing_types(GenerativeModelCustomProvider),
                 _implementing_types(Evaluator),
             )
         ),

@@ -29,7 +29,7 @@ class TestTraceDataSweeper:
         use_default_policy: bool,
         sweeper_trigger: Event,
         db: DbSessionFactory,
-        app: ASGIApp,
+        asgi_app: ASGIApp,
     ) -> None:
         """Test that TraceDataSweeper correctly enforces trace retention policies.
 
@@ -160,7 +160,7 @@ class TestTraceDataSweeper:
         use_default_policy: bool,
         sweeper_trigger: Event,
         db: DbSessionFactory,
-        app: ASGIApp,
+        asgi_app: ASGIApp,
     ) -> None:
         """Test that TraceDataSweeper correctly enforces time-based retention policies.
 
@@ -282,7 +282,7 @@ class TestTraceDataSweeper:
         use_default_policy: bool,
         sweeper_trigger: Event,
         db: DbSessionFactory,
-        app: ASGIApp,
+        asgi_app: ASGIApp,
     ) -> None:
         """Test that TraceDataSweeper correctly enforces OR-based retention policies.
 
