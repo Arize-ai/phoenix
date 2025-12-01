@@ -2099,10 +2099,12 @@ async def _get_builtin_provider_client(
             or (await _resolve_secrets(db, decrypt, "DEEPSEEK_API_KEY")).get("DEEPSEEK_API_KEY")
             or getenv("DEEPSEEK_API_KEY")
         )
-        if not api_key:
-            raise BadRequest("An API key is required for DeepSeek models")
-
         base_url = obj.base_url or getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com"
+
+        if not api_key:
+            if base_url == "https://api.deepseek.com":
+                raise BadRequest("An API key is required for DeepSeek models")
+            api_key = "sk-placeholder"  # Custom endpoints may not need a key
         deepseek_client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
@@ -2125,10 +2127,12 @@ async def _get_builtin_provider_client(
             or (await _resolve_secrets(db, decrypt, "XAI_API_KEY")).get("XAI_API_KEY")
             or getenv("XAI_API_KEY")
         )
-        if not api_key:
-            raise BadRequest("An API key is required for xAI models")
-
         base_url = obj.base_url or getenv("XAI_BASE_URL") or "https://api.x.ai/v1"
+
+        if not api_key:
+            if base_url == "https://api.x.ai/v1":
+                raise BadRequest("An API key is required for xAI models")
+            api_key = "sk-placeholder"  # Custom endpoints may not need a key
         xai_client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,

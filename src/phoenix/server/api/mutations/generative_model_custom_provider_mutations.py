@@ -88,7 +88,7 @@ class CreateGenerativeModelCustomProviderMutationInput:
         if not self.name.strip():
             raise ValueError("name must be provided")
         self.name = self.name.strip()
-        if self.provider and not self.provider.strip():
+        if not self.provider.strip():
             raise ValueError("provider must be provided")
         self.provider = self.provider.strip()
 
