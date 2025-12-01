@@ -61,8 +61,8 @@ class UnhandledWebSocketEvent(ASGIWebSocketTransportError):
 
 
 class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
-    def __init__(self, app: ASGIApp, scope: Scope) -> None:
-        self.app = app
+    def __init__(self, asgi_app: ASGIApp, scope: Scope) -> None:
+        self.app = asgi_app
         self.scope = scope
         self._receive_queue: asyncio.Queue[Message] = asyncio.Queue()
         self._send_queue: asyncio.Queue[Message] = asyncio.Queue()
