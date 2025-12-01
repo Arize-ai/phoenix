@@ -22,13 +22,13 @@ class TestSignInExistingOAuth2User:
     """Comprehensive test for _sign_in_existing_oauth2_user covering all authentication scenarios."""
 
     @pytest.fixture(autouse=True)
-    async def _setup_role_ids(self, app: ASGIApp, db: DbSessionFactory) -> None:
+    async def _setup_role_ids(self, asgi_app: ASGIApp, db: DbSessionFactory) -> None:
         """Query role IDs upfront to avoid hardcoding numeric values."""
         async with db() as session:
             result = await session.execute(select(models.UserRole.name, models.UserRole.id))
             self.role_ids = {name: id_ for name, id_ in result.all()}
 
-    async def test_all_scenarios(self, app: ASGIApp, db: DbSessionFactory) -> None:
+    async def test_all_scenarios(self, asgi_app: ASGIApp, db: DbSessionFactory) -> None:
         """Single comprehensive test covering all sign-in scenarios."""
         client_id = "123456789012-abcdef.apps.googleusercontent.com"
         role_ids = self.role_ids
