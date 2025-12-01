@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4114ce472c9772af4da56acafc7a797c>>
+ * @generated SignedSource<<a36dc2adbf5b77fc59e6179cde5113ba>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -41,6 +41,15 @@ export type ExperimentsTableFragment$data = {
           };
         };
         readonly createdAt: string;
+        readonly datasetSplits: {
+          readonly edges: ReadonlyArray<{
+            readonly node: {
+              readonly color: string;
+              readonly id: string;
+              readonly name: string;
+            };
+          }>;
+        };
         readonly description: string | null;
         readonly errorRate: number | null;
         readonly id: string;
@@ -83,7 +92,14 @@ v2 = {
   "name": "annotationName",
   "storageKey": null
 },
-v3 = [
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v4 = [
   {
     "alias": null,
     "args": null,
@@ -195,13 +211,7 @@ return {
               "plural": false,
               "selections": [
                 (v1/*: any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "name",
-                  "storageKey": null
-                },
+                (v3/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -273,6 +283,48 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "concreteType": "DatasetSplitConnection",
+                  "kind": "LinkedField",
+                  "name": "datasetSplits",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "DatasetSplitEdge",
+                      "kind": "LinkedField",
+                      "name": "edges",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "DatasetSplit",
+                          "kind": "LinkedField",
+                          "name": "node",
+                          "plural": false,
+                          "selections": [
+                            (v1/*: any*/),
+                            (v3/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "color",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "SpanCostSummary",
                   "kind": "LinkedField",
                   "name": "costSummary",
@@ -285,7 +337,7 @@ return {
                       "kind": "LinkedField",
                       "name": "total",
                       "plural": false,
-                      "selections": (v3/*: any*/),
+                      "selections": (v4/*: any*/),
                       "storageKey": null
                     },
                     {
@@ -295,7 +347,7 @@ return {
                       "kind": "LinkedField",
                       "name": "prompt",
                       "plural": false,
-                      "selections": (v3/*: any*/),
+                      "selections": (v4/*: any*/),
                       "storageKey": null
                     },
                     {
@@ -305,7 +357,7 @@ return {
                       "kind": "LinkedField",
                       "name": "completion",
                       "plural": false,
-                      "selections": (v3/*: any*/),
+                      "selections": (v4/*: any*/),
                       "storageKey": null
                     }
                   ],
@@ -409,6 +461,6 @@ return {
 };
 })();
 
-(node as any).hash = "17186b0bb426f1417580336d6143d8a3";
+(node as any).hash = "60efbafffc865e6c197c185ad3112606";
 
 export default node;

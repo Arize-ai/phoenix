@@ -18,6 +18,7 @@ import {
   ProgressBar,
   RichTooltip,
   Text,
+  Token,
   TooltipTrigger,
   TriggerWrap,
   View,
@@ -163,6 +164,15 @@ export function ExperimentsTable({
                 project {
                   id
                 }
+                datasetSplits {
+                  edges {
+                    node {
+                      id
+                      name
+                      color
+                    }
+                  }
+                }
                 costSummary {
                   total {
                     tokens
@@ -279,6 +289,22 @@ export function ExperimentsTable({
       header: "created at",
       accessorKey: "createdAt",
       cell: TimestampCell,
+    },
+    {
+      header: "splits",
+      accessorKey: "datasetSplits",
+      cell: ({ row }) => {
+        const datasetSplits = row.original.datasetSplits;
+        return (
+          <Flex direction="row" gap="size-100" alignItems="center" wrap="wrap">
+            {datasetSplits.edges.map((edge) => (
+              <Token key={edge.node.id} color={edge.node.color}>
+                {edge.node.name}
+              </Token>
+            ))}
+          </Flex>
+        );
+      },
     },
   ];
 
