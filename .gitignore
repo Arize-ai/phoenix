@@ -79,7 +79,7 @@ js/examples/notebooks/**/deno.lock
 /.scratch/
 
 # git worktrees
-/worktrees/
+/.worktrees/
 
 # uv
 uv.lock
