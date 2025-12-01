@@ -43,45 +43,37 @@ const sampleEvaluators: ComponentProps<
   {
     id: "1",
     name: "Correctness Evaluator",
-    isAssignedToDataset: false,
   },
   {
     id: "2",
     name: "Creativity Evaluator",
     annotationName: "creativity_score",
-    isAssignedToDataset: false,
   },
   {
     id: "3",
     name: "Relevance Evaluator",
-    isAssignedToDataset: false,
   },
   {
     id: "4",
     name: "An evaluator that has a really really really really really really really really long name",
     annotationName: "annotation_name_that_is_very_long_and_should_be_truncated",
-    isAssignedToDataset: false,
   },
   {
     id: "5",
     name: "Accuracy Evaluator",
-    isAssignedToDataset: true,
   },
   {
     id: "6",
     name: "Hallucination Evaluator",
     annotationName: "hallucination",
-    isAssignedToDataset: false,
   },
   {
     id: "7",
     name: "Jaccard Similarity Evaluator",
-    isAssignedToDataset: true,
   },
   {
     id: "8",
     name: "Short",
-    isAssignedToDataset: true,
     annotationName: "annotation_name_that_is_very_long_and_should_be_truncated",
   },
 ];

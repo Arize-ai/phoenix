@@ -21,6 +21,12 @@ export const gridListCss = css`
     display: flex;
     padding: var(--ac-global-dimension-static-size-100);
   }
+
+  .react-aria-GridListSection {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ac-global-menu-item-gap);
+  }
 `;
 
 export const gridListItemCss = css`
@@ -72,4 +78,10 @@ export const gridListItemCss = css`
 export const gridListSectionTitleCss = css`
   padding: var(--ac-global-dimension-static-size-50)
     var(--ac-global-dimension-static-size-100) 0;
+`;
+
+export const gridListSectionCss = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-global-menu-item-gap);
 `;

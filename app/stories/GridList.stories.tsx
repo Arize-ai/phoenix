@@ -5,6 +5,8 @@ import {
   GridList,
   GridListItem,
   GridListProps,
+  GridListSection,
+  GridListSectionTitle,
   Icon,
   IconButton,
   Icons,
@@ -134,3 +136,42 @@ export const Empty: StoryFn<Omit<GridListProps<object>, "children">> = (
     ></GridList>
   </div>
 );
+
+/**
+ * Grid list with sections
+ */
+export const WithSections: StoryFn<Omit<GridListProps<object>, "children">> = (
+  props
+) => (
+  <div
+    css={css`
+      border: 1px solid var(--ac-global-color-grey-300);
+      border-radius: var(--ac-global-rounding-small);
+    `}
+  >
+    <GridList aria-label="Grid list with sections" {...props}>
+      <GridListSection>
+        <GridListSectionTitle title="Category A" />
+        <GridListItem>Item A1</GridListItem>
+        <GridListItem>Item A2</GridListItem>
+        <GridListItem>Item A3</GridListItem>
+      </GridListSection>
+      <GridListSection>
+        <GridListSectionTitle title="Category B" />
+        <GridListItem>Item B1</GridListItem>
+        <GridListItem>Item B2</GridListItem>
+        <GridListItem>Item B3</GridListItem>
+      </GridListSection>
+      <GridListSection>
+        <GridListSectionTitle title="Category C" />
+        <GridListItem>Item C1</GridListItem>
+        <GridListItem>Item C2</GridListItem>
+      </GridListSection>
+    </GridList>
+  </div>
+);
+
+WithSections.args = {
+  selectionMode: "multiple",
+  selectionBehavior: "toggle",
+};
