@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<03a8d3e82f536069bdf007361208b47d>>
+ * @generated SignedSource<<1e785b104ceccec22c0a80e350d6985a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,6 @@ export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
-  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
@@ -31,13 +30,28 @@ export type ChatCompletionMessageInput = {
   toolCalls?: ReadonlyArray<any> | null;
 };
 export type GenerativeModelInput = {
+  builtin?: GenerativeModelBuiltinProviderInput | null;
+  custom?: GenerativeModelCustomProviderInput | null;
+};
+export type GenerativeModelBuiltinProviderInput = {
   apiVersion?: string | null;
   baseUrl?: string | null;
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   customHeaders?: any | null;
   endpoint?: string | null;
   name: string;
   providerKey: GenerativeProviderKey;
   region?: string | null;
+};
+export type GenerativeCredentialInput = {
+  envVarName: string;
+  value: string;
+};
+export type GenerativeModelCustomProviderInput = {
+  extraHeaders?: any | null;
+  modelName: string;
+  provider: string;
+  providerId: string;
 };
 export type InvocationParameterInput = {
   canonicalName?: CanonicalParameterName | null;
@@ -49,10 +63,6 @@ export type InvocationParameterInput = {
   valueJson?: any | null;
   valueString?: string | null;
   valueStringList?: ReadonlyArray<string> | null;
-};
-export type GenerativeCredentialInput = {
-  envVarName: string;
-  value: string;
 };
 export type PromptTemplateOptions = {
   format: PromptTemplateFormat;
