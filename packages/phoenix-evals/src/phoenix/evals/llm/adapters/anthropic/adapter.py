@@ -75,9 +75,13 @@ class AnthropicAdapter(BaseLLMAdapter):
     def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         if self._is_async:
             raise ValueError("Cannot call sync method generate_text() on async Anthropic client.")
-        messages = self._build_messages(prompt)
+        messages, system = self._build_messages(prompt)
         required_kwargs = {"max_tokens": 4096}  # max_tokens is required for Anthropic
         kwargs = {**required_kwargs, **kwargs}
+
+        # Add system message if present
+        if system:
+            kwargs["system"] = system
 
         try:
             response = self.client.messages.create(model=self.model, messages=messages, **kwargs)
@@ -96,7 +100,11 @@ class AnthropicAdapter(BaseLLMAdapter):
             raise ValueError(
                 "Cannot call async method async_generate_text() on sync Anthropic client."
             )
-        messages = self._build_messages(prompt)
+        messages, system = self._build_messages(prompt)
+
+        # Add system message if present
+        if system:
+            kwargs["system"] = system
 
         try:
             response = await self.client.messages.create(
@@ -169,8 +177,12 @@ class AnthropicAdapter(BaseLLMAdapter):
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        messages = self._build_messages(prompt)
+        messages, system = self._build_messages(prompt)
         tool_definition = self._schema_to_tool(schema)
+
+        # Add system message if present
+        if system:
+            kwargs["system"] = system
 
         response = self.client.messages.create(
             model=self.model,
@@ -192,8 +204,12 @@ class AnthropicAdapter(BaseLLMAdapter):
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        messages = self._build_messages(prompt)
+        messages, system = self._build_messages(prompt)
         tool_definition = self._schema_to_tool(schema)
+
+        # Add system message if present
+        if system:
+            kwargs["system"] = system
 
         response = await self.client.messages.create(
             model=self.model,
@@ -269,17 +285,36 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     def _build_messages(
         self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], str]:
+        """Build messages for Anthropic API.
+
+        Returns:
+            Tuple of (messages, system_content) where system_content is extracted system messages
+        """
         if isinstance(prompt, str):
-            return [{"role": "user", "content": prompt}]
+            return [{"role": "user", "content": prompt}], ""
 
         if isinstance(prompt, list):
             # Check if this is List[Message] with MessageRole enum
             if prompt and isinstance(prompt[0].get("role"), MessageRole):
-                # Transform List[Message] to Anthropic format
-                return self._transform_messages_to_anthropic(prompt)
-            # Otherwise, already in Anthropic-compatible message format
-            return prompt
+                # Extract system messages first
+                system_messages = [msg for msg in prompt if msg["role"] == MessageRole.SYSTEM]
+                system_content = "\n".join(
+                    msg["content"] if isinstance(msg["content"], str) else ""
+                    for msg in system_messages
+                )
+                # Transform List[Message] to Anthropic format (excludes system messages)
+                anthropic_messages = self._transform_messages_to_anthropic(prompt)
+                return anthropic_messages, system_content
+
+            # Otherwise, plain dict format - extract system messages
+            system_messages = [msg for msg in prompt if msg.get("role") == "system"]
+            non_system_messages = [msg for msg in prompt if msg.get("role") != "system"]
+            system_content = "\n".join(
+                msg["content"] if isinstance(msg.get("content"), str) else ""
+                for msg in system_messages
+            )
+            return non_system_messages, system_content
 
         # Handle legacy MultimodalPrompt
         text_parts = []
@@ -288,7 +323,7 @@ class AnthropicAdapter(BaseLLMAdapter):
                 text_parts.append(part.content)
 
         combined_text = "\n".join(text_parts)
-        return [{"role": "user", "content": combined_text}]
+        return [{"role": "user", "content": combined_text}], ""
 
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         if not schema:

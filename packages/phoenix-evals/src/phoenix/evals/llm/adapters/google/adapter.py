@@ -63,7 +63,23 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 "Cannot call sync method generate_text() on async Google GenAI client."
             )
 
-        content = self._build_content(prompt)
+        content, system_instruction = self._build_content(prompt)
+
+        # Add system_instruction to config if present
+        if system_instruction:
+            from google import genai
+
+            config = kwargs.get("config")
+            if config is None:
+                config = genai.types.GenerateContentConfig(system_instruction=system_instruction)
+            elif isinstance(config, dict):
+                config["system_instruction"] = system_instruction
+            else:
+                # It's a GenerateContentConfig object, we need to merge
+                config = genai.types.GenerateContentConfig(
+                    **{**config.__dict__, "system_instruction": system_instruction}
+                )
+            kwargs["config"] = config
 
         try:
             response = self.client.models.generate_content(
@@ -84,7 +100,23 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 "Cannot call async method async_generate_text() on sync Google GenAI client."
             )
 
-        content = self._build_content(prompt)
+        content, system_instruction = self._build_content(prompt)
+
+        # Add system_instruction to config if present
+        if system_instruction:
+            from google import genai
+
+            config = kwargs.get("config")
+            if config is None:
+                config = genai.types.GenerateContentConfig(system_instruction=system_instruction)
+            elif isinstance(config, dict):
+                config["system_instruction"] = system_instruction
+            else:
+                # It's a GenerateContentConfig object, we need to merge
+                config = genai.types.GenerateContentConfig(
+                    **{**config.__dict__, "system_instruction": system_instruction}
+                )
+            kwargs["config"] = config
 
         try:
             response = await self.client.models.generate_content(
@@ -184,11 +216,12 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         from google import genai
 
-        content = self._build_content(prompt)
+        content, system_instruction = self._build_content(prompt)
 
         config = genai.types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=schema,
+            system_instruction=system_instruction if system_instruction else None,
         )
 
         try:
@@ -212,11 +245,12 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         from google import genai
 
-        content = self._build_content(prompt)
+        content, system_instruction = self._build_content(prompt)
 
         config = genai.types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=schema,
+            system_instruction=system_instruction if system_instruction else None,
         )
 
         try:
@@ -240,7 +274,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         from google import genai
 
-        content = self._build_content(prompt)
+        content, system_instruction = self._build_content(prompt)
         tool = self._schema_to_tool(schema)
         any_config_mode = genai.types.FunctionCallingConfigMode("ANY")
 
@@ -249,6 +283,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             tool_config=genai.types.ToolConfig(
                 function_calling_config=genai.types.FunctionCallingConfig(mode=any_config_mode)
             ),
+            system_instruction=system_instruction if system_instruction else None,
         )
 
         try:
@@ -276,7 +311,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         from google import genai
 
-        content = self._build_content(prompt)
+        content, system_instruction = self._build_content(prompt)
         tool = self._schema_to_tool(schema)
         any_config_mode = genai.types.FunctionCallingConfigMode("ANY")
 
@@ -285,6 +320,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             tool_config=genai.types.ToolConfig(
                 function_calling_config=genai.types.FunctionCallingConfig(mode=any_config_mode)
             ),
+            system_instruction=system_instruction if system_instruction else None,
         )
 
         try:
@@ -368,26 +404,61 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
     def _build_content(
         self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
-    ) -> Union[str, List[Dict[str, Any]]]:
+    ) -> tuple[Union[str, List[Dict[str, Any]]], str]:
+        """Build content for Google GenAI API.
+
+        Returns:
+            Tuple of (content, system_instruction) where system_instruction is extracted
+            from system messages
+        """
         if isinstance(prompt, str):
-            return prompt
+            return prompt, ""
 
         if isinstance(prompt, list):
             # Check if this is List[Message] with MessageRole enum
             if prompt and isinstance(prompt[0].get("role"), MessageRole):
-                # Transform List[Message] to Google format
-                return self._transform_messages_to_google(prompt)
-            # Convert OpenAI-style messages to Google format (backward compatibility)
-            # Google uses "model" instead of "assistant" for role
+                # Extract system messages first
+                system_messages = [msg for msg in prompt if msg["role"] == MessageRole.SYSTEM]
+                system_instruction = "\n".join(
+                    msg["content"] if isinstance(msg["content"], str) else ""
+                    for msg in system_messages
+                )
+                # Transform List[Message] to Google format (will skip system messages)
+                google_messages = self._transform_messages_to_google(prompt)
+                return google_messages, system_instruction
+
+            # Convert plain dict messages to Google format
+            # Extract system messages for system_instruction parameter
+            system_messages = [msg for msg in prompt if msg.get("role") == "system"]
+            non_system_messages = [msg for msg in prompt if msg.get("role") != "system"]
+            system_instruction = "\n".join(
+                msg["content"] if isinstance(msg.get("content"), str) else ""
+                for msg in system_messages
+            )
+
             google_messages = []
-            for msg in prompt:
+            for msg in non_system_messages:
                 role = msg["role"]
                 content = msg["content"]
+
                 # Convert assistant role to model
                 if role == "assistant":
                     role = "model"
-                google_messages.append({"role": role, "parts": [{"text": content}]})
-            return google_messages
+
+                # Handle content - can be string or List[ContentPart]
+                if isinstance(content, str):
+                    google_messages.append({"role": role, "parts": [{"text": content}]})
+                else:
+                    # Extract text from structured content parts
+                    text_parts = []
+                    for part in content:
+                        if part.get("type") == "text":
+                            text_parts.append(part.get("text", ""))
+
+                    # Join all text parts
+                    combined_text = "\n".join(text_parts)
+                    google_messages.append({"role": role, "parts": [{"text": combined_text}]})
+            return google_messages, system_instruction
 
         # Handle legacy MultimodalPrompt
         text_parts: list[str] = []
@@ -395,7 +466,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             if part.content_type == PromptPartContentType.TEXT:
                 text_parts.append(str(part.content))
 
-        return "\n".join(text_parts)
+        return "\n".join(text_parts), ""
 
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         if not schema:
