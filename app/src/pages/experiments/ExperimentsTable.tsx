@@ -295,6 +295,9 @@ export function ExperimentsTable({
       accessorKey: "datasetSplits",
       cell: ({ row }) => {
         const datasetSplits = row.original.datasetSplits;
+        if (!datasetSplits || datasetSplits.edges.length === 0) {
+          return <>all examples</>;
+        }
         return (
           <Flex direction="row" gap="size-100" alignItems="center" wrap="wrap">
             {datasetSplits.edges.map((edge) => (
