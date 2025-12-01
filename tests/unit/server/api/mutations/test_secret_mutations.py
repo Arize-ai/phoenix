@@ -30,7 +30,11 @@ class TestSecretMutations:
           ... on Secret {
             id
             key
-            value
+            value {
+              ... on DecryptedSecret {
+                value
+              }
+            }
           }
         }
       }
@@ -40,7 +44,11 @@ class TestSecretMutations:
           secrets {
             id
             key
-            value
+            value {
+              ... on DecryptedSecret {
+                value
+              }
+            }
           }
         }
       }
@@ -91,13 +99,13 @@ class TestSecretMutations:
         created_secrets = create_result.data["upsertSecret"]["secrets"]
         assert len(created_secrets) == 1
         assert created_secrets[0]["key"] == secret_key_1
-        assert created_secrets[0]["value"] == secret_value_1
+        assert created_secrets[0]["value"]["value"] == secret_value_1
 
         # Verify via node query
         fetched_secret = await _fetch_secret_via_node_query(gql_client, secret_key_1, self.QUERY)
         assert fetched_secret is not None
         assert fetched_secret["key"] == secret_key_1
-        assert fetched_secret["value"] == secret_value_1
+        assert fetched_secret["value"]["value"] == secret_value_1
 
         # Test 2: Update existing secret (upsert with same key)
         secret_value_1_updated = "updated-value-456"
@@ -116,12 +124,12 @@ class TestSecretMutations:
         updated_secrets = update_result.data["upsertSecret"]["secrets"]
         assert len(updated_secrets) == 1
         assert updated_secrets[0]["key"] == secret_key_1
-        assert updated_secrets[0]["value"] == secret_value_1_updated
+        assert updated_secrets[0]["value"]["value"] == secret_value_1_updated
 
         # Verify update via node query
         fetched_updated = await _fetch_secret_via_node_query(gql_client, secret_key_1, self.QUERY)
         assert fetched_updated is not None
-        assert fetched_updated["value"] == secret_value_1_updated
+        assert fetched_updated["value"]["value"] == secret_value_1_updated
 
         # Test 3: Batch create multiple secrets
         secret_key_2 = f"test-secret-special-{token_hex(4)}"
@@ -149,10 +157,10 @@ class TestSecretMutations:
         assert len(batch_secrets) == 2
         # Check first secret (special characters)
         assert batch_secrets[0]["key"] == secret_key_2
-        assert batch_secrets[0]["value"] == secret_value_2
+        assert batch_secrets[0]["value"]["value"] == secret_value_2
         # Check second secret (whitespace trimmed)
         assert batch_secrets[1]["key"] == secret_key_3
-        assert batch_secrets[1]["value"] == secret_value_3
+        assert batch_secrets[1]["value"]["value"] == secret_value_3
 
         # ===== ERROR CASE TESTS =====
 
@@ -260,12 +268,12 @@ class TestSecretMutations:
         recreated_secrets = recreate_result.data["upsertSecret"]["secrets"]
         assert len(recreated_secrets) == 1
         assert recreated_secrets[0]["key"] == secret_key_1
-        assert recreated_secrets[0]["value"] == secret_value_1_recreated
+        assert recreated_secrets[0]["value"]["value"] == secret_value_1_recreated
 
         # Verify re-creation via node query
         fetched_recreated = await _fetch_secret_via_node_query(gql_client, secret_key_1, self.QUERY)
         assert fetched_recreated is not None
-        assert fetched_recreated["value"] == secret_value_1_recreated
+        assert fetched_recreated["value"]["value"] == secret_value_1_recreated
 
         # Test 11: Delete non-existent secret (idempotent - should succeed)
         nonexistent_key = f"nonexistent-secret-{token_hex(4)}"
