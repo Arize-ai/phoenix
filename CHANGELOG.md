@@ -1,5 +1,18 @@
 # Changelog
 
+## [12.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.18.0...arize-phoenix-v12.19.0) (2025-12-01)
+
+
+### Features
+
+* splits on experiments table ([#10422](https://github.com/Arize-ai/phoenix/issues/10422)) ([cb72a8f](https://github.com/Arize-ai/phoenix/commit/cb72a8f1d943c68827e46d6253250712d4ae4e9b))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10418](https://github.com/Arize-ai/phoenix/issues/10418)) ([8819bdc](https://github.com/Arize-ai/phoenix/commit/8819bdc29acfffd8dd84fe3bd50c34498e2a7fd6))
+* exclude none values for bedrock invocation parameters ([#10421](https://github.com/Arize-ai/phoenix/issues/10421)) ([1116686](https://github.com/Arize-ai/phoenix/commit/1116686bba245e93a47c643824a6f853fc119077))
+
 ## [12.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.17.0...arize-phoenix-v12.18.0) (2025-11-25)
 
 
