@@ -70,3 +70,8 @@ export const gridListItemCss = css`
     }
   }
 `;
+
+export const gridListSectionTitleCss = css`
+  padding: var(--ac-global-dimension-static-size-50)
+    var(--ac-global-dimension-static-size-100) 0;
+`;

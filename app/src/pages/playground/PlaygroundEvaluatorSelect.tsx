@@ -1,11 +1,17 @@
 import { useState } from "react";
-import { Autocomplete, Input, useFilter } from "react-aria-components";
+import {
+  Autocomplete,
+  GridListSection,
+  Input,
+  useFilter,
+} from "react-aria-components";
 import { css } from "@emotion/react";
 
 import {
   Button,
   DialogTrigger,
   GridList,
+  GridListSectionTitle,
   Icon,
   Icons,
   LinkButton,
@@ -73,14 +79,18 @@ export function PlaygroundEvaluatorSelect(
                 max-width: 600px;
               `}
             >
-              {(evaluator) => (
-                <EvaluatorSelectMenuItem
-                  evaluator={evaluator}
-                  onSelectionChange={() => onSelectionChange(evaluator.id)}
-                  isSelected={selectedIds?.includes(evaluator.id) ?? false}
-                  onEdit={() => onEdit(evaluator.id)}
-                />
-              )}
+              <GridListSection>
+                <GridListSectionTitle title="Evaluators" />
+                {evaluators.map((evaluator) => (
+                  <EvaluatorSelectMenuItem
+                    key={evaluator.id}
+                    evaluator={evaluator}
+                    onSelectionChange={() => onSelectionChange(evaluator.id)}
+                    isSelected={selectedIds?.includes(evaluator.id) ?? false}
+                    onEdit={() => onEdit(evaluator.id)}
+                  />
+                ))}
+              </GridListSection>
             </GridList>
           </Autocomplete>
           <MenuFooter>

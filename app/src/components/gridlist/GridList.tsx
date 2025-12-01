@@ -1,16 +1,20 @@
 import { ComponentProps, ReactNode, Ref } from "react";
 import {
   GridList as AriaGridList,
+  GridListHeader,
   GridListItem as AriaGridListItem,
   GridListItemProps as AriaGridListItemProps,
   GridListProps as AriaGridListProps,
+  GridListSection as AriaGridListSection,
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
 import { Checkbox } from "@phoenix/components/checkbox";
+import { Text } from "@phoenix/components/content";
 import {
   gridListCss,
   gridListItemCss,
+  gridListSectionTitleCss,
 } from "@phoenix/components/gridlist/styles";
 import { Flex } from "@phoenix/components/layout";
 
@@ -104,3 +108,24 @@ const GridListItemContent = ({
     </Flex>
   );
 };
+
+/**
+ * GridListSectionTitle is the title for the grid list section, and should
+ * be used in conjunction with GridListSection.
+ * @example
+ * <GridListSection>
+ *   <GridListSectionTitle title="Section 1" />
+ *   <GridListItem>Item 1</GridListItem>
+ *   <GridListItem>Item 2</GridListItem>
+ *   <GridListItem>Item 3</GridListItem>
+ * </GridListSection>
+ */
+export const GridListSectionTitle = ({ title }: { title: string }) => {
+  return (
+    <GridListHeader css={gridListSectionTitleCss}>
+      <Text weight="heavy">{title}</Text>
+    </GridListHeader>
+  );
+};
+
+export const GridListSection = AriaGridListSection;
