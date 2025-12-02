@@ -274,9 +274,6 @@ evaluator = LLMEvaluator(
 
 {% tab title="Typescript" %}
 ```typescript
-import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
-import { openai } from "@ai-sdk/openai";
-
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
@@ -291,21 +288,24 @@ type MyEvalInput = {
 };
 
 // Construct a custom evaluator using the factory method
+// The prompt template variables determine the required input fields
 const myCustomEvaluator = createClassificationEvaluator<MyEvalInput>({
   name: "my_custom_eval",
   model: openai("gpt-4"),
   promptTemplate: `
     Determine if the following response correctly answer's the user query using the provided context.
-    Query: {input.query}
-    Context: {input.documents}
-    Response: {output.response}
+    Query: {{input.query}}
+    Context: {{input.documents}}
+    Response: {{output.response}}
   `,
   choices: ["Correct", "Incorrect"],
   // ...other options, scoring logic, etc. can be set here
 });
 
-// View the actual required fields to make sure they align with the type
-console.log(myCustomEvaluator.promtTemplateVariables)
+// The evaluator expects fields matching the prompt template variables:
+// - input.query
+// - input.documents
+// - output.response
 ```
 
 {% endtab %}
@@ -332,7 +332,46 @@ def exact_match(output: str, expected: str) -> Score:
 {% endtab %}
 
 {% tab title="Typescript" %}
-[https://github.com/Arize-ai/phoenix/issues/10393](https://github.com/Arize-ai/phoenix/issues/10393)
+```typescript
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+// The function signature determines the required input fields
+// This creates an evaluator that expects: output (string) and expected (string)
+const exactMatch = createEvaluator<{ output: string; expected: string }>(
+  ({ output, expected }) => {
+    return output === expected ? 1 : 0;
+  },
+  {
+    name: "exact_match",
+    kind: "CODE",
+  }
+);
+
+// The evaluator's input schema is inferred from the function parameters:
+// - output: string (required)
+// - expected: string (required)
+// 
+// You can use bindEvaluator to map these fields to your data structure:
+import { bindEvaluator } from "@arizeai/phoenix-evals";
+
+type MyData = {
+  model_response: string;
+  correct_answer: string;
+};
+
+const boundExactMatch = bindEvaluator<MyData>(exactMatch, {
+  inputMapping: {
+    output: "model_response",    // Map evaluator's "output" to "model_response"
+    expected: "correct_answer",  // Map evaluator's "expected" to "correct_answer"
+  },
+});
+
+// Now you can evaluate with your data structure
+const result = await boundExactMatch.evaluate({
+  model_response: "The answer is 42",
+  correct_answer: "The answer is 42",
+});
+```
 {% endtab %}
 {% endtabs %}
 
