@@ -63,7 +63,7 @@ const RECOMMENDATION_RELEVANCE = `
   1. \`correct\` →
   - All recommended movies match the requested genre or criteria in the user input.
   - The recommendations should be relevant to the user's request and shouldn't be repetitive.
-  - \`incorrect\` → one or more recommendations do not match the requested genre or criteria.
+  2.\`incorrect\` → one or more recommendations do not match the requested genre or criteria.
   `;
 
   
