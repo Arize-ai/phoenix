@@ -1848,23 +1848,47 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
 
             # Add tool_config with function_calling_config if tool_choice is specified
             if tool_choice:
-                # Map tool_choice values to Google's FunctionCallingConfigMode
-                # "auto" -> AUTO, "any" -> ANY, "none" -> NONE
-                mode_mapping = {
-                    "auto": "AUTO",
-                    "any": "ANY",
-                    "none": "NONE",
-                }
-                mode = mode_mapping.get(str(tool_choice).lower(), "AUTO")
-                print(f"[GOOGLE CLIENT DEBUG] Mapped tool_choice '{tool_choice}' -> mode '{mode}'")
-                config["tool_config"] = types.ToolConfig(
-                    function_calling_config=types.FunctionCallingConfig(mode=mode)
-                )
+                # Check if tool_choice is an object with a "name" field (specific tool selection)
+                if isinstance(tool_choice, dict) and "name" in tool_choice:
+                    # Specific tool selection: set mode to ANY and allowed_function_names
+                    tool_name = tool_choice["name"]
+                    mode = "ANY"
+                    print(
+                        f"[GOOGLE CLIENT DEBUG] Specific tool selected: '{tool_name}' -> mode 'ANY' with allowed_function_names"  # noqa: E501
+                    )
+                    config["tool_config"] = types.ToolConfig(
+                        function_calling_config=types.FunctionCallingConfig(
+                            mode=mode, allowed_function_names=[tool_name]
+                        )
+                    )
+                else:
+                    # Mode selection: map tool_choice values to Google's FunctionCallingConfigMode
+                    # "auto" -> AUTO, "any" -> ANY, "none" -> NONE
+                    mode_mapping = {
+                        "auto": "AUTO",
+                        "any": "ANY",
+                        "none": "NONE",
+                    }
+                    mode = mode_mapping.get(str(tool_choice).lower(), "AUTO")
+                    print(
+                        f"[GOOGLE CLIENT DEBUG] Mapped tool_choice '{tool_choice}' -> mode '{mode}'"
+                    )
+                    config["tool_config"] = types.ToolConfig(
+                        function_calling_config=types.FunctionCallingConfig(mode=mode)
+                    )
 
         # Print final config (sanitized)
         config_debug = {k: v for k, v in config.items() if k not in ["tools", "tool_config"]}
         config_debug["tools"] = f"<{len(tools)} tools>" if tools else None
-        config_debug["tool_config"] = f"<mode: {mode}>" if tools and tool_choice else None
+        if tools and tool_choice:
+            if isinstance(tool_choice, dict) and "name" in tool_choice:
+                config_debug["tool_config"] = (
+                    f"<mode: {mode}, allowed_function_names: [{tool_choice['name']}]>"
+                )
+            else:
+                config_debug["tool_config"] = f"<mode: {mode}>"
+        else:
+            config_debug["tool_config"] = None
         print(
             f"[GOOGLE CLIENT DEBUG] Final config: {json.dumps(config_debug, indent=2, default=str)}"
         )
