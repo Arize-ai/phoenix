@@ -151,82 +151,18 @@ export const awsToolDefinitionJSONSchema = zodToJsonSchema(
 );
 
 /**
- * Gemini schema properties using standard lowercase type values
+ * The zod schema for a Gemini tool definition
  */
-type GeminiSchemaProperties = {
-  type:
-    | "string"
-    | "number"
-    | "integer"
-    | "boolean"
-    | "array"
-    | "object"
-    | "null";
-  description?: string;
-  enum?: string[];
-  format?: string;
-  nullable?: boolean;
-  items?: GeminiSchemaProperties;
-  properties?: Record<string, GeminiSchemaProperties>;
-  required?: string[];
-  [key: string]: unknown;
-};
-
-const geminiSchemaPropertiesSchema: z.ZodType<GeminiSchemaProperties> = z
-  .object({
-    type: z
-      .enum([
-        "string",
-        "number",
-        "integer",
-        "boolean",
-        "array",
-        "object",
-        "null",
-      ])
-      .describe("The type of the parameter"),
-    description: z
-      .string()
-      .optional()
-      .describe("A description of the parameter"),
-    enum: z.array(z.string()).optional().describe("The allowed values"),
-    format: z.string().optional().describe("The format of the data"),
-    nullable: z.boolean().optional().describe("Whether the value may be null"),
-    items: z
-      .lazy(() => geminiSchemaPropertiesSchema)
-      .optional()
-      .describe("Schema of array elements"),
-    properties: z
-      .record(z.lazy(() => geminiSchemaPropertiesSchema))
-      .optional()
-      .describe("Properties of object type"),
-    required: z
-      .array(z.string())
-      .optional()
-      .describe("Required properties for object type"),
-  })
-  .passthrough()
-  .describe("A Gemini schema property definition");
-
-const geminiFunctionDeclarationSchema = z.object({
-  name: z.string().describe("The name of the function"),
-  description: z.string().optional().describe("A description of the function"),
-  parameters: geminiSchemaPropertiesSchema
-    .optional()
-    .describe("The parameters that the function accepts"),
+export const geminiToolDefinitionSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  parameters: jsonSchemaZodSchema,
 });
-
-/**
- * Gemini tool definition - a single function declaration.
- * The backend will wrap this in a `functionDeclarations` array when sending to Google's API.
- */
-export const geminiToolDefinitionSchema = geminiFunctionDeclarationSchema;
 
 export type GeminiToolDefinition = z.infer<typeof geminiToolDefinitionSchema>;
 
 /**
- * The JSON schema for a Gemini tool definition (single function declaration).
- * The backend wraps this in a `functionDeclarations` array before sending to Google's API.
+ * The JSON schema for a Gemini tool definition
  */
 export const geminiToolDefinitionJSONSchema = zodToJsonSchema(
   geminiToolDefinitionSchema,
@@ -240,125 +176,6 @@ export const geminiToolDefinitionJSONSchema = zodToJsonSchema(
  * Conversion Schemas
  * --------------------------------
  */
-
-/**
- * Convert Gemini schema to OpenAPI schema (they use the same type values now)
- */
-const convertGeminiSchemaToOpenAPI = (
-  geminiSchema: GeminiSchemaProperties
-): Record<string, unknown> => {
-  const openaiSchema: Record<string, unknown> = {
-    ...geminiSchema,
-  };
-
-  if (geminiSchema.properties) {
-    openaiSchema.properties = Object.fromEntries(
-      Object.entries(geminiSchema.properties).map(([key, value]) => [
-        key,
-        convertGeminiSchemaToOpenAPI(value),
-      ])
-    );
-  }
-
-  if (geminiSchema.items) {
-    openaiSchema.items = convertGeminiSchemaToOpenAPI(geminiSchema.items);
-  }
-
-  return openaiSchema;
-};
-
-/**
- * Convert OpenAPI schema to Gemini schema (they use the same type values now)
- */
-const convertOpenAPISchemaToGemini = (
-  openaiSchema: Record<string, unknown>
-): GeminiSchemaProperties => {
-  const geminiSchema: Record<string, unknown> = {
-    ...openaiSchema,
-  };
-
-  if (
-    "properties" in openaiSchema &&
-    openaiSchema.properties &&
-    typeof openaiSchema.properties === "object"
-  ) {
-    geminiSchema.properties = Object.fromEntries(
-      Object.entries(openaiSchema.properties).map(([key, value]) => {
-        if (
-          typeof value === "object" &&
-          value !== null &&
-          "anyOf" in value &&
-          Array.isArray(value.anyOf) &&
-          value.anyOf[0]
-        ) {
-          // For anyOf, just take the first option for simplicity
-          return [
-            key,
-            convertOpenAPISchemaToGemini(
-              value.anyOf[0] as Record<string, unknown>
-            ),
-          ];
-        }
-        return [
-          key,
-          convertOpenAPISchemaToGemini(value as Record<string, unknown>),
-        ];
-      })
-    );
-  }
-
-  if (
-    "items" in openaiSchema &&
-    openaiSchema.items &&
-    typeof openaiSchema.items === "object"
-  ) {
-    geminiSchema.items = convertOpenAPISchemaToGemini(
-      openaiSchema.items as Record<string, unknown>
-    );
-  }
-
-  return geminiSchema as GeminiSchemaProperties;
-};
-
-/**
- * Convert a Gemini function declaration to OpenAI format
- */
-const convertGeminiToOpenAITool = (
-  gemini: GeminiToolDefinition
-): OpenAIToolDefinition => {
-  const parameters = gemini.parameters
-    ? convertGeminiSchemaToOpenAPI(gemini.parameters)
-    : { type: "object", properties: {} };
-
-  // Ensure type is "object" for OpenAI compatibility
-  if (!parameters.type) {
-    parameters.type = "object";
-  }
-
-  return {
-    type: "function" as const,
-    function: {
-      name: gemini.name,
-      description: gemini.description,
-      parameters: parameters as OpenAIToolDefinition["function"]["parameters"],
-    },
-  };
-};
-
-/**
- * Convert an OpenAI tool to Gemini function declaration
- */
-const convertOpenAIToGeminiTool = (
-  openai: OpenAIToolDefinition
-): GeminiToolDefinition => {
-  return {
-    name: openai.function.name,
-    description: openai.function.description,
-    parameters: openai.function.parameters
-      ? convertOpenAPISchemaToGemini(openai.function.parameters)
-      : undefined,
-  };
-};
 
 export const awsToolToOpenAI = awsToolDefinitionSchema.transform(
   (aws): OpenAIToolDefinition => ({
@@ -405,6 +222,31 @@ export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
     name: openai.function.name,
     description: openai.function.description ?? openai.function.name,
     input_schema: openai.function.parameters,
+  })
+);
+
+/**
+ * Parse incoming object as a Gemini tool and immediately convert to OpenAI format
+ */
+export const geminiToolToOpenAI = geminiToolDefinitionSchema.transform(
+  (gemini): OpenAIToolDefinition => ({
+    type: "function",
+    function: {
+      name: gemini.name,
+      description: gemini.description,
+      parameters: gemini.parameters,
+    },
+  })
+);
+
+/**
+ * Parse incoming object as an OpenAI tool and immediately convert to Gemini format
+ */
+export const openAIToolToGemini = openAIToolDefinitionSchema.transform(
+  (openai): GeminiToolDefinition => ({
+    name: openai.function.name,
+    description: openai.function.description,
+    parameters: openai.function.parameters,
   })
 );
 
@@ -526,7 +368,7 @@ export const toOpenAIToolDefinition = (
     case "AWS":
       return awsToolToOpenAI.parse(validatedToolDefinition);
     case "GOOGLE":
-      return convertGeminiToOpenAITool(validatedToolDefinition);
+      return geminiToolToOpenAI.parse(validatedToolDefinition);
     case "UNKNOWN":
       return null;
     default:
@@ -560,7 +402,7 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
     case "GOOGLE":
-      return convertOpenAIToGeminiTool(
+      return openAIToolToGemini.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
     default:
