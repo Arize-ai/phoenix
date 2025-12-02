@@ -1,7 +1,4 @@
-import {
-  HALLUCINATION_CHOICES,
-  HALLUCINATION_TEMPLATE,
-} from "../default_templates/HALLUCINATION_TEMPLATE";
+import { HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG } from "../__generated__/default_templates";
 import { CreateClassificationEvaluatorArgs } from "../types/evals";
 
 import { ClassificationEvaluator } from "./ClassificationEvaluator";
@@ -25,7 +22,6 @@ export interface HallucinationEvaluatorArgs<
 export type HallucinationEvaluationRecord = {
   input: string;
   output: string;
-  reference?: string;
   context?: string;
 };
 /**
@@ -40,10 +36,10 @@ export function createHallucinationEvaluator<
   args: HallucinationEvaluatorArgs<RecordType>
 ): ClassificationEvaluator<RecordType> {
   const {
-    choices = HALLUCINATION_CHOICES,
-    promptTemplate = HALLUCINATION_TEMPLATE,
-    optimizationDirection = "MINIMIZE",
-    name = "hallucination",
+    choices = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.choices,
+    promptTemplate = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.template,
+    optimizationDirection = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.optimizationDirection,
+    name = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.name,
     ...rest
   } = args;
   return createClassificationEvaluator<RecordType>({

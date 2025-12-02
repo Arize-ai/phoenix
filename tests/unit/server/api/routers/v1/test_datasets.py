@@ -901,3 +901,436 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     result = response.json()
     data = result["data"]
     assert len(data["examples"]) == 3
+
+
+async def test_post_dataset_upload_json_with_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test JSON upload with various split formats: string, list, null, and mixed."""
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}, {"q": "Q2"}, {"q": "Q3"}, {"q": "Q4"}, {"q": "Q5"}],
+            "outputs": [{"a": "A1"}, {"a": "A2"}, {"a": "A3"}, {"a": "A4"}, {"a": "A5"}],
+            "splits": [
+                "train",  # Single string
+                ["test", "hard"],  # List of strings
+                None,  # No splits
+                ["validate", None, "medium", ""],  # List with nulls/empty (should filter)
+                "   ",  # Whitespace-only (should filter)
+            ],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        # Verify correct splits were created (empty/whitespace/nulls filtered)
+        splits = list(
+            await session.scalars(select(models.DatasetSplit).order_by(models.DatasetSplit.name))
+        )
+        assert set(s.name for s in splits) == {"train", "test", "hard", "validate", "medium"}
+
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 5
+
+        # Helper to get split names for an example
+        async def get_example_splits(example_id: int) -> set[str]:
+            result = await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == example_id)
+            )
+            return {s.name for s in result}
+
+        assert await get_example_splits(examples[0].id) == {"train"}
+        assert await get_example_splits(examples[1].id) == {"test", "hard"}
+        assert await get_example_splits(examples[2].id) == set()  # None -> no splits
+        assert await get_example_splits(examples[3].id) == {"validate", "medium"}  # nulls filtered
+        assert await get_example_splits(examples[4].id) == set()  # Whitespace-only -> no splits
+
+
+async def test_post_dataset_upload_csv_with_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test CSV upload with split_keys, including whitespace stripping."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(
+        b"question,answer,data_split,category\n"
+        b"Q1,A1,  train  ,general\n"  # Whitespace should be stripped
+        b"Q2,A2,test,technical\n"
+    )
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_keys[]": ["data_split", "category"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        splits = list(
+            await session.scalars(select(models.DatasetSplit).order_by(models.DatasetSplit.name))
+        )
+        # Verify whitespace was stripped and splits have default color
+        assert set(s.name for s in splits) == {"train", "test", "general", "technical"}
+        assert "  train  " not in [s.name for s in splits]
+        assert all(s.color == "#808080" for s in splits)
+
+        # Verify example assignments
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 2
+
+        async def get_example_splits(example_id: int) -> set[str]:
+            result = await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == example_id)
+            )
+            return {s.name for s in result}
+
+        assert await get_example_splits(examples[0].id) == {"train", "general"}
+        assert await get_example_splits(examples[1].id) == {"test", "technical"}
+
+
+async def test_post_dataset_upload_pyarrow_with_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test PyArrow upload with split_keys."""
+    name = inspect.stack()[0][3]
+    df = pd.read_csv(StringIO("question,answer,data_split\nQ1,A1,train\nQ2,A2,test\n"))
+    table = pa.Table.from_pandas(df)
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    file = BytesIO(sink.getvalue().to_pybytes())
+
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/x-pandas-pyarrow", {})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_keys[]": ["data_split"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        splits = list(
+            await session.scalars(select(models.DatasetSplit).order_by(models.DatasetSplit.name))
+        )
+        assert set(s.name for s in splits) == {"train", "test"}
+
+        # Verify example assignments
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 2
+
+        async def get_example_splits(example_id: int) -> set[str]:
+            result = await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == example_id)
+            )
+            return {s.name for s in result}
+
+        assert await get_example_splits(examples[0].id) == {"train"}
+        assert await get_example_splits(examples[1].id) == {"test"}
+
+
+async def test_post_dataset_upload_reuses_existing_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test that uploading datasets reuses existing splits instead of creating duplicates."""
+    name1 = "dataset_with_split_1"
+    name2 = "dataset_with_split_2"
+
+    # Create first dataset with split
+    response1 = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name1,
+            "inputs": [{"question": "Q1"}],
+            "outputs": [{"answer": "A1"}],
+            "splits": ["train"],
+        },
+    )
+    assert response1.status_code == 200
+    dataset1_id = response1.json()["data"]["dataset_id"]
+
+    # Get split count
+    async with db() as session:
+        splits_before = list(
+            await session.scalars(
+                select(models.DatasetSplit).where(models.DatasetSplit.name == "train")
+            )
+        )
+        assert len(splits_before) == 1
+        train_split_id = splits_before[0].id
+
+    # Create second dataset with same split name
+    response2 = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name2,
+            "inputs": [{"question": "Q2"}],
+            "outputs": [{"answer": "A2"}],
+            "splits": ["train"],
+        },
+    )
+    assert response2.status_code == 200
+    dataset2_id = response2.json()["data"]["dataset_id"]
+
+    # Verify split was reused, not duplicated
+    async with db() as session:
+        splits_after = list(
+            await session.scalars(
+                select(models.DatasetSplit).where(models.DatasetSplit.name == "train")
+            )
+        )
+        assert len(splits_after) == 1
+        assert splits_after[0].id == train_split_id  # Same split ID
+
+        # Verify both datasets' examples are assigned to the split
+        dataset1_db_id = int(GlobalID.from_id(dataset1_id).node_id)
+        dataset2_db_id = int(GlobalID.from_id(dataset2_id).node_id)
+
+        # Get examples from both datasets
+        dataset1_examples = list(
+            await session.scalars(
+                select(models.DatasetExample).where(
+                    models.DatasetExample.dataset_id == dataset1_db_id
+                )
+            )
+        )
+        dataset2_examples = list(
+            await session.scalars(
+                select(models.DatasetExample).where(
+                    models.DatasetExample.dataset_id == dataset2_db_id
+                )
+            )
+        )
+        assert len(dataset1_examples) == 1
+        assert len(dataset2_examples) == 1
+
+        # Verify first dataset's example is assigned to train split
+        dataset1_splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(
+                    models.DatasetSplitDatasetExample.dataset_example_id == dataset1_examples[0].id
+                )
+            )
+        )
+        assert len(dataset1_splits) == 1
+        assert dataset1_splits[0].name == "train"
+
+        # Verify second dataset's example is also assigned to the same train split
+        dataset2_splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(
+                    models.DatasetSplitDatasetExample.dataset_example_id == dataset2_examples[0].id
+                )
+            )
+        )
+        assert len(dataset2_splits) == 1
+        assert dataset2_splits[0].name == "train"
+        assert dataset2_splits[0].id == train_split_id  # Same split instance
+
+
+async def test_post_dataset_upload_rejects_invalid_split_formats(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Test that JSON upload rejects invalid split formats (dict, integer, boolean)."""
+    name = inspect.stack()[0][3]
+
+    # Test with dict split value (no longer supported)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"question": "Q1"}],
+            "outputs": [{"answer": "A1"}],
+            "splits": [{"data_split": "train"}],  # Dict format no longer supported
+        },
+    )
+    assert response.status_code == 422
+    assert "must be a string, list of strings, or None" in response.text
+
+    # Test with integer split value
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": f"{name}_int",
+            "inputs": [{"question": "Q1"}],
+            "outputs": [{"answer": "A1"}],
+            "splits": [123],  # Integer not allowed
+        },
+    )
+    assert response.status_code == 422
+    assert "must be a string, list of strings, or None" in response.text
+
+    # Test with boolean split value
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": f"{name}_bool",
+            "inputs": [{"question": "Q1"}],
+            "outputs": [{"answer": "A1"}],
+            "splits": [True],  # Boolean not allowed
+        },
+    )
+    assert response.status_code == 422
+    assert "must be a string, list of strings, or None" in response.text
+
+
+async def test_post_dataset_upload_append_with_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test appending to a dataset with splits - both reusing existing and adding new splits."""
+    name = inspect.stack()[0][3]
+
+    # Create initial dataset with "train" split
+    response1 = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+            "splits": ["train"],
+        },
+    )
+    assert response1.status_code == 200
+    dataset_id = response1.json()["data"]["dataset_id"]
+
+    # Get initial split info
+    async with db() as session:
+        train_split = await session.scalar(
+            select(models.DatasetSplit).where(models.DatasetSplit.name == "train")
+        )
+        assert train_split is not None
+        train_split_id = train_split.id
+
+    # Append to the same dataset with existing "train" split and new "test" split
+    response2 = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q2"}, {"q": "Q3"}],
+            "outputs": [{"a": "A2"}, {"a": "A3"}],
+            "splits": ["train", "test"],  # Q2 -> train (existing), Q3 -> test (new)
+        },
+    )
+    assert response2.status_code == 200
+    assert response2.json()["data"]["dataset_id"] == dataset_id  # Same dataset
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+
+        # Verify we have 3 examples total
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 3
+
+        # Verify train split was reused (same ID)
+        train_split_after = await session.scalar(
+            select(models.DatasetSplit).where(models.DatasetSplit.name == "train")
+        )
+        assert train_split_after is not None
+        assert train_split_after.id == train_split_id
+
+        # Verify test split was created
+        test_split = await session.scalar(
+            select(models.DatasetSplit).where(models.DatasetSplit.name == "test")
+        )
+        assert test_split is not None
+
+        # Verify first example (from create) is assigned to train
+        ex1_splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == examples[0].id)
+            )
+        )
+        assert len(ex1_splits) == 1
+        assert ex1_splits[0].name == "train"
+
+        # Verify second example (from append) is assigned to train
+        ex2_splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == examples[1].id)
+            )
+        )
+        assert len(ex2_splits) == 1
+        assert ex2_splits[0].name == "train"
+        assert ex2_splits[0].id == train_split_id  # Same split instance as before
+
+        # Verify third example (from append) is assigned to test
+        ex3_splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == examples[2].id)
+            )
+        )
+        assert len(ex3_splits) == 1
+        assert ex3_splits[0].name == "test"

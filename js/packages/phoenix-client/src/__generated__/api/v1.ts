@@ -3527,6 +3527,8 @@ export interface operations {
                     inputs: Record<string, unknown>[];
                     outputs?: Record<string, unknown>[];
                     metadata?: Record<string, unknown>[];
+                    /** @description Split per example: string, string array, or null */
+                    splits?: (string | string[] | null)[];
                 };
                 "multipart/form-data": {
                     /** @enum {string} */
@@ -3536,6 +3538,8 @@ export interface operations {
                     "input_keys[]": string[];
                     "output_keys[]": string[];
                     "metadata_keys[]"?: string[];
+                    /** @description Column names for auto-assigning examples to splits */
+                    "split_keys[]"?: string[];
                     /** Format: binary */
                     file: string;
                 };

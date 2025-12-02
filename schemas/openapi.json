@@ -1166,6 +1166,26 @@
                     "items": {
                       "type": "object"
                     }
+                  },
+                  "splits": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "description": "Split per example: string, string array, or null"
                   }
                 }
               }
@@ -1213,6 +1233,14 @@
                       "type": "string"
                     },
                     "uniqueItems": true
+                  },
+                  "split_keys[]": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "uniqueItems": true,
+                    "description": "Column names for auto-assigning examples to splits"
                   },
                   "file": {
                     "type": "string",

@@ -1,5 +1,24 @@
 # @arizeai/phoenix-client
 
+## 5.5.1
+
+### Patch Changes
+
+- Updated dependencies [ce5febf]
+  - @arizeai/phoenix-otel@0.3.1
+
+## 5.5.0
+
+### Minor Changes
+
+- cb45336: support splits when creating dataset or adding examples
+
+## 5.4.1
+
+### Patch Changes
+
+- b87d2a4: account for sub-paths in baseURLs properly
+
 ## 5.4.0
 
 ### Minor Changes
