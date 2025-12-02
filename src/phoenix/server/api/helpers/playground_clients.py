@@ -1824,64 +1824,22 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
 
         contents, system_prompt = self._build_google_messages(messages)
 
-        # Build config object for the new API
-        config = invocation_parameters.copy()
-
-        # Handle tool_config (FunctionCallingConfig format from frontend)
-        tool_config = config.pop("tool_config", None)
+        config_dict = invocation_parameters.copy()
 
         if system_prompt:
-            config["system_instruction"] = system_prompt
+            config_dict["system_instruction"] = system_prompt
 
-        # Add tools to config if provided
-        mode = None
         if tools:
-            print(f"\n[GOOGLE CLIENT DEBUG] Raw tools received: {json.dumps(tools, indent=2)}")
-            print(f"[GOOGLE CLIENT DEBUG] Tool config value: {tool_config}")
+            function_declarations = [types.FunctionDeclaration(**tool) for tool in tools]
+            config_dict["tools"] = [types.Tool(function_declarations=function_declarations)]
 
-            # Convert tools to Google's function declaration format
-            # Each tool is already a function declaration dict with name, description, parameters
-            tool_declarations = [types.FunctionDeclaration(**tool) for tool in tools]
-            config["tools"] = [types.Tool(function_declarations=tool_declarations)]
+        config = types.GenerateContentConfig.model_validate(config_dict)
+        print(f"{config=}")
 
-            print(f"[GOOGLE CLIENT DEBUG] Created {len(tool_declarations)} tool declaration(s)")
-
-            # Add tool_config with function_calling_config if specified
-            # tool_config is expected to be a FunctionCallingConfig dict:
-            # { "mode": "auto"|"any"|"none", "allowed_function_names"?: ["fn1"] }
-            # Note: Google's API is case-insensitive for mode values
-            if tool_config and isinstance(tool_config, dict):
-                mode = tool_config.get("mode", "auto")
-                allowed_function_names = tool_config.get("allowed_function_names")
-                print(
-                    f"[GOOGLE CLIENT DEBUG] FunctionCallingConfig: mode='{mode}', "
-                    f"allowed_function_names={allowed_function_names}"
-                )
-                config["tool_config"] = types.ToolConfig(
-                    function_calling_config=types.FunctionCallingConfig(
-                        mode=mode,
-                        allowed_function_names=allowed_function_names,
-                    )
-                )
-
-        # Print final config (sanitized)
-        config_debug = {k: v for k, v in config.items() if k not in ["tools", "tool_config"]}
-        config_debug["tools"] = f"<{len(tools)} tools>" if tools else None
-        if tools and tool_config and isinstance(tool_config, dict):
-            mode = tool_config.get("mode", "auto")
-            allowed_names = tool_config.get("allowed_function_names")
-            config_debug["tool_config"] = f"<mode: {mode}, allowed_function_names: {allowed_names}>"
-        else:
-            config_debug["tool_config"] = None
-        print(
-            f"[GOOGLE CLIENT DEBUG] Final config: {json.dumps(config_debug, indent=2, default=str)}"
-        )
-
-        # Use the client's async models.generate_content_stream method
         stream = await self.client.aio.models.generate_content_stream(
             model=f"models/{self.model_name}",
             contents=contents,
-            config=config if config else None,
+            config=config,
         )
 
         # Track active tool calls across chunks

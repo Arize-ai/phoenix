@@ -88,16 +88,22 @@ export const findToolChoiceType = (
       }
       return choice;
     case "GOOGLE":
-      if (isObject(choice)) {
-        if (
-          "allowed_function_names" in choice &&
-          Array.isArray(choice.allowed_function_names) &&
-          choice.allowed_function_names.length === 1
-        ) {
-          return "tool"; // a specific tool has been selected
-        }
-        if ("mode" in choice && typeof choice.mode === "string") {
-          return choice.mode;
+      if (isObject(choice) && "function_calling_config" in choice) {
+        const functionCallingConfig = choice.function_calling_config;
+        if (isObject(functionCallingConfig)) {
+          if (
+            "allowed_function_names" in functionCallingConfig &&
+            Array.isArray(functionCallingConfig.allowed_function_names) &&
+            functionCallingConfig.allowed_function_names.length === 1
+          ) {
+            return "tool"; // a specific tool has been selected
+          }
+          if (
+            "mode" in functionCallingConfig &&
+            typeof functionCallingConfig.mode === "string"
+          ) {
+            return functionCallingConfig.mode;
+          }
         }
       }
       return "auto";
@@ -290,8 +296,10 @@ export function ToolChoiceSelector<
             case "GOOGLE":
               onChange(
                 makeGoogleToolChoice({
-                  mode: "any",
-                  allowed_function_names: [removeToolNamePrefix(choice)],
+                  function_calling_config: {
+                    mode: "any",
+                    allowed_function_names: [removeToolNamePrefix(choice)],
+                  },
                 })
               );
               break;
@@ -328,7 +336,9 @@ export function ToolChoiceSelector<
             case "GOOGLE":
               onChange(
                 makeGoogleToolChoice({
-                  mode: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["GOOGLE"][number],
+                  function_calling_config: {
+                    mode: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["GOOGLE"][number],
+                  },
                 })
               );
               break;
