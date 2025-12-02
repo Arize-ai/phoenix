@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dde137eeaa816b69b92c1d0207da30ae>>
+ * @generated SignedSource<<9e6e964d44b42eeccf79baccf3d0b3a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -44,7 +44,8 @@ var v0 = {
 return {
   "argumentDefinitions": [
     {
-      "kind": "RootArgument",
+      "defaultValue": null,
+      "kind": "LocalArgument",
       "name": "datasetId"
     }
   ],
@@ -155,6 +156,6 @@ return {
 };
 })();
 
-(node as any).hash = "fb0f91288df53bd458da305902351f09";
+(node as any).hash = "180e5957d6d3047317a938c8fad1c610";
 
 export default node;

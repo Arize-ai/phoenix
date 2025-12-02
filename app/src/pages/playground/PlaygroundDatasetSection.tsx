@@ -51,6 +51,7 @@ export function PlaygroundDatasetSection({
               color
             }
             ...PlaygroundDatasetSection_evaluators
+              @arguments(datasetId: $datasetId)
           }
           ...EvaluatorConfigDialog_dataset
         }
@@ -64,7 +65,8 @@ export function PlaygroundDatasetSection({
 
   const evaluatorsData = useFragment<PlaygroundDatasetSection_evaluators$key>(
     graphql`
-      fragment PlaygroundDatasetSection_evaluators on Dataset {
+      fragment PlaygroundDatasetSection_evaluators on Dataset
+      @argumentDefinitions(datasetId: { type: "ID!" }) {
         evaluators(first: 100) {
           edges {
             evaluator: node {

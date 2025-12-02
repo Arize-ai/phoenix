@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a984d1f945aec4139b619d0ea0708f08>>
+ * @generated SignedSource<<e0f3e19c8a449f658b9a221865f5f18f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -98,7 +98,14 @@ v5 = {
   ],
   "storageKey": null
 },
-v6 = {
+v6 = [
+  {
+    "kind": "Variable",
+    "name": "datasetId",
+    "variableName": "datasetId"
+  }
+],
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -127,7 +134,7 @@ return {
               (v3/*: any*/),
               (v5/*: any*/),
               {
-                "args": null,
+                "args": (v6/*: any*/),
                 "kind": "FragmentSpread",
                 "name": "PlaygroundDatasetSection_evaluators"
               }
@@ -161,7 +168,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*: any*/),
+          (v7/*: any*/),
           (v4/*: any*/),
           {
             "kind": "InlineFragment",
@@ -199,18 +206,12 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v6/*: any*/),
+                          (v7/*: any*/),
                           (v4/*: any*/),
                           (v2/*: any*/),
                           {
                             "alias": null,
-                            "args": [
-                              {
-                                "kind": "Variable",
-                                "name": "datasetId",
-                                "variableName": "datasetId"
-                              }
-                            ],
+                            "args": (v6/*: any*/),
                             "concreteType": "EvaluatorInputMapping",
                             "kind": "LinkedField",
                             "name": "datasetInputMapping",
@@ -272,16 +273,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a0e21dddcb0cc201fdc23400cc339d3e",
+    "cacheID": "4dca78e49dd3b7ef4095ffe080507613",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      ...PlaygroundDatasetSection_evaluators\n    }\n    ...EvaluatorConfigDialog_dataset\n    id\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n\nfragment PlaygroundDatasetSection_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      ...PlaygroundDatasetSection_evaluators_1wYocp\n    }\n    ...EvaluatorConfigDialog_dataset\n    id\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d0859840132aca3a09bcdaa744b81e87";
+(node as any).hash = "bbe0282311240a7d17184fc3b13a5dd9";
 
 export default node;
