@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.6.2
+
+### Patch Changes
+
+- 0589fc3: create evaluator helper
+
 ## 0.6.1
 
 ### Patch Changes
