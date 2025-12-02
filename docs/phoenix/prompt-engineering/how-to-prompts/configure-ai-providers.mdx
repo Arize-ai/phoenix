@@ -27,10 +27,19 @@ If the following variables are set in the server environment, they'll be used at
 | Azure OpenAI | - AZURE\_OPENAI\_API\_KEY <br/> - AZURE\_OPENAI\_ENDPOINT <br/> - OPENAI\_API\_VERSION   | [https://azure.microsoft.com/en-us/products/ai-services/openai-service/](https://azure.microsoft.com/en-us/products/ai-services/openai-service/) |
 | Anthropic    | - ANTHROPIC\_API\_KEY                                                        | [https://console.anthropic.com/](https://console.anthropic.com/)                                                                                 |
 | Gemini       | - GEMINI\_API\_KEY or GOOGLE\_API\_KEY                                       | [https://aistudio.google.com/](https://aistudio.google.com/)                                                                                     |
+| AWS Bedrock  | - AWS\_ACCESS\_KEY\_ID <br/> - AWS\_SECRET\_ACCESS\_KEY <br/> - AWS\_SESSION\_TOKEN <br/> - AWS\_BEARER\_TOKEN\_BEDROCK | [https://aws.amazon.com/bedrock/](https://aws.amazon.com/bedrock/)                                                                              |
 
 <Info>
 For Azure, you can also set the following server-side environment variables: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_FEDERATED_TOKEN_FILE` to use [WorkloadIdentityCredential](https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.workloadidentitycredential?view=azure-python).
 
+</Info>
+
+<Info>
+**AWS Bedrock Authentication**
+
+When using AWS Bedrock, Phoenix leverages the standard [boto3 credential chain](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html) or the `AWS_BEARER_TOKEN_BEDROCK` environment variable. This means if you are running Phoenix on an EC2 instance with an assigned IAM role, have `~/.aws/credentials` configured, or have exported `AWS_BEARER_TOKEN_BEDROCK`, you do not need to explicitly provide credentials.
+
+To use this fallback behavior, **do not fill out the AWS credentials in the Playground settings**. The client will automatically discover and use the available credentials from the environment.
 </Info>
 
 ## Using OpenAI Compatible LLMs

@@ -1,0 +1,211 @@
+---
+title: "Code Evaluators"
+---
+
+Evaluations do not all require LLMs, and often it's useful to create Evaluators that perform basic checks or calculations on datasets that, in concert with LLM evaluations, can help provide useful signal to improve an application.
+
+These evaluations that don't use an LLM are indicated by a `kind="code"` flag on the scores.
+
+### Using `create_evaluator`
+
+For convenience, a simple (sync or async) function can be converted into an Evaluator using the `create_evaluator` decorator. This function can either directly return a `Score` object or a value that can be converted into a score.
+
+In the following examples, our decorated evaluation function and coroutine return a boolean, which when used as an Evaluator, is converted into a `Score` with a score value of `1` or `0` and a corresponding label of `True` or `False`.
+
+<Tabs>
+<Tab title="Python">
+```python
+from phoenix.evals import create_evaluator
+
+@create_evaluator(
+    name="exact-match", kind="code", direction="maximize"
+)
+def exact_match(input: str, output: str) -> bool:
+    return input == output
+
+exact_match.evaluate({"input": "hello world", "output": "hello world"})
+# [
+#     Score(
+#         name='exact-match',
+#         score=1,
+#         label=None,
+#         explanation=None,
+#         metadata={},
+#         kind='code',
+#         direction='maximize'
+#     )
+# ]
+
+@create_evaluator(
+    name="contains-link", kind="code", direction="maximize"
+)
+async def contains_link(output: str) -> Score:
+    link = "https://arize-phoenix.readthedocs.io/projects/evals"
+    return link in output
+```
+</Tab>
+
+<Tab title="TypeScript">
+```typescript
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+const exactMatch = createEvaluator<{ input: string; output: string }>(
+  ({ input, output }) => {
+    return input === output ? 1 : 0;
+  },
+  {
+    name: "exact-match",
+    kind: "CODE",
+    optimizationDirection: "MAXIMIZE",
+  }
+);
+
+const result = await exactMatch.evaluate({
+  input: "hello world",
+  output: "hello world",
+});
+// result: { score: 1 }
+
+const containsLink = createEvaluator<{ output: string }>(
+  async ({ output }) => {
+    const link = "https://arize-phoenix.readthedocs.io/projects/evals";
+    return output.includes(link) ? 1 : 0;
+  },
+  {
+    name: "contains-link",
+    kind: "CODE",
+    optimizationDirection: "MAXIMIZE",
+  }
+);
+```
+</Tab>
+</Tabs>
+
+Notice that the original functions can still be used as defined for testing purposes:
+
+<Tabs>
+<Tab title="Python">
+```python
+exact_match("hello", "world")
+# False
+
+await contains_link(
+    "read the documentation here: "
+    "https://arize-phoenix.readthedocs.io/projects/evals"
+)
+# True
+```
+</Tab>
+
+<Tab title="TypeScript">
+```typescript
+// The underlying function logic can be extracted for testing
+const exactMatchFn = (input: string, output: string) => input === output;
+exactMatchFn("hello", "world");
+// false
+
+const containsLinkFn = async (output: string) => {
+  const link = "https://arize-phoenix.readthedocs.io/projects/evals";
+  return output.includes(link);
+};
+await containsLinkFn(
+  "read the documentation here: " +
+  "https://arize-phoenix.readthedocs.io/projects/evals"
+);
+// true
+```
+</Tab>
+</Tabs>
+
+#### Returning `Score` objects directly
+
+<Tabs>
+<Tab title="Python">
+```python
+from phoenix.evals import create_evaluator, Score
+from textdistance import levenshtein
+
+@create_evaluator(
+    name="levenshtein-distance", kind="code", direction="minimize"
+)
+def levenshtein(output: str, expected: str) -> Score:
+    distance = levenshtein(output, expected)
+    return Score(
+        name="levenshtein-distance",
+        score=distance,
+        explanation="Levenshtein distance between {output} and {expected}",
+        kind="code",
+        direction="minimize",
+    )
+```
+</Tab>
+
+<Tab title="TypeScript">
+```typescript
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+// Simple Levenshtein distance implementation
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+const levenshtein = createEvaluator<{ output: string; expected: string }>(
+  ({ output, expected }) => {
+    const distance = levenshteinDistance(output, expected);
+    return {
+      score: distance,
+      explanation: `Levenshtein distance between ${output} and ${expected}`,
+    };
+  },
+  {
+    name: "levenshtein-distance",
+    kind: "CODE",
+    optimizationDirection: "MINIMIZE",
+  }
+);
+```
+</Tab>
+</Tabs>
+
+#### Other `Score` conversions
+
+The `create_evaluator` / `createEvaluator` function will convert many different function outputs into scores automatically:
+
+<Tabs>
+<Tab title="Python">
+* A Score object (no conversion needed)
+* A number (converted to Score.score)
+* A boolean (converted to integer Score.score and string Score.label)
+* A short string (≤3 words, converted to Score.label)
+* A long string (≥4 words, converted to Score.explanation)
+* A dictionary with keys "score", "label", or "explanation"
+* A tuple of values (only bool, number, str types allowed)
+</Tab>
+
+<Tab title="TypeScript">
+* An EvaluationResult object (no conversion needed)
+* A number (converted to `{ score: number }`)
+* A string (converted to `{ label: string }`)
+* An object with `score`, `label`, and/or `explanation` properties
+</Tab>
+</Tabs>

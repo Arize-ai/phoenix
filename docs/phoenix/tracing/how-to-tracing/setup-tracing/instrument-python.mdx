@@ -15,14 +15,30 @@ If you'd prefer to use pure OTEL instead, see [Setup using base OTEL](/phoenix/t
 
 Ensure you have OpenInference and OpenTelemetry installed:
 
-```sh
-pip install openinference-semantic-conventions opentelemetry-api opentelemetry-sdk
+<Tabs>
+<Tab title="Python">
+```bash
+pip install arize-phoenix-otel
 ```
+</Tab>
+
+<Tab title="TypeScript">
+```bash
+npm install @arizeai/phoenix-otel @arizeai/openinference-core
+```
+
+For detailed API documentation, consult the respective documentation sites.
+
+<Card title="Phoenix TypeScript API" href="https://arize-ai.github.io/phoenix" />
+<Card title="OpenInference JavaScript API" href="https://arize-ai.github.io/openinference/js/" />
+</Tab>
+</Tabs>
 
 ### Setting Up Tracing
 
+<Tabs>
+<Tab title="Python">
 You can configure the tracer using either `TracerProvider` from `openinference.instrumentation` or using `phoenix.otel.register`.
-
 
 <CodeGroup>
 
@@ -49,6 +65,18 @@ tracer = tracer_provider.get_tracer(__name__)
 ```
 
 </CodeGroup>
+</Tab>
+
+<Tab title="TypeScript">
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "your-project-name",
+});
+```
+</Tab>
+</Tabs>
 
 ***
 

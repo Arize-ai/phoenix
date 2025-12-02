@@ -44,7 +44,7 @@
                   {
                     "group": "Get Started",
                     "pages": [
-                      "phoenix/get-started/overview-get-started",
+                      "phoenix/get-started",
                       "phoenix/get-started/get-started-tracing",
                       "phoenix/get-started/get-started-evaluations",
                       "phoenix/get-started/get-started-datasets-and-experiments",
@@ -208,6 +208,7 @@
                 "group": "Evaluation",
                 "icon": "clipboard-check",
                 "pages": [
+                  "phoenix/evaluation/typescript-quickstart",
                   {
                     "group": "Overview: Evals",
                     "pages": [
@@ -237,7 +238,7 @@
                           "phoenix/evaluation/how-to-evals/configuring-the-llm/calling-models-with-litellm"
                         ]
                       },
-                      "phoenix/evaluation/how-to-evals/heuristic-evaluators",
+                      "phoenix/evaluation/how-to-evals/code-evaluators",
                       "phoenix/evaluation/how-to-evals/batch-evaluations",
                       "phoenix/evaluation/how-to-evals/using-evals-with-phoenix"
                     ]
@@ -907,7 +908,13 @@
                 "pages": [
                   "phoenix/self-hosting",
                   "phoenix/self-hosting/license",
-                  "phoenix/self-hosting/configuration"
+                  {
+                    "group": "Configuration",
+                    "pages": [
+                      "phoenix/self-hosting/configuration",
+                      "phoenix/self-hosting/configuration/using-amazon-aurora"
+                    ]
+                  }
                 ]
               },
               {
@@ -963,6 +970,36 @@
                 "group": " ",
                 "pages": [
                   "phoenix/release-notes",
+                  {
+                    "group": "11.2025",
+                    "pages": [
+                      "phoenix/release-notes/11-2025/11-19-2025-expanded-provider-support-with-openai-5-1-+-gemini-3",
+                      "phoenix/release-notes/11-2025/11-12-2025-updated-anthropic-model-list",
+                      "phoenix/release-notes/11-2025/11-09-2025-openinference-typescript-2-0",
+                      "phoenix/release-notes/11-2025/11-07-2025-timezone-preference",
+                      "phoenix/release-notes/11-2025/11-05-2025-metadata-for-prompts",
+                      "phoenix/release-notes/11-2025/11-03-2025-playground-dataset-label-display",
+                      "phoenix/release-notes/11-2025/11-01-2025-resume-experiments-and-evaluations"
+                    ]
+                  },
+                  {
+                    "group": "10.2025",
+                    "pages": [
+                      "phoenix/release-notes/10-2025/10-30-2025-metadata-support-for-experiment-run-annotations",
+                      "phoenix/release-notes/10-2025/10-28-2025-enable-aws-iam-auth-for-db-configuration",
+                      "phoenix/release-notes/10-2025/10-26-2025-add-split-edit-menu-to-examples",
+                      "phoenix/release-notes/10-2025/10-24-2025-filter-prompts-page-by-label",
+                      "phoenix/release-notes/10-2025/10-20-2025-splits",
+                      "phoenix/release-notes/10-2025/10-18-2025-filter-annotations-in-compare-experiments-slideover",
+                      "phoenix/release-notes/10-2025/10-15-2025-enhanced-filtering-for-examples-table",
+                      "phoenix/release-notes/10-2025/10-13-2025-view-traces-in-compare-experiments",
+                      "phoenix/release-notes/10-2025/10-10-2025-viewer-role",
+                      "phoenix/release-notes/10-2025/10-08-2025-dataset-labels",
+                      "phoenix/release-notes/10-2025/10-06-2025-paginate-compare-experiments",
+                      "phoenix/release-notes/10-2025/10-05-2025-load-prompt-by-tag-into-playground",
+                      "phoenix/release-notes/10-2025/10-03-2025-prompt-version-editing-in-playground"
+                    ]
+                  },
                   {
                     "group": "09.2025",
                     "pages": [

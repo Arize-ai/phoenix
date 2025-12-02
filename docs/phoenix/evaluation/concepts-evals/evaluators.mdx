@@ -7,14 +7,14 @@ At the core, an Evaluator is anything that returns a Score. Evaluators can be sp
 
 * LLM-based: evaluators that use an LLM to perform the judgement.
   * Examples: hallucination, document relevance
-* Heuristic: evaluators that use a deterministic process or calculation.
+* Code: evaluators that use a deterministic process or heuristic calculation.
   * Examples: exact match, BLEU, precision
 
 ## Scores
 
 * Every score has the following properties:
   * name: The human-readable name of the score/evaluator.
-  * source: The origin of the evaluation signal (llm, heuristic, or human)
+  * kind: The origin of the evaluation signal (llm, code, or human)
   * direction: The optimization direction; whether a high score is better or worse
 * Scores may also have some of the following properties:
   * score: numeric score

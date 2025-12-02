@@ -8,6 +8,224 @@ GitHub
 </Card>
 
 
+<Update label="11.14.2025">
+## [11.14.2025: Expanded Provider Support with OpenAI 5.1 + Gemini 3](/phoenix/release-notes/11-2025/11-19-2025-expanded-provider-support-with-openai-5-1-+-gemini-3) 🔧
+
+**Available in Phoenix 12.15+**
+
+This update enhances LLM provider support by adding **OpenAI v5.1** compatibility (including reasoning capabilities), expanding support for **Google DeepMind/Gemini** models, and introducing the **gemini-3** model variant.
+</Update>
+
+<Update label="11.12.2025">
+## [11.12.2025: Updated Anthropic Model List](/phoenix/release-notes/11-2025/11-12-2025-updated-anthropic-model-list) 🧠
+
+**Available in Phoenix 12.15+**
+
+This update enhances the Anthropic model registrations in Arize Phoenix by adding support for the **4.5 Sonnet/Haiku variants** and removing several legacy **3.x Sonnet/Opus entries.**
+</Update>
+
+<Update label="11.09.2025">
+## [11.09.2025: OpenInference TypeScript 2.0](/phoenix/release-notes/11-2025/11-09-2025-openinference-typescript-2-0) 💻
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/traced_agent.mp4" alt="traced agent" />
+</Frame>
+
+* Added **easy manual instrumentation** with the same decorators, wrappers, and attribute helpers found in the Python `openinference-instrumentation` package.
+* Introduced **function tracing utilities** that automatically create spans for sync/async function execution, including specialized wrappers for **chains**, **agents**, and **tools**.
+* Added **decorator-based method tracing**, enabling automatic span creation on class methods via the `@observe` decorator.
+* Expanded **attribute helper utilities** for standardized OpenTelemetry metadata creation, including helpers for **inputs/outputs**, **LLM operations**, **embeddings**, **retrievers**, and **tool definitions**.
+* Overall, tracing workflows, agent behavior, and external tool calls is now significantly simpler and more consistent across languages.
+</Update>
+
+<Update label="11.07.2025">
+## [11.07.2025: Timezone Preference](/phoenix/release-notes/11-2025/11-07-2025-timezone-preference) 🌍
+
+**Available in Phoenix 12.11+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/timezone_preferences.mp4" alt="timezone preferences" />
+</Frame>
+
+This update adds a new **display timezone preference** feature for users: you can now specify how timestamps are shown across the UI, making time-based data more intuitive and aligned with your locale.
+</Update>
+
+<Update label="11.05.2025">
+## [11.05.2025: Metadata for Prompts](/phoenix/release-notes/11-2025/11-05-2025-metadata-for-prompts) 🗂️
+
+**Available in Phoenix 12.10+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/metadata_for_prompts.png" alt="metadata for prompts" />
+</Frame>
+
+Added full prompt-level metadata support across API, UI, and clients: you can now create, clone, patch, and display a JSON `metadata` field for prompts.
+</Update>
+
+<Update label="11.03.2025">
+## [11.03.2025: Playground Dataset Label Display](/phoenix/release-notes/11-2025/11-03-2025-playground-dataset-label-display) 🏷️
+
+**Available in Phoenix 12.10+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/dataset_labels_phoenix.png" alt="dataset labels in playground" />
+</Frame>
+
+You can now view dataset labels as you load datasets into the Playground. This enhancement makes it easier to identify and select your desired dataset.
+</Update>
+
+<Update label="11.01.2025">
+## [11.01.2025: Resume Experiments and Evaluations](/phoenix/release-notes/11-2025/11-01-2025-resume-experiments-and-evaluations) 🔄
+
+**Available in Phoenix 12.10+**
+
+This release allows you to resume your experiments and evaluations at your convenience. If certain examples fail, there is no need to repeat an entire task you already completed. This feature provides you with new management capabilities across servers and clients. It's designed to save effort, making your experimentation workflow more flexible.
+</Update>
+
+<Update label="10.30.2025">
+## [10.30.2025: Metadata Support for Experiment Run Annotations](/phoenix/release-notes/10-2025/10-30-2025-metadata-support-for-experiment-run-annotations) 🧩
+
+**Available in Phoenix 12.9+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/releasenotes-10-30.png" alt="metadata support for experiment run annotations" />
+</Frame>
+
+Added **metadata support for experiment run annotations**, with GraphQL updates to fetch and expose this information. The annotation details view now displays formatted JSON metadata across both **compare** and **example** views for easier inspection and debugging.
+</Update>
+
+<Update label="10.28.2025">
+## [10.28.2025: Enable AWS IAM Auth for DB Configuration](/phoenix/release-notes/10-2025/10-28-2025-enable-aws-iam-auth-for-db-configuration) 🔐
+
+**Available in Phoenix 12.9+**
+
+Added support for **AWS IAM–based authentication** for PostgreSQL connections to **AWS Aurora and RDS**. This enhancement enables the use of **short-lived IAM tokens** instead of static passwords, improving security and compliance for database access.
+</Update>
+
+<Update label="10.26.2025">
+## [10.26.2025: Add Split Edit Menu to Examples](/phoenix/release-notes/10-2025/10-26-2025-add-split-edit-menu-to-examples) ䷖
+
+**Available in Phoenix 12.8+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/add-splits-to-example.png" alt="add splits to example" />
+</Frame>
+
+Added a new **"Split"** dropdown to single-example view on the dataset pages, allowing users to update the data split classification (e.g., train/validation/test) directly from the example level. This improvement makes it easier to correct or adjust split assignments dynamically.
+</Update>
+
+<Update label="10.24.2025">
+## [10.24.2025: Filter Prompts Page by Label](/phoenix/release-notes/10-2025/10-24-2025-filter-prompts-page-by-label) 🏷️
+
+**Available in Phoenix 12.7+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/filter-prompts-by-label.png" alt="filter prompts by label" />
+</Frame>
+
+Added filtering by label on the Prompts page—users can now pick one or more labels to narrow the prompts list.
+</Update>
+
+<Update label="10.20.2025">
+## [10.20.2025: Splits](/phoenix/release-notes/10-2025/10-20-2025-splits) ䷖
+
+**Available in Phoenix 12.7+**
+
+In Arize Phoenix, _splits_ let you categorize your dataset into distinct subsets—such as **train**, **validation**, or **test**—enabling structured workflows for experiments and evaluations. This capability offers more flexibility in how you organize, filter, and compare your data across different stages or experimental conditions.
+</Update>
+
+<Update label="10.18.2025">
+## [10.18.2025: Filter Annotations in Compare Experiments Slideover](/phoenix/release-notes/10-2025/10-18-2025-filter-annotations-in-compare-experiments-slideover) ✍️
+
+**Available in Phoenix 12.7+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/filter-annotation-compare-experiments.png" alt="filter annotations in compare experiments" />
+</Frame>
+
+Added filtering of annotations in the experiment compare slideover so that only annotations present on the selected experiment runs are displayed. This ensures a cleaner UI and avoids filters for annotations that don't appear in the comparison set.
+</Update>
+
+<Update label="10.15.2025">
+## [10.15.2025: Enhanced Filtering for Examples Table](/phoenix/release-notes/10-2025/10-15-2025-enhanced-filtering-for-examples-table) 🔍
+
+**Available in Phoenix 12.5+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/experiment-examples-filtering.png" alt="enhanced filtering for examples table" />
+</Frame>
+
+Added filtering capabilities to the **Dataset Examples table**, allowing users to search examples by text or split ID. Additionally, the split-management filter menu has been reorganized to separate filtering by splits from split management actions.
+</Update>
+
+<Update label="10.13.2025">
+## [10.13.2025: View Traces in Compare Experiments](/phoenix/release-notes/10-2025/10-13-2025-view-traces-in-compare-experiments) 🧪
+
+**Available in Phoenix 12.5+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/view-trace-in-compare.png" alt="view traces in compare experiments" />
+</Frame>
+
+We've added trace-links to the experiment compare slideover for runs and annotations. Clicking the new trace icons opens the Trace View.
+</Update>
+
+<Update label="10.10.2025">
+## [10.10.2025: Viewer Role](/phoenix/release-notes/10-2025/10-10-2025-viewer-role) 👀
+
+**Available in Phoenix 12.5+**
+
+Introduced a new **VIEWER role** with enforced read-only permissions across both GraphQL and REST APIs, improving access control and security.
+</Update>
+
+<Update label="10.08.2025">
+## [10.08.2025: Dataset Labels](/phoenix/release-notes/10-2025/10-08-2025-dataset-labels) 🏷️
+
+**Available in Phoenix 12.3+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/dataset-labels.png" alt="dataset labels" />
+</Frame>
+
+Added support for **dataset labels** — you can now label datasets and view these labels in a dedicated column on the dataset list page, making it easier to **filter and group datasets**. All dataset labels can also be managed and viewed in the **"Datasets" tab** on the Settings page.
+</Update>
+
+<Update label="10.06.2025">
+## [10.06.2025: Paginate Compare Experiments](/phoenix/release-notes/10-2025/10-06-2025-paginate-compare-experiments) 📃
+
+**Available in Phoenix 12.3+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/compare-experiment-paginate.png" alt="paginate compare experiments" />
+</Frame>
+
+We added pagination to the **experiment comparison slideover** on the list page for smoother navigation through results. We also introduced a new **repetition number column**, visible only when the base experiment includes multiple repetitions.
+</Update>
+
+<Update label="10.05.2025">
+## [10.05.2025: Load Prompt by Tag into Playground](/phoenix/release-notes/10-2025/10-05-2025-load-prompt-by-tag-into-playground) 🛝
+
+**Available in Phoenix 12.2+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-tags-in-playground.png" alt="prompt tags in playground" />
+</Frame>
+
+We have added support for **selecting and loading prompts by tag** in the Playground. Users can now open specific prompts tagged for easier comparison and reproducibility.
+</Update>
+
+<Update label="10.03.2025">
+## [10.03.2025: Prompt Version Editing in Playground](/phoenix/release-notes/10-2025/10-03-2025-prompt-version-editing-in-playground) 🛝
+
+**Available in Phoenix 12.2+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-versions-in-playground.png" alt="prompt versions in playground" />
+</Frame>
+
+We added support for **prompt versioning in the Playground** — users can now select, edit, and experiment with specific prompt versions directly. This update improves traceability and reproducibility for prompt iterations, making it easier to manage and compare different versions.
+</Update>
+
 <Update label="09.29.2025">
 ## [09.29.2025: Day 0 support for Claude Sonnet 4.5](/phoenix/release-notes/09-2025/09-29-2025-day-0-support-for-claude-sonnet-4.5) ⚡
 
