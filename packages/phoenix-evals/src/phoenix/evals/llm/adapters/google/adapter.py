@@ -350,7 +350,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         function_declaration = genai.types.FunctionDeclaration(
             name="extract_structured_data",
             description=description,
-            parameters_json_schema=schema,
+            parameters=schema,
         )
 
         return genai.types.Tool(function_declarations=[function_declaration])
@@ -358,11 +358,14 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
     def _transform_messages_to_google(self, messages: List[Message]) -> List[Dict[str, Any]]:
         """Transform List[Message] TypedDict to Google GenAI format.
 
+        Note: System messages are NOT included in the returned messages.
+        They should be extracted separately and passed as the 'system_instruction' parameter.
+
         Args:
             messages: List of Message TypedDicts with MessageRole enum.
 
         Returns:
-            List of Google-formatted message dicts with 'parts' structure.
+            List of Google-formatted message dicts with 'parts' structure (without system messages).
         """
         google_messages = []
 
@@ -370,14 +373,15 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             role = msg["role"]
             content = msg["content"]
 
+            # Skip system messages - they should be handled separately
+            if role == MessageRole.SYSTEM:
+                continue
+
             # Map MessageRole enum to Google role strings
             # Google uses "model" instead of "assistant"
             if role == MessageRole.AI:
                 google_role = "model"
             elif role == MessageRole.USER:
-                google_role = "user"
-            elif role == MessageRole.SYSTEM:
-                # Google doesn't have a system role, map to user
                 google_role = "user"
             else:
                 # Fallback
