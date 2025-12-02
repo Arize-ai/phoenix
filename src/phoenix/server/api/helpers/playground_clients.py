@@ -1820,12 +1820,54 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
+        from google.genai import types
+
         contents, system_prompt = self._build_google_messages(messages)
 
         # Build config object for the new API
-        config = invocation_parameters
+        config = invocation_parameters.copy()
+
+        # Handle tool_choice by converting it to tool_config
+        tool_choice = config.pop("tool_choice", None)
+
         if system_prompt:
             config["system_instruction"] = system_prompt
+
+        # Add tools to config if provided
+        mode = None
+        if tools:
+            print(f"\n[GOOGLE CLIENT DEBUG] Raw tools received: {json.dumps(tools, indent=2)}")
+            print(f"[GOOGLE CLIENT DEBUG] Tool choice value: {tool_choice}")
+
+            # Convert tools to Google's function declaration format
+            # Each tool is already a function declaration dict with name, description, parameters
+            tool_declarations = [types.FunctionDeclaration(**tool) for tool in tools]
+            config["tools"] = [types.Tool(function_declarations=tool_declarations)]
+
+            print(f"[GOOGLE CLIENT DEBUG] Created {len(tool_declarations)} tool declaration(s)")
+
+            # Add tool_config with function_calling_config if tool_choice is specified
+            if tool_choice:
+                # Map tool_choice values to Google's FunctionCallingConfigMode
+                # "auto" -> AUTO, "any" -> ANY, "none" -> NONE
+                mode_mapping = {
+                    "auto": "AUTO",
+                    "any": "ANY",
+                    "none": "NONE",
+                }
+                mode = mode_mapping.get(str(tool_choice).lower(), "AUTO")
+                print(f"[GOOGLE CLIENT DEBUG] Mapped tool_choice '{tool_choice}' -> mode '{mode}'")
+                config["tool_config"] = types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(mode=mode)
+                )
+
+        # Print final config (sanitized)
+        config_debug = {k: v for k, v in config.items() if k not in ["tools", "tool_config"]}
+        config_debug["tools"] = f"<{len(tools)} tools>" if tools else None
+        config_debug["tool_config"] = f"<mode: {mode}>" if tools and tool_choice else None
+        print(
+            f"[GOOGLE CLIENT DEBUG] Final config: {json.dumps(config_debug, indent=2, default=str)}"
+        )
 
         # Use the client's async models.generate_content_stream method
         stream = await self.client.aio.models.generate_content_stream(
@@ -1833,6 +1875,10 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
             contents=contents,
             config=config if config else None,
         )
+
+        # Track active tool calls across chunks
+        active_tool_calls: dict[int, dict[str, Any]] = {}  # index -> {id, name, arguments_buffer}
+
         async for event in stream:
             self._attributes.update(
                 {
@@ -1841,9 +1887,63 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                     LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
                 }
             )
-            # google genai thinking returns thought tokens captured under
-            # event.candidates and event.parts
-            yield TextChunk(content=event.text or "")
+
+            # Check if we have candidates and parts
+            if event.candidates:
+                candidate = event.candidates[0]
+                if candidate.content and candidate.content.parts:
+                    for idx, part in enumerate(candidate.content.parts):
+                        # Handle function calls
+                        if hasattr(part, "function_call") and part.function_call:
+                            function_call = part.function_call
+
+                            # Generate a unique ID for this tool call
+                            tool_call_id = f"call_{idx}_{function_call.name}"
+
+                            # Initialize tracking if this is a new tool call
+                            if idx not in active_tool_calls:
+                                active_tool_calls[idx] = {
+                                    "id": tool_call_id,
+                                    "name": function_call.name,
+                                    "arguments_buffer": "",
+                                }
+                                # Yield initial tool call chunk with name
+                                yield ToolCallChunk(
+                                    id=tool_call_id,
+                                    function=FunctionCallChunk(
+                                        name=function_call.name,
+                                        arguments="",
+                                    ),
+                                )
+
+                            # Convert function args to JSON string
+                            if function_call.args:
+                                # The args come as a dict-like object, convert to JSON
+                                args_json = json.dumps(dict(function_call.args))
+
+                                # Calculate incremental arguments
+                                previous_args = active_tool_calls[idx]["arguments_buffer"]
+                                active_tool_calls[idx]["arguments_buffer"] = args_json
+
+                                # Yield incremental update
+                                if args_json != previous_args:
+                                    # For simplicity, yield the full args
+                                    # (Google doesn't stream args incrementally)
+                                    yield ToolCallChunk(
+                                        id=tool_call_id,
+                                        function=FunctionCallChunk(
+                                            name=function_call.name,
+                                            arguments=args_json,
+                                        ),
+                                    )
+
+                        # Handle text parts
+                        elif hasattr(part, "text") and part.text:
+                            yield TextChunk(content=part.text)
+
+            # Fallback for event.text
+            elif event.text:
+                yield TextChunk(content=event.text)
 
     def _build_google_messages(
         self,

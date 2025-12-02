@@ -65,6 +65,19 @@ export const anthropicToolChoiceSchema = z.discriminatedUnion("type", [
 
 export type AnthropicToolChoice = z.infer<typeof anthropicToolChoiceSchema>;
 
+/**
+ * Google's tool choice schema
+ * Google supports simple string values: "auto", "any", "none"
+ * Note: Google does not support selecting specific tools by name
+ */
+export const googleToolChoiceSchema = z.union([
+  z.literal("auto"),
+  z.literal("any"),
+  z.literal("none"),
+]);
+
+export type GoogleToolChoice = z.infer<typeof googleToolChoiceSchema>;
+
 export const anthropicToolChoiceToOpenaiToolChoice =
   anthropicToolChoiceSchema.transform((anthropic): OpenaiToolChoice => {
     switch (anthropic.type) {
@@ -125,6 +138,7 @@ export const openAIToolChoiceToAnthropicToolChoice =
 export const llmProviderToolChoiceSchema = z.union([
   openAIToolChoiceSchema,
   anthropicToolChoiceSchema,
+  googleToolChoiceSchema,
 ]);
 
 export type LlmProviderToolChoice = z.infer<typeof llmProviderToolChoiceSchema>;
@@ -136,6 +150,7 @@ export type ToolChoiceWithProvider =
     }
   | { provider: "AZURE_OPENAI"; toolChoice: OpenaiToolChoice }
   | { provider: "ANTHROPIC"; toolChoice: AnthropicToolChoice }
+  | { provider: "GOOGLE"; toolChoice: GoogleToolChoice }
   | { provider: null; toolChoice: null };
 
 /**
@@ -156,6 +171,11 @@ export const detectToolChoiceProvider = (
   if (anthropicSuccess) {
     return { provider: "ANTHROPIC", toolChoice: anthropicData };
   }
+  const { success: googleSuccess, data: googleData } =
+    googleToolChoiceSchema.safeParse(toolChoice);
+  if (googleSuccess) {
+    return { provider: "GOOGLE", toolChoice: googleData };
+  }
   return { provider: null, toolChoice: null };
 };
 
@@ -163,8 +183,7 @@ type ProviderToToolChoiceMap = {
   OPENAI: OpenaiToolChoice;
   AZURE_OPENAI: OpenaiToolChoice;
   ANTHROPIC: AnthropicToolChoice;
-  // TODO(apowell): #5348 Add Google tool choice schema
-  GOOGLE: OpenaiToolChoice;
+  GOOGLE: GoogleToolChoice;
   DEEPSEEK: OpenaiToolChoice;
   XAI: OpenaiToolChoice;
   OLLAMA: OpenaiToolChoice;
@@ -188,6 +207,18 @@ export const toOpenAIToolChoice = (toolChoice: unknown): OpenaiToolChoice => {
       return validatedToolChoice;
     case "ANTHROPIC":
       return anthropicToolChoiceToOpenaiToolChoice.parse(validatedToolChoice);
+    case "GOOGLE":
+      // Convert Google choice to OpenAI format
+      switch (validatedToolChoice) {
+        case "any":
+          return "required";
+        case "auto":
+          return "auto";
+        case "none":
+          return "none";
+        default:
+          assertUnreachable(validatedToolChoice);
+      }
     default:
       assertUnreachable(provider);
   }
@@ -221,9 +252,22 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
       return openAIToolChoiceToAnthropicToolChoice.parse(
         toolChoice
       ) as ProviderToToolChoiceMap[T];
-    // TODO(apowell): #5348 Add Google tool choice
     case "GOOGLE":
-      return toolChoice as ProviderToToolChoiceMap[T];
+      // Convert OpenAI choice to Google format
+      if (isObject(toolChoice)) {
+        // Google doesn't support specific tool selection
+        return "auto" as ProviderToToolChoiceMap[T];
+      }
+      switch (toolChoice) {
+        case "required":
+          return "any" as ProviderToToolChoiceMap[T];
+        case "auto":
+          return "auto" as ProviderToToolChoiceMap[T];
+        case "none":
+          return "none" as ProviderToToolChoiceMap[T];
+        default:
+          assertUnreachable(toolChoice);
+      }
     default:
       assertUnreachable(targetProvider);
   }
@@ -262,6 +306,12 @@ export const makeAnthropicToolChoice = (
 };
 
 export const makeAwsToolChoice = (toolChoice: AwsToolChoice): AwsToolChoice => {
+  return toolChoice;
+};
+
+export const makeGoogleToolChoice = (
+  toolChoice: GoogleToolChoice
+): GoogleToolChoice => {
   return toolChoice;
 };
 

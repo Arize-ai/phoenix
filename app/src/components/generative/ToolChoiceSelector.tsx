@@ -13,8 +13,10 @@ import {
 import {
   AnthropicToolChoice,
   findToolChoiceName,
+  GoogleToolChoice,
   makeAnthropicToolChoice,
   makeAwsToolChoice,
+  makeGoogleToolChoice,
   makeOpenAIToolChoice,
   OpenaiToolChoice,
 } from "@phoenix/schemas/toolChoiceSchemas";
@@ -35,7 +37,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   OLLAMA: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
   AWS: ["any", "auto", "none"] as const,
-  GOOGLE: ["auto"] as const,
+  GOOGLE: ["any", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
 >;
@@ -86,8 +88,8 @@ export const findToolChoiceType = (
       }
       return choice;
     case "GOOGLE":
-      // TODO(apowell): #5348 Add Google tool choice schema
-      return "auto";
+      // Google uses simple string values: "auto", "any", "none"
+      return choice;
     default:
       assertUnreachable(provider);
   }
@@ -213,11 +215,13 @@ type ToolChoiceSelectorProps<
   /**
    * The current choice including the default {@link ToolChoice} and any user defined tools
    */
-  choice: OpenaiToolChoice | AnthropicToolChoice | undefined;
+  choice: OpenaiToolChoice | AnthropicToolChoice | GoogleToolChoice | undefined;
   /**
    * Callback for when the tool choice changes
    */
-  onChange: (choice: OpenaiToolChoice | AnthropicToolChoice) => void;
+  onChange: (
+    choice: OpenaiToolChoice | AnthropicToolChoice | GoogleToolChoice
+  ) => void;
   /**
    * A list of user defined tool names
    */
@@ -273,7 +277,11 @@ export function ToolChoiceSelector<
               );
               break;
             case "GOOGLE":
-              throw new Error("Google tool choice not supported");
+              // Google doesn't support specific tool selection, only mode selection
+              // This case shouldn't be reached as we don't show tool names in the picker for Google
+              throw new Error(
+                "Google does not support specific tool selection"
+              );
             default:
               assertUnreachable(provider);
           }
@@ -305,7 +313,13 @@ export function ToolChoiceSelector<
               );
               break;
             case "GOOGLE":
-              throw new Error("Google tool choice not supported");
+              // Google uses simple string values for tool choice
+              onChange(
+                makeGoogleToolChoice(
+                  choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["GOOGLE"][number]
+                )
+              );
+              break;
             default:
               assertUnreachable(provider);
           }
