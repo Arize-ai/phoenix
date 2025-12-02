@@ -18,7 +18,7 @@ function generateUniqueName(): string {
 }
 
 /**
- * Options for creating a custom evaluator using {@link CreateEvaluator}.
+ * Options for creating a custom evaluator using {@link createEvaluator}.
  *
  * @public
  */
@@ -31,7 +31,7 @@ export type CreateEvaluatorOptions = {
    *
    * @example
    * ```typescript
-   * const evaluator = CreateEvaluator(myFunction, { name: "custom-metric" });
+   * const evaluator = createEvaluator(myFunction, { name: "custom-metric" });
    * ```
    */
   name?: string;
@@ -45,7 +45,7 @@ export type CreateEvaluatorOptions = {
    *
    * @example
    * ```typescript
-   * const evaluator = CreateEvaluator(myFunction, { kind: "CODE" });
+   * const evaluator = createEvaluator(myFunction, { kind: "CODE" });
    * ```
    */
   kind?: EvaluationKind;
@@ -59,7 +59,7 @@ export type CreateEvaluatorOptions = {
    *
    * @example
    * ```typescript
-   * const evaluator = CreateEvaluator(myFunction, {
+   * const evaluator = createEvaluator(myFunction, {
    *   optimizationDirection: "MAXIMIZE"
    * });
    * ```
@@ -76,7 +76,7 @@ export type CreateEvaluatorOptions = {
    *
    * @example
    * ```typescript
-   * const evaluator = CreateEvaluator(myFunction, {
+   * const evaluator = createEvaluator(myFunction, {
    *   telemetry: { isEnabled: true, tracer: myTracer }
    * });
    * ```
@@ -118,7 +118,7 @@ export type CreateEvaluatorOptions = {
  * @example
  * Basic usage with a simple scoring function:
  * ```typescript
- * const accuracyEvaluator = CreateEvaluator(
+ * const accuracyEvaluator = createEvaluator(
  *   ({ output, expected }) => {
  *     return output === expected ? 1 : 0;
  *   },
@@ -140,7 +140,7 @@ export type CreateEvaluatorOptions = {
  * @example
  * Returning a full EvaluationResult:
  * ```typescript
- * const qualityEvaluator = CreateEvaluator(
+ * const qualityEvaluator = createEvaluator(
  *   ({ output }) => {
  *     const score = calculateQuality(output);
  *     return {
