@@ -16,7 +16,6 @@ import {
 } from "react-relay";
 import { useSearchParams } from "react-router";
 import {
-  CellContext,
   ColumnDef,
   flexRender,
   getCoreRowModel,
@@ -57,7 +56,13 @@ import {
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { ExperimentAverageRunTokenCount } from "@phoenix/components/experiment/ExperimentAverageRunTokenCount";
-import { CellTop, CompactJSONCell } from "@phoenix/components/table";
+import {
+  CellTop,
+  CompactJSONCell,
+  JSONCell,
+  LargeTextWrap,
+  PaddedCell,
+} from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -360,7 +365,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               </Text>
             </CellTop>
             <PaddedCell>
-              {displayFullText ? JSONCell(props) : CompactJSONCell(props)}
+              {displayFullText ? (
+                <JSONCell {...props} />
+              ) : (
+                <CompactJSONCell {...props} />
+              )}
             </PaddedCell>
           </>
         ),
@@ -878,39 +887,6 @@ function RunError({ error }: { error: string }) {
       <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
       <Text color="danger">{error}</Text>
     </Flex>
-  );
-}
-
-function JSONCell<TData extends object, TValue>({
-  getValue,
-}: CellContext<TData, TValue>) {
-  const value = getValue();
-  return (
-    <LargeTextWrap>
-      <JSONText json={value} space={2} />
-    </LargeTextWrap>
-  );
-}
-
-function LargeTextWrap({ children }: { children: ReactNode }) {
-  return (
-    <div
-      css={css`
-        height: 300px;
-        overflow-y: auto;
-        flex: 1 1 auto;
-      `}
-    >
-      {children}
-    </div>
-  );
-}
-
-function PaddedCell({ children }: { children: ReactNode }) {
-  return (
-    <View paddingX="size-200" paddingY="size-100">
-      {children}
-    </View>
   );
 }
 

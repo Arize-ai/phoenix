@@ -19,7 +19,6 @@ import {
 } from "react-relay";
 import { useSearchParams } from "react-router";
 import {
-  CellContext,
   ColumnDef,
   flexRender,
   getCoreRowModel,
@@ -53,7 +52,12 @@ import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
-import { CellTop } from "@phoenix/components/table";
+import {
+  CellTop,
+  JSONCell,
+  LargeTextWrap,
+  PaddedCell,
+} from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import {
@@ -206,33 +210,6 @@ export function CellWithControlsWrap(
   );
 }
 
-function LargeTextWrap({ children }: { children: ReactNode }) {
-  return (
-    <div
-      data-testid="large-text-wrap"
-      css={css`
-        height: 200px;
-        overflow-y: auto;
-        padding: var(--ac-global-dimension-static-size-200);
-      `}
-    >
-      {children}
-    </div>
-  );
-}
-
-function JSONCell<TData extends object, TValue>({
-  getValue,
-  collapseSingleKey,
-}: CellContext<TData, TValue> & { collapseSingleKey?: boolean }) {
-  const value = getValue();
-  return (
-    <LargeTextWrap>
-      <JSONText json={value} space={2} collapseSingleKey={collapseSingleKey} />
-    </LargeTextWrap>
-  );
-}
-
 function EmptyExampleOutput({
   isRunning,
   instanceVariables,
@@ -381,7 +358,7 @@ function ExampleOutputContent({
           </Text>
         )}
       </CellTop>
-      <View padding="size-200">
+      <PaddedCell>
         <Flex direction={"column"} gap="size-100" key="content-wrap">
           {errorMessage != null ? (
             <PlaygroundErrorWrap key="error-message">
@@ -389,7 +366,9 @@ function ExampleOutputContent({
             </PlaygroundErrorWrap>
           ) : null}
           {content != null ? (
-            <LargeTextWrap key="content">{content}</LargeTextWrap>
+            <LargeTextWrap key="content" height={200}>
+              {content}
+            </LargeTextWrap>
           ) : null}
           {toolCalls != null
             ? Object.values(toolCalls).map((toolCall) =>
@@ -399,7 +378,7 @@ function ExampleOutputContent({
               )
             : null}
         </Flex>
-      </View>
+      </PaddedCell>
       {evaluations != null && evaluations.length > 0 && (
         <ul
           css={css`
@@ -1161,14 +1140,16 @@ export function PlaygroundDatasetExamplesTable({
                 `}
               >{`Example ${row.original.id}`}</Text>
             </CellTop>
-            <LargeTextWrap>
-              <JSONText
-                json={row.original.input}
-                disableTitle
-                space={2}
-                collapseSingleKey={false}
-              />
-            </LargeTextWrap>
+            <PaddedCell>
+              <LargeTextWrap height={200}>
+                <JSONText
+                  json={row.original.input}
+                  disableTitle
+                  space={2}
+                  collapseSingleKey={false}
+                />
+              </LargeTextWrap>
+            </PaddedCell>
           </>
         );
       },
@@ -1183,7 +1164,9 @@ export function PlaygroundDatasetExamplesTable({
             <CellTop>
               <Text color="text-500">{`reference output`}</Text>
             </CellTop>
-            <JSONCell {...props} collapseSingleKey={true} />
+            <PaddedCell>
+              <JSONCell {...props} collapseSingleKey={true} height={200} />
+            </PaddedCell>
           </>
         );
       },
