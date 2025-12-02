@@ -1,4 +1,1 @@
-export {
-  EvaluatorChatTemplateProvider,
-  EvaluatorChatTemplate,
-} from "./EvaluatorChatTemplate";
+export { EvaluatorChatTemplate } from "./EvaluatorChatTemplate";
