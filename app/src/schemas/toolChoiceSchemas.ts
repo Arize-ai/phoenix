@@ -230,6 +230,7 @@ export const toOpenAIToolChoice = (toolChoice: unknown): OpenaiToolChoice => {
         default:
           assertUnreachable(validatedToolChoice);
       }
+      break;
     default:
       assertUnreachable(provider);
   }
@@ -279,6 +280,7 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
         default:
           assertUnreachable(toolChoice);
       }
+      break;
     default:
       assertUnreachable(targetProvider);
   }
