@@ -320,7 +320,6 @@ export function ToolChoiceSelector<
               );
               break;
             case "GOOGLE":
-              // Google uses simple string values for tool choice
               onChange(
                 makeGoogleToolChoice(
                   choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["GOOGLE"][number]
