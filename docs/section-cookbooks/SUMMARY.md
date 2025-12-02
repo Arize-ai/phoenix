@@ -11,6 +11,8 @@
 
 ## AI Engineering Workflows
 
+* [Iterative Evaluation & Experimentation Workflow (Python)](ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python.md)
+* [Iterative Evaluation & Experimentation Workflow (TypeScript)](ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript.md)
 * [LLM Ops Overview](ai-engineering-workflows/llm-ops-overview.md)
 * [Write your First Custom Eval](human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
 * [Align Evals with Human Feedback](human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript.md)

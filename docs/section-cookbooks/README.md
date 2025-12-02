@@ -6,9 +6,9 @@ description: Cookbooks & tutorials to help you build with Phoenix
 
 ## Getting started with Phoenix
 
-Not sure where to start? Try an end-to-end tutorial for a guided walkthrough of Phoenix’s core features.&#x20;
+Not sure where to start? Try an end-to-end tutorial for a guided walkthrough of Phoenix’s core features. These tutorials cover tracing, evaluation, and experimentation: &#x20;
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="image">Cover image</th></tr></thead><tbody><tr><td><a href="ai-engineering-workflows/llm-ops-overview.md"><strong>LLM Ops: End to End Tracing, Evaluation, and Analysis</strong></a></td><td><a href=".gitbook/assets/llm-ops-rag-app.png">llm-ops-rag-app.png</a></td></tr><tr><td><a href="evaluation/openai-agents-sdk-cookbook.md"><strong>Tracing &#x26; Evaluating an Agent in Production</strong> </a></td><td><a href=".gitbook/assets/image.avif">image.avif</a></td></tr><tr><td><a href="datasets-and-experiments/experiment-with-a-customer-support-agent.md"><strong>Experiment with a Customer Support Agent</strong></a></td><td><a href=".gitbook/assets/Screenshot 2025-10-16 at 2.27.46 PM.png">Screenshot 2025-10-16 at 2.27.46 PM.png</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="image">Cover image</th></tr></thead><tbody><tr><td><a href="ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python.md"><strong>Python Walkthrough</strong></a></td><td><a href=".gitbook/assets/python-logo.png">python-logo.png</a></td></tr><tr><td><a href="ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript.md"><strong>TypeScript Walkthrough</strong></a></td><td><a href=".gitbook/assets/ts-logo.png">ts-logo.png</a></td></tr></tbody></table>
 
 ## Featured AI Engineering Workflows&#x20;
 
