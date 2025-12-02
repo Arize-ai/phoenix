@@ -88,14 +88,19 @@ export const findToolChoiceType = (
       }
       return choice;
     case "GOOGLE":
-      if (
-        isObject(choice) &&
-        "name" in choice &&
-        typeof choice.name === "string"
-      ) {
-        return "tool"; // a specific tool has been selected
+      if (isObject(choice)) {
+        if (
+          "allowed_function_names" in choice &&
+          Array.isArray(choice.allowed_function_names) &&
+          choice.allowed_function_names.length === 1
+        ) {
+          return "tool"; // a specific tool has been selected
+        }
+        if ("mode" in choice && typeof choice.mode === "string") {
+          return choice.mode;
+        }
       }
-      return choice;
+      return "auto";
     default:
       assertUnreachable(provider);
   }
@@ -285,7 +290,8 @@ export function ToolChoiceSelector<
             case "GOOGLE":
               onChange(
                 makeGoogleToolChoice({
-                  name: removeToolNamePrefix(choice),
+                  mode: "any",
+                  allowed_function_names: [removeToolNamePrefix(choice)],
                 })
               );
               break;
@@ -321,9 +327,9 @@ export function ToolChoiceSelector<
               break;
             case "GOOGLE":
               onChange(
-                makeGoogleToolChoice(
-                  choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["GOOGLE"][number]
-                )
+                makeGoogleToolChoice({
+                  mode: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["GOOGLE"][number],
+                })
               );
               break;
             default:
