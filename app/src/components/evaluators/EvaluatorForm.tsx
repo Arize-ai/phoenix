@@ -14,19 +14,19 @@ import {
   Heading,
   Input,
   Label,
+  Switch,
   Text,
   TextField,
 } from "@phoenix/components";
-import {
-  EvaluatorChatTemplate,
-  EvaluatorChatTemplateProvider,
-} from "@phoenix/components/evaluators/EvaluatorChatTemplate";
+import { EvaluatorChatTemplate } from "@phoenix/components/evaluators/EvaluatorChatTemplate";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import {
   ChoiceConfig,
   EvaluatorLLMChoice,
 } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
+import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
@@ -101,14 +101,14 @@ export const EvaluatorFormProvider = ({
   promptVersionTag?: string;
 }>) => {
   return (
-    <EvaluatorChatTemplateProvider
+    <EvaluatorPlaygroundProvider
       promptId={promptId}
       promptName={promptName}
       promptVersionRef={promptVersionRef}
       promptVersionTag={promptVersionTag}
     >
       <FormProvider {...form}>{children}</FormProvider>
-    </EvaluatorChatTemplateProvider>
+    </EvaluatorPlaygroundProvider>
   );
 };
 
@@ -137,6 +137,7 @@ export const EvaluatorForm = () => {
   );
   const [evaluatorInputObject, setEvaluatorInputObject] =
     useState<EvaluatorInput | null>(null);
+  const [showPromptPreview, setShowPromptPreview] = useState(false);
   const selectedDatasetId = watch("dataset.id");
   return (
     <PanelGroup direction="horizontal">
@@ -184,7 +185,17 @@ export const EvaluatorForm = () => {
             <Text color="text-500">
               Define or load a prompt for your evaluator.
             </Text>
-            <EvaluatorChatTemplate />
+            <Switch
+              isSelected={showPromptPreview}
+              onChange={setShowPromptPreview}
+            >
+              <Label>Preview</Label>
+            </Switch>
+            {showPromptPreview ? (
+              <EvaluatorPromptPreview />
+            ) : (
+              <EvaluatorChatTemplate />
+            )}
           </Flex>
           <Flex direction="column" gap="size-100">
             <Heading level={3}>Evaluator Annotation</Heading>
