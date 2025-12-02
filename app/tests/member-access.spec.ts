@@ -34,3 +34,15 @@ test("can create user key", async ({ page }) => {
     timeout: 60000,
   });
 });
+
+test("should be able to create a new project", async ({ page }) => {
+  await page.goto("/projects");
+  await page.waitForURL("**/projects");
+
+  // Wait for the page to be loaded
+  await expect(
+    page.getByRole("searchbox", { name: "Search projects by name" })
+  ).toBeVisible();
+
+  await expect(page.getByRole("button", { name: "New Project" })).toBeVisible();
+});

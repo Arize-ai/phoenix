@@ -477,6 +477,33 @@
       ]
     },
     {
+      "name": "claude-opus-4-5-20251101",
+      "name_pattern": "claude-opus-4-5-20251101",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "claude-sonnet-4-20250514",
       "name_pattern": "claude-sonnet-4-20250514|anthropic\\.claude-sonnet-4-20250514-v1:0|claude-sonnet-4@20250514",
       "source": "litellm",
@@ -533,6 +560,33 @@
     {
       "name": "claude-sonnet-4-5-20250929",
       "name_pattern": "claude-sonnet-4-5-20250929",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "claude-sonnet-4-5-20250929-v1:0",
+      "name_pattern": "claude-sonnet-4-5-20250929-v1:0",
       "source": "litellm",
       "token_prices": [
         {
@@ -1160,6 +1214,45 @@
           "base_rate": 7e-7,
           "is_prompt": true,
           "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini-3-pro-image-preview",
+      "name_pattern": "gemini-3-pro-image-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini-3-pro-preview",
+      "name_pattern": "gemini-3-pro-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from pathlib import Path
 from secrets import token_hex
 from typing import Any
@@ -30,7 +29,7 @@ class TestDatasetIntegration:
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_dataset_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_dataset_{token_hex(4)}"
 
         # Create dataset with JSON data
         dataset = await _await_or_return(
@@ -73,7 +72,7 @@ class TestDatasetIntegration:
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_dataset_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_dataset_{token_hex(4)}"
 
         # Create initial dataset
         dataset = await _await_or_return(
@@ -112,7 +111,7 @@ class TestDatasetIntegration:
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_dataset_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_dataset_{token_hex(4)}"
 
         # Create dataset
         dataset = await _await_or_return(
@@ -157,16 +156,16 @@ class TestDatasetIntegration:
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        # Create CSV file
+        # Create CSV file with split column
         csv_file = tmp_path / "test_data.csv"
-        csv_content = """question,answer,category
-What is 2+2?,4,math
-Capital of France?,Paris,geography
-Who wrote Hamlet?,Shakespeare,literature
+        csv_content = """question,answer,category,data_split
+What is 2+2?,4,math,train
+Capital of France?,Paris,geography,test
+Who wrote Hamlet?,Shakespeare,literature,train
 """
         csv_file.write_text(csv_content)
 
-        unique_name = f"test_csv_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_csv_{token_hex(4)}"
 
         dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -175,6 +174,7 @@ Who wrote Hamlet?,Shakespeare,literature
                 input_keys=["question"],
                 output_keys=["answer"],
                 metadata_keys=["category"],
+                split_keys=["data_split"],
             )
         )
 
@@ -182,6 +182,60 @@ Who wrote Hamlet?,Shakespeare,literature
         assert dataset[0]["input"]["question"] == "What is 2+2?"
         assert dataset[0]["output"]["answer"] == "4"
         assert dataset[0]["metadata"]["category"] == "math"
+
+        # Verify split filtering works - "train" split should return 2 examples
+        train_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=["train"],
+            )
+        )
+        assert len(train_dataset) == 2
+
+        # "test" split should return 1 example
+        test_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=["test"],
+            )
+        )
+        assert len(test_dataset) == 1
+
+        # Test add_examples_to_dataset with CSV and split_keys
+        append_csv = tmp_path / "append_data.csv"
+        append_csv.write_text("""question,answer,category,data_split
+What is 3+3?,6,math,train
+Capital of Germany?,Berlin,geography,validation
+""")
+        updated_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=dataset.id,
+                csv_file_path=append_csv,
+                input_keys=["question"],
+                output_keys=["answer"],
+                metadata_keys=["category"],
+                split_keys=["data_split"],
+            )
+        )
+        assert len(updated_dataset) == 5
+
+        # Verify train now has 3 examples (2 original + 1 appended)
+        train_after = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=["train"],
+            )
+        )
+        assert len(train_after) == 3
+
+        # Verify new "validation" split has 1 example
+        validation_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=["validation"],
+            )
+        )
+        assert len(validation_dataset) == 1
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_create_dataset_from_dataframe(
@@ -204,7 +258,7 @@ Who wrote Hamlet?,Shakespeare,literature
             }
         )
 
-        unique_name = f"test_df_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_df_{token_hex(4)}"
 
         dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -234,7 +288,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_roundtrip_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_roundtrip_{token_hex(4)}"
 
         # Create dataset
         dataset = await _await_or_return(
@@ -268,7 +322,7 @@ Who wrote Hamlet?,Shakespeare,literature
         metadata: list[dict[str, Any]] = df["metadata"].tolist()  # pyright: ignore[reportUnknownVariableType]
 
         # Create new dataset from DataFrame data
-        new_name = f"test_from_df_{uuid.uuid4().hex[:8]}"
+        new_name = f"test_from_df_{token_hex(4)}"
         new_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=new_name,
@@ -296,7 +350,7 @@ Who wrote Hamlet?,Shakespeare,literature
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         # Create source dataset
-        source_name = f"test_source_{uuid.uuid4().hex[:8]}"
+        source_name = f"test_source_{token_hex(4)}"
         source = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=source_name,
@@ -307,7 +361,7 @@ Who wrote Hamlet?,Shakespeare,literature
         )
 
         # Create target dataset with single example from source
-        target_name = f"test_target_{uuid.uuid4().hex[:8]}"
+        target_name = f"test_target_{token_hex(4)}"
         target = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=target_name,
@@ -329,6 +383,76 @@ Who wrote Hamlet?,Shakespeare,literature
 
         assert len(updated) == 3
 
+        # Test creating dataset with splits via examples parameter
+        splits_name = f"test_splits_{token_hex(4)}"
+        splits_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=splits_name,
+                examples=[
+                    {"input": {"q": "Q1"}, "output": {"a": "A1"}, "splits": "train"},
+                    {"input": {"q": "Q2"}, "output": {"a": "A2"}, "splits": ["test", "hard"]},
+                    {"input": {"q": "Q3"}, "output": {"a": "A3"}, "splits": None},
+                ],
+            )
+        )
+        assert len(splits_dataset) == 3
+
+        # Verify split filtering works
+        train_only = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=splits_dataset.id,
+                splits=["train"],
+            )
+        )
+        assert len(train_only) == 1
+
+        test_only = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=splits_dataset.id,
+                splits=["test"],
+            )
+        )
+        assert len(test_only) == 1
+
+        # Test add_examples_to_dataset with splits (ensures client append+splits works)
+        updated_splits_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=splits_dataset.id,
+                examples=[
+                    {"input": {"q": "Q4"}, "output": {"a": "A4"}, "splits": "train"},
+                    {"input": {"q": "Q5"}, "output": {"a": "A5"}, "splits": ["test", "new_split"]},
+                ],
+            )
+        )
+        assert len(updated_splits_dataset) == 5
+
+        # Verify train now has 2 examples (Q1 + Q4)
+        train_after_append = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=splits_dataset.id,
+                splits=["train"],
+            )
+        )
+        assert len(train_after_append) == 2
+
+        # Verify test now has 2 examples (Q2 + Q5)
+        test_after_append = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=splits_dataset.id,
+                splits=["test"],
+            )
+        )
+        assert len(test_after_append) == 2
+
+        # Verify new_split has 1 example (Q5)
+        new_split_examples = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=splits_dataset.id,
+                splits=["new_split"],
+            )
+        )
+        assert len(new_split_examples) == 1
+
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_dataset_identifier_flexibility(
         self,
@@ -342,7 +466,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_flex_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_flex_{token_hex(4)}"
 
         # Create dataset
         dataset = await _await_or_return(
@@ -427,7 +551,7 @@ Who wrote Hamlet?,Shakespeare,literature
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         # Create source dataset with multiple examples
-        source_name = f"test_source_{uuid.uuid4().hex[:8]}"
+        source_name = f"test_source_{token_hex(4)}"
         source_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=source_name,
@@ -452,7 +576,7 @@ Who wrote Hamlet?,Shakespeare,literature
         assert len(source_dataset) == 3
 
         # Create empty target dataset
-        target_name = f"test_target_{uuid.uuid4().hex[:8]}"
+        target_name = f"test_target_{token_hex(4)}"
         target_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=target_name,
@@ -485,7 +609,7 @@ Who wrote Hamlet?,Shakespeare,literature
             assert target_example["metadata"] == source_example["metadata"]
 
         # Also test passing a subset of examples
-        subset_target_name = f"test_subset_{uuid.uuid4().hex[:8]}"
+        subset_target_name = f"test_subset_{token_hex(4)}"
         subset_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=subset_target_name,
@@ -512,7 +636,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_legacy_compat_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_legacy_compat_{token_hex(4)}"
 
         dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -547,7 +671,7 @@ Who wrote Hamlet?,Shakespeare,literature
             dataset=dataset,
             task=simple_task,
             evaluators=[simple_evaluator],
-            experiment_name=f"test_legacy_compat_{uuid.uuid4().hex[:8]}",
+            experiment_name=f"test_legacy_compat_{token_hex(4)}",
             dry_run=True,  # Use dry run to avoid database operations
             print_summary=False,
         )
@@ -584,7 +708,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_json_roundtrip_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_json_roundtrip_{token_hex(4)}"
 
         original_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -929,7 +1053,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_splits_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_splits_{token_hex(4)}"
 
         # Create dataset with examples
         dataset = await _await_or_return(
@@ -1079,7 +1203,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_splits_dedup_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_splits_dedup_{token_hex(4)}"
 
         # Create dataset with examples
         dataset = await _await_or_return(

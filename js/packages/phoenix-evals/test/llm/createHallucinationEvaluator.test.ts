@@ -42,7 +42,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const result = await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
-      reference:
+      context:
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
@@ -50,9 +50,14 @@ Is the answer hallucinated? Respond with "yes" or "no".
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
         labels: ["hallucinated", "factual"],
-        prompt: expect.stringContaining(
-          "In this task, you will be presented with a query"
-        ),
+        prompt: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining(
+              "In this task, you will be presented with a query"
+            ),
+          }),
+        ]),
       })
     );
 
@@ -67,9 +72,22 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const hallucination = createHallucinationEvaluator({ model });
     expect(hallucination.promptTemplateVariables).toEqual([
       "input",
-      "reference",
+      "context",
       "output",
     ]);
+  });
+
+  it("should use default optimization direction from config", () => {
+    const evaluator = createHallucinationEvaluator({ model });
+    expect(evaluator.optimizationDirection).toBe("MINIMIZE");
+  });
+
+  it("should allow overriding optimization direction", () => {
+    const evaluator = createHallucinationEvaluator({
+      model,
+      optimizationDirection: "MAXIMIZE",
+    });
+    expect(evaluator.optimizationDirection).toBe("MAXIMIZE");
   });
 
   it("should support custom template", async () => {
@@ -128,7 +146,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const result = await evaluator.evaluate({
       output: "Arize Phoenix is not open source.",
       input: "Is Arize Phoenix Open Source?",
-      reference:
+      context:
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
@@ -153,7 +171,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
-      reference:
+      context:
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
@@ -182,7 +200,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
-      reference:
+      context:
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
@@ -216,7 +234,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
-      reference:
+      context:
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
@@ -246,28 +264,43 @@ Is the answer hallucinated? Respond with "yes" or "no".
 
     const testInput = "What is the capital of France?";
     const testOutput = "The capital of France is Paris.";
-    const testReference = "Paris is the capital and largest city of France.";
+    const testContext = "Paris is the capital and largest city of France.";
 
     await evaluator.evaluate({
       output: testOutput,
       input: testInput,
-      reference: testReference,
+      context: testContext,
     });
 
     // Verify that the prompt contains the interpolated values
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining(testInput),
+        prompt: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining(testInput),
+          }),
+        ]),
       })
     );
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining(testOutput),
+        prompt: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining(testOutput),
+          }),
+        ]),
       })
     );
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining(testReference),
+        prompt: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining(testContext),
+          }),
+        ]),
       })
     );
   });

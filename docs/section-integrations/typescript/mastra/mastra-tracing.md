@@ -28,7 +28,7 @@ PHOENIX_PROJECT_NAME=mastra-service # Optional, defaults to "mastra-service"
 
 ## Setup
 
-Initialize the Arize exporter inside your Mastra project:
+Initialize the Arize AX exporter inside your Mastra project:
 
 ```typescript
 import { Mastra } from "@mastra/core";

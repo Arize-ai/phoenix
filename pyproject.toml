@@ -52,12 +52,12 @@ dependencies = [
   "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # https://github.com/nalgeon/sqlean.py/commit/2714a4789998811b7dd9f102f5b45ea071ed879e
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=2.6.0",
-  "arize-phoenix-otel>=0.10.3",
+  "arize-phoenix-evals>=2.6.1",
+  "arize-phoenix-otel>=0.14.0",
   "fastapi",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
-  "arize-phoenix-client>=1.24.0",
+  "arize-phoenix-client>=1.26.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",

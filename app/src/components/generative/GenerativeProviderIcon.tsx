@@ -1,3 +1,4 @@
+"use no memo";
 import React from "react";
 
 /**
@@ -108,7 +109,6 @@ const OllamaSVG = ({ height }: { height: number }) => (
     fill="currentColor"
     fillRule="evenodd"
     height={height}
-    style={{ flex: "none", lineHeight: 1 }}
     viewBox="0 0 24 24"
     width={height}
     xmlns="http://www.w3.org/2000/svg"
@@ -119,10 +119,9 @@ const OllamaSVG = ({ height }: { height: number }) => (
 );
 const BedrockSVG = ({ height }: { height: number }) => (
   <svg
-    height={height}
-    style={{ flex: "none", lineHeight: 1 }}
     viewBox="0 0 24 24"
     width={height}
+    height={height}
     xmlns="http://www.w3.org/2000/svg"
   >
     <title>Bedrock</title>

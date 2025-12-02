@@ -32,7 +32,7 @@ WORKDIR /phoenix/app/
 COPY ./app /phoenix/app
 RUN npm i -g corepack
 RUN corepack enable
-RUN corepack use pnpm
+RUN corepack install
 RUN pnpm install
 RUN pnpm run build
 

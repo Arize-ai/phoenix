@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.25.0...arize-phoenix-client-v1.26.0) (2025-11-25)
+
+
+### Features
+
+* **splits:** Allow split assignment from dataset upload ([#10353](https://github.com/Arize-ai/phoenix/issues/10353)) ([cb45336](https://github.com/Arize-ai/phoenix/commit/cb45336da7ed2016760de11772afd12e9d46f262))
+
+## [1.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.24.0...arize-phoenix-client-v1.25.0) (2025-11-24)
+
+
+### Features
+
+* add evaluation helpers to easily pull rag spans  ([#10341](https://github.com/Arize-ai/phoenix/issues/10341)) ([0c409ad](https://github.com/Arize-ai/phoenix/commit/0c409adf9eb5a61772ca2b9a7038ee31567f6964))
+
 ## [1.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.23.0...arize-phoenix-client-v1.24.0) (2025-11-19)
 
 

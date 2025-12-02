@@ -1,5 +1,11 @@
 # @arizeai/phoenix-otel
 
+## 0.3.1
+
+### Patch Changes
+
+- ce5febf: normalize urls with no trailing slashes
+
 ## 0.3.0
 
 ### Minor Changes

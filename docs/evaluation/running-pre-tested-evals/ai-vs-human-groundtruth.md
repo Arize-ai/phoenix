@@ -10,7 +10,7 @@ description: >-
 
 A workflow we see for high quality RAG deployments is generating a golden dataset of questions and a high quality set of answers. These can be in the range of 100-200 but provide a strong check for the AI generated answers. This Eval checks that the human ground truth matches the AI generated answer. Its designed to catch missing data in "half" answers and differences of substance.
 
-### Example Human vs AI on Arize Docs:
+### Example Human vs AI on Arize AX Docs:
 
 _**Question:**_
 
@@ -18,13 +18,13 @@ What Evals are supported for LLMs on generative models?
 
 _**Human:**_
 
-Arize supports a suite of Evals available from the Phoenix Evals library, they include both pre-tested Evals and the ability to configure cusotm Evals. Some of the pre-tested LLM Evals are listed below:
+Arize AX supports a suite of Evals available from the Phoenix Evals library, they include both pre-tested Evals and the ability to configure cusotm Evals. Some of the pre-tested LLM Evals are listed below:
 
 Retrieval Relevance, Question and Answer, Toxicity, Human Groundtruth vs AI, Citation Reference Link Relevancy, Code Readability, Code Execution, Hallucination Detection and Summarizaiton
 
 **AI:**
 
-Arize supports LLM Evals.
+Arize AX supports LLM Evals.
 
 **Eval:**
 
@@ -32,7 +32,7 @@ Incorrect
 
 **Explanation of Eval:**
 
-The AI answer is very brief and lacks the specific details that are present in the human ground truth answer. While the AI answer is not incorrect in stating that Arize supports LLM Evals, it fails to mention the specific types of Evals that are supported, such as Retrieval Relevance, Question and Answer, Toxicity, Human Groundtruth vs AI, Citation Reference Link Relevancy, Code Readability, Hallucination Detection, and Summarization. Therefore, the AI answer does not fully capture the substance of the human answer.
+The AI answer is very brief and lacks the specific details that are present in the human ground truth answer. While the AI answer is not incorrect in stating that Arize AX supports LLM Evals, it fails to mention the specific types of Evals that are supported, such as Retrieval Relevance, Question and Answer, Toxicity, Human Groundtruth vs AI, Citation Reference Link Relevancy, Code Readability, Hallucination Detection, and Summarization. Therefore, the AI answer does not fully capture the substance of the human answer.
 
 Overview of template:
 
@@ -91,7 +91,7 @@ relevance_classifications = llm_classify(
 
 ## Benchmark Results:
 
-The follow benchmarking data was gathered by comparing various model results to ground truth data. The ground truth data used was a handcrafted dataset consisting of questions about the Arize platform. That[ dataset is availabe here](https://storage.googleapis.com/arize-phoenix-assets/evals/human_vs_ai/human_vs_ai_classifications.csv).
+The follow benchmarking data was gathered by comparing various model results to ground truth data. The ground truth data used was a handcrafted dataset consisting of questions about the Arize AX platform. That[ dataset is availabe here](https://storage.googleapis.com/arize-phoenix-assets/evals/human_vs_ai/human_vs_ai_classifications.csv).
 
 **GPT-4 Results**
 

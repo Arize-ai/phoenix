@@ -1,5 +1,29 @@
 # @arizeai/phoenix-evals
 
+## 0.6.2
+
+### Patch Changes
+
+- 0589fc3: create evaluator helper
+
+## 0.6.1
+
+### Patch Changes
+
+- 5cacc22: create evaluator helper function
+
+## 0.6.0
+
+### Minor Changes
+
+- 84877d6: add data mapping helpers for evaluators
+
+## 0.5.1
+
+### Patch Changes
+
+- 9408838: add message template support
+
 ## 0.5.0
 
 ### Minor Changes

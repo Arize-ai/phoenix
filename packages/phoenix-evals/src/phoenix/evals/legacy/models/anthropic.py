@@ -111,13 +111,16 @@ class AnthropicModel(BaseModel):
         )
 
     def invocation_parameters(self) -> Dict[str, Any]:
-        return {
+        params = {
             "max_tokens": self.max_tokens,
             "stop_sequences": self.stop_sequences,
-            "temperature": self.temperature,
-            "top_p": self.top_p,
             "top_k": self.top_k,
         }
+        if self.temperature is not None:
+            params["temperature"] = self.temperature
+        if self.top_p is not None:
+            params["top_p"] = self.top_p
+        return params
 
     @override
     def _generate_with_extra(
@@ -131,6 +134,7 @@ class AnthropicModel(BaseModel):
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
+        invocation_parameters = {k: v for k, v in invocation_parameters.items() if v is not None}
         return self._rate_limited_completion(
             model=self.model,
             messages=self._format_prompt_for_claude(prompt),
@@ -163,6 +167,7 @@ class AnthropicModel(BaseModel):
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
+        invocation_parameters = {k: v for k, v in invocation_parameters.items() if v is not None}
         return await self._async_rate_limited_completion(
             model=self.model,
             messages=self._format_prompt_for_claude(prompt),
