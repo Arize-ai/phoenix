@@ -1,10 +1,17 @@
 # Setup using Phoenix OTEL
 
+Phoenix OTEL provides a lightweight, vendor-agnostic way to instrument your services using OpenTelemetry and stream traces directly into Phoenix for debugging, monitoring, and model evaluation. This guide walks you through configuring your application to emit OTEL-compatible spans, enabling end-to-end visibility into requests, model calls, and system behavior with minimal overhead.
+
+### Getting Started <a href="#getting-started" id="getting-started"></a>
+
+To begin sending traces to Phoenix using OpenTelemetry, install the Phoenix OTEL packages for your environment and configure a basic tracer. Below are quick-start examples for both Python and TypeScript users
+
+{% tabs %}
+{% tab title="Python" %}
 `phoenix.otel` is a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.
 
-```bash
-pip install arize-phoenix-otel
-```
+<pre><code><strong>pip install arize-phoenix-otel
+</strong></code></pre>
 
 These defaults are aware of environment variables you may have set to configure Phoenix:
 
@@ -13,9 +20,39 @@ These defaults are aware of environment variables you may have set to configure 
 * `PHOENIX_CLIENT_HEADERS`
 * `PHOENIX_API_KEY`
 * `PHOENIX_GRPC_PORT`
+{% endtab %}
 
-## Quickstart: `phoenix.otel.register`
+{% tab title="TS" %}
+Install OpenTelemetry API packages:
 
+```shell
+# npm, pnpm, yarn, etc
+npm install @opentelemetry/semantic-conventions @opentelemetry/api @opentelemetry/instrumentation @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto
+```
+
+Install OpenInference instrumentation packages. Below is an example of adding instrumentation for OpenAI as well as the semantic conventions for OpenInference.
+
+<pre class="language-bash"><code class="lang-bash"># npm, pnpm, yarn, etc
+<strong>npm install openai @arizeai/openinference-instrumentation-openai @arizeai/openinference-semantic-conventions
+</strong></code></pre>
+{% endtab %}
+{% endtabs %}
+
+### Configure your Environment&#x20;
+
+There are two ways to configure the collector endpoint:
+
+* Using environment variables
+* Using the `endpoint` keyword argument
+
+If you're using Phoenix Cloud, you'll need your API Key & your space endpoint. If you're running Phoenix locally, you'll just need your endpoint. (ex. localhost:6006)
+
+### Create your OTEL tracer
+
+Once the Phoenix OTEL packages are installed, initialize a tracer so your spans can be collected and viewed in Phoenix.
+
+{% tabs %}
+{% tab title="Python" %}
 The `phoenix.otel` module provides a high-level `register` function to configure OpenTelemetry tracing by setting a global `TracerProvider`. The register function can also configure headers and whether or not to process spans one by one or by batch.
 
 ```python
@@ -24,52 +61,66 @@ tracer_provider = register(
     project_name="default", # sets a project name for spans
     batch=True, # uses a batch span processor
     auto_instrument=True, # uses all installed OpenInference instrumentors
+    # optional: if you want to configure custom endpoint
+    # endpoint="http://localhost:6006/v1/traces"
+    # protocol="grpc", # use "http/protobuf" for http transport
 )
 ```
 
-### Phoenix Authentication
-
 If the `PHOENIX_API_KEY` environment variable is set, `register` will automatically add an `authorization` header to each span payload.
-
-### Configuring the collector endpoint
-
-There are two ways to configure the collector endpoint:
-
-* Using environment variables
-* Using the `endpoint` keyword argument
-
-#### Using environment variables
 
 If you're setting the `PHOENIX_COLLECTOR_ENDPOINT` environment variable, `register` will\
 automatically try to send spans to your Phoenix server using gRPC.
 
-{% tabs %}
-{% tab title="GRPC" %}
-```python
-# export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.com:6006
+`register` can be configured with different keyword arguments:
 
-from phoenix.otel import register
-
-# sends traces to https://your-phoenix.com:4317
-tracer_provider = register()
-```
+* `project_name`: The Phoenix project name
+  * or use `PHOENIX_PROJECT_NAME` env. var
+* `headers`: Headers to send along with each span payload
+  * or use `PHOENIX_CLIENT_HEADERS` env. var
+* `batch`: Whether or not to process spans in batch
 {% endtab %}
 
-{% tab title="HTTP" %}
-```python
-# export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.com:6006
+{% tab title="TS" %}
+```typescript
+// instrumentation.ts
+import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+import { resourceFromAttributes } from "@opentelemetry/resources";
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 
-from phoenix.otel import register
+// For troubleshooting, set the log level to DiagLogLevel.DEBUG
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
 
-# sends traces to https://your-phoenix.com/v1/traces
-tracer_provider = register(
-    protocol="http/protobuf",
-)
+const tracerProvider = new NodeTracerProvider({
+  spanProcessors: [
+    // BatchSpanProcessor will flush spans in batches after some time,
+    // this is recommended in production. For development or testing purposes
+    // you may try SimpleSpanProcessor for instant span flushing to the Phoenix UI.
+    new BatchSpanProcessor(
+      new OTLPTraceExporter({
+        url: `http://localhost:6006/v1/traces`,
+        // (optional) if connecting to Phoenix Cloud
+        // headers: { "api_key": process.env.PHOENIX_API_KEY },
+        // (optional) if connecting to self-hosted Phoenix with Authentication enabled
+        // headers: { "Authorization": `Bearer ${process.env.PHOENIX_API_KEY}` }
+      })
+    ),
+  ],
+});
+tracerProvider.register();
+
+console.log("👀 OpenInference initialized");
 ```
 {% endtab %}
 {% endtabs %}
 
-#### Specifying the `endpoint` directly
+### Configuring the collector endpoint
+
+When passing in the `endpoint` argument, **you must specify the fully qualified endpoint**. If the `PHOENIX_GRPC_PORT` environment variable is set, it will override the default gRPC port.
+
+For default, the local endpoint will be `localhost:6006` or your space's hostname when using Pheonix Cloud.&#x20;
 
 When passing in the `endpoint` argument, **you must specify the fully qualified endpoint**. If the `PHOENIX_GRPC_PORT` environment variable is set, it will override the default gRPC port.
 
@@ -105,25 +156,6 @@ tracer_provider = register(
 {% endtab %}
 {% endtabs %}
 
-#### Additional configuration
-
-`register` can be configured with different keyword arguments:
-
-* `project_name`: The Phoenix project name
-  * or use `PHOENIX_PROJECT_NAME` env. var
-* `headers`: Headers to send along with each span payload
-  * or use `PHOENIX_CLIENT_HEADERS` env. var
-* `batch`: Whether or not to process spans in batch
-
-```python
-from phoenix.otel import register
-tracer_provider = register(
-    project_name="otel-test",
-    headers={"Authorization": "Bearer TOKEN"},
-    batch=True,
-)
-```
-
 ## Instrumentation
 
 Once you've connected your application to your Phoenix instance using `phoenix.otel.register`, you need to instrument your application. You have a few options to do this:
@@ -131,3 +163,4 @@ Once you've connected your application to your Phoenix instance using `phoenix.o
 1. **Using OpenInference auto-instrumentors**. If you've used the `auto_instrument` flag above, then any instrumentor packages in your environment will be called automatically. For a full list of OpenInference packages, see [https://arize.com/docs/phoenix/integrations](https://arize.com/docs/phoenix/integrations "mention")
 2. Using [Phoenix Decorators](instrument.md).
 3. Using [Base OTEL](custom-spans.md).
+

@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Setup Tracing (TS)
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/nodejs_deployment.png" alt=""><figcaption><p>You can trace your NodeJS application over OpenTelemetry</p></figcaption></figure>
