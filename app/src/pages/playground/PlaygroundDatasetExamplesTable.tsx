@@ -529,6 +529,7 @@ function TableBody<T>({
   table: Table<T>;
   virtualizer: Virtualizer<HTMLDivElement, Element>;
 }) {
+  "use no memo";
   const rows = table.getRowModel().rows;
 
   const virtualRows = virtualizer.getVirtualItems();
