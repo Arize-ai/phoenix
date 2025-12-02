@@ -81,7 +81,6 @@ export function EvaluatorSelectMenuItem({
   );
 }
 
-// TODO: can we get rid of this
 /**
  * Prevents menu flicker when toggling between two text values by maintaining a stable width.
  * Uses absolute positioning to swap visibility, with a hidden grid underneath to reserve
