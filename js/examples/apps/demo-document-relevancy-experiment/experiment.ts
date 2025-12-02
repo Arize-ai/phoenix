@@ -4,7 +4,7 @@ import {
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 import { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
-import { createDocumentRelevancyEvaluator } from "@arizeai/phoenix-evals/llm/createDocumentRelevancyEvaluator";
+import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
 
 import "dotenv/config";
 
@@ -48,7 +48,7 @@ async function main() {
     })),
   });
 
-  const documentRelevancyEvaluator = createDocumentRelevancyEvaluator({
+  const documentRelevancyEvaluator = createDocumentRelevanceEvaluator({
     model: openai("gpt-5"),
   });
 

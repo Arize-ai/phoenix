@@ -14,7 +14,7 @@
     "@clack/prompts": "^0.8.2",
     "autoevals": "^0.0.111",
     "dotenv": "^16.4.7",
-    "openai": "^6.7.0",
+    "openai": "^6.9.1",
     "zod": "^3.23.8"
   },
   "scripts": {
