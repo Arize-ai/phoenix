@@ -61,6 +61,7 @@ export function EvaluatorSelectMenuItem({
               annotation={{ name: evaluator.annotationName }}
               displayPreference="none"
               size="XS"
+              maxWidth="unset"
             />
           </div>
         ) : undefined

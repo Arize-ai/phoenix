@@ -36,7 +36,7 @@ export const gridListItemCss = css`
   color: var(--ac-global-text-color-900);
   position: relative;
   display: flex;
-  gap: var(--ac-global-dimension-static-size-100);
+  gap: var(--ac-global-menu-item-gap);
   align-items: center;
   justify-content: space-between;
 

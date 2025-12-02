@@ -15,9 +15,9 @@ import {
   Icon,
   Icons,
   LinkButton,
+  MenuContainer,
   MenuFooter,
   MenuHeader,
-  Popover,
   SearchField,
   SearchIcon,
   Text,
@@ -59,7 +59,7 @@ export function PlaygroundEvaluatorSelect(
         <Button size="S" leadingVisual={<Icon svg={<Icons.PlusOutline />} />}>
           Add evaluator
         </Button>
-        <Popover placement="top end">
+        <MenuContainer placement="top end" shouldFlip={true}>
           <Autocomplete filter={contains}>
             <MenuHeader>
               <SearchField aria-label="Search" autoFocus>
@@ -105,7 +105,7 @@ export function PlaygroundEvaluatorSelect(
               New evaluator
             </LinkButton>
           </MenuFooter>
-        </Popover>
+        </MenuContainer>
       </DialogTrigger>
       <EditEvaluatorSlideover
         evaluatorId={editingEvaluatorId ?? ""}
