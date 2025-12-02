@@ -7,9 +7,7 @@ import OpenAI from "openai";
 const instrumentation = new OpenAIInstrumentation();
 instrumentation.manuallyInstrument(OpenAI);
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI();
 
 const SPACE_KNOWLEDGE_BASE = [
   {
