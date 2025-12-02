@@ -31,13 +31,43 @@ def _get_llm_model_name(bound: BoundArguments) -> str:
 def _get_prompt(bound: BoundArguments) -> str:
     """Extract prompt text from bound function arguments.
 
+    Converts PromptLike (str, List[Message], or List[Dict]) to a string representation
+    suitable for tracing. Message lists are converted to JSON format.
+
     Args:
         bound (BoundArguments): Bound arguments from function call inspection.
 
     Returns:
-        str: Prompt text from arguments, or empty string if not found.
+        str: Prompt text from arguments as a string, or empty string if not found.
     """
-    return bound.arguments.get("prompt", "") or ""
+    prompt = bound.arguments.get("prompt", "")
+
+    # Handle empty/falsy values
+    if not prompt:
+        return ""
+
+    # If it's already a string, return as-is
+    if isinstance(prompt, str):
+        return prompt
+
+    # If it's a list (List[Message] or List[Dict]), convert to JSON string
+    if isinstance(prompt, list):
+        # Convert Message objects to serializable format
+        serializable_prompt = []
+        for msg in prompt:
+            if isinstance(msg, dict):
+                # Handle Message TypedDict or plain dict
+                serializable_msg = dict(msg)
+                # Convert MessageRole enum to string if present
+                if "role" in serializable_msg and hasattr(serializable_msg["role"], "value"):
+                    serializable_msg["role"] = serializable_msg["role"].value
+                serializable_prompt.append(serializable_msg)
+            else:
+                serializable_prompt.append(msg)
+        return json.dumps(serializable_prompt, indent=2)
+
+    # Fallback: convert to string representation
+    return str(prompt)
 
 
 def _get_output(result: Any) -> Any:
