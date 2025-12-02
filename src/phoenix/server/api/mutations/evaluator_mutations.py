@@ -20,6 +20,7 @@ from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
+from phoenix.server.api.evaluators import get_builtin_evaluator_by_id
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
@@ -113,6 +114,7 @@ class EvaluatorMutationPayload:
 class AssignEvaluatorToDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
+    name: Optional[str] = None
     input_mapping: Optional[EvaluatorInputMappingInput] = None
 
 
@@ -120,6 +122,7 @@ class AssignEvaluatorToDatasetInput:
 class UnassignEvaluatorFromDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
+    name: str
 
 
 @strawberry.input
@@ -161,6 +164,7 @@ class EvaluatorMutationMixin:
             datasets_evaluators=[
                 models.DatasetsEvaluators(
                     dataset_id=dataset_id,
+                    name=evaluator_name.root,
                     input_mapping={},
                 )
             ]
@@ -220,6 +224,7 @@ class EvaluatorMutationMixin:
             datasets_evaluators=[
                 models.DatasetsEvaluators(
                     dataset_id=dataset_id,
+                    name=evaluator_name.root,
                     input_mapping={},
                 )
             ]
@@ -365,21 +370,38 @@ class EvaluatorMutationMixin:
             input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
         )
 
+        is_builtin = evaluator_rowid < 0
+
+        assignment_name: str
+        if input.name is not None:
+            assignment_name = input.name
+        elif is_builtin:
+            builtin_evaluator = get_builtin_evaluator_by_id(evaluator_rowid)
+            if builtin_evaluator is None:
+                raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
+            assignment_name = builtin_evaluator.name
+        else:
+            async with info.context.db() as session:
+                evaluator = await session.get(models.Evaluator, evaluator_rowid)
+                if evaluator is None:
+                    raise NotFound(f"Evaluator with id {input.evaluator_id} not found")
+                assignment_name = evaluator.name.root
+
         # Use upsert for idempotent assignment
         # Foreign key constraints will ensure dataset and evaluator exist
-        is_builtin = evaluator_rowid < 0
         values: dict[str, Any] = {
             "dataset_id": dataset_rowid,
+            "name": assignment_name,
             "input_mapping": input_mapping.to_dict(),
         }
         if is_builtin:
             values["builtin_evaluator_id"] = evaluator_rowid
             values["evaluator_id"] = None
-            unique_by = ("dataset_id", "builtin_evaluator_id")
+            unique_by = ("dataset_id", "builtin_evaluator_id", "name")
         else:
             values["evaluator_id"] = evaluator_rowid
             values["builtin_evaluator_id"] = None
-            unique_by = ("dataset_id", "evaluator_id")
+            unique_by = ("dataset_id", "evaluator_id", "name")
 
         try:
             async with info.context.db() as session:
@@ -437,6 +459,7 @@ class EvaluatorMutationMixin:
 
         stmt = delete(models.DatasetsEvaluators).where(
             models.DatasetsEvaluators.dataset_id == dataset_rowid,
+            models.DatasetsEvaluators.name == input.name,
         )
         if evaluator_rowid < 0:
             stmt = stmt.where(models.DatasetsEvaluators.builtin_evaluator_id == evaluator_rowid)

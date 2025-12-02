@@ -1000,11 +1000,13 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
         dataset_evaluator_1 = models.DatasetsEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_1.id,
+            name="evaluator-1",
             input_mapping={},
         )
         dataset_evaluator_2 = models.DatasetsEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_2.id,
+            name="evaluator-2",
             input_mapping={},
         )
         session.add_all([dataset_evaluator_1, dataset_evaluator_2])

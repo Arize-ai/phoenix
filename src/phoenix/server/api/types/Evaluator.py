@@ -82,8 +82,9 @@ class Evaluator(Node):
         self,
         info: Info[Context, None],
         dataset_id: Optional[GlobalID] = None,
+        name: Optional[str] = None,
     ) -> bool:
-        if dataset_id is None:
+        if dataset_id is None or name is None:
             return False
 
         from phoenix.server.api.types.Dataset import Dataset
@@ -97,15 +98,18 @@ class Evaluator(Node):
             raise BadRequest(f"Invalid dataset id: {dataset_id}")
 
         dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
-            (dataset_rowid, self.id)
+            (dataset_rowid, self.id, name)
         )
         return dataset_evaluator is not None
 
     @strawberry.field
     async def dataset_input_mapping(
-        self, info: Info[Context, None], dataset_id: Optional[GlobalID] = None
+        self,
+        info: Info[Context, None],
+        dataset_id: Optional[GlobalID] = None,
+        name: Optional[str] = None,
     ) -> Optional[EvaluatorInputMapping]:
-        if dataset_id is None:
+        if dataset_id is None or name is None:
             return None
 
         try:
@@ -116,25 +120,18 @@ class Evaluator(Node):
         except ValueError:
             raise BadRequest(f"Invalid dataset id: {dataset_id}")
 
-        is_builtin = self.id < 0
+        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+            (dataset_rowid, self.id, name)
+        )
+        if dataset_evaluator is None:
+            return None
+        if dataset_evaluator.input_mapping is None:
+            return None
 
-        async with info.context.db() as session:
-            stmt = select(models.DatasetsEvaluators).where(
-                models.DatasetsEvaluators.dataset_id == dataset_rowid,
-                models.DatasetsEvaluators.evaluator_id == self.id
-                if not is_builtin
-                else models.DatasetsEvaluators.builtin_evaluator_id == self.id,
-            )
-            dataset_evaluator = await session.scalar(stmt)
-            if dataset_evaluator is None:
-                return None
-            if dataset_evaluator.input_mapping is None:
-                return None
-
-            return EvaluatorInputMapping(
-                literal_mapping=dataset_evaluator.input_mapping.get("literal_mapping", {}),
-                path_mapping=dataset_evaluator.input_mapping.get("path_mapping", {}),
-            )
+        return EvaluatorInputMapping(
+            literal_mapping=dataset_evaluator.input_mapping.get("literal_mapping", {}),
+            path_mapping=dataset_evaluator.input_mapping.get("path_mapping", {}),
+        )
 
 
 @strawberry.type
@@ -519,8 +516,9 @@ class BuiltInEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
         dataset_id: Optional[GlobalID] = None,
+        name: Optional[str] = None,
     ) -> bool:
-        if dataset_id is None:
+        if dataset_id is None or name is None:
             return False
 
         try:
@@ -531,12 +529,10 @@ class BuiltInEvaluator(Evaluator, Node):
         except ValueError:
             raise BadRequest(f"Invalid dataset id: {dataset_id}")
 
-        stmt = sa.select(models.DatasetsEvaluators).where(
-            models.DatasetsEvaluators.dataset_id == dataset_rowid,
-            models.DatasetsEvaluators.builtin_evaluator_id == self.id,
+        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+            (dataset_rowid, self.id, name)
         )
-        async with info.context.db() as session:
-            return (await session.scalar(stmt)) is not None
+        return dataset_evaluator is not None
 
 
 def _to_gql_categorical_annotation_config(
