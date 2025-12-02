@@ -67,13 +67,17 @@ export type AnthropicToolChoice = z.infer<typeof anthropicToolChoiceSchema>;
 
 /**
  * Google's tool choice schema
- * Google supports simple string values: "auto", "any", "none"
- * Note: Google does not support selecting specific tools by name
+ * Google supports:
+ * - Simple string values: "auto", "any", "none" for mode selection
+ * - Object with tool name for specific tool selection
  */
 export const googleToolChoiceSchema = z.union([
   z.literal("auto"),
   z.literal("any"),
   z.literal("none"),
+  z.object({
+    name: z.string(),
+  }),
 ]);
 
 export type GoogleToolChoice = z.infer<typeof googleToolChoiceSchema>;
@@ -209,6 +213,13 @@ export const toOpenAIToolChoice = (toolChoice: unknown): OpenaiToolChoice => {
       return anthropicToolChoiceToOpenaiToolChoice.parse(validatedToolChoice);
     case "GOOGLE":
       // Convert Google choice to OpenAI format
+      if (isObject(validatedToolChoice) && "name" in validatedToolChoice) {
+        // Specific tool selection
+        return {
+          type: "function",
+          function: { name: validatedToolChoice.name },
+        };
+      }
       switch (validatedToolChoice) {
         case "any":
           return "required";
@@ -255,8 +266,8 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
     case "GOOGLE":
       // Convert OpenAI choice to Google format
       if (isObject(toolChoice)) {
-        // Google doesn't support specific tool selection
-        return "auto" as ProviderToToolChoiceMap[T];
+        // Specific tool selection
+        return { name: toolChoice.function.name } as ProviderToToolChoiceMap[T];
       }
       switch (toolChoice) {
         case "required":
@@ -317,6 +328,7 @@ export const makeGoogleToolChoice = (
 
 export const findToolChoiceName = (toolChoice: unknown): string | null => {
   if (isObject(toolChoice)) {
+    // OpenAI format: { type: "function", function: { name: "..." } }
     if (
       "function" in toolChoice &&
       isObject(toolChoice.function) &&
@@ -325,6 +337,7 @@ export const findToolChoiceName = (toolChoice: unknown): string | null => {
     ) {
       return toolChoice.function.name;
     }
+    // Anthropic/AWS/Google format: { name: "..." } or { type: "tool", name: "..." }
     if ("name" in toolChoice && typeof toolChoice.name === "string") {
       return toolChoice.name;
     }
