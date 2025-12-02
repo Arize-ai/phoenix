@@ -4,10 +4,26 @@ Evaluators are a way of validating that your AI task is running as expected. Sim
 
 Phoenix is vendor agnostic and thus doesn't require you to use any particular evals library. Because of this, the eval libraries for Phoenix are distributed as separate packages. The Phoenix eval libraries are very lightweight and provide many utilities to make evaluation simpler.
 
+## Installation
+
+{% tabs %}
+{% tab title="Python" %}
+```sh
+pip install arize-phoenix-evals arize-phoenix-client
+```
+{% endtab %}
+{% tab title="TypeScript" %}
+```sh
+npm install @arizeai/phoenix-evals @arizeai/phoenix-client
+```
+{% endtab %}
+{% endtabs %}
 
 ## LLM Evaluators
 
-We provide LLM evaluators out of the box. These evaluators are vendor agnostic and can be instantiated with any LLM provider:
+### Pre-built LLM Evaluators
+
+Phoenix provides LLM evaluators out of the box. These evaluators are vendor agnostic and can be instantiated with any LLM provider:
 
 {% tabs %}
 {% tab title="Python" %}
