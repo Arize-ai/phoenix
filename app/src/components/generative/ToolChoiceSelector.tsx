@@ -88,9 +88,12 @@ export const findToolChoiceType = (
       }
       return choice;
     case "GOOGLE":
-      // Google uses simple string values: "auto", "any", "none" or objects with "name" for specific tools
-      if (isObject(choice) && "name" in choice) {
-        return "tool";
+      if (
+        isObject(choice) &&
+        "name" in choice &&
+        typeof choice.name === "string"
+      ) {
+        return "tool"; // a specific tool has been selected
       }
       return choice;
     default:
@@ -280,7 +283,6 @@ export function ToolChoiceSelector<
               );
               break;
             case "GOOGLE":
-              // Google supports specific tool selection via allowed_function_names
               onChange(
                 makeGoogleToolChoice({
                   name: removeToolNamePrefix(choice),
