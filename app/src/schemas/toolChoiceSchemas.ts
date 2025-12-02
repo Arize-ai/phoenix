@@ -68,21 +68,13 @@ export type AnthropicToolChoice = z.infer<typeof anthropicToolChoiceSchema>;
 /**
  * Google's tool choice schema
  *
- * @see https://github.com/googleapis/python-genai/blob/ddbe6fd4b636a96f53346b3b7ea10bb898e61d9b/google/genai/types.py#L4245
+ * @see https://github.com/googleapis/python-genai/blob/060f015d7efb39f716731d7f3a6571f59a5e94e9/google/genai/types.py#L4341
  */
-export const googleFunctionCallingConfigModeSchema = z.enum([
-  "auto",
-  "any",
-  "none",
-]);
-
-export type GoogleFunctionCallingConfigMode = z.infer<
-  typeof googleFunctionCallingConfigModeSchema
->;
-
 export const googleToolChoiceSchema = z.object({
-  mode: googleFunctionCallingConfigModeSchema,
-  allowed_function_names: z.array(z.string()).min(1).max(1).optional(), // only one function name is currently supported
+  function_calling_config: z.object({
+    mode: z.enum(["auto", "any", "none"]),
+    allowed_function_names: z.array(z.string()).min(1).max(1).optional(), // only one function name is currently supported
+  }),
 });
 
 export type GoogleToolChoice = z.infer<typeof googleToolChoiceSchema>;
@@ -111,13 +103,13 @@ export const anthropicToolChoiceToOpenaiToolChoice =
 
 export const googleToolChoiceToOpenaiToolChoice =
   googleToolChoiceSchema.transform((google): OpenaiToolChoice => {
-    const mode = google.mode;
-    const allowedNames = google.allowed_function_names;
+    const { mode, allowed_function_names: allowedFunctionNames } =
+      google.function_calling_config;
 
-    if (allowedNames && allowedNames.length === 1) {
+    if (allowedFunctionNames && allowedFunctionNames.length === 1) {
       return {
         type: "function",
-        function: { name: allowedNames[0] },
+        function: { name: allowedFunctionNames[0] },
       };
     }
 
@@ -172,17 +164,19 @@ export const openAIToolChoiceToGoogleToolChoice =
     if (isObject(openAI)) {
       // Specific tool selection
       return {
-        mode: "any",
-        allowed_function_names: [openAI.function.name],
+        function_calling_config: {
+          mode: "any",
+          allowed_function_names: [openAI.function.name],
+        },
       };
     }
     switch (openAI) {
       case "required":
-        return { mode: "any" };
+        return { function_calling_config: { mode: "any" } };
       case "auto":
-        return { mode: "auto" };
+        return { function_calling_config: { mode: "auto" } };
       case "none":
-        return { mode: "none" };
+        return { function_calling_config: { mode: "none" } };
       default:
         assertUnreachable(openAI);
     }
@@ -361,14 +355,19 @@ export const findToolChoiceName = (toolChoice: unknown): string | null => {
     if ("name" in toolChoice && typeof toolChoice.name === "string") {
       return toolChoice.name;
     }
-    // Google format: { mode: "ANY", allowed_function_names: ["..."] }
+    // Google ToolConfig format: { function_calling_config: { mode: "any", allowed_function_names: ["..."] } }
     if (
-      "allowed_function_names" in toolChoice &&
-      Array.isArray(toolChoice.allowed_function_names) &&
-      toolChoice.allowed_function_names.length === 1 &&
-      typeof toolChoice.allowed_function_names[0] === "string"
+      "function_calling_config" in toolChoice &&
+      isObject(toolChoice.function_calling_config) &&
+      "allowed_function_names" in toolChoice.function_calling_config &&
+      Array.isArray(
+        toolChoice.function_calling_config.allowed_function_names
+      ) &&
+      toolChoice.function_calling_config.allowed_function_names.length === 1 &&
+      typeof toolChoice.function_calling_config.allowed_function_names[0] ===
+        "string"
     ) {
-      return toolChoice.allowed_function_names[0];
+      return toolChoice.function_calling_config.allowed_function_names[0];
     }
     return null;
   }
