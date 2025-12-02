@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.6.1
+
+### Patch Changes
+
+- 5cacc22: create evaluator helper function
+
 ## 0.6.0
 
 ### Minor Changes
