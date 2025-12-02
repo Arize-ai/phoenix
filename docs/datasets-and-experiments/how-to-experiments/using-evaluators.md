@@ -1,5 +1,10 @@
 # Using Evaluators
 
+Evaluators are a way of validating that your AI task is running as expected. Simply put, an evaluator in relation to an AI task is a function that runs on the result - e.g. `(input, output, expected) -> score`
+
+Phoenix is vendor agnostic and thus doesn't require you to use any particular evals library. Because of this, the eval libraries for Phoenix are distributed as separate packages. The Phoenix eval libraries are very lightweight and provide many utilities to make evaluation simpler.
+
+
 ## LLM Evaluators
 
 We provide LLM evaluators out of the box. These evaluators are vendor agnostic and can be instantiated with any LLM provider:
