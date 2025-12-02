@@ -355,6 +355,31 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
         return genai.types.Tool(function_declarations=[function_declaration])
 
+    def _extract_text_from_content(self, content: Any) -> str:
+        """Extract text from content, handling both string and structured content.
+
+        Args:
+            content: Either a string, a list of ContentPart dictionaries, or None.
+
+        Returns:
+            Extracted text content, joined with newlines if multiple parts. Returns empty string
+            if content is None or empty.
+        """
+        if content is None:
+            return ""
+
+        if isinstance(content, str):
+            return content
+
+        # Extract text from TextContentPart items only
+        text_parts = []
+        for part in content:
+            if part.get("type") == "text":
+                text_parts.append(part["text"])
+
+        # Join all text parts with newlines
+        return "\n".join(text_parts)
+
     def _transform_messages_to_google(self, messages: List[Message]) -> List[Dict[str, Any]]:
         """Transform List[Message] TypedDict to Google GenAI format.
 
@@ -391,18 +416,8 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                     google_role = "model"
 
             # Handle content - can be string or List[ContentPart]
-            if isinstance(content, str):
-                google_messages.append({"role": google_role, "parts": [{"text": content}]})
-            else:
-                # Extract text from TextContentPart items only
-                text_parts = []
-                for part in content:
-                    if part.get("type") == "text":
-                        text_parts.append(part["text"])
-
-                # Join all text parts with newlines
-                combined_text = "\n".join(text_parts)
-                google_messages.append({"role": google_role, "parts": [{"text": combined_text}]})
+            text_content = self._extract_text_from_content(content)
+            google_messages.append({"role": google_role, "parts": [{"text": text_content}]})
 
         return google_messages
 
@@ -424,8 +439,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 # Extract system messages first
                 system_messages = [msg for msg in prompt if msg["role"] == MessageRole.SYSTEM]
                 system_instruction = "\n".join(
-                    msg["content"] if isinstance(msg["content"], str) else ""
-                    for msg in system_messages
+                    self._extract_text_from_content(msg["content"]) for msg in system_messages
                 )
                 # Transform List[Message] to Google format (will skip system messages)
                 google_messages = self._transform_messages_to_google(prompt)
@@ -436,8 +450,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             system_messages = [msg for msg in prompt if msg.get("role") == "system"]
             non_system_messages = [msg for msg in prompt if msg.get("role") != "system"]
             system_instruction = "\n".join(
-                msg["content"] if isinstance(msg.get("content"), str) else ""
-                for msg in system_messages
+                self._extract_text_from_content(msg.get("content", "")) for msg in system_messages
             )
 
             google_messages = []

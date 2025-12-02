@@ -236,6 +236,31 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         return tool_definition
 
+    def _extract_text_from_content(self, content: Any) -> str:
+        """Extract text from content, handling both string and structured content.
+
+        Args:
+            content: Either a string, a list of ContentPart dictionaries, or None.
+
+        Returns:
+            Extracted text content, joined with newlines if multiple parts. Returns empty string
+            if content is None or empty.
+        """
+        if content is None:
+            return ""
+
+        if isinstance(content, str):
+            return content
+
+        # Extract text from TextContentPart items only
+        text_parts = []
+        for part in content:
+            if part.get("type") == "text":
+                text_parts.append(part["text"])
+
+        # Join all text parts with newlines
+        return "\n".join(text_parts)
+
     def _transform_messages_to_anthropic(self, messages: List[Message]) -> list[dict[str, Any]]:
         """Transform List[Message] TypedDict to Anthropic message format.
 
@@ -268,18 +293,8 @@ class AnthropicAdapter(BaseLLMAdapter):
                 anthropic_role = role.value if isinstance(role, MessageRole) else str(role)
 
             # Handle content - can be string or List[ContentPart]
-            if isinstance(content, str):
-                anthropic_messages.append({"role": anthropic_role, "content": content})
-            else:
-                # Extract text from TextContentPart items only
-                text_parts = []
-                for part in content:
-                    if part.get("type") == "text":
-                        text_parts.append(part["text"])
-
-                # Join all text parts with newlines
-                combined_text = "\n".join(text_parts)
-                anthropic_messages.append({"role": anthropic_role, "content": combined_text})
+            text_content = self._extract_text_from_content(content)
+            anthropic_messages.append({"role": anthropic_role, "content": text_content})
 
         return anthropic_messages
 
@@ -300,8 +315,7 @@ class AnthropicAdapter(BaseLLMAdapter):
                 # Extract system messages first
                 system_messages = [msg for msg in prompt if msg["role"] == MessageRole.SYSTEM]
                 system_content = "\n".join(
-                    msg["content"] if isinstance(msg["content"], str) else ""
-                    for msg in system_messages
+                    self._extract_text_from_content(msg["content"]) for msg in system_messages
                 )
                 # Transform List[Message] to Anthropic format (excludes system messages)
                 anthropic_messages = self._transform_messages_to_anthropic(prompt)
@@ -311,8 +325,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             system_messages = [msg for msg in prompt if msg.get("role") == "system"]
             non_system_messages = [msg for msg in prompt if msg.get("role") != "system"]
             system_content = "\n".join(
-                msg["content"] if isinstance(msg.get("content"), str) else ""
-                for msg in system_messages
+                self._extract_text_from_content(msg.get("content", "")) for msg in system_messages
             )
             return non_system_messages, system_content
 
