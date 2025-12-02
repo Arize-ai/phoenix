@@ -1340,6 +1340,7 @@ function TableBody<T>({
   table: Table<T>;
   virtualizer: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
 }) {
+  "use no memo";
   const rows = table.getRowModel().rows;
   const virtualRows = virtualizer.getVirtualItems();
   const totalHeight = virtualizer.getTotalSize();
