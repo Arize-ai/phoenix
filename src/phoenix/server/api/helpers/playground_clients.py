@@ -1834,17 +1834,11 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
             config_dict["tools"] = [types.Tool(function_declarations=function_declarations)]
 
         config = types.GenerateContentConfig.model_validate(config_dict)
-        print(f"{config=}")
-
         stream = await self.client.aio.models.generate_content_stream(
             model=f"models/{self.model_name}",
             contents=contents,
             config=config,
         )
-
-        # Track active tool calls across chunks
-        active_tool_calls: dict[int, dict[str, Any]] = {}  # index -> {id, name, arguments_buffer}
-
         async for event in stream:
             self._attributes.update(
                 {
@@ -1854,62 +1848,20 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                 }
             )
 
-            # Check if we have candidates and parts
             if event.candidates:
                 candidate = event.candidates[0]
                 if candidate.content and candidate.content.parts:
-                    for idx, part in enumerate(candidate.content.parts):
-                        # Handle function calls
-                        if hasattr(part, "function_call") and part.function_call:
-                            function_call = part.function_call
-
-                            # Generate a unique ID for this tool call
-                            tool_call_id = f"call_{idx}_{function_call.name}"
-
-                            # Initialize tracking if this is a new tool call
-                            if idx not in active_tool_calls:
-                                active_tool_calls[idx] = {
-                                    "id": tool_call_id,
-                                    "name": function_call.name,
-                                    "arguments_buffer": "",
-                                }
-                                # Yield initial tool call chunk with name
-                                yield ToolCallChunk(
-                                    id=tool_call_id,
-                                    function=FunctionCallChunk(
-                                        name=function_call.name,
-                                        arguments="",
-                                    ),
-                                )
-
-                            # Convert function args to JSON string
-                            if function_call.args:
-                                # The args come as a dict-like object, convert to JSON
-                                args_json = json.dumps(dict(function_call.args))
-
-                                # Calculate incremental arguments
-                                previous_args = active_tool_calls[idx]["arguments_buffer"]
-                                active_tool_calls[idx]["arguments_buffer"] = args_json
-
-                                # Yield incremental update
-                                if args_json != previous_args:
-                                    # For simplicity, yield the full args
-                                    # (Google doesn't stream args incrementally)
-                                    yield ToolCallChunk(
-                                        id=tool_call_id,
-                                        function=FunctionCallChunk(
-                                            name=function_call.name,
-                                            arguments=args_json,
-                                        ),
-                                    )
-
-                        # Handle text parts
-                        elif hasattr(part, "text") and part.text:
-                            yield TextChunk(content=part.text)
-
-            # Fallback for event.text
-            elif event.text:
-                yield TextChunk(content=event.text)
+                    for part in candidate.content.parts:
+                        if function_call := part.function_call:
+                            yield ToolCallChunk(
+                                id=function_call.id or "",
+                                function=FunctionCallChunk(
+                                    name=function_call.name or "",
+                                    arguments=json.dumps(function_call.args or {}),
+                                ),
+                            )
+                        elif text := part.text:
+                            yield TextChunk(content=text)
 
     def _build_google_messages(
         self,
