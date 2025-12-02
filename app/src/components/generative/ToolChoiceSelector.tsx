@@ -88,7 +88,10 @@ export const findToolChoiceType = (
       }
       return choice;
     case "GOOGLE":
-      // Google uses simple string values: "auto", "any", "none"
+      // Google uses simple string values: "auto", "any", "none" or objects with "name" for specific tools
+      if (isObject(choice) && "name" in choice) {
+        return "tool";
+      }
       return choice;
     default:
       assertUnreachable(provider);
@@ -277,11 +280,13 @@ export function ToolChoiceSelector<
               );
               break;
             case "GOOGLE":
-              // Google doesn't support specific tool selection, only mode selection
-              // This case shouldn't be reached as we don't show tool names in the picker for Google
-              throw new Error(
-                "Google does not support specific tool selection"
+              // Google supports specific tool selection via allowed_function_names
+              onChange(
+                makeGoogleToolChoice({
+                  name: removeToolNamePrefix(choice),
+                })
               );
+              break;
             default:
               assertUnreachable(provider);
           }
