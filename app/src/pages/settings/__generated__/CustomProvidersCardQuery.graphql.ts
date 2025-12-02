@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d7e0e0a656eccbb2111caf00879a8fb4>>
+ * @generated SignedSource<<f33656ced01fcbfa62439a89215355e6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,15 +10,16 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type settingsAIProvidersPageLoaderQuery$variables = {
-  secretKeys: ReadonlyArray<string>;
+export type CustomProvidersCardQuery$variables = {
+  after?: string | null;
+  first?: number | null;
 };
-export type settingsAIProvidersPageLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"CustomProvidersCard_data" | "GenerativeProvidersCard_data">;
+export type CustomProvidersCardQuery$data = {
+  readonly " $fragmentSpreads": FragmentRefs<"CustomProvidersCard_data">;
 };
-export type settingsAIProvidersPageLoaderQuery = {
-  response: settingsAIProvidersPageLoaderQuery$data;
-  variables: settingsAIProvidersPageLoaderQuery$variables;
+export type CustomProvidersCardQuery = {
+  response: CustomProvidersCardQuery$data;
+  variables: CustomProvidersCardQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -26,77 +27,72 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "secretKeys"
+    "name": "after"
+  },
+  {
+    "defaultValue": 50,
+    "kind": "LocalArgument",
+    "name": "first"
   }
 ],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "first"
+  }
+],
 v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "key",
-  "storageKey": null
-},
-v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v4 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "parseError",
-    "storageKey": null
-  }
-],
-v5 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v6 = [
-  {
-    "kind": "Literal",
-    "name": "first",
-    "value": 50
-  }
-],
-v7 = {
+v4 = {
   "kind": "InlineFragment",
-  "selections": (v4/*: any*/),
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "parseError",
+      "storageKey": null
+    }
+  ],
   "type": "UnparsableConfig",
   "abstractKey": null
 },
-v8 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "apiKey",
   "storageKey": null
 },
-v9 = [
-  (v8/*: any*/)
+v6 = [
+  (v5/*: any*/)
 ],
-v10 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "baseUrl",
   "storageKey": null
 },
-v11 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -108,21 +104,10 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "settingsAIProvidersPageLoaderQuery",
+    "name": "CustomProvidersCardQuery",
     "selections": [
       {
-        "args": [
-          {
-            "kind": "Variable",
-            "name": "secretKeys",
-            "variableName": "secretKeys"
-          }
-        ],
-        "kind": "FragmentSpread",
-        "name": "GenerativeProvidersCard_data"
-      },
-      {
-        "args": null,
+        "args": (v1/*: any*/),
         "kind": "FragmentSpread",
         "name": "CustomProvidersCard_data"
       }
@@ -134,157 +119,11 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "settingsAIProvidersPageLoaderQuery",
+    "name": "CustomProvidersCardQuery",
     "selections": [
       {
         "alias": null,
-        "args": null,
-        "concreteType": "GenerativeProvider",
-        "kind": "LinkedField",
-        "name": "modelProviders",
-        "plural": true,
-        "selections": [
-          (v1/*: any*/),
-          (v2/*: any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "dependenciesInstalled",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "dependencies",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "GenerativeProviderCredentialConfig",
-            "kind": "LinkedField",
-            "name": "credentialRequirements",
-            "plural": true,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "envVarName",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "isRequired",
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "credentialsSet",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": [
-          {
-            "kind": "Variable",
-            "name": "keys",
-            "variableName": "secretKeys"
-          }
-        ],
-        "concreteType": "SecretConnection",
-        "kind": "LinkedField",
-        "name": "secrets",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "SecretEdge",
-            "kind": "LinkedField",
-            "name": "edges",
-            "plural": true,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Secret",
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  (v2/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": null,
-                    "kind": "LinkedField",
-                    "name": "value",
-                    "plural": false,
-                    "selections": [
-                      (v3/*: any*/),
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "value",
-                            "storageKey": null
-                          }
-                        ],
-                        "type": "DecryptedSecret",
-                        "abstractKey": null
-                      },
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "maskedValue",
-                            "storageKey": null
-                          }
-                        ],
-                        "type": "MaskedSecret",
-                        "abstractKey": null
-                      },
-                      {
-                        "kind": "InlineFragment",
-                        "selections": (v4/*: any*/),
-                        "type": "UnparsableSecret",
-                        "abstractKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  (v5/*: any*/)
-                ],
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": (v6/*: any*/),
+        "args": (v1/*: any*/),
         "concreteType": "GenerativeModelCustomProviderConnection",
         "kind": "LinkedField",
         "name": "generativeModelCustomProviders",
@@ -306,9 +145,15 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
+                  (v2/*: any*/),
                   (v3/*: any*/),
-                  (v5/*: any*/),
-                  (v1/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "name",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": null,
@@ -352,7 +197,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v5/*: any*/),
+                      (v3/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -381,8 +226,8 @@ return {
                         "name": "config",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v7/*: any*/),
+                          (v2/*: any*/),
+                          (v4/*: any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
@@ -393,7 +238,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "openaiAuthenticationMethod",
                                 "plural": false,
-                                "selections": (v9/*: any*/),
+                                "selections": (v6/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -404,7 +249,7 @@ return {
                                 "name": "openaiClientKwargs",
                                 "plural": false,
                                 "selections": [
-                                  (v10/*: any*/),
+                                  (v7/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -419,7 +264,7 @@ return {
                                     "name": "project",
                                     "storageKey": null
                                   },
-                                  (v11/*: any*/)
+                                  (v8/*: any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -445,8 +290,8 @@ return {
                         "name": "config",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v7/*: any*/),
+                          (v2/*: any*/),
+                          (v4/*: any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
@@ -458,7 +303,7 @@ return {
                                 "name": "azureOpenaiAuthenticationMethod",
                                 "plural": false,
                                 "selections": [
-                                  (v8/*: any*/),
+                                  (v5/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -530,7 +375,7 @@ return {
                                     "name": "azureDeployment",
                                     "storageKey": null
                                   },
-                                  (v11/*: any*/)
+                                  (v8/*: any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -556,8 +401,8 @@ return {
                         "name": "config",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v7/*: any*/),
+                          (v2/*: any*/),
+                          (v4/*: any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
@@ -568,7 +413,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "anthropicAuthenticationMethod",
                                 "plural": false,
-                                "selections": (v9/*: any*/),
+                                "selections": (v6/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -579,8 +424,8 @@ return {
                                 "name": "anthropicClientKwargs",
                                 "plural": false,
                                 "selections": [
-                                  (v10/*: any*/),
-                                  (v11/*: any*/)
+                                  (v7/*: any*/),
+                                  (v8/*: any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -606,8 +451,8 @@ return {
                         "name": "config",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v7/*: any*/),
+                          (v2/*: any*/),
+                          (v4/*: any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
@@ -690,8 +535,8 @@ return {
                         "name": "config",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v7/*: any*/),
+                          (v2/*: any*/),
+                          (v4/*: any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
@@ -702,7 +547,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "googleGenaiAuthenticationMethod",
                                 "plural": false,
-                                "selections": (v9/*: any*/),
+                                "selections": (v6/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -721,7 +566,7 @@ return {
                                     "name": "httpOptions",
                                     "plural": false,
                                     "selections": [
-                                      (v10/*: any*/),
+                                      (v7/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -785,11 +630,11 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": "generativeModelCustomProviders(first:50)"
+        "storageKey": null
       },
       {
         "alias": null,
-        "args": (v6/*: any*/),
+        "args": (v1/*: any*/),
         "filters": null,
         "handle": "connection",
         "key": "CustomProvidersCard_generativeModelCustomProviders",
@@ -799,16 +644,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bcf02552baf2c91ca2940584058d1925",
+    "cacheID": "92e342a9cd236a1d82e8e8ff7f8b570f",
     "id": null,
     "metadata": {},
-    "name": "settingsAIProvidersPageLoaderQuery",
+    "name": "CustomProvidersCardQuery",
     "operationKind": "query",
-    "text": "query settingsAIProvidersPageLoaderQuery(\n  $secretKeys: [String!]!\n) {\n  ...GenerativeProvidersCard_data_2LmOnK\n  ...CustomProvidersCard_data\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        ... on GenerativeModelCustomProviderOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on OpenAICustomProviderConfig {\n              openaiAuthenticationMethod {\n                apiKey\n              }\n              openaiClientKwargs {\n                baseUrl\n                organization\n                project\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAzureOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AzureOpenAICustomProviderConfig {\n              azureOpenaiAuthenticationMethod {\n                apiKey\n                azureAdTokenProvider {\n                  azureTenantId\n                  azureClientId\n                  azureClientSecret\n                  scope\n                }\n              }\n              azureOpenaiClientKwargs {\n                apiVersion\n                azureEndpoint\n                azureDeployment\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAnthropic {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AnthropicCustomProviderConfig {\n              anthropicAuthenticationMethod {\n                apiKey\n              }\n              anthropicClientKwargs {\n                baseUrl\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAWSBedrock {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AWSBedrockCustomProviderConfig {\n              awsBedrockAuthenticationMethod {\n                awsAccessKeyId\n                awsSecretAccessKey\n                awsSessionToken\n              }\n              awsBedrockClientKwargs {\n                regionName\n                endpointUrl\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderGoogleGenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on GoogleGenAICustomProviderConfig {\n              googleGenaiAuthenticationMethod {\n                apiKey\n              }\n              googleGenaiClientKwargs {\n                httpOptions {\n                  baseUrl\n                  headers\n                }\n              }\n            }\n          }\n        }\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment GenerativeProvidersCard_data_2LmOnK on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n  }\n  secrets(keys: $secretKeys) {\n    edges {\n      node {\n        key\n        value {\n          __typename\n          ... on DecryptedSecret {\n            value\n          }\n          ... on MaskedSecret {\n            maskedValue\n          }\n          ... on UnparsableSecret {\n            parseError\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query CustomProvidersCardQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...CustomProvidersCard_data_2HEEH6\n}\n\nfragment CustomProvidersCard_data_2HEEH6 on Query {\n  generativeModelCustomProviders(first: $first, after: $after) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        ... on GenerativeModelCustomProviderOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on OpenAICustomProviderConfig {\n              openaiAuthenticationMethod {\n                apiKey\n              }\n              openaiClientKwargs {\n                baseUrl\n                organization\n                project\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAzureOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AzureOpenAICustomProviderConfig {\n              azureOpenaiAuthenticationMethod {\n                apiKey\n                azureAdTokenProvider {\n                  azureTenantId\n                  azureClientId\n                  azureClientSecret\n                  scope\n                }\n              }\n              azureOpenaiClientKwargs {\n                apiVersion\n                azureEndpoint\n                azureDeployment\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAnthropic {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AnthropicCustomProviderConfig {\n              anthropicAuthenticationMethod {\n                apiKey\n              }\n              anthropicClientKwargs {\n                baseUrl\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAWSBedrock {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AWSBedrockCustomProviderConfig {\n              awsBedrockAuthenticationMethod {\n                awsAccessKeyId\n                awsSecretAccessKey\n                awsSessionToken\n              }\n              awsBedrockClientKwargs {\n                regionName\n                endpointUrl\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderGoogleGenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on GoogleGenAICustomProviderConfig {\n              googleGenaiAuthenticationMethod {\n                apiKey\n              }\n              googleGenaiClientKwargs {\n                httpOptions {\n                  baseUrl\n                  headers\n                }\n              }\n            }\n          }\n        }\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "57f9cb46112db2ef02bc29f64132644f";
+(node as any).hash = "16a3c52f83fadebbba9c7e7a03effeed";
 
 export default node;

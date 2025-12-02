@@ -86,3 +86,15 @@ export const ProviderToCredentialsConfigMap: Record<
     { envVarName: "AWS_SESSION_TOKEN", isRequired: false },
   ],
 } as const;
+
+/**
+ * All unique credential env var names across all providers.
+ * This is used to fetch secrets from the server.
+ */
+export const AllCredentialEnvVarNames: string[] = [
+  ...new Set(
+    Object.values(ProviderToCredentialsConfigMap).flatMap((configs) =>
+      configs.map((config) => config.envVarName)
+    )
+  ),
+];
