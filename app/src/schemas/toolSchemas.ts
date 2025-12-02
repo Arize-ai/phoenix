@@ -479,11 +479,6 @@ export function createAwsToolDefinition(toolNumber: number): AwsToolDefinition {
   };
 }
 
-/**
- * Creates a Gemini tool definition (single function declaration)
- * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1 to be used to fill in the name
- * @returns a Gemini tool definition
- */
 export function createGeminiToolDefinition(
   toolNumber: number
 ): GeminiToolDefinition {
@@ -508,7 +503,6 @@ export const findToolDefinitionName = (toolDefinition: unknown) => {
     return null;
   }
 
-  // OpenAI format
   if (
     "function" in parsed.data &&
     isObject(parsed.data.function) &&
@@ -518,27 +512,7 @@ export const findToolDefinitionName = (toolDefinition: unknown) => {
     return parsed.data.function.name;
   }
 
-  // Anthropic format
   if ("name" in parsed.data && typeof parsed.data.name === "string") {
-    return parsed.data.name;
-  }
-
-  // AWS format
-  if (
-    "toolSpec" in parsed.data &&
-    isObject(parsed.data.toolSpec) &&
-    "name" in parsed.data.toolSpec &&
-    typeof parsed.data.toolSpec.name === "string"
-  ) {
-    return parsed.data.toolSpec.name;
-  }
-
-  // Gemini format - single function declaration
-  if (
-    "name" in parsed.data &&
-    typeof parsed.data.name === "string" &&
-    "parameters" in parsed.data
-  ) {
     return parsed.data.name;
   }
 
@@ -551,7 +525,6 @@ export const findToolDefinitionDescription = (toolDefinition: unknown) => {
     return null;
   }
 
-  // OpenAI format
   if (
     "function" in parsed.data &&
     isObject(parsed.data.function) &&
@@ -561,29 +534,9 @@ export const findToolDefinitionDescription = (toolDefinition: unknown) => {
     return parsed.data.function.description;
   }
 
-  // Anthropic format
   if (
     "description" in parsed.data &&
     typeof parsed.data.description === "string"
-  ) {
-    return parsed.data.description;
-  }
-
-  // AWS format
-  if (
-    "toolSpec" in parsed.data &&
-    isObject(parsed.data.toolSpec) &&
-    "description" in parsed.data.toolSpec &&
-    typeof parsed.data.toolSpec.description === "string"
-  ) {
-    return parsed.data.toolSpec.description;
-  }
-
-  // Gemini format - single function declaration
-  if (
-    "description" in parsed.data &&
-    typeof parsed.data.description === "string" &&
-    "parameters" in parsed.data
   ) {
     return parsed.data.description;
   }
