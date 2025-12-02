@@ -13,7 +13,7 @@
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
     "dotenv": "^16.4.7",
-    "openai": "^6.7.0"
+    "openai": "^6.9.1"
   },
   "packageManager": "pnpm@10.13.1",
   "devDependencies": {
