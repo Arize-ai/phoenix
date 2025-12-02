@@ -76,6 +76,7 @@ const TableBody = <T extends { id: string }>({
   isLoadingNext: boolean;
   dataset: ExperimentsTableFragment$data;
 }) => {
+  "use no memo";
   const navigate = useNavigate();
   return (
     <tbody>
