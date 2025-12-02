@@ -10,6 +10,8 @@ For convenience, a simple (sync or async) function can be converted into an Eval
 
 In the following examples, our decorated evaluation function and coroutine return a boolean, which when used as an Evaluator, is converted into a `Score` with a score value of `1` or `0` and a corresponding label of `True` or `False`.
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 from phoenix.evals import create_evaluator
 
@@ -39,9 +41,47 @@ async def contains_link(output: str) -> Score:
     link = "https://arize-phoenix.readthedocs.io/projects/evals"
     return link in output
 ```
+{% endtab %}
+{% tab title="TypeScript" %}
+```typescript
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+const exactMatch = createEvaluator<{ input: string; output: string }>(
+  ({ input, output }) => {
+    return input === output ? 1 : 0;
+  },
+  {
+    name: "exact-match",
+    kind: "CODE",
+    optimizationDirection: "MAXIMIZE",
+  }
+);
+
+const result = await exactMatch.evaluate({
+  input: "hello world",
+  output: "hello world",
+});
+// result: { score: 1 }
+
+const containsLink = createEvaluator<{ output: string }>(
+  async ({ output }) => {
+    const link = "https://arize-phoenix.readthedocs.io/projects/evals";
+    return output.includes(link) ? 1 : 0;
+  },
+  {
+    name: "contains-link",
+    kind: "CODE",
+    optimizationDirection: "MAXIMIZE",
+  }
+);
+```
+{% endtab %}
+{% endtabs %}
 
 Notice that the original functions can still be used as defined for testing purposes:
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 exact_match("hello", "world")
 # False
@@ -52,9 +92,31 @@ await contains_link(
 )
 # True
 ```
+{% endtab %}
+{% tab title="TypeScript" %}
+```typescript
+// The underlying function logic can be extracted for testing
+const exactMatchFn = (input: string, output: string) => input === output;
+exactMatchFn("hello", "world");
+// false
+
+const containsLinkFn = async (output: string) => {
+  const link = "https://arize-phoenix.readthedocs.io/projects/evals";
+  return output.includes(link);
+};
+await containsLinkFn(
+  "read the documentation here: " +
+  "https://arize-phoenix.readthedocs.io/projects/evals"
+);
+// true
+```
+{% endtab %}
+{% endtabs %}
 
 #### Returning `Score` objects directly
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 from phoenix.evals import create_evaluator, Score
 from textdistance import levenshtein
@@ -72,11 +134,60 @@ def levenshtein(output: str, expected: str) -> Score:
         direction="minimize",
     )
 ```
+{% endtab %}
+{% tab title="TypeScript" %}
+```typescript
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+// Simple Levenshtein distance implementation
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+const levenshtein = createEvaluator<{ output: string; expected: string }>(
+  ({ output, expected }) => {
+    const distance = levenshteinDistance(output, expected);
+    return {
+      score: distance,
+      explanation: `Levenshtein distance between ${output} and ${expected}`,
+    };
+  },
+  {
+    name: "levenshtein-distance",
+    kind: "CODE",
+    optimizationDirection: "MINIMIZE",
+  }
+);
+```
+{% endtab %}
+{% endtabs %}
 
 #### Other `Score` conversions
 
-The `create_evaluator` decorator will convert many different function outputs into scores automatically:
+The `create_evaluator` / `createEvaluator` function will convert many different function outputs into scores automatically:
 
+{% tabs %}
+{% tab title="Python" %}
 * A Score object (no conversion needed)
 * A number (converted to Score.score)
 * A boolean (converted to integer Score.score and string Score.label)
@@ -84,3 +195,11 @@ The `create_evaluator` decorator will convert many different function outputs in
 * A long string (≥4 words, converted to Score.explanation)
 * A dictionary with keys "score", "label", or "explanation"
 * A tuple of values (only bool, number, str types allowed)
+{% endtab %}
+{% tab title="TypeScript" %}
+* An EvaluationResult object (no conversion needed)
+* A number (converted to `{ score: number }`)
+* A string (converted to `{ label: string }`)
+* An object with `score`, `label`, and/or `explanation` properties
+{% endtab %}
+{% endtabs %}
