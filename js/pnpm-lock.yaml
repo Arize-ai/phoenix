@@ -79,8 +79,8 @@ importers:
   examples/apps/phoenix-experiment-runner:
     dependencies:
       '@arizeai/openinference-instrumentation-openai':
-        specifier: ^3.2.3
-        version: 3.2.3
+        specifier: ^4.0.0
+        version: 4.0.0
       '@arizeai/openinference-semantic-conventions':
         specifier: ^2.1.2
         version: 2.1.2
@@ -103,8 +103,8 @@ importers:
         specifier: ^16.4.7
         version: 16.6.1
       openai:
-        specifier: ^6.7.0
-        version: 6.7.0(zod@3.25.76)
+        specifier: ^6.9.1
+        version: 6.9.1(zod@3.25.76)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -400,6 +400,9 @@ packages:
 
   '@arizeai/openinference-instrumentation-openai@3.2.3':
     resolution: {integrity: sha512-4GiUyUIafNkAf7milnsS4Xjh0rZwjPvhHu+xkcj2MQ19a0Teu6PcFDa7DCt7YV/xw2o+wcxeaLfVURmGGLAHOg==}
+
+  '@arizeai/openinference-instrumentation-openai@4.0.0':
+    resolution: {integrity: sha512-ZsYrg0SRc7hRNfhJvpu+dAzfayCmxUTFLKCBnyb+NkmFfBYxcWYBjri1lhzgeOpJ4Si7mypzkxQV8Crf7YpvoA==}
 
   '@arizeai/openinference-semantic-conventions@1.1.0':
     resolution: {integrity: sha512-rxRYnUWjt28DlVXnWukcQAyGhPYQ3ckmKrjEdUjmUNnvvv4k8Dabbp5h6AEjNy7YzN9jL2smNRJnbLIVtkrLEg==}
@@ -2679,6 +2682,18 @@ packages:
       zod:
         optional: true
 
+  openai@6.9.1:
+    resolution: {integrity: sha512-vQ5Rlt0ZgB3/BNmTa7bIijYFhz3YBceAA3Z4JuoMSBftBF9YqFHIEhZakSs+O/Ad7EaoEimZvHxD5ylRjN11Lg==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
+
   openapi-fetch@0.12.5:
     resolution: {integrity: sha512-FnAMWLt0MNL6ComcL4q/YbB1tUgyz5YnYtwA1+zlJ5xcucmK5RlWsgH1ynxmEeu8fGJkYjm8armU/HVpORc9lw==}
 
@@ -3597,6 +3612,16 @@ snapshots:
   '@arizeai/openinference-instrumentation-openai@3.2.3':
     dependencies:
       '@arizeai/openinference-core': 1.0.7
+      '@arizeai/openinference-semantic-conventions': 2.1.2
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/instrumentation': 0.46.0(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@arizeai/openinference-instrumentation-openai@4.0.0':
+    dependencies:
+      '@arizeai/openinference-core': 2.0.0
       '@arizeai/openinference-semantic-conventions': 2.1.2
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
@@ -6017,13 +6042,13 @@ snapshots:
       zod: 3.25.76
     optional: true
 
-  openai@6.7.0(zod@3.25.76):
-    optionalDependencies:
-      zod: 3.25.76
-
   openai@6.7.0(zod@4.1.12):
     optionalDependencies:
       zod: 4.1.12
+
+  openai@6.9.1(zod@3.25.76):
+    optionalDependencies:
+      zod: 3.25.76
 
   openapi-fetch@0.12.5:
     dependencies:
