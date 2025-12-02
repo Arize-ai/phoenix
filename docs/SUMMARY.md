@@ -91,12 +91,11 @@
 ## Evaluation
 
 * [TypeScript Quickstart](evaluation/typescript-quickstart.md)
+* [Python Quickstart](get-started/get-started-evaluations.md)
 * [Overview: Evals](evaluation/llm-evals/README.md)
   * [Executors](evaluation/llm-evals/executors.md)
   * [Evaluator Traces](evaluation/llm-evals/evaluator-traces.md)
   * [Use Any LLM](evaluation/llm-evals/use-any-llm.md)
-* [Installation & Setup](get-started/get-started-evaluations.md)
-* [Quickstart: Evals](get-started/get-started-evaluations.md)
 * [Concepts: Evals](evaluation/concepts-evals/README.md)
   * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
   * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
