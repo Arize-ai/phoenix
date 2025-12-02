@@ -34,7 +34,7 @@ const DATASET = [
 ]
 
 export const dataset = await createOrGetDataset({
-    name: "movie-rec-questions100001",
+    name: "movie-rec-questions",
     description: "Questions to ask a movie recommendation agent",
     examples: DATASET.map(question => ({
       input: {
