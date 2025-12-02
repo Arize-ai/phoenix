@@ -1806,8 +1806,8 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                 label="Top K",
             ),
             JSONInvocationParameter(
-                invocation_name="tool_choice",
-                label="Tool Choice",
+                invocation_name="tool_config",
+                label="Tool Config",
                 canonical_name=CanonicalParameterName.TOOL_CHOICE,
             ),
         ]
@@ -1827,8 +1827,8 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         # Build config object for the new API
         config = invocation_parameters.copy()
 
-        # Handle tool_choice by converting it to tool_config
-        tool_choice = config.pop("tool_choice", None)
+        # Handle tool_config (FunctionCallingConfig format from frontend)
+        tool_config = config.pop("tool_config", None)
 
         if system_prompt:
             config["system_instruction"] = system_prompt
@@ -1837,7 +1837,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         mode = None
         if tools:
             print(f"\n[GOOGLE CLIENT DEBUG] Raw tools received: {json.dumps(tools, indent=2)}")
-            print(f"[GOOGLE CLIENT DEBUG] Tool choice value: {tool_choice}")
+            print(f"[GOOGLE CLIENT DEBUG] Tool config value: {tool_config}")
 
             # Convert tools to Google's function declaration format
             # Each tool is already a function declaration dict with name, description, parameters
@@ -1846,13 +1846,13 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
 
             print(f"[GOOGLE CLIENT DEBUG] Created {len(tool_declarations)} tool declaration(s)")
 
-            # Add tool_config with function_calling_config if tool_choice is specified
-            # tool_choice is expected to be a FunctionCallingConfig dict:
+            # Add tool_config with function_calling_config if specified
+            # tool_config is expected to be a FunctionCallingConfig dict:
             # { "mode": "auto"|"any"|"none", "allowed_function_names"?: ["fn1"] }
             # Note: Google's API is case-insensitive for mode values
-            if tool_choice and isinstance(tool_choice, dict):
-                mode = tool_choice.get("mode", "auto")
-                allowed_function_names = tool_choice.get("allowed_function_names")
+            if tool_config and isinstance(tool_config, dict):
+                mode = tool_config.get("mode", "auto")
+                allowed_function_names = tool_config.get("allowed_function_names")
                 print(
                     f"[GOOGLE CLIENT DEBUG] FunctionCallingConfig: mode='{mode}', "
                     f"allowed_function_names={allowed_function_names}"
@@ -1867,9 +1867,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         # Print final config (sanitized)
         config_debug = {k: v for k, v in config.items() if k not in ["tools", "tool_config"]}
         config_debug["tools"] = f"<{len(tools)} tools>" if tools else None
-        if tools and tool_choice and isinstance(tool_choice, dict):
-            mode = tool_choice.get("mode", "auto")
-            allowed_names = tool_choice.get("allowed_function_names")
+        if tools and tool_config and isinstance(tool_config, dict):
+            mode = tool_config.get("mode", "auto")
+            allowed_names = tool_config.get("allowed_function_names")
             config_debug["tool_config"] = f"<mode: {mode}, allowed_function_names: {allowed_names}>"
         else:
             config_debug["tool_config"] = None
@@ -2019,7 +2019,7 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
                 label="Top K",
             ),
             JSONInvocationParameter(
-                invocation_name="tool_choice",
+                invocation_name="tool_config",
                 label="Tool Choice",
                 canonical_name=CanonicalParameterName.TOOL_CHOICE,
             ),
