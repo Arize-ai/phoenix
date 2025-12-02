@@ -67,18 +67,23 @@ export type AnthropicToolChoice = z.infer<typeof anthropicToolChoiceSchema>;
 
 /**
  * Google's tool choice schema
- * Google supports:
- * - Simple string values: "auto", "any", "none" for mode selection
- * - Object with tool name for specific tool selection
+ *
+ * @see https://github.com/googleapis/python-genai/blob/ddbe6fd4b636a96f53346b3b7ea10bb898e61d9b/google/genai/types.py#L4245
  */
-export const googleToolChoiceSchema = z.union([
-  z.literal("auto"),
-  z.literal("any"),
-  z.literal("none"),
-  z.object({
-    name: z.string(),
-  }),
+export const googleFunctionCallingConfigModeSchema = z.enum([
+  "auto",
+  "any",
+  "none",
 ]);
+
+export type GoogleFunctionCallingConfigMode = z.infer<
+  typeof googleFunctionCallingConfigModeSchema
+>;
+
+export const googleToolChoiceSchema = z.object({
+  mode: googleFunctionCallingConfigModeSchema,
+  allowed_function_names: z.array(z.string()).min(1).max(1).optional(), // only one function name is currently supported
+});
 
 export type GoogleToolChoice = z.infer<typeof googleToolChoiceSchema>;
 
@@ -101,6 +106,29 @@ export const anthropicToolChoiceToOpenaiToolChoice =
         return "none";
       default:
         return "auto";
+    }
+  });
+
+export const googleToolChoiceToOpenaiToolChoice =
+  googleToolChoiceSchema.transform((google): OpenaiToolChoice => {
+    const mode = google.mode;
+    const allowedNames = google.allowed_function_names;
+
+    if (allowedNames && allowedNames.length === 1) {
+      return {
+        type: "function",
+        function: { name: allowedNames[0] },
+      };
+    }
+
+    switch (mode) {
+      case "any":
+        return "required";
+      case "auto":
+      case "none":
+        return mode;
+      default:
+        assertUnreachable(mode);
     }
   });
 
@@ -134,6 +162,27 @@ export const openAIToolChoiceToAnthropicToolChoice =
         return { type: "auto" };
       case "required":
         return { type: "any" };
+      default:
+        assertUnreachable(openAI);
+    }
+  });
+
+export const openAIToolChoiceToGoogleToolChoice =
+  openAIToolChoiceSchema.transform((openAI): GoogleToolChoice => {
+    if (isObject(openAI)) {
+      // Specific tool selection
+      return {
+        mode: "any",
+        allowed_function_names: [openAI.function.name],
+      };
+    }
+    switch (openAI) {
+      case "required":
+        return { mode: "any" };
+      case "auto":
+        return { mode: "auto" };
+      case "none":
+        return { mode: "none" };
       default:
         assertUnreachable(openAI);
     }
@@ -212,25 +261,7 @@ export const toOpenAIToolChoice = (toolChoice: unknown): OpenaiToolChoice => {
     case "ANTHROPIC":
       return anthropicToolChoiceToOpenaiToolChoice.parse(validatedToolChoice);
     case "GOOGLE":
-      // Convert Google choice to OpenAI format
-      if (isObject(validatedToolChoice) && "name" in validatedToolChoice) {
-        // Specific tool selection
-        return {
-          type: "function",
-          function: { name: validatedToolChoice.name },
-        };
-      }
-      switch (validatedToolChoice) {
-        case "any":
-          return "required";
-        case "auto":
-          return "auto";
-        case "none":
-          return "none";
-        default:
-          assertUnreachable(validatedToolChoice);
-      }
-      break;
+      return googleToolChoiceToOpenaiToolChoice.parse(validatedToolChoice);
     default:
       assertUnreachable(provider);
   }
@@ -265,22 +296,9 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
         toolChoice
       ) as ProviderToToolChoiceMap[T];
     case "GOOGLE":
-      // Convert OpenAI choice to Google format
-      if (isObject(toolChoice)) {
-        // Specific tool selection
-        return { name: toolChoice.function.name } as ProviderToToolChoiceMap[T];
-      }
-      switch (toolChoice) {
-        case "required":
-          return "any" as ProviderToToolChoiceMap[T];
-        case "auto":
-          return "auto" as ProviderToToolChoiceMap[T];
-        case "none":
-          return "none" as ProviderToToolChoiceMap[T];
-        default:
-          assertUnreachable(toolChoice);
-      }
-      break;
+      return openAIToolChoiceToGoogleToolChoice.parse(
+        toolChoice
+      ) as ProviderToToolChoiceMap[T];
     default:
       assertUnreachable(targetProvider);
   }
@@ -339,9 +357,18 @@ export const findToolChoiceName = (toolChoice: unknown): string | null => {
     ) {
       return toolChoice.function.name;
     }
-    // Anthropic/AWS/Google format: { name: "..." } or { type: "tool", name: "..." }
+    // Anthropic/AWS format: { name: "..." } or { type: "tool", name: "..." }
     if ("name" in toolChoice && typeof toolChoice.name === "string") {
       return toolChoice.name;
+    }
+    // Google format: { mode: "ANY", allowed_function_names: ["..."] }
+    if (
+      "allowed_function_names" in toolChoice &&
+      Array.isArray(toolChoice.allowed_function_names) &&
+      toolChoice.allowed_function_names.length === 1 &&
+      typeof toolChoice.allowed_function_names[0] === "string"
+    ) {
+      return toolChoice.allowed_function_names[0];
     }
     return null;
   }
