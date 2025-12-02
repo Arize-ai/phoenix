@@ -1,10 +1,9 @@
 # Using Evaluators
 
-Evaluators are a way of validating that your AI task is running as expected. Simply put, an evaluator in relation to an AI task is a function that runs on the result - e.g. `(input, output, expected) -> score`
+Evaluators are a way of validating that your AI task is running as expected. Simply put, an evaluator in relation to an AI task is a function that runs on the result - e.g. `(input, output, expected) -> score`. 
+
 
 Phoenix is vendor agnostic and thus doesn't require you to use any particular evals library. Because of this, the eval libraries for Phoenix are distributed as separate packages. The Phoenix eval libraries are very lightweight and provide many utilities to make evaluation simpler.
-
-## Installation
 
 {% tabs %}
 {% tab title="Python" %}
@@ -19,7 +18,88 @@ npm install @arizeai/phoenix-evals @arizeai/phoenix-client
 {% endtab %}
 {% endtabs %}
 
+If you choose not to use a Phoenix package, you can define evaluators as simple functions that return a score.
+
+{% tabs %}
+{% tab title="Python" %}
+Below is a simple example of a Python evaluator function:
+
+```python
+def my_evaluator(output, expected):
+    # For example, return 1 if the output matches, else 0
+    return 1 if output == expected else 0
+```
+{% endtab %}
+{% tab title="TypeScript" %}
+```typescript
+import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments/helpers/asExperimentEvaluator";
+
+function myEvaluatorFn(params: { output: unknown; expected: unknown }): number {
+  // Return 1 if output equals expected, 0 otherwise
+  return params.output === params.expected ? 1 : 0;
+}
+
+
+const myEvaluator = asExperimentEvaluator({
+  name: "simple_match",
+  kind: "CODE",
+  evaluate: myEvaluatorFn
+});
+```
+{% endtab %}
+{% endtabs %}
+
+Evaluators can be passed as a list to experiments to perform the grading of your AI task. Here are simple examples for both Python and TypeScript:
+
+{% tabs %}
+{% tab title="Python" %}
+```python
+def my_evaluator(output, expected):
+    return 1 if output == expected else 0
+
+evaluators = [my_evaluator]
+
+# Example usage with a hypothetical run_experiment function:
+experiment = run_experiment(
+    dataset=examples,
+    task=lambda x: x["input"]["name"].title(),
+    evaluators=evaluators
+)
+```
+{% endtab %}
+
+{% tab title="TypeScript" %}
+```typescript
+import { asExperimentEvaluator, runExperiment } from "@arizeai/phoenix-client/experiments";
+
+const myEvaluator = asExperimentEvaluator({
+  name: "simple_match",
+  kind: "CODE",
+  evaluate: async ({ output, expected }) => ({
+    label: output === expected ? "match" : "no match",
+    score: output === expected ? 1 : 0,
+    explanation: "",
+    metadata: {},
+  }),
+});
+
+const experiment = await runExperiment({
+  dataset: { datasetId },
+  task: async (example) => example.input.name,
+  evaluators: [myEvaluator],
+});
+```
+{% endtab %}
+{% endtabs %}
+
+
 ## LLM Evaluators
+
+LLM Evaluators are functions where an LLM as a judge performs the scoring of your AI task. LLM Evaluators are useful when you cannot express the scoring as simply a block of code (e.x. is the answer relevant to the question). With Phoenix you can either:
+
+- Use and extend a pre-built evaluator
+- Create a custom evaluator using the evals library
+- Create your own LLM evaluator using your own tooling
 
 ### Pre-built LLM Evaluators
 
@@ -46,6 +126,68 @@ const hallucinationEvaluator = createHallucinationEvaluator({
 {% endtab %}
 {% endtabs %}
 
+
+Note that pre-built evaluators rarely will work well for your specific AI task and should be used as starting points. Proceed with caution.
+
+### Custom LLM Evaluators
+
+Phoenix eval libraries provide building blocks for you to build your own LLM-as-a-judge evaluators. You can create custom classification evaluators that use an LLM to classify outputs into categories with optional scores.
+
+{% tabs %}
+{% tab title="Python" %}
+```python
+from phoenix.evals import ClassificationEvaluator
+from phoenix.evals import LLM
+
+# Define a prompt template with mustache placeholders
+HELPFULNESS_TEMPLATE = """Rate how helpful the response is to the question.
+
+Question: {{input}}
+Response: {{output}}
+
+"helpful" means the response directly addresses the question.
+"not_helpful" means the response does not address the question."""
+
+# Define the classification choices (labels mapped to scores)
+choices = {"not_helpful": 0, "helpful": 1}
+
+# Create the custom evaluator
+helpfulness_evaluator = ClassificationEvaluator(
+    name="helpfulness",
+    prompt_template=HELPFULNESS_TEMPLATE,
+    llm=LLM(provider="openai", model="gpt-4o-mini"),
+    choices=choices
+)
+```
+{% endtab %}
+{% tab title="TypeScript" %}
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+// Define a prompt template with mustache placeholders
+const helpfulnessTemplate = `Rate how helpful the response is to the question.
+
+Question: {{input}}
+Response: {{output}}
+
+"helpful" means the response directly addresses the question.
+"not_helpful" means the response does not address the question.`;
+
+// Create the custom evaluator
+const helpfulnessEvaluator = await createClassificationEvaluator<{
+  input: string;
+  output: string;
+}>({
+  name: "helpfulness",
+  model: openai("gpt-4o-mini"),
+  promptTemplate: helpfulnessTemplate,
+  choices: { not_helpful: 0, helpful: 1 },
+});
+```
+{% endtab %}
+{% endtabs %}
+
 ## Code Evaluators
 
 Code evaluators are functions that evaluate the output of your LLM task that don't use another LLM as a judge. An example might be checking for whether or not a given output contains a link - which can be implemented as a RegEx match.
@@ -55,14 +197,14 @@ Code evaluators are functions that evaluate the output of your LLM task that don
 {% tabs %}
 {% tab title="Python" %}
 ```python
-from phoenix.experiments import run_experiment, MatchesRegex
+from phoenix.evals import create_evaluator
 
-# This defines a code evaluator for links
-contains_link = MatchesRegex(
-    pattern=r"[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)",
-    name="contains_link"
-)
-```
+@create_evaluator(name="contains_link", kind="CODE")
+def contains_link(output):
+    import re
+    pattern = r"[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
+    return bool(re.search(pattern, output))
+``
 
 The above `contains_link` evaluator can then be passed as an evaluator to any experiment you'd like to run.
 {% endtab %}
