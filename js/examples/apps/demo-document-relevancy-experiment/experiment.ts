@@ -1,9 +1,10 @@
-import { createDataset } from "@arizeai/phoenix-client/datasets";
+import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
 import {
   asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
-import { createDocumentRelevancyEvaluator } from "@arizeai/phoenix-evals/llm/createDocumentRelevancyEvaluator";
+import { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
 
 import "dotenv/config";
 
@@ -30,13 +31,13 @@ const DATASET = [
 ];
 
 async function main() {
-  async function task(example) {
+  async function task(example: { input: { question: string } }) {
     const question = example.input.question;
     const result = await spaceKnowledgeApplication(question);
     return result.context || "";
   }
 
-  const dataset = await createDataset({
+  const dataset = await createOrGetDataset({
     name: "document-relevancy-eval",
     description:
       "Queries that are answered by extracting context from the space knowledge base",
@@ -47,7 +48,7 @@ async function main() {
     })),
   });
 
-  const documentRelevancyEvaluator = createDocumentRelevancyEvaluator({
+  const documentRelevancyEvaluator = createDocumentRelevanceEvaluator({
     model: openai("gpt-5"),
   });
 
@@ -70,7 +71,7 @@ async function main() {
     experimentDescription:
       "Evaluate the relevancy of extracted context from a knowledge base",
     dataset: dataset,
-    task,
+    task: task as ExperimentTask,
     evaluators: [documentRelevancyCheck],
   });
 }

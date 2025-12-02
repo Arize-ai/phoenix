@@ -5,8 +5,6 @@ import { toEvaluationResult } from "./toEvaluationResult";
 
 /**
  * A function that converts a generic function into an evaluator function
- *
- * @public
  */
 export function asEvaluatorFn<RecordType extends Record<string, unknown>>(
   fn: AnyFn
