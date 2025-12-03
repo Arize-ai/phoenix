@@ -84,47 +84,49 @@ export function LDAPLoginForm(props: LDAPLoginFormProps) {
         </View>
       ) : null}
       <Form>
-        <Flex direction="column" gap="size-100">
-          <Controller
-            name="username"
-            control={control}
-            render={({ field: { onChange, value, onBlur } }) => (
-              <TextField
-                name="username"
-                isRequired
-                type="text"
-                onChange={onChange}
-                onBlur={onBlur}
-                value={value}
-                autoComplete="username"
-              >
-                <Label>LDAP Username</Label>
-                <Input placeholder="your LDAP username" />
-              </TextField>
-            )}
-          />
-          <Controller
-            name="password"
-            control={control}
-            render={({ field: { onChange, value } }) => (
-              <TextField
-                name="password"
-                type="password"
-                isRequired
-                onChange={onChange}
-                value={value}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSubmit(onSubmit)();
-                  }
-                }}
-                autoComplete="current-password"
-              >
-                <Label>LDAP Password</Label>
-                <Input placeholder="your password" />
-              </TextField>
-            )}
-          />
+        <Flex direction="column" gap="size-200">
+          <Flex direction="column" gap="size-100">
+            <Controller
+              name="username"
+              control={control}
+              render={({ field: { onChange, value, onBlur } }) => (
+                <TextField
+                  name="username"
+                  isRequired
+                  type="text"
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  value={value}
+                  autoComplete="username"
+                >
+                  <Label>LDAP Username</Label>
+                  <Input placeholder="your LDAP username" />
+                </TextField>
+              )}
+            />
+            <Controller
+              name="password"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <TextField
+                  name="password"
+                  type="password"
+                  isRequired
+                  onChange={onChange}
+                  value={value}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSubmit(onSubmit)();
+                    }
+                  }}
+                  autoComplete="current-password"
+                >
+                  <Label>LDAP Password</Label>
+                  <Input placeholder="your password" />
+                </TextField>
+              )}
+            />
+          </Flex>
           <Button
             variant="primary"
             isDisabled={isLoading}
