@@ -1,6 +1,5 @@
 import { graphql, useFragment } from "react-relay";
 
-import { Input, Label, TextField } from "@phoenix/components";
 import type { EvaluatorCodeConfig_CodeEvaluatorForm$key } from "@phoenix/components/evaluators/EvaluatorConfigDialog/__generated__/EvaluatorCodeConfig_CodeEvaluatorForm.graphql";
 import type { EvaluatorCodeConfig_evaluator$key } from "@phoenix/components/evaluators/EvaluatorConfigDialog/__generated__/EvaluatorCodeConfig_evaluator.graphql";
 import { ContainsEvaluatorForm } from "@phoenix/components/evaluators/EvaluatorConfigDialog/BuiltInEvaluatorForm/ContainsEvaluatorForm";
@@ -36,21 +35,7 @@ export const EvaluatorCodeConfig = ({
     queryRef
   );
   return (
-    <>
-      <TextField>
-        <Label>Function</Label>
-        <Input
-          placeholder="e.g. is_correct"
-          disabled={evaluator.isBuiltin}
-          value={
-            evaluator.isBuiltin && evaluator.name
-              ? evaluator.name.toLowerCase()
-              : undefined
-          }
-        />
-      </TextField>
-      <CodeEvaluatorForm queryRef={evaluator} evaluatorInput={evaluatorInput} />
-    </>
+    <CodeEvaluatorForm queryRef={evaluator} evaluatorInput={evaluatorInput} />
   );
 };
 
