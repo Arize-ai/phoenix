@@ -320,6 +320,7 @@ type BuiltInEvaluator implements Evaluator & Node {
   inputSchema: JSON
   isAssignedToDataset(datasetId: ID = null): Boolean!
   datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  isBuiltin: Boolean!
   user: User
 }
 
@@ -539,6 +540,7 @@ type CodeEvaluator implements Evaluator & Node {
   inputSchema: JSON
   isAssignedToDataset(datasetId: ID = null): Boolean!
   datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  isBuiltin: Boolean!
   user: User
 }
 
@@ -1478,6 +1480,7 @@ interface Evaluator implements Node {
   inputSchema: JSON
   isAssignedToDataset(datasetId: ID = null): Boolean!
   datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  isBuiltin: Boolean!
 }
 
 enum EvaluatorColumn {
@@ -2347,6 +2350,7 @@ type LLMEvaluator implements Evaluator & Node {
   inputSchema: JSON
   isAssignedToDataset(datasetId: ID = null): Boolean!
   datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  isBuiltin: Boolean!
   outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag

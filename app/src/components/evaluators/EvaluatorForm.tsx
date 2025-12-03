@@ -43,7 +43,10 @@ export type EvaluatorFormValues = {
     id: string;
     assignEvaluatorToDataset: boolean;
   };
-  inputMapping: Record<string, string>;
+  inputMapping: {
+    pathMapping: Record<string, string>;
+    literalMapping: Record<string, string>;
+  };
 };
 
 const DEFAULT_FORM_VALUES: EvaluatorFormValues = {
@@ -58,7 +61,10 @@ const DEFAULT_FORM_VALUES: EvaluatorFormValues = {
       { label: "", score: undefined },
     ],
   },
-  inputMapping: {},
+  inputMapping: {
+    pathMapping: {},
+    literalMapping: {},
+  },
 };
 
 /**

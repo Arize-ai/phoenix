@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import {
   ConnectionHandler,
   graphql,
@@ -19,42 +19,37 @@ import {
   Flex,
   Icon,
   Icons,
-  Link,
+  Input,
+  Label,
   Loading,
   Text,
-  View,
+  TextField,
 } from "@phoenix/components";
-import { AnnotationNameAndValue } from "@phoenix/components/annotation";
+import type { EvaluatorConfigDialog_dataset$key } from "@phoenix/components/evaluators/EvaluatorConfigDialog/__generated__/EvaluatorConfigDialog_dataset.graphql";
+import type { EvaluatorConfigDialog_evaluatorQuery } from "@phoenix/components/evaluators/EvaluatorConfigDialog/__generated__/EvaluatorConfigDialog_evaluatorQuery.graphql";
+import type { EvaluatorConfigDialogAssignEvaluatorToDatasetMutation } from "@phoenix/components/evaluators/EvaluatorConfigDialog/__generated__/EvaluatorConfigDialogAssignEvaluatorToDatasetMutation.graphql";
+import { EvaluatorCodeConfig } from "@phoenix/components/evaluators/EvaluatorConfigDialog/EvaluatorCodeConfig";
+import { EvaluatorLLMConfig } from "@phoenix/components/evaluators/EvaluatorConfigDialog/EvaluatorLLMConfig";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
-import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
-import { EvaluatorConfigDialog_dataset$key } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_dataset.graphql";
-import {
-  EvaluatorConfigDialog_evaluatorQuery,
-  EvaluatorConfigDialog_evaluatorQuery$data,
-} from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_evaluatorQuery.graphql";
-import { EvaluatorConfigDialogAssignEvaluatorToDatasetMutation } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialogAssignEvaluatorToDatasetMutation.graphql";
 import { promptVersionToInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { extractVariablesFromInstance } from "@phoenix/pages/playground/playgroundUtils";
 import { jsonSchemaZodSchema } from "@phoenix/schemas";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-type OutputConfig = NonNullable<
-  EvaluatorConfigDialog_evaluatorQuery$data["evaluator"]["outputConfig"]
->;
+export type EvaluatorConfigDialogForm = EvaluatorFormValues;
 
-// TODO: move to components
 export function EvaluatorConfigDialog({
   evaluatorId,
   onClose,
   onEvaluatorAssigned,
   datasetRef,
 }: {
-  evaluatorId: string;
+  evaluatorId: string | null;
   onClose: () => void;
   onEvaluatorAssigned?: () => void;
   datasetRef: EvaluatorConfigDialog_dataset$key;
@@ -69,12 +64,14 @@ export function EvaluatorConfigDialog({
             </Flex>
           }
         >
-          <EvaluatorConfigDialogContent
-            evaluatorId={evaluatorId}
-            onClose={onClose}
-            onEvaluatorAssigned={onEvaluatorAssigned}
-            datasetRef={datasetRef}
-          />
+          {evaluatorId && (
+            <EvaluatorConfigDialogContent
+              evaluatorId={evaluatorId}
+              onClose={onClose}
+              onEvaluatorAssigned={onEvaluatorAssigned}
+              datasetRef={datasetRef}
+            />
+          )}
         </Suspense>
       </DialogContent>
     </Dialog>
@@ -98,15 +95,6 @@ function EvaluatorConfigDialogContent({
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     null
   );
-  const {
-    control: inputMappingControl,
-    getValues: getInputMappingValues,
-    formState: { isValid: isInputMappingValid },
-  } = useForm<EvaluatorFormValues>({
-    defaultValues: {
-      inputMapping: {},
-    },
-  });
 
   const dataset = useFragment<EvaluatorConfigDialog_dataset$key>(
     graphql`
@@ -126,6 +114,7 @@ function EvaluatorConfigDialogContent({
           ... on Evaluator {
             name
             kind
+            isBuiltin
           }
           ... on BuiltInEvaluator {
             inputSchema
@@ -134,13 +123,6 @@ function EvaluatorConfigDialogContent({
             inputSchema
           }
           ... on LLMEvaluator {
-            outputConfig {
-              name
-              values {
-                label
-                score
-              }
-            }
             prompt {
               id
               name
@@ -152,6 +134,8 @@ function EvaluatorConfigDialogContent({
               ...PromptChatMessagesCard__main
             }
           }
+          ...EvaluatorLLMConfig_evaluator
+          ...EvaluatorCodeConfig_evaluator
         }
       }
     `,
@@ -189,13 +173,22 @@ function EvaluatorConfigDialogContent({
       }
     `);
 
+  const form = useForm<EvaluatorConfigDialogForm>({
+    defaultValues: {
+      inputMapping: {},
+    },
+  });
+  const {
+    control: inputMappingControl,
+    getValues: getInputMappingValues,
+    formState: { isValid: isInputMappingValid },
+  } = form;
+
   /**
    * The source of variables that need to be input mapped will change based on the evaluator kind.
    * Kind:
    * - LLM: The prompt variables
    * - CODE: evaluator.inputSchema json schema arguments
-   *
-   * @todo: implement this
    */
   const [inputVariables, setInputVariables] = useState<string[]>([]);
 
@@ -244,13 +237,13 @@ function EvaluatorConfigDialogContent({
     if (!isInputMappingValid) {
       return;
     }
-    const pathMapping = getInputMappingValues().inputMapping;
+    const inputMapping = getInputMappingValues().inputMapping;
     assignEvaluatorToDataset({
       variables: {
         input: {
           datasetId: dataset.id,
           evaluatorId: evaluator.id,
-          inputMapping: { pathMapping },
+          inputMapping,
         },
         connectionIds: [datasetEvaluatorsTableConnection],
         datasetId: dataset.id,
@@ -275,7 +268,7 @@ function EvaluatorConfigDialogContent({
   };
 
   return (
-    <>
+    <FormProvider {...form}>
       <DialogHeader>
         <DialogTitle
           css={css`
@@ -325,55 +318,40 @@ function EvaluatorConfigDialogContent({
           </Button>
         </DialogTitleExtra>
       </DialogHeader>
-      <View paddingX="size-300" paddingBottom="size-300" paddingTop="size-200">
+      <div
+        css={css`
+          padding: var(--ac-global-dimension-static-size-200)
+            var(--ac-global-dimension-static-size-300);
+          overflow-y: auto;
+          position: relative;
+        `}
+      >
         <Flex direction="row" alignItems="start" gap="size-200">
-          {evaluator.kind === "LLM" && (
-            <Flex
-              direction="column"
-              gap="size-300"
-              flex="1"
-              css={css`
-                overflow: hidden;
-              `}
-            >
-              {evaluator.promptVersion && (
-                <Flex direction="column" gap="size-100">
-                  <Text>
-                    This is in read only mode, you can{" "}
-                    <Link to="TODO: link to evaluator edit page when it exists">
-                      edit the global evaluator
-                    </Link>
-                  </Text>
-                  <Text size="L">Prompt</Text>
-                  <PromptChatMessages promptVersion={evaluator.promptVersion} />
-                </Flex>
-              )}
-              {evaluator.outputConfig && (
-                <Flex direction="column" gap="size-100">
-                  <Text size="L">Eval</Text>
-                  <Flex
-                    direction="row"
-                    alignItems="center"
-                    gap="size-100"
-                    css={css`
-                      color: var(--ac-global-color-grey-600);
-                    `}
-                  >
-                    <AnnotationNameAndValue
-                      annotation={{ name: evaluator.outputConfig.name }}
-                      displayPreference="none"
-                      size="XS"
-                      maxWidth="100%"
-                    />
-                  </Flex>
-                  <Text color="grey-700">
-                    {getOutputConfigValuesSummary(evaluator.outputConfig)}
-                  </Text>
-                </Flex>
-              )}
-            </Flex>
-          )}
           <Flex direction="column" gap="size-300" flex="1">
+            <TextField>
+              <Label>Name</Label>
+              <Input placeholder={`e.g. is_correct`} />
+            </TextField>
+            {evaluator.kind === "LLM" && (
+              <EvaluatorLLMConfig queryRef={evaluator} />
+            )}
+            {evaluator.kind === "CODE" && (
+              <EvaluatorCodeConfig
+                queryRef={evaluator}
+                evaluatorInput={evaluatorInput}
+              />
+            )}
+          </Flex>
+          <Flex
+            direction="column"
+            gap="size-300"
+            flex="1"
+            css={css`
+              flex: 1;
+              position: sticky;
+              top: 0;
+            `}
+          >
             <Flex direction="column" gap="size-100">
               <Text size="L">Example</Text>
               <EvaluatorExampleDataset
@@ -387,23 +365,18 @@ function EvaluatorConfigDialogContent({
                 onEvaluatorInputObjectChange={setEvaluatorInput}
               />
             </Flex>
-            <EvaluatorInputMapping
-              control={inputMappingControl}
-              variables={inputVariables}
-              evaluatorInput={evaluatorInput}
-            />
+            {/* only show input mapping for non-builtin evaluators */}
+            {/* builtin evaluators have hand made forms for their input mapping */}
+            {!evaluator.isBuiltin && (
+              <EvaluatorInputMapping
+                control={inputMappingControl}
+                variables={inputVariables}
+                evaluatorInput={evaluatorInput}
+              />
+            )}
           </Flex>
         </Flex>
-      </View>
-    </>
+      </div>
+    </FormProvider>
   );
-}
-
-function getOutputConfigValuesSummary(outputConfig: OutputConfig) {
-  return outputConfig.values
-    .map(
-      (value) =>
-        value.label + (value.score != null ? " (" + value.score + ")" : "")
-    )
-    .join(", ");
 }

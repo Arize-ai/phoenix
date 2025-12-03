@@ -136,6 +136,10 @@ class Evaluator(Node):
                 path_mapping=dataset_evaluator.input_mapping.get("path_mapping", {}),
             )
 
+    @strawberry.field
+    async def is_builtin(self) -> bool:
+        return self.id < 0
+
 
 @strawberry.type
 class CodeEvaluator(Evaluator, Node):

@@ -66,11 +66,6 @@ const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
   );
 };
 
-type ExampleKeyItem = {
-  id: string;
-  label: string;
-};
-
 const EvaluatorInputMappingControls = ({
   control,
   evaluatorInput,
@@ -80,18 +75,7 @@ const EvaluatorInputMappingControls = ({
   control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
   variables: string[];
 }) => {
-  const allExampleKeys: ExampleKeyItem[] = useMemo(() => {
-    const flat = flattenObject({
-      obj: evaluatorInput ?? EMPTY_EVALUATOR_INPUT,
-      keepNonTerminalValues: true,
-    });
-    return [
-      ...Object.keys(flat).map((key) => ({
-        id: key,
-        label: key,
-      })),
-    ];
-  }, [evaluatorInput]);
+  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorInput);
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const setInputValue = useCallback((key: string, value: string) => {
     setInputValues((prev) => ({ ...prev, [key]: value }));
@@ -114,7 +98,7 @@ const EvaluatorInputMappingControls = ({
           `}
         >
           <Controller
-            name={`inputMapping.${variable}`}
+            name={`inputMapping.pathMapping.${variable}`}
             control={control}
             render={({ field }) => (
               <ComboBox
@@ -161,4 +145,19 @@ const EvaluatorInputMappingControls = ({
       ))}
     </Flex>
   );
+};
+
+export const useFlattenedEvaluatorInputKeys = (
+  evaluatorInput: EvaluatorInput | null
+) => {
+  return useMemo(() => {
+    const flat = flattenObject({
+      obj: evaluatorInput ?? EMPTY_EVALUATOR_INPUT,
+      keepNonTerminalValues: true,
+    });
+    return Object.keys(flat).map((key) => ({
+      id: key,
+      label: key,
+    }));
+  }, [evaluatorInput]);
 };
