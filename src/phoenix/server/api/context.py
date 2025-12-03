@@ -38,6 +38,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
+    LatestPromptVersionIdDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
@@ -153,6 +154,7 @@ class DataLoaders:
     prompt_label_fields: TableFieldsDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     prompt_version_tag_fields: TableFieldsDataLoader
+    latest_prompt_version_ids: LatestPromptVersionIdDataLoader
     project_session_annotation_fields: TableFieldsDataLoader
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
