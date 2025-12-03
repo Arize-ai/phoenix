@@ -17,7 +17,7 @@ Set your environment variables.
 
 ```bash
 export PHOENIX_API_KEY = "ADD YOUR PHOENIX API KEY"
-export PHOENIX_COLLECTOR_ENDPOINT = "ADD YOUR PHOENIX Collector endpoint"
+export PHOENIX_COLLECTOR_ENDPOINT = "ADD YOUR PHOENIX COLLECTOR ENDPOINT"
 ```
 
 You can find your collector endpoint here:

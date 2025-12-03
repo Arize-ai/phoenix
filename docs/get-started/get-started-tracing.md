@@ -4,7 +4,7 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
 
 {% stepper %}
 {% step %}
-#### Launch Phoenix
+**Launch Phoenix**
 
 Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).
 
@@ -14,10 +14,9 @@ Log in, create a space, navigate to the settings page in your space, and create 
 
 In your code, set your environment variables.
 
-```python
-import os
-os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX Collector endpoint"
+```bash
+export PHOENIX_API_KEY = "ADD YOUR PHOENIX API KEY"
+export PHOENIX_COLLECTOR_ENDPOINT = "ADD YOUR PHOENIX COLLECTOR ENDPOINT"
 ```
 
 You can find your collector endpoint here:
@@ -38,7 +37,7 @@ Navigate to your localhost in your browser. (example localhost:6006)
 {% endstep %}
 
 {% step %}
-#### Install the Phoenix OTEL Package
+**Install the Phoenix OTEL Package**
 
 To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.
 
@@ -59,7 +58,7 @@ npm install @arizeai/phoenix-otel
 {% endstep %}
 
 {% step %}
-#### Set-Up Tracing
+**Set-Up Tracing**
 
 There are two ways to trace your application: manually, or automatically with an auto-instrumentor. OpenInference provides the auto-instrumenter option through ready-to-use integrations with popular frameworks, so you can capture traces without adding manual logging code.
 
@@ -152,7 +151,7 @@ For Manually tracing your whole application, check out [our guide on manual trac
 {% endstep %}
 
 {% step %}
-#### Register a Tracer
+**Register a Tracer**
 
 In your Python code, register Phoenix as the trace provider. This connects your application to Phoenix, making a project in the UI after you send a trace, and optionally enables auto-instrumentation (automatic tracing for supported libraries like OpenAI).
 
@@ -208,7 +207,7 @@ Now, import this file at the top of your main program entrypoint, or invoke it w
 {% endstep %}
 
 {% step %}
-#### Start Your Application
+**Start Your Application**
 
 Now that you have set up tracing & your project in Phoenix, it's time to actually invoke your llm, agent, or application.
 
@@ -282,7 +281,7 @@ After setting up all your functions to be traced using OpenInference/OpenTelemet
 {% endstep %}
 
 {% step %}
-#### View your Traces in Phoenix
+**View your Traces in Phoenix**
 
 You should now see traces in Phoenix!
 
