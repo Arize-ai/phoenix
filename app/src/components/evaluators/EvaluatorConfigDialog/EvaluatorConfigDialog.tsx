@@ -330,6 +330,10 @@ function EvaluatorConfigDialogContent({
             <TextField>
               <Label>Name</Label>
               <Input placeholder={`e.g. is_correct`} />
+              <Text slot="description">
+                The name of the annotation that will be produced by this
+                evaluator.
+              </Text>
             </TextField>
             {evaluator.kind === "LLM" && (
               <EvaluatorLLMConfig queryRef={evaluator} />
