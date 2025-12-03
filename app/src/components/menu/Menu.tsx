@@ -105,13 +105,13 @@ const menuItemCss = css`
   &[data-focus-visible] {
     outline: none;
   }
-}
 
-@media (forced-colors: active) {
-  &[data-focused] {
-    forced-color-adjust: none;
-    background: Highlight;
-    color: HighlightText;
+  @media (forced-colors: active) {
+    &[data-focused] {
+      forced-color-adjust: none;
+      background: Highlight;
+      color: HighlightText;
+    }
   }
 `;
 
