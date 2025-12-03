@@ -256,7 +256,8 @@ class Spans:
 
         if spans_dataframe is not None:
             span_ids_raw: list[str] = cast(
-                list[str], spans_dataframe["context.span_id"].dropna().tolist()  # pyright: ignore[reportUnknownMemberType]
+                list[str],
+                spans_dataframe["context.span_id"].dropna().tolist(),  # pyright: ignore[reportUnknownMemberType]
             )
             span_ids_list = list({*span_ids_raw})
         elif span_ids is not None:
@@ -1427,7 +1428,8 @@ class AsyncSpans:
 
         if spans_dataframe is not None:
             span_ids_raw: list[str] = cast(
-                list[str], spans_dataframe["context.span_id"].dropna().tolist()  # pyright: ignore[reportUnknownMemberType]
+                list[str],
+                spans_dataframe["context.span_id"].dropna().tolist(),  # pyright: ignore[reportUnknownMemberType]
             )
             span_ids_list = list({*span_ids_raw})
         elif span_ids is not None:
