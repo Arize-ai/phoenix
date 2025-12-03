@@ -400,7 +400,10 @@ class LLMEvaluator(Evaluator):
         **kwargs: Any,
     ):
         # Convert to PromptTemplate for uniform handling
-        self._prompt_template = PromptTemplate(template=prompt_template)
+        if isinstance(prompt_template, PromptTemplate):
+            self._prompt_template = prompt_template
+        else:
+            self._prompt_template = PromptTemplate(template=cast(PromptLike, prompt_template))
 
         required_fields = self._prompt_template.variables
 
