@@ -10,7 +10,6 @@ import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datas
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
-import { NewEvaluatorPage } from "@phoenix/pages/evaluators/NewEvaluatorPage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
@@ -275,11 +274,6 @@ const router = createBrowserRouter(
               index
               element={<EvaluatorsPage />}
               loader={evaluatorsPageLoader}
-            />
-            <Route
-              path="new"
-              element={<NewEvaluatorPage />}
-              handle={{ crumb: () => "New evaluator" }}
             />
           </Route>
           <Route

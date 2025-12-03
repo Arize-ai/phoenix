@@ -3,7 +3,7 @@ import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Icon, Icons, LinkButton, Loading } from "@phoenix/components";
+import { Flex, Loading } from "@phoenix/components";
 import { EvaluatorsFilterBar } from "@phoenix/pages/evaluators/EvaluatorsFilterBar";
 import { EvaluatorsFilterProvider } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 import {
@@ -19,18 +19,7 @@ export const EvaluatorsPage = () => {
   return (
     <EvaluatorsFilterProvider>
       <Flex direction="column" height="100%">
-        <EvaluatorsFilterBar
-          extraActions={
-            <LinkButton
-              size="M"
-              leadingVisual={<Icon svg={<Icons.Scale />} />}
-              variant="primary"
-              to="/evaluators/new"
-            >
-              New Evaluator
-            </LinkButton>
-          }
-        />
+        <EvaluatorsFilterBar />
         <Suspense fallback={<Loading />}>
           <GlobalEvaluatorsTable query={query} />
         </Suspense>
