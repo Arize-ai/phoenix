@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from secrets import token_hex
-from typing import Iterator, Mapping
+from typing import TYPE_CHECKING, Iterator, Mapping
 
 import pytest
 from smtpdfix.certs import Cert, _generate_certs
@@ -14,6 +14,9 @@ from .._helpers import (
     _OIDCServer,
     _server,
 )
+
+if TYPE_CHECKING:
+    from tests.integration._mock_ldap_server import _LDAPServer
 
 
 @pytest.fixture(scope="package")
@@ -267,10 +270,78 @@ def _env_oauth2(
 
 
 @pytest.fixture(scope="package")
+def _env_ldap(_ldap_server: _LDAPServer) -> dict[str, str]:
+    """Configure LDAP environment variables for testing with mock LDAP server."""
+    return {
+        "PHOENIX_LDAP_HOST": _ldap_server.host,
+        "PHOENIX_LDAP_PORT": str(_ldap_server.port),
+        "PHOENIX_LDAP_USE_TLS": "false",  # Disable TLS for mock testing
+        "PHOENIX_LDAP_BIND_DN": _ldap_server.bind_dn,
+        "PHOENIX_LDAP_BIND_PASSWORD": _ldap_server.bind_password,
+        "PHOENIX_LDAP_USER_SEARCH_BASE": _ldap_server.user_search_base,
+        "PHOENIX_LDAP_USER_SEARCH_FILTER": "(uid=%s)",
+        "PHOENIX_LDAP_ATTR_EMAIL": "mail",
+        "PHOENIX_LDAP_ATTR_DISPLAY_NAME": "displayName",
+        "PHOENIX_LDAP_ATTR_MEMBER_OF": "memberOf",
+        "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+            '[{"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"}, '
+            '{"group_dn": "cn=viewers,ou=groups,dc=example,dc=com", "role": "MEMBER"}, '
+            '{"group_dn": "*", "role": "VIEWER"}]'
+        ),
+        # Default: allow_sign_up=true (users auto-created on first login)
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_ldap_no_sign_up(_env_ldap: Mapping[str, str]) -> dict[str, str]:
+    """Configure LDAP with allow_sign_up=false (admin must pre-create users)."""
+    return {
+        **_env_ldap,
+        "PHOENIX_LDAP_ALLOW_SIGN_UP": "false",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_ldap_posix(_ldap_server: _LDAPServer) -> dict[str, str]:
+    """Configure LDAP with POSIX group search (OpenLDAP style) instead of memberOf.
+
+    This fixture tests the alternative group lookup method where Phoenix searches
+    for groups containing the user's DN as a member attribute, rather than reading
+    a memberOf attribute from the user entry (Active Directory style).
+
+    Key differences from _env_ldap:
+    - No ATTR_MEMBER_OF (relies on group search)
+    - Adds GROUP_SEARCH_BASE and GROUP_SEARCH_FILTER
+    - Tests DN escaping for LDAP injection prevention
+    """
+    return {
+        "PHOENIX_LDAP_HOST": _ldap_server.host,
+        "PHOENIX_LDAP_PORT": str(_ldap_server.port),
+        "PHOENIX_LDAP_USE_TLS": "false",  # Disable TLS for mock testing
+        "PHOENIX_LDAP_BIND_DN": _ldap_server.bind_dn,
+        "PHOENIX_LDAP_BIND_PASSWORD": _ldap_server.bind_password,
+        "PHOENIX_LDAP_USER_SEARCH_BASE": _ldap_server.user_search_base,
+        "PHOENIX_LDAP_USER_SEARCH_FILTER": "(uid=%s)",
+        "PHOENIX_LDAP_ATTR_EMAIL": "mail",
+        "PHOENIX_LDAP_ATTR_DISPLAY_NAME": "displayName",
+        "PHOENIX_LDAP_ATTR_MEMBER_OF": "",
+        "PHOENIX_LDAP_GROUP_SEARCH_BASE": _ldap_server.group_search_base,
+        "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(member=%s)",  # %s replaced with user DN
+        "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+            '[{"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"}, '
+            '{"group_dn": "cn=viewers,ou=groups,dc=example,dc=com", "role": "MEMBER"}, '
+            '{"group_dn": "*", "role": "VIEWER"}]'
+        ),
+        # Default: allow_sign_up=true (users auto-created on first login)
+    }
+
+
+@pytest.fixture(scope="package")
 def _env(
     _env_auth: Mapping[str, str],
     _env_database: Mapping[str, str],
     _env_oauth2: Mapping[str, str],
+    _env_ldap: Mapping[str, str],
     _env_ports: Mapping[str, str],
     _env_smtp: Mapping[str, str],
     _env_tls: Mapping[str, str],
@@ -283,6 +354,7 @@ def _env(
         **_env_auth,
         **_env_smtp,
         **_env_oauth2,
+        **_env_ldap,
     }
 
 
@@ -291,6 +363,83 @@ def _app(
     _env: dict[str, str],
 ) -> Iterator[_AppInfo]:
     with _server(_AppInfo(_env)) as app:
+        yield app
+
+
+@pytest.fixture(scope="package")
+def _env_ports_ldap_no_sign_up(
+    _ports: Iterator[int],
+) -> dict[str, str]:
+    """Separate port allocation for LDAP no-sign-up app."""
+    return {
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+    }
+
+
+@pytest.fixture(scope="package")
+def _app_ldap_no_sign_up(
+    _env_auth: Mapping[str, str],
+    _env_database: Mapping[str, str],
+    _env_oauth2: Mapping[str, str],
+    _env_ldap_no_sign_up: Mapping[str, str],
+    _env_ports_ldap_no_sign_up: Mapping[str, str],
+    _env_smtp: Mapping[str, str],
+    _env_tls: Mapping[str, str],
+) -> Iterator[_AppInfo]:
+    """App instance with LDAP allow_sign_up=false.
+
+    Uses separate ports from _app_ldap to allow both apps to run concurrently.
+    """
+    env = {
+        **_env_tls,
+        **_env_ports_ldap_no_sign_up,
+        **_env_database,
+        **_env_auth,
+        **_env_smtp,
+        **_env_oauth2,
+        **_env_ldap_no_sign_up,
+    }
+    with _server(_AppInfo(env)) as app:
+        yield app
+
+
+@pytest.fixture(scope="package")
+def _env_ports_posix(
+    _ports: Iterator[int],
+) -> dict[str, str]:
+    """Separate port allocation for POSIX LDAP app to avoid conflicts with _app_ldap."""
+    return {
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+    }
+
+
+@pytest.fixture(scope="package")
+def _app_ldap_posix(
+    _env_auth: Mapping[str, str],
+    _env_database: Mapping[str, str],
+    _env_oauth2: Mapping[str, str],
+    _env_ldap_posix: Mapping[str, str],
+    _env_ports_posix: Mapping[str, str],
+    _env_smtp: Mapping[str, str],
+    _env_tls: Mapping[str, str],
+) -> Iterator[_AppInfo]:
+    """App instance with LDAP configured for POSIX group search (OpenLDAP).
+
+    Uses separate ports from _app_ldap to allow both apps to run concurrently
+    during integration tests.
+    """
+    env = {
+        **_env_tls,
+        **_env_ports_posix,
+        **_env_database,
+        **_env_auth,
+        **_env_smtp,
+        **_env_oauth2,
+        **_env_ldap_posix,
+    }
+    with _server(_AppInfo(env)) as app:
         yield app
 
 
@@ -543,3 +692,25 @@ def _existing_spans(
     _app: _AppInfo,
 ) -> tuple[_ExistingSpan, ...]:
     return _insert_spans(_app, 10)
+
+
+# =============================================================================
+# LDAP Test Fixtures
+# =============================================================================
+
+
+@pytest.fixture(scope="package")
+def _ldap_server(_ports: Iterator[int]) -> Iterator[_LDAPServer]:
+    """Start mock LDAP server for integration tests.
+
+    This fixture provides a lightweight, in-process LDAP server that implements
+    minimal LDAP protocol operations (bind, search) needed for testing Phoenix's
+    LDAP authentication flow.
+
+    The server is similar to _oidc_server - it runs in a separate thread and
+    listens on a dynamically allocated port.
+    """
+    from tests.integration._mock_ldap_server import _LDAPServer
+
+    with _LDAPServer(port=next(_ports)) as ldap_server:
+        yield ldap_server

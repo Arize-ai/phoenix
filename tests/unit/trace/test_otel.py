@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
-from google.protobuf.json_format import MessageToJson  # type: ignore[import-untyped]
+from google.protobuf.json_format import MessageToJson
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from pytest import approx

@@ -8,7 +8,16 @@ from _pytest.monkeypatch import MonkeyPatch
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from phoenix.config import ENV_PHOENIX_ADMINS
+from phoenix.config import (
+    ENV_PHOENIX_ADMINS,
+    ENV_PHOENIX_DISABLE_BASIC_AUTH,
+    ENV_PHOENIX_LDAP_BIND_DN,
+    ENV_PHOENIX_LDAP_BIND_PASSWORD,
+    ENV_PHOENIX_LDAP_HOST,
+    ENV_PHOENIX_LDAP_PORT,
+    ENV_PHOENIX_LDAP_USER_SEARCH_BASE,
+    ENV_PHOENIX_LDAP_USER_SEARCH_FILTER,
+)
 from phoenix.db import models
 from phoenix.db.enums import ENUM_COLUMNS
 from phoenix.db.facilitator import (
@@ -22,6 +31,7 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
+from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
 from phoenix.server.types import DbSessionFactory
 
 
@@ -128,6 +138,82 @@ class TestEnsureStartupAdmins:
         assert user.username == "Franklin, Benjamin"
         assert user.user_role_id == admin_role_id
         assert user.reset_password
+
+    async def test_ldap_user_creation_when_basic_auth_disabled(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        """When PHOENIX_DISABLE_BASIC_AUTH=true and LDAP is configured (no OAuth2),
+        startup admins should be created as LDAP users."""
+        # Configure admins and disable basic auth
+        monkeypatch.setenv(ENV_PHOENIX_ADMINS, "LDAP Admin=ldap_admin@example.com")
+        monkeypatch.setenv(ENV_PHOENIX_DISABLE_BASIC_AUTH, "true")
+
+        # Configure minimal LDAP settings (required for LDAPConfig.from_env() to return non-None)
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_HOST, "ldap.example.com")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_PORT, "389")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_DN, "cn=admin,dc=example,dc=com")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_PASSWORD, "secret")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE, "ou=users,dc=example,dc=com")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(uid=%s)")
+
+        # Initialize enums and create admin
+        await _ensure_enums(db)
+        await _ensure_admins(db)
+
+        # Verify LDAP user was created with correct attributes
+        async with db() as session:
+            user = await session.scalar(
+                select(models.User).where(models.User.email == "ldap_admin@example.com")
+            )
+        assert user is not None
+        assert user.username == "LDAP Admin"
+        assert user.oauth2_client_id == LDAP_CLIENT_ID_MARKER
+        assert user.oauth2_user_id is None  # NULL until first LDAP login (then upgraded to DN)
+        assert user.password_hash is None  # LDAP users don't have passwords
+        assert user.password_salt is None
+
+    async def test_oauth2_user_creation_when_oauth2_configured(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        """When PHOENIX_DISABLE_BASIC_AUTH=true and OAuth2 is configured,
+        startup admins should be created as OAuth2 users (not LDAP)."""
+        # Configure admins and disable basic auth
+        monkeypatch.setenv(ENV_PHOENIX_ADMINS, "OAuth2 Admin=oauth_admin@example.com")
+        monkeypatch.setenv(ENV_PHOENIX_DISABLE_BASIC_AUTH, "true")
+
+        # Configure OAuth2 (this takes priority over LDAP)
+        monkeypatch.setenv("PHOENIX_OAUTH2_IDP1_CLIENT_ID", "test-client-id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_IDP1_CLIENT_SECRET", "test-secret")
+        monkeypatch.setenv("PHOENIX_OAUTH2_IDP1_OIDC_CONFIG_URL", "https://example.com/.well-known")
+
+        # Also configure LDAP to verify OAuth2 takes priority
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_HOST, "ldap.example.com")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_PORT, "389")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_DN, "cn=admin,dc=example,dc=com")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_PASSWORD, "secret")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE, "ou=users,dc=example,dc=com")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(uid=%s)")
+
+        # Initialize enums and create admin
+        await _ensure_enums(db)
+        await _ensure_admins(db)
+
+        # Verify OAuth2 user was created (NOT LDAP)
+        async with db() as session:
+            user = await session.scalar(
+                select(models.User).where(models.User.email == "oauth_admin@example.com")
+            )
+        assert user is not None
+        assert user.username == "OAuth2 Admin"
+        # OAuth2 user should NOT have LDAP marker
+        assert user.oauth2_client_id != LDAP_CLIENT_ID_MARKER
+        assert user.oauth2_client_id is None  # Generic OAuth2 user
+        assert user.password_hash is None
+        assert user.password_salt is None
 
 
 class TestEnsureDefaultProjectTraceRetentionPolicy:

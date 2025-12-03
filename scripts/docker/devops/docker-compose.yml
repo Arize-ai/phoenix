@@ -4,7 +4,7 @@ services:
   # ==========================================================================
   
   traefik:
-    image: traefik:v3.1
+    image: traefik:v3.6.2
     restart: unless-stopped
     command:
       - "--api.insecure=true"

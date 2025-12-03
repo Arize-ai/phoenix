@@ -9,7 +9,17 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Optional, Union, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    NamedTuple,
+    Optional,
+    TypedDict,
+    Union,
+    cast,
+    overload,
+)
 from urllib.parse import quote, urljoin, urlparse
 
 import wrapt
@@ -28,6 +38,7 @@ OAuth2UserRoleName: TypeAlias = Literal["ADMIN", "MEMBER", "VIEWER"]
 
 # Tuple of valid OAuth2 roles for validation
 _VALID_OAUTH2_ROLES: tuple[str, ...] = get_args(OAuth2UserRoleName)
+
 
 logger = logging.getLogger(__name__)
 
@@ -281,6 +292,104 @@ password reset emails. If this variable is left unspecified or contains no origi
 protection will not be enabled. In such cases, when a request includes `origin` or `referer`
 headers, those values will not be validated.
 """
+
+# LDAP authentication settings
+ENV_PHOENIX_LDAP_HOST = "PHOENIX_LDAP_HOST"
+"""
+LDAP server hosts (comma-separated for multiple servers with failover).
+Example: "ldap.corp.com" or "dc1.corp.com,dc2.corp.com,dc3.corp.com"
+"""
+ENV_PHOENIX_LDAP_PORT = "PHOENIX_LDAP_PORT"
+"""
+LDAP server port. Defaults to 389 for StartTLS, 636 for LDAPS.
+"""
+ENV_PHOENIX_LDAP_USE_TLS = "PHOENIX_LDAP_USE_TLS"
+"""
+Use TLS for LDAP connections. Defaults to true. Should always be true in production.
+"""
+ENV_PHOENIX_LDAP_TLS_MODE = "PHOENIX_LDAP_TLS_MODE"
+"""
+TLS connection mode: "starttls" (upgrade from plaintext on port 389) or "ldaps" (TLS from
+start on port 636).
+"""
+ENV_PHOENIX_LDAP_TLS_VERIFY = "PHOENIX_LDAP_TLS_VERIFY"
+"""
+Verify TLS certificates. Defaults to true. Should always be true in production.
+"""
+ENV_PHOENIX_LDAP_TLS_CA_CERT_FILE = "PHOENIX_LDAP_TLS_CA_CERT_FILE"
+"""
+Path to custom CA certificate file (PEM format) for TLS verification. Optional.
+Use when LDAP server uses a private/internal CA not in the system trust store.
+Example: "/etc/ssl/certs/internal-ca.pem"
+"""
+ENV_PHOENIX_LDAP_TLS_CLIENT_CERT_FILE = "PHOENIX_LDAP_TLS_CLIENT_CERT_FILE"
+"""
+Path to client certificate file (PEM format) for mutual TLS authentication. Optional.
+Requires PHOENIX_LDAP_TLS_CLIENT_KEY_FILE to also be set.
+Example: "/etc/ssl/certs/phoenix-client.crt"
+"""
+ENV_PHOENIX_LDAP_TLS_CLIENT_KEY_FILE = "PHOENIX_LDAP_TLS_CLIENT_KEY_FILE"
+"""
+Path to client private key file (PEM format) for mutual TLS authentication. Optional.
+Requires PHOENIX_LDAP_TLS_CLIENT_CERT_FILE to also be set.
+Example: "/etc/ssl/private/phoenix-client.key"
+"""
+ENV_PHOENIX_LDAP_BIND_DN = "PHOENIX_LDAP_BIND_DN"
+"""
+Service account DN for binding to LDAP server. Optional for direct bind.
+Example: "CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com"
+"""
+ENV_PHOENIX_LDAP_BIND_PASSWORD = "PHOENIX_LDAP_BIND_PASSWORD"
+"""
+Service account password for binding to LDAP server.
+"""
+ENV_PHOENIX_LDAP_USER_SEARCH_BASE = "PHOENIX_LDAP_USER_SEARCH_BASE"
+"""
+Base DN for user searches (comma-separated for multiple).
+Example: "OU=Users,DC=corp,DC=com"
+"""
+ENV_PHOENIX_LDAP_USER_SEARCH_FILTER = "PHOENIX_LDAP_USER_SEARCH_FILTER"
+"""
+LDAP filter for finding users. Use %s as placeholder for username.
+Example: "(&(objectClass=user)(sAMAccountName=%s))"
+"""
+ENV_PHOENIX_LDAP_ATTR_EMAIL = "PHOENIX_LDAP_ATTR_EMAIL"
+"""
+LDAP attribute containing user's email address. Defaults to "mail".
+"""
+ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME = "PHOENIX_LDAP_ATTR_DISPLAY_NAME"
+"""
+LDAP attribute containing user's display name. Defaults to "displayName".
+"""
+ENV_PHOENIX_LDAP_ATTR_MEMBER_OF = "PHOENIX_LDAP_ATTR_MEMBER_OF"
+"""
+LDAP attribute containing group memberships (Active Directory). Defaults to "memberOf".
+Leave empty for POSIX groups (requires GROUP_SEARCH_BASE and GROUP_SEARCH_FILTER).
+"""
+ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE = "PHOENIX_LDAP_GROUP_SEARCH_BASE"
+"""
+Base DN for group searches (for POSIX/OpenLDAP). Required if ATTR_MEMBER_OF is empty.
+Example: "ou=groups,dc=example,dc=com"
+"""
+ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER = "PHOENIX_LDAP_GROUP_SEARCH_FILTER"
+"""
+LDAP filter for finding groups. Use %s as placeholder for user DN.
+Required if ATTR_MEMBER_OF is empty.
+Example: "(&(objectClass=posixGroup)(memberUid=%s))"
+"""
+ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS = "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS"
+"""
+JSON array mapping LDAP groups to Phoenix roles.
+Example: '[{"group_dn": "CN=Phoenix Admins,OU=Groups,DC=corp,DC=com", "role": "ADMIN"}]'
+Supported role values: "ADMIN", "MEMBER", "VIEWER" (case-insensitive).
+Special group_dn value "*" matches all users (wildcard).
+"""
+ENV_PHOENIX_LDAP_ALLOW_SIGN_UP = "PHOENIX_LDAP_ALLOW_SIGN_UP"
+"""
+Allow automatic user creation on first LDAP login. Defaults to "true".
+Set to "false" to require pre-provisioned users.
+"""
+
 ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
 """
 A semicolon-separated list of username and email address pairs to create as admin users on startup.
@@ -839,6 +948,7 @@ class AuthSettings(NamedTuple):
     phoenix_secret: Secret
     phoenix_admin_secret: Secret
     oauth2_clients: OAuth2Clients
+    ldap_config: Optional[LDAPConfig]
 
 
 def get_env_auth_settings() -> AuthSettings:
@@ -857,9 +967,13 @@ def get_env_auth_settings() -> AuthSettings:
     from phoenix.server.oauth2 import OAuth2Clients
 
     oauth2_clients = OAuth2Clients.from_configs(get_env_oauth2_settings())
-    if enable_auth and disable_basic_auth and not oauth2_clients:
+    ldap_config = LDAPConfig.from_env()
+
+    if enable_auth and disable_basic_auth and not oauth2_clients and not ldap_config:
         raise ValueError(
-            "OAuth2 is the only supported auth method but no OAuth2 client configs are provided."
+            f"{ENV_PHOENIX_DISABLE_BASIC_AUTH} is set, but no alternative authentication methods "
+            "are configured. Please configure at least one of: OAuth2 "
+            f"(PHOENIX_OAUTH2_*) or LDAP ({ENV_PHOENIX_LDAP_HOST})."
         )
     return AuthSettings(
         enable_auth=enable_auth,
@@ -867,6 +981,7 @@ def get_env_auth_settings() -> AuthSettings:
         phoenix_secret=phoenix_secret,
         phoenix_admin_secret=phoenix_admin_secret,
         oauth2_clients=oauth2_clients,
+        ldap_config=ldap_config,
     )
 
 
@@ -1234,6 +1349,346 @@ class OAuth2ClientConfig:
             role_attribute_path=role_attribute_path,
             role_mapping=role_mapping,
             role_attribute_strict=role_attribute_strict,
+        )
+
+
+class LDAPGroupRoleMapping(TypedDict):
+    """LDAP group to Phoenix role mapping.
+
+    Attributes:
+        group_dn: LDAP group distinguished name or "*" for wildcard
+        role: Phoenix role name (ADMIN, MEMBER, VIEWER)
+    """
+
+    group_dn: str
+    role: str
+
+
+@dataclass(frozen=True)
+class LDAPConfig:
+    """LDAP server configuration for authentication.
+
+    Phoenix uses LDAP (RFC 4510-4519) for user authentication against corporate directories
+    like Active Directory, OpenLDAP, and 389 Directory Server.
+
+    Key Design: DN as Primary Identifier
+    -------------------------------------
+    Phoenix uses Distinguished Name (DN) as the authoritative unique identifier for LDAP users,
+    with email as a required secondary attribute.
+
+    DN Canonicalization (RFC 4514):
+    - DNs are canonicalized (case normalization, whitespace, RDN ordering) before storage
+    - Prevents duplicate accounts from case/whitespace variations
+    - Immune to DN format changes across directory replicas
+    - Database lookup uses canonicalized DN for O(1) account matching
+
+    Why DN (not email or username)?
+    - DN is the true unique identifier in LDAP (RFC 4514)
+    - Survives email changes without breaking account continuity
+    - Handles duplicate usernames across OUs (e.g., contractors)
+    - Aligns with LDAP's hierarchical identity model
+
+    Email as Required Attribute:
+    - Email MUST be present in LDAP for authentication to succeed
+    - Used for Phoenix's user email field (UI, notifications, audit logs)
+    - Provides human-readable identifier for operators
+    - Supports email-based account lookups for compatibility
+
+    See: internal_docs/specs/ldap-authentication.md for full design rationale.
+
+    Configuration Pattern
+    ---------------------
+    This class follows the same pattern as OAuth2ClientConfig:
+    - Load from environment variables via from_env()
+    - Validate required fields and format
+    - Provide sensible defaults for optional fields
+    - Document all fields with inline comments
+
+    Attributes
+    ----------
+    Server Connection (RFC 4511):
+        host: LDAP server hostname/IP (required)
+        port: LDAP server port (default: 389 for STARTTLS, 636 for LDAPS)
+        use_tls: Enable TLS encryption (RFC 4513 §3, default: True)
+        tls_mode: "starttls" or "ldaps" (default: "starttls")
+        tls_verify: Verify server certificate (default: True, disable only for testing)
+
+    Advanced TLS Configuration (optional, for enterprise deployments):
+        tls_ca_cert_file: Path to custom CA certificate (PEM) for private CAs
+        tls_client_cert_file: Path to client certificate (PEM) for mutual TLS
+        tls_client_key_file: Path to client private key (PEM) for mutual TLS
+
+    Bind Credentials (RFC 4513 §5.1.2 - Simple Authentication):
+        bind_dn: Service account DN for LDAP queries (optional for anonymous bind)
+        bind_password: Service account password (optional for anonymous bind)
+
+    User Search (RFC 4511 §4.5.1):
+        user_search_base: Base DN for user searches (e.g., "ou=users,dc=example,dc=com")
+        user_search_filter: Filter template with %s placeholder (RFC 4515)
+            Default: "(&(objectClass=user)(sAMAccountName=%s))" (Active Directory)
+            Examples:
+                OpenLDAP: "(&(objectClass=inetOrgPerson)(uid=%s))"
+                389 DS:   "(&(objectClass=person)(uid=%s))"
+
+    Attribute Mapping (RFC 2256, RFC 4524):
+        attr_email: Email attribute name (REQUIRED, default: "mail")
+            - MUST be present in LDAP or login fails
+            - Alternative: "userPrincipalName" (AD without Exchange)
+        attr_display_name: Display name attribute (default: "displayName")
+            - Fallback: Uses email prefix if missing
+        attr_member_of: Group membership attribute (default: "memberOf")
+            - AD/OpenLDAP: Typically "memberOf"
+            - POSIX: Use group_search instead
+
+    Group Search (for POSIX/OpenLDAP without memberOf):
+        group_search_base: Base DN for group searches (optional)
+        group_search_filter: Filter template with %s placeholder (optional)
+            Example: "(&(objectClass=posixGroup)(memberUid=%s))"
+
+    Group to Role Mappings:
+        group_role_mappings: Tuple of dicts mapping LDAP groups to Phoenix roles
+            Format: [{"group_dn": "...", "role": "ADMIN|MEMBER|VIEWER"}]
+            Supports wildcard: {"group_dn": "*", "role": "VIEWER"}
+            Note: Phoenix uses "role" (not "org_role") since it has no organization concept
+
+    Sign-Up Control:
+        allow_sign_up: Auto-create users on first login (default: True, matches Grafana)
+            True:  New users auto-created on first successful LDAP login
+            False: Admins must pre-create users via GraphQL createUser(auth_method: LDAP)
+
+    Examples
+    --------
+    Active Directory:
+        PHOENIX_LDAP_HOST=ldap.corp.example.com
+        PHOENIX_LDAP_PORT=389
+        PHOENIX_LDAP_USE_TLS=true
+        PHOENIX_LDAP_TLS_MODE=starttls
+        PHOENIX_LDAP_BIND_DN=cn=service,ou=accounts,dc=corp,dc=example,dc=com
+        PHOENIX_LDAP_BIND_PASSWORD=secret
+        PHOENIX_LDAP_USER_SEARCH_BASE=ou=users,dc=corp,dc=example,dc=com
+        PHOENIX_LDAP_USER_SEARCH_FILTER=(&(objectClass=user)(sAMAccountName=%s))
+        PHOENIX_LDAP_ATTR_EMAIL=mail
+        PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
+        PHOENIX_LDAP_ATTR_MEMBER_OF=memberOf
+        PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=groups,dc=corp,dc=example,dc=com","role":"ADMIN"}]
+
+    OpenLDAP with POSIX groups:
+        PHOENIX_LDAP_HOST=ldap.example.com
+        PHOENIX_LDAP_USER_SEARCH_FILTER=(&(objectClass=inetOrgPerson)(uid=%s))
+        PHOENIX_LDAP_ATTR_EMAIL=mail
+        PHOENIX_LDAP_GROUP_SEARCH_BASE=ou=groups,dc=example,dc=com
+        PHOENIX_LDAP_GROUP_SEARCH_FILTER=(&(objectClass=posixGroup)(memberUid=%s))
+
+    References
+    ----------
+    - RFC 4510: LDAP Technical Specification Road Map
+    - RFC 4511: LDAP Protocol
+    - RFC 4513: LDAP Authentication & Security
+    - RFC 4515: LDAP Filter String Format
+    - RFC 4524: LDAP mail attribute definition
+    - RFC 2798: inetOrgPerson object class (includes mail)
+    - Grafana LDAP: https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/ldap/
+    """
+
+    # Server connection (RFC 4511)
+    host: str
+    port: int = 389
+    use_tls: bool = True
+    tls_mode: Literal["starttls", "ldaps"] = "starttls"
+    tls_verify: bool = True
+
+    # Advanced TLS configuration (optional, for enterprise deployments)
+    tls_ca_cert_file: Optional[str] = None
+    tls_client_cert_file: Optional[str] = None
+    tls_client_key_file: Optional[str] = None
+
+    # Bind credentials (service account, RFC 4513 §5.1.2)
+    bind_dn: Optional[str] = None
+    bind_password: Optional[str] = None
+
+    # User search (RFC 4511 §4.5.1)
+    user_search_base: str = ""
+    user_search_filter: str = "(&(objectClass=user)(sAMAccountName=%s))"
+
+    # Attribute mapping (RFC 2256, RFC 4524)
+    attr_email: str = "mail"  # REQUIRED: Must be present in LDAP or login fails
+    attr_display_name: str = "displayName"
+    attr_member_of: str = "memberOf"
+
+    # Group search (for POSIX/OpenLDAP without memberOf)
+    group_search_base: Optional[str] = None
+    group_search_filter: Optional[str] = None
+
+    # Group to role mappings (Grafana-compatible format)
+    group_role_mappings: tuple[LDAPGroupRoleMapping, ...] = ()
+
+    # Sign-up control
+    allow_sign_up: bool = True
+
+    @classmethod
+    def from_env(cls) -> Optional["LDAPConfig"]:
+        """Load LDAP config from environment variables.
+
+        Returns:
+            Optional[LDAPConfig]: LDAP configuration if PHOENIX_LDAP_HOST is set, None otherwise
+
+        Raises:
+            ValueError: If configuration is invalid
+            json.JSONDecodeError: If GROUP_ROLE_MAPPINGS is not valid JSON
+        """
+        import json
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        host = getenv(ENV_PHOENIX_LDAP_HOST)
+        if not host:
+            return None
+
+        # Parse and validate group role mappings (Grafana-compatible format)
+        mappings_json = getenv(ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, "[]")
+        try:
+            group_role_mappings_list = json.loads(mappings_json)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS} is not valid JSON: {e}. "
+                f"Expected format: [{{'group_dn': '...', 'role': 'ADMIN'}}]"
+            )
+
+        # Validate role mappings structure
+        if not isinstance(group_role_mappings_list, list):
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS} must be a JSON array. "
+                f"Expected format: [{{'group_dn': '...', 'role': 'ADMIN'}}]"
+            )
+
+        VALID_ROLES = {"ADMIN", "MEMBER", "VIEWER"}
+        for idx, mapping in enumerate(group_role_mappings_list):
+            if not isinstance(mapping, dict):
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}] must be an object. "
+                    f"Got: {type(mapping).__name__}"
+                )
+            if "group_dn" not in mapping:
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}] "
+                    "missing required field 'group_dn'"
+                )
+            if "role" not in mapping:
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}] missing required field 'role'"
+                )
+            # Normalize to uppercase for case-insensitive comparison
+            role_upper = mapping["role"].upper() if isinstance(mapping["role"], str) else ""
+            if role_upper not in VALID_ROLES:
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}]: "
+                    f"role must be one of {VALID_ROLES} (case-insensitive). "
+                    f"Got: '{mapping['role']}'"
+                )
+
+        # Validate TLS mode
+        tls_mode_str = getenv(ENV_PHOENIX_LDAP_TLS_MODE, "starttls").lower()
+        if tls_mode_str not in ("starttls", "ldaps"):
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_TLS_MODE} must be 'starttls' or 'ldaps'. Got: '{tls_mode_str}'"
+            )
+        tls_mode = cast(Literal["starttls", "ldaps"], tls_mode_str)
+
+        # Validate group search configuration
+        attr_member_of = getenv(ENV_PHOENIX_LDAP_ATTR_MEMBER_OF, "memberOf")
+        group_search_base = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE)
+        group_search_filter = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER)
+
+        if not attr_member_of and not (group_search_base and group_search_filter):
+            raise ValueError(
+                f"Either {ENV_PHOENIX_LDAP_ATTR_MEMBER_OF} must be set (for Active Directory) "
+                f"OR both {ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE} and "
+                f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER} must be set (for POSIX groups)"
+            )
+
+        # Security warnings (log, don't fail)
+        use_tls = getenv(ENV_PHOENIX_LDAP_USE_TLS, "true").lower() == "true"
+        tls_verify = getenv(ENV_PHOENIX_LDAP_TLS_VERIFY, "true").lower() == "true"
+        if not use_tls:
+            logger.warning(
+                f"{ENV_PHOENIX_LDAP_USE_TLS} is false - credentials will be sent in plaintext! "
+                "This is insecure for production."
+            )
+        if use_tls and not tls_verify:
+            logger.warning(
+                f"{ENV_PHOENIX_LDAP_TLS_VERIFY} is false - certificates will not be validated! "
+                "This is insecure for production (vulnerable to MITM attacks)."
+            )
+
+        # Validate user_search_base is set
+        user_search_base = getenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE, "")
+        if not user_search_base:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE} must be set. "
+                "Example: 'OU=Users,DC=corp,DC=com'"
+            )
+
+        # Parse allow_sign_up
+        allow_sign_up_str = getenv(ENV_PHOENIX_LDAP_ALLOW_SIGN_UP, "true")
+        allow_sign_up = allow_sign_up_str.lower() in ("true", "1", "yes")
+
+        # Determine default port based on TLS mode (if not explicitly set)
+        # STARTTLS: port 389 (plaintext, then upgrade)
+        # LDAPS: port 636 (TLS from start)
+        default_port = "636" if tls_mode == "ldaps" else "389"
+        port = int(getenv(ENV_PHOENIX_LDAP_PORT, default_port))
+
+        # Parse advanced TLS configuration (optional)
+        tls_ca_cert_file = getenv(ENV_PHOENIX_LDAP_TLS_CA_CERT_FILE)
+        tls_client_cert_file = getenv(ENV_PHOENIX_LDAP_TLS_CLIENT_CERT_FILE)
+        tls_client_key_file = getenv(ENV_PHOENIX_LDAP_TLS_CLIENT_KEY_FILE)
+
+        # Validate mutual TLS configuration (both cert and key required)
+        if tls_client_cert_file and not tls_client_key_file:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_TLS_CLIENT_CERT_FILE} requires "
+                f"{ENV_PHOENIX_LDAP_TLS_CLIENT_KEY_FILE} to also be set"
+            )
+        if tls_client_key_file and not tls_client_cert_file:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_TLS_CLIENT_KEY_FILE} requires "
+                f"{ENV_PHOENIX_LDAP_TLS_CLIENT_CERT_FILE} to also be set"
+            )
+
+        # Validate file paths exist
+        import os
+
+        for env_var, file_path in [
+            (ENV_PHOENIX_LDAP_TLS_CA_CERT_FILE, tls_ca_cert_file),
+            (ENV_PHOENIX_LDAP_TLS_CLIENT_CERT_FILE, tls_client_cert_file),
+            (ENV_PHOENIX_LDAP_TLS_CLIENT_KEY_FILE, tls_client_key_file),
+        ]:
+            if file_path and not os.path.isfile(file_path):
+                raise ValueError(f"{env_var}='{file_path}' does not exist or is not a file")
+
+        return cls(
+            host=host,
+            port=port,
+            use_tls=use_tls,
+            tls_mode=tls_mode,
+            tls_verify=tls_verify,
+            tls_ca_cert_file=tls_ca_cert_file,
+            tls_client_cert_file=tls_client_cert_file,
+            tls_client_key_file=tls_client_key_file,
+            bind_dn=getenv(ENV_PHOENIX_LDAP_BIND_DN),
+            bind_password=getenv(ENV_PHOENIX_LDAP_BIND_PASSWORD),
+            user_search_base=user_search_base,
+            user_search_filter=getenv(
+                ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(&(objectClass=user)(sAMAccountName=%s))"
+            ),
+            attr_email=getenv(ENV_PHOENIX_LDAP_ATTR_EMAIL, "mail"),
+            attr_display_name=getenv(ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, "displayName"),
+            attr_member_of=attr_member_of,
+            group_search_base=group_search_base,
+            group_search_filter=group_search_filter,
+            group_role_mappings=tuple(group_role_mappings_list),
+            allow_sign_up=allow_sign_up,
         )
 
 

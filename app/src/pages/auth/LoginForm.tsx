@@ -131,7 +131,7 @@ export function LoginForm(props: LoginFormProps) {
                       handleSubmit(onSubmit)();
                     }
                   }}
-                  autoComplete="password"
+                  autoComplete="current-password"
                 >
                   <Label>Password</Label>
                   <Input placeholder="your password" />

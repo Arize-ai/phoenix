@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f5ba56af0a7dc9aed2aec5873981c6d>>
+ * @generated SignedSource<<c9f4bdecd31b477bd999d5ee54d60a81>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AuthMethod = "LOCAL" | "OAUTH2";
+export type AuthMethod = "LDAP" | "LOCAL" | "OAUTH2";
 import { FragmentRefs } from "relay-runtime";
 export type ViewerContext_viewer$data = {
   readonly viewer: {

@@ -1117,7 +1117,7 @@ export interface components {
         /** CreateUserRequestBody */
         CreateUserRequestBody: {
             /** User */
-            user: components["schemas"]["LocalUserData"] | components["schemas"]["OAuth2UserData"];
+            user: components["schemas"]["LocalUserData"] | components["schemas"]["OAuth2UserData"] | components["schemas"]["LDAPUserData"];
             /**
              * Send Welcome Email
              * @default true
@@ -1127,7 +1127,7 @@ export interface components {
         /** CreateUserResponseBody */
         CreateUserResponseBody: {
             /** Data */
-            data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"];
+            data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"];
         };
         /** Dataset */
         Dataset: {
@@ -1456,7 +1456,7 @@ export interface components {
         /** GetUsersResponseBody */
         GetUsersResponseBody: {
             /** Data */
-            data: (components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"])[];
+            data: (components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"])[];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -1526,6 +1526,52 @@ export interface components {
              * @description The ID of the inserted trace annotation
              */
             id: string;
+        };
+        /** LDAPUser */
+        LDAPUser: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER" | "VIEWER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "LDAP";
+        };
+        /** LDAPUserData */
+        LDAPUserData: {
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER" | "VIEWER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "LDAP";
         };
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {

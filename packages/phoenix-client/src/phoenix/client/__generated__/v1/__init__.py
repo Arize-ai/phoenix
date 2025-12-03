@@ -168,6 +168,23 @@ class InsertedTraceAnnotation(TypedDict):
     id: str
 
 
+class LDAPUser(TypedDict):
+    id: str
+    created_at: str
+    updated_at: str
+    email: str
+    username: str
+    role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
+    auth_method: Literal["LDAP"]
+
+
+class LDAPUserData(TypedDict):
+    email: str
+    username: str
+    role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
+    auth_method: Literal["LDAP"]
+
+
 class ListDatasetExamplesData(TypedDict):
     dataset_id: str
     version_id: str
@@ -619,12 +636,12 @@ class CreateProjectResponseBody(TypedDict):
 
 
 class CreateUserRequestBody(TypedDict):
-    user: Union[LocalUserData, OAuth2UserData]
+    user: Union[LocalUserData, OAuth2UserData, LDAPUserData]
     send_welcome_email: NotRequired[bool]
 
 
 class CreateUserResponseBody(TypedDict):
-    data: Union[LocalUser, OAuth2User]
+    data: Union[LocalUser, OAuth2User, LDAPUser]
 
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
@@ -672,7 +689,7 @@ class GetPromptsResponseBody(TypedDict):
 
 
 class GetUsersResponseBody(TypedDict):
-    data: Sequence[Union[LocalUser, OAuth2User]]
+    data: Sequence[Union[LocalUser, OAuth2User, LDAPUser]]
     next_cursor: Optional[str]
 
 

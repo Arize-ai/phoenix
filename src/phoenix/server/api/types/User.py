@@ -95,13 +95,35 @@ class User(Node):
         self,
         info: Info[Context, None],
     ) -> AuthMethod:
+        """Return semantic auth method (translated from database for LDAP users).
+
+        For Approach 1 (zero-migration), LDAP users are stored with auth_method='OAUTH2'
+        but have a special Unicode marker in oauth2_client_id. This resolver translates
+        that storage convention to the correct semantic AuthMethod.LDAP for the frontend.
+        """
         if self.db_record:
-            val = self.db_record.auth_method
+            auth_method_val = self.db_record.auth_method
+            oauth2_client_id = self.db_record.oauth2_client_id
         else:
-            val = await info.context.data_loaders.user_fields.load(
-                (self.id, models.User.auth_method),
+            (
+                auth_method_val,
+                oauth2_client_id,
+            ) = await info.context.data_loaders.user_fields.load_many(
+                (
+                    (self.id, models.User.auth_method),
+                    (self.id, models.User.oauth2_client_id),
+                )
             )
-        return AuthMethod(val)
+
+        # Translate LDAP users from database storage to semantic type
+        if auth_method_val == "OAUTH2":
+            # Import here to avoid circular dependency
+            from phoenix.server.ldap import is_ldap_user
+
+            if is_ldap_user(oauth2_client_id):
+                return AuthMethod.LDAP
+
+        return AuthMethod(auth_method_val)
 
     @strawberry.field
     async def role(self, info: Info[Context, None]) -> UserRole:

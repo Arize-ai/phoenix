@@ -3,16 +3,10 @@ name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
 requires-python = ">=3.10, <3.14"
-license = {text="Elastic-2.0"}
+license = { text = "Elastic-2.0" }
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
-keywords = [
-  "Observability",
-  "Monitoring",
-  "Explainability",
-]
-authors = [
-  { name = "Arize AI", email = "phoenix-devs@arize.com" },
-]
+keywords = ["Observability", "Monitoring", "Explainability"]
+authors = [{ name = "Arize AI", email = "phoenix-devs@arize.com" }]
 classifiers = [
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.10",
@@ -22,7 +16,7 @@ classifiers = [
 ]
 dependencies = [
   "scikit-learn",
-  "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
+  "numpy!=2.0.0",                                          # https://github.com/lmcinnes/umap/issues/1138
   "pandas>=1.0",
   "jinja2",
   "starlette",
@@ -39,7 +33,7 @@ dependencies = [
   "tqdm",
   "httpx",
   "opentelemetry-sdk",
-  "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
+  "opentelemetry-proto>=1.12.0",                           # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
   "openinference-semantic-conventions>=0.1.20",
@@ -49,13 +43,13 @@ dependencies = [
   "aiosqlite",
   "aioitertools",
   "sqlean.py>=3.45.1; platform_system != 'Windows'",
-  "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # https://github.com/nalgeon/sqlean.py/commit/2714a4789998811b7dd9f102f5b45ea071ed879e
+  "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'", # https://github.com/nalgeon/sqlean.py/commit/2714a4789998811b7dd9f102f5b45ea071ed879e
   "cachetools",
-  "python-multipart",  # see https://www.starlette.io/#dependencies
+  "python-multipart",                                      # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=2.6.1",
   "arize-phoenix-otel>=0.14.0",
   "fastapi",
-  "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
+  "pydantic>=2.1.0",                                       # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
   "arize-phoenix-client>=1.26.0",
   "email-validator",
@@ -63,6 +57,7 @@ dependencies = [
   "prometheus_client",
   "orjson",
   "jmespath",
+  "ldap3>=2.9.1",
 ]
 dynamic = ["version"]
 
@@ -82,7 +77,7 @@ dev = [
   "ruff==0.6.9",
   "mypy==1.12.1",
   "pandas>=1.0",
-  "tabulate",  # used by DataFrame.to_markdown()
+  "tabulate",                                                # used by DataFrame.to_markdown()
   "types-tabulate",
   "pandas-stubs==2.2.2.240603",
   "pytest==8.3.3",
@@ -97,7 +92,7 @@ dev = [
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
   "langchain>=0.0.334",
-  "litellm>=1.0.3,<1.57.5", # windows compatibility broken on 1.57.5 (https://github.com/BerriAI/litellm/issues/7677)
+  "litellm>=1.0.3,<1.57.5",                                  # windows compatibility broken on 1.57.5 (https://github.com/BerriAI/litellm/issues/7677)
   "google-cloud-aiplatform>=1.3",
   "anthropic>=0.49.0",
   "asgi-lifespan",
@@ -110,18 +105,13 @@ dev = [
 ]
 embeddings = [
   "fast-hdbscan>=0.2.0",
-  "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
+  "numba>=0.60.0",       # https://github.com/astral-sh/uv/issues/6281
   "umap-learn",
 ]
 evals = []
 experimental = []
-pg = [
-  "asyncpg",
-  "psycopg[binary,pool]",
-]
-aws = [
-  "boto3",
-]
+pg = ["asyncpg", "psycopg[binary,pool]"]
+aws = ["boto3"]
 container = [
   "anthropic>=0.49.0",
   "google-genai>=1.50.0 ; python_version >= '3.10'",
@@ -129,26 +119,25 @@ container = [
   "prometheus-client",
   "openai>=1.0.0",
   "azure-identity",
-  "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
+  "aiohttp",                                         # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
   # released on the same date (e.g., 1.33.1/0.54b1) to ensure compatibility.
   "opentelemetry-sdk==1.33.1",
   "opentelemetry-proto==1.33.1",
   "opentelemetry-exporter-otlp==1.33.1",
   "opentelemetry-semantic-conventions==0.54b1",
-  "opentelemetry-instrumentation-fastapi==0.54b1",  # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3637
+  "opentelemetry-instrumentation-fastapi==0.54b1",    # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3637
   "opentelemetry-instrumentation-sqlalchemy==0.54b1",
   "opentelemetry-instrumentation-grpc==0.54b1",
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.270.1",
   "uvloop; platform_system != 'Windows'",
   "fast-hdbscan>=0.2.0",
-  "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
+  "numba>=0.60.0",                                    # https://github.com/astral-sh/uv/issues/6281
   "umap-learn",
   "boto3",
 ]
-test = [
-]
+test = []
 
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"
@@ -164,11 +153,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
-exclude = [
-  "src/phoenix/client/",
-  "src/phoenix/evals/",
-  "src/phoenix/otel/",
-]
+exclude = ["src/phoenix/client/", "src/phoenix/evals/", "src/phoenix/otel/"]
 artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
@@ -197,7 +182,7 @@ artifacts = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope="function"
+asyncio_default_fixture_loop_scope = "function"
 addopts = [
   "-rA",
   "--import-mode=importlib",
@@ -205,42 +190,28 @@ addopts = [
   "--new-first",
   "--showlocals",
 ]
-testpaths = [
-  "tests",
-]
+testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
 parallel = true
-omit = [
-  "**/__init__.py",
-]
+omit = ["**/__init__.py"]
 
 [tool.coverage.report]
-fail_under=30
-show_missing=true
-sort="cover"
-exclude_lines = [
-  "no cov",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
-]
+fail_under = 30
+show_missing = true
+sort = "cover"
+exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
 
 [tool.hatch.envs.publish]
-dependencies = [
-  "check-wheel-contents",
-  "twine",
-]
+dependencies = ["check-wheel-contents", "twine"]
 
 [tool.hatch.envs.publish.scripts]
 testpypi = [
   "check-wheel-contents dist/",
   "twine upload  --verbose --repository testpypi dist/*",
 ]
-pypi = [
-  "check-wheel-contents dist/",
-  "twine upload --verbose dist/*",
-]
+pypi = ["check-wheel-contents dist/", "twine upload --verbose dist/*"]
 
 [tool.mypy]
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
@@ -277,7 +248,7 @@ module = [
   "sqlean",
   "grpc.*",
   "py_grpc_prometheus.*",
-  "orjson",  # suppress fastapi internal type errors
+  "orjson",               # suppress fastapi internal type errors
   "pypistats",
   "authlib.*",
   "google.*",

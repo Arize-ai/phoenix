@@ -6,6 +6,7 @@ import { Alert, Flex, View } from "@phoenix/components";
 
 import { getAuthErrorMessage, getAuthSuccessMessage } from "./authErrors";
 import { AuthLayout } from "./AuthLayout";
+import { LDAPLoginForm } from "./LDAPLoginForm";
 import { LoginForm } from "./LoginForm";
 import { OAuth2Login } from "./OAuth2Login";
 import { PhoenixLogo } from "./PhoenixLogo";
@@ -27,6 +28,7 @@ const oAuthLoginButtonListCSS = css`
 
 export function LoginPage() {
   const showLoginForm = !window.Config.basicAuthDisabled;
+  const showLDAPForm = window.Config.ldapEnabled;
   const oAuth2Idps = window.Config.oAuth2Idps;
   const hasOAuth2Idps = oAuth2Idps.length > 0;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -66,9 +68,14 @@ export function LoginPage() {
           <Alert variant="success">{successMessage}</Alert>
         </View>
       )}
+      {errorMessage && (
+        <View paddingBottom="size-100">
+          <Alert variant="danger">{errorMessage}</Alert>
+        </View>
+      )}
       {showLoginForm && (
         <LoginForm
-          initialError={errorMessage}
+          initialError={null}
           onSubmit={() => {
             setSearchParams((prevSearchParams) => {
               // Clear message and error
@@ -80,7 +87,26 @@ export function LoginPage() {
           }}
         />
       )}
-      {showLoginForm && hasOAuth2Idps ? <div css={separatorCSS}>or</div> : null}
+      {showLDAPForm && (
+        <>
+          {showLoginForm ? <div css={separatorCSS}>or</div> : null}
+          <LDAPLoginForm
+            initialError={null}
+            onSubmit={() => {
+              setSearchParams((prevSearchParams) => {
+                // Clear message and error
+                const newSearchParams = new URLSearchParams(prevSearchParams);
+                newSearchParams.delete("message");
+                newSearchParams.delete("error");
+                return newSearchParams;
+              });
+            }}
+          />
+        </>
+      )}
+      {(showLoginForm || showLDAPForm) && hasOAuth2Idps ? (
+        <div css={separatorCSS}>or</div>
+      ) : null}
       {hasOAuth2Idps && (
         <>
           <ul css={oAuthLoginButtonListCSS}>

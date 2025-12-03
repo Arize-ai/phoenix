@@ -17,6 +17,7 @@ from phoenix.auth import (
 )
 from phoenix.client.__generated__ import v1
 from phoenix.server.api.routers.v1.users import DEFAULT_PAGINATION_PAGE_LIMIT
+from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
 
 from .._helpers import _AppInfo, _httpx_client, _log_in
 
@@ -33,14 +34,14 @@ class _UsersApi:
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
 
-    def list(self) -> list[Union[v1.LocalUser, v1.OAuth2User]]:
+    def list(self) -> list[Union[v1.LocalUser, v1.OAuth2User, v1.LDAPUser]]:
         """List all users in the system.
 
         Returns:
-            A list of all users, including both LOCAL and OAuth2 users.
+            A list of all users, including LOCAL, OAuth2, and LDAP users.
             The list is automatically paginated to include all users.
         """
-        all_users: list[Union[v1.LocalUser, v1.OAuth2User]] = []
+        all_users: list[Union[v1.LocalUser, v1.OAuth2User, v1.LDAPUser]] = []
         next_cursor: Optional[str] = None
         while True:
             url = "v1/users"
@@ -56,13 +57,13 @@ class _UsersApi:
     def create(
         self,
         *,
-        user: Union[v1.LocalUserData, v1.OAuth2UserData],
+        user: Union[v1.LocalUserData, v1.OAuth2UserData, v1.LDAPUserData],
         send_welcome_email: bool = True,
-    ) -> Union[v1.LocalUser, v1.OAuth2User]:
+    ) -> Union[v1.LocalUser, v1.OAuth2User, v1.LDAPUser]:
         """Create a new user.
 
         Args:
-            user: The user data to create. Can be either a LOCAL or OAuth2 user.
+            user: The user data to create. Can be LOCAL, OAuth2, or LDAP user.
             send_welcome_email: Whether to send a welcome email to the new user.
 
         Returns:
@@ -122,7 +123,7 @@ class TestClientForUsersAPI:
         users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         # Create users with different auth methods and roles
-        users_to_create: list[Union[v1.LocalUserData, v1.OAuth2UserData]] = [
+        users_to_create: list[Union[v1.LocalUserData, v1.OAuth2UserData, v1.LDAPUserData]] = [
             # Local users with all fields
             v1.LocalUserData(
                 email=f"test_local_member_{token_hex(8)}@example.com",
@@ -210,10 +211,23 @@ class TestClientForUsersAPI:
                 role="ADMIN",
                 auth_method="OAUTH2",
             ),
+            # LDAP users
+            v1.LDAPUserData(
+                email=f"test_ldap_member_{token_hex(8)}@example.com",
+                username=f"test_user_ldap_member_{token_hex(8)}",
+                role="MEMBER",
+                auth_method="LDAP",
+            ),
+            v1.LDAPUserData(
+                email=f"test_ldap_admin_{token_hex(8)}@example.com",
+                username=f"test_user_ldap_admin_{token_hex(8)}",
+                role="ADMIN",
+                auth_method="LDAP",
+            ),
         ]
 
         # Create all users
-        created_users: list[Union[v1.LocalUser, v1.OAuth2User]] = []
+        created_users: list[Union[v1.LocalUser, v1.OAuth2User, v1.LDAPUser]] = []
         for user_data in users_to_create:
             user = users_api.create(user=user_data)
             created_users.append(user)
@@ -241,7 +255,7 @@ class TestClientForUsersAPI:
                 f"User {i} auth method should match input after creation"
             )
 
-            # Verify OAuth2 specific fields if applicable
+            # Verify auth method specific fields
             if created_user["auth_method"] == "OAUTH2":
                 assert created_user.get("oauth2_client_id") == user_data.get("oauth2_client_id"), (
                     f"User {i} OAuth2 client ID should match input after creation"
@@ -256,6 +270,17 @@ class TestClientForUsersAPI:
                 )
                 assert "password" not in created_user, (
                     f"User {i} should not have password in response"
+                )
+            elif created_user["auth_method"] == "LDAP":
+                # LDAP users should not have OAuth2 fields or password
+                assert "oauth2_client_id" not in created_user, (
+                    f"User {i} LDAP user should not expose oauth2_client_id"
+                )
+                assert "oauth2_user_id" not in created_user, (
+                    f"User {i} LDAP user should not expose oauth2_user_id"
+                )
+                assert "password" not in created_user, (
+                    f"User {i} LDAP user should not have password in response"
                 )
             else:
                 assert_never(created_user["auth_method"])
@@ -356,17 +381,17 @@ class TestClientForUsersAPI:
             f"Should receive 403 Forbidden when attempting to delete user with default admin credentials (ID: {admin_user['id']})"
         )
 
-    @pytest.mark.parametrize("auth_method", ["LOCAL", "OAUTH2"])
+    @pytest.mark.parametrize("auth_method", ["LOCAL", "OAUTH2", "LDAP"])
     async def test_cannot_create_system_users(
         self,
-        auth_method: Literal["LOCAL", "OAUTH2"],
+        auth_method: Literal["LOCAL", "OAUTH2", "LDAP"],
         _app: _AppInfo,
     ) -> None:
         """Test that users with SYSTEM role cannot be created.
 
         This test verifies that:
-        1. Cannot create users with SYSTEM role for both LOCAL and OAuth2 auth methods
-        2. Both attempts return 400 Bad Request
+        1. Cannot create users with SYSTEM role for LOCAL, OAuth2, and LDAP auth methods
+        2. All attempts return 400 Bad Request
         """
         # Set up test environment with logged-in admin user
         users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
@@ -374,7 +399,7 @@ class TestClientForUsersAPI:
         # Create test data based on auth method
         email = f"{token_hex(8)}@example.com"
         username = f"username_{token_hex(8)}"
-        user_data: Union[v1.LocalUserData, v1.OAuth2UserData]
+        user_data: Union[v1.LocalUserData, v1.OAuth2UserData, v1.LDAPUserData]
         if auth_method == "LOCAL":
             user_data = v1.LocalUserData(
                 email=email,
@@ -384,6 +409,13 @@ class TestClientForUsersAPI:
             )
         elif auth_method == "OAUTH2":
             user_data = v1.OAuth2UserData(
+                email=email,
+                username=username,
+                role="SYSTEM",
+                auth_method=auth_method,
+            )
+        elif auth_method == "LDAP":
+            user_data = v1.LDAPUserData(
                 email=email,
                 username=username,
                 role="SYSTEM",
@@ -399,6 +431,44 @@ class TestClientForUsersAPI:
             )
         assert "400" in str(exc_info.value), (
             f"Should receive 400 Bad Request when attempting to create {auth_method} SYSTEM user"
+        )
+
+    async def test_cannot_create_oauth2_with_ldap_marker(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that OAuth2 users cannot be created with the LDAP marker or variations.
+
+        This prevents attackers from creating fake LDAP users via OAuth2 endpoint.
+        """
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
+
+        # Test exact marker
+        user_data = v1.OAuth2UserData(
+            email=f"{token_hex(8)}@example.com",
+            username=f"username_{token_hex(8)}",
+            role="ADMIN",
+            auth_method="OAUTH2",
+            oauth2_client_id=LDAP_CLIENT_ID_MARKER,  # Reserved for LDAP
+        )
+        with pytest.raises(Exception) as exc_info:
+            users_api.create(user=user_data)
+        assert "400" in str(exc_info.value), (
+            "Should receive 400 Bad Request when OAuth2 user tries to use exact LDAP marker"
+        )
+
+        # Test marker with suffix (should also be blocked)
+        user_data = v1.OAuth2UserData(
+            email=f"{token_hex(8)}@example.com",
+            username=f"username_{token_hex(8)}",
+            role="ADMIN",
+            auth_method="OAUTH2",
+            oauth2_client_id=f"{LDAP_CLIENT_ID_MARKER}_custom",
+        )
+        with pytest.raises(Exception) as exc_info:
+            users_api.create(user=user_data)
+        assert "400" in str(exc_info.value), (
+            "Should receive 400 Bad Request when OAuth2 user tries to use LDAP marker with suffix"
         )
 
     async def test_list_pagination(
@@ -418,7 +488,7 @@ class TestClientForUsersAPI:
         users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
 
         # Create multiple users to test listing
-        created_users: list[Union[v1.LocalUser, v1.OAuth2User]] = []
+        created_users: list[Union[v1.LocalUser, v1.OAuth2User, v1.LDAPUser]] = []
         for i in range(DEFAULT_PAGINATION_PAGE_LIMIT + 1):
             username = f"test_user_{i}_{token_hex(8)}"
             email = f"test_{i}_{token_hex(8)}@example.com"
@@ -470,20 +540,20 @@ class TestClientForUsersAPI:
 
     @pytest.mark.parametrize("send_welcome_email", [True, False])
     @pytest.mark.parametrize("role", ["MEMBER", "ADMIN"])
-    @pytest.mark.parametrize("auth_method", ["LOCAL", "OAUTH2"])
+    @pytest.mark.parametrize("auth_method", ["LOCAL", "OAUTH2", "LDAP"])
     def test_welcome_email_is_sent(
         self,
         send_welcome_email: bool,
         role: Literal["MEMBER", "ADMIN"],
-        auth_method: Literal["LOCAL", "OAUTH2"],
+        auth_method: Literal["LOCAL", "OAUTH2", "LDAP"],
         _smtpd: smtpdfix.AuthController,
         _app: _AppInfo,
     ) -> None:
         """Test that welcome emails are sent correctly when creating users.
 
         This test verifies that:
-        1. Welcome emails are sent when send_welcome_email=True for both LOCAL and OAuth2 users
-        2. No welcome emails are sent when send_welcome_email=False for both user types
+        1. Welcome emails are sent when send_welcome_email=True for LOCAL, OAuth2, and LDAP users
+        2. No welcome emails are sent when send_welcome_email=False for all user types
         """
         # Set up test environment with logged-in admin user
         users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
@@ -491,7 +561,7 @@ class TestClientForUsersAPI:
         # Create user with specified welcome email setting
         email = f"{token_hex(8)}@example.com"
         username = f"username_{token_hex(8)}"
-        user_data: Union[v1.LocalUserData, v1.OAuth2UserData]
+        user_data: Union[v1.LocalUserData, v1.OAuth2UserData, v1.LDAPUserData]
         if auth_method == "LOCAL":
             user_data = v1.LocalUserData(
                 email=email,
@@ -501,6 +571,13 @@ class TestClientForUsersAPI:
             )
         elif auth_method == "OAUTH2":
             user_data = v1.OAuth2UserData(
+                email=email,
+                username=username,
+                role=role,
+                auth_method=auth_method,
+            )
+        elif auth_method == "LDAP":
+            user_data = v1.LDAPUserData(
                 email=email,
                 username=username,
                 role=role,

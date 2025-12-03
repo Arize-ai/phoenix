@@ -1,0 +1,256 @@
+# Docker Compose override for LDAP testing
+# Includes basic LDAP integration tests and TLS security tests (STARTTLS and LDAPS)
+
+services:
+  ldap:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-test-server
+    hostname: ldap.example.com
+    ports:
+      - "389:389"
+      - "636:636"
+    environment:
+      - LDAP_ORGANISATION=Example Corp
+      - LDAP_DOMAIN=example.com
+      - LDAP_ADMIN_PASSWORD=admin_password
+      - LDAP_CONFIG_PASSWORD=config_password
+      - LDAP_READONLY_USER=true
+      - LDAP_READONLY_USER_USERNAME=readonly
+      - LDAP_READONLY_USER_PASSWORD=readonly_password
+      # Enable TLS with auto-generated self-signed certificates
+      - LDAP_TLS=true
+      - LDAP_TLS_VERIFY_CLIENT=never  # Don't require client certs
+      - LDAP_LOG_LEVEL=256
+    volumes:
+      - ldap-test-data:/var/lib/ldap
+      - ldap-test-config:/etc/ldap/slapd.d
+    command: --copy-service --loglevel debug
+
+  # MITM Proxy for TLS verification
+  ldap-mitm-proxy:
+    profiles: ["ldap-test"]
+    image: python:3.14-slim
+    container_name: ${PROJECT_NAME:-devops}-ldap-mitm-proxy
+    depends_on:
+      - ldap
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./scripts/ldap_mitm_proxy.py:/ldap_mitm_proxy.py:ro
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "
+      echo '🔍 Starting LDAP MITM Proxy for TLS verification...';
+      python3 -u /ldap_mitm_proxy.py --ldap-host ldap --ldap-port 389 --listen-port 3389 --api-host 0.0.0.0 --api-port 8080
+      "
+    labels:
+      - "ldap.mitm.port=3389"
+
+  ldap-admin:
+    profiles: ["ldap-test"]
+    image: osixia/phpldapadmin:0.9.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-test-admin
+    ports:
+      - "6443:443"
+    environment:
+      - PHPLDAPADMIN_LDAP_HOSTS=ldap
+      - PHPLDAPADMIN_HTTPS=false
+    depends_on:
+      - ldap
+    labels:
+      - "ldap.admin.url=http://localhost:6443"
+
+  ldap-seed:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-test-seed
+    depends_on:
+      - ldap
+    volumes:
+      - ./ldap-seed.ldif:/seed.ldif:ro
+    entrypoint: /bin/bash
+    command: >
+      -c "
+      echo 'Waiting for LDAP server to be ready...';
+      sleep 5;
+      ldapadd -x -H ldap://ldap:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed.ldif || true;
+      echo 'LDAP seed data loaded';
+      tail -f /dev/null
+      "
+
+  # Test STARTTLS mode (port 389 with upgrade)
+  phoenix-starttls:
+    profiles: ["ldap-test"]
+    container_name: ${PROJECT_NAME:-devops}-phoenix-starttls
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    ports:
+      - "6007:6006"  # Different port to avoid conflict
+    environment:
+      # Enable LDAP authentication
+      - PHOENIX_ENABLE_AUTH=true
+      - PHOENIX_DISABLE_BASIC_AUTH=false
+      - PHOENIX_DISABLE_RATE_LIMIT=true
+      - PHOENIX_SECRET=dev-secret-for-tls-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-tls-testing-only-12345678
+      # Disable OAuth from base compose (prevents auto-redirect to OIDC)
+      - PHOENIX_OAUTH2_DEV_AUTO_LOGIN=false
+      # STARTTLS Configuration (via MITM proxy for TLS verification)
+      - PHOENIX_LDAP_HOST=ldap-mitm-proxy
+      - PHOENIX_LDAP_PORT=3389  # Connect through MITM proxy
+      - PHOENIX_LDAP_USE_TLS=true
+      - PHOENIX_LDAP_TLS_MODE=starttls
+      - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
+      - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
+      - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
+      - PHOENIX_LDAP_USER_SEARCH_BASE=ou=users,dc=example,dc=com
+      - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
+      - PHOENIX_LDAP_ATTR_EMAIL=mail
+      - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
+      - PHOENIX_LDAP_ATTR_MEMBER_OF=memberOf
+      - PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]
+      - PHOENIX_LDAP_ALLOW_SIGN_UP=true
+      # In-memory SQLite
+      - "PHOENIX_SQL_DATABASE_URL=sqlite:///:memory:"
+    depends_on:
+      - ldap
+      - ldap-seed
+      - ldap-mitm-proxy
+    labels:
+      - "phoenix.auth.mode=ldap-starttls"
+
+  # Phoenix with LDAPS mode (port 636, TLS from start)
+  phoenix:
+    profiles: ["ldap-test"]
+    container_name: ${PROJECT_NAME:-devops}-phoenix
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    ports:
+      - "6006:6006"
+    environment:
+      # Enable LDAP authentication
+      - PHOENIX_ENABLE_AUTH=true
+      - PHOENIX_DISABLE_BASIC_AUTH=false
+      - PHOENIX_DISABLE_RATE_LIMIT=true
+      - PHOENIX_SECRET=dev-secret-for-tls-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-tls-testing-only-12345678
+      # Disable OAuth from base compose (prevents auto-redirect to OIDC)
+      - PHOENIX_OAUTH2_DEV_AUTO_LOGIN=false
+      # LDAPS Configuration (port 636, TLS from start)
+      - PHOENIX_LDAP_HOST=ldap
+      # PHOENIX_LDAP_PORT omitted - tests port defaulting (should default to 636 for LDAPS)
+      - PHOENIX_LDAP_USE_TLS=true
+      - PHOENIX_LDAP_TLS_MODE=ldaps
+      - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
+      - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
+      - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
+      - PHOENIX_LDAP_USER_SEARCH_BASE=ou=users,dc=example,dc=com
+      - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
+      - PHOENIX_LDAP_ATTR_EMAIL=mail
+      - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
+      - PHOENIX_LDAP_ATTR_MEMBER_OF=memberOf
+      - PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]
+      - PHOENIX_LDAP_ALLOW_SIGN_UP=true
+      # In-memory SQLite
+      - "PHOENIX_SQL_DATABASE_URL=sqlite:///:memory:"
+    depends_on:
+      - ldap
+      - ldap-seed
+    labels:
+      - "phoenix.auth.mode=ldap"
+
+  # Grafana LDAP (for comparison with Phoenix)
+  grafana-ldap:
+    profiles: ["ldap-test"]
+    image: grafana/grafana:latest
+    container_name: ${PROJECT_NAME:-devops}-grafana-ldap
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_LDAP_ENABLED=true
+      - GF_AUTH_LDAP_CONFIG_FILE=/etc/grafana/ldap.toml
+      - GF_AUTH_LDAP_ALLOW_SIGN_UP=true
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_SECURITY_SECRET_KEY=grafana-secret-key-for-testing
+    volumes:
+      - ./ldap-grafana.toml:/etc/grafana/ldap.toml:ro
+    depends_on:
+      - ldap
+      - ldap-seed
+      - ldap-mitm-proxy
+    labels:
+      - "grafana.ldap.enabled=true"
+
+  # Test runner for TLS verification
+  ldap-test:
+    profiles: ["ldap-test"]
+    image: python:3.14-slim
+    container_name: ${PROJECT_NAME:-devops}-ldap-test
+    depends_on:
+      - ldap-seed
+      - phoenix-starttls
+      - phoenix
+      - grafana-ldap
+    environment:
+      # Use main Phoenix endpoint for integration tests (direct connection, no MITM proxy)
+      - PHOENIX_URL=http://phoenix:6006
+      - PHOENIX_STARTTLS_URL=http://phoenix-starttls:6006
+      - PHOENIX_LDAPS_URL=http://phoenix:6006
+      - GRAFANA_URL=http://grafana-ldap:3000
+      - LDAP_HOST=ldap
+      - LDAP_PORT=389
+      - MITM_API_URL=http://ldap-mitm-proxy:8080
+    volumes:
+      - ./scripts/test_ldap_tls.py:/test_ldap_tls.py:ro
+      - ./scripts/test_ldap_integration.py:/test_ldap_integration.py:ro
+    working_dir: /
+    entrypoint: /bin/bash
+    command: >
+      -c "
+      echo '⏳ Installing dependencies...';
+      apt-get update -qq && apt-get install -y -qq ldap-utils 2>&1 | grep -v 'debconf';
+      pip install --quiet requests ldap3;
+      echo '⏳ Waiting for LDAP seed data to be loaded...';
+      for i in $$(seq 1 30); do
+        if python3 -c \"import requests; r = requests.post('http://phoenix:6006/auth/ldap/login', json={'username': 'admin', 'password': 'password123'}, timeout=5); exit(0 if r.status_code == 204 else 1)\" 2>/dev/null; then
+          echo '✅ LDAP seed data is ready';
+          break;
+        fi;
+        echo 'Attempt '$$i'/30: LDAP data not ready, waiting...';
+        sleep 3;
+      done;
+      echo '🧪 Running LDAP integration tests...';
+      echo '';
+      python3 /test_ldap_integration.py;
+      EXIT_CODE=$$?;
+      echo '';
+      if [ $$EXIT_CODE -eq 0 ]; then
+        echo '✅ All LDAP tests passed';
+      else
+        echo '❌ Some LDAP tests failed';
+      fi;
+      echo '';
+      echo '🧪 Running comprehensive LDAP TLS security tests...';
+      echo '';
+      python3 /test_ldap_tls.py;
+      TLS_EXIT_CODE=$$?;
+      echo '';
+      if [ $$TLS_EXIT_CODE -eq 0 ]; then
+        echo '✅ All TLS security tests passed';
+      else
+        echo '❌ TLS security tests failed - VULNERABILITIES DETECTED';
+      fi;
+      echo '';
+      echo 'Keeping container alive for debugging...';
+      tail -f /dev/null
+      "
+
+volumes:
+  ldap-test-data:
+  ldap-test-config:
+

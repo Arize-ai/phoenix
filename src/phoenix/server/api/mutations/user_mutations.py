@@ -43,14 +43,17 @@ logger = logging.getLogger(__name__)
 @strawberry.input
 class CreateUserInput:
     email: str
-    username: str
+    username: str  # Display name (will be synced from LDAP/OAuth2 on login)
     password: Optional[str] = UNSET
     role: UserRoleInput
     send_welcome_email: Optional[bool] = False
     auth_method: Optional[AuthMethod] = AuthMethod.LOCAL
 
     def __post_init__(self) -> None:
-        if self.auth_method is AuthMethod.OAUTH2:
+        if self.auth_method is AuthMethod.LDAP:
+            if self.password:
+                raise BadRequest("Password is not allowed for LDAP authentication")
+        elif self.auth_method is AuthMethod.OAUTH2:
             if self.password:
                 raise BadRequest("Password is not allowed for OAuth2 authentication")
         elif get_env_disable_basic_auth():
@@ -125,7 +128,20 @@ class UserMutationMixin:
         email = sanitize_email(input.email)
 
         user: models.User
-        if input.auth_method is AuthMethod.OAUTH2:
+        if input.auth_method is AuthMethod.LDAP:
+            # LDAP users are stored with special Unicode marker
+            # username = display name (will be synced from LDAP on first login)
+            # oauth2_user_id = None initially (will be upgraded to DN on first login)
+            # Admin typically doesn't know the user's DN, so we allow email-only provisioning
+            from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
+
+            user = models.OAuth2User(
+                email=email,
+                username=input.username,  # Display name (initial, will be synced from LDAP)
+                oauth2_client_id=LDAP_CLIENT_ID_MARKER,
+                oauth2_user_id=None,  # Will be populated with DN on first login (fallback pattern)
+            )
+        elif input.auth_method is AuthMethod.OAUTH2:
             user = models.OAuth2User(
                 email=email,
                 username=input.username,
@@ -200,6 +216,10 @@ class UserMutationMixin:
                 user.reset_password = True
                 should_log_out = True
             if username := input.new_username:
+                if user.auth_method != "LOCAL":
+                    raise Conflict(
+                        "Cannot modify username for LDAP/OAuth2 users (synced from provider)"
+                    )
                 user.username = username
             assert user in session.dirty
             try:
@@ -238,6 +258,10 @@ class UserMutationMixin:
                 user.password_hash = await info.context.hash_password(Secret(password), salt)
                 user.reset_password = False
             if username := input.new_username:
+                if user.auth_method != "LOCAL":
+                    raise Conflict(
+                        "Cannot modify username for LDAP/OAuth2 users (synced from provider)"
+                    )
                 user.username = username
             assert user in session.dirty
             user.updated_at = datetime.now(timezone.utc)

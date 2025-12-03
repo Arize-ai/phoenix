@@ -99,6 +99,12 @@ get_profile_config() {
             # Grafana profile doesn't need override - pure profile in main file
             echo "profile"
             ;;
+        "ldap")
+            echo "override:overrides/ldap.yml"
+            ;;
+        "ldap-test")
+            echo "override:overrides/ldap-test.yml"
+            ;;
         schema*)
             # Dynamic schema profile
             local schema_name="${1#schema=}"
@@ -286,7 +292,7 @@ wait_for_phoenix() {
             echo "$logs"
             echo "────────────────────────────────────────────────────────"
             
-            if echo "$logs" | grep -qi -E "(exception|error|failed|traceback|phoenix\.exceptions)"; then
+            if echo "$logs" | grep -qi -E "(exception|traceback|phoenix\.exceptions)"; then
                 echo ""
                 log_error "Exception detected in Phoenix logs - stopping wait"
                 echo "   Phoenix appears to have crashed. Try: ./dev.sh destroy && ./dev.sh up"
@@ -335,6 +341,11 @@ show_services() {
                 "grafana")
                     echo "  Monitoring: Grafana + Prometheus enabled"
                     ;;
+                "ldap")
+                    echo "  Authentication: LDAP server enabled"
+                    echo "  LDAP Admin:     http://localhost:6443 (admin@example.com / admin_password)"
+                    echo "  LDAP Tests:     docker logs ${PROJECT_NAME:-devops}-ldap-test"
+                    ;;
                 schema*)
                     echo "  Schema: $CURRENT_SCHEMA"
                     ;;
@@ -377,9 +388,10 @@ list_profiles() {
     echo "  basic-auth         Basic authentication (username/password)"
     echo "  in-memory          In-memory SQLite database"
     echo "  toxiproxy          Enable network simulation with Toxiproxy"
-    echo "  grafana            Enable Grafana and Prometheus monitoring"
-    echo "  schema=NAME        Dynamic schema profile (custom database name)"
-    echo ""
+  echo "  grafana            Enable Grafana and Prometheus monitoring"
+  echo "  ldap               Enable LDAP authentication (mock LDAP server)"
+  echo "  schema=NAME        Dynamic schema profile (custom database name)"
+  echo ""
     echo "Usage:"
     echo "  ./dev.sh up                              # Standard mode (production - no Vite)"
     echo "  ./dev.sh up --profile vite               # Enable Vite dev server"
@@ -388,9 +400,10 @@ list_profiles() {
     echo "  ./dev.sh up --profile basic-auth         # Basic authentication"
     echo "  ./dev.sh up --profile in-memory          # In-memory SQLite database"
     echo "  ./dev.sh up --profile toxiproxy          # Enable network simulation"
-    echo "  ./dev.sh up --profile grafana            # Enable Grafana monitoring"
-    echo "  ./dev.sh up --profile schema=myapp       # Custom schema 'myapp'"
-    echo "  ./dev.sh up --profiles vite,grafana      # Multiple profiles"
+  echo "  ./dev.sh up --profile grafana            # Enable Grafana monitoring"
+  echo "  ./dev.sh up --profile ldap               # Enable LDAP authentication"
+  echo "  ./dev.sh up --profile schema=myapp       # Custom schema 'myapp'"
+  echo "  ./dev.sh up --profiles vite,grafana      # Multiple profiles"
 }
 
 # Check dependencies
@@ -578,6 +591,7 @@ Phoenix Development Environment
   in-memory                    In-memory SQLite database
   toxiproxy                    Enable network simulation with Toxiproxy
   grafana                      Enable Grafana and Prometheus monitoring
+  ldap                         Enable LDAP authentication (mock LDAP server)
   schema=NAME                  Dynamic schema profile (custom database name)
 
 💡 Which command to use?
@@ -599,6 +613,7 @@ Examples:
   ./dev.sh up --profiles vite,grafana      # Multiple profiles
   ./dev.sh up --profile pkce-public        # Test PKCE public client
   ./dev.sh up --profile grafana            # Enable monitoring
+  ./dev.sh up --profile ldap               # Test LDAP authentication
   ./dev.sh status                          # Check what's running
   ./dev.sh prune                           # Free up disk space
   ./dev.sh env | grep DATABASE             # Check database config
