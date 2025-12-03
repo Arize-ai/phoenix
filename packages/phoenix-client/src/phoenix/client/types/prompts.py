@@ -24,11 +24,11 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
 from phoenix.client.helpers.sdk.anthropic.messages import (
     to_chat_messages_and_kwargs as to_messages_anthropic,
 )
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
+from phoenix.client.helpers.sdk.google_genai.generate_content import (
     GoogleModelKwargs,
     create_prompt_version_from_google,
 )
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
+from phoenix.client.helpers.sdk.google_genai.generate_content import (
     to_chat_messages_and_kwargs as to_messages_google,
 )
 from phoenix.client.helpers.sdk.openai.chat import (
@@ -43,7 +43,7 @@ from phoenix.client.utils.template_formatters import TemplateFormatter
 if TYPE_CHECKING:
     from anthropic.types import MessageParam
     from anthropic.types.message_create_params import MessageCreateParamsBase
-    from google.generativeai import protos
+    from google.genai import types as google_genai_types
     from openai.types.chat import ChatCompletionMessageParam
     from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 
@@ -403,7 +403,7 @@ class AnthropicPrompt(_FormattedPrompt):
 
 @dataclass(frozen=True)
 class GoogleGenerativeaiPrompt(_FormattedPrompt):
-    messages: Sequence[protos.Content]
+    messages: Sequence[google_genai_types.Content]
     kwargs: GoogleModelKwargs
 
 
