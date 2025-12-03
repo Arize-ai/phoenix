@@ -13,13 +13,8 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import {
-  CodeLanguage,
-  CodeLanguageRadioGroup,
-  PythonBlock,
-  TypeScriptBlock,
-} from "@phoenix/components/code";
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
+import { CodeBlock } from "@phoenix/components/CodeBlock";
 
 import { PromptCodeExportCard__main$key } from "./__generated__/PromptCodeExportCard__main.graphql";
 import {
@@ -164,23 +159,4 @@ export function PromptCodeExportCard({
       </DisclosureGroup>
     </Card>
   );
-}
-
-function CodeBlock({
-  language,
-  value,
-}: {
-  language: CodeLanguage;
-  value: string;
-}) {
-  switch (language) {
-    case "Python":
-      return <PythonBlock value={value} basicSetup={{ lineNumbers: true }} />;
-    case "TypeScript":
-      return (
-        <TypeScriptBlock value={value} basicSetup={{ lineNumbers: true }} />
-      );
-    default:
-      assertUnreachable(language);
-  }
 }

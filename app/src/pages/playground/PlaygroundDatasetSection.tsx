@@ -12,6 +12,7 @@ import {
 } from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
+import { EvaluatorConfigDialog } from "@phoenix/components/evaluators/EvaluatorConfigDialog/EvaluatorConfigDialog";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
