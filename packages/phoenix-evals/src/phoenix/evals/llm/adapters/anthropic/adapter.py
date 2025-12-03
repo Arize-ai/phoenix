@@ -326,12 +326,17 @@ class AnthropicAdapter(BaseLLMAdapter):
 
             # Otherwise, plain dict format - extract system messages
             prompt_dicts = cast(List[Dict[str, Any]], prompt)
-            system_messages = [msg for msg in prompt_dicts if msg.get("role") == "system"]
-            non_system_messages = [msg for msg in prompt_dicts if msg.get("role") != "system"]
+            system_messages_dicts: List[Dict[str, Any]] = [
+                msg for msg in prompt_dicts if msg.get("role") == "system"
+            ]
+            non_system_messages_dicts: List[Dict[str, Any]] = [
+                msg for msg in prompt_dicts if msg.get("role") != "system"
+            ]
             system_content = "\n".join(
-                self._extract_text_from_content(msg.get("content", "")) for msg in system_messages
+                self._extract_text_from_content(msg.get("content", ""))
+                for msg in system_messages_dicts
             )
-            return non_system_messages, system_content
+            return non_system_messages_dicts, system_content
 
         # Handle legacy MultimodalPrompt
         text_parts = []

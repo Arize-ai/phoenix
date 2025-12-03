@@ -350,7 +350,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         function_declaration = genai.types.FunctionDeclaration(
             name="extract_structured_data",
             description=description,
-            parameters=schema,  # type: ignore[arg-type]
+            parameters=schema,
         )
 
         return genai.types.Tool(function_declarations=[function_declaration])
@@ -451,14 +451,19 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             # Convert plain dict messages to Google format
             # Extract system messages for system_instruction parameter
             prompt_dicts = cast(List[Dict[str, Any]], prompt)
-            system_messages = [msg for msg in prompt_dicts if msg.get("role") == "system"]
-            non_system_messages = [msg for msg in prompt_dicts if msg.get("role") != "system"]
+            system_messages_dicts: List[Dict[str, Any]] = [
+                msg for msg in prompt_dicts if msg.get("role") == "system"
+            ]
+            non_system_messages_dicts: List[Dict[str, Any]] = [
+                msg for msg in prompt_dicts if msg.get("role") != "system"
+            ]
             system_instruction = "\n".join(
-                self._extract_text_from_content(msg.get("content", "")) for msg in system_messages
+                self._extract_text_from_content(msg.get("content", ""))
+                for msg in system_messages_dicts
             )
 
             google_messages = []
-            for msg in non_system_messages:
+            for msg in non_system_messages_dicts:
                 role = msg["role"]
                 content = msg["content"]
 

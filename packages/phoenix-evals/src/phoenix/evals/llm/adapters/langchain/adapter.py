@@ -292,7 +292,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
         Returns:
             List of LangChain message objects.
         """
-        from langchain_core.messages import (  # type: ignore[import-not-found]
+        from langchain_core.messages import (
             AIMessage,
             HumanMessage,
             SystemMessage,
@@ -339,7 +339,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 return self._transform_messages_to_langchain(cast(List[Message], prompt))
             # Convert OpenAI-style messages to LangChain messages (backward compatibility)
             try:
-                from langchain_community.adapters.openai import (  # type: ignore[import-not-found]
+                from langchain_community.adapters.openai import (
                     convert_openai_messages,
                 )
 
