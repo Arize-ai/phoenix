@@ -6,22 +6,18 @@ import {
   Icon,
   Icons,
   LinkButton,
-  Modal,
-  ModalOverlay,
   Text,
   Token,
   View,
 } from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/EvaluatorConfigDialog";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import { PlaygroundDatasetSection_evaluators$key } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluators.graphql";
 import { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { Mutable } from "@phoenix/typeUtils";
-import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
@@ -67,8 +63,6 @@ export function PlaygroundDatasetSection({
             evaluator: node {
               id
               name
-              kind
-              isAssignedToDataset(datasetId: $datasetId)
               datasetInputMapping(datasetId: $datasetId) {
                 literalMapping
                 pathMapping
@@ -95,10 +89,7 @@ export function PlaygroundDatasetSection({
     [evaluatorsData]
   );
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
-    () =>
-      evaluators
-        .filter((evaluator) => evaluator.isAssignedToDataset)
-        .map((evaluator) => evaluator.id) ?? []
+    () => evaluators.map((evaluator) => evaluator.id) ?? []
   );
   const selectedEvaluatorWithInputMapping = useMemo(() => {
     return evaluators
@@ -112,13 +103,6 @@ export function PlaygroundDatasetSection({
         {} as Record<string, EvaluatorInputMappingInput>
       );
   }, [evaluators, selectedEvaluatorIds]);
-  const [addingEvaluatorId, setAddingEvaluatorId] = useState<string | null>(
-    null
-  );
-
-  const onCloseEvaluatorConfigDialog = () => {
-    setAddingEvaluatorId(null);
-  };
 
   return (
     <>
@@ -185,73 +169,31 @@ export function PlaygroundDatasetSection({
                       : []),
                   ])}
               </Flex>
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <Flex direction="row" gap="size-100" alignItems="center">
-                  {evaluators
-                    .filter((e) => selectedEvaluatorIds.includes(e.id))
-                    .slice(0, 3)
-                    .flatMap((e, index, array) => [
-                      <AnnotationNameAndValue
-                        key={e.id}
-                        annotation={e}
-                        displayPreference="none"
-                        minWidth="auto"
-                      />,
-                      ...(index === array.length - 1 &&
-                      selectedEvaluatorIds.length > 3
-                        ? [
-                            <Token key={`more`}>
-                              <Text>
-                                + {selectedEvaluatorIds.length - 3} more
-                              </Text>
-                            </Token>,
-                          ]
-                        : []),
-                    ])}
-                </Flex>
-                <PlaygroundEvaluatorSelect
-                  evaluators={
-                    evaluators as Mutable<(typeof evaluators)[number]>[]
+              <PlaygroundEvaluatorSelect
+                evaluators={evaluators}
+                selectedIds={selectedEvaluatorIds}
+                onSelectionChange={setSelectedEvaluatorIds}
+              />
+              {experimentIds.length > 0 && (
+                <LinkButton
+                  size="S"
+                  isDisabled={isRunning}
+                  leadingVisual={
+                    <Icon
+                      svg={
+                        isRunning ? (
+                          <Icons.LoadingOutline />
+                        ) : (
+                          <Icons.ExperimentOutline />
+                        )
+                      }
+                    />
                   }
-                  selectedIds={selectedEvaluatorIds}
-                  onSelectionChange={(id: string) => {
-                    const evaluator = evaluators.find((e) => e.id === id);
-                    if (evaluator?.isAssignedToDataset) {
-                      setSelectedEvaluatorIds((prev) => {
-                        if (prev.includes(id)) {
-                          return prev.filter(
-                            (evaluatorId) => evaluatorId !== id
-                          );
-                        }
-                        return [...prev, id];
-                      });
-                    } else {
-                      setAddingEvaluatorId(id);
-                    }
-                  }}
-                  addNewEvaluatorLink={prependBasename(`/evaluators/new`)}
-                />
-                {experimentIds.length > 0 && (
-                  <LinkButton
-                    size="S"
-                    isDisabled={isRunning}
-                    leadingVisual={
-                      <Icon
-                        svg={
-                          isRunning ? (
-                            <Icons.LoadingOutline />
-                          ) : (
-                            <Icons.ExperimentOutline />
-                          )
-                        }
-                      />
-                    }
-                    to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
-                  >
-                    View Experiment{instances.length > 1 ? "s" : ""}
-                  </LinkButton>
-                )}
-              </Flex>
+                  to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
+                >
+                  View Experiment{instances.length > 1 ? "s" : ""}
+                </LinkButton>
+              )}
             </Flex>
           </Flex>
         </View>
@@ -263,27 +205,6 @@ export function PlaygroundDatasetSection({
           />
         </PlaygroundDatasetExamplesTableProvider>
       </Flex>
-      <ModalOverlay
-        isOpen={!!addingEvaluatorId}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setAddingEvaluatorId(null);
-          }
-        }}
-      >
-        <Modal size="L">
-          {addingEvaluatorId && (
-            <EvaluatorConfigDialog
-              evaluatorId={addingEvaluatorId}
-              onClose={onCloseEvaluatorConfigDialog}
-              onEvaluatorAssigned={() => {
-                setSelectedEvaluatorIds((prev) => [...prev, addingEvaluatorId]);
-              }}
-              datasetRef={data.dataset}
-            />
-          )}
-        </Modal>
-      </ModalOverlay>
     </>
   );
 }
