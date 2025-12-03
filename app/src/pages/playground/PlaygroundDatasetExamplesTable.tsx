@@ -32,8 +32,6 @@ import {
 import { css } from "@emotion/react";
 
 import {
-  Dialog,
-  DialogTrigger,
   Flex,
   Icon,
   IconButton,
@@ -41,15 +39,11 @@ import {
   Loading,
   Modal,
   ModalOverlay,
-  Popover,
-  PopoverArrow,
   Text,
-  View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
-import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
+import { ExperimentRunCellAnnotationsList } from "@phoenix/components/experiment";
 import {
   CellTop,
   JSONCell,
@@ -330,71 +324,14 @@ function ExampleOutputContent({
         </Flex>
       </PaddedCell>
       {evaluations != null && evaluations.length > 0 && (
-        <ul
-          css={css`
-            display: flex;
-            flex-direction: column;
-            flex: none;
-            padding: 0 var(--ac-global-dimension-static-size-100)
-              var(--ac-global-dimension-static-size-100)
-              var(--ac-global-dimension-static-size-100);
-          `}
-        >
-          {evaluations.map((evaluation) => {
-            // TODO: replace this with evaluation trace once it's implemented
-            // const traceId = evaluation.trace?.traceId;
-            // const projectId = evaluation.trace?.projectId;
-            const traceId = span?.context.traceId;
-            const projectId = span?.project.id;
-            const hasTrace = traceId != null && projectId != null;
-            return (
-              <li
-                key={evaluation.id}
-                css={css`
-                  display: flex;
-                  flex-direction: row;
-                  align-items: center;
-                  justify-content: space-between;
-                  gap: var(--ac-global-dimension-static-size-50);
-                `}
-              >
-                <DialogTrigger>
-                  <ExperimentAnnotationButton annotation={evaluation} />
-                  <Popover placement="top">
-                    <PopoverArrow />
-                    <Dialog style={{ width: 400 }}>
-                      <View padding="size-200">
-                        <AnnotationDetailsContent
-                          annotation={{
-                            ...evaluation,
-                            createdAt: evaluation.startTime,
-                          }}
-                        />
-                      </View>
-                    </Dialog>
-                  </Popover>
-                </DialogTrigger>
-                <TooltipTrigger isDisabled={!hasTrace}>
-                  <IconButton
-                    size="S"
-                    isDisabled={!hasTrace}
-                    onPress={() => {
-                      if (hasTrace) {
-                        onViewTracePress(traceId, projectId, evaluation.name);
-                      }
-                    }}
-                  >
-                    <Icon svg={<Icons.Trace />} />
-                  </IconButton>
-                  <Tooltip>
-                    <TooltipArrow />
-                    View evaluation trace
-                  </Tooltip>
-                </TooltipTrigger>
-              </li>
-            );
-          })}
-        </ul>
+        <ExperimentRunCellAnnotationsList
+          annotations={evaluations}
+          onTraceClick={({ traceId, projectId, annotationName }) => {
+            if (traceId && projectId) {
+              onViewTracePress(traceId, projectId, annotationName);
+            }
+          }}
+        />
       )}
     </Flex>
   );
