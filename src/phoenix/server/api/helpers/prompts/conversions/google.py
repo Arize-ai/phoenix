@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, Any, Literal, Union
 
-from google.genai.types import ToolConfig
 from typing_extensions import NotRequired, TypedDict, assert_never
 
 if TYPE_CHECKING:
@@ -50,6 +49,8 @@ class GoogleToolChoiceConversion:
         "PromptToolChoiceOneOrMore",
         "PromptToolChoiceSpecificFunctionTool",
     ]:
+        from google.genai.types import ToolConfig
+
         from phoenix.server.api.helpers.prompts.models import (
             PromptToolChoiceNone,
             PromptToolChoiceOneOrMore,
