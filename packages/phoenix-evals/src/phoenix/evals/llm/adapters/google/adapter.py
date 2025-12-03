@@ -350,7 +350,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         function_declaration = genai.types.FunctionDeclaration(
             name="extract_structured_data",
             description=description,
-            parameters=schema,
+            parameters=schema,  # type: ignore[arg-type]
         )
 
         return genai.types.Tool(function_declarations=[function_declaration])
