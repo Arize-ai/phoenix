@@ -8,6 +8,7 @@ export interface LargeTextWrapProps extends PropsWithChildren {
 export function LargeTextWrap({ children, height = 300 }: LargeTextWrapProps) {
   return (
     <div
+      data-testid="large-text-wrap"
       css={css`
         height: ${height}px;
         overflow-y: auto;
