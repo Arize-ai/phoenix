@@ -170,7 +170,7 @@ class EvaluatorMutationMixin:
             datasets_evaluators=[
                 models.DatasetsEvaluators(
                     dataset_id=dataset_id,
-                    name=evaluator_name.root,
+                    display_name=evaluator_name.root,
                     input_mapping={},
                 )
             ]
@@ -230,7 +230,7 @@ class EvaluatorMutationMixin:
             datasets_evaluators=[
                 models.DatasetsEvaluators(
                     dataset_id=dataset_id,
-                    name=evaluator_name.root,
+                    display_name=evaluator_name.root,
                     input_mapping={},
                 )
             ]
