@@ -36,6 +36,9 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     CodeEvaluator,
+    DatasetBuiltInEvaluator,
+    DatasetCodeEvaluator,
+    DatasetLLMEvaluator,
     Evaluator,
     LLMEvaluator,
 )
@@ -56,6 +59,9 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
         LLMEvaluator.__name__: "LLM",
         CodeEvaluator.__name__: "CODE",
         BuiltInEvaluator.__name__: "CODE",
+        DatasetLLMEvaluator.__name__: "LLM",
+        DatasetCodeEvaluator.__name__: "CODE",
+        DatasetBuiltInEvaluator.__name__: "CODE",
     }
     if type_name not in evaluator_types:
         raise ValueError(
