@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72701039989ac8498bbd757338d8e1f6>>
+ * @generated SignedSource<<75d73b32c43b009a229be589f237dbe8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -151,6 +151,13 @@ v8 = {
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isAssignedToDataset",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -193,32 +200,14 @@ return {
                       (v6/*: any*/),
                       (v7/*: any*/),
                       (v8/*: any*/),
-                      {
-                        "alias": null,
-                        "args": [
-                          {
-                            "kind": "Variable",
-                            "name": "datasetId",
-                            "variableName": "datasetId"
-                          }
-                        ],
-                        "kind": "ScalarField",
-                        "name": "isAssignedToDataset",
-                        "storageKey": null
-                      }
+                      (v9/*: any*/)
                     ],
                     "type": "Evaluator",
                     "abstractKey": "__isEvaluator"
                   }
                 ],
                 "args": null,
-                "argumentDefinitions": [
-                  {
-                    "defaultValue": null,
-                    "kind": "LocalArgument",
-                    "name": "datasetId"
-                  }
-                ]
+                "argumentDefinitions": []
               }
             ],
             "storageKey": null
@@ -264,13 +253,7 @@ return {
                   (v6/*: any*/),
                   (v7/*: any*/),
                   (v8/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "isAssignedToDataset",
-                    "storageKey": null
-                  }
+                  (v9/*: any*/)
                 ],
                 "type": "Evaluator",
                 "abstractKey": "__isEvaluator"

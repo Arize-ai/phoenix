@@ -69,14 +69,11 @@ export function UnassignDatasetEvaluatorDialog({
         unassignEvaluatorFromDataset(input: $input) {
           query {
             dataset: node(id: $datasetId) {
-              ...PlaygroundDatasetSection_evaluators
-                @arguments(datasetId: $datasetId)
               ...DatasetEvaluatorsTable_evaluators
-                @arguments(datasetId: $datasetId)
             }
           }
           evaluator @deleteEdge(connections: $connectionIds) {
-            ...EvaluatorsTable_row @arguments(datasetId: $datasetId)
+            ...EvaluatorsTable_row
           }
         }
       }
@@ -92,10 +89,7 @@ export function UnassignDatasetEvaluatorDialog({
         deleteEvaluators(input: $input) {
           query {
             dataset: node(id: $datasetId) {
-              ...PlaygroundDatasetSection_evaluators
-                @arguments(datasetId: $datasetId)
               ...DatasetEvaluatorsTable_evaluators
-                @arguments(datasetId: $datasetId)
             }
           }
           evaluatorIds @deleteEdge(connections: $connectionIds)
@@ -111,6 +105,7 @@ export function UnassignDatasetEvaluatorDialog({
           input: {
             datasetId,
             evaluatorId,
+            displayName: evaluatorName,
           },
           connectionIds: [datasetEvaluatorsTableConnection],
           datasetId,
@@ -136,6 +131,7 @@ export function UnassignDatasetEvaluatorDialog({
     unassignEvaluatorFromDataset,
     datasetId,
     evaluatorId,
+    evaluatorName,
     datasetEvaluatorsTableConnection,
     notifySuccess,
     onOpenChange,

@@ -172,10 +172,7 @@ function EvaluatorConfigDialogContent({
         assignEvaluatorToDataset(input: $input) {
           query {
             dataset: node(id: $datasetId) {
-              ...PlaygroundDatasetSection_evaluators
-                @arguments(datasetId: $datasetId)
               ...DatasetEvaluatorsTable_evaluators
-                @arguments(datasetId: $datasetId)
             }
           }
           evaluator
@@ -183,7 +180,7 @@ function EvaluatorConfigDialogContent({
               connections: $connectionIds
               edgeTypeName: "EvaluatorEdge"
             ) {
-            ...EvaluatorsTable_row @arguments(datasetId: $datasetId)
+            ...EvaluatorsTable_row
           }
         }
       }

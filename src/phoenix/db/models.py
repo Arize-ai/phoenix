@@ -2196,7 +2196,7 @@ class DatasetsEvaluators(HasId):
         nullable=True,
         index=True,
     )
-    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    display_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     input_mapping: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_evaluators")
     evaluator: Mapped[Optional["Evaluator"]] = relationship(
@@ -2212,19 +2212,19 @@ class DatasetsEvaluators(HasId):
         UniqueConstraint(
             "dataset_id",
             "evaluator_id",
-            "name",
+            "display_name",
         ),
         UniqueConstraint(
             "dataset_id",
             "builtin_evaluator_id",
-            "name",
+            "display_name",
         ),
         # Partial unique indexes to enforce uniqueness on non-NULL values
         Index(
             "ix_datasets_evaluators_dataset_evaluator_notnull",
             "dataset_id",
             "evaluator_id",
-            "name",
+            "display_name",
             unique=True,
             postgresql_where=sa.text("evaluator_id IS NOT NULL"),
             sqlite_where=sa.text("evaluator_id IS NOT NULL"),
@@ -2233,7 +2233,7 @@ class DatasetsEvaluators(HasId):
             "ix_datasets_evaluators_dataset_builtin_notnull",
             "dataset_id",
             "builtin_evaluator_id",
-            "name",
+            "display_name",
             unique=True,
             postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
             sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),

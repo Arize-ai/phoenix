@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9657643577eaa0568d98f9695f1ecc5f>>
+ * @generated SignedSource<<fa428eec55e3f84170c8fa359c423dbe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,20 +29,8 @@ export type GlobalEvaluatorsTable_evaluators$key = {
 import GlobalEvaluatorsTableEvaluatorsQuery_graphql from './GlobalEvaluatorsTableEvaluatorsQuery.graphql';
 
 const node: ReaderFragment = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "datasetId"
-},
-v1 = [
+var v0 = [
   "evaluators"
-],
-v2 = [
-  {
-    "kind": "Variable",
-    "name": "datasetId",
-    "variableName": "datasetId"
-  }
 ];
 return {
   "argumentDefinitions": [
@@ -51,7 +39,6 @@ return {
       "kind": "LocalArgument",
       "name": "after"
     },
-    (v0/*: any*/),
     {
       "defaultValue": null,
       "kind": "LocalArgument",
@@ -75,7 +62,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v1/*: any*/)
+        "path": (v0/*: any*/)
       }
     ],
     "refetch": {
@@ -85,7 +72,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v1/*: any*/)
+        "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [],
       "operation": GlobalEvaluatorsTableEvaluatorsQuery_graphql
@@ -176,16 +163,14 @@ return {
                     },
                     {
                       "alias": null,
-                      "args": (v2/*: any*/),
+                      "args": null,
                       "kind": "ScalarField",
                       "name": "isAssignedToDataset",
                       "storageKey": null
                     }
                   ],
-                  "args": (v2/*: any*/),
-                  "argumentDefinitions": [
-                    (v0/*: any*/)
-                  ]
+                  "args": null,
+                  "argumentDefinitions": []
                 },
                 {
                   "alias": null,
@@ -253,6 +238,6 @@ return {
 };
 })();
 
-(node as any).hash = "fba3b7f761e675407bca6de2fc0ec25a";
+(node as any).hash = "ed29a29e1ac93825119bff4ac197a1f2";
 
 export default node;

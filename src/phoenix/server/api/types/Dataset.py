@@ -28,10 +28,10 @@ from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Evaluator import (
-    BuiltInEvaluator,
-    CodeEvaluator,
+    DatasetBuiltInEvaluator,
+    DatasetCodeEvaluator,
+    DatasetLLMEvaluator,
     Evaluator,
-    LLMEvaluator,
 )
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -467,6 +467,49 @@ class Dataset(Node):
         ]
 
     @strawberry.field
+    async def evaluator(
+        self, info: Info[Context, None], evaluatorId: GlobalID, displayName: str
+    ) -> Evaluator:
+        # join the polymorphic evaluator models with the datasets_evaluators
+        # table for this dataset id
+        PolymorphicEvaluator = with_polymorphic(
+            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+        )
+        stmt = (
+            select(PolymorphicEvaluator)
+            .join(models.DatasetsEvaluators)
+            .where(
+                models.DatasetsEvaluators.dataset_id == self.id
+                and models.DatasetsEvaluators.evaluator_id == evaluatorId
+                and models.DatasetsEvaluators.display_name == displayName
+            )
+        )
+        async with info.context.db() as session:
+            evaluator = await session.scalar(stmt)
+            if evaluator is None:
+                raise BadRequest(f"Evaluator not found: {evaluatorId} {displayName}")
+            if evaluator.id < 0:
+                return DatasetBuiltInEvaluator(
+                    id=evaluator.id, dataset_id=self.id, display_name=displayName
+                )
+            if isinstance(evaluator, models.LLMEvaluator):
+                return DatasetLLMEvaluator(
+                    id=evaluator.id,
+                    db_record=evaluator,
+                    dataset_id=self.id,
+                    display_name=displayName,
+                )
+            elif isinstance(evaluator, models.CodeEvaluator):
+                return DatasetCodeEvaluator(
+                    id=evaluator.id,
+                    db_record=evaluator,
+                    dataset_id=self.id,
+                    display_name=displayName,
+                )
+            else:
+                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+
+    @strawberry.field
     async def evaluators(
         self,
         info: Info[Context, None],
@@ -491,7 +534,7 @@ class Dataset(Node):
             models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
         )
         stmt = (
-            select(PolymorphicEvaluator)
+            select(PolymorphicEvaluator, models.DatasetsEvaluators.display_name)
             .join(models.DatasetsEvaluators)
             .where(models.DatasetsEvaluators.dataset_id == self.id)
         )
@@ -520,11 +563,25 @@ class Dataset(Node):
         async with info.context.db() as session:
             evaluators = await session.scalars(stmt)
         data: list[Evaluator] = []
-        for evaluator in evaluators:
+        for evaluator, display_name in evaluators:
             if isinstance(evaluator, models.LLMEvaluator):
-                data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
+                data.append(
+                    DatasetLLMEvaluator(
+                        id=evaluator.id,
+                        db_record=evaluator,
+                        dataset_id=self.id,
+                        display_name=display_name,
+                    )
+                )
             elif isinstance(evaluator, models.CodeEvaluator):
-                data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
+                data.append(
+                    DatasetCodeEvaluator(
+                        id=evaluator.id,
+                        db_record=evaluator,
+                        dataset_id=self.id,
+                        display_name=display_name,
+                    )
+                )
             else:
                 raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 
@@ -536,9 +593,16 @@ class Dataset(Node):
         async with info.context.db() as session:
             builtin_assigned_evaluators = await session.scalars(builtin_stmt)
             for builtin_assigned_evaluator in builtin_assigned_evaluators:
-                if builtin_assigned_evaluator.builtin_evaluator_id in builtin_evaluators_ids:
+                if (
+                    builtin_assigned_evaluator.builtin_evaluator_id in builtin_evaluators_ids
+                    and builtin_assigned_evaluator.display_name is not None
+                ):
                     data.append(
-                        BuiltInEvaluator(id=builtin_assigned_evaluator.builtin_evaluator_id)
+                        DatasetBuiltInEvaluator(
+                            id=builtin_assigned_evaluator.builtin_evaluator_id,
+                            dataset_id=self.id,
+                            display_name=builtin_assigned_evaluator.display_name,
+                        )
                     )
         return connection_from_list(data=data, args=args)
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f5697a5563de8ecd44cde1a972a00a56>>
+ * @generated SignedSource<<0a28bf89d9feddf84ccb489d92a5723c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -152,7 +152,14 @@ v8 = {
   "name": "updatedAt",
   "storageKey": null
 },
-v9 = [
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isAssignedToDataset",
+  "storageKey": null
+},
+v10 = [
   {
     "alias": null,
     "args": null,
@@ -161,14 +168,14 @@ v9 = [
     "storageKey": null
   }
 ],
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -216,32 +223,14 @@ return {
                       (v6/*: any*/),
                       (v7/*: any*/),
                       (v8/*: any*/),
-                      {
-                        "alias": null,
-                        "args": [
-                          {
-                            "kind": "Variable",
-                            "name": "datasetId",
-                            "variableName": "datasetId"
-                          }
-                        ],
-                        "kind": "ScalarField",
-                        "name": "isAssignedToDataset",
-                        "storageKey": null
-                      }
+                      (v9/*: any*/)
                     ],
                     "type": "Evaluator",
                     "abstractKey": "__isEvaluator"
                   }
                 ],
                 "args": null,
-                "argumentDefinitions": [
-                  {
-                    "defaultValue": null,
-                    "kind": "LocalArgument",
-                    "name": "datasetId"
-                  }
-                ]
+                "argumentDefinitions": []
               },
               {
                 "args": null,
@@ -292,13 +281,7 @@ return {
                   (v6/*: any*/),
                   (v7/*: any*/),
                   (v8/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "isAssignedToDataset",
-                    "storageKey": null
-                  },
+                  (v9/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -352,7 +335,7 @@ return {
                             "kind": "LinkedField",
                             "name": "responseFormat",
                             "plural": false,
-                            "selections": (v9/*: any*/),
+                            "selections": (v10/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -363,7 +346,7 @@ return {
                             "name": "template",
                             "plural": false,
                             "selections": [
-                              (v10/*: any*/),
+                              (v11/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -390,7 +373,7 @@ return {
                                         "name": "content",
                                         "plural": true,
                                         "selections": [
-                                          (v10/*: any*/),
+                                          (v11/*: any*/),
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
@@ -427,7 +410,7 @@ return {
                                                 "name": "toolCall",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v11/*: any*/),
+                                                  (v12/*: any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -465,7 +448,7 @@ return {
                                                 "name": "toolResult",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v11/*: any*/),
+                                                  (v12/*: any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -514,7 +497,7 @@ return {
                             "kind": "LinkedField",
                             "name": "tools",
                             "plural": true,
-                            "selections": (v9/*: any*/),
+                            "selections": (v10/*: any*/),
                             "storageKey": null
                           }
                         ],

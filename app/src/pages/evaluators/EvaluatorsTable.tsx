@@ -84,16 +84,14 @@ const EmptyState = () => {
 const readRow = (row: EvaluatorsTable_row$key) => {
   return readInlineData(
     graphql`
-      fragment EvaluatorsTable_row on Evaluator
-      @inline
-      @argumentDefinitions(datasetId: { type: "ID", defaultValue: null }) {
+      fragment EvaluatorsTable_row on Evaluator @inline {
         id
         name
         kind
         description
         createdAt
         updatedAt
-        isAssignedToDataset(datasetId: $datasetId)
+        isAssignedToDataset
       }
     `,
     row

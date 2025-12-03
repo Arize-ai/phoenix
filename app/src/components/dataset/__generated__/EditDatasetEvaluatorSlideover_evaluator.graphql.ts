@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d9c12719a0ae37286cf982f76ae4d964>>
+ * @generated SignedSource<<b40146cb09155f80dfe84538392c6f8a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -79,13 +79,7 @@ v4 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "datasetId"
-    }
-  ],
+  "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
   "name": "EditDatasetEvaluatorSlideover_evaluator",
@@ -108,13 +102,7 @@ return {
     },
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "datasetId",
-          "variableName": "datasetId"
-        }
-      ],
+      "args": null,
       "kind": "ScalarField",
       "name": "isAssignedToDataset",
       "storageKey": null
@@ -402,6 +390,6 @@ return {
 };
 })();
 
-(node as any).hash = "e50af1ad653615d2563ac8589db6c0ee";
+(node as any).hash = "5f57f2d51621197ed87e0b84bf6c6560";
 
 export default node;

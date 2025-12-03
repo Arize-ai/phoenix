@@ -203,7 +203,7 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("builtin_evaluator_id", _Integer, nullable=True, index=True),
-        sa.Column("name", sa.String, nullable=True),
+        sa.Column("display_name", sa.String, nullable=True),
         sa.Column("input_mapping", JSON_, nullable=False),
         sa.CheckConstraint(
             "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
@@ -213,19 +213,19 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "dataset_id",
             "evaluator_id",
-            "name",
+            "display_name",
         ),
         sa.UniqueConstraint(
             "dataset_id",
             "builtin_evaluator_id",
-            "name",
+            "display_name",
         ),
     )
     # Create partial unique indexes to enforce uniqueness on non-NULL values
     op.create_index(
         "ix_datasets_evaluators_dataset_evaluator_notnull",
         "datasets_evaluators",
-        ["dataset_id", "evaluator_id", "name"],
+        ["dataset_id", "evaluator_id", "display_name"],
         unique=True,
         postgresql_where=sa.text("evaluator_id IS NOT NULL"),
         sqlite_where=sa.text("evaluator_id IS NOT NULL"),
@@ -233,7 +233,7 @@ def upgrade() -> None:
     op.create_index(
         "ix_datasets_evaluators_dataset_builtin_notnull",
         "datasets_evaluators",
-        ["dataset_id", "builtin_evaluator_id", "name"],
+        ["dataset_id", "builtin_evaluator_id", "display_name"],
         unique=True,
         postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
         sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),

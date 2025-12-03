@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0e0f2f834295655d47dc53ec4ed3b6db>>
+ * @generated SignedSource<<708ac058bb7f0062cbcfb747e688dd04>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,28 +30,16 @@ export type DatasetEvaluatorsTable_evaluators$key = {
 import DatasetEvaluatorsTableEvaluatorsQuery_graphql from './DatasetEvaluatorsTableEvaluatorsQuery.graphql';
 
 const node: ReaderFragment = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "datasetId"
-},
-v1 = [
+var v0 = [
   "evaluators"
 ],
-v2 = {
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-},
-v3 = [
-  {
-    "kind": "Variable",
-    "name": "datasetId",
-    "variableName": "datasetId"
-  }
-];
+};
 return {
   "argumentDefinitions": [
     {
@@ -59,7 +47,6 @@ return {
       "kind": "LocalArgument",
       "name": "after"
     },
-    (v0/*: any*/),
     {
       "defaultValue": null,
       "kind": "LocalArgument",
@@ -83,7 +70,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v1/*: any*/)
+        "path": (v0/*: any*/)
       }
     ],
     "refetch": {
@@ -93,7 +80,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v1/*: any*/)
+        "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -146,7 +133,7 @@ return {
                   "kind": "InlineDataFragmentSpread",
                   "name": "EvaluatorsTable_row",
                   "selections": [
-                    (v2/*: any*/),
+                    (v1/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -184,16 +171,14 @@ return {
                     },
                     {
                       "alias": null,
-                      "args": (v3/*: any*/),
+                      "args": null,
                       "kind": "ScalarField",
                       "name": "isAssignedToDataset",
                       "storageKey": null
                     }
                   ],
-                  "args": (v3/*: any*/),
-                  "argumentDefinitions": [
-                    (v0/*: any*/)
-                  ]
+                  "args": null,
+                  "argumentDefinitions": []
                 },
                 {
                   "alias": null,
@@ -255,13 +240,13 @@ return {
       ],
       "storageKey": null
     },
-    (v2/*: any*/)
+    (v1/*: any*/)
   ],
   "type": "Dataset",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "4bca7ee0aee30a1a32fd888c3c60cbb6";
+(node as any).hash = "a9111ba5da57dce0f340d503475c3459";
 
 export default node;

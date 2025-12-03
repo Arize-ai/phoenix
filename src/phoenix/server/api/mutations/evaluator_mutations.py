@@ -114,7 +114,7 @@ class EvaluatorMutationPayload:
 class AssignEvaluatorToDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
-    name: Optional[str] = None
+    display_name: Optional[str] = None
     input_mapping: Optional[EvaluatorInputMappingInput] = None
 
 
@@ -122,7 +122,7 @@ class AssignEvaluatorToDatasetInput:
 class UnassignEvaluatorFromDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
-    name: str
+    display_name: str
 
 
 @strawberry.input
@@ -372,9 +372,10 @@ class EvaluatorMutationMixin:
 
         is_builtin = evaluator_rowid < 0
 
+        # fallback to evaluator name if display name is not provided
         assignment_name: str
-        if input.name is not None:
-            assignment_name = input.name
+        if input.display_name is not None:
+            assignment_name = input.display_name
         elif is_builtin:
             builtin_evaluator = get_builtin_evaluator_by_id(evaluator_rowid)
             if builtin_evaluator is None:
@@ -391,17 +392,17 @@ class EvaluatorMutationMixin:
         # Foreign key constraints will ensure dataset and evaluator exist
         values: dict[str, Any] = {
             "dataset_id": dataset_rowid,
-            "name": assignment_name,
+            "display_name": assignment_name,
             "input_mapping": input_mapping.to_dict(),
         }
         if is_builtin:
             values["builtin_evaluator_id"] = evaluator_rowid
             values["evaluator_id"] = None
-            unique_by = ("dataset_id", "builtin_evaluator_id", "name")
+            unique_by = ("dataset_id", "builtin_evaluator_id", "display_name")
         else:
             values["evaluator_id"] = evaluator_rowid
             values["builtin_evaluator_id"] = None
-            unique_by = ("dataset_id", "evaluator_id", "name")
+            unique_by = ("dataset_id", "evaluator_id", "display_name")
 
         try:
             async with info.context.db() as session:
@@ -459,7 +460,7 @@ class EvaluatorMutationMixin:
 
         stmt = delete(models.DatasetsEvaluators).where(
             models.DatasetsEvaluators.dataset_id == dataset_rowid,
-            models.DatasetsEvaluators.name == input.name,
+            models.DatasetsEvaluators.display_name == input.display_name,
         )
         if evaluator_rowid < 0:
             stmt = stmt.where(models.DatasetsEvaluators.builtin_evaluator_id == evaluator_rowid)

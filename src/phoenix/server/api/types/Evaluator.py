@@ -80,57 +80,15 @@ class Evaluator(Node):
     async def is_assigned_to_dataset(
         self,
         info: Info[Context, None],
-        dataset_id: Optional[GlobalID] = None,
-        name: Optional[str] = None,
     ) -> bool:
-        if dataset_id is None or name is None:
-            return False
-
-        from phoenix.server.api.types.Dataset import Dataset
-
-        try:
-            dataset_rowid = from_global_id_with_expected_type(
-                global_id=dataset_id,
-                expected_type_name=Dataset.__name__,
-            )
-        except ValueError:
-            raise BadRequest(f"Invalid dataset id: {dataset_id}")
-
-        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
-            (dataset_rowid, self.id, name)
-        )
-        return dataset_evaluator is not None
+        raise NotImplementedError
 
     @strawberry.field
     async def dataset_input_mapping(
         self,
         info: Info[Context, None],
-        dataset_id: Optional[GlobalID] = None,
-        name: Optional[str] = None,
     ) -> Optional[EvaluatorInputMapping]:
-        if dataset_id is None or name is None:
-            return None
-
-        try:
-            dataset_rowid = from_global_id_with_expected_type(
-                global_id=dataset_id,
-                expected_type_name="Dataset",
-            )
-        except ValueError:
-            raise BadRequest(f"Invalid dataset id: {dataset_id}")
-
-        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
-            (dataset_rowid, self.id, name)
-        )
-        if dataset_evaluator is None:
-            return None
-        if dataset_evaluator.input_mapping is None:
-            return None
-
-        return EvaluatorInputMapping(
-            literal_mapping=dataset_evaluator.input_mapping.get("literal_mapping", {}),
-            path_mapping=dataset_evaluator.input_mapping.get("path_mapping", {}),
-        )
+        raise NotImplementedError
 
 
 @strawberry.type
@@ -553,3 +511,105 @@ def _to_gql_categorical_annotation_config(
         description=config.description,
         values=values,
     )
+
+
+@strawberry.type
+class DatasetBuiltInEvaluator(BuiltInEvaluator, Node):
+    dataset_id: NodeID[int]
+    display_name: str
+
+    @strawberry.field
+    async def is_assigned_to_dataset(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+            (self.dataset_id, self.id, self.display_name)
+        )
+        return dataset_evaluator is not None
+
+    @strawberry.field
+    async def dataset_input_mapping(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[EvaluatorInputMapping]:
+        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+            (self.dataset_id, self.id, self.display_name)
+        )
+        if dataset_evaluator is None:
+            return None
+        if dataset_evaluator.input_mapping is None:
+            return None
+
+        return EvaluatorInputMapping(
+            literal_mapping=dataset_evaluator.input_mapping.get("literal_mapping", {}),
+            path_mapping=dataset_evaluator.input_mapping.get("path_mapping", {}),
+        )
+
+
+@strawberry.type
+class DatasetLLMEvaluator(LLMEvaluator, Node):
+    dataset_id: NodeID[int]
+    display_name: str
+
+    @strawberry.field
+    async def is_assigned_to_dataset(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+            (self.dataset_id, self.id, self.display_name)
+        )
+        return dataset_evaluator is not None
+
+    @strawberry.field
+    async def dataset_input_mapping(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[EvaluatorInputMapping]:
+        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+            (self.dataset_id, self.id, self.display_name)
+        )
+        if dataset_evaluator is None:
+            return None
+        if dataset_evaluator.input_mapping is None:
+            return None
+
+        return EvaluatorInputMapping(
+            literal_mapping=dataset_evaluator.input_mapping.get("literal_mapping", {}),
+            path_mapping=dataset_evaluator.input_mapping.get("path_mapping", {}),
+        )
+
+
+@strawberry.type
+class DatasetCodeEvaluator(CodeEvaluator, Node):
+    dataset_id: NodeID[int]
+    display_name: str
+
+    @strawberry.field
+    async def is_assigned_to_dataset(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+            (self.dataset_id, self.id, self.display_name)
+        )
+        return dataset_evaluator is not None
+
+    @strawberry.field
+    async def dataset_input_mapping(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[EvaluatorInputMapping]:
+        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+            (self.dataset_id, self.id, self.display_name)
+        )
+        if dataset_evaluator is None:
+            return None
+        if dataset_evaluator.input_mapping is None:
+            return None
+
+        return EvaluatorInputMapping(
+            literal_mapping=dataset_evaluator.input_mapping.get("literal_mapping", {}),
+            path_mapping=dataset_evaluator.input_mapping.get("path_mapping", {}),
+        )

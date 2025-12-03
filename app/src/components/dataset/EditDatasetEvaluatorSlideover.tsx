@@ -29,10 +29,12 @@ export const EditDatasetEvaluatorSlideover = ({
   evaluatorId,
   datasetId,
   updateConnectionIds,
+  displayName,
   ...props
 }: {
   evaluatorId: string;
   datasetId: string;
+  displayName: string;
   updateConnectionIds?: string[];
 } & ModalOverlayProps) => {
   return (
@@ -41,14 +43,13 @@ export const EditDatasetEvaluatorSlideover = ({
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>
-              {evaluatorId && datasetId && (
-                <EditEvaluatorDialog
-                  evaluatorId={evaluatorId}
-                  onClose={close}
-                  datasetId={datasetId}
-                  updateConnectionIds={updateConnectionIds}
-                />
-              )}
+              <EditEvaluatorDialog
+                evaluatorId={evaluatorId}
+                onClose={close}
+                datasetId={datasetId}
+                updateConnectionIds={updateConnectionIds}
+                displayName={displayName}
+              />
             </Suspense>
           )}
         </Dialog>
@@ -62,40 +63,45 @@ const EditEvaluatorDialog = ({
   onClose,
   datasetId,
   updateConnectionIds,
+  displayName,
 }: {
   evaluatorId: string;
   onClose: () => void;
   datasetId: string;
   updateConnectionIds?: string[];
+  displayName: string;
 }) => {
   const closedRef = useRef(false);
   const notifyError = useNotifyError();
   const query = useLazyLoadQuery<EditDatasetEvaluatorSlideover_evaluatorQuery>(
     graphql`
       query EditDatasetEvaluatorSlideover_evaluatorQuery(
-        $evaluatorId: ID!
         $datasetId: ID!
+        $evaluatorId: ID!
+        $displayName: String!
       ) {
-        evaluator: node(id: $evaluatorId) {
-          ... on Evaluator {
-            ...EditDatasetEvaluatorSlideover_evaluator
-              @arguments(datasetId: $datasetId)
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            evaluator(evaluatorId: $evaluatorId, displayName: $displayName) {
+              ... on Evaluator {
+                ...EditDatasetEvaluatorSlideover_evaluator
+              }
+            }
           }
         }
       }
     `,
-    { evaluatorId, datasetId }
+    { evaluatorId, datasetId, displayName }
   );
   const evaluatorFragment =
     useFragment<EditDatasetEvaluatorSlideover_evaluator$key>(
       graphql`
-        fragment EditDatasetEvaluatorSlideover_evaluator on Evaluator
-        @argumentDefinitions(datasetId: { type: "ID!" }) {
+        fragment EditDatasetEvaluatorSlideover_evaluator on Evaluator {
           id
           name
           description
           kind
-          isAssignedToDataset(datasetId: $datasetId)
+          isAssignedToDataset
           ... on LLMEvaluator {
             prompt {
               id
@@ -115,7 +121,7 @@ const EditEvaluatorDialog = ({
           }
         }
       `,
-      query.evaluator
+      query.dataset.evaluator
     );
   const evaluator = evaluatorFragment as Mutable<typeof evaluatorFragment>;
   invariant(evaluator, "evaluator is required");

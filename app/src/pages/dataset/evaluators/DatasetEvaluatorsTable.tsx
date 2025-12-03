@@ -30,14 +30,13 @@ export const useDatasetEvaluatorsTable = (
         first: { type: "Int", defaultValue: 100 }
         sort: { type: "EvaluatorSort", defaultValue: null }
         filter: { type: "EvaluatorFilter", defaultValue: null }
-        datasetId: { type: "ID", defaultValue: null }
       ) {
         evaluators(first: $first, after: $after, sort: $sort, filter: $filter)
           @connection(key: "DatasetEvaluatorsTable_evaluators") {
           __id
           edges {
             node {
-              ...EvaluatorsTable_row @arguments(datasetId: $datasetId)
+              ...EvaluatorsTable_row
             }
           }
         }
