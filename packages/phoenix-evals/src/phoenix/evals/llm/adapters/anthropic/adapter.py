@@ -255,7 +255,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         # Extract text from TextContentPart items only
         text_parts = []
         for part in content:
-            if part.get("type") == "text":
+            if part.get("type") == "text" and "text" in part:
                 text_parts.append(part["text"])
 
         # Join all text parts with newlines
