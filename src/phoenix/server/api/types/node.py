@@ -3,7 +3,7 @@ from base64 import b64decode
 
 from strawberry.relay import GlobalID
 
-_COMPOSITE_GLOBAL_ID_PATTERN = re.compile(r"[^:]+:[^:]+(:[^:]+:[^:]+)+")
+_COMPOSITE_GLOBAL_ID_PATTERN = re.compile(r"[^:]+:[^:]+(:[^:]+)+")
 
 
 def is_composite_global_id(node_id: str) -> bool:
