@@ -393,7 +393,7 @@ class LLMEvaluator(Evaluator):
         *,
         name: str,
         llm: LLM,
-        prompt_template: PromptLike,
+        prompt_template: Union[PromptLike, PromptTemplate, Template],
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
