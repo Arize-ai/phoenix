@@ -3107,6 +3107,7 @@ type PromptVersion implements Node {
   Sequence number (1-based) of prompt versions belonging to the same prompt
   """
   sequenceNumber: Int!
+  isLatest: Boolean!
 }
 
 """A connection to a list of items."""

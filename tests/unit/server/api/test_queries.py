@@ -151,6 +151,59 @@ async def test_prompts_without_filter(
     assert "production_prompt" in prompt_names
 
 
+async def test_prompt_version_is_latest(
+    gql_client: AsyncGraphQLClient,
+    prompt_with_multiple_versions: tuple[models.Prompt, list[models.PromptVersion]],
+) -> None:
+    """Test that isLatest returns True only for the latest version of a prompt."""
+    prompt, versions = prompt_with_multiple_versions
+
+    query = """
+      query ($versionId: ID!) {
+        node(id: $versionId) {
+          ... on PromptVersion {
+            id
+            description
+            isLatest
+          }
+        }
+      }
+    """
+
+    # Test oldest version (should not be latest)
+    oldest_version = versions[0]
+    response = await gql_client.execute(
+        query=query,
+        variables={"versionId": str(GlobalID("PromptVersion", str(oldest_version.id)))},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["isLatest"] is False
+    assert response.data["node"]["description"] == "Version 1"
+
+    # Test middle version (should not be latest)
+    middle_version = versions[1]
+    response = await gql_client.execute(
+        query=query,
+        variables={"versionId": str(GlobalID("PromptVersion", str(middle_version.id)))},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["isLatest"] is False
+    assert response.data["node"]["description"] == "Version 2"
+
+    # Test latest version (should be latest)
+    latest_version = versions[2]
+    response = await gql_client.execute(
+        query=query,
+        variables={"versionId": str(GlobalID("PromptVersion", str(latest_version.id)))},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["isLatest"] is True
+    assert response.data["node"]["description"] == "Version 3"
+
+
 async def test_compare_experiments_returns_expected_comparisons(
     gql_client: AsyncGraphQLClient,
     comparison_experiments: Any,
@@ -425,6 +478,46 @@ async def prompts_for_filtering(
             session.add(prompt_version)
 
         await session.commit()
+
+
+@pytest.fixture
+async def prompt_with_multiple_versions(
+    db: DbSessionFactory,
+) -> tuple[models.Prompt, list[models.PromptVersion]]:
+    """
+    Create a prompt with three versions for testing isLatest resolver.
+    Returns the prompt and list of versions (oldest first).
+    """
+    async with db() as session:
+        prompt = models.Prompt(
+            name=Identifier(root="multi_version_prompt"),
+            description="Prompt with multiple versions",
+            metadata_={"type": "test"},
+        )
+        session.add(prompt)
+        await session.flush()
+
+        versions = []
+        for i in range(3):
+            version = models.PromptVersion(
+                prompt_id=prompt.id,
+                description=f"Version {i + 1}",
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template=f"Hello v{i + 1}!"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-3.5-turbo",
+                metadata_={},
+            )
+            session.add(version)
+            await session.flush()
+            versions.append(version)
+
+        await session.commit()
+        return prompt, versions
 
 
 @pytest.fixture
