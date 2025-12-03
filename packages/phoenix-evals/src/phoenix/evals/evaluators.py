@@ -597,7 +597,7 @@ class ClassificationEvaluator(LLMEvaluator):
 
         method = (
             ObjectGenerationMethod.TOOL_CALLING
-            if isinstance(self.labels, Dict)
+            if isinstance(self.labels, dict)
             else ObjectGenerationMethod.AUTO
         )
         response = self.llm.generate_classification(
@@ -639,7 +639,7 @@ class ClassificationEvaluator(LLMEvaluator):
 
         method = (
             ObjectGenerationMethod.TOOL_CALLING
-            if isinstance(self.labels, Dict)
+            if isinstance(self.labels, dict)
             else ObjectGenerationMethod.AUTO
         )
         response = await self.llm.async_generate_classification(
