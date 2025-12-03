@@ -52,7 +52,7 @@ class Message(TypedDict):
 
 
 # Type alias for prompt formats
-PromptLike = Union[str, List[Dict[str, Any]]]
+PromptLike = Union[str, List[Dict[str, Any]], List[Message]]
 
 
 class TemplateFormatter(ABC):
@@ -607,21 +607,35 @@ class PromptTemplate:
     def __init__(
         self,
         *,
-        template: Union[PromptLike, Template],
+        template: Union[PromptLike, "PromptTemplate", Template],
         template_format: Optional[TemplateFormat] = None,
     ):
         """Initialize a PromptTemplate instance.
 
         Args:
-            template: Either a string template or a list of message dicts with role and content.
+            template: Either a string template, a list of message dicts with role and content,
+                a Template instance, or another PromptTemplate instance (which will be copied).
             template_format: Optional format specification (F_STRING or MUSTACHE).
                 If None, format will be auto-detected by each content part independently.
                 If specified, forces all content parts to use the same format.
+                When copying from another PromptTemplate, this overrides the original format.
 
         Raises:
             ValueError: If the template is empty or messages are invalid.
-            TypeError: If template is not a string or list.
+            TypeError: If template is not a valid type.
         """
+        # Handle PromptTemplate instances by copying their internal state
+        if isinstance(template, PromptTemplate):
+            self._template = template._template
+            self._messages = template._messages
+            self._is_string = template._is_string
+            self._variables = template._variables
+            # Use provided template_format if given, otherwise preserve original
+            self.template_format = (
+                template_format if template_format is not None else template.template_format
+            )
+            return
+
         self.template_format = template_format
 
         if isinstance(template, Template):
@@ -709,7 +723,13 @@ class PromptTemplate:
         Returns:
             List of rendered Message TypedDicts. String templates are converted
             to a single user message.
+
+        Raises:
+            TypeError: If variables is not a dictionary.
         """
+        if not isinstance(variables, dict):  # pyright: ignore
+            raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
+
         # Render all messages using MessageTemplate instances
         rendered_messages: List[Message] = []
         for msg_template in self._messages:

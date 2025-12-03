@@ -385,6 +385,11 @@ class LangChainModelAdapter(BaseLLMAdapter):
         if isinstance(prompt, MultimodalPrompt):
             return prompt.to_text_only_prompt()
 
+        # If we get here, prompt is an unexpected type
+        raise ValueError(
+            f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
+        )
+
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get(
             "description", "Extract structured data according to the provided schema"

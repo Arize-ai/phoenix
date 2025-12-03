@@ -349,6 +349,11 @@ class AnthropicAdapter(BaseLLMAdapter):
             combined_text = "\n".join(text_parts)
             return [{"role": "user", "content": combined_text}], ""
 
+        # If we get here, prompt is an unexpected type
+        raise ValueError(
+            f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
+        )
+
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         if not schema:
             raise ValueError(f"Schema must be a non-empty dictionary, got {type(schema)}")

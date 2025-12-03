@@ -481,6 +481,11 @@ class OpenAIAdapter(BaseLLMAdapter):
                     raise ValueError(f"Unsupported content type: {part.content_type}")
             return messages
 
+        # If we get here, prompt is an unexpected type
+        raise ValueError(
+            f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
+        )
+
     def _ensure_additional_properties_false(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
         Ensure that additionalProperties is set to false for OpenAI structured output.

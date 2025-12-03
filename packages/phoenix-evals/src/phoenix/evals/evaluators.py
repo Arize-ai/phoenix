@@ -35,9 +35,9 @@ from .legacy.evaluators import (
     SummarizationEvaluator,
     ToxicityEvaluator,
 )
-from .llm import LLM
+from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
-from .llm.types import ObjectGenerationMethod, PromptLike
+from .llm.types import ObjectGenerationMethod
 from .utils import (
     _deprecate_positional_args,
     _deprecate_source_and_heuristic,
@@ -403,7 +403,7 @@ class LLMEvaluator(Evaluator):
         if isinstance(prompt_template, PromptTemplate):
             self._prompt_template = prompt_template
         else:
-            self._prompt_template = PromptTemplate(template=cast(PromptLike, prompt_template))
+            self._prompt_template = PromptTemplate(template=prompt_template)
 
         required_fields = self._prompt_template.variables
 
