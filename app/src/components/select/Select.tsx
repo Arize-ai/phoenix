@@ -24,7 +24,7 @@ function Select<T extends object, M extends "single" | "multiple">(
   props: SelectProps<T, M>,
   ref: Ref<HTMLDivElement>
 ) {
-  const { size = "M", minWidth = "200px", ...otherProps } = props;
+  const { size = "M", ...otherProps } = props;
   return (
     <SizeProvider size={size}>
       <AriaSelect
@@ -33,7 +33,6 @@ function Select<T extends object, M extends "single" | "multiple">(
         ref={ref}
         css={css(fieldBaseCSS, selectCSS)}
         style={{
-          minWidth,
           ...otherProps.style,
         }}
         {...otherProps}
