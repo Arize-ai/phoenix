@@ -57,6 +57,50 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             return False
         return True
 
+    def _safe_extract_config_params(self, config: Any) -> Dict[str, Any]:
+        """Safely extract parameters from a GenerateContentConfig object.
+
+        This method avoids using config.__dict__ directly, which may contain
+        private attributes, internal state, or computed properties that the
+        constructor doesn't accept.
+
+        Args:
+            config: A GenerateContentConfig object (or similar config object).
+
+        Returns:
+            A dictionary of public attributes that can be safely passed to the constructor.
+        """
+        # Try Pydantic v2 model_dump() method first
+        if hasattr(config, "model_dump"):
+            try:
+                return config.model_dump()
+            except Exception:
+                pass
+
+        # Try Pydantic v1 dict() method
+        if hasattr(config, "dict"):
+            try:
+                return config.dict()
+            except Exception:
+                pass
+
+        # Try to_dict() method (common in dataclasses and other models)
+        if hasattr(config, "to_dict"):
+            try:
+                return config.to_dict()
+            except Exception:
+                pass
+
+        # Fallback: filter __dict__ to exclude private attributes
+        # This excludes attributes starting with _ (private) or __ (dunder)
+        config_dict = {}
+        for key, value in getattr(config, "__dict__", {}).items():
+            # Only include public attributes (not starting with _)
+            if not key.startswith("_"):
+                config_dict[key] = value
+
+        return config_dict
+
     def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
         if self._is_async:
             raise ValueError(
@@ -76,9 +120,9 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 config["system_instruction"] = system_instruction
             else:
                 # It's a GenerateContentConfig object, we need to merge
-                config = genai.types.GenerateContentConfig(
-                    **{**config.__dict__, "system_instruction": system_instruction}
-                )
+                config_params = self._safe_extract_config_params(config)
+                config_params["system_instruction"] = system_instruction
+                config = genai.types.GenerateContentConfig(**config_params)
             kwargs["config"] = config
 
         try:
@@ -115,9 +159,9 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 config["system_instruction"] = system_instruction
             else:
                 # It's a GenerateContentConfig object, we need to merge
-                config = genai.types.GenerateContentConfig(
-                    **{**config.__dict__, "system_instruction": system_instruction}
-                )
+                config_params = self._safe_extract_config_params(config)
+                config_params["system_instruction"] = system_instruction
+                config = genai.types.GenerateContentConfig(**config_params)
             kwargs["config"] = config
 
         try:
