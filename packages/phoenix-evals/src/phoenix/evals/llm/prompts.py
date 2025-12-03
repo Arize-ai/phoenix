@@ -10,13 +10,11 @@ The module supports template rendering with variable substitution using either
 mustache ({{variable}}) or f-string ({variable}) syntax.
 """
 
-import json
 import re
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import Enum
-from inspect import BoundArguments
 from string import Formatter
 from textwrap import dedent
 from typing import Any, Dict, List, Literal, Optional, TypedDict, Union, cast
@@ -24,18 +22,7 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict, Union, cast
 import pystache  # type: ignore
 from opentelemetry.trace import Tracer
 
-
-def _get_template(bound: BoundArguments) -> str:
-    return cast(str, bound.arguments["self"].template)
-
-
-def _get_variables(bound: BoundArguments) -> str:
-    variables = bound.arguments["variables"]
-    return json.dumps(variables)
-
-
-def _get_output(result: str) -> str:
-    return result
+from phoenix.evals.legacy.templates import MultimodalPrompt
 
 
 class TemplateFormat(str, Enum):
@@ -56,15 +43,9 @@ class TextContentPart(TypedDict):
     text: str
 
 
-class ImageUrlContentPart(TypedDict):
-    """Image URL content part for messages (OpenAI format)."""
-
-    type: Literal["image_url"]
-    image_url: Dict[str, Any]
-
-
 # alias for the content part types
-ContentPart = Union[TextContentPart, ImageUrlContentPart]
+# add more content part types here as we expand to multimodal prompts
+ContentPart = TextContentPart
 
 
 class Message(TypedDict):
@@ -351,39 +332,39 @@ class TextContentPartTemplate(ContentPartTemplate):
         return TextContentPart(type="text", text=rendered_text)
 
 
-class ImageUrlContentPartTemplate(ContentPartTemplate):
-    """Template for image URL content parts.
+# class ImageUrlContentPartTemplate(ContentPartTemplate):
+#     """Template for image URL content parts.
 
-    Note: Currently treats image_url as static (no variable substitution).
-    Future enhancement could support templating in URL strings.
-    """
+#     Note: Currently treats image_url as static (no variable substitution).
+#     Future enhancement could support templating in URL strings.
+#     """
 
-    def __init__(
-        self,
-        image_url: Dict[str, Any],
-        format: Optional[TemplateFormat] = None,
-    ):
-        """Initialize an image URL content part template.
+#     def __init__(
+#         self,
+#         image_url: Dict[str, Any],
+#         format: Optional[TemplateFormat] = None,
+#     ):
+#         """Initialize an image URL content part template.
 
-        Args:
-            image_url: The image URL data (e.g., {"url": "..."}).
-            format: Optional format specification.
-        """
-        self.type = "image_url"
-        self.image_url = image_url
-        self.format = format or TemplateFormat.MUSTACHE
+#         Args:
+#             image_url: The image URL data (e.g., {"url": "..."}).
+#             format: Optional format specification.
+#         """
+#         self.type = "image_url"
+#         self.image_url = image_url
+#         self.format = format or TemplateFormat.MUSTACHE
 
-    def variables(self) -> List[str]:
-        """Extract variables from the image URL.
+#     def variables(self) -> List[str]:
+#         """Extract variables from the image URL.
 
-        Returns:
-            Empty list (no variable substitution in images yet).
-        """
-        raise NotImplementedError("Image URL content parts are not supported yet.")
+#         Returns:
+#             Empty list (no variable substitution in images yet).
+#         """
+#         raise NotImplementedError("Image URL content parts are not supported yet.")
 
-    def render(self, variables: Dict[str, Any]) -> ImageUrlContentPart:
-        """Render the image URL template to an ImageUrlContentPart."""
-        raise NotImplementedError("Image URL content parts are not supported yet.")
+#     def render(self, variables: Dict[str, Any]) -> ImageUrlContentPart:
+#         """Render the image URL template to an ImageUrlContentPart."""
+#         raise NotImplementedError("Image URL content parts are not supported yet.")
 
 
 def create_content_part_template(
@@ -421,11 +402,11 @@ def create_content_part_template(
             raise ValueError("Text content part must have 'text' or 'content' field")
         return TextContentPartTemplate(text=text, format=format)
 
-    elif content_type == "image_url":
-        image_url = content_part.get("image_url")
-        if not image_url:
-            raise ValueError("Image content part must have 'image_url' field")
-        return ImageUrlContentPartTemplate(image_url=image_url, format=format)
+    # elif content_type == "image_url":
+    #     image_url = content_part.get("image_url")
+    #     if not image_url:
+    #         raise ValueError("Image content part must have 'image_url' field")
+    #     return ImageUrlContentPartTemplate(image_url=image_url, format=format)
 
     else:
         raise ValueError(f"Unsupported content type: {content_type}")
@@ -456,17 +437,15 @@ class MessageTemplate:
             TypeError: If content is not str or list.
         """
         # Convert string to MessageRole if needed
-        if isinstance(role, str):
+        if isinstance(role, MessageRole):
+            self.role = role
+        elif isinstance(role, str):
             try:
                 self.role = MessageRole(role)
             except ValueError:
                 raise ValueError(
                     f"Invalid role: {role}. Must be one of: {[r.value for r in MessageRole]}"
                 )
-        elif isinstance(role, MessageRole):
-            self.role = role
-        else:
-            raise TypeError(f"Role must be MessageRole or str, got {type(role)}")
 
         self._format = format
         self._original_content = content  # Store original for content property
@@ -475,6 +454,7 @@ class MessageTemplate:
         if isinstance(content, str):
             if not content:
                 raise ValueError("Content cannot be empty")
+            # gets converted back to string in render step
             self._content_templates: List[ContentPartTemplate] = [
                 TextContentPartTemplate(text=content, format=format)
             ]
@@ -489,9 +469,6 @@ class MessageTemplate:
                 create_content_part_template(part, format) for part in content
             ]
             self._is_string_content = False
-
-        else:
-            raise TypeError(f"Content must be str or list, got {type(content)}")
 
     @property
     def content(self) -> Union[str, List[Dict[str, Any]]]:
@@ -723,13 +700,7 @@ class PromptTemplate:
         Returns:
             List of rendered Message TypedDicts. String templates are converted
             to a single user message.
-
-        Raises:
-            TypeError: If variables is not a dictionary.
         """
-        if not isinstance(variables, dict):  # pyright: ignore
-            raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
-
         # Render all messages using MessageTemplate instances
         rendered_messages: List[Message] = []
         for msg_template in self._messages:
