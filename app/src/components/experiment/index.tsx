@@ -9,3 +9,4 @@ export * from "./ExperimentTokenCountDetails";
 export * from "./ExperimentAverageRunTokenCosts";
 export * from "./ExperimentCodeModal";
 export * from "./RunExperimentCodeDialog";
+export * from "./ExperimentRunCellAnnotationsList";
