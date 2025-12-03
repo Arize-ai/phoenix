@@ -126,6 +126,8 @@ module = [
   "litellm",
   "langchain_openai",
   "langchain_anthropic",
+  "langchain_core.*",
+  "langchain_community.*",
   "mistralai",
   "mistralai.*",
   "opentelemetry",
