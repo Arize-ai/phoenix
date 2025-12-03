@@ -1694,6 +1694,121 @@ class TestApplyChatTemplate:
         assert len(tool_result_parts) == 1
         assert tool_result_parts[0]["toolResult"]["toolCallId"] == "call_123"
 
+    async def test_apply_template_with_tool_result_empty_string_content(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test that tool results with empty string content create a proper ToolResultContentPart."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                  ... on ToolResultContentPart {
+                    toolResult {
+                      toolCallId
+                      result
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        # Test with empty string content
+        variables = {
+            "template": [
+                {
+                    "role": "TOOL",
+                    "content": "",
+                    "toolCallId": "call_456",
+                },
+            ],
+            "templateOptions": {
+                "format": "NONE",
+                "variables": {},
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        messages = response.data["applyChatTemplate"]["messages"]
+        assert len(messages) == 1
+        assert messages[0]["role"] == "TOOL"
+        # The content should be converted to a tool result with empty string
+        tool_result_parts = [
+            part for part in messages[0]["content"] if part.get("toolResult") is not None
+        ]
+        assert len(tool_result_parts) == 1
+        assert tool_result_parts[0]["toolResult"]["toolCallId"] == "call_456"
+        assert tool_result_parts[0]["toolResult"]["result"] == ""
+
+    async def test_apply_template_with_tool_result_empty_list_content(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test that tool results with empty list content create a proper ToolResultContentPart."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                  ... on ToolResultContentPart {
+                    toolResult {
+                      toolCallId
+                      result
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        # Test with empty list content - this is the edge case where content_parts
+        # would be empty but tool_call_id is set
+        variables = {
+            "template": [
+                {
+                    "role": "TOOL",
+                    "content": [],
+                    "toolCallId": "call_789",
+                },
+            ],
+            "templateOptions": {
+                "format": "NONE",
+                "variables": {},
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        messages = response.data["applyChatTemplate"]["messages"]
+        assert len(messages) == 1
+        assert messages[0]["role"] == "TOOL"
+        # The content should be converted to a tool result even with empty list content
+        tool_result_parts = [
+            part for part in messages[0]["content"] if part.get("toolResult") is not None
+        ]
+        assert len(tool_result_parts) == 1
+        assert tool_result_parts[0]["toolResult"]["toolCallId"] == "call_789"
+        assert tool_result_parts[0]["toolResult"]["result"] == ""
+
     async def test_apply_template_multiple_messages(
         self,
         gql_client: AsyncGraphQLClient,

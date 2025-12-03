@@ -1823,23 +1823,6 @@ class Query:
                             )
                         )
 
-            # Handle tool result (message with tool_call_id is a tool result)
-            if message.tool_call_id and isinstance(message.tool_call_id, str):
-                # This is a tool result message - the content is the result
-                # We've already processed the content above, so just ensure we have the tool_call_id
-                # For tool result messages, we wrap the content as a tool result
-                if content_parts and isinstance(content_parts[0], TextContentPart):
-                    # Replace text content with tool result content
-                    text_content = content_parts[0].text.text
-                    content_parts = [
-                        ToolResultContentPart(
-                            tool_result=ToolResultContentValue(
-                                tool_call_id=message.tool_call_id,
-                                result=text_content,
-                            )
-                        )
-                    ]
-
             messages.append(PromptMessage(role=role, content=content_parts))
 
         return PromptChatTemplate(messages=messages)
