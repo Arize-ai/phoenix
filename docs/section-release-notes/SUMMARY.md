@@ -2,6 +2,10 @@
 
 * [Release Notes](README.md)
 * [11.2025](11.2025/README.md)
+  * [11.29.2025: Add support for Claude Opus 4-5 🤖](11.2025/11.29.2025-add-support-for-claude-opus-4-5.md)
+  * [11.27.2025: Show Server Credential Setup in Playground API Keys 🔐](11.2025/11.27.2025-show-server-credential-setup-in-playground-api-keys.md)
+  * [11.25.2025: Split Assignments When Uploading a Dataset 🗂️](11.2025/11.25.2025-split-assignments-when-uploading-a-dataset.md)
+  * [11.23.2025: Repetitions for Manual Playground Invocations 🛝](11.2025/11.23.2025-repetitions-for-manual-playground-invocations.md)
   * [11.19.2025: Expanded Provider Support with OpenAI 5.1 + Gemini 3🔧](11.2025/11.19.2025-expanded-provider-support-with-openai-5.1-+-gemini-3.md)
   * [11.12.2025: Updated Anthropic Model List 🧠](11.2025/11.12.2025-updated-anthropic-model-list.md)
   * [11.09.2025 OpenInference TypeScript 2.0 💻](11.2025/11.09.2025-openinference-typescript-2.0.md)

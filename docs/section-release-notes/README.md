@@ -6,9 +6,41 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [11.29.2025: Add support for Claude Opus 4-5](11.2025/11.29.2025-add-support-for-claude-opus-4-5.md) 🤖
+
+**Available in Phoenix 12.18+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-opus-4-5-support.png" %}
+
+Phoenix now supports Claude Opus 4 and 4-5 as models you can invoke from the Playground.
+
+## [11.27.2025: Show Server Credential Setup in Playground API Keys](11.2025/11.27.2025-show-server-credential-setup-in-playground-api-keys.md) 🔐
+
+**Available in Phoenix 12.18+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/playground-server-credential-set-up.png" %}
+
+The Playground now clearly indicates when server credentials are configured.
+
+## [11.25.2025: Split Assignments When Uploading a Dataset](11.2025/11.25.2025-split-assignments-when-uploading-a-dataset.md) 🗂️
+
+**Available in Phoenix 12.18+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/upload-dataset-splits.mp4" %}
+
+You can now assign data splits (ex: train/test/validation) directly when uploading a dataset into Arize Phoenix.
+
+## [11.23.2025: Repetitions for Manual Playground Invocations](11.2025/11.23.2025-repetitions-for-manual-playground-invocations.md) 🛝&#x20;
+
+**Available in Phoenix 12.17+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/playground-repetitions-rn.png" %}
+
+This update adds an easy way to run several repetitions of the same prompt directly from the Playground.&#x20;
+
 ## [11.19.2025: Expanded Provider Support with OpenAI 5.1 + Gemini 3](11.2025/11.19.2025-expanded-provider-support-with-openai-5.1-+-gemini-3.md) 🔧
 
-**Available in Phoenix 12.15+**
+**Available in Phoenix 12.16+**
 
 This update enhances LLM provider support by adding **OpenAI v5.1** compatibility (including reasoning capabilities), expanding support for **Google DeepMind/Gemini** models, and introducing the **gemini-3** model variant.
 
