@@ -1,7 +1,5 @@
 import {
   memo,
-  PropsWithChildren,
-  ReactNode,
   SetStateAction,
   useCallback,
   useEffect,
@@ -19,7 +17,6 @@ import {
 } from "react-relay";
 import { useSearchParams } from "react-router";
 import {
-  CellContext,
   ColumnDef,
   flexRender,
   getCoreRowModel,
@@ -35,8 +32,6 @@ import {
 import { css } from "@emotion/react";
 
 import {
-  Dialog,
-  DialogTrigger,
   Flex,
   Icon,
   IconButton,
@@ -44,16 +39,17 @@ import {
   Loading,
   Modal,
   ModalOverlay,
-  Popover,
-  PopoverArrow,
   Text,
-  View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
-import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
-import { CellTop } from "@phoenix/components/table";
+import { ExperimentRunCellAnnotationsList } from "@phoenix/components/experiment";
+import {
+  CellTop,
+  JSONCell,
+  LargeTextWrap,
+  PaddedCell,
+} from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import {
@@ -157,81 +153,6 @@ const createExampleResponsesForInstance = (
     {}
   );
 };
-
-const cellWithControlsWrapCSS = css`
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  height: 100%;
-  min-height: 75px;
-  .controls {
-    transition: opacity 0.2s ease-in-out;
-    opacity: 0;
-    display: none;
-    z-index: 1;
-  }
-  &:hover .controls {
-    opacity: 1;
-    display: flex;
-    // make them stand out
-    button {
-      border-color: var(--ac-global-color-primary);
-    }
-  }
-`;
-
-const cellControlsCSS = css`
-  position: absolute;
-  top: calc(-1 * var(--ac-global-dimension-static-size-200));
-  right: var(--ac-global-dimension-static-size-100);
-  display: flex;
-  flex-direction: row;
-  gap: var(--ac-global-dimension-static-size-100);
-`;
-
-/**
- * Wraps a cell to provides space for controls that are shown on hover.
- */
-export function CellWithControlsWrap(
-  props: PropsWithChildren<{ controls: ReactNode }>
-) {
-  return (
-    <div css={cellWithControlsWrapCSS}>
-      {props.children}
-      <div css={cellControlsCSS} className="controls">
-        {props.controls}
-      </div>
-    </div>
-  );
-}
-
-function LargeTextWrap({ children }: { children: ReactNode }) {
-  return (
-    <div
-      data-testid="large-text-wrap"
-      css={css`
-        height: 200px;
-        overflow-y: auto;
-        padding: var(--ac-global-dimension-static-size-200);
-      `}
-    >
-      {children}
-    </div>
-  );
-}
-
-function JSONCell<TData extends object, TValue>({
-  getValue,
-  collapseSingleKey,
-}: CellContext<TData, TValue> & { collapseSingleKey?: boolean }) {
-  const value = getValue();
-  return (
-    <LargeTextWrap>
-      <JSONText json={value} space={2} collapseSingleKey={collapseSingleKey} />
-    </LargeTextWrap>
-  );
-}
 
 function EmptyExampleOutput({
   isRunning,
@@ -381,7 +302,7 @@ function ExampleOutputContent({
           </Text>
         )}
       </CellTop>
-      <View padding="size-200">
+      <PaddedCell>
         <Flex direction={"column"} gap="size-100" key="content-wrap">
           {errorMessage != null ? (
             <PlaygroundErrorWrap key="error-message">
@@ -389,7 +310,9 @@ function ExampleOutputContent({
             </PlaygroundErrorWrap>
           ) : null}
           {content != null ? (
-            <LargeTextWrap key="content">{content}</LargeTextWrap>
+            <LargeTextWrap key="content" height={200}>
+              {content}
+            </LargeTextWrap>
           ) : null}
           {toolCalls != null
             ? Object.values(toolCalls).map((toolCall) =>
@@ -399,73 +322,16 @@ function ExampleOutputContent({
               )
             : null}
         </Flex>
-      </View>
+      </PaddedCell>
       {evaluations != null && evaluations.length > 0 && (
-        <ul
-          css={css`
-            display: flex;
-            flex-direction: column;
-            flex: none;
-            padding: 0 var(--ac-global-dimension-static-size-100)
-              var(--ac-global-dimension-static-size-100)
-              var(--ac-global-dimension-static-size-100);
-          `}
-        >
-          {evaluations.map((evaluation) => {
-            // TODO: replace this with evaluation trace once it's implemented
-            // const traceId = evaluation.trace?.traceId;
-            // const projectId = evaluation.trace?.projectId;
-            const traceId = span?.context.traceId;
-            const projectId = span?.project.id;
-            const hasTrace = traceId != null && projectId != null;
-            return (
-              <li
-                key={evaluation.id}
-                css={css`
-                  display: flex;
-                  flex-direction: row;
-                  align-items: center;
-                  justify-content: space-between;
-                  gap: var(--ac-global-dimension-static-size-50);
-                `}
-              >
-                <DialogTrigger>
-                  <ExperimentAnnotationButton annotation={evaluation} />
-                  <Popover placement="top">
-                    <PopoverArrow />
-                    <Dialog style={{ width: 400 }}>
-                      <View padding="size-200">
-                        <AnnotationDetailsContent
-                          annotation={{
-                            ...evaluation,
-                            createdAt: evaluation.startTime,
-                          }}
-                        />
-                      </View>
-                    </Dialog>
-                  </Popover>
-                </DialogTrigger>
-                <TooltipTrigger isDisabled={!hasTrace}>
-                  <IconButton
-                    size="S"
-                    isDisabled={!hasTrace}
-                    onPress={() => {
-                      if (hasTrace) {
-                        onViewTracePress(traceId, projectId, evaluation.name);
-                      }
-                    }}
-                  >
-                    <Icon svg={<Icons.Trace />} />
-                  </IconButton>
-                  <Tooltip>
-                    <TooltipArrow />
-                    View evaluation trace
-                  </Tooltip>
-                </TooltipTrigger>
-              </li>
-            );
-          })}
-        </ul>
+        <ExperimentRunCellAnnotationsList
+          annotations={evaluations}
+          onTraceClick={({ traceId, projectId, annotationName }) => {
+            if (traceId && projectId) {
+              onViewTracePress(traceId, projectId, annotationName);
+            }
+          }}
+        />
       )}
     </Flex>
   );
@@ -1161,14 +1027,16 @@ export function PlaygroundDatasetExamplesTable({
                 `}
               >{`Example ${row.original.id}`}</Text>
             </CellTop>
-            <LargeTextWrap>
-              <JSONText
-                json={row.original.input}
-                disableTitle
-                space={2}
-                collapseSingleKey={false}
-              />
-            </LargeTextWrap>
+            <PaddedCell>
+              <LargeTextWrap height={200}>
+                <JSONText
+                  json={row.original.input}
+                  disableTitle
+                  space={2}
+                  collapseSingleKey={false}
+                />
+              </LargeTextWrap>
+            </PaddedCell>
           </>
         );
       },
@@ -1183,7 +1051,9 @@ export function PlaygroundDatasetExamplesTable({
             <CellTop>
               <Text color="text-500">{`reference output`}</Text>
             </CellTop>
-            <JSONCell {...props} collapseSingleKey={true} />
+            <PaddedCell>
+              <JSONCell {...props} collapseSingleKey={true} height={200} />
+            </PaddedCell>
           </>
         );
       },
