@@ -216,20 +216,20 @@ class TestEvaluationHelpersRag:
 
         assert isinstance(df, pd.DataFrame)
         # Focus only on rows for the retriever that has docs
-        df_docs_only = df[df.index.get_level_values(0) == retriever_span_id]
+        df_docs_only = df[df.index.get_level_values(0) == retriever_span_id]  # pyright: ignore[reportUnknownVariableType]
         assert len(df_docs_only) == 2
         # Expect multi-index with span_id and document position
         assert df_docs_only.index.nlevels == 2
         assert "context.trace_id" in df_docs_only.columns
         assert "input" in df_docs_only.columns
         # Input propagated from retriever span
-        assert all(val == "what is X?" for val in df_docs_only["input"].tolist())
+        assert all(val == "what is X?" for val in df_docs_only["input"].tolist())  # pyright: ignore[reportUnknownVariableType]
         # Content and score/metadata assertions when available
         if "document" in df_docs_only.columns:
-            documents = set(df_docs_only["document"].astype(str).tolist())  # pyright: ignore[reportAttributeAccessIssue]
+            documents = set(df_docs_only["document"].astype(str).tolist())  # pyright: ignore[reportAttributeAccessIssue,reportUnknownVariableType]
             assert "doc_1_content" in documents and "doc_2_content" in documents
         if "document_score" in df_docs_only.columns:
-            has_missing = any(pd.isna(s) for s in df_docs_only["document_score"].tolist())  # pyright: ignore[reportArgumentType]
+            has_missing = any(pd.isna(s) for s in df_docs_only["document_score"].tolist())  # pyright: ignore[reportArgumentType,reportUnknownVariableType]
             assert has_missing
 
     @pytest.mark.parametrize("is_async", [True, False])
