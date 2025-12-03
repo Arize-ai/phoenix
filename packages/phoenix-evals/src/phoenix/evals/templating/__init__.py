@@ -11,24 +11,12 @@ import warnings
 
 # Re-export everything from the new location for backward compatibility
 from phoenix.evals.llm.prompts import (
-    ContentPart,
-    ContentPartTemplate,
     FormatterFactory,
     FStringFormatter,
-    ImageUrlContentPart,
-    ImageUrlContentPartTemplate,
-    Message,
-    MessageRole,
-    MessageTemplate,
     MustacheFormatter,
-    PromptLike,
-    PromptTemplate,
     Template,
     TemplateFormat,
     TemplateFormatter,
-    TextContentPart,
-    TextContentPartTemplate,
-    create_content_part_template,
     detect_template_format,
 )
 
@@ -41,23 +29,11 @@ warnings.warn(
 )
 
 __all__ = [
-    "ContentPart",
-    "ContentPartTemplate",
     "FormatterFactory",
     "FStringFormatter",
-    "ImageUrlContentPart",
-    "ImageUrlContentPartTemplate",
-    "Message",
-    "MessageRole",
-    "MessageTemplate",
     "MustacheFormatter",
-    "PromptLike",
-    "PromptTemplate",
     "Template",
     "TemplateFormat",
     "TemplateFormatter",
-    "TextContentPart",
-    "TextContentPartTemplate",
-    "create_content_part_template",
     "detect_template_format",
 ]
