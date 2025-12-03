@@ -3,9 +3,9 @@ from typing import Any, Dict, List, Type, Union, cast
 
 from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 
-from ...prompts import Message, MessageRole
+from ...prompts import Message, MessageRole, PromptLike
 from ...registries import register_adapter, register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod, PromptLike
+from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .factories import AnthropicClientWrapper, create_anthropic_client
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         return inspect.iscoroutinefunction(create_method)
 
-    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
+    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
         if self._is_async:
             raise ValueError("Cannot call sync method generate_text() on async Anthropic client.")
         messages, system = self._build_messages(prompt)
@@ -95,7 +95,9 @@ class AnthropicAdapter(BaseLLMAdapter):
             logger.error(f"Anthropic completion failed: {e}")
             raise
 
-    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
+    async def async_generate_text(
+        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
+    ) -> str:
         if not self._is_async:
             raise ValueError(
                 "Cannot call async method async_generate_text() on sync Anthropic client."
@@ -120,7 +122,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -151,7 +153,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -173,7 +175,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -200,7 +202,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -299,7 +301,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         return anthropic_messages
 
     def _build_messages(
-        self, prompt: Union[str, List[Dict[str, Any]], List[Message], MultimodalPrompt]
+        self, prompt: Union[PromptLike, MultimodalPrompt]
     ) -> tuple[list[dict[str, Any]], str]:
         """Build messages for Anthropic API.
 
@@ -325,12 +327,11 @@ class AnthropicAdapter(BaseLLMAdapter):
                 return anthropic_messages, system_content
 
             # Otherwise, plain dict format - extract system messages
-            prompt_dicts = cast(List[Dict[str, Any]], prompt)
             system_messages_dicts: List[Dict[str, Any]] = [
-                msg for msg in prompt_dicts if msg.get("role") == "system"
+                msg for msg in prompt if msg.get("role") == "system"
             ]
             non_system_messages_dicts: List[Dict[str, Any]] = [
-                msg for msg in prompt_dicts if msg.get("role") != "system"
+                msg for msg in prompt if msg.get("role") != "system"
             ]
             system_content = "\n".join(
                 self._extract_text_from_content(msg.get("content", ""))
@@ -339,13 +340,14 @@ class AnthropicAdapter(BaseLLMAdapter):
             return non_system_messages_dicts, system_content
 
         # Handle legacy MultimodalPrompt
-        text_parts = []
-        for part in prompt.parts:
-            if part.content_type == PromptPartContentType.TEXT:
-                text_parts.append(part.content)
+        if isinstance(prompt, MultimodalPrompt):
+            text_parts = []
+            for part in prompt.parts:
+                if part.content_type == PromptPartContentType.TEXT:
+                    text_parts.append(part.content)
 
-        combined_text = "\n".join(text_parts)
-        return [{"role": "user", "content": combined_text}], ""
+            combined_text = "\n".join(text_parts)
+            return [{"role": "user", "content": combined_text}], ""
 
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         if not schema:

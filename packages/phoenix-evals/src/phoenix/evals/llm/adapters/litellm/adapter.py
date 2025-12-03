@@ -8,9 +8,9 @@ from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
 from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
 
-from ...prompts import Message, MessageRole
+from ...prompts import Message, MessageRole, PromptLike
 from ...registries import register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod, PromptLike
+from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
@@ -85,7 +85,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         except ImportError:
             raise ImportError("LiteLLM package not installed. Run: pip install litellm")
 
-    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
+    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
         """Generate text using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -101,7 +101,9 @@ class LiteLLMAdapter(BaseLLMAdapter):
             logger.error(f"LiteLLM completion failed: {e}")
             raise
 
-    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
+    async def async_generate_text(
+        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
+    ) -> str:
         """Async text generation using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -119,7 +121,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -172,7 +174,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -226,7 +228,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def _generate_with_structured_output(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -255,7 +257,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -280,7 +282,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_structured_output(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -309,7 +311,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -400,7 +402,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
                 text_parts = []
                 for part in content:
                     if part.get("type") == "text" and "text" in part:
-                        text_parts.append(part["text"])  # type: ignore[typeddict-item]
+                        text_parts.append(part["text"])
 
                 # Join all text parts with newlines
                 combined_text = "\n".join(text_parts)
@@ -408,9 +410,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
         return openai_messages
 
-    def _build_messages(
-        self, prompt: Union[str, List[Dict[str, Any]], List[Message], MultimodalPrompt]
-    ) -> list[dict[str, Any]]:
+    def _build_messages(self, prompt: Union[PromptLike, MultimodalPrompt]) -> list[dict[str, Any]]:
         if isinstance(prompt, str):
             return [{"role": "user", "content": prompt}]
 
@@ -420,7 +420,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
                 # Transform List[Message] to OpenAI format
                 return self._transform_messages_to_openai(cast(List[Message], prompt))
             # Already in OpenAI message format (backward compatibility)
-            return cast(List[Dict[str, Any]], prompt)
+            return prompt
 
         # Handle legacy MultimodalPrompt
         messages: list[dict[str, Any]] = []

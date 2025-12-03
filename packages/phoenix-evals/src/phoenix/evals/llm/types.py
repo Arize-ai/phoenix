@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Type, Union
+
+from phoenix.evals.legacy.templates import MultimodalPrompt
 
 from .prompts import PromptLike
 
 __all__ = [
-    "PromptLike",
     "ObjectGenerationMethod",
     "BaseLLMAdapter",
     "AdapterRegistration",
@@ -46,7 +47,7 @@ class BaseLLMAdapter(ABC):
         pass
 
     @abstractmethod
-    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
+    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
         """Generate text response from the model.
 
         Args:
@@ -55,7 +56,9 @@ class BaseLLMAdapter(ABC):
         pass
 
     @abstractmethod
-    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
+    async def async_generate_text(
+        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
+    ) -> str:
         """Async version of generate_text.
 
         Args:
@@ -66,7 +69,7 @@ class BaseLLMAdapter(ABC):
     @abstractmethod
     def generate_object(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -90,7 +93,7 @@ class BaseLLMAdapter(ABC):
     @abstractmethod
     async def async_generate_object(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,

@@ -69,7 +69,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 f"'predict' method, got {type(self.client)}"
             )
 
-    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
+    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "invoke"):
@@ -86,7 +86,9 @@ class LangChainModelAdapter(BaseLLMAdapter):
         else:
             return str(response)
 
-    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
+    async def async_generate_text(
+        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
+    ) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "ainvoke"):
@@ -105,7 +107,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -185,7 +187,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: PromptLike,
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -339,11 +341,11 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 return self._transform_messages_to_langchain(cast(List[Message], prompt))
             # Convert OpenAI-style messages to LangChain messages (backward compatibility)
             try:
-                from langchain_community.adapters.openai import (  # type: ignore[import-not-found,import-untyped]
+                from langchain_community.adapters.openai import (
                     convert_openai_messages,
                 )
 
-                return convert_openai_messages(prompt)  # type: ignore[no-untyped-call]
+                return convert_openai_messages(prompt)  # type: ignore[no-any-return]
             except ImportError:
                 # Fallback: manual conversion if langchain_community not available
                 from langchain_core.messages import (
@@ -380,7 +382,8 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 return lc_messages
 
         # Handle legacy MultimodalPrompt
-        return prompt.to_text_only_prompt()
+        if isinstance(prompt, MultimodalPrompt):
+            return prompt.to_text_only_prompt()
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get(
