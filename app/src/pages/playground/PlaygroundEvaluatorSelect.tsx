@@ -14,9 +14,7 @@ import {
   GridListSectionTitle,
   Icon,
   Icons,
-  LinkButton,
   MenuContainer,
-  MenuFooter,
   MenuHeader,
   SearchField,
   SearchIcon,
@@ -33,14 +31,12 @@ type PlaygroundEvaluatorSelectProps = {
   evaluators: EvaluatorItem[];
   selectedIds?: string[];
   onSelectionChange: (keys: string[]) => void;
-  addNewEvaluatorLink: string;
 };
 
 export function PlaygroundEvaluatorSelect(
   props: PlaygroundEvaluatorSelectProps
 ) {
-  const { evaluators, selectedIds, onSelectionChange, addNewEvaluatorLink } =
-    props;
+  const { evaluators, selectedIds, onSelectionChange } = props;
   const { contains } = useFilter({ sensitivity: "base" });
 
   const [editingEvaluatorId, setEditingEvaluatorId] = useState<string | null>(
@@ -102,11 +98,6 @@ export function PlaygroundEvaluatorSelect(
               </GridListSection>
             </GridList>
           </Autocomplete>
-          <MenuFooter>
-            <LinkButton variant="quiet" to={addNewEvaluatorLink}>
-              New evaluator
-            </LinkButton>
-          </MenuFooter>
         </MenuContainer>
       </DialogTrigger>
       <EditEvaluatorSlideover

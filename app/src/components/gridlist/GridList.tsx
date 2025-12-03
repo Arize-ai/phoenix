@@ -51,22 +51,20 @@ export function GridList<T extends object>(props: GridListProps<T>) {
 export function GridListItem(props: GridListItemProps) {
   const { ref, children, subtitle, trailingContent, ...restProps } = props;
   return (
-    <>
-      <AriaGridListItem css={gridListItemCss} ref={ref} {...restProps}>
-        {({ selectionMode, selectionBehavior }) => (
-          <>
-            <GridListItemContent
-              subtitle={subtitle}
-              selectionMode={selectionMode}
-              selectionBehavior={selectionBehavior}
-            >
-              {children}
-            </GridListItemContent>
-            {trailingContent}
-          </>
-        )}
-      </AriaGridListItem>
-    </>
+    <AriaGridListItem css={gridListItemCss} ref={ref} {...restProps}>
+      {({ selectionMode, selectionBehavior }) => (
+        <>
+          <GridListItemContent
+            subtitle={subtitle}
+            selectionMode={selectionMode}
+            selectionBehavior={selectionBehavior}
+          >
+            {children}
+          </GridListItemContent>
+          {trailingContent}
+        </>
+      )}
+    </AriaGridListItem>
   );
 }
 

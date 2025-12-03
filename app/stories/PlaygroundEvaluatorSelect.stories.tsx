@@ -28,10 +28,6 @@ const meta = {
       description:
         "Callback fired when an individual evaluator is selected/deselected",
     },
-    addNewEvaluatorLink: {
-      control: "text",
-      description: "Link to the new evaluator page",
-    },
   },
 } satisfies Meta<typeof PlaygroundEvaluatorSelect>;
 
@@ -86,7 +82,6 @@ const DefaultComponent = () => {
       evaluators={sampleEvaluators}
       selectedIds={selectedIds}
       onSelectionChange={setSelectedIds}
-      addNewEvaluatorLink=""
     />
   );
 };
@@ -99,7 +94,6 @@ const NoEvaluatorsComponent = () => {
       evaluators={[]}
       selectedIds={selectedIds}
       onSelectionChange={setSelectedIds}
-      addNewEvaluatorLink=""
     />
   );
 };
@@ -117,7 +111,6 @@ const WithAlreadyAddedEvaluatorsComponent = () => {
       evaluators={evaluatorsWithSomeAdded}
       selectedIds={selectedIds}
       onSelectionChange={setSelectedIds}
-      addNewEvaluatorLink=""
     />
   );
 };

@@ -17,7 +17,6 @@ import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generate
 import { PlaygroundDatasetSection_evaluators$key } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluators.graphql";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { Mutable } from "@phoenix/typeUtils";
-import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
@@ -183,7 +182,6 @@ export function PlaygroundDatasetSection({
                 evaluators={evaluators}
                 selectedIds={selectedEvaluatorIds}
                 onSelectionChange={setSelectedEvaluatorIds}
-                addNewEvaluatorLink={prependBasename(`/evaluators/new`)}
               />
               {experimentIds.length > 0 && (
                 <LinkButton
