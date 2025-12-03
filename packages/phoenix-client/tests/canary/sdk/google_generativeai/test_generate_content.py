@@ -9,6 +9,7 @@ from faker import Faker
 from google.generativeai import protos
 from google.generativeai.types import content_types
 
+from phoenix.client.__generated__ import v1
 from phoenix.client.__generated__.v1 import TextContentPart
 from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
     _ContentConversion,
@@ -16,6 +17,7 @@ from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
     _TextContentPartConversion,
     _ToolKwargs,
     _ToolKwargsConversion,
+    to_chat_messages_and_kwargs,
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
@@ -147,3 +149,176 @@ class TestToolKwargsConversion:
 class _MockFormatter:
     def format(self, _: str, /, *, variables: Mapping[str, str]) -> str:
         return json.dumps(variables)
+
+
+class TestToChatMessagesAndKwargs:
+    """End-to-end tests for to_chat_messages_and_kwargs function."""
+
+    @pytest.mark.parametrize(
+        "prompt_version_data",
+        [
+            # Basic user message
+            v1.PromptVersionData(
+                model_provider="GOOGLE",
+                model_name="gemini-pro",
+                template=v1.PromptChatTemplate(
+                    type="chat",
+                    messages=[
+                        v1.PromptMessage(role="user", content="Hello, how are you?"),
+                    ],
+                ),
+                template_type="CHAT",
+                template_format="NONE",
+                invocation_parameters=v1.PromptGoogleInvocationParameters(
+                    type="google",
+                    google=v1.PromptGoogleInvocationParametersContent(),
+                ),
+            ),
+            # User and assistant messages
+            v1.PromptVersionData(
+                model_provider="GOOGLE",
+                model_name="gemini-pro",
+                template=v1.PromptChatTemplate(
+                    type="chat",
+                    messages=[
+                        v1.PromptMessage(role="user", content="What is 2+2?"),
+                        v1.PromptMessage(role="assistant", content="2+2 equals 4."),
+                        v1.PromptMessage(role="user", content="And 3+3?"),
+                    ],
+                ),
+                template_type="CHAT",
+                template_format="NONE",
+                invocation_parameters=v1.PromptGoogleInvocationParameters(
+                    type="google",
+                    google=v1.PromptGoogleInvocationParametersContent(),
+                ),
+            ),
+            # With invocation parameters
+            v1.PromptVersionData(
+                model_provider="GOOGLE",
+                model_name="gemini-1.5-pro",
+                template=v1.PromptChatTemplate(
+                    type="chat",
+                    messages=[
+                        v1.PromptMessage(role="user", content="Tell me a story."),
+                    ],
+                ),
+                template_type="CHAT",
+                template_format="NONE",
+                invocation_parameters=v1.PromptGoogleInvocationParameters(
+                    type="google",
+                    google=v1.PromptGoogleInvocationParametersContent(
+                        temperature=0.7,
+                        max_output_tokens=1024,
+                        top_p=0.9,
+                        top_k=40,
+                    ),
+                ),
+            ),
+            # With multiple text parts in content
+            v1.PromptVersionData(
+                model_provider="GOOGLE",
+                model_name="gemini-pro",
+                template=v1.PromptChatTemplate(
+                    type="chat",
+                    messages=[
+                        v1.PromptMessage(
+                            role="user",
+                            content=[
+                                v1.TextContentPart(type="text", text="First part."),
+                                v1.TextContentPart(type="text", text="Second part."),
+                            ],
+                        ),
+                    ],
+                ),
+                template_type="CHAT",
+                template_format="NONE",
+                invocation_parameters=v1.PromptGoogleInvocationParameters(
+                    type="google",
+                    google=v1.PromptGoogleInvocationParametersContent(),
+                ),
+            ),
+        ],
+    )
+    def test_basic_conversion(self, prompt_version_data: v1.PromptVersionData) -> None:
+        """Test that to_chat_messages_and_kwargs produces valid output."""
+        messages, kwargs = to_chat_messages_and_kwargs(
+            prompt_version_data, formatter=NO_OP_FORMATTER
+        )
+
+        # Verify messages is a list of protos.Content
+        assert isinstance(messages, list)
+        for msg in messages:
+            assert isinstance(msg, protos.Content)
+            assert msg.role in ("user", "model")
+            assert len(msg.parts) > 0
+
+        # Verify kwargs has expected structure
+        assert "model_name" in kwargs
+        assert kwargs["model_name"] == prompt_version_data["model_name"]
+        assert "generation_config" in kwargs
+
+    def test_invocation_parameters_are_passed(self) -> None:
+        """Test that invocation parameters are correctly passed to generation_config."""
+        prompt_version_data = v1.PromptVersionData(
+            model_provider="GOOGLE",
+            model_name="gemini-pro",
+            template=v1.PromptChatTemplate(
+                type="chat",
+                messages=[
+                    v1.PromptMessage(role="user", content="Hello"),
+                ],
+            ),
+            template_type="CHAT",
+            template_format="NONE",
+            invocation_parameters=v1.PromptGoogleInvocationParameters(
+                type="google",
+                google=v1.PromptGoogleInvocationParametersContent(
+                    temperature=0.5,
+                    max_output_tokens=512,
+                    top_p=0.8,
+                ),
+            ),
+        )
+
+        messages, kwargs = to_chat_messages_and_kwargs(
+            prompt_version_data, formatter=NO_OP_FORMATTER
+        )
+
+        generation_config = kwargs["generation_config"]
+        assert generation_config.temperature == 0.5
+        assert generation_config.max_output_tokens == 512
+        assert generation_config.top_p == 0.8
+
+    def test_message_content_preserved(self) -> None:
+        """Test that message content is preserved correctly."""
+        user_text = "What is the weather today?"
+        assistant_text = "I don't have access to real-time weather data."
+
+        prompt_version_data = v1.PromptVersionData(
+            model_provider="GOOGLE",
+            model_name="gemini-pro",
+            template=v1.PromptChatTemplate(
+                type="chat",
+                messages=[
+                    v1.PromptMessage(role="user", content=user_text),
+                    v1.PromptMessage(role="assistant", content=assistant_text),
+                ],
+            ),
+            template_type="CHAT",
+            template_format="NONE",
+            invocation_parameters=v1.PromptGoogleInvocationParameters(
+                type="google",
+                google=v1.PromptGoogleInvocationParametersContent(),
+            ),
+        )
+
+        messages, kwargs = to_chat_messages_and_kwargs(
+            prompt_version_data, formatter=NO_OP_FORMATTER
+        )
+
+        assert len(messages) == 2
+        assert messages[0].role == "user"
+        assert messages[0].parts[0].text == user_text
+        assert messages[1].role == "model"  # assistant -> model
+        assert messages[1].parts[0].text == assistant_text
