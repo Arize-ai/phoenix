@@ -1,59 +1,54 @@
 # Get Started: Prompt Playground
 
-Now that you have Phoenix up and running, you're now able to use **Prompt Playground** & the **Prompt** **Hub**.&#x20;
+Now that you have Phoenix up and running, you're now able to use **Prompt Playground** & the **Prompt** **Hub**.
 
-* Prompt Playground lets you experiment with prompts in real time, explore variations across models, and fine-tune responses with a versatile, interactive workflow.&#x20;
+* Prompt Playground lets you experiment with prompts in real time, explore variations across models, and fine-tune responses with a versatile, interactive workflow.
 * Prompt Hub lets you organize, version, and share prompts across projects.
 
-First, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).&#x20;
+First, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).
 
 {% tabs %}
 {% tab title="Phoenix Cloud" %}
-Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).&#x20;
+Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).
 
-{% tabs %}
-{% tab title="Phoenix Cloud" %}
-Log in, create a space, navigate to the settings page in your space, and create your API keys.&#x20;
+Log in, create a space, navigate to the settings page in your space, and create your API keys.
 
-In your code, set your environment variables.&#x20;
+Set your environment variables.
 
-```python
-import os
-os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX Collector endpoint"
+```bash
+export PHOENIX_API_KEY = "ADD YOUR PHOENIX API KEY"
+export PHOENIX_COLLECTOR_ENDPOINT = "ADD YOUR PHOENIX Collector endpoint"
 ```
 
-You can find your collector endpoint here:&#x20;
+You can find your collector endpoint here:
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings. "><figcaption><p>Launch your space, navigate to settings &#x26; copy your hostname for your collector endpoint </p></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings."><figcaption><p>Launch your space, navigate to settings &#x26; copy your hostname for your collector endpoint</p></figcaption></figure>
 
-Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.&#x20;
-{% endtab %}
-{% endtabs %}
+Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.
 {% endtab %}
 
 {% tab title="Local (Self-hosted)" %}
-If you installed Phoenix locally, you have a variety of options for deployment methods including: Terminal, Docker, Kubernetes, Railway, & AWS CloudFormation.  ([Learn more: Self-Hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/))
+If you installed Phoenix locally, you have a variety of options for deployment methods including: Terminal, Docker, Kubernetes, Railway, & AWS CloudFormation. ([Learn more: Self-Hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/))
 
-To host on your local machine, run `phoenix serve` in your terminal.&#x20;
+To host on your local machine, run `phoenix serve` in your terminal.
 
-Navigate to your localhost in your browser. (example: localhost:6006)&#x20;
+Navigate to your localhost in your browser. (example localhost:6006)
 {% endtab %}
 {% endtabs %}
 
-There's multiple ways to get around Prompts in Phoenix, choose the best path for you! &#x20;
+There's multiple ways to get around Prompts in Phoenix, choose the best path for you!
 
 <table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>Prompts (UI)</td><td><a href="../.gitbook/assets/prompt_playground.png">prompt_playground.png</a></td><td><a href="get-started-prompt-playground.md#prompts-ui">#prompts-ui</a></td></tr><tr><td>Prompts (Python SDK)</td><td><a href="../.gitbook/assets/python.png">python.png</a></td><td><a href="get-started-prompt-playground.md#prompts-python-sdk">#prompts-python-sdk</a></td></tr><tr><td>Prompts (TS SDK)</td><td><a href="../.gitbook/assets/javascript.png">javascript.png</a></td><td><a href="get-started-prompt-playground.md#prompts-ts-sdk">#prompts-ts-sdk</a></td></tr></tbody></table>
 
 ## Prompts (UI)
 
-There's multiple ways you can get started with using Prompts. Below is just one flow you can follow along.&#x20;
+There's multiple ways you can get started with using Prompts. Below is just one flow you can follow along.
 
 ### Getting Started
 
 Prompt playground can be accessed from the left navbar of Phoenix.
 
-From here, you can directly prompt your model by modifying either the system or user prompt, and pressing the Run button on the top right.&#x20;
+From here, you can directly prompt your model by modifying either the system or user prompt, and pressing the Run button on the top right.
 
 ### Basic Example Use Case
 
@@ -67,7 +62,7 @@ Let's start by comparing a few different prompt variations. Add two additional p
 You are a summarization tool. Summarize the provided paragraph.
 ```
 
-**System prompt #2:**&#x20;
+**System prompt #2:**
 
 ```
 You are a summarization tool. Summarize the provided paragraph in 2 sentences or less.
@@ -91,7 +86,7 @@ Let's run it and compare results:
 
 ### Creating a Prompt
 
-It looks like System Prompt #2 is producing the most concise summary. Go ahead and [save that prompt to your Prompt Hub](../prompt-engineering/how-to-prompts/create-a-prompt.md).&#x20;
+It looks like System Prompt #2 is producing the most concise summary. Go ahead and [save that prompt to your Prompt Hub](../prompt-engineering/how-to-prompts/create-a-prompt.md).
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-qs-2.png" %}
 
@@ -125,11 +120,11 @@ Now if we run our prompt(s), each row of the dataset will be run through each va
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-qs-5.png" %}
 
-And if you return to view your dataset, you'll see the details of that run saved as an experiment.&#x20;
+And if you return to view your dataset, you'll see the details of that run saved as an experiment.
 
 <figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 11.37.34 AM.png" alt=""><figcaption></figcaption></figure>
 
-From here, you could [evaluate that experiment](../datasets-and-experiments/how-to-experiments/#how-to-use-evaluators) to test its performance, or add complexity to your prompts to see which prompts performed better. You can also bolster your prompts with tools and output schemas, or experiment with different LLMs, for better alignment with your application/use case.&#x20;
+From here, you could [evaluate that experiment](../datasets-and-experiments/how-to-experiments/#how-to-use-evaluators) to test its performance, or add complexity to your prompts to see which prompts performed better. You can also bolster your prompts with tools and output schemas, or experiment with different LLMs, for better alignment with your application/use case.
 
 ### Updating a Prompt
 
@@ -348,7 +343,7 @@ const productionPrompt = await getPrompt({
 
 ### Using a Prompt with SDKs
 
-Phoenix makes it easy to use your prompts with various SDKs, no proprietary SDK necessary!  Here's how to use a prompt with OpenAI:
+Phoenix makes it easy to use your prompts with various SDKs, no proprietary SDK necessary! Here's how to use a prompt with OpenAI:
 
 ```typescript
 import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
@@ -409,4 +404,4 @@ Now you're ready to create, test, save, and iterate on your Prompts in Phoenix! 
 
 ### Learn More:
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>Prompt Concepts </td><td><a href="../prompt-engineering/concepts-prompts/prompts-concepts.md">prompts-concepts.md</a></td></tr><tr><td>Prompts in Phoenix </td><td><a href="../prompt-engineering/overview-prompts.md">overview-prompts.md</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>Prompt Concepts</td><td><a href="../prompt-engineering/concepts-prompts/prompts-concepts.md">prompts-concepts.md</a></td></tr><tr><td>Prompts in Phoenix</td><td><a href="../prompt-engineering/overview-prompts.md">overview-prompts.md</a></td></tr></tbody></table>

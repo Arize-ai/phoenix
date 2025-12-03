@@ -17,16 +17,13 @@ Before setting up your first dataset, make sure Phoenix is running. For more ste
 {% tab title="Phoenix Cloud" %}
 Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).
 
-{% tabs %}
-{% tab title="Phoenix Cloud" %}
 Log in, create a space, navigate to the settings page in your space, and create your API keys.
 
-In your code, set your environment variables.
+Set your environment variables.
 
-```python
-import os
-os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX Collector endpoint"
+```bash
+export PHOENIX_API_KEY = "ADD YOUR PHOENIX API KEY"
+export PHOENIX_COLLECTOR_ENDPOINT = "ADD YOUR PHOENIX Collector endpoint"
 ```
 
 You can find your collector endpoint here:
@@ -34,8 +31,6 @@ You can find your collector endpoint here:
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings."><figcaption><p>Launch your space, navigate to settings &#x26; copy your hostname for your collector endpoint</p></figcaption></figure>
 
 Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.
-{% endtab %}
-{% endtabs %}
 {% endtab %}
 
 {% tab title="Local (Self-hosted)" %}
@@ -82,6 +77,51 @@ dataset = await px_client.datasets.create_dataset(
 )
 ```
 {% endtab %}
+
+{% tab title="TS" %}
+i dont think this is possible unless you have a set of examples. doesn't yet take in csv via code
+
+```typescript
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import { parse } from "csv-parse/sync";
+import { readFileSync } from "fs";
+
+// Helper: Parse CSV into Example[] format
+function csvToExamples({
+  csvFilePath,
+  inputKeys,
+  outputKeys,
+  metadataKeys = [],
+}: {
+  csvFilePath: string;
+  inputKeys: string[];
+  outputKeys: string[];
+  metadataKeys?: string[];
+}) {
+  const csv = readFileSync(csvFilePath, "utf-8");
+  const rows = parse(csv, { columns: true }) as Record<string, string>[];
+
+  return rows.map((row) => ({
+    input: Object.fromEntries(inputKeys.map((k) => [k, row[k]])),
+    output: Object.fromEntries(outputKeys.map((k) => [k, row[k]])),
+    metadata: Object.fromEntries(metadataKeys.map((k) => [k, row[k]])),
+  }));
+}
+
+// Usage:
+const examples = csvToExamples({
+  csvFilePath: "sample.csv",
+  inputKeys: ["input"],
+  outputKeys: ["output", "label"],
+});
+
+const { datasetId } = await createDataset({
+  name: "my-dataset",
+  description: "Created from CSV",
+  examples,
+});
+```
+{% endtab %}
 {% endtabs %}
 
 That's it! You've now successfully created your first dataset.
@@ -111,6 +151,19 @@ dataset = await client.datasets.get_dataset(dataset="sample", version_id= {your 
 
 To get the version\_id of your dataset, please navigate to the Versions tab and copy the version you want to run an experiment on.
 {% endtab %}
+
+{% tab title="Typescript" %}
+```typescript
+import { getDataset } from "@arizeai/phoenix-client/datasets";
+
+const dataset = await getDataset({
+  dataset: {
+    datasetName: "sample",
+    versionId: "your-version-id-here",  // optional
+  },
+});
+```
+{% endtab %}
 {% endtabs %}
 
 If you created your dataset programmatically, you should already have it available as an instance assigned to your dataset variable.
@@ -124,17 +177,6 @@ Create a Task to evaluate.
 {% tabs %}
 {% tab title="Python" %}
 Your task can be any function with any definition & does not have to use an LLM. However, for our experiment we want to run our list of input questions through a new prompt, and will need to start by setting our API Keys:
-
-```python
-from openai import OpenAI
-
-openai_client = OpenAI()
-
-if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
-    openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
-
-os.environ["OPENAI_API_KEY"] = openai_api_key
-```
 
 ```python
 from phoenix.experiments.types import Example
@@ -185,6 +227,10 @@ const task: RunExperimentParams["task"] = async (example) => {
 
 Next step is to create your Evaluator. If you have already defined your Q\&A Correctness eval from the last quick start, you won't need to redefine it. If not, you can follow along with these code snippets.
 
+{% tabs %}
+{% tab title="Python" %}
+Your task can be any function with any definition & does not have to use an LLM. However, for our experiment we want to run our list of input questions through a new prompt, and will need to start by setting our API Keys:
+
 ```python
 from phoenix.evals.llm import LLM
 from phoenix.evals import create_classifier
@@ -216,8 +262,49 @@ correctness_evaluator = create_classifier(
     choices={"correct": 1.0, "incorrect": 0.0},
 )
 ```
+{% endtab %}
+
+{% tab title="Typescript" %}
+```typescript
+import { openai } from "@ai-sdk/openai";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+
+const llm = openai("gpt-4o");
+
+const CORRECTNESS_TEMPLATE = `
+You are given a question and an answer. Decide if the answer is fully correct.
+Rules: The answer must be factually accurate, complete, and directly address the question.
+If it is, respond with "correct". Otherwise respond with "incorrect".
+
+[BEGIN DATA]
+    ************
+    [Question]: {{input}}
+    ************
+    [Answer]: {{output}}
+[END DATA]
+
+Your response must be a single word, either "correct" or "incorrect",
+and should not contain any text or characters aside from that word.
+"correct" means that the question is correctly and fully answered by the answer.
+"incorrect" means that the question is not correctly or only partially answered by the
+answer.
+`;
+
+const correctnessEvaluator = createClassificationEvaluator({
+  name: "correctness",
+  promptTemplate: CORRECTNESS_TEMPLATE,
+  model: llm,
+  choices: { correct: 1.0, incorrect: 0.0 },
+});
+```
+{% endtab %}
+{% endtabs %}
 
 You can run multiple evaluators at once. Let's define a custom Completeness Eval.
+
+{% tabs %}
+{% tab title="Python" %}
+Your task can be any function with any definition & does not have to use an LLM. However, for our experiment we want to run our list of input questions through a new prompt, and will need to start by setting our API Keys:
 
 ```python
 from phoenix.evals import ClassificationEvaluator
@@ -242,12 +329,51 @@ completeness = ClassificationEvaluator(
     choices={"complete": 1.0, "partially complete": 0.5, "incomplete": 0.0},
 )
 ```
+{% endtab %}
+
+{% tab title="Typescript" %}
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const llm = openai("gpt-4o");
+
+const completenessPrompt = `
+You are an expert at judging the completeness of a response to a query.
+Given a query and response, rate the completeness of the response.
+A response is complete if it fully answers all parts of the query.
+A response is partially complete if it only answers part of the query.
+A response is incomplete if it does not answer any part of the query or is not related to the query.
+
+Query: {{input}}
+Response: {{output}}
+
+Is the response complete, partially complete, or incomplete?
+`;
+
+const completeness = createClassificationEvaluator({
+  model: llm,
+  name: "completeness",
+  promptTemplate: completenessPrompt,
+  choices: { 
+    "complete": 1.0, 
+    "partially complete": 0.5, 
+    "incomplete": 0.0 
+  },
+});
+```
+{% endtab %}
+{% endtabs %}
 {% endstep %}
 
 {% step %}
 **Run your Experiment**
 
 Now that we have defined our Task & our Evaluators, we're now ready to run our experiment.
+
+{% tabs %}
+{% tab title="Python" %}
+Your task can be any function with any definition & does not have to use an LLM. However, for our experiment we want to run our list of input questions through a new prompt, and will need to start by setting our API Keys:
 
 ```python
 from phoenix.client.experiments import async_run_experiment
@@ -257,6 +383,21 @@ experiment = await async_run_experiment(
     task=task,
     evaluators=[correctness_evaluator, completeness])
 ```
+{% endtab %}
+
+{% tab title="Typescript" %}
+```typescript
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
+
+const experiment = await runExperiment({
+  experimentName: "my-experiment",
+  dataset: { datasetId: dataset.id },
+  task,
+  evaluators: [correctnessEvaluator, completenessEvaluator],
+});
+```
+{% endtab %}
+{% endtabs %}
 
 After running multiple experiments, you can compare the experiment output & evals side by side!
 
