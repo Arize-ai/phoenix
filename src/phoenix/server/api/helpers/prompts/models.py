@@ -600,7 +600,7 @@ def normalize_tools(
             if disable_parallel_tool_calls is not None:
                 ans.disable_parallel_tool_calls = disable_parallel_tool_calls
         elif model_provider is ModelProvider.GOOGLE:
-            ans.tool_choice = GoogleToolChoiceConversion.from_google(tool_choice)  # type: ignore[arg-type]
+            ans.tool_choice = GoogleToolChoiceConversion.from_google(tool_choice)
     return ans
 
 
