@@ -16,7 +16,6 @@ import {
 } from "react-relay";
 import { useSearchParams } from "react-router";
 import {
-  CellContext,
   ColumnDef,
   flexRender,
   getCoreRowModel,
@@ -27,19 +26,13 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
 import {
-  Dialog,
-  DialogTrigger,
   Empty,
   Flex,
-  Heading,
   Icon,
   IconButton,
   Icons,
   Modal,
   ModalOverlay,
-  Popover,
-  PopoverArrow,
-  Separator,
   Switch,
   Text,
   Tooltip,
@@ -48,16 +41,21 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
   ExperimentAverageRunTokenCosts,
+  ExperimentRunCellAnnotationsList,
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { ExperimentAverageRunTokenCount } from "@phoenix/components/experiment/ExperimentAverageRunTokenCount";
-import { CellTop, CompactJSONCell } from "@phoenix/components/table";
+import {
+  CellTop,
+  CompactJSONCell,
+  JSONCell,
+  LargeTextWrap,
+  PaddedCell,
+} from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -66,9 +64,7 @@ import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialo
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
-import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
-import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type {
@@ -100,8 +96,6 @@ type ExperimentRepeatedRunGroup =
 type AnnotationSummary =
   ExperimentRepeatedRunGroup["annotationSummaries"][number];
 type ExperimentRun = ExperimentRepeatedRunGroup["runs"][number];
-type ExperimentRunAnnotation =
-  ExperimentRun["annotations"]["edges"][number]["annotation"];
 
 type TableRow = ExperimentComparison & {
   id: string;
@@ -360,7 +354,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               </Text>
             </CellTop>
             <PaddedCell>
-              {displayFullText ? JSONCell(props) : CompactJSONCell(props)}
+              {displayFullText ? (
+                <JSONCell {...props} />
+              ) : (
+                <CompactJSONCell {...props} />
+              )}
             </PaddedCell>
           </>
         ),
@@ -867,6 +865,7 @@ function ExperimentRunOutput(
             />
           );
         }}
+        renderFilters={true}
       />
     </Flex>
   );
@@ -878,159 +877,6 @@ function RunError({ error }: { error: string }) {
       <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
       <Text color="danger">{error}</Text>
     </Flex>
-  );
-}
-
-function JSONCell<TData extends object, TValue>({
-  getValue,
-}: CellContext<TData, TValue>) {
-  const value = getValue();
-  return (
-    <LargeTextWrap>
-      <JSONText json={value} space={2} />
-    </LargeTextWrap>
-  );
-}
-
-function LargeTextWrap({ children }: { children: ReactNode }) {
-  return (
-    <div
-      css={css`
-        height: 300px;
-        overflow-y: auto;
-        flex: 1 1 auto;
-      `}
-    >
-      {children}
-    </div>
-  );
-}
-
-function PaddedCell({ children }: { children: ReactNode }) {
-  return (
-    <View paddingX="size-200" paddingY="size-100">
-      {children}
-    </View>
-  );
-}
-
-export type ExperimentRunCellAnnotationsListProps = {
-  annotations: ExperimentRunAnnotation[];
-  annotationSummaries: readonly AnnotationSummary[];
-  numRepetitions: number;
-  onTraceClick: ({
-    annotationName,
-    traceId,
-    projectId,
-  }: {
-    annotationName: string;
-    traceId: string;
-    projectId: string;
-  }) => void;
-};
-
-export function ExperimentRunCellAnnotationsList(
-  props: ExperimentRunCellAnnotationsListProps
-) {
-  const { annotations, annotationSummaries, onTraceClick, numRepetitions } =
-    props;
-  const annotationSummaryByAnnotationName = useMemo(() => {
-    return annotationSummaries.reduce(
-      (acc, summary) => {
-        acc[summary.annotationName] = summary;
-        return acc;
-      },
-      {} as Record<string, AnnotationSummary>
-    );
-  }, [annotationSummaries]);
-  return (
-    <ul
-      css={css`
-        display: flex;
-        flex-direction: column;
-        flex: none;
-        padding: 0 var(--ac-global-dimension-static-size-100)
-          var(--ac-global-dimension-static-size-100)
-          var(--ac-global-dimension-static-size-100);
-      `}
-    >
-      {annotations.map((annotation) => {
-        const traceId = annotation.trace?.traceId;
-        const projectId = annotation.trace?.projectId;
-        const hasTrace = traceId != null && projectId != null;
-        const meanAnnotationScore =
-          annotationSummaryByAnnotationName[annotation.name]?.meanScore;
-        return (
-          <li
-            key={annotation.id}
-            css={css`
-              display: flex;
-              flex-direction: row;
-              align-items: center;
-              justify-content: space-between;
-              gap: var(--ac-global-dimension-static-size-50);
-            `}
-          >
-            <DialogTrigger>
-              <ExperimentAnnotationButton
-                annotation={annotation}
-                extra={
-                  meanAnnotationScore != null && numRepetitions > 1 ? (
-                    <Flex direction="row" gap="size-100" alignItems="center">
-                      <Text fontFamily="mono">
-                        {floatFormatter(meanAnnotationScore)}
-                      </Text>
-                      <Text fontFamily="mono" color="grey-500">
-                        AVG
-                      </Text>
-                    </Flex>
-                  ) : null
-                }
-              />
-              <Popover placement="top">
-                <PopoverArrow />
-                <Dialog style={{ width: 400 }}>
-                  <View padding="size-200">
-                    <Flex direction="column" gap="size-50">
-                      <AnnotationDetailsContent annotation={annotation} />
-                      <Separator />
-                      <section>
-                        <Heading level={4} weight="heavy">
-                          Filters
-                        </Heading>
-                        <ExperimentRunAnnotationFiltersList
-                          annotation={annotation}
-                        />
-                      </section>
-                    </Flex>
-                  </View>
-                </Dialog>
-              </Popover>
-            </DialogTrigger>
-            <TooltipTrigger>
-              <IconButton
-                size="S"
-                onPress={() => {
-                  if (hasTrace) {
-                    onTraceClick({
-                      annotationName: annotation.name,
-                      traceId,
-                      projectId,
-                    });
-                  }
-                }}
-              >
-                <Icon svg={<Icons.Trace />} />
-              </IconButton>
-              <Tooltip>
-                <TooltipArrow />
-                View evaluation trace
-              </Tooltip>
-            </TooltipTrigger>
-          </li>
-        );
-      })}
-    </ul>
   );
 }
 
