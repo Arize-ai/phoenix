@@ -73,7 +73,7 @@ class Message(TypedDict):
 
 
 # Type alias for prompt formats
-PromptLike = Union[str, List[Dict[str, Any]], List[Message]]
+PromptLike = Union[str, List[Dict[str, Any]], List[Message], MultimodalPrompt]
 
 
 class TemplateFormatter(ABC):
