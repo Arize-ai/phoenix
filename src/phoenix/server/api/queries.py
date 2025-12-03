@@ -1,3 +1,4 @@
+import json
 import re
 from collections import defaultdict
 from datetime import datetime
@@ -42,7 +43,10 @@ from phoenix.server.api.helpers.experiment_run_filters import (
 )
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.helpers.prompts.models import PromptMessageRole, PromptTemplateFormat
+from phoenix.server.api.helpers.prompts.template_helpers import (
+    convert_chat_role_to_prompt_role,
+    get_template_formatter,
+)
 from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
@@ -59,7 +63,6 @@ from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSor
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
-from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -144,12 +147,6 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.utilities.template_formatters import (
-    FStringTemplateFormatter,
-    MustacheTemplateFormatter,
-    NoOpFormatter,
-    TemplateFormatter,
-)
 
 initialize_playground_clients()
 
@@ -1737,12 +1734,19 @@ class Query:
         Takes a list of messages with template placeholders and template options
         (format and variables), and returns the messages with placeholders replaced.
         """
-        formatter = _get_template_formatter(template_options.format)
-        variables = template_options.variables or {}
+        formatter = get_template_formatter(template_options.format)
+        # Ensure variables is a dict - JSON scalar can be any JSON type
+        raw_variables = template_options.variables
+        if isinstance(raw_variables, dict):
+            variables = raw_variables
+        elif isinstance(raw_variables, str):
+            variables = json.loads(raw_variables)
+        else:
+            raise ValueError("Variables must be a dictionary or a string")
 
         messages: list[PromptMessage] = []
         for message in template:
-            role = _convert_chat_role_to_prompt_role(message.role)
+            role = convert_chat_role_to_prompt_role(message.role)
             content_parts: list[ContentPart] = []
 
             # Handle text content
@@ -1836,34 +1840,6 @@ class Query:
             messages.append(PromptMessage(role=role, content=content_parts))
 
         return PromptChatTemplate(messages=messages)
-
-
-def _get_template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
-    """
-    Returns the appropriate template formatter for the given format.
-    """
-    if template_format is PromptTemplateFormat.MUSTACHE:
-        return MustacheTemplateFormatter()
-    if template_format is PromptTemplateFormat.F_STRING:
-        return FStringTemplateFormatter()
-    if template_format is PromptTemplateFormat.NONE:
-        return NoOpFormatter()
-    assert_never(template_format)
-
-
-def _convert_chat_role_to_prompt_role(role: ChatCompletionMessageRole) -> PromptMessageRole:
-    """
-    Converts a ChatCompletionMessageRole to a PromptMessageRole.
-    """
-    if role is ChatCompletionMessageRole.USER:
-        return PromptMessageRole.USER
-    if role is ChatCompletionMessageRole.SYSTEM:
-        return PromptMessageRole.SYSTEM
-    if role is ChatCompletionMessageRole.AI:
-        return PromptMessageRole.AI
-    if role is ChatCompletionMessageRole.TOOL:
-        return PromptMessageRole.TOOL
-    assert_never(role)
 
 
 def _consolidate_sqlite_db_table_stats(
