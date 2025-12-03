@@ -79,46 +79,32 @@ dataset = await px_client.datasets.create_dataset(
 {% endtab %}
 
 {% tab title="TS" %}
-i dont think this is possible unless you have a set of examples. doesn't yet take in csv via code
-
 ```typescript
 import { createDataset } from "@arizeai/phoenix-client/datasets";
-import { parse } from "csv-parse/sync";
-import { readFileSync } from "fs";
 
-// Helper: Parse CSV into Example[] format
-function csvToExamples({
-  csvFilePath,
-  inputKeys,
-  outputKeys,
-  metadataKeys = [],
-}: {
-  csvFilePath: string;
-  inputKeys: string[];
-  outputKeys: string[];
-  metadataKeys?: string[];
-}) {
-  const csv = readFileSync(csvFilePath, "utf-8");
-  const rows = parse(csv, { columns: true }) as Record<string, string>[];
-
-  return rows.map((row) => ({
-    input: Object.fromEntries(inputKeys.map((k) => [k, row[k]])),
-    output: Object.fromEntries(outputKeys.map((k) => [k, row[k]])),
-    metadata: Object.fromEntries(metadataKeys.map((k) => [k, row[k]])),
-  }));
-}
-
-// Usage:
-const examples = csvToExamples({
-  csvFilePath: "sample.csv",
-  inputKeys: ["input"],
-  outputKeys: ["output", "label"],
-});
+// Data must be an array of Example objects with this structure:
+// {
+//   input: Record<string, unknown>,    // required
+//   output?: Record<string, unknown>,  // optional
+//   metadata?: Record<string, unknown> // optional
+// }
+// Parse sample.csv into this format
 
 const { datasetId } = await createDataset({
   name: "my-dataset",
-  description: "Created from CSV",
-  examples,
+  description: "My dataset description",
+  examples: [
+    {
+      input: { question: "What is 2+2?" },
+      output: { answer: "4" },
+      metadata: { difficulty: "easy" },
+    },
+    {
+      input: { question: "What is the capital of France?" },
+      output: { answer: "Paris" },
+    },
+    // ... more examples
+  ],
 });
 ```
 {% endtab %}
