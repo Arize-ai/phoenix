@@ -42,6 +42,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
 )
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
@@ -55,6 +56,7 @@ from phoenix.server.api.input_types.InvocationParameters import InvocationParame
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
+from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
@@ -116,6 +118,7 @@ from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptLabel import PromptLabel
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
+from phoenix.server.api.types.PromptVersionTemplate import PromptChatTemplate
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
@@ -1701,6 +1704,16 @@ class Query:
         if session_row:
             return ProjectSession(id=session_row.id, db_record=session_row)
         return None
+
+    @strawberry.field
+    async def apply_chat_template(
+        self,
+        info: Info[Context, None],
+        template: list[ChatCompletionMessageInput],
+        template_options: PromptTemplateOptions,
+    ) -> PromptChatTemplate:
+        # TODO: fill out implementation
+        return PromptChatTemplate(messages=[])
 
 
 def _consolidate_sqlite_db_table_stats(
