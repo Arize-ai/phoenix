@@ -424,48 +424,49 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
         # Handle legacy MultimodalPrompt
         messages: list[dict[str, Any]] = []
-        for part in prompt.parts:
-            if part.content_type == PromptPartContentType.TEXT:
-                messages.append({"role": "user", "content": part.content})
-            elif part.content_type == PromptPartContentType.AUDIO:
-                format = str(get_audio_format_from_base64(part.content))
-                if format not in SUPPORTED_AUDIO_FORMATS:
-                    raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "input_audio",
-                                "input_audio": {
-                                    "data": part.content,
-                                    "format": str(get_audio_format_from_base64(part.content)),
-                                },
-                            }
-                        ],
-                    }
-                )
-            elif part.content_type == PromptPartContentType.IMAGE:
-                if _is_base64(part.content):
-                    content_url = f"data:image/jpeg;base64,{part.content}"
-                elif _is_url(part.content):
-                    content_url = part.content
+        if isinstance(prompt, MultimodalPrompt):
+            for part in prompt.parts:
+                if part.content_type == PromptPartContentType.TEXT:
+                    messages.append({"role": "user", "content": part.content})
+                elif part.content_type == PromptPartContentType.AUDIO:
+                    format = str(get_audio_format_from_base64(part.content))
+                    if format not in SUPPORTED_AUDIO_FORMATS:
+                        raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "input_audio",
+                                    "input_audio": {
+                                        "data": part.content,
+                                        "format": str(get_audio_format_from_base64(part.content)),
+                                    },
+                                }
+                            ],
+                        }
+                    )
+                elif part.content_type == PromptPartContentType.IMAGE:
+                    if _is_base64(part.content):
+                        content_url = f"data:image/jpeg;base64,{part.content}"
+                    elif _is_url(part.content):
+                        content_url = part.content
+                    else:
+                        raise ValueError("Only base64 encoded images or image URLs are supported")
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": content_url},
+                                }
+                            ],
+                        }
+                    )
                 else:
-                    raise ValueError("Only base64 encoded images or image URLs are supported")
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": content_url},
-                            }
-                        ],
-                    }
-                )
-            else:
-                raise ValueError(f"Unsupported content type: {part.content_type}")
-        return messages
+                    raise ValueError(f"Unsupported content type: {part.content_type}")
+            return messages
 
     def _ensure_additional_properties_false(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
