@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pytest
 
@@ -356,3 +356,196 @@ class TestPromptTemplate:
         """Test that invalid template type raises TypeError."""
         with pytest.raises(TypeError, match="Template must be str or list"):
             PromptTemplate(template=123)  # type: ignore
+
+    @pytest.mark.parametrize(
+        "template_input,expected_variables,render_vars,expected_content",
+        [
+            (
+                "Hello {name}",
+                ["name"],
+                {"name": "Alice"},
+                "Hello Alice",
+            ),
+            (
+                [{"role": "user", "content": "Analyze {text}"}],
+                ["text"],
+                {"text": "hello world"},
+                "Analyze hello world",
+            ),
+        ],
+    )
+    def test_prompt_template_accepts_prompt_template_instance(
+        self,
+        template_input: Any,
+        expected_variables: List[str],
+        render_vars: Dict[str, str],
+        expected_content: str,
+    ) -> None:
+        """Test that PromptTemplate can accept another PromptTemplate instance."""
+        original = PromptTemplate(template=template_input)
+        copied = PromptTemplate(template=original)  # type: ignore[arg-type]
+
+        assert copied.template == original.template
+        assert copied.variables == expected_variables
+
+        result = copied.render(render_vars)
+        assert result[0]["content"] == expected_content
+
+    def test_prompt_template_copying_preserves_format_override(self) -> None:
+        """Test that template_format can be overridden when copying."""
+        original = PromptTemplate(
+            template="Hello {{name}}", template_format=TemplateFormat.MUSTACHE
+        )
+        copied = PromptTemplate(template=original, template_format=TemplateFormat.F_STRING)  # type: ignore[arg-type]
+
+        assert copied.template_format == TemplateFormat.F_STRING
+        assert copied.template == original.template
+
+    @pytest.mark.parametrize(
+        "template_str,format_type,variables,expected",
+        [
+            ("Hello {{name}}", TemplateFormat.MUSTACHE, {"name": "Alice"}, "Hello Alice"),
+            (
+                "{{user}}: {{message}}",
+                TemplateFormat.MUSTACHE,
+                {"user": "Bob", "message": "Hi"},
+                "Bob: Hi",
+            ),
+            ("Hello {name}", TemplateFormat.F_STRING, {"name": "Alice"}, "Hello Alice"),
+            (
+                "{user}: {message}",
+                TemplateFormat.F_STRING,
+                {"user": "Bob", "message": "Hi"},
+                "Bob: Hi",
+            ),
+            (
+                'Config: {{"debug": true}} for {env}',
+                TemplateFormat.F_STRING,
+                {"env": "prod"},
+                'Config: {"debug": true} for prod',
+            ),
+        ],
+    )
+    def test_string_template_rendering_with_formats(
+        self,
+        template_str: str,
+        format_type: TemplateFormat,
+        variables: Dict[str, str],
+        expected: str,
+    ) -> None:
+        """Test rendering string templates with explicit format types."""
+        template = PromptTemplate(template=template_str, template_format=format_type)
+        result = template.render(variables)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["content"] == expected
+
+    def test_ambiguous_template_handling(self) -> None:
+        """Test handling of ambiguous templates with explicit format specification."""
+        ambiguous_template = 'Config: {{"debug": true}} for analysis'
+
+        template_fstring = PromptTemplate(
+            template=ambiguous_template,
+            template_format=TemplateFormat.F_STRING,
+        )
+        result_fstring = template_fstring.render({})
+        assert isinstance(result_fstring, list)
+        assert result_fstring[0]["content"] == 'Config: {"debug": true} for analysis'
+
+        template_mustache = PromptTemplate(
+            template=ambiguous_template,
+            template_format=TemplateFormat.MUSTACHE,
+        )
+        result_mustache = template_mustache.render({'"debug": true': "REPLACED"})
+        assert isinstance(result_mustache, list)
+        assert result_mustache[0]["content"] == "Config: REPLACED for analysis"
+
+    def test_complex_real_world_template(self) -> None:
+        """Test complex real-world template with mixed JSON and variables."""
+        template = PromptTemplate(
+            template="""
+Given this configuration:
+{{
+    "model_settings": {{
+        "temperature": 0.3,
+        "max_tokens": 150,
+        "response_format": {{"type": "json_object"}}
+    }},
+    "evaluation_criteria": ["accuracy", "relevance", "coherence"]
+}}
+
+Analyze the following text for user {user_id} in environment {environment}:
+"{text}"
+
+Consider the previous conversation context if available.
+            """.strip(),
+            template_format=TemplateFormat.F_STRING,
+        )
+
+        result = template.render(
+            {"user_id": "user_123", "environment": "production", "text": "This is a test message"}
+        )
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        content = result[0]["content"]
+        assert "user_123" in content
+        assert "production" in content
+        assert "This is a test message" in content
+        assert '"temperature": 0.3' in content
+        assert '"response_format": {"type": "json_object"}' in content
+
+    def test_dot_delimited_f_string_variables(self) -> None:
+        """Test dot-delimited variable names in f-string format."""
+
+        class Hello:
+            @property
+            def world(self) -> str:
+                return "why hello, world"
+
+        template = PromptTemplate(template="{hello.world}")
+        assert template.variables == ["hello.world"]
+
+        # Test with dot-delimited key
+        result = template.render({"hello.world": "hello! world!"})
+        assert isinstance(result, list)
+        assert result[0]["content"] == "hello! world!"
+
+        # Test with object access
+        result = template.render({"hello": Hello()})
+        assert isinstance(result, list)
+        assert result[0]["content"] == "why hello, world"
+
+    def test_message_list_with_ambiguous_templates(self) -> None:
+        """Test message list templates with ambiguous content."""
+        # For F_STRING format, use f-string syntax
+        messages_fstring = [
+            {"role": "system", "content": 'Config: {{"debug": true}}'},
+            {"role": "user", "content": "Analyze {text} in {env}"},
+        ]
+
+        # With F_STRING format, JSON should be preserved and f-string vars rendered
+        template_fstring = PromptTemplate(
+            template=messages_fstring, template_format=TemplateFormat.F_STRING
+        )
+        result = template_fstring.render({"text": "data", "env": "prod"})
+        assert isinstance(result, list)
+        assert result[0]["content"] == 'Config: {"debug": true}'
+        assert result[1]["content"] == "Analyze data in prod"
+
+        # For MUSTACHE format, use Mustache syntax
+        messages_mustache = [
+            {"role": "system", "content": 'Config: {{"debug": true}}'},
+            {"role": "user", "content": "Analyze {{text}} in {{env}}"},
+        ]
+
+        # With MUSTACHE format, JSON becomes a variable and Mustache vars are rendered
+        template_mustache = PromptTemplate(
+            template=messages_mustache, template_format=TemplateFormat.MUSTACHE
+        )
+        result = template_mustache.render(
+            {'"debug": true': "REPLACED", "text": "data", "env": "prod"}
+        )
+        assert isinstance(result, list)
+        assert result[0]["content"] == "Config: REPLACED"
+        assert result[1]["content"] == "Analyze data in prod"

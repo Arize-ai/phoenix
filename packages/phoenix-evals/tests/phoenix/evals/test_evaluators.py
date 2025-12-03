@@ -369,6 +369,16 @@ class TestLLMEvaluator:
         )
         assert evaluator._get_required_fields(None) == {"input"}
 
+    def test_llm_evaluator_initialization_with_prompt_template_instance(self):
+        """Test LLMEvaluator accepts PromptTemplate instance."""
+        llm = MockLLM()
+        prompt_template = PromptTemplate(template="Test template with {input}")
+
+        evaluator = LLMEvaluator(name="test_evaluator", llm=llm, prompt_template=prompt_template)
+
+        assert evaluator.prompt_template is prompt_template
+        assert evaluator._get_required_fields(None) == {"input"}
+
 
 class TestClassificationEvaluator:
     """Test the ClassificationEvaluator class."""
