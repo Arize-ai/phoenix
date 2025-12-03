@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fbd7dbf1bdfbd8ce8f5799ef2e4cddd0>>
+ * @generated SignedSource<<e0f3e19c8a449f658b9a221865f5f18f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -211,20 +211,6 @@ return {
                           (v2/*: any*/),
                           {
                             "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "kind",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": (v6/*: any*/),
-                            "kind": "ScalarField",
-                            "name": "isAssignedToDataset",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
                             "args": (v6/*: any*/),
                             "concreteType": "EvaluatorInputMapping",
                             "kind": "LinkedField",
@@ -287,12 +273,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d3e1ad2bb29dae80cc42c7461ce2c3b4",
+    "cacheID": "4dca78e49dd3b7ef4095ffe080507613",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      ...PlaygroundDatasetSection_evaluators_1wYocp\n    }\n    ...EvaluatorConfigDialog_dataset\n    id\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        kind\n        isAssignedToDataset(datasetId: $datasetId)\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      ...PlaygroundDatasetSection_evaluators_1wYocp\n    }\n    ...EvaluatorConfigDialog_dataset\n    id\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
