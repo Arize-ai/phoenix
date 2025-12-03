@@ -339,12 +339,11 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 return self._transform_messages_to_langchain(cast(List[Message], prompt))
             # Convert OpenAI-style messages to LangChain messages (backward compatibility)
             try:
-                from langchain_community.adapters.openai import (
+                from langchain_community.adapters.openai import (  # type: ignore[import-not-found,import-untyped]
                     convert_openai_messages,
                 )
 
-                result = convert_openai_messages(prompt)
-                return cast(List[Any], result)
+                return convert_openai_messages(prompt)  # type: ignore[no-untyped-call]
             except ImportError:
                 # Fallback: manual conversion if langchain_community not available
                 from langchain_core.messages import (
