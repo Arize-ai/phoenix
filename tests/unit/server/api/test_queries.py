@@ -1853,7 +1853,5 @@ class TestApplyChatTemplate:
 
         response = await gql_client.execute(query=query, variables=variables)
         assert response.errors is not None
-        assert any(
-            "Variables JSON string must parse to a dictionary" in str(error)
-            for error in response.errors
-        )
+        assert len(response.errors) == 1
+        assert response.errors[0].message == "Variables JSON string must parse to a dictionary"
