@@ -1932,7 +1932,7 @@ def _prepare_dataframe_as_csv(
     )
 
     csv_buffer = BytesIO()
-    df[selected_columns].to_csv(csv_buffer, index=False)
+    df[selected_columns].to_csv(csv_buffer, index=False)  # pyright: ignore[reportUnknownMemberType]
     csv_buffer.seek(0)
 
     compressed = BytesIO()

@@ -194,7 +194,7 @@ def uniquify_spans_dataframe(
     if "context.trace_id" in df.columns:
         unique_trace_ids = df["context.trace_id"].dropna().unique()  # pyright: ignore
         for old_trace_id in unique_trace_ids:  # pyright: ignore
-            old_trace_id_str = str(old_trace_id)
+            old_trace_id_str = str(old_trace_id)  # pyright: ignore[reportUnknownArgumentType]
             if old_trace_id_str and old_trace_id_str not in trace_id_mapping:
                 trace_id_mapping[old_trace_id_str] = _generate_trace_id()
 
