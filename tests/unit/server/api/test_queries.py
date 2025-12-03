@@ -1441,3 +1441,341 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
         )
 
         await session.commit()
+
+
+class TestApplyChatTemplate:
+    """Tests for the apply_chat_template query."""
+
+    async def test_apply_mustache_template(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test applying Mustache template formatting to messages."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": [
+                {"role": "SYSTEM", "content": "You are a helpful assistant for {{ topic }}."},
+                {"role": "USER", "content": "Tell me about {{ subject }}."},
+            ],
+            "templateOptions": {
+                "format": "MUSTACHE",
+                "variables": {"topic": "programming", "subject": "Python"},
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        messages = response.data["applyChatTemplate"]["messages"]
+        assert len(messages) == 2
+        assert messages[0]["role"] == "SYSTEM"
+        assert (
+            messages[0]["content"][0]["text"]["text"]
+            == "You are a helpful assistant for programming."
+        )
+        assert messages[1]["role"] == "USER"
+        assert messages[1]["content"][0]["text"]["text"] == "Tell me about Python."
+
+    async def test_apply_f_string_template(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test applying F-string template formatting to messages."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": [
+                {"role": "USER", "content": "Hello, {name}! How are you?"},
+            ],
+            "templateOptions": {
+                "format": "F_STRING",
+                "variables": {"name": "Alice"},
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        messages = response.data["applyChatTemplate"]["messages"]
+        assert len(messages) == 1
+        assert messages[0]["role"] == "USER"
+        assert messages[0]["content"][0]["text"]["text"] == "Hello, Alice! How are you?"
+
+    async def test_apply_no_template_format(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test with NONE format - content should pass through unchanged."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": [
+                {"role": "USER", "content": "Hello, {{ name }}! How are you?"},
+            ],
+            "templateOptions": {
+                "format": "NONE",
+                "variables": {"name": "Alice"},
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        messages = response.data["applyChatTemplate"]["messages"]
+        assert len(messages) == 1
+        # With NONE format, the template placeholders should remain unchanged
+        assert messages[0]["content"][0]["text"]["text"] == "Hello, {{ name }}! How are you?"
+
+    async def test_apply_template_with_tool_calls(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test that tool calls are preserved when applying templates."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                  ... on ToolCallContentPart {
+                    toolCall {
+                      toolCallId
+                      toolCall {
+                        name
+                        arguments
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": [
+                {
+                    "role": "AI",
+                    "content": "",
+                    "toolCalls": [
+                        {
+                            "id": "call_123",
+                            "function": {
+                                "name": "get_weather",
+                                "arguments": '{"city": "London"}',
+                            },
+                        }
+                    ],
+                },
+            ],
+            "templateOptions": {
+                "format": "MUSTACHE",
+                "variables": {},
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        messages = response.data["applyChatTemplate"]["messages"]
+        assert len(messages) == 1
+        assert messages[0]["role"] == "AI"
+        # Find the tool call content part
+        tool_call_parts = [
+            part for part in messages[0]["content"] if part.get("toolCall") is not None
+        ]
+        assert len(tool_call_parts) == 1
+        assert tool_call_parts[0]["toolCall"]["toolCallId"] == "call_123"
+        assert tool_call_parts[0]["toolCall"]["toolCall"]["name"] == "get_weather"
+
+    async def test_apply_template_with_tool_result(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test that tool results are properly handled."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                  ... on ToolResultContentPart {
+                    toolResult {
+                      toolCallId
+                      result
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": [
+                {
+                    "role": "TOOL",
+                    "content": "The weather in London is sunny, 22°C",
+                    "toolCallId": "call_123",
+                },
+            ],
+            "templateOptions": {
+                "format": "NONE",
+                "variables": {},
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        messages = response.data["applyChatTemplate"]["messages"]
+        assert len(messages) == 1
+        assert messages[0]["role"] == "TOOL"
+        # The content should be converted to a tool result
+        tool_result_parts = [
+            part for part in messages[0]["content"] if part.get("toolResult") is not None
+        ]
+        assert len(tool_result_parts) == 1
+        assert tool_result_parts[0]["toolResult"]["toolCallId"] == "call_123"
+
+    async def test_apply_template_multiple_messages(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test applying templates to a conversation with multiple message types."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": [
+                {"role": "SYSTEM", "content": "You are a {{ role }} assistant."},
+                {"role": "USER", "content": "What is {{ topic }}?"},
+                {"role": "AI", "content": "{{ topic }} is a {{ definition }}."},
+            ],
+            "templateOptions": {
+                "format": "MUSTACHE",
+                "variables": {
+                    "role": "helpful",
+                    "topic": "Python",
+                    "definition": "programming language",
+                },
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        messages = response.data["applyChatTemplate"]["messages"]
+        assert len(messages) == 3
+        assert messages[0]["content"][0]["text"]["text"] == "You are a helpful assistant."
+        assert messages[1]["content"][0]["text"]["text"] == "What is Python?"
+        assert messages[2]["content"][0]["text"]["text"] == "Python is a programming language."
+
+    async def test_apply_template_empty_variables(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test applying templates when no variables are provided."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": [
+                {"role": "USER", "content": "Hello, world!"},
+            ],
+            "templateOptions": {
+                "format": "MUSTACHE",
+                "variables": {},
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        messages = response.data["applyChatTemplate"]["messages"]
+        assert len(messages) == 1
+        assert messages[0]["content"][0]["text"]["text"] == "Hello, world!"

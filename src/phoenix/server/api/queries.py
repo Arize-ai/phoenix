@@ -42,6 +42,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
 )
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.helpers.prompts.models import PromptMessageRole, PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
@@ -58,6 +59,7 @@ from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSor
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
+from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -118,7 +120,18 @@ from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptLabel import PromptLabel
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
-from phoenix.server.api.types.PromptVersionTemplate import PromptChatTemplate
+from phoenix.server.api.types.PromptVersionTemplate import (
+    ContentPart,
+    PromptChatTemplate,
+    PromptMessage,
+    TextContentPart,
+    TextContentValue,
+    ToolCallContentPart,
+    ToolCallContentValue,
+    ToolCallFunction,
+    ToolResultContentPart,
+    ToolResultContentValue,
+)
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
@@ -131,6 +144,12 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.utilities.template_formatters import (
+    FStringTemplateFormatter,
+    MustacheTemplateFormatter,
+    NoOpFormatter,
+    TemplateFormatter,
+)
 
 initialize_playground_clients()
 
@@ -1712,8 +1731,139 @@ class Query:
         template: list[ChatCompletionMessageInput],
         template_options: PromptTemplateOptions,
     ) -> PromptChatTemplate:
-        # TODO: fill out implementation
-        return PromptChatTemplate(messages=[])
+        """
+        Applies template formatting to chat completion messages.
+
+        Takes a list of messages with template placeholders and template options
+        (format and variables), and returns the messages with placeholders replaced.
+        """
+        formatter = _get_template_formatter(template_options.format)
+        variables = template_options.variables or {}
+
+        messages: list[PromptMessage] = []
+        for message in template:
+            role = _convert_chat_role_to_prompt_role(message.role)
+            content_parts: list[ContentPart] = []
+
+            # Handle text content
+            if message.content is not None:
+                if isinstance(message.content, str):
+                    formatted_text = formatter.format(message.content, **variables)
+                    content_parts.append(
+                        TextContentPart(text=TextContentValue(text=formatted_text))
+                    )
+                elif isinstance(message.content, list):
+                    # Content is a list of content parts
+                    for part in message.content:
+                        if isinstance(part, dict):
+                            if part.get("type") == "text":
+                                text = part.get("text", "")
+                                if isinstance(text, str):
+                                    formatted_text = formatter.format(text, **variables)
+                                    content_parts.append(
+                                        TextContentPart(text=TextContentValue(text=formatted_text))
+                                    )
+                            # Other content types pass through without template formatting
+                            elif part.get("type") == "tool_use":
+                                # Tool use content part
+                                content_parts.append(
+                                    ToolCallContentPart(
+                                        tool_call=ToolCallContentValue(
+                                            tool_call_id=part.get("id", ""),
+                                            tool_call=ToolCallFunction(
+                                                name=part.get("name", ""),
+                                                arguments=part.get("input", ""),
+                                            ),
+                                        )
+                                    )
+                                )
+                            elif part.get("type") == "tool_result":
+                                content_parts.append(
+                                    ToolResultContentPart(
+                                        tool_result=ToolResultContentValue(
+                                            tool_call_id=part.get("tool_use_id", ""),
+                                            result=part.get("content", ""),
+                                        )
+                                    )
+                                )
+                        elif isinstance(part, str):
+                            # Plain string in content list
+                            formatted_text = formatter.format(part, **variables)
+                            content_parts.append(
+                                TextContentPart(text=TextContentValue(text=formatted_text))
+                            )
+                else:
+                    # Content is some other JSON value, convert to string
+                    content_parts.append(
+                        TextContentPart(text=TextContentValue(text=str(message.content)))
+                    )
+
+            # Handle tool calls
+            if message.tool_calls:
+                for tool_call in message.tool_calls:
+                    if isinstance(tool_call, dict):
+                        tool_call_id = tool_call.get("id", "")
+                        function = tool_call.get("function", {})
+                        content_parts.append(
+                            ToolCallContentPart(
+                                tool_call=ToolCallContentValue(
+                                    tool_call_id=tool_call_id,
+                                    tool_call=ToolCallFunction(
+                                        name=function.get("name", ""),
+                                        arguments=function.get("arguments", ""),
+                                    ),
+                                )
+                            )
+                        )
+
+            # Handle tool result (message with tool_call_id is a tool result)
+            if message.tool_call_id and isinstance(message.tool_call_id, str):
+                # This is a tool result message - the content is the result
+                # We've already processed the content above, so just ensure we have the tool_call_id
+                # For tool result messages, we wrap the content as a tool result
+                if content_parts and isinstance(content_parts[0], TextContentPart):
+                    # Replace text content with tool result content
+                    text_content = content_parts[0].text.text
+                    content_parts = [
+                        ToolResultContentPart(
+                            tool_result=ToolResultContentValue(
+                                tool_call_id=message.tool_call_id,
+                                result=text_content,
+                            )
+                        )
+                    ]
+
+            messages.append(PromptMessage(role=role, content=content_parts))
+
+        return PromptChatTemplate(messages=messages)
+
+
+def _get_template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
+    """
+    Returns the appropriate template formatter for the given format.
+    """
+    if template_format is PromptTemplateFormat.MUSTACHE:
+        return MustacheTemplateFormatter()
+    if template_format is PromptTemplateFormat.F_STRING:
+        return FStringTemplateFormatter()
+    if template_format is PromptTemplateFormat.NONE:
+        return NoOpFormatter()
+    assert_never(template_format)
+
+
+def _convert_chat_role_to_prompt_role(role: ChatCompletionMessageRole) -> PromptMessageRole:
+    """
+    Converts a ChatCompletionMessageRole to a PromptMessageRole.
+    """
+    if role is ChatCompletionMessageRole.USER:
+        return PromptMessageRole.USER
+    if role is ChatCompletionMessageRole.SYSTEM:
+        return PromptMessageRole.SYSTEM
+    if role is ChatCompletionMessageRole.AI:
+        return PromptMessageRole.AI
+    if role is ChatCompletionMessageRole.TOOL:
+        return PromptMessageRole.TOOL
+    assert_never(role)
 
 
 def _consolidate_sqlite_db_table_stats(
