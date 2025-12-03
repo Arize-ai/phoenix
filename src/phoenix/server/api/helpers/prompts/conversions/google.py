@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Union
 
-from typing_extensions import TypedDict, assert_never
+from google.genai.types import ToolConfig
+from typing_extensions import NotRequired, TypedDict, assert_never
 
 if TYPE_CHECKING:
     from phoenix.server.api.helpers.prompts.models import (
@@ -11,32 +12,25 @@ if TYPE_CHECKING:
     )
 
 
-class GoogleFunctionCallingConfig(TypedDict, total=False):
+class GoogleToolChoice(TypedDict, total=False):
     """
-    Matches Google's FunctionCallingConfig format.
-    @see https://github.com/googleapis/python-genai/blob/main/google/genai/types.py#L4226
-    Note: Google's API is case-insensitive for mode values.
+    Based on https://github.com/googleapis/python-genai/blob/97cc7e4eafbee4fa4035e7420170ab6a2c9da7fb/google/genai/types.py#L4245
     """
 
-    mode: Optional[str]  # "auto", "any", "none" (case-insensitive)
-    allowed_function_names: Optional[list[str]]
-
-
-# GoogleToolChoice is now the FunctionCallingConfig dict format
-GoogleToolChoice = GoogleFunctionCallingConfig
+    mode: NotRequired[Literal["auto", "any", "none"]]
+    allowed_function_names: NotRequired[list[str]]
 
 
 class GoogleToolChoiceConversion:
     @staticmethod
     def to_google(
         obj: Union[
-            PromptToolChoiceNone,
-            PromptToolChoiceZeroOrMore,
-            PromptToolChoiceOneOrMore,
-            PromptToolChoiceSpecificFunctionTool,
+            "PromptToolChoiceNone",
+            "PromptToolChoiceZeroOrMore",
+            "PromptToolChoiceOneOrMore",
+            "PromptToolChoiceSpecificFunctionTool",
         ],
     ) -> GoogleToolChoice:
-        """Convert internal PromptToolChoice to Google's FunctionCallingConfig format."""
         if obj.type == "none":
             return {"mode": "none"}
         if obj.type == "zero_or_more":
@@ -51,12 +45,11 @@ class GoogleToolChoiceConversion:
     def from_google(
         obj: Any,
     ) -> Union[
-        PromptToolChoiceNone,
-        PromptToolChoiceZeroOrMore,
-        PromptToolChoiceOneOrMore,
-        PromptToolChoiceSpecificFunctionTool,
+        "PromptToolChoiceNone",
+        "PromptToolChoiceZeroOrMore",
+        "PromptToolChoiceOneOrMore",
+        "PromptToolChoiceSpecificFunctionTool",
     ]:
-        """Convert Google's FunctionCallingConfig format to internal PromptToolChoice."""
         from phoenix.server.api.helpers.prompts.models import (
             PromptToolChoiceNone,
             PromptToolChoiceOneOrMore,
@@ -64,27 +57,33 @@ class GoogleToolChoiceConversion:
             PromptToolChoiceZeroOrMore,
         )
 
-        if not isinstance(obj, dict):
-            raise ValueError(f"Expected dict for Google tool choice, got: {type(obj)}")
+        tool_config = ToolConfig.model_validate(obj)
+        if (function_calling_config := tool_config.function_calling_config) is None:
+            raise ValueError("function_calling_config is required")
+        # normalize mode to lowercase since Google's API is case-insensitive
+        # https://github.com/googleapis/python-genai/blob/97cc7e4eafbee4fa4035e7420170ab6a2c9da7fb/google/genai/types.py#L645
+        normalized_mode = (
+            function_calling_config.mode.value.lower()
+            if function_calling_config.mode is not None
+            else None
+        )
+        allowed_function_names = function_calling_config.allowed_function_names
 
-        # Normalize mode to lowercase (Google's API is case-insensitive)
-        raw_mode = obj.get("mode", "auto")
-        mode = raw_mode.lower() if isinstance(raw_mode, str) else "auto"
-        allowed_function_names = obj.get("allowed_function_names")
-
-        # If specific function names are provided, use the first one
-        if allowed_function_names and len(allowed_function_names) > 0:
+        if allowed_function_names:
+            if len(allowed_function_names) != 1:
+                raise ValueError("Only one allowed function name is currently supported")
+            if normalized_mode != "any":
+                raise ValueError("allowed function names only supported in 'any' mode")
             return PromptToolChoiceSpecificFunctionTool(
                 type="specific_function",
                 function_name=allowed_function_names[0],
             )
 
-        # Otherwise, map mode to internal format
-        if mode == "none":
+        if normalized_mode == "none":
             return PromptToolChoiceNone(type="none")
-        if mode == "auto":
+        if normalized_mode == "auto" or normalized_mode is None:
             return PromptToolChoiceZeroOrMore(type="zero_or_more")
-        if mode == "any":
+        if normalized_mode == "any":
             return PromptToolChoiceOneOrMore(type="one_or_more")
 
-        raise ValueError(f"Unsupported Google tool choice mode: {mode}")
+        raise ValueError(f"Unsupported Google tool choice mode: {normalized_mode}")
