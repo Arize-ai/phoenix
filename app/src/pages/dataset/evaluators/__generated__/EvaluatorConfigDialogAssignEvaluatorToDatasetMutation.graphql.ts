@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dabbcaeb2b39bfc93cb4ca704e35583c>>
+ * @generated SignedSource<<05b7e44ac6968ffd780991a90bfd9af6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type AssignEvaluatorToDatasetInput = {
   datasetId: string;
   evaluatorId: string;
   inputMapping?: EvaluatorInputMappingInput | null;
+  name?: string | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;

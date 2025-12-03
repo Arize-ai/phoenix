@@ -226,6 +226,7 @@ interface ApiKey {
 input AssignEvaluatorToDatasetInput {
   datasetId: ID!
   evaluatorId: ID!
+  name: String = null
   inputMapping: EvaluatorInputMappingInput = null
 }
 
@@ -318,8 +319,8 @@ type BuiltInEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset(datasetId: ID = null): Boolean!
-  datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  isAssignedToDataset(datasetId: ID = null, name: String = null): Boolean!
+  datasetInputMapping(datasetId: ID = null, name: String = null): EvaluatorInputMapping
   user: User
 }
 
@@ -537,8 +538,8 @@ type CodeEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset(datasetId: ID = null): Boolean!
-  datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  isAssignedToDataset(datasetId: ID = null, name: String = null): Boolean!
+  datasetInputMapping(datasetId: ID = null, name: String = null): EvaluatorInputMapping
   user: User
 }
 
@@ -1476,8 +1477,8 @@ interface Evaluator implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset(datasetId: ID = null): Boolean!
-  datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  isAssignedToDataset(datasetId: ID = null, name: String = null): Boolean!
+  datasetInputMapping(datasetId: ID = null, name: String = null): EvaluatorInputMapping
 }
 
 enum EvaluatorColumn {
@@ -2345,8 +2346,8 @@ type LLMEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset(datasetId: ID = null): Boolean!
-  datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  isAssignedToDataset(datasetId: ID = null, name: String = null): Boolean!
+  datasetInputMapping(datasetId: ID = null, name: String = null): EvaluatorInputMapping
   outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
@@ -3980,6 +3981,7 @@ type UMAPPoints {
 input UnassignEvaluatorFromDatasetInput {
   datasetId: ID!
   evaluatorId: ID!
+  name: String!
 }
 
 type UnparsableConfig {
