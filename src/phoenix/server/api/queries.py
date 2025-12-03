@@ -1742,10 +1742,10 @@ class Query:
         elif isinstance(raw_variables, str):
             parsed = json.loads(raw_variables)
             if not isinstance(parsed, dict):
-                raise ValueError("Variables JSON string must parse to a dictionary")
+                raise ValueError("Variables must be a dictionary")
             variables = parsed
         else:
-            raise ValueError("Variables must be a dictionary or a JSON string")
+            raise ValueError("Variables must be a dictionary or a string")
 
         messages: list[PromptMessage] = []
         for message in template:
