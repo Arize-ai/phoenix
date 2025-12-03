@@ -411,8 +411,8 @@ class OpenAIAdapter(BaseLLMAdapter):
                 # For now, skip image_url parts (as per plan)
                 text_parts = []
                 for part in content:
-                    if part.get("type") == "text":
-                        text_parts.append(part["text"])
+                    if part.get("type") == "text" and "text" in part:
+                        text_parts.append(part["text"])  # type: ignore[typeddict-item]
 
                 # Join all text parts with newlines
                 combined_text = "\n".join(text_parts)
@@ -421,7 +421,7 @@ class OpenAIAdapter(BaseLLMAdapter):
         return openai_messages
 
     def _build_messages(
-        self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
+        self, prompt: Union[str, List[Dict[str, Any]], List[Message], MultimodalPrompt]
     ) -> list[dict[str, Any]]:
         """Build messages for OpenAI API from prompt."""
         if isinstance(prompt, str):
@@ -431,7 +431,7 @@ class OpenAIAdapter(BaseLLMAdapter):
             # Check if this is List[Message] with MessageRole enum
             if prompt and isinstance(prompt[0].get("role"), MessageRole):
                 # Transform List[Message] to OpenAI format
-                return self._transform_messages_to_openai(prompt)
+                return self._transform_messages_to_openai(cast(List[Message], prompt))
             # Otherwise, already in OpenAI message format (backward compatibility)
             return prompt
 

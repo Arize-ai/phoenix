@@ -57,7 +57,7 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         super().__init__(
             name=self.NAME,
             llm=llm,
-            prompt_template=self.PROMPT,
+            prompt_template=self.PROMPT.template,
             choices=self.CHOICES,
             direction=self.DIRECTION,
             input_schema=self.DocumentRelevanceInputSchema,

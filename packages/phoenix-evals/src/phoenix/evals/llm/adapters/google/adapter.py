@@ -350,7 +350,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         function_declaration = genai.types.FunctionDeclaration(
             name="extract_structured_data",
             description=description,
-            parameters=schema,
+            parameters=schema,  # type: ignore[arg-type]
         )
 
         return genai.types.Tool(function_declarations=[function_declaration])
@@ -422,7 +422,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         return google_messages
 
     def _build_content(
-        self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
+        self, prompt: Union[str, List[Dict[str, Any]], List[Message], MultimodalPrompt]
     ) -> tuple[Union[str, List[Dict[str, Any]]], str]:
         """Build content for Google GenAI API.
 
@@ -437,12 +437,15 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             # Check if this is List[Message] with MessageRole enum
             if prompt and isinstance(prompt[0].get("role"), MessageRole):
                 # Extract system messages first
-                system_messages = [msg for msg in prompt if msg["role"] == MessageRole.SYSTEM]
+                messages_typed = cast(List[Message], prompt)
+                system_messages = [
+                    msg for msg in messages_typed if msg["role"] == MessageRole.SYSTEM
+                ]
                 system_instruction = "\n".join(
                     self._extract_text_from_content(msg["content"]) for msg in system_messages
                 )
                 # Transform List[Message] to Google format (will skip system messages)
-                google_messages = self._transform_messages_to_google(prompt)
+                google_messages = self._transform_messages_to_google(messages_typed)
                 return google_messages, system_instruction
 
             # Convert plain dict messages to Google format
@@ -467,13 +470,13 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                     google_messages.append({"role": role, "parts": [{"text": content}]})
                 else:
                     # Extract text from structured content parts
-                    text_parts = []
+                    msg_text_parts = []
                     for part in content:
                         if part.get("type") == "text":
-                            text_parts.append(part.get("text", ""))
+                            msg_text_parts.append(part.get("text", ""))
 
                     # Join all text parts
-                    combined_text = "\n".join(text_parts)
+                    combined_text = "\n".join(msg_text_parts)
                     google_messages.append({"role": role, "parts": [{"text": combined_text}]})
             return google_messages, system_instruction
 

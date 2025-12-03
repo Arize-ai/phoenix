@@ -623,7 +623,7 @@ class PromptTemplate:
     within a single template (e.g., one message with mustache, another with f-string).
     """
 
-    _template: Union[str, List[Dict[str, Any]]]
+    _template: PromptLike
     _messages: List[MessageTemplate]
     _is_string: bool
     _variables: List[str]
@@ -632,7 +632,7 @@ class PromptTemplate:
     def __init__(
         self,
         *,
-        template: Union[str, List[Dict[str, Any]]],
+        template: PromptLike,
         template_format: Optional[TemplateFormat] = None,
     ):
         """Initialize a PromptTemplate instance.
@@ -696,7 +696,7 @@ class PromptTemplate:
             raise TypeError(f"Template must be str or list, got {type(template)}")
 
     @property
-    def template(self) -> Union[str, List[Dict[str, Any]]]:
+    def template(self) -> PromptLike:
         """Get the raw template.
 
         Returns:

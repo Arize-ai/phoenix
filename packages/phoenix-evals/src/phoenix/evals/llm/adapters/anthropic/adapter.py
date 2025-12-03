@@ -299,7 +299,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         return anthropic_messages
 
     def _build_messages(
-        self, prompt: Union[str, List[Dict[str, Any]], MultimodalPrompt]
+        self, prompt: Union[str, List[Dict[str, Any]], List[Message], MultimodalPrompt]
     ) -> tuple[list[dict[str, Any]], str]:
         """Build messages for Anthropic API.
 
@@ -313,12 +313,15 @@ class AnthropicAdapter(BaseLLMAdapter):
             # Check if this is List[Message] with MessageRole enum
             if prompt and isinstance(prompt[0].get("role"), MessageRole):
                 # Extract system messages first
-                system_messages = [msg for msg in prompt if msg["role"] == MessageRole.SYSTEM]
+                messages_typed = cast(List[Message], prompt)
+                system_messages = [
+                    msg for msg in messages_typed if msg["role"] == MessageRole.SYSTEM
+                ]
                 system_content = "\n".join(
                     self._extract_text_from_content(msg["content"]) for msg in system_messages
                 )
                 # Transform List[Message] to Anthropic format (excludes system messages)
-                anthropic_messages = self._transform_messages_to_anthropic(prompt)
+                anthropic_messages = self._transform_messages_to_anthropic(messages_typed)
                 return anthropic_messages, system_content
 
             # Otherwise, plain dict format - extract system messages
