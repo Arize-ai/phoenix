@@ -12,7 +12,6 @@ import { Button, ButtonProps } from "@phoenix/components/button";
 import { CreateDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
-import { EvaluatorSelectMenuItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { Icon, Icons } from "@phoenix/components/icon";
 import {
   Menu,
@@ -183,10 +182,9 @@ const CodeEvaluatorTemplateSubmenu = ({
           onAction={(key) => onAction(key as string)}
         >
           {(evaluator) => (
-            <EvaluatorSelectMenuItem
-              evaluator={evaluator}
-              onSelectionChange={() => onAction(evaluator.id)}
-            />
+            <MenuItem key={evaluator.id} id={evaluator.id}>
+              {evaluator.name}
+            </MenuItem>
           )}
         </Menu>
       </MenuContainer>

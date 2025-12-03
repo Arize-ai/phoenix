@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8015a3f86a970ca953a0c9bfe9e38196>>
+ * @generated SignedSource<<9e6e964d44b42eeccf79baccf3d0b3a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,6 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluatorKind = "CODE" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type PlaygroundDatasetSection_evaluators$data = {
   readonly evaluators: {
@@ -20,8 +19,6 @@ export type PlaygroundDatasetSection_evaluators$data = {
           readonly pathMapping: any;
         } | null;
         readonly id: string;
-        readonly isAssignedToDataset: boolean;
-        readonly kind: EvaluatorKind;
         readonly name: string;
         readonly outputConfig?: {
           readonly name: string;
@@ -43,14 +40,7 @@ var v0 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-},
-v1 = [
-  {
-    "kind": "Variable",
-    "name": "datasetId",
-    "variableName": "datasetId"
-  }
-];
+};
 return {
   "argumentDefinitions": [
     {
@@ -103,21 +93,13 @@ return {
                 (v0/*: any*/),
                 {
                   "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "kind",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": (v1/*: any*/),
-                  "kind": "ScalarField",
-                  "name": "isAssignedToDataset",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": (v1/*: any*/),
+                  "args": [
+                    {
+                      "kind": "Variable",
+                      "name": "datasetId",
+                      "variableName": "datasetId"
+                    }
+                  ],
                   "concreteType": "EvaluatorInputMapping",
                   "kind": "LinkedField",
                   "name": "datasetInputMapping",
@@ -174,6 +156,6 @@ return {
 };
 })();
 
-(node as any).hash = "1d791ea65eaf6a922c177101b2eb735f";
+(node as any).hash = "180e5957d6d3047317a938c8fad1c610";
 
 export default node;
