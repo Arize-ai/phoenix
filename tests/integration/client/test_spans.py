@@ -1104,7 +1104,7 @@ class TestClientForSpanCreation:
             our_df = df[our_spans_mask].copy()
 
             # Test 1: DataFrame to spans conversion
-            reconstructed_spans = dataframe_to_spans(our_df)
+            reconstructed_spans = dataframe_to_spans(our_df)  # pyright: ignore[reportArgumentType]
             assert len(reconstructed_spans) == num_spans
 
             spans_by_name = {span["name"]: span for span in reconstructed_spans}
@@ -1139,7 +1139,7 @@ class TestClientForSpanCreation:
             original_df_trace_ids = our_df["context.trace_id"].tolist()  # pyright: ignore[reportUnknownVariableType]
             original_df_span_ids = our_df["context.span_id"].tolist()  # pyright: ignore[reportUnknownVariableType]
 
-            unique_df = uniquify_spans_dataframe(our_df, in_place=False)
+            unique_df = uniquify_spans_dataframe(our_df, in_place=False)  # pyright: ignore[reportArgumentType]
 
             # Verify DataFrame uniquification
             assert unique_df["context.trace_id"].tolist() != original_df_trace_ids
