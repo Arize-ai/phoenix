@@ -16,7 +16,7 @@ If you'd like to follow along with this evaluation example, you can check out th
 
 {% stepper %}
 {% step %}
-### Set up and Connect to Phoenix
+#### Set up and Connect to Phoenix
 
 Before running your experiment and evaluations, make sure your environment is set up by installing the required dependencies and connecting your application to [Phoenix Cloud](https://app.arize.com/auth/phoenix/).
 
@@ -33,7 +33,7 @@ PHOENIX_API_KEY = "your-phoenix-cloud-api-key"
 {% endstep %}
 
 {% step %}
-### Define a Task
+#### Define a Task
 
 Simply put, the task defines how your application should behave. The task specifies exactly which input fields to pass in and how the application should process that input. By standardizing execution across examples, tasks ensure that evaluations are consistent, repeatable, and comparable as your application evolves.
 
@@ -51,7 +51,7 @@ async function task(example) {
 {% endstep %}
 
 {% step %}
-### Define a Dataset
+#### Define a Dataset
 
 A meaningful evaluation starts with a well-constructed dataset. This dataset should contain a diverse set of examples that capture both typical success cases and realistic failure modes.\
 \
@@ -96,7 +96,7 @@ const dataset = await createDataset({
 {% endstep %}
 
 {% step %}
-### Create an Evaluator
+#### Create an Evaluator
 
 Once a task and dataset are defined, the final piece of the experimentation workflow is the evaluator.
 
@@ -130,7 +130,7 @@ const documentRelevancyEvaluator = createDocumentRelevancyEvaluator({
 {% endstep %}
 
 {% step %}
-### Run the Experiment
+#### Run the Experiment
 
 An experiment ties the dataset, task, and evaluator together into an end-to-end process.
 
@@ -152,7 +152,7 @@ await runExperiment({
 {% endstep %}
 
 {% step %}
-### View Results in Phoenix Cloud
+#### View Results in Phoenix Cloud
 
 After the experiment completes, the results provide a detailed breakdown of how the application performed across all examples. You can quickly identify success cases, pinpoint failure modes, and analyze patterns across the dataset.
 

@@ -9,7 +9,7 @@ Now that you have Phoenix up and running, one of the next steps you can take is 
 
 {% stepper %}
 {% step %}
-#### Launch Phoenix
+**Launch Phoenix**
 
 Before setting up your first dataset, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).
 
@@ -49,7 +49,7 @@ Navigate to your localhost in your browser. (example localhost:6006)
 {% endstep %}
 
 {% step %}
-#### Creating a Dataset
+**Creating a Dataset**
 
 You can either create a Dataset in the UI, or via code.
 
@@ -82,25 +82,6 @@ dataset = await px_client.datasets.create_dataset(
 )
 ```
 {% endtab %}
-
-{% tab title="TS" %}
-i dont think this is possible unless you have a set of examples. doesn't yet take in csv via code
-
-```typescript
-import { createClient } from "@arizeai/phoenix-client";
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-
-// Initialize Phoenix client
-const client = createClient();
-
-// Upload dataset
-const { datasetId } = await createDataset({
-  client,
-  name: "test-dataset",
-  examples: sample.csv
-});
-```
-{% endtab %}
 {% endtabs %}
 
 That's it! You've now successfully created your first dataset.
@@ -113,7 +94,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
 
 {% stepper %}
 {% step %}
-#### Load your Dataset in Code
+**Load your Dataset in Code**
 
 The first step is to pull down your dataset into your code.
 
@@ -136,7 +117,7 @@ If you created your dataset programmatically, you should already have it availab
 {% endstep %}
 
 {% step %}
-#### Create your Task
+**Create your Task**
 
 Create a Task to evaluate.
 
@@ -200,7 +181,7 @@ const task: RunExperimentParams["task"] = async (example) => {
 {% endstep %}
 
 {% step %}
-#### Create your Evaluator
+**Create your Evaluator**
 
 Next step is to create your Evaluator. If you have already defined your Q\&A Correctness eval from the last quick start, you won't need to redefine it. If not, you can follow along with these code snippets.
 
@@ -264,7 +245,7 @@ completeness = ClassificationEvaluator(
 {% endstep %}
 
 {% step %}
-#### Run your Experiment
+**Run your Experiment**
 
 Now that we have defined our Task & our Evaluators, we're now ready to run our experiment.
 
