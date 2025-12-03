@@ -71,13 +71,15 @@ export function PlaygroundEvaluatorSelect(
               selectionMode="multiple"
               selectedKeys={selectedIds}
               onSelectionChange={(keys) => {
+                if (keys === "all") {
+                  return;
+                }
                 const keysArray = Array.from(keys);
                 if (!isStringArray(keysArray)) {
                   return;
                 }
                 onSelectionChange(keysArray);
               }}
-              items={evaluators}
               renderEmptyState={() => (
                 <Text color="grey-300" size="S">
                   No evaluators found
