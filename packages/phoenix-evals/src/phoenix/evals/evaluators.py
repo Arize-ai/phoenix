@@ -36,7 +36,7 @@ from .legacy.evaluators import (
     ToxicityEvaluator,
 )
 from .llm import LLM
-from .llm.prompts import PromptTemplate
+from .llm.prompts import PromptTemplate, Template
 from .llm.types import ObjectGenerationMethod, PromptLike
 from .utils import (
     _deprecate_positional_args,
@@ -550,7 +550,7 @@ class ClassificationEvaluator(LLMEvaluator):
         *,
         name: str,
         llm: LLM,
-        prompt_template: PromptLike,
+        prompt_template: Union[PromptLike, PromptTemplate, Template],
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
         ],

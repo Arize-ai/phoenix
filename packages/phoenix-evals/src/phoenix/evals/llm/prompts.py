@@ -22,8 +22,6 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict, Union, cast
 import pystache  # type: ignore
 from opentelemetry.trace import Tracer
 
-from phoenix.evals.legacy.templates import MultimodalPrompt
-
 
 class TemplateFormat(str, Enum):
     MUSTACHE = "mustache"
@@ -54,7 +52,7 @@ class Message(TypedDict):
 
 
 # Type alias for prompt formats
-PromptLike = Union[str, List[Dict[str, Any]], List[Message], MultimodalPrompt]
+PromptLike = Union[str, List[Dict[str, Any]]]
 
 
 class TemplateFormatter(ABC):
@@ -609,7 +607,7 @@ class PromptTemplate:
     def __init__(
         self,
         *,
-        template: PromptLike,
+        template: Union[PromptLike, Template],
         template_format: Optional[TemplateFormat] = None,
     ):
         """Initialize a PromptTemplate instance.
@@ -626,7 +624,18 @@ class PromptTemplate:
         """
         self.template_format = template_format
 
-        if isinstance(template, str):
+        if isinstance(template, Template):
+            self._template = template.template
+            self._variables = template.variables
+            self._messages = [
+                MessageTemplate(
+                    role=MessageRole.USER,
+                    content=template.template,
+                    format=template.template_format,
+                )
+            ]
+            self._is_string = True
+        elif isinstance(template, str):
             if not template:
                 raise ValueError("Template cannot be empty")
             self._is_string = True
