@@ -108,6 +108,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
+    LatestPromptVersionIdDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
@@ -799,6 +800,7 @@ def create_graphql_router(
                 prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
+                latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
                 project_session_annotation_fields=TableFieldsDataLoader(
                     db, models.ProjectSessionAnnotation
                 ),
