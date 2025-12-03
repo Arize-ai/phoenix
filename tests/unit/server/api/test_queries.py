@@ -1779,3 +1779,81 @@ class TestApplyChatTemplate:
         messages = response.data["applyChatTemplate"]["messages"]
         assert len(messages) == 1
         assert messages[0]["content"][0]["text"]["text"] == "Hello, world!"
+
+    async def test_apply_template_with_variables_as_json_string(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test applying templates when variables are passed as a JSON string."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": [
+                {"role": "USER", "content": "Hello, {{ name }}!"},
+            ],
+            "templateOptions": {
+                "format": "MUSTACHE",
+                "variables": '{"name": "Alice"}',  # JSON string instead of dict
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        messages = response.data["applyChatTemplate"]["messages"]
+        assert len(messages) == 1
+        assert messages[0]["content"][0]["text"]["text"] == "Hello, Alice!"
+
+    async def test_apply_template_with_invalid_json_string_variables(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test that non-dict JSON strings (like arrays) raise an error."""
+        query = """
+          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": [
+                {"role": "USER", "content": "Hello, {{ name }}!"},
+            ],
+            "templateOptions": {
+                "format": "MUSTACHE",
+                "variables": "[1, 2, 3]",  # JSON array string - not a dict
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert response.errors is not None
+        assert any(
+            "Variables JSON string must parse to a dictionary" in str(error)
+            for error in response.errors
+        )
