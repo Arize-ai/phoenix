@@ -450,8 +450,9 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 
             # Convert plain dict messages to Google format
             # Extract system messages for system_instruction parameter
-            system_messages = [msg for msg in prompt if msg.get("role") == "system"]
-            non_system_messages = [msg for msg in prompt if msg.get("role") != "system"]
+            prompt_dicts = cast(List[Dict[str, Any]], prompt)
+            system_messages = [msg for msg in prompt_dicts if msg.get("role") == "system"]
+            non_system_messages = [msg for msg in prompt_dicts if msg.get("role") != "system"]
             system_instruction = "\n".join(
                 self._extract_text_from_content(msg.get("content", "")) for msg in system_messages
             )
@@ -473,7 +474,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                     msg_text_parts = []
                     for part in content:
                         if part.get("type") == "text":
-                            msg_text_parts.append(part.get("text", ""))
+                            msg_text_parts.append(str(part.get("text", "")))
 
                     # Join all text parts
                     combined_text = "\n".join(msg_text_parts)

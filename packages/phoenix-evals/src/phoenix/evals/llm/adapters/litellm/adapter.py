@@ -420,7 +420,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
                 # Transform List[Message] to OpenAI format
                 return self._transform_messages_to_openai(cast(List[Message], prompt))
             # Already in OpenAI message format (backward compatibility)
-            return prompt
+            return cast(List[Dict[str, Any]], prompt)
 
         # Handle legacy MultimodalPrompt
         messages: list[dict[str, Any]] = []
