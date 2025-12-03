@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Annotated, Optional
 
 import sqlalchemy as sa
 import strawberry
-from sqlalchemy.sql import select
 from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info

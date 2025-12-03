@@ -535,7 +535,13 @@ class TestAssignUnassignEvaluatorMutations:
         # Test 4: Unassign code evaluator
         result = await gql_client.execute(
             self._UNASSIGN_MUTATION,
-            {"input": {"datasetId": dataset_id, "evaluatorId": code_eval_id, "name": code_eval_name}},
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": code_eval_id,
+                    "name": code_eval_name,
+                }
+            },
         )
         assert result.data and not result.errors
         assert result.data["unassignEvaluatorFromDataset"]["evaluator"]["kind"] == "CODE"
