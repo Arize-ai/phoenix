@@ -1605,6 +1605,22 @@ def LDAPUser(
     ldap_dn: str | None = None,
     user_role_id: int | None = None,
 ) -> OAuth2User:
+    """Factory function to create an LDAP user stored as OAuth2User.
+
+    This is a zero-migration approach: LDAP users are stored in the existing
+    OAuth2User table with a special Unicode marker in oauth2_client_id to
+    distinguish them from actual OAuth2 users. This avoids schema changes
+    while allowing LDAP authentication to coexist with OAuth2.
+
+    Args:
+        email: User's email address
+        username: User's display name
+        ldap_dn: User's LDAP Distinguished Name (stored in oauth2_user_id)
+        user_role_id: Phoenix role ID (ADMIN, MEMBER, VIEWER)
+
+    Returns:
+        OAuth2User instance configured as an LDAP user
+    """
     from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
 
     return OAuth2User(

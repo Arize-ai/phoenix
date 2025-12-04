@@ -930,7 +930,7 @@ class LDAPAuthenticator:
         - Canonical DN comparison to account for spacing/order/escape differences
 
         Args:
-            user_groups: List of group DNs the user is a member of
+            canonical_user_groups: Set of canonicalized group DNs the user is a member of
             target_group: Target group DN to check (or "*" for wildcard)
 
         Returns:
