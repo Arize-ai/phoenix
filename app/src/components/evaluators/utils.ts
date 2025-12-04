@@ -1,7 +1,10 @@
 import { graphql, readInlineData } from "relay-runtime";
 
-import { CreateLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
-import { UpdateLLMEvaluatorInput } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
+import type {
+  ChatPromptVersionInput,
+  CreateDatasetLLMEvaluatorInput,
+} from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
+import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
@@ -11,40 +14,40 @@ import {
   CategoricalChoiceToolTypeSchema,
 } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
-import {
+import type {
   ClassificationEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
 } from "@phoenix/types";
 
-/**
- * Create a payload for the createLLMEvaluator or updateLLMEvaluator mutations.
- */
-export const createLLMEvaluatorPayload = ({
+const createOutputConfigInput = ({
+  choiceConfig,
+}: {
+  choiceConfig: ClassificationEvaluatorAnnotationConfig;
+}): CreateDatasetLLMEvaluatorInput["outputConfig"] => {
+  return {
+    name: choiceConfig.name,
+    optimizationDirection: choiceConfig.optimizationDirection,
+    values: choiceConfig.choices.map((choice) => ({
+      label: choice.label,
+      score: choice.score,
+    })),
+  };
+};
+
+const createPromptVersionInput = ({
   playgroundStore,
   instanceId,
-  name: rawName,
-  description: rawDescription,
+  name,
+  description,
   choiceConfig,
-  datasetId,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  inputMapping,
 }: {
-  /**
-   * The playground store to use to get the instance prompt params.
-   */
   playgroundStore: ReturnType<typeof usePlaygroundStore>;
-  /**
-   * The instance ID to use to get the instance prompt params.
-   */
   instanceId: number;
-  /**
-   * The name of the evaluator.
-   */
   name: string;
   /**
    * The description of the evaluator.
    */
-  description: string;
+  description?: string;
   /**
    * The choice config of the evaluator.
    */
@@ -57,15 +60,12 @@ export const createLLMEvaluatorPayload = ({
    * The dataset ID to assign the evaluator to.
    */
   datasetId?: string;
-}): CreateLLMEvaluatorInput | UpdateLLMEvaluatorInput => {
+}): ChatPromptVersionInput => {
   const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
     instanceId,
     playgroundStore
   );
-  const name = rawName.trim();
-  const description = rawDescription.trim() || undefined;
-
-  const prunedPromptInput: CreateLLMEvaluatorInput["promptVersion"] = {
+  const prunedPromptInput: CreateDatasetLLMEvaluatorInput["promptVersion"] = {
     ...promptInput,
     templateFormat,
     invocationParameters: {
@@ -104,20 +104,115 @@ export const createLLMEvaluatorPayload = ({
     responseFormat: undefined,
   };
 
+  return prunedPromptInput;
+};
+
+export const updateLLMEvaluatorPayload = ({
+  playgroundStore,
+  instanceId,
+  name: rawName,
+  description: rawDescription,
+  choiceConfig,
+  datasetId,
+  originalDisplayName,
+  evaluatorId,
+  inputMapping,
+}: {
+  evaluatorId: string;
+  datasetId: string;
+  originalDisplayName: string;
+  playgroundStore: ReturnType<typeof usePlaygroundStore>;
+  instanceId: number;
+  name: string;
+  description: string;
+  choiceConfig: ClassificationEvaluatorAnnotationConfig;
+  inputMapping?: EvaluatorInputMapping;
+}): UpdateDatasetLLMEvaluatorInput => {
+  const name = rawName.trim();
+  const description = rawDescription.trim() || undefined;
+
+  const promptVersion = createPromptVersionInput({
+    playgroundStore,
+    instanceId,
+    name,
+    description,
+    choiceConfig,
+  });
+
+  const outputConfig = createOutputConfigInput({ choiceConfig });
+
+  return {
+    name,
+    description,
+    evaluatorId,
+    originalDisplayName,
+    datasetId,
+    inputMapping,
+    promptVersion,
+    outputConfig,
+  };
+};
+/**
+ * Create a payload for the createLLMEvaluator or updateLLMEvaluator mutations.
+ */
+export const createLLMEvaluatorPayload = ({
+  playgroundStore,
+  instanceId,
+  name: rawName,
+  description: rawDescription,
+  choiceConfig,
+  datasetId,
+  inputMapping,
+}: {
+  /**
+   * The playground store to use to get the instance prompt params.
+   */
+  playgroundStore: ReturnType<typeof usePlaygroundStore>;
+  /**
+   * The instance ID to use to get the instance prompt params.
+   */
+  instanceId: number;
+  /**
+   * The name of the evaluator.
+   */
+  name: string;
+  /**
+   * The description of the evaluator.
+   */
+  description: string;
+  /**
+   * The choice config of the evaluator.
+   */
+  choiceConfig: ClassificationEvaluatorAnnotationConfig;
+  /**
+   * The input mapping of the evaluator.
+   */
+  inputMapping?: EvaluatorInputMapping;
+  /**
+   * The dataset ID to assign the evaluator to.
+   */
+  datasetId: string;
+}): CreateDatasetLLMEvaluatorInput => {
+  const name = rawName.trim();
+  const description = rawDescription.trim() || undefined;
+
+  const promptVersion = createPromptVersionInput({
+    playgroundStore,
+    instanceId,
+    name,
+    description,
+    choiceConfig,
+  });
+
+  const outputConfig = createOutputConfigInput({ choiceConfig });
+
   return {
     name,
     description,
     datasetId,
-    // TODO: add input mapping
-    promptVersion: prunedPromptInput,
-    outputConfig: {
-      name: choiceConfig.name,
-      optimizationDirection: choiceConfig.optimizationDirection,
-      values: choiceConfig.choices.map((choice) => ({
-        label: choice.label,
-        score: choice.score,
-      })),
-    },
+    inputMapping,
+    promptVersion,
+    outputConfig,
   };
 };
 

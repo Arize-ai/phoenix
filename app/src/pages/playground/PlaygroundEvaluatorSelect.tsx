@@ -20,7 +20,6 @@ import {
   SearchIcon,
   Text,
 } from "@phoenix/components";
-import { EditEvaluatorSlideover } from "@phoenix/components/evaluators/EditEvaluatorSlideover";
 import {
   EvaluatorItem,
   EvaluatorSelectMenuItem,
@@ -39,15 +38,7 @@ export function PlaygroundEvaluatorSelect(
   const { evaluators, selectedIds, onSelectionChange } = props;
   const { contains } = useFilter({ sensitivity: "base" });
 
-  const [editingEvaluatorId, setEditingEvaluatorId] = useState<string | null>(
-    null
-  );
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-
-  const onEdit = (evaluatorId: string) => {
-    setEditingEvaluatorId(evaluatorId);
-    setIsPopoverOpen(false);
-  };
 
   return (
     <>
@@ -92,7 +83,7 @@ export function PlaygroundEvaluatorSelect(
                     key={evaluator.id}
                     evaluator={evaluator}
                     isSelected={selectedIds?.includes(evaluator.id) ?? false}
-                    onEdit={() => onEdit(evaluator.id)}
+                    onEdit={() => {}}
                   />
                 ))}
               </GridListSection>
@@ -100,15 +91,6 @@ export function PlaygroundEvaluatorSelect(
           </Autocomplete>
         </MenuContainer>
       </DialogTrigger>
-      <EditEvaluatorSlideover
-        evaluatorId={editingEvaluatorId ?? ""}
-        isOpen={!!editingEvaluatorId}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditingEvaluatorId(null);
-          }
-        }}
-      />
     </>
   );
 }

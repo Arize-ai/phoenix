@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d8106d1b800479110432a106612e5e01>>
+ * @generated SignedSource<<e2dfd22f9ef2305a2312af87140369d1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -118,25 +118,18 @@ v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "isAssignedToDataset",
-  "storageKey": null
-},
-v12 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v13 = [
+v12 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 100
   }
 ],
-v14 = [
-  (v12/*: any*/),
+v13 = [
+  (v11/*: any*/),
   {
     "kind": "TypeDiscriminator",
     "abstractKey": "__isEvaluator"
@@ -146,8 +139,7 @@ v14 = [
   (v7/*: any*/),
   (v8/*: any*/),
   (v9/*: any*/),
-  (v10/*: any*/),
-  (v11/*: any*/)
+  (v10/*: any*/)
 ];
 return {
   "fragment": {
@@ -212,8 +204,7 @@ return {
                   (v7/*: any*/),
                   (v8/*: any*/),
                   (v9/*: any*/),
-                  (v10/*: any*/),
-                  (v11/*: any*/)
+                  (v10/*: any*/)
                 ],
                 "args": null,
                 "argumentDefinitions": []
@@ -262,14 +253,14 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v12/*: any*/),
+                  (v11/*: any*/),
                   (v5/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
                       {
                         "alias": null,
-                        "args": (v13/*: any*/),
+                        "args": (v12/*: any*/),
                         "concreteType": "EvaluatorConnection",
                         "kind": "LinkedField",
                         "name": "evaluators",
@@ -290,7 +281,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "node",
                                 "plural": false,
-                                "selections": (v14/*: any*/),
+                                "selections": (v13/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -345,7 +336,7 @@ return {
                       },
                       {
                         "alias": null,
-                        "args": (v13/*: any*/),
+                        "args": (v12/*: any*/),
                         "filters": [
                           "sort",
                           "filter"
@@ -372,7 +363,7 @@ return {
             "kind": "LinkedField",
             "name": "evaluator",
             "plural": false,
-            "selections": (v14/*: any*/),
+            "selections": (v13/*: any*/),
             "storageKey": null
           },
           {
@@ -402,12 +393,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0ef08c3b42aec0e51ada1b8eb52fcba2",
+    "cacheID": "5e054741bdf78686ecbcdf7ec4ed1780",
     "id": null,
     "metadata": {},
     "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n  $datasetId: ID!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...DatasetEvaluatorsTable_evaluators\n        id\n      }\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n"
+    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n  $datasetId: ID!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...DatasetEvaluatorsTable_evaluators\n        id\n      }\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n}\n"
   }
 };
 })();

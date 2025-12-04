@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa428eec55e3f84170c8fa359c423dbe>>
+ * @generated SignedSource<<2173d04f762890b235f558222fb47898>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -159,13 +159,6 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "updatedAt",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "isAssignedToDataset",
                       "storageKey": null
                     }
                   ],

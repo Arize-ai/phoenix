@@ -91,7 +91,6 @@ const readRow = (row: EvaluatorsTable_row$key) => {
         description
         createdAt
         updatedAt
-        isAssignedToDataset
       }
     `,
     row

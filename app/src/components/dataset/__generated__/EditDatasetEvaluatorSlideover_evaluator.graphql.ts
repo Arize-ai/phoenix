@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b40146cb09155f80dfe84538392c6f8a>>
+ * @generated SignedSource<<a4b08a115fd6496991f87116e449016c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,9 +13,12 @@ export type EvaluatorKind = "CODE" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type EditDatasetEvaluatorSlideover_evaluator$data = {
+  readonly datasetInputMapping?: {
+    readonly literalMapping: any;
+    readonly pathMapping: any;
+  } | null;
   readonly description: string | null;
   readonly id: string;
-  readonly isAssignedToDataset: boolean;
   readonly kind: EvaluatorKind;
   readonly name: string;
   readonly outputConfig?: {
@@ -101,11 +104,36 @@ return {
       "storageKey": null
     },
     {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "isAssignedToDataset",
-      "storageKey": null
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "EvaluatorInputMapping",
+          "kind": "LinkedField",
+          "name": "datasetInputMapping",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "literalMapping",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "pathMapping",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "type": "DatasetLLMEvaluator",
+      "abstractKey": null
     },
     {
       "kind": "InlineFragment",
@@ -390,6 +418,6 @@ return {
 };
 })();
 
-(node as any).hash = "5f57f2d51621197ed87e0b84bf6c6560";
+(node as any).hash = "c49e0f755eae31ec46f2af3a9bdb2944";
 
 export default node;

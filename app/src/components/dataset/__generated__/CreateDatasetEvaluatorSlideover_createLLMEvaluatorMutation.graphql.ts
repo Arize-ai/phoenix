@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d6d4647b42e9f11fc9aa7b6e7105314e>>
+ * @generated SignedSource<<5c0fd7aa678709c8ffa865906915d050>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -156,13 +156,6 @@ v8 = {
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
-},
-v9 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "isAssignedToDataset",
-  "storageKey": null
 };
 return {
   "fragment": {
@@ -204,8 +197,7 @@ return {
                       (v5/*: any*/),
                       (v6/*: any*/),
                       (v7/*: any*/),
-                      (v8/*: any*/),
-                      (v9/*: any*/)
+                      (v8/*: any*/)
                     ],
                     "type": "Evaluator",
                     "abstractKey": "__isEvaluator"
@@ -257,8 +249,7 @@ return {
                   (v5/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
-                  (v8/*: any*/),
-                  (v9/*: any*/)
+                  (v8/*: any*/)
                 ],
                 "type": "Evaluator",
                 "abstractKey": "__isEvaluator"
@@ -293,12 +284,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e15d05f180940d21ef14fbbf3e9c2210",
+    "cacheID": "22c3a6e5cf203a7240e6274036463af4",
     "id": null,
     "metadata": {},
     "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n"
+    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n}\n"
   }
 };
 })();
