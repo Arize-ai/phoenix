@@ -1,13 +1,15 @@
 # Prompt Formats
 
-Phoenix LLM evaluators support multiple prompt formats and are compatible with all the supported models and providers.
+Phoenix evaluators support multiple prompt formats, all compatible with supported models and providers.
 
-### Supported Formats
+## Supported Formats
 
-#### 1. String Prompts
+### 1. String Prompts
 
 Simple string templates with variable placeholders.
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 evaluator = ClassificationEvaluator(
     name="sentiment",
@@ -16,11 +18,31 @@ evaluator = ClassificationEvaluator(
     choices=["positive", "negative", "neutral"]
 )
 ```
+{% endtab %}
 
-#### 2. Message Lists
+{% tab title="TypeScript" %}
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
 
-List of message dictionaries with `role` and `content` fields.
+const model = openai("gpt-4o-mini");
 
+const evaluator = createClassificationEvaluator({
+  name: "sentiment",
+  model,
+  promptTemplate: "Classify the sentiment: {{text}}",
+  choices: { positive: 1, negative: 0, neutral: 0.5 },
+});
+```
+{% endtab %}
+{% endtabs %}
+
+### 2. Message Lists
+
+Arrays of message objects with `role` and `content` fields.
+
+{% tabs %}
+{% tab title="Python" %}
 ```python
 evaluator = ClassificationEvaluator(
     name="helpfulness",
@@ -38,11 +60,40 @@ evaluator = ClassificationEvaluator(
 * `"system"` - Instructions for the model.
 * `"user"` - User messages and input context.
 * `"assistant"` - Assistant/model responses (for multi-turn conversations or few-shot examples)
+{% endtab %}
 
-#### 3. Structured Content Parts
+{% tab title="TypeScript" %}
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
 
-Messages with multiple content parts (e.g., multiple text segments).
+const model = openai("gpt-4o-mini");
 
+const evaluator = createClassificationEvaluator({
+  name: "helpfulness",
+  model,
+  promptTemplate: [
+    { role: "system", content: "Evaluate the answer helpfulness." },
+    { role: "user", content: "Question: {{question}}\nAnswer: {{answer}}" },
+  ],
+  choices: { helpful: 1, somewhat_helpful: 0.5, not_helpful: 0 },
+});
+```
+
+**Supported roles:**
+
+* `"system"` - Instructions for the model.
+* `"user"` - User messages and input context.
+* `"assistant"` - Assistant/model responses (for multi-turn conversations or few-shot examples)
+{% endtab %}
+{% endtabs %}
+
+### 3. Structured Content Parts (Python only)
+
+Messages with multiple content parts, useful for separating different pieces of context.
+
+{% tabs %}
+{% tab title="Python" %}
 Only text content is supported at this time.
 
 ```python
@@ -61,11 +112,19 @@ evaluator = ClassificationEvaluator(
     choices=["relevant", "not_relevant"]
 )
 ```
+{% endtab %}
 
-### Template Variables
+{% tab title="TypeScript" %}
+Structured content parts are not currently supported in the TypeScript library. Use message lists or string templates instead.
+{% endtab %}
+{% endtabs %}
 
-All formats support variable substitution using f-string (`{variable}` ) or mustache (`{{variable}}`) syntax for the placeholders.&#x20;
+## Template Variables
 
+All formats support variable substitution. Python supports both f-string (`{variable}`) and mustache (`{{variable}}`) syntax, while TypeScript supports mustache syntax only.
+
+{% tabs %}
+{% tab title="Python" %}
 ```python
 # Variables are provided when calling .evaluate()
 result = evaluator.evaluate({
@@ -73,10 +132,26 @@ result = evaluator.evaluate({
     "answer": "A programming language"
 })
 ```
+{% endtab %}
 
-### Client-Specific Behavior
+{% tab title="TypeScript" %}
+```typescript
+// Variables are provided when calling .evaluate()
+const result = await evaluator.evaluate({
+  question: "What is Python?",
+  answer: "A programming language",
+});
 
-All clients accept the same message format as input. Adapters handle client-specific transformations internally as needed:&#x20;
+console.log(result.label); // e.g., "relevant"
+```
+{% endtab %}
+{% endtabs %}
+
+## Client-Specific Behavior
+
+{% tabs %}
+{% tab title="Python" %}
+All clients accept the same message format as input. Adapters handle client-specific transformations internally as needed:
 
 #### OpenAI
 
@@ -102,9 +177,21 @@ All clients accept the same message format as input. Adapters handle client-spec
 #### LangChain
 
 * OpenAI format messages are converted to LangChain message objects (`HumanMessage`, `AIMessage`, `SystemMessage`)
+{% endtab %}
 
-### Example
+{% tab title="TypeScript" %}
+The TypeScript library uses the AI SDK which handles provider-specific message formatting automatically. The AI SDK normalizes the interface across providers, so you can use the same prompt templates regardless of which model provider you choose.
 
+For provider-specific details, refer to the [AI SDK documentation](https://sdk.vercel.ai/providers/ai-sdk-providers).
+{% endtab %}
+{% endtabs %}
+
+## Full Example
+
+A complete example showing evaluator setup and usage:
+
+{% tabs %}
+{% tab title="Python" %}
 ```python
 from phoenix.evals import ClassificationEvaluator, LLM
 
@@ -127,3 +214,31 @@ result = evaluator.evaluate({
 
 print(result[0].label)  # e.g., "helpful"
 ```
+{% endtab %}
+
+{% tab title="TypeScript" %}
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const model = openai("gpt-4o-mini");
+
+const evaluator = createClassificationEvaluator({
+  name: "helpfulness",
+  model,
+  promptTemplate: [
+    { role: "system", content: "You evaluate response helpfulness." },
+    { role: "user", content: "Question: {{question}}\nAnswer: {{answer}}" },
+  ],
+  choices: { helpful: 1, somewhat_helpful: 0.5, not_helpful: 0 },
+});
+
+const result = await evaluator.evaluate({
+  question: "How do I learn Python?",
+  answer: "Start with online tutorials and practice daily.",
+});
+
+console.log(result.label); // e.g., "helpful"
+```
+{% endtab %}
+{% endtabs %}
