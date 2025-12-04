@@ -177,16 +177,22 @@ class TestLDAPAuthentication:
         status, access_token, refresh_token = _ldap_login(_app, admin.username, admin.password)
         _verify_ldap_login_success(status, access_token, refresh_token)
         admin_user = _verify_user_created(_app, admin)
-        assert admin_user.role == UserRoleInput.ADMIN
+
+        # Member user (in members group)
+        member = _create_test_user(_ldap_server, suffix, "member", UserRoleInput.MEMBER)
+        status, access_token, refresh_token = _ldap_login(_app, member.username, member.password)
+        _verify_ldap_login_success(status, access_token, refresh_token)
+        member_user = _verify_user_created(_app, member)
 
         # Viewer user (no groups → wildcard)
         viewer = _create_test_user(_ldap_server, suffix, "viewer", UserRoleInput.VIEWER, groups=[])
         status, access_token, refresh_token = _ldap_login(_app, viewer.username, viewer.password)
         _verify_ldap_login_success(status, access_token, refresh_token)
         viewer_user = _verify_user_created(_app, viewer)
-        assert viewer_user.role == UserRoleInput.VIEWER
 
-        _delete_users(_app, _app.admin_secret, users=[admin_user.gid, viewer_user.gid])
+        _delete_users(
+            _app, _app.admin_secret, users=[admin_user.gid, member_user.gid, viewer_user.gid]
+        )
 
     async def test_invalid_credentials_rejected(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
@@ -243,7 +249,17 @@ class TestLDAPAuthentication:
 
     async def test_injection_prevention(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
         """Test LDAP injection attempts are rejected."""
-        for payload in ["*", "admin*", "*(objectClass=*)", "admin)(|(objectClass=*"]:
+        payloads = [
+            "*",  # Wildcard
+            "admin*",  # Wildcard suffix
+            "*(objectClass=*)",  # Filter injection
+            "admin)(|(objectClass=*",  # Filter escape
+            "admin\x00injected",  # Null byte injection
+            "admin\ninjected",  # Newline injection
+            "admin\r\ninjected",  # CRLF injection
+            ")(cn=*",  # DN injection
+        ]
+        for payload in payloads:
             assert _ldap_login(_app, payload, _DEFAULT_PASSWORD)[0] == 401
 
     async def test_unicode_credentials(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
@@ -258,6 +274,28 @@ class TestLDAPAuthentication:
             groups=[_MEMBER_GROUP],
         )
         status, access_token, refresh_token = _ldap_login(_app, "用户名", "密码123")
+        _verify_ldap_login_success(status, access_token, refresh_token)
+        user = _get_user_by_email(_app, email)
+        assert user is not None
+        _delete_users(_app, _app.admin_secret, users=[user.gid])
+
+    async def test_special_characters_in_password(
+        self, _app: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test login with special characters in password (quotes, backslashes, etc.)."""
+        suffix = token_hex(4)
+        email = f"special_{suffix}@example.com"
+        special_password = r'p@ss"word\with\'special<chars>&more!'
+        _ldap_server.add_user(
+            username=f"special_{suffix}",
+            password=special_password,
+            email=email,
+            display_name="Special User",
+            groups=[_MEMBER_GROUP],
+        )
+        status, access_token, refresh_token = _ldap_login(
+            _app, f"special_{suffix}", special_password
+        )
         _verify_ldap_login_success(status, access_token, refresh_token)
         user = _get_user_by_email(_app, email)
         assert user is not None
@@ -298,7 +336,11 @@ class TestLDAPAuthentication:
     async def test_multiple_groups_uses_first_match(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test user in multiple groups gets role from first matching mapping."""
+        """Test user in multiple groups gets role from first matching mapping.
+
+        group_role_mappings is evaluated in order: ADMIN, MEMBER, VIEWER (wildcard).
+        User is in both MEMBER and ADMIN groups, but ADMIN mapping is checked first.
+        """
         suffix = token_hex(4)
         email = f"multi_{suffix}@example.com"
         _ldap_server.add_user(
@@ -312,7 +354,7 @@ class TestLDAPAuthentication:
         assert status == 204
         user = _get_user_by_email(_app, email)
         assert user is not None
-        assert user.role == UserRoleInput.ADMIN  # ADMIN mapping comes first in config
+        assert user.role == UserRoleInput.ADMIN  # ADMIN mapping evaluated before MEMBER
         _delete_users(_app, _app.admin_secret, users=[user.gid])
 
     async def test_group_dn_case_insensitive(
@@ -417,6 +459,8 @@ class TestLDAPDNStability:
             },
         )
         assert response.status_code == 200
+        response_json = response.json()
+        assert not response_json.get("errors")
 
         # First login (migrates pre-provisioned user to unique_id)
         _ldap_server.add_user(
@@ -449,6 +493,8 @@ class TestLDAPDNStability:
         user_v2 = _get_user_by_email(app, email_v2)
         assert user_v2 is not None
         assert user_v2.gid == user_v1.gid, "Same user when unique_id is configured"
+        assert user_v2.role == UserRoleInput.ADMIN
+        assert user_v2.username == "Pre-Provisioned"
 
         # Old email no longer exists
         assert _get_user_by_email(app, email_v1) is None
@@ -499,7 +545,9 @@ class TestLDAPGraphQLIntegration:
         )
 
         assert graphql_response.status_code == 200
-        data = graphql_response.json()
+        graphql_data = graphql_response.json()
+        assert not graphql_data.get("errors"), graphql_data.get("errors")
+        data = graphql_data
 
         # Find our LDAP user in the response
         users = data["data"]["users"]["edges"]
@@ -659,7 +707,9 @@ class TestLDAPConfiguration:
             },
         )
         assert create_response.status_code == 200
-        user_data = create_response.json()["data"]["createUser"]["user"]
+        create_json = create_response.json()
+        assert not create_json.get("errors"), create_json.get("errors")
+        user_data = create_json["data"]["createUser"]["user"]
         assert user_data["authMethod"] == "LDAP"
         created_user_gid = user_data["id"]
 
@@ -684,6 +734,7 @@ class TestLDAPConfiguration:
         assert updated_user is not None
         # Username stays stable from admin creation (prevents collisions on displayName changes)
         assert updated_user.profile.username == "John Doe"
+        assert updated_user.role == UserRoleInput.ADMIN
 
         # Step 5: Verify subsequent logins work
         status, access_token, refresh_token = _ldap_login(
