@@ -76,57 +76,12 @@ export const AddEvaluatorMenu = ({
         </Button>
         {/* TODO: Remove minHeight once we have more items in the menu */}
         <MenuContainer minHeight={"auto"}>
-          <Menu
-            onAction={(action) => {
-              switch (action) {
-                case "createEvaluator":
-                  setCreateEvaluatorDialogOpen(true);
-                  break;
-              }
-            }}
-          >
-            <MenuSection>
-              <MenuSectionTitle title="New LLM evaluator" />
-              <MenuItem
-                leadingContent={<Icon svg={<Icons.PlusOutline />} />}
-                id="createEvaluator"
-              >
-                Create new LLM evaluator
-              </MenuItem>
-              <LLMEvaluatorTemplateSubmenu
-                query={data}
-                onAction={(evaluatorTemplate) =>
-                  setCreateEvaluatorDialogOpen(evaluatorTemplate)
-                }
-              >
-                <MenuItem
-                  leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}
-                >
-                  Use LLM evaluator template
-                </MenuItem>
-              </LLMEvaluatorTemplateSubmenu>
-            </MenuSection>
-            <MenuSection>
-              <MenuSectionTitle title="New code evaluator" />
-              <MenuItem
-                leadingContent={<Icon svg={<Icons.PlusOutline />} />}
-                isDisabled
-                id="createCodeEvaluator"
-              >
-                Create new code evaluator
-              </MenuItem>
-              <CodeEvaluatorTemplateSubmenu
-                query={data}
-                onAction={setBuiltinEvaluatorIdToAssociate}
-              >
-                <MenuItem
-                  leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}
-                >
-                  Use built-in code evaluator
-                </MenuItem>
-              </CodeEvaluatorTemplateSubmenu>
-            </MenuSection>
-          </Menu>
+          <AddEvaluatorMenuContents
+            query={data}
+            onCreateEvaluator={() => setCreateEvaluatorDialogOpen(true)}
+            onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
+            onSelectBuiltInLLMEvaluator={setCreateEvaluatorDialogOpen} // TODO: make this clearer
+          />
         </MenuContainer>
       </MenuTrigger>
       <DialogTrigger
@@ -161,6 +116,73 @@ export const AddEvaluatorMenu = ({
         </Modal>
       </ModalOverlay>
     </>
+  );
+};
+
+export type BuiltInEvaluatorsQueryKey =
+  AddEvaluatorMenu_codeEvaluatorTemplates$key &
+    AddEvaluatorMenu_llmEvaluatorTemplates$key;
+
+export const AddEvaluatorMenuContents = ({
+  query,
+  onCreateEvaluator,
+  onSelectBuiltInCodeEvaluator,
+  onSelectBuiltInLLMEvaluator,
+}: {
+  query: BuiltInEvaluatorsQueryKey;
+  onCreateEvaluator: () => void;
+  onSelectBuiltInCodeEvaluator: (evaluatorId: string) => void;
+  onSelectBuiltInLLMEvaluator: (
+    initialState: CreateLLMDatasetEvaluatorInitialState | null
+  ) => void;
+}) => {
+  return (
+    <Menu
+      aria-label="Add evaluator"
+      onAction={(action) => {
+        switch (action) {
+          case "createEvaluator":
+            onCreateEvaluator();
+            break;
+        }
+      }}
+    >
+      <MenuSection>
+        <MenuSectionTitle title="New LLM evaluator" />
+        <MenuItem
+          leadingContent={<Icon svg={<Icons.PlusOutline />} />}
+          id="createEvaluator"
+        >
+          Create new LLM evaluator
+        </MenuItem>
+        <LLMEvaluatorTemplateSubmenu
+          query={query}
+          onAction={onSelectBuiltInLLMEvaluator}
+        >
+          <MenuItem leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}>
+            Use LLM evaluator template
+          </MenuItem>
+        </LLMEvaluatorTemplateSubmenu>
+      </MenuSection>
+      <MenuSection>
+        <MenuSectionTitle title="New code evaluator" />
+        <MenuItem
+          leadingContent={<Icon svg={<Icons.PlusOutline />} />}
+          isDisabled
+          id="createCodeEvaluator"
+        >
+          Create new code evaluator
+        </MenuItem>
+        <CodeEvaluatorTemplateSubmenu
+          query={query}
+          onAction={onSelectBuiltInCodeEvaluator}
+        >
+          <MenuItem leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}>
+            Use built-in code evaluator
+          </MenuItem>
+        </CodeEvaluatorTemplateSubmenu>
+      </MenuSection>
+    </Menu>
   );
 };
 

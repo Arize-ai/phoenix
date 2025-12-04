@@ -53,7 +53,9 @@ export function PlaygroundDatasetSection({
               name
               color
             }
-            datasetEvaluators(first: 100) {
+            datasetEvaluators(first: 100)
+              @connection(key: "PlaygroundDatasetSection_datasetEvaluators") {
+              __id
               edges {
                 node {
                   ...PlaygroundDatasetSection_evaluator
@@ -62,6 +64,8 @@ export function PlaygroundDatasetSection({
             }
           }
         }
+        ...AddEvaluatorMenu_codeEvaluatorTemplates
+        ...AddEvaluatorMenu_llmEvaluatorTemplates
       }
     `,
     {
@@ -206,6 +210,10 @@ export function PlaygroundDatasetSection({
                 selectedIds={selectedDatasetEvaluatorIds}
                 onSelectionChange={setSelectedDatasetEvaluatorIds}
                 datasetId={datasetId}
+                builtInEvaluatorsQuery={data}
+                updateConnectionIds={[
+                  data.dataset.datasetEvaluators?.__id ?? "",
+                ]}
               />
               {experimentIds.length > 0 && (
                 <LinkButton
