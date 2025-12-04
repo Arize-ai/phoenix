@@ -470,57 +470,64 @@ class Dataset(Node):
 
     @strawberry.field
     async def evaluator(
-        self, info: Info[Context, None], evaluatorId: GlobalID, displayName: Identifier
+        self, info: Info[Context, None], evaluator_id: GlobalID, display_name: Identifier
     ) -> Evaluator:
         try:
             _, evaluator_rowid = from_global_id(
-                global_id=evaluatorId,
+                global_id=evaluator_id,
             )
         except ValueError:
-            raise BadRequest(f"Invalid evaluator ID: {evaluatorId}")
-        display_name_model = IdentifierModel.model_validate(displayName)
+            raise BadRequest(f"Invalid evaluator ID: {evaluator_id}")
+        display_name_model = IdentifierModel.model_validate(display_name)
         # join the polymorphic evaluator models with the datasets_evaluators
         # table for this dataset id
-        PolymorphicEvaluator = with_polymorphic(
-            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
-        )
-        stmt = (
-            select(PolymorphicEvaluator)
-            .join(models.DatasetsEvaluators)
-            .where(PolymorphicEvaluator.id == evaluator_rowid)
-            .where(models.DatasetsEvaluators.display_name == display_name_model)
-            .where(models.DatasetsEvaluators.dataset_id == self.id)
-            .where(
-                or_(
-                    models.DatasetsEvaluators.evaluator_id == evaluator_rowid,
-                    models.DatasetsEvaluators.builtin_evaluator_id == evaluator_rowid,
-                )
+        is_builtin = evaluator_rowid < 0
+        if is_builtin:
+            builtin_existence_stmt = select(models.DatasetsEvaluators).where(
+                models.DatasetsEvaluators.builtin_evaluator_id == evaluator_rowid,
+                models.DatasetsEvaluators.dataset_id == self.id,
+                models.DatasetsEvaluators.display_name == display_name_model,
             )
-        )
-        async with info.context.db() as session:
-            evaluator = await session.scalar(stmt)
-            if evaluator is None:
-                raise BadRequest(f"Evaluator not found: {evaluatorId} {displayName}")
-            if evaluator.id < 0:
-                return DatasetBuiltInEvaluator(
-                    id=evaluator.id, dataset_id=self.id, display_name=displayName
-                )
-            if isinstance(evaluator, models.LLMEvaluator):
-                return DatasetLLMEvaluator(
-                    id=evaluator.id,
-                    db_record=evaluator,
-                    dataset_id=self.id,
-                    display_name=displayName,
-                )
-            elif isinstance(evaluator, models.CodeEvaluator):
-                return DatasetCodeEvaluator(
-                    id=evaluator.id,
-                    db_record=evaluator,
-                    dataset_id=self.id,
-                    display_name=displayName,
-                )
-            else:
-                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+            async with info.context.db() as session:
+                builtin_existence = await session.scalar(builtin_existence_stmt)
+                if builtin_existence is None:
+                    raise BadRequest(f"Builtin evaluator not found: {evaluator_id} {display_name}")
+            return DatasetBuiltInEvaluator(
+                id=evaluator_rowid,
+                dataset_id=self.id,
+                display_name=display_name,
+            )
+        else:
+            PolymorphicEvaluator = with_polymorphic(
+                models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+            )
+            stmt = (
+                select(PolymorphicEvaluator)
+                .join(models.DatasetsEvaluators)
+                .where(PolymorphicEvaluator.id == evaluator_rowid)
+                .where(models.DatasetsEvaluators.display_name == display_name_model)
+                .where(models.DatasetsEvaluators.dataset_id == self.id)
+            )
+            async with info.context.db() as session:
+                evaluator = await session.scalar(stmt)
+                if evaluator is None:
+                    raise BadRequest(f"Evaluator not found: {evaluator_id} {display_name}")
+                if isinstance(evaluator, models.LLMEvaluator):
+                    return DatasetLLMEvaluator(
+                        id=evaluator.id,
+                        db_record=evaluator,
+                        dataset_id=self.id,
+                        display_name=display_name,
+                    )
+                elif isinstance(evaluator, models.CodeEvaluator):
+                    return DatasetCodeEvaluator(
+                        id=evaluator.id,
+                        db_record=evaluator,
+                        dataset_id=self.id,
+                        display_name=display_name,
+                    )
+                else:
+                    raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 
     @strawberry.field
     async def evaluators(
