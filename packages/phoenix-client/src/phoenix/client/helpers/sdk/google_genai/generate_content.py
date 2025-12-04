@@ -35,7 +35,9 @@ class _ToolKwargs(TypedDict, total=False):
     tools: list[types.Tool]
 
 
-class _GenerateContentConfigKwargs(_ToolKwargs, TypedDict, total=False):
+class _GenerateContentConfigKwargs(TypedDict, total=False):
+    tool_config: types.ToolConfig
+    tools: list[types.Tool]
     temperature: float
     max_output_tokens: int
     stop_sequences: list[str]
@@ -96,7 +98,6 @@ def to_chat_messages_and_kwargs(
     else:
         assert_never(template)
 
-    # Build the config object
     config_kwargs = _to_config_kwargs(obj)
     if system_messages:
         if len(system_messages) == 1:
@@ -116,7 +117,6 @@ def _extract_system_text(
     variables: Mapping[str, str],
     formatter: TemplateFormatter,
 ) -> Iterator[str]:
-    """Extract text content from a system message."""
     content = message["content"]
     if isinstance(content, str):
         yield formatter.format(content, variables=variables)
@@ -130,7 +130,6 @@ def _to_config_kwargs(
     obj: v1.PromptVersionData,
     /,
 ) -> _GenerateContentConfigKwargs:
-    """Extract config parameters for GenerateContentConfig."""
     invocation_parameters: v1.PromptGoogleInvocationParametersContent = (
         obj["invocation_parameters"]["google"]
         if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "google"
@@ -187,8 +186,8 @@ class _ToolKwargsConversion:
         if "tools" in obj:
             for tool in obj["tools"]:
                 if tool.function_declarations:
-                    for fd in tool.function_declarations:
-                        tools.append(_FunctionDeclarationConversion.from_google(fd))
+                    for func_decl in tool.function_declarations:
+                        tools.append(_FunctionDeclarationConversion.from_google(func_decl))
         ans = v1.PromptTools(
             type="tools",
             tools=tools,
@@ -240,9 +239,7 @@ class _ToolConfigConversion:
     ]:
         fcc = obj.function_calling_config
         if fcc is None:
-            # Default to auto
-            choice_zero_or_more: v1.PromptToolChoiceZeroOrMore = {"type": "zero_or_more"}
-            return choice_zero_or_more
+            return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
 
         # Normalize mode to lowercase string
         mode = fcc.mode.value.lower() if fcc.mode else "auto"
