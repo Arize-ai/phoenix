@@ -1,0 +1,27 @@
+---
+title: "07.07.2025: Database disk usage monitor 🛑"
+description: Available in Phoenix 11.5+
+---
+
+<Update label="07.07.2025" description="">
+
+## Database Disk Usage Monitor
+
+**New Features:**
+
+* Added a **disk usage monitor daemon** that periodically checks storage consumption.
+
+* Sends **warning emails** to administrators when usage crosses a configured threshold.
+
+* **Blocks insert/update operations** when usage exceeds a higher critical threshold.
+
+* Introduced **configurable environment variables** for warning and blocking thresholds with validation.
+
+* Integrated disk usage checks into both the **FastAPI app** and **gRPC serve** to enforce write blocked.
+
+**Enhancements:**
+
+* Extended the email sender with a method and HTML template specifically for **disk usage alert notifications**.
+
+<Card title="feat: add database disk usage monitor by RogerHYang · Pull Request #8402 · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/pull/8402" icon="github" horizontal />
+</Update>
