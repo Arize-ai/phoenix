@@ -32,6 +32,7 @@ export type UnassignDatasetEvaluatorDialogProps = {
   datasetId: string;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  updateConnectionIds?: string[];
 };
 
 export function UnassignDatasetEvaluatorDialog({
@@ -40,6 +41,7 @@ export function UnassignDatasetEvaluatorDialog({
   datasetId,
   isOpen,
   onOpenChange,
+  updateConnectionIds,
 }: UnassignDatasetEvaluatorDialogProps) {
   const [deleteFromGlobalEvaluators, setDeleteFromGlobalEvaluators] =
     useState(false);
@@ -107,7 +109,10 @@ export function UnassignDatasetEvaluatorDialog({
             evaluatorId,
             displayName: evaluatorName,
           },
-          connectionIds: [datasetEvaluatorsTableConnection],
+          connectionIds: [
+            datasetEvaluatorsTableConnection,
+            ...(updateConnectionIds ?? []),
+          ],
           datasetId,
         },
         onCompleted: () => {
@@ -135,6 +140,7 @@ export function UnassignDatasetEvaluatorDialog({
     datasetEvaluatorsTableConnection,
     notifySuccess,
     onOpenChange,
+    updateConnectionIds,
   ]);
 
   const handleDeleteEvaluator = useCallback(() => {

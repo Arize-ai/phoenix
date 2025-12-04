@@ -102,7 +102,7 @@ class UpdateDatasetLLMEvaluatorInput:
 
 @strawberry.type
 class LLMEvaluatorMutationPayload:
-    evaluator: LLMEvaluator
+    evaluator: DatasetLLMEvaluator
     query: Query
 
 
@@ -287,6 +287,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
 
         try:
+            print(input.evaluator_id.type_name)
             evaluator_rowid = from_global_id_with_expected_type(
                 global_id=input.evaluator_id,
                 expected_type_name=DatasetLLMEvaluator.__name__,

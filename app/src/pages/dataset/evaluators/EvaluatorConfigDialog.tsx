@@ -10,6 +10,7 @@ import {
 import { css } from "@emotion/react";
 
 import {
+  Alert,
   Button,
   Dialog,
   DialogContent,
@@ -31,7 +32,7 @@ import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorI
 import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorConfigDialog_dataset$key } from "@phoenix/pages/dataset/evaluators/__generated__/EvaluatorConfigDialog_dataset.graphql";
 import {
   EvaluatorConfigDialog_evaluatorQuery,
@@ -93,7 +94,7 @@ function EvaluatorConfigDialogContent({
   datasetRef: EvaluatorConfigDialog_dataset$key;
 }) {
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | undefined>(undefined);
 
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     null
@@ -166,15 +167,9 @@ function EvaluatorConfigDialogContent({
     useMutation<EvaluatorConfigDialogAssignEvaluatorToDatasetMutation>(graphql`
       mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(
         $input: AssignEvaluatorToDatasetInput!
-        $datasetId: ID!
         $connectionIds: [ID!]!
       ) {
         assignEvaluatorToDataset(input: $input) {
-          query {
-            dataset: node(id: $datasetId) {
-              ...DatasetEvaluatorsTable_evaluators
-            }
-          }
           evaluator
             @appendNode(
               connections: $connectionIds
@@ -241,6 +236,7 @@ function EvaluatorConfigDialogContent({
     if (!isInputMappingValid) {
       return;
     }
+    setError(undefined);
     const pathMapping = getInputMappingValues().inputMapping;
     assignEvaluatorToDataset({
       variables: {
@@ -250,7 +246,6 @@ function EvaluatorConfigDialogContent({
           inputMapping: { pathMapping },
         },
         connectionIds: [datasetEvaluatorsTableConnection],
-        datasetId: dataset.id,
       },
       onCompleted: () => {
         onEvaluatorAssigned?.();
@@ -261,12 +256,10 @@ function EvaluatorConfigDialogContent({
         onClose();
       },
       onError: (error) => {
-        notifyError({
-          title: "Failed to add evaluator",
-          message:
-            getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
-            error.message,
-        });
+        setError(
+          getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+            error.message
+        );
       },
     });
   };
@@ -322,6 +315,11 @@ function EvaluatorConfigDialogContent({
           </Button>
         </DialogTitleExtra>
       </DialogHeader>
+      {error && (
+        <Alert variant="danger" title="Failed to add evaluator">
+          {error}
+        </Alert>
+      )}
       <View paddingX="size-300" paddingBottom="size-300" paddingTop="size-200">
         <Flex direction="row" alignItems="start" gap="size-200">
           {evaluator.kind === "LLM" && (

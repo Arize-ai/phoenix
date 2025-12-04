@@ -23,11 +23,13 @@ export function DatasetEvaluatorActionMenu({
   evaluatorName,
   datasetId,
   evaluatorKind,
+  updateConnectionIds,
 }: {
   evaluatorId: string;
   evaluatorName: string;
   datasetId: string;
   evaluatorKind: "LLM" | "CODE";
+  updateConnectionIds?: string[];
 }) {
   const [isUnassignDialogOpen, setIsUnassignDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -65,6 +67,7 @@ export function DatasetEvaluatorActionMenu({
         datasetId={datasetId}
         isOpen={isUnassignDialogOpen}
         onOpenChange={setIsUnassignDialogOpen}
+        updateConnectionIds={updateConnectionIds}
       />
       <EditDatasetEvaluatorSlideover
         evaluatorId={evaluatorId}
@@ -72,6 +75,7 @@ export function DatasetEvaluatorActionMenu({
         datasetId={datasetId}
         isOpen={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
+        updateConnectionIds={updateConnectionIds}
       />
     </StopPropagation>
   );

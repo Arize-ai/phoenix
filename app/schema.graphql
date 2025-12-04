@@ -2410,7 +2410,7 @@ type LLMEvaluator implements Evaluator & Node {
 }
 
 type LLMEvaluatorMutationPayload {
-  evaluator: LLMEvaluator!
+  evaluator: DatasetLLMEvaluator!
   query: Query!
 }
 
