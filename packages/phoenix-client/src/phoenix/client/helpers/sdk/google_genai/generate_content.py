@@ -5,7 +5,6 @@ from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Iterable,
     Iterator,
     Literal,
     Mapping,
@@ -16,15 +15,13 @@ from typing import (
     cast,
 )
 
-from typing_extensions import Required, TypeAlias, assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.template_formatters import TemplateFormatter, to_formatter
 
 if TYPE_CHECKING:
-    from google.generativeai import protos
-    from google.generativeai.generative_models import GenerativeModel
-    from google.generativeai.types import GenerationConfig, content_types
+    from google.genai import types
 
     _ContentPart: TypeAlias = Union[
         v1.TextContentPart,
@@ -32,21 +29,24 @@ if TYPE_CHECKING:
         v1.ToolResultContentPart,
     ]
 
-    def _(obj: v1.PromptVersionData) -> None:
-        messages, kwargs = to_chat_messages_and_kwargs(obj)
-        GenerativeModel(**kwargs)
-        _: Iterable[protos.Content] = messages
-
 
 class _ToolKwargs(TypedDict, total=False):
-    tool_config: protos.ToolConfig
-    tools: list[content_types.Tool]
+    tool_config: types.ToolConfig
+    tools: list[types.Tool]
 
 
-class GoogleModelKwargs(_ToolKwargs, TypedDict, total=False):
-    model_name: Required[str]
-    generation_config: GenerationConfig
+class _GenerateContentConfigKwargs(
+    _ToolKwargs,
+    v1.PromptGoogleInvocationParameters,
+    TypedDict,
+    total=False,
+):
     system_instruction: str | list[str]
+
+
+class GoogleModelKwargs(TypedDict):
+    model: str
+    config: types.GenerateContentConfig
 
 
 logger = logging.getLogger(__name__)
@@ -74,65 +74,78 @@ def to_chat_messages_and_kwargs(
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
-) -> tuple[list[protos.Content], GoogleModelKwargs]:
+) -> tuple[list[types.Content], GoogleModelKwargs]:
+    from google.genai import types
+
     formatter = formatter or to_formatter(obj)
     assert formatter is not None
     template = obj["template"]
     system_messages: list[str] = []
-    messages: list[protos.Content] = []
+    messages: list[types.Content] = []
     if template["type"] == "chat":
         for message in template["messages"]:
             if message["role"] == "system":
-                for content in _ContentConversion.to_google(message, variables, formatter):
-                    for part in content.parts:
-                        if text := part.text:
-                            system_messages.append(text)
+                system_messages.extend(_extract_system_text(message, variables, formatter))
             else:
                 messages.extend(_ContentConversion.to_google(message, variables, formatter))
     elif template["type"] == "string":
         raise NotImplementedError
     else:
         assert_never(template)
-    kwargs: GoogleModelKwargs = _to_model_kwargs(obj)
+
+    config_kwargs = _to_config_kwargs(obj)
     if system_messages:
         if len(system_messages) == 1:
-            kwargs["system_instruction"] = system_messages[0]
+            config_kwargs["system_instruction"] = system_messages[0]
         else:
-            kwargs["system_instruction"] = system_messages
+            config_kwargs["system_instruction"] = system_messages
+
+    kwargs = GoogleModelKwargs(
+        model=obj["model_name"],
+        config=types.GenerateContentConfig(**config_kwargs),
+    )
     return messages, kwargs
 
 
-def _to_model_kwargs(
+def _extract_system_text(
+    message: v1.PromptMessage,
+    variables: Mapping[str, str],
+    formatter: TemplateFormatter,
+) -> Iterator[str]:
+    content = message["content"]
+    if isinstance(content, str):
+        yield formatter.format(content, variables=variables)
+    else:
+        for part in content:
+            if part["type"] == "text":
+                yield formatter.format(part["text"], variables=variables)
+
+
+def _to_config_kwargs(
     obj: v1.PromptVersionData,
     /,
-) -> GoogleModelKwargs:
+) -> _GenerateContentConfigKwargs:
     invocation_parameters: v1.PromptGoogleInvocationParametersContent = (
         obj["invocation_parameters"]["google"]
         if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "google"
         else {}
     )
-    temperature = invocation_parameters.get("temperature")
-    max_output_tokens = invocation_parameters.get("max_output_tokens")
-    stop_sequences = invocation_parameters.get("stop_sequences")
-    presence_penalty = invocation_parameters.get("presence_penalty")
-    frequency_penalty = invocation_parameters.get("frequency_penalty")
-    top_p = invocation_parameters.get("top_p")
-    top_k = invocation_parameters.get("top_k")
-    from google.generativeai.types import GenerationConfig
-
-    generation_config = GenerationConfig(
-        temperature=temperature,
-        max_output_tokens=max_output_tokens,
-        stop_sequences=stop_sequences,
-        presence_penalty=presence_penalty,
-        frequency_penalty=frequency_penalty,
-        top_p=top_p,
-        top_k=top_k,
-    )
-    return {
-        "model_name": obj["model_name"],
-        "generation_config": generation_config,
-    }
+    ans: _GenerateContentConfigKwargs = {}
+    if "temperature" in invocation_parameters:
+        ans["temperature"] = invocation_parameters["temperature"]
+    if "max_output_tokens" in invocation_parameters:
+        ans["max_output_tokens"] = invocation_parameters["max_output_tokens"]
+    if "stop_sequences" in invocation_parameters:
+        ans["stop_sequences"] = list(invocation_parameters["stop_sequences"])
+    if "presence_penalty" in invocation_parameters:
+        ans["presence_penalty"] = invocation_parameters["presence_penalty"]
+    if "frequency_penalty" in invocation_parameters:
+        ans["frequency_penalty"] = invocation_parameters["frequency_penalty"]
+    if "top_p" in invocation_parameters:
+        ans["top_p"] = invocation_parameters["top_p"]
+    if "top_k" in invocation_parameters:
+        ans["top_k"] = invocation_parameters["top_k"]
+    return ans
 
 
 class _ToolKwargsConversion:
@@ -140,17 +153,17 @@ class _ToolKwargsConversion:
     def to_google(
         obj: Optional[v1.PromptTools],
     ) -> _ToolKwargs:
+        from google.genai import types
+
         ans: _ToolKwargs = {}
         if not obj:
             return ans
-        function_declarations: list[content_types.FunctionDeclaration] = []
+        function_declarations: list[types.FunctionDeclaration] = []
         for t in obj["tools"]:
             if t["type"] == "function":
                 function_declarations.append(_FunctionDeclarationConversion.to_google(t))
-        from google.generativeai.types import content_types
-
         ans["tools"] = [
-            content_types.Tool(
+            types.Tool(
                 function_declarations=function_declarations,
             )
         ]
@@ -167,8 +180,9 @@ class _ToolKwargsConversion:
         tools: list[v1.PromptToolFunction] = []
         if "tools" in obj:
             for tool in obj["tools"]:
-                for fd in tool.function_declarations:
-                    tools.append(_FunctionDeclarationConversion.from_google(fd))
+                if tool.function_declarations:
+                    for fd in tool.function_declarations:
+                        tools.append(_FunctionDeclarationConversion.from_google(fd))
         ans = v1.PromptTools(
             type="tools",
             tools=tools,
@@ -187,66 +201,69 @@ class _ToolConfigConversion:
             v1.PromptToolChoiceOneOrMore,
             v1.PromptToolChoiceSpecificFunctionTool,
         ],
-    ) -> protos.ToolConfig:
-        from google.generativeai import protos
-        from google.generativeai.types import content_types
+    ) -> types.ToolConfig:
+        from google.genai import types
 
-        ans: protos.ToolConfig = protos.ToolConfig()  # type: ignore[no-untyped-call]
         if obj["type"] == "none":
-            ans.function_calling_config.mode = content_types.FunctionCallingMode.NONE
-            return ans
+            return types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(mode="none")
+            )
         if obj["type"] == "zero_or_more":
-            ans.function_calling_config.mode = content_types.FunctionCallingMode.AUTO
-            return ans
+            return types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(mode="auto")
+            )
         if obj["type"] == "one_or_more":
-            ans.function_calling_config.mode = content_types.FunctionCallingMode.ANY
-            return ans
+            return types.ToolConfig(function_calling_config=types.FunctionCallingConfig(mode="any"))
         if obj["type"] == "specific_function":
-            ans.function_calling_config.mode = content_types.FunctionCallingMode.ANY
-            ans.function_calling_config.allowed_function_names = [obj["function_name"]]
-            return ans
-        else:
-            assert_never(obj["type"])
+            return types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(
+                    mode="any",
+                    allowed_function_names=[obj["function_name"]],
+                )
+            )
+        assert_never(obj["type"])
 
     @staticmethod
     def from_google(
-        obj: protos.ToolConfig,
+        obj: types.ToolConfig,
     ) -> Union[
         v1.PromptToolChoiceNone,
         v1.PromptToolChoiceZeroOrMore,
         v1.PromptToolChoiceOneOrMore,
         v1.PromptToolChoiceSpecificFunctionTool,
     ]:
-        from google.generativeai.types import content_types
+        fcc = obj.function_calling_config
+        if fcc is None:
+            return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
 
-        fcc: protos.FunctionCallingConfig = obj.function_calling_config
-        if fcc.mode is content_types.FunctionCallingMode.NONE:
-            choice_none: v1.PromptToolChoiceNone = {"type": "none"}
-            return choice_none
-        if fcc.mode is content_types.FunctionCallingMode.AUTO:
-            choice_zero_or_more: v1.PromptToolChoiceZeroOrMore = {"type": "zero_or_more"}
-            return choice_zero_or_more
-        if fcc.mode is content_types.FunctionCallingMode.ANY:
-            if not fcc.allowed_function_names:
-                choice_one_or_more: v1.PromptToolChoiceOneOrMore = {"type": "one_or_more"}
-                return choice_one_or_more
-            choice_specific_function_tool: v1.PromptToolChoiceSpecificFunctionTool = {
-                "type": "specific_function",
-                "function_name": fcc.allowed_function_names[0],
-            }
-            return choice_specific_function_tool
-        raise NotImplementedError
+        # Normalize mode to lowercase string
+        mode = fcc.mode.value.lower() if fcc.mode else "auto"
+
+        if mode == "none":
+            return v1.PromptToolChoiceNone(type="none")
+        if mode == "auto":
+            return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
+        if mode == "any":
+            if fcc.allowed_function_names:
+                if len(fcc.allowed_function_names) != 1:
+                    raise ValueError("Only single allowed function name is currently supported")
+                return v1.PromptToolChoiceSpecificFunctionTool(
+                    type="specific_function",
+                    function_name=fcc.allowed_function_names[0],
+                )
+            return v1.PromptToolChoiceOneOrMore(type="one_or_more")
+        assert_never(mode)
 
 
 class _FunctionDeclarationConversion:
     @staticmethod
     def to_google(
         obj: v1.PromptToolFunction,
-    ) -> content_types.FunctionDeclaration:
-        from google.generativeai.types import content_types
+    ) -> types.FunctionDeclaration:
+        from google.genai import types
 
         function = obj["function"]
-        return content_types.FunctionDeclaration(
+        return types.FunctionDeclaration(
             name=function["name"],
             description=function["description"] if "description" in function else "",
             parameters=dict(function["parameters"]) if "parameters" in function else None,
@@ -254,83 +271,63 @@ class _FunctionDeclarationConversion:
 
     @staticmethod
     def from_google(
-        obj: Union[content_types.FunctionDeclaration, protos.FunctionDeclaration],
+        obj: types.FunctionDeclaration,
     ) -> v1.PromptToolFunction:
-        return v1.PromptToolFunction(
-            type="function",
-            function=v1.PromptToolFunctionDefinition(
-                name=obj.name,
-                description=obj.description,
-                parameters=_SchemaConversion.from_google(obj.parameters),
-            ),
-        )
+        parameters: dict[str, Any] = {}
+        if obj.parameters:
+            parameters = _SchemaConversion.from_google(obj.parameters)
+        fd: v1.PromptToolFunctionDefinition = {
+            "name": obj.name or "",
+            "parameters": parameters,
+        }
+        if obj.description:
+            fd["description"] = obj.description
+        return v1.PromptToolFunction(type="function", function=fd)
 
 
 class _SchemaConversion:
     @staticmethod
     def to_google(
         obj: Mapping[str, Any],
-    ) -> protos.Schema:
-        from google.generativeai import protos
+    ) -> types.Schema:
+        from google.genai import types
 
-        ans: protos.Schema = protos.Schema()  # type: ignore[no-untyped-call]
+        schema_dict: dict[str, Any] = {}
         if isinstance(type_ := obj.get("type"), str):
-            if type_ == "string":
-                ans.type_ = protos.Type.STRING
-            elif type_ == "number":
-                ans.type_ = protos.Type.NUMBER
-            elif type_ == "integer":
-                ans.type_ = protos.Type.INTEGER
-            elif type_ == "boolean":
-                ans.type_ = protos.Type.BOOLEAN
-            elif type_ == "array":
-                ans.type_ = protos.Type.ARRAY
-            elif type_ == "object":
-                ans.type_ = protos.Type.OBJECT
+            schema_dict["type"] = type_.upper()
         if isinstance(format_ := obj.get("format"), str):
-            ans.format_ = format_
+            schema_dict["format"] = format_
         if isinstance(description := obj.get("description"), str):
-            ans.description = description
+            schema_dict["description"] = description
         if isinstance(nullable := obj.get("nullable"), bool):
-            ans.nullable = nullable
+            schema_dict["nullable"] = nullable
         if isinstance(enum := obj.get("enum"), Sequence):
-            ans.enum = list(cast(Sequence[str], enum))
+            schema_dict["enum"] = list(cast(Sequence[str], enum))
         if isinstance(items := obj.get("items"), Mapping):
-            ans.items = _SchemaConversion.to_google(cast(Mapping[str, Any], items))
+            schema_dict["items"] = _SchemaConversion.to_google(cast(Mapping[str, Any], items))
         if isinstance(max_items := obj.get("maxItems"), int):
-            ans.max_items = max_items
+            schema_dict["max_items"] = max_items
         if isinstance(min_items := obj.get("minItems"), int):
-            ans.min_items = min_items
+            schema_dict["min_items"] = min_items
         if isinstance(properties := obj.get("properties"), Mapping):
-            ans.properties = {
+            schema_dict["properties"] = {
                 k: _SchemaConversion.to_google(v)
                 for k, v in cast(Mapping[str, Mapping[str, Any]], properties).items()
             }
         if isinstance(required := obj.get("required"), Sequence):
-            ans.required = list(cast(Sequence[str], required))
-        return ans
+            schema_dict["required"] = list(cast(Sequence[str], required))
+        return types.Schema(**schema_dict)
 
     @staticmethod
     def from_google(
-        obj: protos.Schema,
+        obj: types.Schema,
     ) -> dict[str, Any]:
-        from google.generativeai import protos
-
         ans: dict[str, Any] = {}
-        if obj.type_ is protos.Type.STRING:
-            ans["type"] = "string"
-        elif obj.type_ is protos.Type.NUMBER:
-            ans["type"] = "number"
-        elif obj.type_ is protos.Type.INTEGER:
-            ans["type"] = "integer"
-        elif obj.type_ is protos.Type.BOOLEAN:
-            ans["type"] = "boolean"
-        elif obj.type_ is protos.Type.ARRAY:
-            ans["type"] = "array"
-        elif obj.type_ is protos.Type.OBJECT:
-            ans["type"] = "object"
-        if obj.format_:
-            ans["format"] = obj.format_
+        if obj.type:
+            type_str = obj.type.value.lower() if hasattr(obj.type, "value") else str(obj.type)
+            ans["type"] = type_str
+        if obj.format:
+            ans["format"] = obj.format
         if obj.description:
             ans["description"] = obj.description
         if obj.nullable:
@@ -359,14 +356,14 @@ class _ContentConversion:
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
         /,
-    ) -> Iterator[protos.Content]:
-        from google.generativeai import protos
+    ) -> Iterator[types.Content]:
+        from google.genai import types
 
         role = _RoleConversion.to_google(obj)
-        parts: list[protos.Part] = []
+        parts: list[types.Part] = []
         if isinstance(obj["content"], str):
             text = formatter.format(obj["content"], variables=variables)
-            yield protos.Content(role=role, parts=[protos.Part(text=text)])  # type: ignore[no-untyped-call]
+            yield types.Content(role=role, parts=[types.Part(text=text)])
             return
         for part in obj["content"]:
             if part["type"] == "text":
@@ -377,20 +374,20 @@ class _ContentConversion:
                 continue
             elif TYPE_CHECKING:
                 assert_never(part["type"])
-        yield protos.Content(role=role, parts=parts)  # type: ignore[no-untyped-call]
+        yield types.Content(role=role, parts=parts)
 
     @staticmethod
     def from_google(
-        obj: protos.Content,
+        obj: types.Content,
     ) -> v1.PromptMessage:
         role = _RoleConversion.from_google(obj)
         parts: list[_ContentPart] = []
-        for part in obj.parts:
-            if _has_text(part):
+        for part in obj.parts or []:
+            if part.text:
                 parts.append(_TextContentPartConversion.from_google(part))
-            elif _has_function_call(part):
+            elif part.function_call:
                 continue
-            elif _has_function_response(part):
+            elif part.function_response:
                 continue
         return v1.PromptMessage(role=role, content=parts)
 
@@ -402,21 +399,19 @@ class _TextContentPartConversion:
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
         /,
-    ) -> protos.Part:
-        from google.generativeai import protos
+    ) -> types.Part:
+        from google.genai import types
 
         text = formatter.format(obj["text"], variables=variables)
-        ans: protos.Part = protos.Part()  # type: ignore[no-untyped-call]
-        ans.text = text
-        return ans
+        return types.Part(text=text)
 
     @staticmethod
     def from_google(
-        obj: protos.Part,
+        obj: types.Part,
     ) -> v1.TextContentPart:
         return v1.TextContentPart(
             type="text",
-            text=obj.text,
+            text=obj.text or "",
         )
 
 
@@ -446,30 +441,15 @@ class _RoleConversion:
 
     @staticmethod
     def from_google(
-        obj: protos.Content,
+        obj: types.Content,
     ) -> Literal["user", "assistant", "tool"]:
         if obj.role in ("model", "assistant"):
             return "assistant"
         if obj.role == "user":
-            for part in obj.parts:
-                p: protos.Part = part
-                if _has_function_response(p):
+            for part in obj.parts or []:
+                if part.function_response:
                     return "tool"
-                else:
-                    continue
             return "user"
-        return obj.role  # type: ignore
-
-
-def _has_text(obj: protos.Part) -> bool:
-    return bool(obj.text)
-
-
-def _has_function_call(obj: protos.Part) -> bool:
-    fc: protos.FunctionCall = obj.function_call
-    return bool(fc.id or fc.name or fc.args)
-
-
-def _has_function_response(obj: protos.Part) -> bool:
-    fr: protos.FunctionResponse = obj.function_response
-    return bool(fr.id or fr.name or fr.response)
+        if obj.role == "tool":
+            return obj.role
+        raise NotImplementedError(f"Unknown role: {obj.role}")

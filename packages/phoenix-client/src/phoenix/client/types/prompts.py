@@ -24,11 +24,11 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
 from phoenix.client.helpers.sdk.anthropic.messages import (
     to_chat_messages_and_kwargs as to_messages_anthropic,
 )
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
+from phoenix.client.helpers.sdk.google_genai.generate_content import (
     GoogleModelKwargs,
     create_prompt_version_from_google,
 )
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
+from phoenix.client.helpers.sdk.google_genai.generate_content import (
     to_chat_messages_and_kwargs as to_messages_google,
 )
 from phoenix.client.helpers.sdk.openai.chat import (
@@ -43,7 +43,7 @@ from phoenix.client.utils.template_formatters import TemplateFormatter
 if TYPE_CHECKING:
     from anthropic.types import MessageParam
     from anthropic.types.message_create_params import MessageCreateParamsBase
-    from google.generativeai import protos
+    from google.genai import types as google_genai_types
     from openai.types.chat import ChatCompletionMessageParam
     from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 
@@ -199,8 +199,8 @@ class PromptVersion:
                     formatter=formatter,
                 )
             )
-        if sdk == "google_generativeai":
-            return GoogleGenerativeaiPrompt(
+        if sdk == "google_genai":
+            return GoogleGenaiPrompt(
                 *to_messages_google(
                     obj,
                     variables=variables,
@@ -333,7 +333,7 @@ class PromptVersion:
         )
 
     @classmethod
-    def from_google_generativeai(
+    def from_google_genai(
         cls,
         obj: Any,
         /,
@@ -402,14 +402,14 @@ class AnthropicPrompt(_FormattedPrompt):
 
 
 @dataclass(frozen=True)
-class GoogleGenerativeaiPrompt(_FormattedPrompt):
-    messages: Sequence[protos.Content]
+class GoogleGenaiPrompt(_FormattedPrompt):
+    messages: Sequence[google_genai_types.Content]
     kwargs: GoogleModelKwargs
 
 
 SDK: TypeAlias = Literal[
     "anthropic",  # https://pypi.org/project/anthropic/
-    "google_generativeai",  # https://pypi.org/project/google-generativeai/
+    "google_genai",  # https://pypi.org/project/google-genai/
     "openai",  # https://pypi.org/project/openai/
     "boto3",  # https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
 ]
@@ -434,7 +434,7 @@ def _to_sdk(
     if model_provider == "ANTHROPIC":
         return "anthropic"
     if model_provider == "GOOGLE":
-        return "google_generativeai"
+        return "google_genai"
     if model_provider == "DEEPSEEK":
         return "openai"
     if model_provider == "XAI":
