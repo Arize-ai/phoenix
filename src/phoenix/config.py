@@ -359,41 +359,6 @@ LDAP attribute containing user's email address. Defaults to "mail".
 Must be present in LDAP or login fails.
 https://www.rfc-editor.org/rfc/rfc2798#section-9.1.3
 """
-ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME = "PHOENIX_LDAP_ATTR_DISPLAY_NAME"
-"""
-LDAP attribute containing user's display name. Defaults to "displayName".
-https://www.rfc-editor.org/rfc/rfc2798.html#section-2.3
-"""
-ENV_PHOENIX_LDAP_ATTR_MEMBER_OF = "PHOENIX_LDAP_ATTR_MEMBER_OF"
-"""
-LDAP attribute containing group memberships (Active Directory). Defaults to "memberOf".
-Leave empty for POSIX groups (requires GROUP_SEARCH_BASE and GROUP_SEARCH_FILTER).
-"""
-ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE = "PHOENIX_LDAP_GROUP_SEARCH_BASE"
-"""
-Base DN for group searches (for POSIX/OpenLDAP). Required if ATTR_MEMBER_OF is empty.
-Example: "ou=groups,dc=example,dc=com"
-"""
-ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER = "PHOENIX_LDAP_GROUP_SEARCH_FILTER"
-"""
-LDAP filter for finding groups. Use %s as placeholder for user DN.
-Required if ATTR_MEMBER_OF is empty.
-Example: "(&(objectClass=posixGroup)(memberUid=%s))"
-"""
-ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS = "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS"
-"""
-JSON array mapping LDAP groups to Phoenix roles.
-Example: '[{"group_dn": "CN=Phoenix Admins,OU=Groups,DC=corp,DC=com", "role": "ADMIN"}]'
-Supported role values: "ADMIN", "MEMBER", "VIEWER" (case-insensitive).
-Special group_dn value "*" matches all users (wildcard).
-"""
-ENV_PHOENIX_LDAP_ALLOW_SIGN_UP = "PHOENIX_LDAP_ALLOW_SIGN_UP"
-"""
-Allow automatic user creation on first LDAP login. Defaults to "true".
-Set to "false" to require pre-provisioned users (created via PHOENIX_ADMINS
-env var or the application's user management UI before first login).
-Pre-provisioned users are matched by email on first LDAP login.
-"""
 ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID = "PHOENIX_LDAP_ATTR_UNIQUE_ID"
 """
 Optional: LDAP attribute containing an immutable unique identifier.
@@ -413,6 +378,41 @@ Values by directory type:
 
 When not set (default), email is used as the identifier. Both modes handle
 DN changes (OU moves, renames). The only difference is email change handling.
+"""
+ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME = "PHOENIX_LDAP_ATTR_DISPLAY_NAME"
+"""
+LDAP attribute containing user's display name. Defaults to "displayName".
+https://www.rfc-editor.org/rfc/rfc2798.html#section-2.3
+"""
+ENV_PHOENIX_LDAP_ATTR_MEMBER_OF = "PHOENIX_LDAP_ATTR_MEMBER_OF"
+"""
+LDAP attribute containing group memberships (Active Directory). Defaults to "memberOf".
+Leave empty for POSIX groups (requires GROUP_SEARCH_BASE and GROUP_SEARCH_FILTER).
+"""
+ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE = "PHOENIX_LDAP_GROUP_SEARCH_BASE"
+"""
+Base DN for group searches (for POSIX/OpenLDAP). Required if ATTR_MEMBER_OF is empty.
+Example: "ou=groups,dc=example,dc=com"
+"""
+ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER = "PHOENIX_LDAP_GROUP_SEARCH_FILTER"
+"""
+LDAP filter for finding groups. Use %s as placeholder for username.
+Required if ATTR_MEMBER_OF is empty.
+Example: "(&(objectClass=posixGroup)(memberUid=%s))"
+"""
+ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS = "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS"
+"""
+JSON array mapping LDAP groups to Phoenix roles.
+Example: '[{"group_dn": "CN=Phoenix Admins,OU=Groups,DC=corp,DC=com", "role": "ADMIN"}]'
+Supported role values: "ADMIN", "MEMBER", "VIEWER" (case-insensitive).
+Special group_dn value "*" matches all users (wildcard).
+"""
+ENV_PHOENIX_LDAP_ALLOW_SIGN_UP = "PHOENIX_LDAP_ALLOW_SIGN_UP"
+"""
+Allow automatic user creation on first LDAP login. Defaults to "true".
+Set to "false" to require pre-provisioned users (created via PHOENIX_ADMINS
+env var or the application's user management UI before first login).
+Pre-provisioned users are matched by email on first LDAP login.
 """
 
 ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
