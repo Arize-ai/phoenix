@@ -26,6 +26,7 @@ import {
   Tabs,
   Text,
   TextProps,
+  Token,
   View,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -139,6 +140,7 @@ export const PromptMenu = <T extends object>({
                       id
                       createdAt
                       description
+                      isLatest
                       tags {
                         name
                       }
@@ -167,6 +169,9 @@ export const PromptMenu = <T extends object>({
         promptName: prompt.name,
         versionId: version.id,
         tags: version.tags.map((tag) => tag.name) || [],
+        isLatest: version.isLatest,
+        createdAt: version.createdAt,
+        description: version.description,
       }));
     });
   }, [prompts]);
@@ -217,7 +222,11 @@ export const PromptMenu = <T extends object>({
               </Text>
             ) : (
               <Text color="text-300">
-                &nbsp;@ <IdTruncate id={selectedPromptDatum.versionId} />
+                &nbsp;@{" "}
+                <PromptVersionLabel
+                  id={selectedPromptDatum.versionId}
+                  isLatest={selectedPromptDatum.isLatest}
+                />
               </Text>
             )}
           </Flex>
@@ -391,6 +400,26 @@ export const PromptMenu = <T extends object>({
   );
 };
 
+/**
+ * Renders a label for a prompt version. If the version is the latest, it just shows "latest" as a tag.
+ * Otherwise, it shows the ID truncated to 6 characters.
+ */
+function PromptVersionLabel({
+  id,
+  isLatest,
+}: {
+  id: string;
+  isLatest: boolean;
+}) {
+  if (isLatest) {
+    return (
+      <Token size="S" color="var(--ac-global-color-grey-700)">
+        latest
+      </Token>
+    );
+  }
+  return <IdTruncate id={id} />;
+}
 /**
  * Character based truncation for IDs.
  * Truncates from the start, preserving the last 6 characters (by default).
