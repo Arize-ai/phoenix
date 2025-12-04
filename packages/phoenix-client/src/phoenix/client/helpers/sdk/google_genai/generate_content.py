@@ -450,6 +450,6 @@ class _RoleConversion:
                 if part.function_response:
                     return "tool"
             return "user"
-        if obj.role == "user" or obj.role == "assistant" or obj.role == "tool":
+        if obj.role == "tool":
             return obj.role
         raise NotImplementedError(f"Unknown role: {obj.role}")
