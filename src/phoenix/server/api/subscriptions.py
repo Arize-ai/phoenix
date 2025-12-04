@@ -125,6 +125,48 @@ async def _get_evaluators(
     return evaluators
 
 
+async def _get_prompt_versions_for_evaluators(
+    evaluators: list[models.LLMEvaluator],
+    db: DbSessionFactory,
+) -> dict[int, models.PromptVersion]:
+    """
+    Fetch the prompt version for each LLM evaluator.
+    Returns a dict mapping evaluator_id -> PromptVersion.
+    """
+    if not evaluators:
+        return {}
+
+    result: dict[int, models.PromptVersion] = {}
+    async with db() as session:
+        for evaluator in evaluators:
+            prompt_id = evaluator.prompt_id
+            prompt_version_tag_id = evaluator.prompt_version_tag_id
+
+            if prompt_version_tag_id is not None:
+                # Get the tagged version
+                stmt = (
+                    select(models.PromptVersion)
+                    .join(models.PromptVersionTag)
+                    .where(models.PromptVersionTag.prompt_id == prompt_id)
+                    .where(models.PromptVersionTag.id == prompt_version_tag_id)
+                )
+            else:
+                # Get the latest version
+                stmt = (
+                    select(models.PromptVersion)
+                    .where(models.PromptVersion.prompt_id == prompt_id)
+                    .order_by(models.PromptVersion.id.desc())
+                    .limit(1)
+                )
+
+            prompt_version = await session.scalar(stmt)
+            if prompt_version is None:
+                raise NotFound(f"Prompt version not found for evaluator {evaluator.id}")
+            result[evaluator.id] = prompt_version
+
+    return result
+
+
 def _quote(string: str) -> str:
     return f'"{string}"'
 
@@ -305,7 +347,9 @@ class Subscription:
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         evaluators = await _get_evaluators(input.evaluators or [], info.context.db)
+        prompt_versions = await _get_prompt_versions_for_evaluators(evaluators, info.context.db)
         print(f"{evaluators=}")
+        print(f"{prompt_versions=}")
 
         llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         async with info.context.db() as session:
