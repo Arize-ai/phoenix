@@ -104,6 +104,7 @@ const CreateEvaluatorDialog = ({
       evaluator: { name, description },
       dataset,
       choiceConfig,
+      inputMapping,
     } = form.getValues();
     invariant(dataset, "dataset is required");
     const input = createLLMEvaluatorPayload({
@@ -113,6 +114,7 @@ const CreateEvaluatorDialog = ({
       description,
       choiceConfig,
       datasetId: dataset.id,
+      inputMapping,
     });
     createLlmEvaluator({
       variables: {

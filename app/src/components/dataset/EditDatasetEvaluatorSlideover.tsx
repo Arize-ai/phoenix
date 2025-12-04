@@ -218,7 +218,10 @@ const EditEvaluatorDialog = ({
         id: datasetId,
         assignEvaluatorToDataset: true,
       },
-      inputMapping: evaluator.datasetInputMapping ?? {},
+      inputMapping: evaluator.datasetInputMapping ?? {
+        literalMapping: {},
+        pathMapping: {},
+      },
     };
   }, [evaluator, datasetId]);
   const form = useEvaluatorForm(defaultValues);
@@ -227,6 +230,7 @@ const EditEvaluatorDialog = ({
       evaluator: { name, description },
       dataset,
       choiceConfig,
+      inputMapping,
     } = form.getValues();
     invariant(dataset, "dataset is required");
     const input = updateLLMEvaluatorPayload({
@@ -238,6 +242,7 @@ const EditEvaluatorDialog = ({
       datasetId: dataset.id,
       originalDisplayName: displayName,
       evaluatorId,
+      inputMapping,
     });
     updateLlmEvaluator({
       variables: {

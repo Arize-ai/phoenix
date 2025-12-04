@@ -27,7 +27,10 @@ import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/Evaluator
 import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
-import { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
+import {
+  ClassificationEvaluatorAnnotationConfig,
+  type EvaluatorInputMapping as EvaluatorInputMappingType,
+} from "@phoenix/types";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 export type EvaluatorFormValues = {
@@ -41,7 +44,7 @@ export type EvaluatorFormValues = {
     id: string;
     assignEvaluatorToDataset: boolean;
   };
-  inputMapping: Record<string, string>;
+  inputMapping: EvaluatorInputMappingType;
 };
 
 const DEFAULT_FORM_VALUES: EvaluatorFormValues = {
@@ -57,7 +60,10 @@ const DEFAULT_FORM_VALUES: EvaluatorFormValues = {
       { label: "", score: undefined },
     ],
   },
-  inputMapping: {},
+  inputMapping: {
+    literalMapping: {},
+    pathMapping: {},
+  },
 };
 
 /**
@@ -238,7 +244,6 @@ export const EvaluatorForm = () => {
             <EvaluatorInputMapping
               evaluatorInput={evaluatorInputObject}
               exampleId={selectedExampleId ?? undefined}
-              control={control}
               variables={variables}
             />
             <Flex direction="column" gap="size-100">

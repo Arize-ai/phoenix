@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import {
   ConnectionHandler,
   graphql,
@@ -99,15 +99,18 @@ function EvaluatorConfigDialogContent({
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     null
   );
-  const {
-    control: inputMappingControl,
-    getValues: getInputMappingValues,
-    formState: { isValid: isInputMappingValid },
-  } = useForm<EvaluatorFormValues>({
+  const form = useForm<EvaluatorFormValues>({
     defaultValues: {
-      inputMapping: {},
+      inputMapping: {
+        literalMapping: {},
+        pathMapping: {},
+      },
     },
   });
+  const {
+    getValues: getInputMappingValues,
+    formState: { isValid: isInputMappingValid },
+  } = form;
 
   const dataset = useFragment<EvaluatorConfigDialog_dataset$key>(
     graphql`
@@ -237,13 +240,13 @@ function EvaluatorConfigDialogContent({
       return;
     }
     setError(undefined);
-    const pathMapping = getInputMappingValues().inputMapping;
+    const inputMapping = getInputMappingValues().inputMapping;
     assignEvaluatorToDataset({
       variables: {
         input: {
           datasetId: dataset.id,
           evaluatorId: evaluator.id,
-          inputMapping: { pathMapping },
+          inputMapping,
         },
         connectionIds: [datasetEvaluatorsTableConnection],
       },
@@ -265,7 +268,7 @@ function EvaluatorConfigDialogContent({
   };
 
   return (
-    <>
+    <FormProvider {...form}>
       <DialogHeader>
         <DialogTitle
           css={css`
@@ -383,14 +386,13 @@ function EvaluatorConfigDialogContent({
               />
             </Flex>
             <EvaluatorInputMapping
-              control={inputMappingControl}
               variables={inputVariables}
               evaluatorInput={evaluatorInput}
             />
           </Flex>
         </Flex>
       </View>
-    </>
+    </FormProvider>
   );
 }
 
