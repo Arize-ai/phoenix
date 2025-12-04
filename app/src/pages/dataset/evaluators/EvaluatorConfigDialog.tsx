@@ -241,6 +241,8 @@ function EvaluatorConfigDialogContent({
     }
     setError(undefined);
     const inputMapping = getInputMappingValues().inputMapping;
+    // TODO: the connections to update are not accurate; you cannot go from dataset straight to playground after assignment
+    // without refreshing
     assignEvaluatorToDataset({
       variables: {
         input: {

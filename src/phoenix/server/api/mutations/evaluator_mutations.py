@@ -489,12 +489,18 @@ class EvaluatorMutationMixin:
         # Return the appropriate evaluator type based on what was provided
         evaluator_instance: Evaluator
         if evaluator_kind == "LLM":
-            evaluator_instance = LLMEvaluator(id=evaluator_rowid)
+            evaluator_instance = DatasetLLMEvaluator(
+                id=evaluator_rowid, dataset_id=dataset_rowid, display_name=assignment_name.root
+            )
         elif evaluator_kind == "CODE":
             if evaluator_rowid < 0:
-                evaluator_instance = BuiltInEvaluator(id=evaluator_rowid)
+                evaluator_instance = DatasetBuiltInEvaluator(
+                    id=evaluator_rowid, dataset_id=dataset_rowid, display_name=assignment_name.root
+                )
             else:
-                evaluator_instance = CodeEvaluator(id=evaluator_rowid)
+                evaluator_instance = DatasetCodeEvaluator(
+                    id=evaluator_rowid, dataset_id=dataset_rowid, display_name=assignment_name.root
+                )
         else:
             assert_never(evaluator_kind)
 
@@ -535,12 +541,18 @@ class EvaluatorMutationMixin:
         # Return the appropriate evaluator type based on what was provided
         evaluator_instance: Evaluator
         if evaluator_kind == "LLM":
-            evaluator_instance = LLMEvaluator(id=evaluator_rowid)
+            evaluator_instance = DatasetLLMEvaluator(
+                id=evaluator_rowid, dataset_id=dataset_rowid, display_name=display_name.root
+            )
         elif evaluator_kind == "CODE":
             if evaluator_rowid < 0:
-                evaluator_instance = BuiltInEvaluator(id=evaluator_rowid)
+                evaluator_instance = DatasetBuiltInEvaluator(
+                    id=evaluator_rowid, dataset_id=dataset_rowid, display_name=display_name.root
+                )
             else:
-                evaluator_instance = CodeEvaluator(id=evaluator_rowid)
+                evaluator_instance = DatasetCodeEvaluator(
+                    id=evaluator_rowid, dataset_id=dataset_rowid, display_name=display_name.root
+                )
         else:
             assert_never(evaluator_kind)
 
