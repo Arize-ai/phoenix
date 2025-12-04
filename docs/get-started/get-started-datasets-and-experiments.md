@@ -2,8 +2,8 @@
 
 Now that you have Phoenix up and running, one of the next steps you can take is creating a **Dataset** & Running **Experiments**.
 
-* Datasets let you curate and organize examples to test your application systematically.
-* Experiments let you compare different model versions or configurations on the same dataset to see which performs best.
+- Datasets let you curate and organize examples to test your application systematically.
+- Experiments let you compare different model versions or configurations on the same dataset to see which performs best.
 
 ## Datasets
 
@@ -76,9 +76,11 @@ dataset = await px_client.datasets.create_dataset(
     output_keys=["output", "label"]
 )
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 
@@ -107,6 +109,7 @@ const { datasetId } = await createDataset({
   ],
 });
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -128,6 +131,7 @@ If you made your dataset in the UI, you can follow this code snippet:
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 from phoenix.client import AsyncClient
 
@@ -135,20 +139,22 @@ client = AsyncClient()
 dataset = await client.datasets.get_dataset(dataset="sample", version_id= {your version id here})
 ```
 
-To get the version\_id of your dataset, please navigate to the Versions tab and copy the version you want to run an experiment on.
+To get the version_id of your dataset, please navigate to the Versions tab and copy the version you want to run an experiment on.
 {% endtab %}
 
 {% tab title="Typescript" %}
+
 ```typescript
 import { getDataset } from "@arizeai/phoenix-client/datasets";
 
 const dataset = await getDataset({
   dataset: {
     datasetName: "sample",
-    versionId: "your-version-id-here",  // optional
+    versionId: "your-version-id-here", // optional
   },
 });
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -177,16 +183,18 @@ def task(example: Example) -> str:
     )
     return response.choices[0].message.content
 ```
+
 {% endtab %}
 
 {% tab title="Typescript" %}
+
 ```typescript
 import { OpenAI } from "openai";
 import { type RunExperimentParams } from "@arizeai/phoenix-client/experiments";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 const taskPromptTemplate = "Answer this question: {question}";
@@ -197,13 +205,14 @@ const task: RunExperimentParams["task"] = async (example) => {
   const messageContent = taskPromptTemplate.replace("{question}", question);
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o", 
-    messages: [{ role: "user", content: messageContent }]
+    model: "gpt-4o",
+    messages: [{ role: "user", content: messageContent }],
   });
 
   return response.choices[0]?.message?.content || "";
 };
 ```
+
 {% endtab %}
 {% endtabs %}
 {% endstep %}
@@ -223,10 +232,10 @@ from phoenix.evals import create_classifier
 
 llm = LLM(model="gpt-4o", provider="openai")
 
-CORRECTNESS_TEMPLATE = """ 
-You are given a question and an answer. Decide if the answer is fully correct. 
-Rules: The answer must be factually accurate, complete, and directly address the question. 
-If it is, respond with "correct". Otherwise respond with "incorrect". 
+CORRECTNESS_TEMPLATE = """
+You are given a question and an answer. Decide if the answer is fully correct.
+Rules: The answer must be factually accurate, complete, and directly address the question.
+If it is, respond with "correct". Otherwise respond with "incorrect".
 [BEGIN DATA]
     ************
     [Question]: {attributes.llm.input_messages}
@@ -248,9 +257,11 @@ correctness_evaluator = create_classifier(
     choices={"correct": 1.0, "incorrect": 0.0},
 )
 ```
+
 {% endtab %}
 
 {% tab title="Typescript" %}
+
 ```typescript
 import { openai } from "@ai-sdk/openai";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
@@ -283,6 +294,7 @@ const correctnessEvaluator = createClassificationEvaluator({
   choices: { correct: 1.0, incorrect: 0.0 },
 });
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -315,9 +327,11 @@ completeness = ClassificationEvaluator(
     choices={"complete": 1.0, "partially complete": 0.5, "incomplete": 0.0},
 )
 ```
+
 {% endtab %}
 
 {% tab title="Typescript" %}
+
 ```typescript
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
@@ -341,13 +355,14 @@ const completeness = createClassificationEvaluator({
   model: llm,
   name: "completeness",
   promptTemplate: completenessPrompt,
-  choices: { 
-    "complete": 1.0, 
-    "partially complete": 0.5, 
-    "incomplete": 0.0 
+  choices: {
+    complete: 1.0,
+    "partially complete": 0.5,
+    incomplete: 0.0,
   },
 });
 ```
+
 {% endtab %}
 {% endtabs %}
 {% endstep %}
@@ -369,9 +384,11 @@ experiment = await async_run_experiment(
     task=task,
     evaluators=[correctness_evaluator, completeness])
 ```
+
 {% endtab %}
 
 {% tab title="Typescript" %}
+
 ```typescript
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 
@@ -382,6 +399,7 @@ const experiment = await runExperiment({
   evaluators: [correctnessEvaluator, completenessEvaluator],
 });
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -393,14 +411,17 @@ After running multiple experiments, you can compare the experiment output & eval
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 from phoenix.client.experiments import evaluate_experiment
 
 experiment = evaluate_experiment(experiment, evaluators=[{add your evals}])
 ```
+
 {% endtab %}
 
 {% tab title="Typescript" %}
+
 ```typescript
 import { evaluateExperiment } from "@arizeai/phoenix-client/experiments";
 
@@ -408,11 +429,12 @@ import { evaluateExperiment } from "@arizeai/phoenix-client/experiments";
 const updatedEvaluation = await evaluateExperiment({
   client,
   experiment, // Use the existing experiment object
-  evaluators: [containsKeyword, conciseness]
+  evaluators: [containsKeyword, conciseness],
 });
 
 console.log("Additional evaluations completed for experiment:", experiment.id);
 ```
+
 {% endtab %}
 {% endtabs %}
 {% endstep %}

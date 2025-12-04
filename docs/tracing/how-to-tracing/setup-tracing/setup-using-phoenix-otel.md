@@ -15,14 +15,14 @@ To begin sending traces to Phoenix using OpenTelemetry, install the Phoenix OTEL
 
 These defaults are aware of environment variables you may have set to configure Phoenix:
 
-* `PHOENIX_COLLECTOR_ENDPOINT`
-* `PHOENIX_PROJECT_NAME`
-* `PHOENIX_CLIENT_HEADERS`
-* `PHOENIX_API_KEY`
-* `PHOENIX_GRPC_PORT`
-{% endtab %}
+- `PHOENIX_COLLECTOR_ENDPOINT`
+- `PHOENIX_PROJECT_NAME`
+- `PHOENIX_CLIENT_HEADERS`
+- `PHOENIX_API_KEY`
+- `PHOENIX_GRPC_PORT`
+  {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
 Install OpenTelemetry API packages:
 
 ```shell
@@ -35,6 +35,7 @@ Install OpenInference instrumentation packages. Below is an example of adding in
 <pre class="language-bash"><code class="lang-bash"># npm, pnpm, yarn, etc
 <strong>npm install openai @arizeai/openinference-instrumentation-openai @arizeai/openinference-semantic-conventions
 </strong></code></pre>
+
 {% endtab %}
 {% endtabs %}
 
@@ -42,8 +43,8 @@ Install OpenInference instrumentation packages. Below is an example of adding in
 
 There are two ways to configure the collector endpoint:
 
-* Using environment variables
-* Using the `endpoint` keyword argument
+- Using environment variables
+- Using the `endpoint` keyword argument
 
 If you're using Phoenix Cloud, you'll need your API Key & your space endpoint. If you're running Phoenix locally, you'll just need your endpoint. (ex. localhost:6006)
 
@@ -74,14 +75,15 @@ automatically try to send spans to your Phoenix server using gRPC.
 
 `register` can be configured with different keyword arguments:
 
-* `project_name`: The Phoenix project name
-  * or use `PHOENIX_PROJECT_NAME` env. var
-* `headers`: Headers to send along with each span payload
-  * or use `PHOENIX_CLIENT_HEADERS` env. var
-* `batch`: Whether or not to process spans in batch
-{% endtab %}
+- `project_name`: The Phoenix project name
+  - or use `PHOENIX_PROJECT_NAME` env. var
+- `headers`: Headers to send along with each span payload
+  - or use `PHOENIX_CLIENT_HEADERS` env. var
+- `batch`: Whether or not to process spans in batch
+  {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 // instrumentation.ts
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
@@ -113,6 +115,7 @@ tracerProvider.register();
 
 console.log("👀 OpenInference initialized");
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -132,6 +135,7 @@ The HTTP transport protocol is inferred from the endpoint
 from phoenix.otel import register
 tracer_provider = register(endpoint="http://localhost:6006/v1/traces")
 ```
+
 {% endtab %}
 
 {% tab title="GRPC" %}
@@ -141,6 +145,7 @@ The GRPC transport protocol is inferred from the endpoint
 from phoenix.otel import register
 tracer_provider = register(endpoint="http://localhost:4317")
 ```
+
 {% endtab %}
 
 {% tab title="Custom GRPC Port" %}
@@ -153,6 +158,7 @@ tracer_provider = register(
     protocol="grpc", # use "http/protobuf" for http transport
 )
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -163,4 +169,3 @@ Once you've connected your application to your Phoenix instance using `phoenix.o
 1. **Using OpenInference auto-instrumentors**. If you've used the `auto_instrument` flag above, then any instrumentor packages in your environment will be called automatically. For a full list of OpenInference packages, see [https://arize.com/docs/phoenix/integrations](https://arize.com/docs/phoenix/integrations "mention")
 2. Using [Phoenix Decorators](instrument.md).
 3. Using [Base OTEL](custom-spans.md).
-

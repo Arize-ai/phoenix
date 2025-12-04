@@ -20,12 +20,15 @@ Ensure you have OpenInference and Phoenix OTEL installed:
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```bash
 pip install arize-phoenix-otel
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```bash
 npm install @arizeai/phoenix-otel @arizeai/openinference-core
 ```
@@ -42,15 +45,18 @@ For detailed API documentation, consult the respective documentation sites.
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 from phoenix.otel import register
 
 tracer_provider = register(protocol="http/protobuf", project_name="your project name")
 tracer = tracer_provider.get_tracer(__name__)
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 import { register } from "@arizeai/phoenix-otel";
 
@@ -60,10 +66,11 @@ const tracerProvider = register({
   apiKey: process.env.PHOENIX_API_KEY,
 });
 ```
+
 {% endtab %}
 {% endtabs %}
 
-***
+---
 
 ## Using Helpers
 
@@ -73,14 +80,17 @@ Your tracer object can now be used in two primary ways:
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 @tracer.chain
 def my_func(input: str) -> str:
     return "output"
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 import { traceChain } from "@arizeai/openinference-core";
 
@@ -92,6 +102,7 @@ const tracedFunc = traceChain(myFunc, { name: "my-func" });
 
 tracedFunc("input");
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -101,6 +112,7 @@ This entire function will appear as a Span in Phoenix. Input and output attribut
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 with tracer.start_as_current_span(
     "my-span-name",
@@ -110,9 +122,11 @@ with tracer.start_as_current_span(
     span.set_output("output")
     span.set_status(Status(StatusCode.OK))
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 import { withSpan } from "@arizeai/openinference-core";
 import { trace } from "@arizeai/phoenix-otel";
@@ -133,6 +147,7 @@ await withSpan(
   }
 );
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -162,6 +177,7 @@ The `openinference.span.kind` attribute is required for all OpenInference spans 
 
 {% tabs %}
 {% tab title="Python" %}
+
 #### Using Context Managers
 
 ```python
@@ -203,9 +219,11 @@ def this_name_should_be_overriden(input: str) -> Dict[str, Any]:
 
 this_name_should_be_overriden("input")
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 #### Using Wrappers
 
 ```typescript
@@ -273,15 +291,17 @@ const thisNameShouldBeOverriden = traceChain(
 
 thisNameShouldBeOverriden("input");
 ```
+
 {% endtab %}
 {% endtabs %}
 
-***
+---
 
 ## Agents
 
 {% tabs %}
 {% tab title="Python" %}
+
 #### Using Context Managers
 
 ```python
@@ -303,9 +323,11 @@ def decorated_agent(input: str) -> str:
 
 decorated_agent("input")
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 #### Using Function Wrappers
 
 ```typescript
@@ -343,15 +365,17 @@ const decoratedAgent = traceAgent(
 
 decoratedAgent("input");
 ```
+
 {% endtab %}
 {% endtabs %}
 
-***
+---
 
 ## Tools
 
 {% tabs %}
 {% tab title="Python" %}
+
 #### Using Context Managers
 
 ```python
@@ -395,9 +419,11 @@ def this_tool_name_should_be_overriden(input1: str, input2: int) -> None:
 
 this_tool_name_should_be_overriden("input1", 1)
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 #### Using Function Wrappers
 
 ```typescript
@@ -436,10 +462,11 @@ const thisToolNameShouldBeOverriden = traceTool(
 
 thisToolNameShouldBeOverriden("input1", 1);
 ```
+
 {% endtab %}
 {% endtabs %}
 
-***
+---
 
 ## LLMs
 
@@ -451,6 +478,7 @@ To run the snippets in this section, set your `OPENAI_API_KEY` environment varia
 
 {% tabs %}
 {% tab title="Python" %}
+
 #### Context Manager
 
 ```python
@@ -553,9 +581,9 @@ openai_client.chat.completions.create(
 
 The snippets above produce LLM spans with input and output values, but don't offer rich UI for messages, tools, invocation parameters, etc. In order to manually instrument LLM spans with these features, users can define their own functions to wrangle the input and output of their LLM calls into OpenInference format. The `openinference-instrumentation` library contains helper functions that produce valid OpenInference attributes for LLM spans:
 
-* `get_llm_attributes`
-* `get_input_attributes`
-* `get_output_attributes`
+- `get_llm_attributes`
+- `get_input_attributes`
+- `get_output_attributes`
 
 For OpenAI, these functions might look like this:
 
@@ -804,9 +832,9 @@ with tracer.start_as_current_span(
 
 When using the `tracer.llm` decorator, these functions are passed via the `process_input` and `process_output` parameters and should satisfy the following:
 
-* The input signature of `process_input` should exactly match the input signature of the decorated function.
-* The input signature of `process_output` has a single argument, the output of the decorated function. This argument accepts the returned value when the decorated function is a sync or async function, or a list of yielded values when the decorated function is a sync or async generator function.
-* Both `process_input` and `process_output` should output a dictionary mapping attribute names to values.
+- The input signature of `process_input` should exactly match the input signature of the decorated function.
+- The input signature of `process_output` has a single argument, the output of the decorated function. This argument accepts the returned value when the decorated function is a sync or async function, or a list of yielded values when the decorated function is a sync or async generator function.
+- Both `process_input` and `process_output` should output a dictionary mapping attribute names to values.
 
 ```python
 from openai import NOT_GIVEN, OpenAI
@@ -948,9 +976,11 @@ openai_client.chat.completions.create(
     messages=[{"role": "user", "content": "Hello, world!"}],
 )
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 #### Function Wrapper
 
 ```typescript
@@ -981,9 +1011,9 @@ await invokeLLM([{ role: "user", content: "Hello, world!" }]);
 
 The snippets above produce LLM spans with input and output values, but don't offer rich UI for messages, tools, invocation parameters, etc. In order to manually instrument LLM spans with these features, users can use helper functions from `@arizeai/openinference-core` that produce valid OpenInference attributes for LLM spans:
 
-* `getLLMAttributes`
-* `defaultProcessInput`
-* `defaultProcessOutput`
+- `getLLMAttributes`
+- `defaultProcessInput`
+- `defaultProcessOutput`
 
 For OpenAI, these functions might look like this:
 
@@ -1061,9 +1091,9 @@ function processOutput(response: OpenAI.Chat.Completions.ChatCompletion) {
 
 When using `withSpan` to wrap functions, you can pass `processInput` and `processOutput` functions as options. These should satisfy the following:
 
-* The input signature of `processInput` should exactly match the input signature of the wrapped function.
-* The input signature of `processOutput` has a single argument, the output of the wrapped function. This argument accepts the returned value when the wrapped function is a sync or async function.
-* Both `processInput` and `processOutput` should output a dictionary mapping attribute names to values.
+- The input signature of `processInput` should exactly match the input signature of the wrapped function.
+- The input signature of `processOutput` has a single argument, the output of the wrapped function. This argument accepts the returned value when the wrapped function is a sync or async function.
+- Both `processInput` and `processOutput` should output a dictionary mapping attribute names to values.
 
 ```typescript
 import { withSpan } from "@arizeai/openinference-core";
@@ -1097,10 +1127,11 @@ const invokeLLM = withSpan(
 
 await invokeLLM([{ role: "user", content: "Hello, world!" }], "gpt-4", 0.5);
 ```
+
 {% endtab %}
 {% endtabs %}
 
-***
+---
 
 ## Additional Features
 
@@ -1110,6 +1141,7 @@ The OpenInference Tracer shown above respects context Managers for [Suppressing 
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 with suppress_tracing():
     # this trace will not be recorded
@@ -1121,9 +1153,11 @@ with suppress_tracing():
         span.set_output("output")
         span.set_status(Status(StatusCode.OK))
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 import { suppressTracing } from "@opentelemetry/core";
 import { withSpan } from "@arizeai/openinference-core";
@@ -1148,6 +1182,7 @@ await context.with(suppressTracing(context.active()), async () => {
   );
 });
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -1155,6 +1190,7 @@ await context.with(suppressTracing(context.active()), async () => {
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 with using_attributes(session_id="123"):
     # this trace has session id "123"
@@ -1166,9 +1202,11 @@ with using_attributes(session_id="123"):
         span.set_output("output")
         span.set_status(Status(StatusCode.OK))
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 import { context } from "@opentelemetry/api";
 import { setSession } from "@arizeai/openinference-core";
@@ -1197,6 +1235,7 @@ await context.with(
   }
 );
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -1206,6 +1245,7 @@ OpenInference includes message types that can be useful in composing text and im
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 import openinference.instrumentation as oi
 
@@ -1250,9 +1290,11 @@ with tracer.start_as_current_span(
     span.set_output(response)
     print(response.content)
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 import { withSpan, getLLMAttributes } from "@arizeai/openinference-core";
 import { trace } from "@arizeai/phoenix-otel";
@@ -1304,5 +1346,6 @@ await withSpan(
   }
 );
 ```
+
 {% endtab %}
 {% endtabs %}

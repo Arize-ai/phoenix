@@ -45,16 +45,20 @@ You'll need to install the evals library that's apart of Phoenix.
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 pip install -q "arize-phoenix-evals>=2"
 pip install -q "arize-phoenix-client"
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 npm install @arizeai/phoenix-evals @arizeai/phoenix-client
 ```
+
 {% endtab %}
 {% endtabs %}
 {% endstep %}
@@ -66,15 +70,18 @@ Since, we are running our evaluations on our trace data from our first project, 
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 from phoenix.client import Client
 
 px_client = Client()
 primary_df = px_client.spans.get_spans_dataframe(project_identifier="my-llm-app")
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 import { getSpans } from "@arizeai/phoenix-client/spans";
 
@@ -98,6 +105,7 @@ do {
   cursor = result.nextCursor ?? undefined;
 } while (cursor);
 ```
+
 {% endtab %}
 {% endtabs %}
 {% endstep %}
@@ -115,6 +123,7 @@ If you haven't yet defined your OpenAI API Key from the previous step, let's fir
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 import os
 from getpass import getpass
@@ -127,9 +136,11 @@ os.environ["OPENAI_API_KEY"] = openai_api_key
 from phoenix.evals.llm import LLM
 llm = LLM(model="gpt-4o", provider="openai")
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 // pnpm add @ai-sdk/openai
 
@@ -141,6 +152,7 @@ const openai = createOpenAI({
 
 const llm = openai("gpt-4o");
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -150,11 +162,12 @@ We will set up a Q\&A correctness Evaluator with the LLM of choice. I want to fi
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
-CORRECTNESS_TEMPLATE = """ 
-You are given a question and an answer. Decide if the answer is fully correct. 
-Rules: The answer must be factually accurate, complete, and directly address the question. 
-If it is, respond with "correct". Otherwise respond with "incorrect". 
+CORRECTNESS_TEMPLATE = """
+You are given a question and an answer. Decide if the answer is fully correct.
+Rules: The answer must be factually accurate, complete, and directly address the question.
+If it is, respond with "correct". Otherwise respond with "incorrect".
 [BEGIN DATA]
     ************
     [Question]: {attributes.llm.input_messages}
@@ -169,9 +182,11 @@ and should not contain any text or characters aside from that word.
 answer.
 """
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 const CORRECTNESS_TEMPLATE = `
 You are given a question and an answer. Decide if the answer is fully correct.
@@ -192,6 +207,7 @@ and should not contain any text or characters aside from that word.
 answer.
 `;
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -199,6 +215,7 @@ Now we want to define our Classification Evaluator
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 from phoenix.evals import create_classifier
 
@@ -209,9 +226,11 @@ correctness_evaluator = create_classifier(
     choices={"correct": 1.0, "incorrect": 0.0},
 )
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 
@@ -222,6 +241,7 @@ const correctnessEvaluator = createClassificationEvaluator({
   choices: { correct: 1.0, incorrect: 0.0 },
 });
 ```
+
 {% endtab %}
 {% endtabs %}
 {% endstep %}
@@ -233,6 +253,7 @@ Now that we have defined our evaluator, we're ready to evaluate our traces.
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 from phoenix.evals import evaluate_dataframe
 
@@ -241,9 +262,9 @@ results_df = evaluate_dataframe(
     evaluators=[correctness_evaluator]
 )
 ```
+
 {% endtab %}
 {% endtabs %}
-
 
 {% endstep %}
 
@@ -254,6 +275,7 @@ You'll now be able to log your evaluations in your project view.
 
 {% tabs %}
 {% tab title="Python" %}
+
 ```python
 from phoenix.evals.utils import to_annotation_dataframe
 
@@ -264,9 +286,11 @@ client.log_span_annotations(
     dataframe=evaluations
 )
 ```
+
 {% endtab %}
 
-{% tab title="TS" %}
+{% tab title="TypeScript" %}
+
 ```typescript
 await logSpanAnnotations({
   spanAnnotations: results
@@ -280,9 +304,9 @@ await logSpanAnnotations({
     })),
 });
 ```
+
 {% endtab %}
 {% endtabs %}
-
 
 {% endstep %}
 {% endstepper %}
