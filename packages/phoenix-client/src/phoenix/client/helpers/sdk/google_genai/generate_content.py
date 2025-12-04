@@ -89,7 +89,6 @@ def to_chat_messages_and_kwargs(
     if template["type"] == "chat":
         for message in template["messages"]:
             if message["role"] == "system":
-                # Extract text from system messages directly (Google doesn't have system role)
                 system_messages.extend(_extract_system_text(message, variables, formatter))
             else:
                 messages.extend(_ContentConversion.to_google(message, variables, formatter))
@@ -105,10 +104,10 @@ def to_chat_messages_and_kwargs(
         else:
             config_kwargs["system_instruction"] = system_messages
 
-    kwargs: GoogleModelKwargs = {
-        "model": obj["model_name"],
-        "config": types.GenerateContentConfig(**config_kwargs),
-    }
+    kwargs = GoogleModelKwargs(
+        model=obj["model_name"],
+        config=types.GenerateContentConfig(**config_kwargs),
+    )
     return messages, kwargs
 
 
@@ -186,8 +185,8 @@ class _ToolKwargsConversion:
         if "tools" in obj:
             for tool in obj["tools"]:
                 if tool.function_declarations:
-                    for func_decl in tool.function_declarations:
-                        tools.append(_FunctionDeclarationConversion.from_google(func_decl))
+                    for fd in tool.function_declarations:
+                        tools.append(_FunctionDeclarationConversion.from_google(fd))
         ans = v1.PromptTools(
             type="tools",
             tools=tools,
@@ -245,21 +244,19 @@ class _ToolConfigConversion:
         mode = fcc.mode.value.lower() if fcc.mode else "auto"
 
         if mode == "none":
-            choice_none: v1.PromptToolChoiceNone = {"type": "none"}
-            return choice_none
+            return v1.PromptToolChoiceNone(type="none")
         if mode == "auto":
-            choice_zero_or_more = {"type": "zero_or_more"}
-            return choice_zero_or_more
+            return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
         if mode == "any":
             if fcc.allowed_function_names:
-                choice_specific_function_tool: v1.PromptToolChoiceSpecificFunctionTool = {
-                    "type": "specific_function",
-                    "function_name": fcc.allowed_function_names[0],
-                }
-                return choice_specific_function_tool
-            choice_one_or_more: v1.PromptToolChoiceOneOrMore = {"type": "one_or_more"}
-            return choice_one_or_more
-        raise NotImplementedError(f"Unknown mode: {mode}")
+                if len(fcc.allowed_function_names) != 1:
+                    raise ValueError("Only single allowed function name is currently supported")
+                return v1.PromptToolChoiceSpecificFunctionTool(
+                    type="specific_function",
+                    function_name=fcc.allowed_function_names[0],
+                )
+            return v1.PromptToolChoiceOneOrMore(type="one_or_more")
+        assert_never(mode)
 
 
 class _FunctionDeclarationConversion:
@@ -283,14 +280,13 @@ class _FunctionDeclarationConversion:
         parameters: dict[str, Any] = {}
         if obj.parameters:
             parameters = _SchemaConversion.from_google(obj.parameters)
-        return v1.PromptToolFunction(
-            type="function",
-            function=v1.PromptToolFunctionDefinition(
-                name=obj.name or "",
-                description=obj.description or "",
-                parameters=parameters,
-            ),
-        )
+        fd: v1.PromptToolFunctionDefinition = {
+            "name": obj.name or "",
+            "parameters": parameters,
+        }
+        if obj.description:
+            fd["description"] = obj.description
+        return v1.PromptToolFunction(type="function", function=fd)
 
 
 class _SchemaConversion:
@@ -458,4 +454,6 @@ class _RoleConversion:
                 if part.function_response:
                     return "tool"
             return "user"
-        return cast(Literal["user", "assistant", "tool"], obj.role)
+        if obj.role == "user" or obj.role == "assistant" or obj.role == "tool":
+            return obj.role
+        raise NotImplementedError(f"Unknown role: {obj.role}")
