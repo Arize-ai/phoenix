@@ -1452,7 +1452,7 @@ class TestApplyChatTemplate:
     ) -> None:
         """Test applying Mustache template formatting to messages."""
         query = """
-          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
             applyChatTemplate(template: $template, templateOptions: $templateOptions) {
               messages {
                 role
@@ -1469,10 +1469,20 @@ class TestApplyChatTemplate:
         """
 
         variables = {
-            "template": [
-                {"role": "SYSTEM", "content": "You are a helpful assistant for {{ topic }}."},
-                {"role": "USER", "content": "Tell me about {{ subject }}."},
-            ],
+            "template": {
+                "messages": [
+                    {
+                        "role": "SYSTEM",
+                        "content": [
+                            {"text": {"text": "You are a helpful assistant for {{ topic }}."}}
+                        ],
+                    },
+                    {
+                        "role": "USER",
+                        "content": [{"text": {"text": "Tell me about {{ subject }}."}}],
+                    },
+                ]
+            },
             "templateOptions": {
                 "format": "MUSTACHE",
                 "variables": {"topic": "programming", "subject": "Python"},
@@ -1498,7 +1508,7 @@ class TestApplyChatTemplate:
     ) -> None:
         """Test applying F-string template formatting to messages."""
         query = """
-          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
             applyChatTemplate(template: $template, templateOptions: $templateOptions) {
               messages {
                 role
@@ -1515,9 +1525,14 @@ class TestApplyChatTemplate:
         """
 
         variables = {
-            "template": [
-                {"role": "USER", "content": "Hello, {name}! How are you?"},
-            ],
+            "template": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": [{"text": {"text": "Hello, {name}! How are you?"}}],
+                    },
+                ]
+            },
             "templateOptions": {
                 "format": "F_STRING",
                 "variables": {"name": "Alice"},
@@ -1538,7 +1553,7 @@ class TestApplyChatTemplate:
     ) -> None:
         """Test with NONE format - content should pass through unchanged."""
         query = """
-          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
             applyChatTemplate(template: $template, templateOptions: $templateOptions) {
               messages {
                 role
@@ -1555,9 +1570,14 @@ class TestApplyChatTemplate:
         """
 
         variables = {
-            "template": [
-                {"role": "USER", "content": "Hello, {{ name }}! How are you?"},
-            ],
+            "template": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": [{"text": {"text": "Hello, {{ name }}! How are you?"}}],
+                    },
+                ]
+            },
             "templateOptions": {
                 "format": "NONE",
                 "variables": {"name": "Alice"},
@@ -1578,7 +1598,7 @@ class TestApplyChatTemplate:
     ) -> None:
         """Test that tool calls are preserved when applying templates."""
         query = """
-          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
             applyChatTemplate(template: $template, templateOptions: $templateOptions) {
               messages {
                 role
@@ -1604,21 +1624,24 @@ class TestApplyChatTemplate:
         """
 
         variables = {
-            "template": [
-                {
-                    "role": "AI",
-                    "content": "",
-                    "toolCalls": [
-                        {
-                            "id": "call_123",
-                            "function": {
-                                "name": "get_weather",
-                                "arguments": '{"city": "London"}',
-                            },
-                        }
-                    ],
-                },
-            ],
+            "template": {
+                "messages": [
+                    {
+                        "role": "AI",
+                        "content": [
+                            {
+                                "toolCall": {
+                                    "toolCallId": "call_123",
+                                    "toolCall": {
+                                        "name": "get_weather",
+                                        "arguments": '{"city": "London"}',
+                                    },
+                                }
+                            }
+                        ],
+                    },
+                ]
+            },
             "templateOptions": {
                 "format": "MUSTACHE",
                 "variables": {},
@@ -1645,7 +1668,7 @@ class TestApplyChatTemplate:
     ) -> None:
         """Test that tool results are properly handled."""
         query = """
-          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
             applyChatTemplate(template: $template, templateOptions: $templateOptions) {
               messages {
                 role
@@ -1668,13 +1691,21 @@ class TestApplyChatTemplate:
         """
 
         variables = {
-            "template": [
-                {
-                    "role": "TOOL",
-                    "content": "The weather in London is sunny, 22°C",
-                    "toolCallId": "call_123",
-                },
-            ],
+            "template": {
+                "messages": [
+                    {
+                        "role": "TOOL",
+                        "content": [
+                            {
+                                "toolResult": {
+                                    "toolCallId": "call_123",
+                                    "result": "The weather in London is sunny, 22°C",
+                                }
+                            }
+                        ],
+                    },
+                ]
+            },
             "templateOptions": {
                 "format": "NONE",
                 "variables": {},
@@ -1687,7 +1718,7 @@ class TestApplyChatTemplate:
         messages = response.data["applyChatTemplate"]["messages"]
         assert len(messages) == 1
         assert messages[0]["role"] == "TOOL"
-        # The content should be converted to a tool result
+        # The content should be a tool result
         tool_result_parts = [
             part for part in messages[0]["content"] if part.get("toolResult") is not None
         ]
@@ -1700,7 +1731,7 @@ class TestApplyChatTemplate:
     ) -> None:
         """Test that tool results with empty string content create a proper ToolResultContentPart."""
         query = """
-          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
             applyChatTemplate(template: $template, templateOptions: $templateOptions) {
               messages {
                 role
@@ -1722,15 +1753,23 @@ class TestApplyChatTemplate:
           }
         """
 
-        # Test with empty string content
+        # Test with empty string result
         variables = {
-            "template": [
-                {
-                    "role": "TOOL",
-                    "content": "",
-                    "toolCallId": "call_456",
-                },
-            ],
+            "template": {
+                "messages": [
+                    {
+                        "role": "TOOL",
+                        "content": [
+                            {
+                                "toolResult": {
+                                    "toolCallId": "call_456",
+                                    "result": "",
+                                }
+                            }
+                        ],
+                    },
+                ]
+            },
             "templateOptions": {
                 "format": "NONE",
                 "variables": {},
@@ -1743,7 +1782,7 @@ class TestApplyChatTemplate:
         messages = response.data["applyChatTemplate"]["messages"]
         assert len(messages) == 1
         assert messages[0]["role"] == "TOOL"
-        # The content should be converted to a tool result with empty string
+        # The content should be a tool result with empty string
         tool_result_parts = [
             part for part in messages[0]["content"] if part.get("toolResult") is not None
         ]
@@ -1757,7 +1796,7 @@ class TestApplyChatTemplate:
     ) -> None:
         """Test applying templates to a conversation with multiple message types."""
         query = """
-          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
             applyChatTemplate(template: $template, templateOptions: $templateOptions) {
               messages {
                 role
@@ -1774,11 +1813,22 @@ class TestApplyChatTemplate:
         """
 
         variables = {
-            "template": [
-                {"role": "SYSTEM", "content": "You are a {{ role }} assistant."},
-                {"role": "USER", "content": "What is {{ topic }}?"},
-                {"role": "AI", "content": "{{ topic }} is a {{ definition }}."},
-            ],
+            "template": {
+                "messages": [
+                    {
+                        "role": "SYSTEM",
+                        "content": [{"text": {"text": "You are a {{ role }} assistant."}}],
+                    },
+                    {
+                        "role": "USER",
+                        "content": [{"text": {"text": "What is {{ topic }}?"}}],
+                    },
+                    {
+                        "role": "AI",
+                        "content": [{"text": {"text": "{{ topic }} is a {{ definition }}."}}],
+                    },
+                ]
+            },
             "templateOptions": {
                 "format": "MUSTACHE",
                 "variables": {
@@ -1804,7 +1854,7 @@ class TestApplyChatTemplate:
     ) -> None:
         """Test applying templates when no variables are provided."""
         query = """
-          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
             applyChatTemplate(template: $template, templateOptions: $templateOptions) {
               messages {
                 role
@@ -1821,9 +1871,14 @@ class TestApplyChatTemplate:
         """
 
         variables = {
-            "template": [
-                {"role": "USER", "content": "Hello, world!"},
-            ],
+            "template": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": [{"text": {"text": "Hello, world!"}}],
+                    },
+                ]
+            },
             "templateOptions": {
                 "format": "MUSTACHE",
                 "variables": {},
@@ -1843,7 +1898,7 @@ class TestApplyChatTemplate:
     ) -> None:
         """Test applying templates when variables are passed as a JSON string."""
         query = """
-          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
             applyChatTemplate(template: $template, templateOptions: $templateOptions) {
               messages {
                 role
@@ -1860,9 +1915,14 @@ class TestApplyChatTemplate:
         """
 
         variables = {
-            "template": [
-                {"role": "USER", "content": "Hello, {{ name }}!"},
-            ],
+            "template": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": [{"text": {"text": "Hello, {{ name }}!"}}],
+                    },
+                ]
+            },
             "templateOptions": {
                 "format": "MUSTACHE",
                 "variables": '{"name": "Alice"}',  # JSON string instead of dict
@@ -1882,7 +1942,7 @@ class TestApplyChatTemplate:
     ) -> None:
         """Test that non-dict JSON strings (like arrays) raise an error."""
         query = """
-          query ($template: [ChatCompletionMessageInput!]!, $templateOptions: PromptTemplateOptions!) {
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
             applyChatTemplate(template: $template, templateOptions: $templateOptions) {
               messages {
                 role
@@ -1899,9 +1959,14 @@ class TestApplyChatTemplate:
         """
 
         variables = {
-            "template": [
-                {"role": "USER", "content": "Hello, {{ name }}!"},
-            ],
+            "template": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": [{"text": {"text": "Hello, {{ name }}!"}}],
+                    },
+                ]
+            },
             "templateOptions": {
                 "format": "MUSTACHE",
                 "variables": "[1, 2, 3]",  # JSON array string - not a dict

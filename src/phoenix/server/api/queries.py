@@ -43,11 +43,8 @@ from phoenix.server.api.helpers.experiment_run_filters import (
 )
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.helpers.prompts.template_helpers import (
-    convert_chat_role_to_prompt_role,
-    get_template_formatter,
-)
-from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
+from phoenix.server.api.helpers.prompts.models import PromptMessageRole
+from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
@@ -62,6 +59,7 @@ from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
+from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
@@ -1725,13 +1723,13 @@ class Query:
     async def apply_chat_template(
         self,
         info: Info[Context, None],
-        template: list[ChatCompletionMessageInput],
+        template: PromptChatTemplateInput,
         template_options: PromptTemplateOptions,
     ) -> PromptChatTemplate:
         """
-        Applies template formatting to chat completion messages.
+        Applies template formatting to a prompt chat template.
 
-        Takes a list of messages with template placeholders and template options
+        Takes a template with messages containing template placeholders and template options
         (format and variables), and returns the messages with placeholders replaced.
         """
         formatter = get_template_formatter(template_options.format)
@@ -1748,82 +1746,41 @@ class Query:
             raise ValueError("Variables must be a dictionary or a string")
 
         messages: list[PromptMessage] = []
-        for message in template:
-            role = convert_chat_role_to_prompt_role(message.role)
+        for msg in template.messages:
             content_parts: list[ContentPart] = []
-
-            # Handle text content
-            if message.content is not None:
-                if isinstance(message.content, str):
-                    formatted_text = formatter.format(message.content, **variables)
+            for part in msg.content:
+                if part.text is not UNSET:
+                    assert part.text is not None
+                    formatted_text = formatter.format(part.text.text, **variables)
                     content_parts.append(
                         TextContentPart(text=TextContentValue(text=formatted_text))
                     )
-                elif isinstance(message.content, list):
-                    # Content is a list of content parts
-                    for part in message.content:
-                        if isinstance(part, dict):
-                            if part.get("type") == "text":
-                                text = part.get("text", "")
-                                if isinstance(text, str):
-                                    formatted_text = formatter.format(text, **variables)
-                                    content_parts.append(
-                                        TextContentPart(text=TextContentValue(text=formatted_text))
-                                    )
-                            # Other content types pass through without template formatting
-                            elif part.get("type") == "tool_use":
-                                # Tool use content part
-                                content_parts.append(
-                                    ToolCallContentPart(
-                                        tool_call=ToolCallContentValue(
-                                            tool_call_id=part.get("id", ""),
-                                            tool_call=ToolCallFunction(
-                                                name=part.get("name", ""),
-                                                arguments=part.get("input", ""),
-                                            ),
-                                        )
-                                    )
-                                )
-                            elif part.get("type") == "tool_result":
-                                content_parts.append(
-                                    ToolResultContentPart(
-                                        tool_result=ToolResultContentValue(
-                                            tool_call_id=part.get("tool_use_id", ""),
-                                            result=part.get("content", ""),
-                                        )
-                                    )
-                                )
-                        elif isinstance(part, str):
-                            # Plain string in content list
-                            formatted_text = formatter.format(part, **variables)
-                            content_parts.append(
-                                TextContentPart(text=TextContentValue(text=formatted_text))
-                            )
-                else:
-                    # Content is some other JSON value, convert to string
+                elif part.tool_call is not UNSET:
+                    assert part.tool_call is not None
+                    tc = part.tool_call
                     content_parts.append(
-                        TextContentPart(text=TextContentValue(text=str(message.content)))
-                    )
-
-            # Handle tool calls
-            if message.tool_calls:
-                for tool_call in message.tool_calls:
-                    if isinstance(tool_call, dict):
-                        tool_call_id = tool_call.get("id", "")
-                        function = tool_call.get("function", {})
-                        content_parts.append(
-                            ToolCallContentPart(
-                                tool_call=ToolCallContentValue(
-                                    tool_call_id=tool_call_id,
-                                    tool_call=ToolCallFunction(
-                                        name=function.get("name", ""),
-                                        arguments=function.get("arguments", ""),
-                                    ),
-                                )
+                        ToolCallContentPart(
+                            tool_call=ToolCallContentValue(
+                                tool_call_id=tc.tool_call_id,
+                                tool_call=ToolCallFunction(
+                                    name=tc.tool_call.name,
+                                    arguments=tc.tool_call.arguments,
+                                ),
                             )
                         )
-
-            messages.append(PromptMessage(role=role, content=content_parts))
+                    )
+                elif part.tool_result is not UNSET:
+                    assert part.tool_result is not None
+                    tr = part.tool_result
+                    content_parts.append(
+                        ToolResultContentPart(
+                            tool_result=ToolResultContentValue(
+                                tool_call_id=tr.tool_call_id,
+                                result=tr.result,
+                            )
+                        )
+                    )
+            messages.append(PromptMessage(role=PromptMessageRole(msg.role), content=content_parts))
 
         return PromptChatTemplate(messages=messages)
 
