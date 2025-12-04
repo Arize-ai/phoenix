@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 
 import sqlalchemy as sa
 import strawberry
-from strawberry.relay import GlobalID, Node, NodeID
+from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
@@ -14,14 +14,13 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_id
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
 )
 
 from .Identifier import Identifier
-from .node import from_global_id_with_expected_type
 
 if TYPE_CHECKING:
     from .Prompt import Prompt
@@ -74,13 +73,6 @@ class Evaluator(Node):
 
     @strawberry.field
     async def input_schema(self) -> Optional[JSON]:
-        raise NotImplementedError
-
-    @strawberry.field
-    async def is_assigned_to_dataset(
-        self,
-        info: Info[Context, None],
-    ) -> bool:
         raise NotImplementedError
 
     @strawberry.field
@@ -468,29 +460,6 @@ class BuiltInEvaluator(Evaluator, Node):
     ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
         return None
 
-    @strawberry.field
-    async def is_assigned_to_dataset(
-        self,
-        info: Info[Context, None],
-        dataset_id: Optional[GlobalID] = None,
-        name: Optional[str] = None,
-    ) -> bool:
-        if dataset_id is None or name is None:
-            return False
-
-        try:
-            dataset_rowid = from_global_id_with_expected_type(
-                global_id=dataset_id,
-                expected_type_name="Dataset",
-            )
-        except ValueError:
-            raise BadRequest(f"Invalid dataset id: {dataset_id}")
-
-        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
-            (dataset_rowid, self.id, name)
-        )
-        return dataset_evaluator is not None
-
 
 def _to_gql_categorical_annotation_config(
     config: CategoricalAnnotationConfigModel,
@@ -519,16 +488,6 @@ class DatasetBuiltInEvaluator(BuiltInEvaluator, Node):
     display_name: Identifier
 
     @strawberry.field
-    async def is_assigned_to_dataset(
-        self,
-        info: Info[Context, None],
-    ) -> bool:
-        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
-            (self.dataset_id, self.id, self.display_name)
-        )
-        return dataset_evaluator is not None
-
-    @strawberry.field
     async def dataset_input_mapping(
         self,
         info: Info[Context, None],
@@ -553,16 +512,6 @@ class DatasetLLMEvaluator(LLMEvaluator, Node):
     display_name: Identifier
 
     @strawberry.field
-    async def is_assigned_to_dataset(
-        self,
-        info: Info[Context, None],
-    ) -> bool:
-        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
-            (self.dataset_id, self.id, self.display_name)
-        )
-        return dataset_evaluator is not None
-
-    @strawberry.field
     async def dataset_input_mapping(
         self,
         info: Info[Context, None],
@@ -585,16 +534,6 @@ class DatasetLLMEvaluator(LLMEvaluator, Node):
 class DatasetCodeEvaluator(CodeEvaluator, Node):
     dataset_id: NodeID[int]
     display_name: Identifier
-
-    @strawberry.field
-    async def is_assigned_to_dataset(
-        self,
-        info: Info[Context, None],
-    ) -> bool:
-        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
-            (self.dataset_id, self.id, self.display_name)
-        )
-        return dataset_evaluator is not None
 
     @strawberry.field
     async def dataset_input_mapping(

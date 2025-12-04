@@ -319,7 +319,6 @@ type BuiltInEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset(datasetId: ID = null, name: String = null): Boolean!
   datasetInputMapping: EvaluatorInputMapping
   user: User
 }
@@ -538,7 +537,6 @@ type CodeEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset: Boolean!
   datasetInputMapping: EvaluatorInputMapping
   user: User
 }
@@ -837,7 +835,6 @@ type DatasetBuiltInEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset: Boolean!
   datasetInputMapping: EvaluatorInputMapping
   user: User
   displayName: Identifier!
@@ -853,7 +850,6 @@ type DatasetCodeEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset: Boolean!
   datasetInputMapping: EvaluatorInputMapping
   user: User
   displayName: Identifier!
@@ -960,7 +956,6 @@ type DatasetLLMEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset: Boolean!
   datasetInputMapping: EvaluatorInputMapping
   outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
@@ -1536,7 +1531,6 @@ interface Evaluator implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset: Boolean!
   datasetInputMapping: EvaluatorInputMapping
 }
 
@@ -2405,7 +2399,6 @@ type LLMEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset: Boolean!
   datasetInputMapping: EvaluatorInputMapping
   outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
