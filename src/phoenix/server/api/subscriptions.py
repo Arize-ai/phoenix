@@ -59,7 +59,10 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
+    EvaluatorInputMappingInput,
+    PlaygroundEvaluatorInput,
+)
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
@@ -167,7 +170,35 @@ async def _get_prompt_versions_for_evaluators(
     return result
 
 
-def _quote(string: str) -> str:
+async def run_evaluator(
+    *,
+    evaluator: models.LLMEvaluator,
+    prompt_version: models.PromptVersion,
+    context: dict[str, Any],
+    input_mapping: EvaluatorInputMappingInput,
+    info: Info[Context, None],
+) -> EvaluationResult:
+    """
+    Execute an LLM evaluator and return the result.
+
+    TODO: Implement actual LLM evaluation. Currently returns a dummy result.
+    """
+    now = datetime.now(timezone.utc)
+    return EvaluationResult(
+        name=evaluator.annotation_name,
+        annotator_kind="LLM",
+        label="dummy_label",
+        score=0.5,
+        explanation="Dummy evaluation - not yet implemented",
+        metadata={},
+        error=None,
+        trace_id=None,
+        start_time=now,
+        end_time=now,
+    )
+
+
+def _quote(string: Any) -> str:
     return f'"{string}"'
 
 
@@ -189,6 +220,8 @@ async def _stream_single_chat_completion(
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
     info: Info[Context, None],
+    llm_evaluators: dict[int, models.LLMEvaluator],
+    prompt_versions: dict[int, models.PromptVersion],
 ) -> ChatStream:
     messages = [
         (
@@ -269,21 +302,29 @@ async def _stream_single_chat_completion(
                         repetition_number=None,
                     )
                 else:
-                    evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
-                    if evaluator_record is None:
-                        raise NotFound(f"Could not find evaluator with ID {db_id}")
-                    evaluator_name = evaluator_record.name.root if evaluator_record else ""  # pyright: ignore
-                    dummy_annotation = ExperimentRunAnnotation.from_dict(
+                    # LLM evaluator
+                    llm_evaluator = llm_evaluators.get(db_id)
+                    prompt_version = prompt_versions.get(db_id)
+                    if llm_evaluator is None or prompt_version is None:
+                        continue
+                    result = await run_evaluator(
+                        evaluator=llm_evaluator,
+                        prompt_version=prompt_version,
+                        context=context_dict,
+                        input_mapping=evaluator.input_mapping,
+                        info=info,
+                    )
+                    annotation = ExperimentRunAnnotation.from_dict(
                         {
-                            "name": evaluator_name,
-                            "label": f"dummy {ii}",
-                            "score": random.random(),
-                            "explanation": "dummy evaluation",
-                            "metadata": {},
+                            "name": result["name"],
+                            "label": result["label"],
+                            "score": result["score"],
+                            "explanation": result["explanation"],
+                            "metadata": result["metadata"],
                         }
                     )
                     yield EvaluationChunk(
-                        experiment_run_evaluation=dummy_annotation,
+                        experiment_run_evaluation=annotation,
                         span_evaluation=None,
                         dataset_example_id=None,
                         repetition_number=None,
@@ -346,10 +387,11 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        evaluators = await _get_evaluators(input.evaluators or [], info.context.db)
-        prompt_versions = await _get_prompt_versions_for_evaluators(evaluators, info.context.db)
-        print(f"{evaluators=}")
-        print(f"{prompt_versions=}")
+        evaluators_list = await _get_evaluators(input.evaluators or [], info.context.db)
+        llm_evaluators = {e.id: e for e in evaluators_list}
+        prompt_versions = await _get_prompt_versions_for_evaluators(
+            evaluators_list, info.context.db
+        )
 
         llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         async with info.context.db() as session:
@@ -378,6 +420,8 @@ class Subscription:
                     repetition_number=repetition_number,
                     results=results,
                     info=info,
+                    llm_evaluators=llm_evaluators,
+                    prompt_versions=prompt_versions,
                 ),
             )
             for repetition_number in range(1, input.repetitions + 1)
