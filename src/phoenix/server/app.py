@@ -1202,7 +1202,6 @@ def create_app(
     app.state.access_token_expiry = access_token_expiry
     app.state.refresh_token_expiry = refresh_token_expiry
     app.state.oauth2_clients = OAuth2Clients.from_configs(oauth2_client_configs or [])
-    app.state.ldap_config = ldap_config
     # Cache LDAPAuthenticator to avoid re-parsing TLS config on every login
     if ldap_config:
         from phoenix.server.ldap import LDAPAuthenticator

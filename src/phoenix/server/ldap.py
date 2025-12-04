@@ -69,10 +69,10 @@ from typing import Any, Final, Literal, NamedTuple, Optional, overload
 
 import anyio
 from ldap3 import (
-    ALL,
     AUTO_BIND_DEFAULT,
     AUTO_BIND_NO_TLS,
     AUTO_BIND_TLS_BEFORE_BIND,
+    NONE,
     SUBTREE,
     Connection,
     Server,
@@ -284,7 +284,7 @@ class LDAPAuthenticator:
                 use_ssl=(self.config.use_tls and self.config.tls_mode == "ldaps"),
                 tls=tls_config,
                 connect_timeout=10,
-                get_info=ALL,
+                get_info=NONE,  # Don't fetch schema/DSA info we don't use
             )
             servers.append(server)
 
