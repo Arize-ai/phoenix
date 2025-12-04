@@ -192,6 +192,7 @@ export const EvaluatorsTable = ({
             evaluatorId={row.original.id}
             evaluatorName={row.original.name}
             datasetId={datasetId}
+            evaluatorKind={row.original.kind}
           />
         ),
       });

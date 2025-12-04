@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a4b08a115fd6496991f87116e449016c>>
+ * @generated SignedSource<<354a01f6ca4837348964aef1fda5f277>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -130,14 +130,7 @@ return {
             }
           ],
           "storageKey": null
-        }
-      ],
-      "type": "DatasetLLMEvaluator",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": [
+        },
         {
           "alias": null,
           "args": null,
@@ -409,7 +402,7 @@ return {
           "storageKey": null
         }
       ],
-      "type": "LLMEvaluator",
+      "type": "DatasetLLMEvaluator",
       "abstractKey": null
     }
   ],
@@ -418,6 +411,6 @@ return {
 };
 })();
 
-(node as any).hash = "c49e0f755eae31ec46f2af3a9bdb2944";
+(node as any).hash = "3631d0ffd532ddb1ae0297d1706325c8";
 
 export default node;

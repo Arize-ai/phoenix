@@ -34,7 +34,7 @@ from phoenix.server.api.types.Evaluator import (
     Evaluator,
 )
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -470,6 +470,12 @@ class Dataset(Node):
     async def evaluator(
         self, info: Info[Context, None], evaluatorId: GlobalID, displayName: str
     ) -> Evaluator:
+        try:
+            _, evaluator_rowid = from_global_id(
+                global_id=evaluatorId,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid evaluator ID: {evaluatorId}")
         # join the polymorphic evaluator models with the datasets_evaluators
         # table for this dataset id
         PolymorphicEvaluator = with_polymorphic(
@@ -478,10 +484,14 @@ class Dataset(Node):
         stmt = (
             select(PolymorphicEvaluator)
             .join(models.DatasetsEvaluators)
+            .where(PolymorphicEvaluator.id == evaluator_rowid)
+            .where(models.DatasetsEvaluators.display_name == displayName)
+            .where(models.DatasetsEvaluators.dataset_id == self.id)
             .where(
-                models.DatasetsEvaluators.dataset_id == self.id
-                and models.DatasetsEvaluators.evaluator_id == evaluatorId
-                and models.DatasetsEvaluators.display_name == displayName
+                or_(
+                    models.DatasetsEvaluators.evaluator_id == evaluator_rowid,
+                    models.DatasetsEvaluators.builtin_evaluator_id == evaluator_rowid,
+                )
             )
         )
         async with info.context.db() as session:

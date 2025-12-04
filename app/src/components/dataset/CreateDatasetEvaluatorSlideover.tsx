@@ -1,5 +1,6 @@
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { ModalOverlayProps } from "react-aria-components";
+import { FormProvider } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
@@ -7,10 +8,10 @@ import { CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@pho
 import { Dialog } from "@phoenix/components/dialog";
 import { EditEvaluatorDialogContent } from "@phoenix/components/evaluators/EditEvaluatorDialogContent";
 import {
-  EvaluatorFormProvider,
   EvaluatorFormValues,
   useEvaluatorForm,
 } from "@phoenix/components/evaluators/EvaluatorForm";
+import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
 import { Loading } from "@phoenix/components/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/overlay/Modal";
@@ -36,11 +37,13 @@ export const CreateDatasetEvaluatorSlideover = ({
           {({ close }) => (
             <Suspense fallback={<Loading />}>
               {datasetId && (
-                <CreateEvaluatorDialog
-                  onClose={close}
-                  datasetId={datasetId}
-                  updateConnectionIds={updateConnectionIds}
-                />
+                <EvaluatorPlaygroundProvider>
+                  <CreateEvaluatorDialog
+                    onClose={close}
+                    datasetId={datasetId}
+                    updateConnectionIds={updateConnectionIds}
+                  />
+                </EvaluatorPlaygroundProvider>
               )}
             </Suspense>
           )}
@@ -137,7 +140,7 @@ const CreateEvaluatorDialog = ({
     notifySuccess,
   ]);
   return (
-    <EvaluatorFormProvider form={form}>
+    <FormProvider {...form}>
       <EditEvaluatorDialogContent
         onClose={onClose}
         onSubmit={onSubmit}
@@ -145,6 +148,6 @@ const CreateEvaluatorDialog = ({
         mode="create"
         error={error}
       />
-    </EvaluatorFormProvider>
+    </FormProvider>
   );
 };

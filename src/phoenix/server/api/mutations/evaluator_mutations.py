@@ -289,7 +289,7 @@ class EvaluatorMutationMixin:
         try:
             evaluator_rowid = from_global_id_with_expected_type(
                 global_id=input.evaluator_id,
-                expected_type_name=LLMEvaluator.__name__,
+                expected_type_name=DatasetLLMEvaluator.__name__,
             )
         except ValueError:
             raise BadRequest(f"Invalid LLM evaluator id: {input.evaluator_id}")
@@ -303,32 +303,34 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
         async with info.context.db() as session:
-            llm_evaluator = await session.scalar(
-                select(models.LLMEvaluator)
+            results = await session.execute(
+                select(models.LLMEvaluator, models.DatasetsEvaluators)
                 .where(
                     models.LLMEvaluator.id == evaluator_rowid,
-                    models.LLMEvaluator.datasets_evaluators.dataset_id == dataset_id,
-                )
-                .options(
-                    joinedload(models.LLMEvaluator.prompt).joinedload(models.Prompt.prompt_versions)
-                )
-            )
-            if llm_evaluator is None:
-                raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
-
-            datasets_evaluator = await session.scalar(
-                select(models.DatasetsEvaluators).where(
                     models.DatasetsEvaluators.dataset_id == dataset_id,
                     models.DatasetsEvaluators.evaluator_id == evaluator_rowid,
                     models.DatasetsEvaluators.display_name == input.original_display_name,
                 )
+                .join(models.DatasetsEvaluators)
+                .options(
+                    joinedload(models.LLMEvaluator.prompt).joinedload(models.Prompt.prompt_versions)
+                )
             )
-            if datasets_evaluator is None:
+            first_result = results.first()
+            if first_result is None:
+                raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
+            llm_evaluator, datasets_evaluator = first_result
+            if llm_evaluator is None or not isinstance(llm_evaluator, models.LLMEvaluator):
+                raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
+            if datasets_evaluator is None or not isinstance(
+                datasets_evaluator, models.DatasetsEvaluators
+            ):
                 raise NotFound(
                     f"Datasets evaluator with dataset id {dataset_id}, evaluator id "
                     f"{evaluator_rowid}, and display name {input.original_display_name} not found"
                 )
 
+            datasets_evaluator.display_name = evaluator_name.root
             datasets_evaluator.input_mapping = (
                 input.input_mapping.to_dict()
                 if input.input_mapping is not None
