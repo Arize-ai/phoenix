@@ -77,7 +77,7 @@ const EditEvaluatorPlaygroundProvider = (
         query EditDatasetEvaluatorSlideover_evaluatorQuery(
           $datasetId: ID!
           $evaluatorId: ID!
-          $displayName: String!
+          $displayName: Identifier!
         ) {
           dataset: node(id: $datasetId) {
             ... on Dataset {

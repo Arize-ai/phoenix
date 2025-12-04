@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e763c43f31cfe83d049d40fa5fa936b9>>
+ * @generated SignedSource<<9a1fda4d149d8f361e3f8f0ef54dea78>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -543,16 +543,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "affbc73b86b770aa0ec998e4c34eb39f",
+    "cacheID": "aa8a036dd139d44b54733b9e64d75b6e",
     "id": null,
     "metadata": {},
     "name": "EditDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query EditDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $evaluatorId: ID!\n  $displayName: String!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      evaluator(evaluatorId: $evaluatorId, displayName: $displayName) {\n        __typename\n        __isEvaluator: __typename\n        ... on DatasetLLMEvaluator {\n          prompt {\n            id\n            name\n          }\n          promptVersion {\n            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n            id\n          }\n        }\n        ...EditDatasetEvaluatorSlideover_evaluator\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment EditDatasetEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on DatasetLLMEvaluator {\n    datasetInputMapping {\n      literalMapping\n      pathMapping\n    }\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "query EditDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $evaluatorId: ID!\n  $displayName: Identifier!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      evaluator(evaluatorId: $evaluatorId, displayName: $displayName) {\n        __typename\n        __isEvaluator: __typename\n        ... on DatasetLLMEvaluator {\n          prompt {\n            id\n            name\n          }\n          promptVersion {\n            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n            id\n          }\n        }\n        ...EditDatasetEvaluatorSlideover_evaluator\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment EditDatasetEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on DatasetLLMEvaluator {\n    datasetInputMapping {\n      literalMapping\n      pathMapping\n    }\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1343cea4499dd433df9e4f34aeb3c908";
+(node as any).hash = "555c46dbba1be3fe68d954a791dac497";
 
 export default node;
