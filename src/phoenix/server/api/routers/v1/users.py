@@ -165,37 +165,36 @@ async def list_users(
                     password_needs_reset=user.reset_password,
                 )
             )
-        elif isinstance(user, models.OAuth2User):
+        elif isinstance(user, models.OAuth2User) and is_ldap_user(user.oauth2_client_id):
             # Check if this is an LDAP user (identified by special marker)
-            if is_ldap_user(user.oauth2_client_id):
-                data.append(
-                    LDAPUser(
-                        id=str(GlobalID("User", str(user.id))),
-                        username=user.username,
-                        email=user.email,
-                        role=user.role.name,
-                        created_at=user.created_at,
-                        updated_at=user.updated_at,
-                        auth_method="LDAP",
-                    )
-                )
-            else:
-                oauth2_user = OAuth2User(
+            data.append(
+                LDAPUser(
                     id=str(GlobalID("User", str(user.id))),
                     username=user.username,
                     email=user.email,
                     role=user.role.name,
                     created_at=user.created_at,
                     updated_at=user.updated_at,
-                    auth_method="OAUTH2",
+                    auth_method="LDAP",
                 )
-                if user.oauth2_client_id:
-                    oauth2_user.oauth2_client_id = user.oauth2_client_id
-                if user.oauth2_user_id:
-                    oauth2_user.oauth2_user_id = user.oauth2_user_id
-                if user.profile_picture_url:
-                    oauth2_user.profile_picture_url = user.profile_picture_url
-                data.append(oauth2_user)
+            )
+        elif isinstance(user, models.OAuth2User):
+            oauth2_user = OAuth2User(
+                id=str(GlobalID("User", str(user.id))),
+                username=user.username,
+                email=user.email,
+                role=user.role.name,
+                created_at=user.created_at,
+                updated_at=user.updated_at,
+                auth_method="OAUTH2",
+            )
+            if user.oauth2_client_id:
+                oauth2_user.oauth2_client_id = user.oauth2_client_id
+            if user.oauth2_user_id:
+                oauth2_user.oauth2_user_id = user.oauth2_user_id
+            if user.profile_picture_url:
+                oauth2_user.profile_picture_url = user.profile_picture_url
+            data.append(oauth2_user)
     return GetUsersResponseBody(next_cursor=next_cursor, data=data)
 
 
