@@ -405,7 +405,6 @@ services:
       else
         echo '❌ Some LDAP integration tests failed';
       fi;
-      echo '';
       if [ $$TLS_EXIT_CODE -eq 0 ]; then
         echo '✅ All TLS security tests passed';
       else

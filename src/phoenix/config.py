@@ -1709,6 +1709,28 @@ class LDAPConfig:
             if file_path and not os.path.isfile(file_path):
                 raise ValueError(f"{env_var}='{file_path}' does not exist or is not a file")
 
+        # Parse attribute names
+        attr_email = getenv(ENV_PHOENIX_LDAP_ATTR_EMAIL, "mail")
+        attr_display_name = getenv(ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, "displayName")
+        attr_unique_id = getenv(ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID)
+
+        # Validate attribute names don't contain spaces
+        # LDAP attribute names (e.g., objectGUID, entryUUID, mail) never contain spaces.
+        # A space in the config is likely a typo that would cause silent failures.
+        for env_var, attr_value in [
+            (ENV_PHOENIX_LDAP_ATTR_EMAIL, attr_email),
+            (ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, attr_display_name),
+            (ENV_PHOENIX_LDAP_ATTR_MEMBER_OF, attr_member_of),
+            (ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID, attr_unique_id),
+        ]:
+            if attr_value and " " in attr_value:
+                suggestion = attr_value.replace(" ", "")
+                raise ValueError(
+                    f"{env_var}='{attr_value}' contains spaces. "
+                    f"LDAP attribute names do not contain spaces. "
+                    f"Did you mean '{suggestion}'?"
+                )
+
         return cls(
             host=host,
             port=port,
@@ -1724,10 +1746,10 @@ class LDAPConfig:
             user_search_filter=getenv(
                 ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(&(objectClass=user)(sAMAccountName=%s))"
             ),
-            attr_email=getenv(ENV_PHOENIX_LDAP_ATTR_EMAIL, "mail"),
-            attr_display_name=getenv(ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, "displayName"),
+            attr_email=attr_email,
+            attr_display_name=attr_display_name,
             attr_member_of=attr_member_of,
-            attr_unique_id=getenv(ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID),
+            attr_unique_id=attr_unique_id,
             group_search_base=group_search_base,
             group_search_filter=group_search_filter,
             group_role_mappings=tuple(group_role_mappings_list),

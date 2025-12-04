@@ -15,7 +15,14 @@ from ldap3.core.exceptions import LDAPException
 from pytest import LogCaptureFixture
 
 from phoenix.config import LDAPConfig
-from phoenix.server.ldap import LDAPAuthenticator, canonicalize_dn
+from phoenix.server.ldap import (
+    LDAPAuthenticator,
+    _get_attribute,
+    _get_unique_id,
+    _is_member_of,
+    _validate_phoenix_role,
+    canonicalize_dn,
+)
 
 
 class TestLDAPSecurityValidation:
@@ -171,45 +178,33 @@ class TestRoleMapping:
 class TestRoleValidation:
     """Test role validation and normalization."""
 
-    @pytest.fixture
-    def authenticator(self) -> LDAPAuthenticator:
-        """Create minimal authenticator."""
-        config = LDAPConfig(
-            host="ldap.example.com",
-            user_search_base="ou=users,dc=example,dc=com",
-            user_search_filter="(uid=%s)",
-            attr_email="mail",
-            group_role_mappings=(),
-        )
-        return LDAPAuthenticator(config)
-
-    def test_valid_admin_role(self, authenticator: LDAPAuthenticator) -> None:
+    def test_valid_admin_role(self) -> None:
         """Test ADMIN role is valid."""
-        assert authenticator._validate_phoenix_role("ADMIN") == "ADMIN"
+        assert _validate_phoenix_role("ADMIN") == "ADMIN"
 
-    def test_valid_member_role(self, authenticator: LDAPAuthenticator) -> None:
+    def test_valid_member_role(self) -> None:
         """Test MEMBER role is valid."""
-        assert authenticator._validate_phoenix_role("MEMBER") == "MEMBER"
+        assert _validate_phoenix_role("MEMBER") == "MEMBER"
 
-    def test_valid_viewer_role(self, authenticator: LDAPAuthenticator) -> None:
+    def test_valid_viewer_role(self) -> None:
         """Test VIEWER role is valid."""
-        assert authenticator._validate_phoenix_role("VIEWER") == "VIEWER"
+        assert _validate_phoenix_role("VIEWER") == "VIEWER"
 
-    def test_lowercase_normalized(self, authenticator: LDAPAuthenticator) -> None:
+    def test_lowercase_normalized(self) -> None:
         """Test lowercase roles are normalized to uppercase."""
-        assert authenticator._validate_phoenix_role("admin") == "ADMIN"
-        assert authenticator._validate_phoenix_role("member") == "MEMBER"
-        assert authenticator._validate_phoenix_role("viewer") == "VIEWER"
+        assert _validate_phoenix_role("admin") == "ADMIN"
+        assert _validate_phoenix_role("member") == "MEMBER"
+        assert _validate_phoenix_role("viewer") == "VIEWER"
 
-    def test_mixed_case_normalized(self, authenticator: LDAPAuthenticator) -> None:
+    def test_mixed_case_normalized(self) -> None:
         """Test mixed case roles are normalized."""
-        assert authenticator._validate_phoenix_role("Admin") == "ADMIN"
-        assert authenticator._validate_phoenix_role("MeMbEr") == "MEMBER"
+        assert _validate_phoenix_role("Admin") == "ADMIN"
+        assert _validate_phoenix_role("MeMbEr") == "MEMBER"
 
-    def test_invalid_role_defaults_to_member(self, authenticator: LDAPAuthenticator) -> None:
+    def test_invalid_role_defaults_to_member(self) -> None:
         """Test invalid roles default to MEMBER (fail-safe)."""
-        assert authenticator._validate_phoenix_role("SUPERUSER") == "MEMBER"
-        assert authenticator._validate_phoenix_role("ROOT") == "MEMBER"
+        assert _validate_phoenix_role("SUPERUSER") == "MEMBER"
+        assert _validate_phoenix_role("ROOT") == "MEMBER"
 
 
 class TestExceptionSanitization:
@@ -258,47 +253,35 @@ class TestExceptionSanitization:
 class TestAttributeExtraction:
     """Test safe attribute extraction from LDAP entries."""
 
-    @pytest.fixture
-    def authenticator(self) -> LDAPAuthenticator:
-        """Create minimal authenticator."""
-        config = LDAPConfig(
-            host="ldap.example.com",
-            user_search_base="ou=users,dc=example,dc=com",
-            user_search_filter="(uid=%s)",
-            attr_email="mail",
-            group_role_mappings=(),
-        )
-        return LDAPAuthenticator(config)
-
-    def test_missing_attribute_returns_none(self, authenticator: LDAPAuthenticator) -> None:
+    def test_missing_attribute_returns_none(self) -> None:
         """Test missing attribute returns None (not exception)."""
         # Create entry with only specific attributes (not MagicMock which auto-generates)
         entry = type("Entry", (), {"mail": None})()
 
-        result = authenticator._get_attribute(entry, "nonexistent")
+        result = _get_attribute(entry, "nonexistent")
         assert result is None
 
-    def test_empty_attribute_returns_none(self, authenticator: LDAPAuthenticator) -> None:
+    def test_empty_attribute_returns_none(self) -> None:
         """Test empty attribute returns None."""
         entry = MagicMock()
         mock_attr = MagicMock()
         mock_attr.values = []
         entry.mail = mock_attr
 
-        result = authenticator._get_attribute(entry, "mail")
+        result = _get_attribute(entry, "mail")
         assert result is None
 
-    def test_single_value_extraction(self, authenticator: LDAPAuthenticator) -> None:
+    def test_single_value_extraction(self) -> None:
         """Test extracting single attribute value."""
         entry = MagicMock()
         mock_attr = MagicMock()
         mock_attr.values = ["user@example.com"]
         entry.mail = mock_attr
 
-        result = authenticator._get_attribute(entry, "mail")
+        result = _get_attribute(entry, "mail")
         assert result == "user@example.com"
 
-    def test_multiple_value_extraction(self, authenticator: LDAPAuthenticator) -> None:
+    def test_multiple_value_extraction(self) -> None:
         """Test extracting multiple attribute values."""
         entry = MagicMock()
         mock_attr = MagicMock()
@@ -308,11 +291,187 @@ class TestAttributeExtraction:
         ]
         entry.memberOf = mock_attr
 
-        result = authenticator._get_attribute(entry, "memberOf", multiple=True)
+        result = _get_attribute(entry, "memberOf", multiple=True)
         assert result == [
             "cn=admins,ou=groups,dc=example,dc=com",
             "cn=members,ou=groups,dc=example,dc=com",
         ]
+
+
+class TestUniqueIdExtraction:
+    """Test unique identifier extraction from LDAP entries.
+
+    Tests the _get_unique_id helper function which handles:
+    - Active Directory objectGUID (binary, mixed-endian)
+    - OpenLDAP entryUUID (string)
+    - 389 DS nsUniqueId (string)
+    """
+
+    def test_missing_attribute_returns_none(self) -> None:
+        """Test missing unique_id attribute returns None."""
+        entry = type("Entry", (), {})()
+        result = _get_unique_id(entry, "objectGUID")
+        assert result is None
+
+    def test_empty_attribute_returns_none(self) -> None:
+        """Test empty raw_values returns None."""
+        entry = MagicMock()
+        mock_attr = MagicMock()
+        mock_attr.raw_values = []
+        entry.objectGUID = mock_attr
+
+        result = _get_unique_id(entry, "objectGUID")
+        assert result is None
+
+    def test_string_uuid_passthrough(self) -> None:
+        """Test OpenLDAP entryUUID (string format) is returned as-is."""
+        entry = MagicMock()
+        mock_attr = MagicMock()
+        # entryUUID is stored as a string in OpenLDAP
+        mock_attr.raw_values = ["550e8400-e29b-41d4-a716-446655440000"]
+        entry.entryUUID = mock_attr
+
+        result = _get_unique_id(entry, "entryUUID")
+        assert result == "550e8400-e29b-41d4-a716-446655440000"
+
+    def test_binary_objectguid_conversion(self) -> None:
+        """Test AD objectGUID binary to UUID string conversion (MS-DTYP §2.3.4).
+
+        Active Directory stores objectGUID in mixed-endian format:
+        - Data1 (4 bytes): little-endian
+        - Data2 (2 bytes): little-endian
+        - Data3 (2 bytes): little-endian
+        - Data4 (8 bytes): big-endian
+
+        Python's uuid.UUID(bytes_le=...) handles this correctly.
+        """
+        entry = MagicMock()
+        mock_attr = MagicMock()
+        # Known test case from Microsoft documentation
+        # UUID: 2212e4c7-051e-4d0c-9a5b-12770a9bb7ab
+        # Binary (little-endian for first 3 components):
+        binary_guid = bytes(
+            [
+                0xC7,
+                0xE4,
+                0x12,
+                0x22,  # Data1: 2212e4c7 reversed
+                0x1E,
+                0x05,  # Data2: 051e reversed
+                0x0C,
+                0x4D,  # Data3: 4d0c reversed
+                0x9A,
+                0x5B,
+                0x12,
+                0x77,
+                0x0A,
+                0x9B,
+                0xB7,
+                0xAB,  # Data4: as-is
+            ]
+        )
+        mock_attr.raw_values = [binary_guid]
+        entry.objectGUID = mock_attr
+
+        result = _get_unique_id(entry, "objectGUID")
+        assert result == "2212e4c7-051e-4d0c-9a5b-12770a9bb7ab"
+
+    def test_bytearray_objectguid_conversion(self) -> None:
+        """Test AD objectGUID as bytearray for defensive coding.
+
+        Note: ldap3 always returns bytes (see ldap3/operation/search.py decode_raw_vals),
+        but we test bytearray to ensure robustness if this ever changes.
+        """
+        entry = MagicMock()
+        mock_attr = MagicMock()
+        # Same GUID as above, but as bytearray
+        binary_guid = bytearray(
+            [
+                0xC7,
+                0xE4,
+                0x12,
+                0x22,  # Data1
+                0x1E,
+                0x05,  # Data2
+                0x0C,
+                0x4D,  # Data3
+                0x9A,
+                0x5B,
+                0x12,
+                0x77,
+                0x0A,
+                0x9B,
+                0xB7,
+                0xAB,  # Data4
+            ]
+        )
+        mock_attr.raw_values = [binary_guid]
+        entry.objectGUID = mock_attr
+
+        result = _get_unique_id(entry, "objectGUID")
+        assert result == "2212e4c7-051e-4d0c-9a5b-12770a9bb7ab"
+
+    def test_binary_non_16_bytes_hex_encoded(self) -> None:
+        """Test unknown binary format falls back to hex encoding."""
+        entry = MagicMock()
+        mock_attr = MagicMock()
+        # Non-16-byte binary value
+        mock_attr.raw_values = [b"\x01\x02\x03\x04\x05"]
+        entry.customId = mock_attr
+
+        result = _get_unique_id(entry, "customId")
+        assert result == "0102030405"
+
+    def test_attribute_without_raw_values(self) -> None:
+        """Test attribute object without raw_values property returns None."""
+        entry = MagicMock()
+        mock_attr = MagicMock(spec=[])  # No raw_values attribute
+        entry.objectGUID = mock_attr
+
+        result = _get_unique_id(entry, "objectGUID")
+        assert result is None
+
+
+class TestGroupMembershipCheck:
+    """Test _is_member_of helper function."""
+
+    def test_wildcard_matches_all(self) -> None:
+        """Test wildcard '*' matches any user."""
+        user_groups: set[str] = set()
+        assert _is_member_of(user_groups, "*") is True
+
+        user_groups = {"cn=admins,ou=groups,dc=example,dc=com"}
+        assert _is_member_of(user_groups, "*") is True
+
+    def test_exact_match(self) -> None:
+        """Test exact DN match."""
+        user_groups = {canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")}
+        assert _is_member_of(user_groups, "cn=admins,ou=groups,dc=example,dc=com") is True
+
+    def test_case_insensitive_match(self) -> None:
+        """Test DN matching is case-insensitive per RFC 4514."""
+        user_groups = {canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")}
+        # Different casing in target
+        assert _is_member_of(user_groups, "CN=ADMINS,OU=GROUPS,DC=EXAMPLE,DC=COM") is True
+
+    def test_no_match(self) -> None:
+        """Test non-matching group returns False."""
+        user_groups = {canonicalize_dn("cn=members,ou=groups,dc=example,dc=com")}
+        assert _is_member_of(user_groups, "cn=admins,ou=groups,dc=example,dc=com") is False
+
+    def test_empty_user_groups_no_wildcard(self) -> None:
+        """Test empty user groups with non-wildcard target returns False."""
+        user_groups: set[str] = set()
+        assert _is_member_of(user_groups, "cn=admins,ou=groups,dc=example,dc=com") is False
+
+    def test_whitespace_normalization(self) -> None:
+        """Test DN whitespace is normalized for matching."""
+        user_groups = {canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")}
+        # Target with extra whitespace
+        assert (
+            _is_member_of(user_groups, "cn = admins , ou = groups , dc = example , dc = com")
+            is True
+        )
 
 
 class TestTLSConfiguration:

@@ -1596,6 +1596,26 @@ class TestLDAPConfigFromEnv:
                 "requires PHOENIX_LDAP_TLS_CLIENT_CERT_FILE",
                 id="client_key_without_cert",
             ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE": "ou=people,dc=example,dc=com",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "object GUID",
+                },
+                "LDAP attribute names do not contain spaces",
+                id="attr_unique_id_with_spaces",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE": "ou=people,dc=example,dc=com",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                    "PHOENIX_LDAP_ATTR_EMAIL": "e mail",
+                },
+                "LDAP attribute names do not contain spaces",
+                id="attr_email_with_spaces",
+            ),
         ],
     )
     def test_invalid_inputs(

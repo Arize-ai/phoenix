@@ -531,7 +531,7 @@ class LDAPAuthenticator:
                         return None
 
                     # Step 5: Extract user attributes
-                    email = self._get_attribute(user_entry, self.config.attr_email)
+                    email = _get_attribute(user_entry, self.config.attr_email)
                     if not email:
                         logger.error(
                             f"LDAP user missing required email attribute "
@@ -539,12 +539,12 @@ class LDAPAuthenticator:
                         )
                         return None
 
-                    display_name = self._get_attribute(user_entry, self.config.attr_display_name)
+                    display_name = _get_attribute(user_entry, self.config.attr_display_name)
 
                     # Extract unique_id if configured (objectGUID, entryUUID, etc.)
                     unique_id: Optional[str] = None
                     if self.config.attr_unique_id:
-                        unique_id = self._get_unique_id(user_entry, self.config.attr_unique_id)
+                        unique_id = _get_unique_id(user_entry, self.config.attr_unique_id)
                         if not unique_id:
                             # Fail loudly: user explicitly configured unique_id, so missing
                             # attribute indicates misconfiguration (likely typo). Don't silently
@@ -763,7 +763,7 @@ class LDAPAuthenticator:
 
         # Method 1: Active Directory memberOf attribute
         if self.config.attr_member_of:
-            member_of = self._get_attribute(user_entry, self.config.attr_member_of, multiple=True)
+            member_of = _get_attribute(user_entry, self.config.attr_member_of, multiple=True)
             if member_of:
                 groups.extend(member_of)
 
@@ -792,86 +792,6 @@ class LDAPAuthenticator:
 
         return groups
 
-    @overload
-    def _get_attribute(
-        self, entry: Any, attr_name: str, multiple: Literal[False] = False
-    ) -> Optional[str]: ...
-
-    @overload
-    def _get_attribute(
-        self, entry: Any, attr_name: str, multiple: Literal[True]
-    ) -> Optional[list[str]]: ...
-
-    def _get_attribute(
-        self, entry: Any, attr_name: str, multiple: bool = False
-    ) -> Optional[str | list[str]]:
-        """Safely extract attribute value from LDAP entry.
-
-        Args:
-            entry: LDAP entry object
-            attr_name: Attribute name to extract
-            multiple: If True, return list of values; otherwise return first value
-
-        Returns:
-            Attribute value(s) or None if not present
-        """
-        if not hasattr(entry, attr_name):
-            return None
-
-        attr = getattr(entry, attr_name)
-        if not attr:
-            return None
-
-        values = attr.values if hasattr(attr, "values") else []
-        if not values:
-            return None
-
-        if multiple:
-            return values
-        return values[0] if values else None
-
-    def _get_unique_id(self, entry: Any, attr_name: str) -> Optional[str]:
-        """Extract unique identifier attribute, handling binary values.
-
-        Active Directory's objectGUID is stored as binary (16 bytes).
-        OpenLDAP's entryUUID is stored as a string.
-        This method handles both cases and returns a string representation.
-
-        Args:
-            entry: LDAP entry object
-            attr_name: Attribute name (e.g., "objectGUID", "entryUUID")
-
-        Returns:
-            String representation of the unique ID, or None if not present
-        """
-        if not hasattr(entry, attr_name):
-            return None
-
-        attr = getattr(entry, attr_name)
-        if not attr:
-            return None
-
-        # Get raw value - could be bytes (objectGUID) or str (entryUUID)
-        raw_value = attr.raw_values[0] if hasattr(attr, "raw_values") and attr.raw_values else None
-        if raw_value is None:
-            return None
-
-        # Handle binary values (AD objectGUID is 16 bytes)
-        if isinstance(raw_value, bytes):
-            # Convert to standard UUID string format for consistency
-            # objectGUID is stored in little-endian format
-            if len(raw_value) == 16:
-                import uuid
-
-                # AD stores GUID in mixed-endian format (first 3 components are little-endian)
-                return str(uuid.UUID(bytes_le=raw_value))
-            else:
-                # Unknown binary format - hex encode for safety
-                return raw_value.hex()
-
-        # String value (entryUUID, nsUniqueId, etc.)
-        return str(raw_value)
-
     def map_groups_to_role(self, group_dns: list[str]) -> Optional[str]:
         """Map LDAP group DNs to Phoenix role.
 
@@ -896,50 +816,157 @@ class LDAPAuthenticator:
             role = mapping["role"]
 
             # Check if user matches this mapping
-            if self._is_member_of(canonical_user_groups, group_dn):
-                return self._validate_phoenix_role(role)
+            if _is_member_of(canonical_user_groups, group_dn):
+                return _validate_phoenix_role(role)
 
         # No matching groups - deny access
         return None
 
-    def _validate_phoenix_role(self, role: str) -> str:
-        """Validate and normalize Phoenix role names.
 
-        Phoenix roles: ADMIN, MEMBER, VIEWER (case-insensitive input, uppercase output)
+@overload
+def _get_attribute(
+    entry: Any, attr_name: str, multiple: Literal[False] = False
+) -> Optional[str]: ...
 
-        Args:
-            role: Phoenix role name (case-insensitive)
 
-        Returns:
-            Normalized Phoenix role name (uppercase)
-        """
-        normalized = role.upper()
-        valid_roles = {"ADMIN", "MEMBER", "VIEWER"}
-        if normalized in valid_roles:
-            return normalized
-        # Default to MEMBER if invalid
-        logger.warning(f"Invalid role '{role}' in group mapping, defaulting to MEMBER")
-        return "MEMBER"
+@overload
+def _get_attribute(entry: Any, attr_name: str, multiple: Literal[True]) -> Optional[list[str]]: ...
 
-    def _is_member_of(self, canonical_user_groups: set[str], target_group: str) -> bool:
-        """Check if user is member of LDAP group.
 
-        Matching logic:
-        - Wildcard "*" matches all users (useful for default roles)
-        - Case-insensitive DN comparison per RFC 4514
-        - Canonical DN comparison to account for spacing/order/escape differences
+def _get_attribute(entry: Any, attr_name: str, multiple: bool = False) -> Optional[str | list[str]]:
+    """Safely extract attribute value from LDAP entry.
 
-        Args:
-            canonical_user_groups: Set of canonicalized group DNs the user is a member of
-            target_group: Target group DN to check (or "*" for wildcard)
+    Args:
+        entry: LDAP entry object
+        attr_name: Attribute name to extract
+        multiple: If True, return list of values; otherwise return first value
 
-        Returns:
-            True if user is a member of the target group
-        """
-        # Wildcard matches everyone
-        if target_group == "*":
-            return True
+    Returns:
+        Attribute value(s) or None if not present
+    """
+    # getattr with default handles LDAPCursorAttributeError (inherits from AttributeError)
+    # if not attr: handles both None (missing) and empty attribute (len(values) == 0)
+    attr = getattr(entry, attr_name, None)
+    if not attr:
+        return None
 
-        # Canonical comparison handles ordering/spacing/escaping differences
-        target_canonical = canonicalize_dn(target_group)
-        return target_canonical in canonical_user_groups
+    values = attr.values if hasattr(attr, "values") else []
+    if not values:
+        return None
+
+    if multiple:
+        return values
+    return values[0] if values else None
+
+
+def _get_unique_id(entry: Any, attr_name: str) -> Optional[str]:
+    """Extract unique identifier attribute, handling binary values.
+
+    Different LDAP servers store unique identifiers in different formats:
+
+    - Active Directory objectGUID: Binary (16 bytes, mixed-endian)
+    - OpenLDAP entryUUID: String (RFC 4530)
+    - 389 DS nsUniqueId: String
+
+    This method handles both binary and string formats, returning a
+    standard UUID string representation for consistency.
+
+    Active Directory objectGUID Binary Format (MS-DTYP §2.3.4):
+        Microsoft's GUID structure uses mixed-endian byte ordering:
+
+        | Field | Size    | Endianness    | Wire bytes for "2212e4c7-..." |
+        |-------|---------|---------------|-------------------------------|
+        | Data1 | 4 bytes | Little-endian | c7 e4 12 22                   |
+        | Data2 | 2 bytes | Little-endian | 1e 05                         |
+        | Data3 | 2 bytes | Little-endian | 0c 4d                         |
+        | Data4 | 8 bytes | Big-endian    | 9a 5b 12 77 0a 9b b7 ab       |
+
+        Python's uuid.UUID(bytes_le=...) expects exactly this format.
+
+    References:
+        - MS-DTYP §2.3.4: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/001eec5a-7f8b-4293-9e21-ca349392db40
+        - MS-ADA3 objectGUID: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-ada3/937eb5c6-f6b3-4652-a276-5d6bb8979658
+        - RFC 4530 entryUUID: https://www.rfc-editor.org/rfc/rfc4530.html
+
+    Args:
+        entry: LDAP entry object from ldap3
+        attr_name: Attribute name (e.g., "objectGUID", "entryUUID")
+
+    Returns:
+        String representation of the unique ID (UUID format), or None if not present
+    """  # noqa: E501
+    # getattr with default handles LDAPCursorAttributeError (inherits from AttributeError)
+    # if not attr: handles both None (missing) and empty attribute (len(values) == 0)
+    attr = getattr(entry, attr_name, None)
+    if not attr:
+        return None
+
+    # Get raw value - could be bytes (objectGUID) or str (entryUUID)
+    # ldap3 always returns bytes for raw_values (see ldap3/operation/search.py:410-411):
+    #   def decode_raw_vals(vals):
+    #       return [bytes(val) for val in vals] if vals else None
+    raw_value = attr.raw_values[0] if hasattr(attr, "raw_values") and attr.raw_values else None
+    if raw_value is None:
+        return None
+
+    # Handle binary values (AD objectGUID is 16 bytes)
+    # ldap3 always returns bytes, but we accept bytearray/memoryview for defensive coding
+    if isinstance(raw_value, (bytes, bytearray, memoryview)):
+        raw_bytes = bytes(raw_value)  # Normalize to bytes for uuid.UUID
+        if len(raw_bytes) == 16:
+            import uuid
+
+            # MS-DTYP §2.3.4: GUID uses mixed-endian format
+            # Data1/Data2/Data3 are little-endian, Data4 is big-endian
+            # Python's bytes_le parameter handles this correctly
+            return str(uuid.UUID(bytes_le=raw_bytes))
+        else:
+            # Unknown binary format - hex encode for safety
+            return raw_bytes.hex()
+
+    # String value (entryUUID, nsUniqueId, etc.)
+    return str(raw_value)
+
+
+def _validate_phoenix_role(role: str) -> str:
+    """Validate and normalize Phoenix role names.
+
+    Phoenix roles: ADMIN, MEMBER, VIEWER (case-insensitive input, uppercase output)
+
+    Args:
+        role: Phoenix role name (case-insensitive)
+
+    Returns:
+        Normalized Phoenix role name (uppercase)
+    """
+    normalized = role.upper()
+    valid_roles = {"ADMIN", "MEMBER", "VIEWER"}
+    if normalized in valid_roles:
+        return normalized
+    # Default to MEMBER if invalid
+    logger.warning(f"Invalid role '{role}' in group mapping, defaulting to MEMBER")
+    return "MEMBER"
+
+
+def _is_member_of(canonical_user_groups: set[str], target_group: str) -> bool:
+    """Check if user is member of LDAP group.
+
+    Matching logic:
+    - Wildcard "*" matches all users (useful for default roles)
+    - Case-insensitive DN comparison per RFC 4514
+    - Canonical DN comparison to account for spacing/order/escape differences
+
+    Args:
+        canonical_user_groups: Set of canonicalized group DNs the user is a member of
+        target_group: Target group DN to check (or "*" for wildcard)
+
+    Returns:
+        True if user is a member of the target group
+    """
+    # Wildcard matches everyone
+    if target_group == "*":
+        return True
+
+    # Canonical comparison handles ordering/spacing/escaping differences
+    target_canonical = canonicalize_dn(target_group)
+    return target_canonical in canonical_user_groups
