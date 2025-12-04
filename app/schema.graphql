@@ -623,6 +623,15 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreateDatasetLLMEvaluatorInput {
+  datasetId: ID!
+  name: Identifier!
+  description: String
+  promptVersion: ChatPromptVersionInput!
+  outputConfig: CategoricalAnnotationConfigInput!
+  inputMapping: EvaluatorInputMappingInput = null
+}
+
 input CreateDatasetLabelInput {
   name: String!
   description: String
@@ -660,14 +669,6 @@ input CreateGenerativeModelCustomProviderMutationInput {
 type CreateGenerativeModelCustomProviderMutationPayload {
   provider: GenerativeModelCustomProvider!
   query: Query!
-}
-
-input CreateLLMEvaluatorInput {
-  datasetId: ID
-  name: Identifier!
-  description: String
-  promptVersion: ChatPromptVersionInput!
-  outputConfig: CategoricalAnnotationConfigInput!
 }
 
 input CreateModelMutationInput {
@@ -2480,8 +2481,8 @@ type Mutation {
   setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
-  createLlmEvaluator(input: CreateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
-  updateLlmEvaluator(input: UpdateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
+  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
+  updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
   deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
   assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
   unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!
@@ -4071,12 +4072,15 @@ input UpdateAnnotationInput {
   source: AnnotationSource! = APP
 }
 
-input UpdateLLMEvaluatorInput {
+input UpdateDatasetLLMEvaluatorInput {
   evaluatorId: ID!
+  datasetId: ID!
+  originalDisplayName: String!
   name: Identifier!
   description: String = null
   promptVersion: ChatPromptVersionInput!
   outputConfig: CategoricalAnnotationConfigInput!
+  inputMapping: EvaluatorInputMappingInput = null
 }
 
 input UpdateModelMutationInput {

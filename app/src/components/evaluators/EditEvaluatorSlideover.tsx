@@ -110,10 +110,10 @@ const EditEvaluatorDialog = ({
   const [updateLlmEvaluator, isUpdating] =
     useMutation<EditEvaluatorSlideover_updateLLMEvaluatorMutation>(graphql`
       mutation EditEvaluatorSlideover_updateLLMEvaluatorMutation(
-        $input: UpdateLLMEvaluatorInput!
+        $input: UpdateDatasetLLMEvaluatorInput!
         $connectionIds: [ID!]!
       ) {
-        updateLlmEvaluator(input: $input) {
+        updateDatasetLlmEvaluator(input: $input) {
           evaluator
             @appendNode(
               connections: $connectionIds

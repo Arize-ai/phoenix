@@ -561,9 +561,9 @@ class Dataset(Node):
             stmt = stmt.order_by(PolymorphicEvaluator.name.asc())
 
         async with info.context.db() as session:
-            evaluators = await session.scalars(stmt)
+            result = await session.execute(stmt)
         data: list[Evaluator] = []
-        for evaluator, display_name in evaluators:
+        for evaluator, display_name in result:
             if isinstance(evaluator, models.LLMEvaluator):
                 data.append(
                     DatasetLLMEvaluator(

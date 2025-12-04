@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6214cbc76f0394c333149d5d6e0a361>>
+ * @generated SignedSource<<ff97165bc155381f21edc03e5937939c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,10 +13,13 @@ import { FragmentRefs } from "relay-runtime";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
-export type UpdateLLMEvaluatorInput = {
+export type UpdateDatasetLLMEvaluatorInput = {
+  datasetId: string;
   description?: string | null;
   evaluatorId: string;
+  inputMapping?: EvaluatorInputMappingInput | null;
   name: string;
+  originalDisplayName: string;
   outputConfig: CategoricalAnnotationConfigInput;
   promptVersion: ChatPromptVersionInput;
 };
@@ -74,12 +77,16 @@ export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
 };
+export type EvaluatorInputMappingInput = {
+  literalMapping?: any;
+  pathMapping?: any;
+};
 export type EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;
-  input: UpdateLLMEvaluatorInput;
+  input: UpdateDatasetLLMEvaluatorInput;
 };
 export type EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation$data = {
-  readonly updateLlmEvaluator: {
+  readonly updateDatasetLlmEvaluator: {
     readonly evaluator: {
       readonly id: string;
       readonly name: string;
@@ -197,7 +204,7 @@ return {
         "args": (v2/*: any*/),
         "concreteType": "LLMEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "updateLlmEvaluator",
+        "name": "updateDatasetLlmEvaluator",
         "plural": false,
         "selections": [
           {
@@ -261,7 +268,7 @@ return {
         "args": (v2/*: any*/),
         "concreteType": "LLMEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "updateLlmEvaluator",
+        "name": "updateDatasetLlmEvaluator",
         "plural": false,
         "selections": [
           {
@@ -586,16 +593,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9e64d8cda11b55ff4e0a8f3a3eb3e36e",
+    "cacheID": "623812c2e8f7289907ed282e57a314e1",
     "id": null,
     "metadata": {},
     "name": "EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateLLMEvaluatorInput!\n) {\n  updateLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n      ...EditEvaluatorSlideover_evaluator\n    }\n  }\n}\n\nfragment EditEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "mutation EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateDatasetLLMEvaluatorInput!\n) {\n  updateDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n      ...EditEvaluatorSlideover_evaluator\n    }\n  }\n}\n\nfragment EditEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "23c058bb758d4ae90990e209fc8103a7";
+(node as any).hash = "c307c56409bb53aeada1bd909e57baa9";
 
 export default node;

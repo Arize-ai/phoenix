@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<75d73b32c43b009a229be589f237dbe8>>
+ * @generated SignedSource<<d6d4647b42e9f11fc9aa7b6e7105314e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,9 +13,10 @@ import { FragmentRefs } from "relay-runtime";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
-export type CreateLLMEvaluatorInput = {
-  datasetId?: string | null;
+export type CreateDatasetLLMEvaluatorInput = {
+  datasetId: string;
   description?: string | null;
+  inputMapping?: EvaluatorInputMappingInput | null;
   name: string;
   outputConfig: CategoricalAnnotationConfigInput;
   promptVersion: ChatPromptVersionInput;
@@ -74,12 +75,16 @@ export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
 };
+export type EvaluatorInputMappingInput = {
+  literalMapping?: any;
+  pathMapping?: any;
+};
 export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;
-  input: CreateLLMEvaluatorInput;
+  input: CreateDatasetLLMEvaluatorInput;
 };
 export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$data = {
-  readonly createLlmEvaluator: {
+  readonly createDatasetLlmEvaluator: {
     readonly evaluator: {
       readonly id: string;
       readonly name: string;
@@ -174,7 +179,7 @@ return {
         "args": (v2/*: any*/),
         "concreteType": "LLMEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "createLlmEvaluator",
+        "name": "createDatasetLlmEvaluator",
         "plural": false,
         "selections": [
           {
@@ -233,7 +238,7 @@ return {
         "args": (v2/*: any*/),
         "concreteType": "LLMEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "createLlmEvaluator",
+        "name": "createDatasetLlmEvaluator",
         "plural": false,
         "selections": [
           {
@@ -288,16 +293,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "312cd6aa960ab7bc1ed044658a243f5f",
+    "cacheID": "e15d05f180940d21ef14fbbf3e9c2210",
     "id": null,
     "metadata": {},
     "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n"
+    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d92fe019248209bda7be6431680e2477";
+(node as any).hash = "ca4858c1be13ff1baf7fbaf926322b02";
 
 export default node;

@@ -58,10 +58,10 @@ const CreateEvaluatorDialog = ({
     useMutation<CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation>(
       graphql`
         mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(
-          $input: CreateLLMEvaluatorInput!
+          $input: CreateDatasetLLMEvaluatorInput!
           $connectionIds: [ID!]!
         ) {
-          createLlmEvaluator(input: $input) {
+          createDatasetLlmEvaluator(input: $input) {
             evaluator
               @appendNode(
                 connections: $connectionIds
