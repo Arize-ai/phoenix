@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<df1acd9d24c20d1f8af649401800004e>>
+ * @generated SignedSource<<7a73700a1e6ba2c9a1fdd2baba78ed09>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,27 @@ export type GenerativeProvidersCard_data$data = {
     readonly key: GenerativeProviderKey;
     readonly name: string;
   }>;
+  readonly secrets: {
+    readonly edges: ReadonlyArray<{
+      readonly node: {
+        readonly key: string;
+        readonly value: {
+          readonly __typename: "DecryptedSecret";
+          readonly value: string;
+        } | {
+          readonly __typename: "MaskedSecret";
+          readonly maskedValue: string;
+        } | {
+          readonly __typename: "UnparsableSecret";
+          readonly parseError: string;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        };
+      };
+    }>;
+  };
   readonly " $fragmentType": "GenerativeProvidersCard_data";
 };
 export type GenerativeProvidersCard_data$key = {
@@ -30,8 +51,22 @@ export type GenerativeProvidersCard_data$key = {
   readonly " $fragmentSpreads": FragmentRefs<"GenerativeProvidersCard_data">;
 };
 
-const node: ReaderFragment = {
-  "argumentDefinitions": [],
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "key",
+  "storageKey": null
+};
+return {
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "secretKeys"
+    }
+  ],
   "kind": "Fragment",
   "metadata": null,
   "name": "GenerativeProvidersCard_data",
@@ -51,13 +86,7 @@ const node: ReaderFragment = {
           "name": "name",
           "storageKey": null
         },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "key",
-          "storageKey": null
-        },
+        (v0/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -106,12 +135,113 @@ const node: ReaderFragment = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "keys",
+          "variableName": "secretKeys"
+        }
+      ],
+      "concreteType": "SecretConnection",
+      "kind": "LinkedField",
+      "name": "secrets",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "SecretEdge",
+          "kind": "LinkedField",
+          "name": "edges",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "Secret",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                (v0/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": null,
+                  "kind": "LinkedField",
+                  "name": "value",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "__typename",
+                      "storageKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "value",
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "DecryptedSecret",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "maskedValue",
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "MaskedSecret",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "parseError",
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "UnparsableSecret",
+                      "abstractKey": null
+                    }
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "Query",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "4062531cfa3f77e541172a44101f5331";
+(node as any).hash = "da5876a8e9fbc816d8eeed7857e99f09";
 
 export default node;

@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -23,7 +23,10 @@ import {
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
+import {
+  AllCredentialEnvVarNames,
+  ProviderToCredentialsConfigMap,
+} from "@phoenix/constants/generativeConstants";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
@@ -31,7 +34,10 @@ import {
   isModelProvider,
 } from "@phoenix/utils/generativeUtils";
 
+import type { PlaygroundCredentialsDropdownEnvQuery } from "./__generated__/PlaygroundCredentialsDropdownEnvQuery.graphql";
 import type { PlaygroundCredentialsDropdownQuery } from "./__generated__/PlaygroundCredentialsDropdownQuery.graphql";
+
+type CredentialViewType = "local" | "secrets" | "environment";
 
 export function PlaygroundCredentialsDropdown() {
   const currentProviders = usePlaygroundContext((state) =>
@@ -43,9 +49,8 @@ export function PlaygroundCredentialsDropdown() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
 
-  const [credentialView, setCredentialView] = useState<"local" | "server">(
-    "local"
-  );
+  const [credentialView, setCredentialView] =
+    useState<CredentialViewType>("local");
 
   return (
     <div
@@ -89,8 +94,13 @@ export function PlaygroundCredentialsDropdown() {
                         if (v.size === 0) {
                           return;
                         }
-                        const view = v.keys().next().value;
-                        if (view === "local" || view === "server") {
+                        const view = v.keys().next()
+                          .value as CredentialViewType;
+                        if (
+                          view === "local" ||
+                          view === "secrets" ||
+                          view === "environment"
+                        ) {
                           setCredentialView(view);
                         }
                       }}
@@ -98,16 +108,27 @@ export function PlaygroundCredentialsDropdown() {
                       <ToggleButton aria-label="Local" id="local">
                         Local
                       </ToggleButton>
-                      <ToggleButton aria-label="Server" id="server">
-                        Server
+                      <ToggleButton aria-label="Secrets" id="secrets">
+                        Secrets
+                      </ToggleButton>
+                      <ToggleButton aria-label="Environment" id="environment">
+                        Env
                       </ToggleButton>
                     </ToggleButtonGroup>
                   </Flex>
-                  {credentialView === "local" ? (
+                  {credentialView === "local" && (
                     <LocalCredentialsView providers={currentProviders} />
-                  ) : (
-                    <Suspense fallback={<ServerCredentialsSkeleton />}>
-                      <ServerCredentialsView providers={currentProviders} />
+                  )}
+                  {credentialView === "secrets" && (
+                    <Suspense fallback={<CredentialsSkeleton />}>
+                      <SecretsCredentialsView providers={currentProviders} />
+                    </Suspense>
+                  )}
+                  {credentialView === "environment" && (
+                    <Suspense fallback={<CredentialsSkeleton />}>
+                      <EnvironmentCredentialsView
+                        providers={currentProviders}
+                      />
                     </Suspense>
                   )}
                   <View paddingTop="size-100">
@@ -118,7 +139,7 @@ export function PlaygroundCredentialsDropdown() {
                       justifyContent="end"
                     >
                       <ExternalLink href="/settings/providers">
-                        View all AI provider configurations
+                        Manage AI provider settings
                       </ExternalLink>
                     </Flex>
                   </View>
@@ -132,7 +153,7 @@ export function PlaygroundCredentialsDropdown() {
   );
 }
 
-function ServerCredentialsSkeleton() {
+function CredentialsSkeleton() {
   return (
     <View paddingY="size-100">
       <Skeleton width="100%" height={20} animation="wave" />
@@ -170,7 +191,6 @@ function LocalCredentialsView({ providers }: { providers: ModelProvider[] }) {
           const providerHasNoCredentials =
             !ProviderToCredentialsConfigMap[provider].length;
           if (providerHasNoCredentials) {
-            // Do not show the credential field
             return null;
           }
           return (
@@ -192,10 +212,150 @@ function LocalCredentialsView({ providers }: { providers: ModelProvider[] }) {
   );
 }
 
-function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
+/**
+ * Shows stored secrets (read-only)
+ */
+function SecretsCredentialsView({ providers }: { providers: ModelProvider[] }) {
   const data = useLazyLoadQuery<PlaygroundCredentialsDropdownQuery>(
     graphql`
-      query PlaygroundCredentialsDropdownQuery {
+      query PlaygroundCredentialsDropdownQuery($secretKeys: [String!]!) {
+        modelProviders {
+          key
+          credentialRequirements {
+            envVarName
+            isRequired
+          }
+          credentialsSet
+        }
+        secrets(keys: $secretKeys) {
+          edges {
+            node {
+              key
+              value {
+                __typename
+                ... on DecryptedSecret {
+                  value
+                }
+                ... on MaskedSecret {
+                  maskedValue
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    { secretKeys: AllCredentialEnvVarNames },
+    { fetchPolicy: "network-only" }
+  );
+
+  // Build a map of secret key to value
+  const secretsMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const { node } of data.secrets.edges) {
+      if (node.value.__typename === "DecryptedSecret" && node.value.value) {
+        map.set(node.key, node.value.value);
+      } else if (
+        node.value.__typename === "MaskedSecret" &&
+        node.value.maskedValue
+      ) {
+        map.set(node.key, node.value.maskedValue);
+      }
+    }
+    return map;
+  }, [data.secrets.edges]);
+
+  return (
+    <>
+      <View paddingY="size-50">
+        <Text color="text-700" size="XS">
+          Server secrets are stored encrypted and shared across all users.
+        </Text>
+      </View>
+      <Flex direction="column" gap="size-100">
+        {providers.map((provider) => {
+          const providerHasNoCredentials =
+            !ProviderToCredentialsConfigMap[provider].length;
+          if (providerHasNoCredentials) {
+            return null;
+          }
+          return (
+            <View key={provider} paddingY="size-50">
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <GenerativeProviderIcon provider={provider} />
+                <Heading level={3} weight="heavy">
+                  {getProviderName(provider)}
+                </Heading>
+              </Flex>
+              <View paddingBottom="size-100" paddingTop="size-100">
+                <SecretsProviderCredentials
+                  provider={provider}
+                  secretsMap={secretsMap}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </Flex>
+    </>
+  );
+}
+
+/**
+ * Read-only display of stored secrets for a provider
+ */
+function SecretsProviderCredentials({
+  provider,
+  secretsMap,
+}: {
+  provider: ModelProvider;
+  secretsMap: Map<string, string>;
+}) {
+  const credentialsConfig = ProviderToCredentialsConfigMap[provider];
+
+  return (
+    <View>
+      {credentialsConfig.map((credentialConfig) => {
+        const secretValue = secretsMap.get(credentialConfig.envVarName);
+        const hasSecret = !!secretValue;
+
+        return (
+          <CredentialField
+            size="S"
+            key={credentialConfig.envVarName}
+            isRequired={credentialConfig.isRequired}
+            isDisabled
+            value={secretValue ?? ""}
+          >
+            <Label>{credentialConfig.envVarName}</Label>
+            <CredentialInput disabled />
+            {hasSecret ? (
+              <Text slot="description" color="success" size="XS">
+                ✓ Configured
+              </Text>
+            ) : (
+              <Text slot="description" color="text-700" size="XS">
+                Not configured
+              </Text>
+            )}
+          </CredentialField>
+        );
+      })}
+    </View>
+  );
+}
+
+/**
+ * Shows environment variable status (read-only)
+ */
+function EnvironmentCredentialsView({
+  providers,
+}: {
+  providers: ModelProvider[];
+}) {
+  const data = useLazyLoadQuery<PlaygroundCredentialsDropdownEnvQuery>(
+    graphql`
+      query PlaygroundCredentialsDropdownEnvQuery {
         modelProviders {
           key
           credentialRequirements {
@@ -210,86 +370,88 @@ function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
     { fetchPolicy: "network-only" }
   );
 
-  // Create a map of provider key to credentialsSet status
-  const credentialsStatusMap = new Map<ModelProvider, boolean | undefined>();
-  data.modelProviders.forEach((provider) => {
-    if (isModelProvider(provider.key)) {
-      credentialsStatusMap.set(provider.key, provider.credentialsSet);
-    }
-  });
+  // Build a map of provider key to credentialsSet status
+  const providerEnvStatusMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    data.modelProviders.forEach((provider) => {
+      if (isModelProvider(provider.key)) {
+        map.set(provider.key, provider.credentialsSet);
+      }
+    });
+    return map;
+  }, [data.modelProviders]);
 
   return (
-    <View paddingY="size-100">
-      <Text color="text-700" size="S">
-        Server-side API keys are configured via environment variables and will
-        be available to all users.
-      </Text>
-      <View paddingTop="size-100">
-        <Flex direction="column" gap="size-100">
-          {providers.map((provider) => {
-            const credentialsConfig = ProviderToCredentialsConfigMap[provider];
-            if (!credentialsConfig.length) {
-              return null;
-            }
-            const credentialsSet = credentialsStatusMap.get(provider);
-            return (
-              <View key={provider} paddingY="size-50">
-                <Flex
-                  direction="row"
-                  gap="size-100"
-                  alignItems="center"
-                  justifyContent="space-between"
-                >
-                  <Flex direction="row" gap="size-100" alignItems="center">
-                    <GenerativeProviderIcon provider={provider} />
-                    <Heading level={3} weight="heavy">
-                      {getProviderName(provider)}
-                    </Heading>
-                  </Flex>
-                  {credentialsSet ? (
-                    <Flex direction="row" gap="size-50" alignItems="center">
-                      <Text color="success" size="S">
-                        Configured
-                      </Text>
-                      <Icon
-                        color="success"
-                        svg={<Icons.CheckmarkCircleOutline />}
-                      />
-                    </Flex>
-                  ) : (
-                    <Flex direction="row" gap="size-50" alignItems="center">
-                      <Text color="text-700" size="S">
-                        Not Configured
-                      </Text>
-                      <Icon svg={<Icons.MinusCircleOutline />} />
-                    </Flex>
-                  )}
-                </Flex>
-                <View paddingTop="size-100">
-                  <Flex direction="column" gap="size-50">
-                    {credentialsConfig.map((credentialConfig) => (
-                      <Text
-                        key={credentialConfig.envVarName}
-                        color="text-600"
-                        size="S"
-                      >
-                        • {credentialConfig.envVarName}
-                        {credentialConfig.isRequired && (
-                          <Text color="text-700" weight="heavy">
-                            {" "}
-                            (required)
-                          </Text>
-                        )}
-                      </Text>
-                    ))}
-                  </Flex>
-                </View>
-              </View>
-            );
-          })}
-        </Flex>
+    <>
+      <View paddingY="size-50">
+        <Text color="text-700" size="XS">
+          Environment variables are set on the server at startup.
+        </Text>
       </View>
-    </View>
+      <Flex direction="column" gap="size-100">
+        {providers.map((provider) => {
+          const credentialsConfig = ProviderToCredentialsConfigMap[provider];
+          if (!credentialsConfig.length) {
+            return null;
+          }
+          const credentialsSet = providerEnvStatusMap.get(provider);
+          return (
+            <View key={provider} paddingY="size-50">
+              <Flex
+                direction="row"
+                gap="size-100"
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <GenerativeProviderIcon provider={provider} />
+                  <Heading level={3} weight="heavy">
+                    {getProviderName(provider)}
+                  </Heading>
+                </Flex>
+                {credentialsSet ? (
+                  <Flex direction="row" gap="size-50" alignItems="center">
+                    <Text color="success" size="S">
+                      Configured
+                    </Text>
+                    <Icon
+                      color="success"
+                      svg={<Icons.CheckmarkCircleOutline />}
+                    />
+                  </Flex>
+                ) : (
+                  <Flex direction="row" gap="size-50" alignItems="center">
+                    <Text color="text-700" size="S">
+                      Not Configured
+                    </Text>
+                    <Icon svg={<Icons.MinusCircleOutline />} />
+                  </Flex>
+                )}
+              </Flex>
+              <View paddingTop="size-100">
+                <Flex direction="column" gap="size-50">
+                  {credentialsConfig.map((credentialConfig) => (
+                    <Text
+                      key={credentialConfig.envVarName}
+                      color="text-600"
+                      size="S"
+                    >
+                      • {credentialConfig.envVarName}
+                      {credentialConfig.isRequired && (
+                        <Text color="text-700" weight="heavy">
+                          {" "}
+                          (required)
+                        </Text>
+                      )}
+                    </Text>
+                  ))}
+                </Flex>
+              </View>
+            </View>
+          );
+        })}
+      </Flex>
+    </>
   );
 }
 
@@ -319,8 +481,9 @@ function ProviderCredentials({ provider }: { provider: ModelProvider }) {
         >
           <Label>{credentialConfig.envVarName}</Label>
           <CredentialInput />
-          <Text slot="description">
-            {`Alternatively, you can set the "${credentialConfig.envVarName}" environment variable on the server.`}
+          <Text slot="description" color="text-700" size="XS">
+            Alternatively, use secrets / environment variables for server-side
+            config
           </Text>
         </CredentialField>
       ))}
