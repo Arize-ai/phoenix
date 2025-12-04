@@ -1,6 +1,5 @@
 ---
 title: "Setup using Phoenix OTEL"
-description: "Phoenix OTEL provides a lightweight, vendor-agnostic way to instrument your services using OpenTelemetry and stream traces directly into Phoenix for debugging, monitoring, and model evaluation."
 ---
 
 Phoenix OTEL provides a lightweight, vendor-agnostic way to instrument your services using OpenTelemetry and stream traces directly into Phoenix for debugging, monitoring, and model evaluation. This guide walks you through configuring your application to emit OTEL-compatible spans, enabling end-to-end visibility into requests, model calls, and system behavior with minimal overhead.
@@ -26,10 +25,10 @@ These defaults are aware of environment variables you may have set to configure 
 * `PHOENIX_GRPC_PORT`
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TS">
 Install OpenTelemetry API packages:
 
-```bash
+```shell
 # npm, pnpm, yarn, etc
 npm install @opentelemetry/semantic-conventions @opentelemetry/api @opentelemetry/instrumentation @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto
 ```
@@ -85,7 +84,7 @@ If you're setting the `PHOENIX_COLLECTOR_ENDPOINT` environment variable, `regist
 * `batch`: Whether or not to process spans in batch
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TS">
 ```typescript
 // instrumentation.ts
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
@@ -126,6 +125,9 @@ When passing in the `endpoint` argument, **you must specify the fully qualified 
 
 For default, the local endpoint will be `localhost:6006` or your space's hostname when using Phoenix Cloud.
 
+When passing in the `endpoint` argument, **you must specify the fully qualified endpoint**. If the `PHOENIX_GRPC_PORT` environment variable is set, it will override the default gRPC port.
+
+
 <Tabs>
 <Tab title="HTTP">
 The HTTP transport protocol is inferred from the endpoint
@@ -162,6 +164,6 @@ tracer_provider = register(
 
 Once you've connected your application to your Phoenix instance using `phoenix.otel.register`, you need to instrument your application. You have a few options to do this:
 
-1. **Using OpenInference auto-instrumentors**. If you've used the `auto_instrument` flag above, then any instrumentor packages in your environment will be called automatically. For a full list of OpenInference packages, see [/phoenix/integrations](/phoenix/integrations)
-2. Using [Phoenix Decorators](/phoenix/tracing/how-to-tracing/setup-tracing/instrument-python).
+1. **Using OpenInference auto-instrumentors**. If you've used the `auto_instrument` flag above, then any instrumentor packages in your environment will be called automatically. For a full list of OpenInference packages, see [Integrations](/phoenix/integrations)
+2. Using [Phoenix Decorators](/phoenix/tracing/how-to-tracing/setup-tracing/instrument).
 3. Using [Base OTEL](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans).

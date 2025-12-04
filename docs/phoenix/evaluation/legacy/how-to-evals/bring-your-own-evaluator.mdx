@@ -63,7 +63,7 @@ The categorical template defines the expected output of the LLM, and the rails d
 ```python
 from phoenix.evals import (
     llm_classify,
-    OpenAIModel # see /phoenix/evaluation/evaluation-models
+    OpenAIModel # see /phoenix/evaluation/legacy/how-to-evals/evaluation-models
     # for a full list of supported models
 )
 
@@ -137,7 +137,7 @@ We use the more generic `llm_generate` function that can be used for almost any 
 ```python
 from phoenix.evals import (
     llm_generate,
-    OpenAIModel # see /phoenix/evaluation/evaluation-models
+    OpenAIModel # see /phoenix/evaluation/legacy/how-to-evals/evaluation-models
     # for a full list of supported models
 )
 
@@ -206,6 +206,6 @@ At this point, you've constructed a custom Eval, but you have no understanding o
 
 2. Test your eval on that labeled set of examples, and compare to the ground truth to calculate F1, precision, and recall scores. For an example of this, see [Hallucinations](/phoenix/evaluation/running-pre-tested-evals/hallucinations)
 
-3. Tweak your prompt and retest. See [https://github.com/Arize-ai/phoenix/blob/docs/docs/evaluation/how-to-evals/broken-reference/README.md](https://github.com/Arize-ai/phoenix/blob/docs/docs/evaluation/how-to-evals/broken-reference/README.md) for an example of how to do this in an automated way.
+3. Tweak your prompt and retest. See [/phoenix/evaluation/how-to-evals/custom-llm-evaluators](/phoenix/evaluation/how-to-evals/custom-llm-evaluators) for an example of how to do this in an automated way.
 
 

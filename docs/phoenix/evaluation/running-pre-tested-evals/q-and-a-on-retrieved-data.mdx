@@ -12,7 +12,7 @@ This Eval evaluates whether a question was correctly answered by the system base
 
 ## Q\&A Eval Template
 
-```bash expandable
+```bash
 You are given a question, an answer and reference text. You must determine whether the
 given answer correctly answers the question based on the reference text. Here is the data:
     [BEGIN DATA]
@@ -36,7 +36,7 @@ We are continually iterating our templates, view the most up-to-date template [o
 
 ## How To Run the Q\&A Eval
 
-```python expandable
+```python
 import phoenix.evals.templates.default_templates as templates
 from phoenix.evals import (
     OpenAIModel,

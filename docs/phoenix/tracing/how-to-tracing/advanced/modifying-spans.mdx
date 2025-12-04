@@ -1,7 +1,8 @@
 ---
 title: "Filter Spans to Export"
-description: "Sometimes while instrumenting your application, you may want to filter out or modify certain spans from being sent to Phoenix. For example, you may want to filter out spans that are that contain sensitive information or contain redundant information."
 ---
+
+Sometimes while instrumenting your application, you may want to filter out or modify certain spans from being sent to Phoenix. For example, you may want to filter out spans that are that contain sensitive information or contain redundant information.
 
 
 To do this, you can use a custom `SpanProcessor` and attach it to the OpenTelemetry `TracerProvider`.
@@ -10,7 +11,7 @@ To do this, you can use a custom `SpanProcessor` and attach it to the OpenTeleme
 
   <Tab title="Python">
 
-    ```python expandable
+    ```python
     from phoenix.otel import register
     from phoenix.otel import BatchSpanProcessor
     from opentelemetry.context import Context

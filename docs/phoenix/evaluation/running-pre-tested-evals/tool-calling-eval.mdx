@@ -9,7 +9,7 @@ description: "The Agent Function Call eval can be used to determine how well a m
 
 ## Function Calling Eval Template
 
-```python expandable
+```python
 TOOL_CALLING_PROMPT_TEMPLATE = """
 You are an evaluation assistant evaluating questions and tool calls to
 determine whether the tool called would answer the question. The tool
@@ -46,7 +46,7 @@ We are continually iterating our templates, view the most up-to-date template [o
 
 ## **Running an Agent Eval using the Function Calling Template**
 
-```python expandable
+```python
 from phoenix.evals import (
     TOOL_CALLING_PROMPT_RAILS_MAP,
     TOOL_CALLING_PROMPT_TEMPLATE,
@@ -78,13 +78,13 @@ Parameters:
 
 * `df` - a dataframe of cases to evaluate. The dataframe must have these columns to match the default template:
   * `question` - the query made to the model. If you've exported spans from Phoenix to evaluate, this will the `llm.input_messages` column in your exported data.
-  * `tool_call` - information on the tool called and parameters included. If you've [exported spans from Phoenix](../../tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans.md) to evaluate, this will be the `llm.function_call` column in your exported data.
+  * `tool_call` - information on the tool called and parameters included. If you've [exported spans from Phoenix](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans) to evaluate, this will be the `llm.function_call` column in your exported data.
 
 ## Parameter Extraction Only
 
 This template instead evaluates only the parameter extraction step of a router:
 
-```python expandable
+```python
 You are comparing a function call response to a question and trying to determine if the generated call has extracted the exact right parameters from the question. Here is the data:
     [BEGIN DATA]
     ************

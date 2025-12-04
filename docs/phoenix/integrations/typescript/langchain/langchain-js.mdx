@@ -2,19 +2,20 @@
 title: "Langchain.js"
 ---
 
-[![npm version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-langchain)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-langchain)
+[![](https://badge.fury.io/js/@arizeai%2Fopeninference-instrumentation-langchain.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-langchain)
 
 This module provides automatic instrumentation for LangChain.js, more specifically, the @langchain/core module. which may be used in conjunction with @opentelemetry/sdk-trace-node.
 
 ## Install
 
 ```bash
-npm install --save @arizeai/openinference-instrumentation-langchain
+npm install --save @arizeai/openinference-instrumentation-langchain \
+  @arizeai/phoenix-otel
 ```
 
 ## Setup
 
-To load the LangChain instrumentation, manually instrument the `@langchain/core/callbacks/manager` module. The callbacks manager must be manually instrumented due to the non-traditional module structure in `@langchain/core`. Additional instrumentations can be registered as usual in the registerInstrumentations function.
+To load the LangChain instrumentation, manually instrument the `@langchain/core/callbacks/manager` module. The callbacks manager must be manually instrumented due to the non-traditional module structure in `@langchain/core`.
 
 ```typescript
 import { register } from "@arizeai/phoenix-otel";
@@ -48,63 +49,30 @@ const getWeather = tool(
     }),
   },
 );
+
+const agent = createAgent({
+  model: "claude-sonnet-4-5-20250929",
+  tools: [getWeather],
+});
+
+console.log(
+  await agent.invoke({
+    messages: [{ role: "user", content: "What's the weather in Tokyo?" }],
+  })
+);
 ```
 
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/langgraphjs.png" alt="LangGraph.js" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/langgraphjs.png" alt="" />
 </Frame>
 
 ## Support
 
-Instrumentation version >=4.0.0 supports LangChain 1.0 and above. This package does support earlier versions of LangChain, however it is not tested.
+Instrumentation version >=4.0.0 supports LangChain 1.0 and above.
 
-If you are still using older versions, The [`@arizeai/openinference-instrumentation-langchain-v0`](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain-v0) package is used to maintain support for LangChain 0.X versions and will receive patches for the older versions.
-
-Instrumentation version >1.0.0 supports both attribute masking and context attribute propagation to spans.
-
-| Instrumentation Version | LangChain ^0.3.0 | LangChain ^0.2.0 | LangChain ^0.1.0 |
-| ----------------------- | ---------------- | ---------------- | ---------------- |
-| >1.0.0                  | ✅                | ✅                | ✅                |
-| >0.2.0                  | ❌                | ✅                | ✅                |
-| >0.1.0                  | ❌                | ❌                | ✅                |
-
-## Custom Tracer Provider
-
-You can specify a custom tracer provider for LangChain instrumentation in multiple ways:
-
-### Method 1: Pass tracerProvider on instantiation
-
-```javascript
-const lcInstrumentation = new LangChainInstrumentation({
-  tracerProvider: customTracerProvider,
-});
-lcInstrumentation.manuallyInstrument(CallbackManagerModule);
-```
-
-### Method 2: Set tracerProvider after instantiation
-
-```javascript
-const lcInstrumentation = new LangChainInstrumentation();
-lcInstrumentation.setTracerProvider(customTracerProvider);
-lcInstrumentation.manuallyInstrument(CallbackManagerModule);
-```
-
-### Method 3: Pass tracerProvider to registerInstrumentations
-
-```php
-const lcInstrumentation = new LangChainInstrumentation();
-lcInstrumentation.manuallyInstrument(CallbackManagerModule);
-
-registerInstrumentations({
-  instrumentations: [lcInstrumentation],
-  tracerProvider: customTracerProvider,
-});
-```
+If you are still using older versions of LangChain we recommend using the dedicated package [`@arizeai/openinference-instrumentation-langchain-v0`](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain-v0)  which will receive patches for the older versions.
 
 ## Resources
 
 * [Example project](https://github.com/Arize-ai/openinference/blob/main/js/packages/openinference-instrumentation-langchain/examples)
-
 * [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/js/packages/openinference-instrumentation-langchain)
-
-

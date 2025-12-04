@@ -20,7 +20,7 @@ This Eval checks the reference link returned answers the question asked in a con
 We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default_templates.py#L381).
 </Info>
 
-```python expandable highlight={1, 3}
+```python
 print(REF_LINK_EVAL_PROMPT_TEMPLATE_STR)
 
 You are given a conversation that contains questions by a CUSTOMER and you are trying
@@ -43,7 +43,7 @@ to answer the specific question please answer "incorrect".
 
 ## How to run the Citation Eval
 
-```python expandable highlight={1,2}
+```python
 from phoenix.evals import (
     REF_LINK_EVAL_PROMPT_RAILS_MAP,
     REF_LINK_EVAL_PROMPT_TEMPLATE_STR,
@@ -72,7 +72,7 @@ relevance_classifications = llm_classify(
 
 ## Benchmark Results
 
-This benchmark was obtained using notebook below. It was run using a handcrafted ground truth dataset consisting of questions on the Arize platform. That [dataset is available here](https://storage.googleapis.com/arize-assets/phoenix/evals/ref-link-classification/ref_link_golden_test_data.csv).
+This benchmark was obtained using notebook below. It was run using a handcrafted ground truth dataset consisting of questions on the Arize AX platform. That [dataset is available here](https://storage.googleapis.com/arize-assets/phoenix/evals/ref-link-classification/ref_link_golden_test_data.csv).
 
 Each example in the dataset was evaluating using the `REF_LINK_EVAL_PROMPT_TEMPLATE_STR` above, then the resulting labels were compared against the ground truth label in the benchmark dataset to generate the confusion matrices below.
 

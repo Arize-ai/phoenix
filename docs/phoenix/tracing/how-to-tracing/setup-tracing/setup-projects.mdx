@@ -2,7 +2,7 @@
 title: "Setup Projects"
 ---
 
-## Log to a specific project
+# Log to a specific project
 
 Phoenix uses projects to group traces. If left unspecified, all traces are sent to a default project.
 
@@ -69,7 +69,7 @@ Phoenix uses projects to group traces. If left unspecified, all traces are sent 
 
 Projects work by setting something called the **Resource** attributes (as seen in the OTEL example above). The phoenix server uses the project name attribute to group traces into the appropriate project.
 
-## Switching projects in a notebook
+# Switching projects in a notebook
 
 Typically you want traces for an LLM app to all be grouped in one project. However, while working with Phoenix inside a notebook, we provide a utility to temporarily associate spans with different projects. You can use this to trace things like evaluations.
 
@@ -78,10 +78,10 @@ Typically you want traces for an LLM app to all be grouped in one project. Howev
   <Tab title="Notebook">
 
     ```python
-    from phoenix.trace import using_project
+    from openinference.instrumentation import dangerously_using_project
 
     # Switch project to run evals
-    with using_project("my-eval-project"):
+    with dangerously_using_project("my-eval-project"):
         # all spans created within this context will be associated with
         # the "my-eval-project" project.
         # Run evaluations here...

@@ -3,8 +3,6 @@ title: "Using Amazon Aurora"
 description: "Phoenix supports IAM database authentication for PostgreSQL connections to Amazon Aurora/RDS."
 ---
 
-Phoenix supports IAM database authentication for PostgreSQL connections to Amazon Aurora/RDS.
-
 First, ensure that Phoenix runs with valid AWS credentials, either by using an IAM role attached to the instance (EC2/ECS/EKS), or by configuring `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. Configuring `AWS_DEFAULT_REGION` is required.
 
 The IAM role will need a `rds-db:connect` policy associated with it.

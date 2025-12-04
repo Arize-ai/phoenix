@@ -21,7 +21,7 @@ Both methods run multiple evaluators over a pandas dataframe. The output is an a
 
 1. Evaluator with more than one score returned:
 
-```python expandable
+```python
 import pandas as pd
 
 from phoenix.evals import evaluate_dataframe
@@ -42,7 +42,7 @@ result.head()
 
 2. Running multiple evaluators, one bound with an input\_mapping:
 
-```python expandable
+```python
 from phoenix.evals import bind_evaluator, evaluate_dataframe
 from phoenix.evals.llm import LLM
 from phoenix.evals.metrics import HallucinationEvaluator, exact_match
@@ -74,7 +74,7 @@ result.head()
 
 3. Asynchronous evaluation
 
-```python expandable
+```python
 from phoenix.evals.llm import LLM
 from phoenix.evals.metrics import HallucinationEvaluator
 from phoenix.evals import async_evaluate_dataframe

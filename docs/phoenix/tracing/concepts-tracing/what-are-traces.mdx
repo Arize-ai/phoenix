@@ -9,7 +9,7 @@ A span represents a unit of work or operation (think a `span` of time). It track
 
 A span contains name, time-related data, structured log messages, and other metadata (that is, Attributes) to provide information about the operation it tracks. A span for an LLM execution in JSON format is displayed below
 
-```json expandable
+```json
 {
    "name": "llm",
    "context": {
@@ -94,7 +94,7 @@ A Tool is a span that represents a call to an external tool such as a calculator
 
 **AGENT**
 
-A span that encompasses calls to LLMs and Tools. An agent describes a reasoning block that acts on tools using the guidance of an LLM.\\
+A span that encompasses calls to LLMs and Tools. An agent describes a reasoning block that acts on tools using the guidance of an LLM.
 
 ## Span Attributes
 
@@ -113,7 +113,7 @@ Below are example OTEL spans for each OpenInference spanKind to be used as refer
 
 <CodeGroup>
 
-```json LLM expandable
+```json LLM
 {
    "name": "llm",
    "context": {
@@ -146,7 +146,7 @@ Below are example OTEL spans for each OpenInference spanKind to be used as refer
 }
 ```
 
-```json Retriever expandable
+```json Retriever
 {
      "name": "retrieve",
      "context": {

@@ -44,7 +44,6 @@ async def contains_link(output: str) -> Score:
     return link in output
 ```
 </Tab>
-
 <Tab title="TypeScript">
 ```typescript
 import { createEvaluator } from "@arizeai/phoenix-evals";
@@ -96,7 +95,6 @@ await contains_link(
 # True
 ```
 </Tab>
-
 <Tab title="TypeScript">
 ```typescript
 // The underlying function logic can be extracted for testing
@@ -139,7 +137,6 @@ def levenshtein(output: str, expected: str) -> Score:
     )
 ```
 </Tab>
-
 <Tab title="TypeScript">
 ```typescript
 import { createEvaluator } from "@arizeai/phoenix-evals";
@@ -201,7 +198,6 @@ The `create_evaluator` / `createEvaluator` function will convert many different 
 * A dictionary with keys "score", "label", or "explanation"
 * A tuple of values (only bool, number, str types allowed)
 </Tab>
-
 <Tab title="TypeScript">
 * An EvaluationResult object (no conversion needed)
 * A number (converted to `{ score: number }`)

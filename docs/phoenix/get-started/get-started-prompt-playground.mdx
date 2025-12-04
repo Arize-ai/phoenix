@@ -6,31 +6,29 @@ Now that you have Phoenix up and running, you're now able to use **Prompt Playgr
 * Prompt Playground lets you experiment with prompts in real time, explore variations across models, and fine-tune responses with a versatile, interactive workflow.
 * Prompt Hub lets you organize, version, and share prompts across projects.
 
-First, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./overview-get-started).
+First, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](/phoenix/get-started).
 
 <Tabs>
   <Tab title="Phoenix Cloud">
-    Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./overview-get-started).
+    Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](/phoenix/get-started).
 
-    <Tabs>
-      <Tab title="Phoenix Cloud">
         Log in, create a space, navigate to the settings page in your space, and create your API keys.
 
-        In your code, set your environment variables.
+        Set your environment variables.
 
-        ```python
-        import os
-        os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
-        os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX Collector endpoint"
+        ```bash
+        export PHOENIX_API_KEY = "ADD YOUR PHOENIX API KEY"
+        export PHOENIX_COLLECTOR_ENDPOINT = "ADD YOUR PHOENIX COLLECTOR ENDPOINT"
         ```
 
         You can find your collector endpoint here:
 
-        <Frame><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings." /></Frame>
+        <Frame caption="Launch your space, navigate to settings & copy your hostname for your collector endpoint">
+          <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings." />
+        </Frame>
 
         Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.
-      </Tab>
-    </Tabs>
+
   </Tab>
 
   <Tab title="Local (Self-hosted)">
@@ -173,7 +171,7 @@ You can also tag which version you've deemed ready for production, and view code
 
 ### Next Steps
 
-Now you're ready to create, test, save, and iterate on your Prompts in Phoenix!
+Now you're ready to create, test, save, and iterate on your Prompts in Phoenix! [Learn More](#learn-more).
 
 ## Prompts (Python SDK)
 
@@ -242,7 +240,7 @@ prompt = client.prompts.get(prompt_identifier=prompt_name, tag="staging")
 
 ### Using a Prompt
 
-To use a prompt, call the `prompt.format()`function. Any `{{ variables }}` in the prompt can be set by passing in a dictionary of values.
+To use a prompt, call the `prompt.format()` function. Any `{{ variables }}` in the prompt can be set by passing in a dictionary of values.
 
 ```python
 from openai import OpenAI
@@ -435,7 +433,7 @@ Congratulations! You can now create, update, access and use prompts using the Ph
 
 ### Next Steps
 
-Now you're ready to create, test, save, and iterate on your Prompts in Phoenix! [Learn More](#learn-more).
+Now you're ready to create, test, save, and iterate on your Prompts in Phoenix!
 
 ## Learn More:
 

@@ -20,12 +20,12 @@ During the development phase, Phoenix offers essential tools for debugging, expe
     ### Traces for Debugging
 
     <Frame>
-      <iframe src="https://cdn.iframe.ly/5li2EKV" allowFullScreen width={1000} height={420} allow="encrypted-media *;"></iframe>
+      <iframe src="https://cdn.iframe.ly/5li2EKV" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
     </Frame>
 
     Phoenix's tracing and span analysis capabilities are invaluable during the prototyping and debugging stages. By instrumenting application code with Phoenix, teams gain detailed insights into the execution flow, making it easier to identify and resolve issues. Developers can drill down into specific spans, analyze performance metrics, and access relevant logs and metadata to streamline debugging efforts.
 
-    * [Quickstart: Tracing](/phoenix/tracing/llm-traces-1)
+    * [Get Started: Tracing](/phoenix/get-started/get-started-tracing)
 
   </Tab>
 
@@ -39,7 +39,7 @@ During the development phase, Phoenix offers essential tools for debugging, expe
 
     Leverage experiments to measure prompt and model performance. Typically during this early stage, you'll focus on gathering a robust set of test cases and evaluation metrics to test initial iterations of your application. Experiments at this stage may resemble unit tests, as they're geared towards ensuring your application performs correctly.
 
-    * [Run Experiments](/phoenix/datasets-and-experiments/how-to-experiments/run-experiments)
+    * [Get Started: Datasets & Experiments](/phoenix/get-started/get-started-datasets-and-experiments)
 
   </Tab>
 
@@ -53,7 +53,7 @@ During the development phase, Phoenix offers essential tools for debugging, expe
 
     Either as a part of experiments or a standalone feature, evaluations help you understand how your app is performing at a granular level. Typical evaluations might be correctness evals compared against a ground truth data set, or LLM-as-a-judge evals to detect hallucinations or relevant RAG output.
 
-    * [Quickstart: Evals](/phoenix/evaluation/evals)
+    * [Get Started: Evaluations](/phoenix/get-started/get-started-evaluations)
 
   </Tab>
 
@@ -80,13 +80,10 @@ During the development phase, Phoenix offers essential tools for debugging, expe
     ### Search & Retrieval Embeddings Visualizer
 
     <Frame>
-      <iframe src="https://cdn.iframe.ly/xl5hPHo" allowFullScreen width={1000} height={420} allow="encrypted-media *;"></iframe>
+      <iframe src="https://cdn.iframe.ly/xl5hPHo" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
     </Frame>
 
     Phoenix's search and retrieval optimization tools include an embeddings visualizer that helps teams understand how their data is being represented and clustered. This visual insight can guide decisions on indexing strategies, similarity measures, and data organization to improve the relevance and efficiency of search results.
-
-    * [Quickstart: Inferences](/phoenix/inferences/phoenix-inferences)
-
   </Tab>
 
 </Tabs>
@@ -102,7 +99,7 @@ In the testing and staging environment, Phoenix supports comprehensive evaluatio
     ### Iterate via Experiments
 
     <Frame>
-      <iframe src="https://cdn.iframe.ly/wQGkSng" allowFullScreen width={1000} height={420} allow="encrypted-media *;"></iframe>
+      <iframe src="https://cdn.iframe.ly/wQGkSng" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
     </Frame>
 
     With a stable set of test cases and evaluations defined, you can now easily iterate on your application and view performance changes in Phoenix right away. Swap out models, prompts, or pipeline logic, and run your experiment to immediately see the impact on performance.
@@ -116,12 +113,10 @@ In the testing and staging environment, Phoenix supports comprehensive evaluatio
     ### Evals Testing
 
     <Frame>
-      <iframe src="https://cdn.iframe.ly/2CcLlXU" allowFullScreen width={1000} height={420} allow="encrypted-media *;"></iframe>
+      <iframe src="https://cdn.iframe.ly/2CcLlXU" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
     </Frame>
 
     Phoenix's flexible evaluation framework supports thorough testing of LLM outputs. Teams can define custom metrics, collect user feedback, and leverage separate LLMs for automated assessment. Phoenix offers tools for analyzing evaluation results, identifying trends, and tracking improvements over time.
-
-    * [Quickstart: Evals](/phoenix/evaluation/evals)
 
   </Tab>
 
@@ -130,12 +125,12 @@ In the testing and staging environment, Phoenix supports comprehensive evaluatio
     ### Curate Data
 
     <Frame>
-      <iframe src="https://cdn.iframe.ly/bvIlELf" allowFullScreen width={1000} height={420} allow="encrypted-media *;"></iframe>
+      <iframe src="https://cdn.iframe.ly/bvIlELf" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
     </Frame>
 
     Phoenix assists in curating high-quality data for testing and fine-tuning. It provides tools for data exploration, cleaning, and labeling, enabling teams to curate representative data that covers a wide range of use cases and edge conditions.
 
-    * [Quickstart: Datasets & Experiments](/phoenix/datasets-and-experiments/quickstart-datasets)
+    * [Quickstart: Datasets & Experiments](/phoenix/get-started/get-started-datasets-and-experiments)
 
   </Tab>
 
@@ -161,24 +156,18 @@ In production, Phoenix works hand-in-hand with Arize, which focuses on the produ
 
   <Tab title="Traces in Production">
 
-    ### Traces in Production
-
     <Frame>
-      <iframe src="https://cdn.iframe.ly/5li2EKV" allowFullScreen width={1000} height={420} allow="encrypted-media *;"></iframe>
+      <iframe src="https://cdn.iframe.ly/5li2EKV" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
     </Frame>
 
     Phoenix and Arize use the same collector frameworks in development and production. This allows teams to monitor latency, token usage, and other performance metrics, setting up alerts when thresholds are exceeded.
-
-    * [Quickstart: Tracing](/phoenix/tracing/llm-traces-1)
 
   </Tab>
 
   <Tab title="Evals for Production">
 
-    ### Evals for Production
-
     <Frame>
-      <iframe src="https://cdn.iframe.ly/2CcLlXU" allowFullScreen width={1000} height={420} allow="encrypted-media *;"></iframe>
+      <iframe src="https://cdn.iframe.ly/2CcLlXU" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
     </Frame>
 
     Phoenix's evaluation framework can be used to generate ongoing assessments of LLM performance in production. Arize complements this with online evaluations, enabling teams to set up alerts if evaluation metrics, such as hallucination rates, go beyond acceptable thresholds.
@@ -189,10 +178,8 @@ In production, Phoenix works hand-in-hand with Arize, which focuses on the produ
 
   <Tab title="Fine-tuning">
 
-    ### Fine-tuning
-
     <Frame>
-      <iframe src="https://cdn.iframe.ly/kN0xLGC" allowFullScreen width={1000} height={420} allow="encrypted-media *;"></iframe>
+      <iframe src="https://cdn.iframe.ly/kN0xLGC" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
     </Frame>
 
     Phoenix and Arize together help teams identify data points for fine-tuning based on production performance and user feedback. This targeted approach ensures that fine-tuning efforts are directed towards the most impactful areas, maximizing the return on investment.

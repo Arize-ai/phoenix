@@ -1,14 +1,15 @@
 ---
 title: "Input Mapping"
-description: "Evaluators are defined with a specific input schema, and the input payload is expected to take a certain shape. However, the input data is not always structured properly, so evaluators can be bound with an optional `input_mapping` which map/transforms the input to the shape they require. The powerful input mapping capabilities allow you to extract and transform data from complex nested structures."
 ---
 
-## Summary
+Evaluators are defined with a specific input schema, and the input payload is expected to take a certain shape. However, the input data is not always structured properly, so evaluators can be bound with an optional `input_mapping` which map/transforms the input to the shape they require. The powerful input mapping capabilities allow you to extract and transform data from complex nested structures.
+
+### Summary
 
 * Use `input_mapping` to map/transform evaluator-required field names to your input data.
 * You can bind an `input_mapping` to an evaluator for reuse with multiple inputs using `.bind` or `bind_evaluator`
 
-## Why do evaluators accept a payload and an input_mapping vs. kwargs?
+### Why do evaluators accept a payload and an input\_mapping vs. kwargs?
 
 Different evaluators require different keyword arguments to operate. These arguments may not perfectly match those in your example or dataset.
 
@@ -59,6 +60,8 @@ We want to run two evaluators over this example:
 Rather than modifying our data to fit the two evaluators, we make the evaluators fit the data.
 
 Binding an `input_mapping` enables the evaluators to run on the same payload - the map/transform steps are handled by the evaluator itself.
+
+
 
 <Tabs>
 <Tab title="Python">
@@ -115,7 +118,7 @@ const result = await evaluator.evaluate({
 </Tab>
 </Tabs>
 
-## Input Mapping Types
+### Input Mapping Types
 
 The `input_mapping` parameter accepts several types of mappings:
 
@@ -123,7 +126,7 @@ The `input_mapping` parameter accepts several types of mappings:
 2. **Path mapping**: `{"field": "nested.path"}` - uses JSON path syntax from [jsonpath](https://www.rfc-editor.org/rfc/rfc9535.html)
 3. **Callable mapping**: `{"field": lambda x: x["key"]}` - custom extraction logic
 
-### Path Mapping Examples
+#### Path Mapping Examples
 
 <Tabs>
 <Tab title="Python">
@@ -171,7 +174,7 @@ const inputMapping = {
 </Tab>
 </Tabs>
 
-### Callable Mappings
+#### Callable Mappings
 
 For complex transformations, use callable functions that accept an `eval_input` payload:
 
@@ -228,7 +231,7 @@ const inputMapping = {
 </Tab>
 </Tabs>
 
-## Pydantic Input Schemas
+### Pydantic Input Schemas
 
 Python Evaluators use Pydantic models for input validation and type safety. Most of the time (e.g. for `ClassificationEvaluator` or functions decorated with `create_evaluator`), the input schema is inferred. But, you can always define your own. The Pydantic model allows you to annotate input fields with additional information such as aliases or descriptions.
 
@@ -249,7 +252,7 @@ evaluator = HallucinationEvaluator(
 )
 ```
 
-### Schema Inference
+#### Schema Inference
 
 Most evaluators automatically infer schemas if not provided at instantiation.
 
@@ -269,9 +272,6 @@ evaluator = LLMEvaluator(
 
 <Tab title="Typescript">
 ```typescript
-import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
-import { openai } from "@ai-sdk/openai";
-
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
@@ -286,21 +286,24 @@ type MyEvalInput = {
 };
 
 // Construct a custom evaluator using the factory method
+// The prompt template variables determine the required input fields
 const myCustomEvaluator = createClassificationEvaluator<MyEvalInput>({
   name: "my_custom_eval",
   model: openai("gpt-4"),
   promptTemplate: `
     Determine if the following response correctly answer's the user query using the provided context.
-    Query: {input.query}
-    Context: {input.documents}
-    Response: {output.response}
+    Query: {{input.query}}
+    Context: {{input.documents}}
+    Response: {{output.response}}
   `,
   choices: ["Correct", "Incorrect"],
   // ...other options, scoring logic, etc. can be set here
 });
 
-// View the actual required fields to make sure they align with the type
-console.log(myCustomEvaluator.promtTemplateVariables)
+// The evaluator expects fields matching the prompt template variables:
+// - input.query
+// - input.documents
+// - output.response
 ```
 </Tab>
 </Tabs>
@@ -324,11 +327,52 @@ def exact_match(output: str, expected: str) -> Score:
 </Tab>
 
 <Tab title="Typescript">
-See [GitHub issue #10393](https://github.com/Arize-ai/phoenix/issues/10393) for TypeScript support.
+```typescript
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+// The function signature determines the required input fields
+// This creates an evaluator that expects: output (string) and expected (string)
+const exactMatch = createEvaluator<{ output: string; expected: string }>(
+  ({ output, expected }) => {
+    return output === expected ? 1 : 0;
+  },
+  {
+    name: "exact_match",
+    kind: "CODE",
+  }
+);
+
+// The evaluator's input schema is inferred from the function parameters:
+// - output: string (required)
+// - expected: string (required)
+// 
+// You can use bindEvaluator to map these fields to your data structure:
+import { bindEvaluator } from "@arizeai/phoenix-evals";
+
+type MyData = {
+  model_response: string;
+  correct_answer: string;
+};
+
+const boundExactMatch = bindEvaluator<MyData>(exactMatch, {
+  inputMapping: {
+    output: "model_response",    // Map evaluator's "output" to "model_response"
+    expected: "correct_answer",  // Map evaluator's "expected" to "correct_answer"
+  },
+});
+
+// Now you can evaluate with your data structure
+const result = await boundExactMatch.evaluate({
+  model_response: "The answer is 42",
+  correct_answer: "The answer is 42",
+});
+```
 </Tab>
 </Tabs>
 
-## Binding System
+### Binding System
+
+
 
 <Tabs>
 <Tab title="Python">

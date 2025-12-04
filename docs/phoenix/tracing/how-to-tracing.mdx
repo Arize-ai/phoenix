@@ -6,7 +6,7 @@ description: Guides on how to use traces
 
 ## Setup Tracing
 
-- Setup Tracing in [Python](/phoenix/tracing/how-to-tracing#instrument-python-using-openinference-helpers) or [Typescript](/phoenix/tracing/how-to-tracing/setup-tracing/javascript)
+- Setup Tracing in [Python](/phoenix/tracing/how-to-tracing#instrument:-python-using-openinference-helpers) or [Typescript](/phoenix/tracing/how-to-tracing/setup-tracing/javascript)
 - Add Integrations via [Auto Instrumentation](/phoenix/integrations)
 - [Manually Instrument](/phoenix/tracing/how-to-tracing#manual-instrumentation) your application
 
@@ -25,16 +25,16 @@ How to set custom attributes and semantic attributes to child spans and spans cr
 <Card title="Masking attributes on spans" href="/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes" icon="angles-right" horizontal/>
 </Columns>
 
-## [Auto Instrumentation](https://github.com/Arize-ai/phoenix/blob/docs/docs/tracing/how-to-tracing/broken-reference/README.md)
+## [Auto Instrumentation](/phoenix/integrations)
 
-Phoenix natively works with a variety of frameworks and SDKs across [Python](/phoenix/tracing/how-to-tracing#python) and [JavaScript](/phoenix/tracing/how-to-tracing#javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](https://github.com/Arize-ai/phoenix/blob/docs/docs/tracing/how-to-tracing/broken-reference/README.md) and [LiteLLM proxy](https://github.com/Arize-ai/phoenix/blob/docs/docs/tracing/how-to-tracing/broken-reference/README.md).
+Phoenix natively works with a variety of frameworks and SDKs across [Python](/phoenix/tracing/how-to-tracing#instrument:-python-using-openinference-helpers) and [JavaScript](/phoenix/tracing/how-to-tracing/setup-tracing/javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](/phoenix/integrations/platforms/langflow/langflow-tracing) and [LiteLLM proxy](/phoenix/integrations/llm-providers/litellm/litellm-tracing).
 
-## Manual Instrumentation
+# Manual Instrumentation
 
 Create and customize spans for your use-case
 
 ### [Instrument: Python using OpenInference Helpers](/phoenix/tracing/how-to-tracing/setup-tracing/instrument-python)
-
+<br />
 ### [Instrument: Python using Base OTEL](/phoenix/tracing/how-to-tracing#instrument-python-using-base-otel)
 
 <Columns cols={2}>
@@ -50,9 +50,9 @@ Create and customize spans for your use-case
 <Card title="How to record exceptions" href="/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#record-exceptions-in-spans" icon="angles-right" horizontal/>
 </Columns>
 
-### [Setup Tracing (TS)](/phoenix/tracing/how-to-tracing/setup-tracing/javascript)
-
-## [Querying Spans](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)
+## [Setup Tracing (TS)](/phoenix/tracing/how-to-tracing/setup-tracing/javascript)
+<br />
+# [Querying Spans](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)
 
 How to query spans to construct DataFrames to use for evaluation
 
@@ -73,7 +73,7 @@ How to query spans to construct DataFrames to use for evaluation
 <Card title="Annotating via the Client" href="/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback" icon="angles-right" horizontal/>
 </Columns>
 
-## [Log Evaluation Results](/phoenix/tracing/how-to-tracing#log-evaluation-results)
+## [Log Evaluation Results](/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
 
 How to log evaluation results to annotate traces with evals
 

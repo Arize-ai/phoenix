@@ -12,7 +12,7 @@ When manually creating a dataset (let's say collecting hypothetical questions an
 
   <Tab title="Python">
 
-    ```python expandable
+    ```python
     import pandas as pd
     import phoenix as px
     from phoenix.client import Client
@@ -96,7 +96,7 @@ One of the quickest ways of getting started is to produce synthetic queries usin
     document_chunks_df = pd.DataFrame({"text": document_chunks})
     ```
 
-    ```python expandable
+    ```python
     generate_questions_template = (
         "Context information is below.\n\n"
         "---------------------\n"
@@ -115,7 +115,7 @@ One of the quickest ways of getting started is to produce synthetic queries usin
 
     Once your synthetic data has been created, this data can be uploaded to Phoenix for later re-use.
 
-    ```python expandable
+    ```python
     import json
 
     from phoenix.evals import OpenAIModel, llm_generate
@@ -140,7 +140,7 @@ One of the quickest ways of getting started is to produce synthetic queries usin
 
     Once we've constructed a collection of synthetic questions, we can upload them to a Phoenix dataset.
 
-    ```python expandable
+    ```python
     from phoenix.client import Client
 
     # Note that the below code assumes that phoenix is running and accessible

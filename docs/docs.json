@@ -83,8 +83,7 @@
                           "phoenix/tracing/how-to-tracing/setup-tracing",
                           "phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel",
                           "phoenix/tracing/how-to-tracing/setup-tracing/custom-spans",
-                          "phoenix/tracing/how-to-tracing/setup-tracing/instrument-python",
-                          "phoenix/tracing/how-to-tracing/setup-tracing/javascript",
+                          "phoenix/tracing/how-to-tracing/setup-tracing/instrument",
                           "phoenix/tracing/how-to-tracing/setup-tracing/setup-projects",
                           "phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions"
                         ]
@@ -209,6 +208,8 @@
                 "icon": "clipboard-check",
                 "pages": [
                   "phoenix/evaluation/typescript-quickstart",
+                  "phoenix/evaluation/python-quickstart",
+                  "phoenix/get-started/get-started-evaluations",
                   {
                     "group": "Overview: Evals",
                     "pages": [
@@ -217,7 +218,6 @@
                       "phoenix/evaluation/llm-evals/evaluator-traces"
                     ]
                   },
-                  "phoenix/get-started/get-started-evaluations",
                   {
                     "group": "Concepts: Evals",
                     "pages": [
@@ -247,7 +247,7 @@
                     "group": "Pre-Built Evals",
                     "pages": [
                       "phoenix/evaluation/running-pre-tested-evals",
-                      "phoenix/evaluation/running-pre-tested-evals/heuristic-metrics",
+                      "phoenix/evaluation/running-pre-tested-evals/code-metrics",
                       "phoenix/evaluation/running-pre-tested-evals/hallucinations",
                       "phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data",
                       "phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance",
@@ -350,6 +350,8 @@
                 "group": "AI Engineering Workflows",
                 "icon": "gear",
                 "pages": [
+                  "phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python",
+                  "phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript",
                   "phoenix/cookbook/ai-engineering-workflows/llm-ops-overview",
                   "phoenix/cookbook/ai-engineering-workflows/write-your-first-custom-eval",
                   "phoenix/cookbook/ai-engineering-workflows/aligning-evals-with-human-feedback",
@@ -393,10 +395,10 @@
                 "group": "Evaluation",
                 "icon": "clipboard-check",
                 "pages": [
-                  "/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
-                  "/phoenix/cookbook/evaluation/evaluate-an-agent",
-                  "/phoenix/cookbook/evaluation/evaluate-rag",
-                  "/phoenix/cookbook/evaluation/code-readability-evaluation",
+                  "phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
+                  "phoenix/cookbook/evaluation/evaluate-an-agent",
+                  "phoenix/cookbook/evaluation/evaluate-rag",
+                  "phoenix/cookbook/evaluation/code-readability-evaluation",
                   "phoenix/cookbook/evaluation/relevance-classification-evaluation",
                   "phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
                   "phoenix/cookbook/evaluation/cookbooks"
@@ -503,7 +505,7 @@
                     "group": "OpenRouter",
                     "pages": [
                       "phoenix/integrations/llm-providers/openrouter",
-                      "/phoenix/integrations/llm-providers/openrouter/openai-tracing"
+                      "phoenix/integrations/llm-providers/openrouter/openai-tracing"
                     ]
                   },
                   {
@@ -625,6 +627,13 @@
                     ]
                   },
                   {
+                    "group": "Graphite",
+                    "pages": [
+                      "phoenix/integrations/python/graphite",
+                      "phoenix/integrations/python/graphite/graphite-integration-guide"
+                    ]
+                  },
+                  {
                     "group": "Guardrails AI",
                     "pages": [
                       "phoenix/integrations/python/guardrails-ai",
@@ -700,7 +709,7 @@
                     "group": "Dify",
                     "pages": [
                       "phoenix/integrations/platforms/dify",
-                      "/phoenix/integrations/platforms/dify/dify-tracing"
+                      "phoenix/integrations/platforms/dify/dify-tracing"
                     ]
                   },
                   {
@@ -766,8 +775,8 @@
                 "pages": [
                   "phoenix/sdk-api-reference",
                   "phoenix/sdk-api-reference/python/reference",
-                  "phoenix/sdk-api-reference/python/arize-phoenix-evals",
                   "phoenix/sdk-api-reference/python/arize-phoenix-client",
+                  "phoenix/sdk-api-reference/python/arize-phoenix-evals",
                   "phoenix/sdk-api-reference/python/arize-phoenix-otel"
                 ]
               },
@@ -973,6 +982,10 @@
                   {
                     "group": "11.2025",
                     "pages": [
+                      "phoenix/release-notes/11-2025/11-29-2025-add-support-for-claude-opus-4-5",
+                      "phoenix/release-notes/11-2025/11-27-2025-show-server-credential-setup-in-playground-api-keys",
+                      "phoenix/release-notes/11-2025/11-25-2025-split-assignments-when-uploading-a-dataset",
+                      "phoenix/release-notes/11-2025/11-23-2025-repetitions-for-manual-playground-invocations",
                       "phoenix/release-notes/11-2025/11-19-2025-expanded-provider-support-with-openai-5-1-+-gemini-3",
                       "phoenix/release-notes/11-2025/11-12-2025-updated-anthropic-model-list",
                       "phoenix/release-notes/11-2025/11-09-2025-openinference-typescript-2-0",
@@ -1673,6 +1686,10 @@
     },
     {
       "source": "/phoenix/tracing/llm-traces-1/quickstart-tracing-ts",
+      "destination": "/phoenix/get-started/get-started-tracing"
+    },
+    {
+      "source": "/phoenix/tracing/llm-traces-1",
       "destination": "/phoenix/get-started/get-started-tracing"
     }
   ]

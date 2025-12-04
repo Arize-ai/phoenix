@@ -1,7 +1,7 @@
 ---
 title: "Audio Emotion Detection"
-description: "The **Emotion Detection Eval Template** is designed to classify emotions from audio files. This evaluation leverages predefined characteristics, such as tone, pitch, and intensity, to detect the most dominant emotion expressed in an audio input. This guide will walk you through how to use the template within the Phoenix framework to evaluate emotion classification models effectively."
 ---
+The **Emotion Detection Eval Template** is designed to classify emotions from audio files. This evaluation leverages predefined characteristics, such as tone, pitch, and intensity, to detect the most dominant emotion expressed in an audio input. This guide will walk you through how to use the template within the Phoenix framework to evaluate emotion classification models effectively.
 
 
 
@@ -9,7 +9,7 @@ description: "The **Emotion Detection Eval Template** is designed to classify em
 
 The following is the structure of the `EMOTION_PROMPT_TEMPLATE`:
 
-```bash expandable
+```bash
 You are an AI system designed to classify emotions in audio files.
 
 ### TASK:
@@ -48,5 +48,5 @@ Analyze the audio and respond in this format.
 
 The prompt and evaluation logic are part of the `phoenix.evals.default_audio_templates` module and are defined as:
 
-* **`EMOTION_AUDIO_RAILS`**: Output options for the evaluation template.&#x20;
-* **`EMOTION_PROMPT_TEMPLATE`**: Prompt used for evaluating audio emotions.
+* `EMOTION_AUDIO_RAILS`: Output options for the evaluation template.&#x20;
+* `EMOTION_PROMPT_TEMPLATE`: Prompt used for evaluating audio emotions.

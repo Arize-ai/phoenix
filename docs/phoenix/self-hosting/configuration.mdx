@@ -65,7 +65,7 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_SQL\_DATABASE\_SCHEMA:** An optional string specifying the PostgreSQL [schema](https://www.postgresql.org/docs/current/ddl-schemas.html) for the database tables. Similar to folders, schemas help organize tables outside the default `public` schema. If the specified schema does not exist, it will be created. This option is ignored when using SQLite.
 
-* **PHOENIX\_DEFAULT\_RETENTION\_POLICY\_DAYS:** Sets the default retention policy for traces in days. Defaults to 0 (infinite retention). When set to a positive value, traces older than this many days will be automatically removed from the database according to the configured cleanup schedule. This setting affects the default retention policy that applies to all projects unless overridden on a per-project basis through the Phoenix UI. See the [data retention documentation](../settings/data-retention.md) for more details.
+* **PHOENIX\_DEFAULT\_RETENTION\_POLICY\_DAYS:** Sets the default retention policy for traces in days. Defaults to 0 (infinite retention). When set to a positive value, traces older than this many days will be automatically removed from the database according to the configured cleanup schedule. This setting affects the default retention policy that applies to all projects unless overridden on a per-project basis through the Phoenix UI. See the [data retention documentation](/phoenix/settings/data-retention) for more details.
 
 * **PHOENIX\_ENABLE\_PROMETHEUS:** Whether to enable Prometheus metrics at port 9090. Defaults to false.
 

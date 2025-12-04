@@ -8,7 +8,7 @@ This Eval evaluates whether a retrieved chunk contains an answer to the query. I
 
 ## RAG Eval Template
 
-```python expandable
+```python
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
     [BEGIN DATA]
@@ -33,7 +33,7 @@ We are continually iterating our templates, view the most up-to-date template [o
 
 ## How To Run the RAG Relevance Eval
 
-```python expandable highlight={1}
+```python
 from phoenix.evals import (
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,

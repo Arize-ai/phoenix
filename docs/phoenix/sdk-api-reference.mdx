@@ -4,17 +4,18 @@ title: "Overview"
 
 ## Features
 
-* [**API**](https://arize-phoenix.readthedocs.io/en/latest/) - Interact with Phoenix's OpenAPI REST interface
-  * Session- Methods for loading, inspecting, and interacting with tracing and evaluation sessions
-  * Client - Upload and download data to and from Phoenix
-  * Evals - Define and run evaluations across models, traces, or datasets
-  * Experiments - Track, evaluate, and compare multiple runs under different conditions
-  * Otel - Integrate tracing and metrics using OpenTelemetry for automatic or manual instrumentation
-  * Inferences / Schema - Transform spans and evaluations into datasets, define structures for features and predictions, and manage embedding columns
-* [**Prompt Management** ](/phoenix/sdk-api-reference#prompt-management)- Pull, push, and invoke prompts stored in Phoenix
-* [**Project Management**](/phoenix/sdk-api-reference#project-management) - Create, read, update, and delete projects in Phoenix
+* [**Phoenix Client**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/) - Lightweight client for interacting with the Phoenix server via its OpenAPI REST interface
+  * [**Datasets**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/datasets.html) - Create and manage datasets for experimentation
+  * [**Experiments**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/experiments.html) - Run experiments and evaluate model performance
+  * [**Prompts**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/prompts.html) - Manage prompt templates and versions
+  * [**Spans**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/spans.html) - Access and analyze traces and spans
+  * [**Annotations**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/annotations.html) - Add annotations, evals, and feedback to spans
+  * [**Sessions**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/sessions.html) - Add session annotations to multi-turn conversations and threads
+  * [**Projects**](https://arize-phoenix.readthedocs.io/projects/client/en/latest/api/projects.html) - Organize your work with project management
+* [**Phoenix Evals**](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/) - Tooling to evaluate LLM applications including RAG relevance, answer relevance, and more
+* [**Phoenix OTEL**](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/) - Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults&#x20;
 
-## Installation
+# Installation
 
 Install via `pip`.
 
@@ -22,7 +23,7 @@ Install via `pip`.
 pip install -Uq arize-phoenix-client
 ```
 
-## Usage
+# Usage
 
 ```python
 from phoenix.client import Client
@@ -30,7 +31,7 @@ from phoenix.client import Client
 client = Client(base_url="your-server-url")  # base_url defaults to http://localhost:6006
 ```
 
-### Authentication (if applicable)
+## Authentication (if applicable)
 
 Phoenix API key can be an environment variable...
 
@@ -48,7 +49,7 @@ from phoenix.client import Client
 client = Client(api_key="your-api-key")
 ```
 
-### Custom Headers
+## Custom Headers
 
 By default, the Phoenix client will use the bearer authentication scheme in the HTTP headers, but if you need different headers, e.g. for Phoenix Cloud, they can also be customized via an environment variable...
 
@@ -66,7 +67,7 @@ from phoenix.client import Client
 client = Client(headers={"api-key": "your-api-key"})  # use `api-key` for Phoenix Cloud
 ```
 
-## Prompt Management
+# Prompt Management
 
 With the Phoenix client, you can push and pull prompts to and from your Phoenix server.
 
@@ -109,7 +110,7 @@ print(resp.choices[0].message.content)
 
 To learn more about prompt engineering using Phenix, see the [Phoenix documentation](https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts).
 
-## Project Management
+# Project Management
 
 The Phoenix client provides synchronous and asynchronous interfaces for interacting with Phoenix Projects.
 
@@ -121,9 +122,9 @@ The Phoenix client provides synchronous and asynchronous interfaces for interact
 * **Update** a project’s description (note: names cannot be changed)
 * **Delete** a project by ID or name
 
-### Usage Examples
+## Usage Examples
 
-```python expandable
+```python
 from phoenix.client import Client
 client = Client(base_url="your-server-url")
 

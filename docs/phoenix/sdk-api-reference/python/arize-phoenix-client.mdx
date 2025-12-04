@@ -28,9 +28,9 @@ Install the Phoenix Client using pip:
 pip install arize-phoenix-client
 ```
 
-## Getting Started
+# Getting Started
 
-### Environment Variables
+## Environment Variables
 
 Configure the Phoenix Client using environment variables for seamless use across different environments:
 
@@ -50,11 +50,11 @@ export PHOENIX_API_KEY="your-api-key"
 export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=value"
 ```
 
-### Client Initialization
+## Client Initialization
 
 The client automatically reads environment variables, or you can override them:
 
-```python expandable
+```python
 from phoenix.client import Client, AsyncClient
 
 # Automatic configuration from environment variables
@@ -83,7 +83,7 @@ async_client = AsyncClient(
 )
 ```
 
-## Resources
+# Resources
 
 The Phoenix Client organizes functionality into resources that correspond to key Phoenix platform features. Each resource provides specialized methods for managing different types of data:
 
@@ -91,7 +91,7 @@ The Phoenix Client organizes functionality into resources that correspond to key
 
 Manage prompt templates and versions:
 
-```python expandable
+```python 
 from phoenix.client import Client
 from phoenix.client.types import PromptVersion
 
@@ -128,11 +128,11 @@ resp = oai_client.chat.completions.create(**formatted_prompt)
 print(resp.choices[0].message.content)
 ```
 
-### Datasets
+## Datasets
 
 Manage evaluation datasets and examples for experiments and evaluation:
 
-```python expandable
+```python 
 import pandas as pd
 
 # List all available datasets
@@ -186,11 +186,11 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
-### Spans
+## Spans
 
 Query for spans and annotations from your projects for custom evaluation and annotation workflows:
 
-```python expandable
+```python 
 from datetime import datetime, timedelta
 
 # Get spans as pandas DataFrame for analysis
@@ -210,11 +210,11 @@ annotations_df = client.spans.get_span_annotations_dataframe(
 )
 ```
 
-### Annotations
+## Annotations
 
 Add annotations to spans for evaluation, user feedback, and custom annotation workflows:
 
-```python expandable
+```python 
 # Add a single annotation with human feedback
 client.annotations.add_span_annotation(
     span_id="span-123",
@@ -243,11 +243,11 @@ annotations = [
 client.spans.log_span_annotations(span_annotations=annotations)
 ```
 
-### Projects
+## Projects
 
 Manage Phoenix projects that organize your AI application data:
 
-```python expandable
+```python 
 # List all projects
 projects = client.projects.list()
 for project in projects:

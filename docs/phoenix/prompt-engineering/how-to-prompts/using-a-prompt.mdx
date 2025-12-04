@@ -93,6 +93,8 @@ Pulling a prompt by name or ID (e.g. the identifier) is the easiest way to pull 
     const promptById = await getPrompt({ promptId: "a1234" })
     // ^ the latest version of the prompt with Id "a1234"
     ```
+    
+    Note prompt names and IDs are synonymous.
 
   </Tab>
 
@@ -139,7 +141,7 @@ Pulling a prompt by version retrieves the content of a prompt at a particular po
 
 ### Pulling a prompt by Tag
 
-Pulling by prompt by [tag](/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#prompt-version-tag) is most useful when you want a particular version of a prompt to be automatically used in a specific environment (say "staging"). To pull prompts by tag, you must [Tag a prompt](/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) in the UI first.
+Pulling by prompt by tag is most useful when you want a particular version of a prompt to be automatically used in a specific environment (say "staging"). To pull prompts by tag, you must [Tag a prompt](/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) in the UI first.
 
 <Frame caption="You can control the prompt version tags in the UI.">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d216c9ac-image.jpeg" />

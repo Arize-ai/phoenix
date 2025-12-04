@@ -10,31 +10,26 @@ Now that you have Phoenix up and running, one of the next steps you can take is 
 
 <Steps>
   <Step title={<span className="step-title">Launch Phoenix</span>}>
-    Before setting up your first dataset, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./overview-get-started).
+    Before setting up your first dataset, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](/phoenix/get-started).
 
     <Tabs>
       <Tab title="Phoenix Cloud">
-        Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./overview-get-started).
+        Log in, create a space, navigate to the settings page in your space, and create your API keys.
 
-        <Tabs>
-          <Tab title="Phoenix Cloud">
-            Log in, create a space, navigate to the settings page in your space, and create your API keys.
+        Set your environment variables.
 
-            In your code, set your environment variables.
+        ```bash
+        export PHOENIX_API_KEY = "ADD YOUR PHOENIX API KEY"
+        export PHOENIX_COLLECTOR_ENDPOINT = "ADD YOUR PHOENIX COLLECTOR ENDPOINT"
+        ```
 
-            ```python
-            import os
-            os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
-            os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX Collector endpoint"
-            ```
+        You can find your collector endpoint here:
 
-            You can find your collector endpoint here:
+        <Frame caption="Launch your space, navigate to settings & copy your hostname for your collector endpoint">
+          <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings." />
+        </Frame>
 
-            <Frame><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings." /></Frame>
-
-            Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.
-          </Tab>
-        </Tabs>
+        Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.
       </Tab>
 
       <Tab title="Local (Self-hosted)">
@@ -58,7 +53,9 @@ Now that you have Phoenix up and running, one of the next steps you can take is 
 
         Once you've downloaded the above csv file, you can follow the video below to upload your first dataset.
 
-        <Frame><video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/make_dataset.mp4" controls /></Frame>
+        <Frame>
+          <iframe src="https://drive.google.com/file/d/1UOSnEbmcf-ELE85h4JcPpPiqx5LxgaGj/preview" allowFullScreen style={{ width: '100%', height: '420px' }} />
+        </Frame>
       </Tab>
 
       <Tab title="Python">
@@ -68,7 +65,6 @@ Now that you have Phoenix up and running, one of the next steps you can take is 
 
         ```python
         from phoenix.client import AsyncClient
-        from phoenix.datasets import Dataset
 
         px_client = AsyncClient()
         dataset = await px_client.datasets.create_dataset(
@@ -81,20 +77,32 @@ Now that you have Phoenix up and running, one of the next steps you can take is 
       </Tab>
 
       <Tab title="TS">
-        i dont think this is possible unless you have a set of examples. doesn't yet take in csv via code
-
         ```typescript
-        import { createClient } from "@arizeai/phoenix-client";
         import { createDataset } from "@arizeai/phoenix-client/datasets";
 
-        // Initialize Phoenix client
-        const client = createClient();
+        // Data must be an array of Example objects with this structure:
+        // {
+        //   input: Record<string, unknown>,    // required
+        //   output?: Record<string, unknown>,  // optional
+        //   metadata?: Record<string, unknown> // optional
+        // }
+        // Parse sample.csv into this format
 
-        // Upload dataset
         const { datasetId } = await createDataset({
-          client,
-          name: "test-dataset",
-          examples: sample.csv
+          name: "my-dataset",
+          description: "My dataset description",
+          examples: [
+            {
+              input: { question: "What is 2+2?" },
+              output: { answer: "4" },
+              metadata: { difficulty: "easy" },
+            },
+            {
+              input: { question: "What is the capital of France?" },
+              output: { answer: "Paris" },
+            },
+            // ... more examples
+          ],
         });
         ```
       </Tab>
@@ -123,7 +131,22 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
         dataset = await client.datasets.get_dataset(dataset="sample", version_id={your version id here})
         ```
 
-        To get the version_id of your dataset, please navigate to the Versions tab and copy the version you want to run an experiment on.
+        To get the `version_id` of your dataset, please navigate to the Versions tab and copy the version you want to run an experiment on.
+      </Tab>
+
+      <Tab title="Typescript">
+        ```typescript
+        import { getDataset } from "@arizeai/phoenix-client/datasets";
+
+        const dataset = await getDataset({
+          dataset: {
+            datasetName: "sample",
+            versionId: "your-version-id-here",  // optional
+          },
+        });
+        ```
+
+        To get the `version_id` of your dataset, please navigate to the Versions tab and copy the version you want to run an experiment on.
       </Tab>
     </Tabs>
 
@@ -133,21 +156,11 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
   <Step title={<span className="step-title">Create your Task</span>}>
     Create a Task to evaluate.
 
+    Your task can be any function with any definition & does not have to use an LLM. However, for our experiment we want to run our list of input questions through a new prompt.
+
+
     <Tabs>
       <Tab title="Python">
-        Your task can be any function with any definition & does not have to use an LLM. However, for our experiment we want to run our list of input questions through a new prompt, and will need to start by setting our API Keys:
-
-        ```python
-        from openai import OpenAI
-
-        openai_client = OpenAI()
-
-        if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
-            openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
-
-        os.environ["OPENAI_API_KEY"] = openai_api_key
-        ```
-
         ```python
         from phoenix.experiments.types import Example
 
@@ -195,80 +208,175 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
   <Step title={<span className="step-title">Create your Evaluator</span>}>
     Next step is to create your Evaluator. If you have already defined your Q&A Correctness eval from the last quick start, you won't need to redefine it. If not, you can follow along with these code snippets.
 
-    ```python
-    from phoenix.evals.llm import LLM
-    from phoenix.evals import create_classifier
+    <Tabs>
+      <Tab title="Python">
+        ```python
+        from phoenix.evals.llm import LLM
+        from phoenix.evals import create_classifier
 
-    llm = LLM(model="gpt-4o", provider="openai")
+        llm = LLM(model="gpt-4o", provider="openai")
 
-    CORRECTNESS_TEMPLATE = """ 
-    You are given a question and an answer. Decide if the answer is fully correct. 
-    Rules: The answer must be factually accurate, complete, and directly address the question. 
-    If it is, respond with "correct". Otherwise respond with "incorrect". 
-    [BEGIN DATA]
-        ************
-        [Question]: {attributes.llm.input_messages}
-        ************
-        [Answer]: {attributes.llm.output_messages}
-    [END DATA]
+        CORRECTNESS_TEMPLATE = """ 
+        You are given a question and an answer. Decide if the answer is fully correct. 
+        Rules: The answer must be factually accurate, complete, and directly address the question. 
+        If it is, respond with "correct". Otherwise respond with "incorrect". 
+        [BEGIN DATA]
+            ************
+            [Question]: {attributes.llm.input_messages}
+            ************
+            [Answer]: {attributes.llm.output_messages}
+        [END DATA]
 
-    Your response must be a single word, either "correct" or "incorrect",
-    and should not contain any text or characters aside from that word.
-    "correct" means that the question is correctly and fully answered by the answer.
-    "incorrect" means that the question is not correctly or only partially answered by the
-    answer.
-    """
+        Your response must be a single word, either "correct" or "incorrect",
+        and should not contain any text or characters aside from that word.
+        "correct" means that the question is correctly and fully answered by the answer.
+        "incorrect" means that the question is not correctly or only partially answered by the
+        answer.
+        """
 
-    correctness_evaluator = create_classifier(
-        name="correctness",
-        prompt_template=CORRECTNESS_TEMPLATE,
-        llm=llm,
-        choices={"correct": 1.0, "incorrect": 0.0},
-    )
-    ```
+        correctness_evaluator = create_classifier(
+            name="correctness",
+            prompt_template=CORRECTNESS_TEMPLATE,
+            llm=llm,
+            choices={"correct": 1.0, "incorrect": 0.0},
+        )
+        ```
+      </Tab>
+
+      <Tab title="Typescript">
+        ```typescript
+        import { openai } from "@ai-sdk/openai";
+        import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+
+        const llm = openai("gpt-4o");
+
+        const CORRECTNESS_TEMPLATE = `
+        You are given a question and an answer. Decide if the answer is fully correct.
+        Rules: The answer must be factually accurate, complete, and directly address the question.
+        If it is, respond with "correct". Otherwise respond with "incorrect".
+
+        [BEGIN DATA]
+            ************
+            [Question]: {{input}}
+            ************
+            [Answer]: {{output}}
+        [END DATA]
+
+        Your response must be a single word, either "correct" or "incorrect",
+        and should not contain any text or characters aside from that word.
+        "correct" means that the question is correctly and fully answered by the answer.
+        "incorrect" means that the question is not correctly or only partially answered by the
+        answer.
+        `;
+
+        const correctnessEvaluator = createClassificationEvaluator({
+          name: "correctness",
+          promptTemplate: CORRECTNESS_TEMPLATE,
+          model: llm,
+          choices: { correct: 1.0, incorrect: 0.0 },
+        });
+        ```
+      </Tab>
+    </Tabs>
 
     You can run multiple evaluators at once. Let's define a custom Completeness Eval.
 
-    ```python
-    from phoenix.evals import ClassificationEvaluator
+    <Tabs>
+      <Tab title="Python">
+        ```python
+        from phoenix.evals import ClassificationEvaluator
 
-    completeness_prompt = """
-    You are an expert at judging the completeness of a response to a query.
-    Given a query and response, rate the completeness of the response.
-    A response is complete if it fully answers all parts of the query.
-    A response is partially complete if it only answers part of the query.
-    A response is incomplete if it does not answer any part of the query or is not related to the query.
+        completeness_prompt = """
+        You are an expert at judging the completeness of a response to a query.
+        Given a query and response, rate the completeness of the response.
+        A response is complete if it fully answers all parts of the query.
+        A response is partially complete if it only answers part of the query.
+        A response is incomplete if it does not answer any part of the query or is not related to the query.
 
-    Query: {{input}}
-    Response: {{output}}
+        Query: {{input}}
+        Response: {{output}}
 
-    Is the response complete, partially complete, or incomplete?
-    """
+        Is the response complete, partially complete, or incomplete?
+        """
 
-    completeness = ClassificationEvaluator(
-        llm=llm,
-        name="completeness",
-        prompt_template=completeness_prompt,
-        choices={"complete": 1.0, "partially complete": 0.5, "incomplete": 0.0},
-    )
-    ```
+        completeness = ClassificationEvaluator(
+            llm=llm,
+            name="completeness",
+            prompt_template=completeness_prompt,
+            choices={"complete": 1.0, "partially complete": 0.5, "incomplete": 0.0},
+        )
+        ```
+      </Tab>
+
+      <Tab title="Typescript">
+        ```typescript
+        import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+        import { openai } from "@ai-sdk/openai";
+
+        const llm = openai("gpt-4o");
+
+        const completenessPrompt = `
+        You are an expert at judging the completeness of a response to a query.
+        Given a query and response, rate the completeness of the response.
+        A response is complete if it fully answers all parts of the query.
+        A response is partially complete if it only answers part of the query.
+        A response is incomplete if it does not answer any part of the query or is not related to the query.
+
+        Query: {{input}}
+        Response: {{output}}
+
+        Is the response complete, partially complete, or incomplete?
+        `;
+
+        const completeness = createClassificationEvaluator({
+          model: llm,
+          name: "completeness",
+          promptTemplate: completenessPrompt,
+          choices: { 
+            "complete": 1.0, 
+            "partially complete": 0.5, 
+            "incomplete": 0.0 
+          },
+        });
+        ```
+      </Tab>
+    </Tabs>
   </Step>
 
   <Step title={<span className="step-title">Run your Experiment</span>}>
     Now that we have defined our Task & our Evaluators, we're now ready to run our experiment.
 
-    ```python
-    from phoenix.client.experiments import async_run_experiment
+    <Tabs>
+      <Tab title="Python">
+        ```python
+        from phoenix.client.experiments import async_run_experiment
 
-    experiment = await async_run_experiment(
-        dataset=dataset,
-        task=task,
-        evaluators=[correctness_evaluator, completeness])
-    ```
+        experiment = await async_run_experiment(
+            dataset=dataset,
+            task=task,
+            evaluators=[correctness_evaluator, completeness])
+        ```
+      </Tab>
+
+      <Tab title="Typescript">
+        ```typescript
+        import { runExperiment } from "@arizeai/phoenix-client/experiments";
+
+        const experiment = await runExperiment({
+          experimentName: "my-experiment",
+          dataset: { datasetId: dataset.id },
+          task,
+          evaluators: [correctnessEvaluator, completenessEvaluator],
+        });
+        ```
+      </Tab>
+    </Tabs>
 
     After running multiple experiments, you can compare the experiment output & evals side by side!
 
-    <Frame><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/compare_experiments.png" alt="Compare Experiments" /></Frame>
+    <Frame>
+      <iframe src="https://drive.google.com/file/d/1EtkIVSq23fuaXlRaLOSCNYwgsxgGpFCR/preview" allowFullScreen style={{ width: '100%', height: '420px' }} />
+    </Frame>
 
     **Optional:** If you wanted to run even more evaluators after this experiment, you can do so following this code:
 
@@ -281,7 +389,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
         ```
       </Tab>
 
-      <Tab title="Typescript">
+      <Tab title="TypeScript">
         ```typescript
         import { evaluateExperiment } from "@arizeai/phoenix-client/experiments";
 

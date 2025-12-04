@@ -1,9 +1,9 @@
 ---
 title: "Setup Tracing (TS)"
+hidden: true
 ---
-
 <Frame caption="You can trace your NodeJS application over OpenTelemetry">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/2ef5d0e4-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/nodejs_deployment.png" alt="You can trace your NodeJS application over OpenTelemetry" />
 </Frame>
 
 Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However, it can be stood up as a trace collector so that your LLM traces from your NodeJS application (e.g., LlamaIndex.TS, Langchain.js) can be collected. The traces collected by Phoenix can then be downloaded to a Jupyter notebook and used to run evaluations (e.g., [LLM Evals](/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations), Ragas).
@@ -18,27 +18,27 @@ Phoenix natively supports automatic instrumentation provided by OpenInference. F
 
 Now lets walk through instrumenting, and then tracing, a sample express application.
 
-### instrumentation setup
+### Instrumentation Setup <a href="#example-app" id="example-app"></a>
 
-#### Dependencies
+#### Dependencies <a href="#dependencies" id="dependencies"></a>
 
 Install OpenTelemetry API packages:
 
-```ruby
+```shell
 # npm, pnpm, yarn, etc
 npm install @opentelemetry/semantic-conventions @opentelemetry/api @opentelemetry/instrumentation @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto
 ```
 
 Install OpenInference instrumentation packages. Below is an example of adding instrumentation for OpenAI as well as the semantic conventions for OpenInference.
 
-```ruby
+```bash
 # npm, pnpm, yarn, etc
 npm install openai @arizeai/openinference-instrumentation-openai @arizeai/openinference-semantic-conventions
 ```
 
-### Traces
+### Traces <a href="#traces" id="traces"></a>
 
-#### Initialize Tracing
+#### Initialize Tracing <a href="#initialize-tracing" id="initialize-tracing"></a>
 
 To enable [tracing](https://opentelemetry.io/docs/concepts/signals/traces/) in your app, you’ll need to have an initialized [`TracerProvider`](https://opentelemetry.io/docs/concepts/signals/traces/#tracer-provider).
 
@@ -48,7 +48,7 @@ If a `TracerProvider` is not created, the OpenTelemetry APIs for tracing will us
 
 Create `instrumentation.ts` (or `instrumentation.js`) to contain all the provider initialization code:
 
-```javascript expandable
+```ts
 // instrumentation.ts
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
@@ -99,7 +99,7 @@ console.log("👀 OpenInference initialized");
 
 This basic setup has will instrument chat completions via native calls to the OpenAI client.
 
-As shown above with OpenAI, you can register additional instrumentation libraries with the OpenTelemetry provider in order to generate telemetry data for your dependencies. For more information, see [Integrations](https://github.com/Arize-ai/phoenix/blob/docs/docs/tracing/how-to-tracing/setup-tracing/broken-reference/README.md).
+As shown above with OpenAI, you can register additional instrumentation libraries with the OpenTelemetry provider in order to generate telemetry data for your dependencies. For more information, see [Integrations](/phoenix/integrations).
 
 **Picking the right span processor**
 
@@ -114,20 +114,19 @@ In most cases, stick with `BatchSpanProcessor` over `SimpleSpanProcessor`.
 Now that you have configured a tracer provider, and instrumented the `openai` package, lets see how we can generate traces for a sample application.
 
 <Info>
-The following code assumes you have Phoenix running locally, on its default port of 6006. See our [Quickstart: Tracing (TS)](/phoenix/tracing/llm-traces-1/quickstart-tracing-ts) documentation if you'd like to learn more about running Phoenix.
-
+The following code assumes you have Phoenix running locally, on its default port of 6006. See our [Get Started: Tracing](/phoenix/get-started/get-started-tracing) documentation if you'd like to learn more about running Phoenix.
 </Info>
 
 First, install the dependencies required for our sample app.
 
-```python
+```sh
 # npm, pnpm, yarn, etc
 npm install express
 ```
 
 Next, create an `app.ts` (or `app.js` ) file, that hosts a simple express server for executing OpenAI chat completions.
 
-```typescript expandable
+```typescript
 // app.ts
 import express from "express";
 import OpenAI from "openai";
@@ -155,7 +154,7 @@ app.listen(PORT, () => {
 
 Then, we will start our application, loading the `instrumentation.ts` file before `app.ts` so that our instrumentation code can instrument `openai` .
 
-```php
+```sh
 # node v23
 node --require ./instrumentation.ts app.ts
 ```
@@ -163,13 +162,12 @@ node --require ./instrumentation.ts app.ts
 <Info>
 We are using Node v23 above as this allows us to execute TypeScript code without a transpilation step. OpenTelemetry and OpenInference support Node versions from v18 onwards, and we are flexible with projects configured using CommonJS or ESM module syntaxes.
 
-Learn more by visiting the Node.js documentation on [TypeScript](https://nodejs.org/en/learn/typescript/run-natively#running-typescript-natively) and [ESM](https://nodejs.org/api/esm.html) or see our [Quickstart: Tracing (TS)](/phoenix/tracing/llm-traces-1/quickstart-tracing-ts) documentation for an end to end example.
-
+Learn more by visiting the Node.js documentation on [TypeScript](https://nodejs.org/en/learn/typescript/run-natively#running-typescript-natively) and [ESM](https://nodejs.org/api/esm.html).
 </Info>
 
 Finally, we can execute a request against our server
 
-```powershell
+```sh
 curl "http://localhost:8080/chat?message=write%20me%20a%20haiku"
 ```
 
@@ -177,11 +175,11 @@ After a few moments, a new project `openai-service` will appear in the Phoenix U
 
 ### Advanced: Manually Tracing
 
-#### Acquiring a tracer
+#### Acquiring a tracer <a href="#acquiring-a-tracer" id="acquiring-a-tracer"></a>
 
 Anywhere in your application where you write manual tracing code should call `getTracer` to acquire a tracer. For example:
 
-```javascript
+```ts
 import opentelemetry from '@opentelemetry/api';
 //...
 
@@ -199,7 +197,7 @@ It’s generally recommended to call `getTracer` in your app when you need it ra
 
 Below is an example of acquiring a tracer within application scope.
 
-```typescript expandable
+```ts
 // app.ts
 import { trace } from '@opentelemetry/api';
 import express from 'express';
@@ -228,21 +226,20 @@ app.listen(PORT, () => {
 });
 ```
 
-#### Create spans
+#### Create spans <a href="#create-spans" id="create-spans"></a>
 
 Now that you have [tracers](https://opentelemetry.io/docs/concepts/signals/traces/#tracer) initialized, you can create [spans](https://opentelemetry.io/docs/concepts/signals/traces/#spans).
 
 The API of OpenTelemetry JavaScript exposes two methods that allow you to create spans:
 
 * [`tracer.startSpan`](https://open-telemetry.github.io/opentelemetry-js/interfaces/_opentelemetry_api.Tracer.html#startSpan): Starts a new span without setting it on context.
-
 * [`tracer.startActiveSpan`](https://open-telemetry.github.io/opentelemetry-js/interfaces/_opentelemetry_api.Tracer.html#startActiveSpan): Starts a new span and calls the given callback function passing it the created span as first argument. The new span gets set in context and this context is activated for the duration of the function call.
 
 In most cases you want to use the latter (`tracer.startActiveSpan`), as it takes care of setting the span and its context active.
 
 The code below illustrates how to create an active span.
 
-```javascript expandable
+```ts
 import { trace, Span } from "@opentelemetry/api";
 import { SpanKind } from "@opentelemetry/api";
 import {
@@ -280,13 +277,13 @@ The above instrumented code can now be pasted in the `/chat` handler. You should
 
 Start your app as follows, and then send it requests by visiting `http://localhost:8080/chat?message="how long is a pencil"` with your browser or `curl`.
 
-```javascript
+```sh
 ts-node --require ./instrumentation.ts app.ts
 ```
 
 After a while, you should see the spans printed in the console by the `ConsoleSpanExporter`, something like this:
 
-```javascript
+```json
 {
   "traceId": "6cc927a05e7f573e63f806a2e9bb7da8",
   "parentId": undefined,
@@ -305,32 +302,32 @@ After a while, you should see the spans printed in the console by the `ConsoleSp
 }
 ```
 
-#### Get the current span
+#### Get the current span <a href="#get-the-current-span" id="get-the-current-span"></a>
 
 Sometimes it’s helpful to do something with the current/active [span](https://opentelemetry.io/docs/concepts/signals/traces/#spans) at a particular point in program execution.
 
-```javascript
+```js
 const activeSpan = opentelemetry.trace.getActiveSpan();
 
 // do something with the active span, optionally ending it if that is appropriate for your use case.
 ```
 
-#### Get a span from context
+#### Get a span from context <a href="#get-a-span-from-context" id="get-a-span-from-context"></a>
 
 It can also be helpful to get the [span](https://opentelemetry.io/docs/concepts/signals/traces/#spans) from a given context that isn’t necessarily the active span.
 
-```javascript
+```js
 const ctx = getContextFromSomewhere();
 const span = opentelemetry.trace.getSpan(ctx);
 
 // do something with the acquired span, optionally ending it if that is appropriate for your use case.
 ```
 
-#### Attributes
+#### Attributes <a href="#attributes" id="attributes"></a>
 
 [Attributes](https://opentelemetry.io/docs/concepts/signals/traces/#attributes) let you attach key/value pairs to a [`Span`](https://opentelemetry.io/docs/concepts/signals/traces/#spans) so it carries more information about the current operation that it’s tracking. For OpenInference related attributes, use the `@arizeai/openinference-semantic-conventions` keys. However you are free to add any attributes you'd like!
 
-```javascript
+```ts
 function chat(message: string, user: User) {
   return tracer.startActiveSpan(`chat:${i}`, (span: Span) => {
     const result = Math.floor(Math.random() * (max - min) + min);
@@ -358,7 +355,7 @@ tracer.startActiveSpan(
 );
 ```
 
-```javascript
+```ts
 function chat(session: Session) {
   return tracer.startActiveSpan(
     'chat',
@@ -376,13 +373,13 @@ There are semantic conventions for spans representing operations in well-known p
 
 First add both semantic conventions as a dependency to your application:
 
-```javascript
+```shell
 npm install --save @opentelemetry/semantic-conventions @arizeai/openinfernece-semantic-conventions
 ```
 
 Add the following to the top of your application file:
 
-```javascript
+```ts
 import { SemanticAttributes } from 'arizeai/openinfernece-semantic-conventions';
 ```
 
@@ -399,11 +396,11 @@ const doWork = () => {
 };
 ```
 
-#### Span events
+#### Span events <a href="#span-events" id="span-events"></a>
 
 A [Span Event](https://opentelemetry.io/docs/concepts/signals/traces/#span-events) is a human-readable message on an [`Span`](https://opentelemetry.io/docs/concepts/signals/traces/#spans) that represents a discrete event with no duration that can be tracked by a single timestamp. You can think of it like a primitive log.
 
-```javascript
+```js
 span.addEvent('Doing something');
 
 const result = doWork();
@@ -411,12 +408,11 @@ const result = doWork();
 
 You can also create Span Events with additional [Attributes](https://opentelemetry.io/docs/concepts/signals/traces/#attributes)
 
-<Danger>
+<Info>
 While Phoenix captures these, they are currently not displayed in the UI. Contact us if you would like to support!
+</Info>
 
-</Danger>
-
-```javascript
+```js
 span.addEvent('some log', {
   'log.severity': 'error',
   'log.message': 'Data not found',
@@ -424,13 +420,13 @@ span.addEvent('some log', {
 });
 ```
 
-#### Span Status
+#### Span Status <a href="#span-status" id="span-status"></a>
 
 A [Status](https://opentelemetry.io/docs/concepts/signals/traces/#span-status) can be set on a [Span](https://opentelemetry.io/docs/concepts/signals/traces/#spans), typically used to specify that a Span has not completed successfully - `Error`. By default, all spans are `Unset`, which means a span completed without error. The `Ok` status is reserved for when you need to explicitly mark a span as successful rather than stick with the default of `Unset` (i.e., “without error”).
 
 The status can be set at any time before the span is finished.
 
-```javascript
+```ts
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 
 // ...
@@ -449,11 +445,11 @@ tracer.startActiveSpan('app.doWork', (span) => {
 });
 ```
 
-#### Recording exceptions
+#### Recording exceptions <a href="#recording-exceptions" id="recording-exceptions"></a>
 
 It can be a good idea to record exceptions when they happen. It’s recommended to do this in conjunction with setting [span status](https://opentelemetry.io/docs/languages/js/instrumentation/#span-status).
 
-```javascript
+```ts
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 
 // ...
@@ -466,15 +462,15 @@ try {
 }
 ```
 
-#### Using `sdk-trace-base` and manually propagating span context
+#### Using `sdk-trace-base` and manually propagating span context <a href="#using-sdk-trace-base-and-manually-propagating-span-context" id="using-sdk-trace-base-and-manually-propagating-span-context"></a>
 
 In some cases, you may not be able to use either the Node.js SDK nor the Web SDK. The biggest difference, aside from initialization code, is that you’ll have to manually set spans as active in the current context to be able to create nested spans.
 
-**Initializing tracing with **`sdk-trace-base`
+**Initializing tracing with `sdk-trace-base`**
 
 Initializing tracing is similar to how you’d do it with Node.js or the Web SDK.
 
-```javascript expandable
+```ts
 import opentelemetry from '@opentelemetry/api';
 import {
   BasicTracerProvider,
@@ -494,7 +490,7 @@ const tracer = opentelemetry.trace.getTracer('example-basic-tracer-node');
 
 Like the other examples in this document, this exports a tracer you can use throughout the app.
 
-**Creating nested spans with** `sdk-trace-base`
+**Creating nested spans with `sdk-trace-base`**
 
 To create nested spans, you need to set whatever the currently-created span is as the active span in the current context. Don’t bother using `startActiveSpan` because it won’t do this for you.
 
@@ -540,7 +536,7 @@ OpenInference JavaScript instrumentations support specifying a custom tracer pro
 
 You can pass a custom tracer provider directly to the instrumentation when creating it:
 
-```javascript expandable
+```typescript
 // Create a custom tracer provider
 const customTracerProvider = new NodeTracerProvider({
   resource: resourceFromAttributes({
@@ -567,7 +563,7 @@ instrumentation.manuallyInstrument(OpenAI);
 
 You can set a tracer provider after creating the instrumentation:
 
-```javascript expandable
+```typescript
 const instrumentation = new OpenAIInstrumentation();
 instrumentation.setTracerProvider(customTracerProvider);
 instrumentation.manuallyInstrument(OpenAI);
@@ -577,7 +573,7 @@ instrumentation.manuallyInstrument(OpenAI);
 
 You can also specify the tracer provider when registering instrumentations:
 
-```php
+```typescript
 const instrumentation = new OpenAIInstrumentation();
 instrumentation.manuallyInstrument(OpenAI);
 
@@ -592,11 +588,7 @@ registerInstrumentations({
 This functionality is supported across all OpenInference JavaScript instrumentations:
 
 * **LangChain JS**: `@arizeai/openinference-instrumentation-langchain`
-
 * **BeeAI**: `@arizeai/openinference-instrumentation-beeai`
-
 * **OpenAI JS**: `@arizeai/openinference-instrumentation-openai`
 
-For specific examples with each instrumentation, see their respective documentation pages in the [Integrations section](https://github.com/Arize-ai/phoenix/blob/docs/docs/tracing/section-integrations/README.md).
-
-
+For specific examples with each instrumentation, see their respective documentation pages in the [Integrations section](/phoenix/integrations).

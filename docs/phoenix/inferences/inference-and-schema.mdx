@@ -52,7 +52,7 @@ Alternatively, provide a name for the inferences that will appear in the applica
 ds = px.Inferences(df, schema, name="training")
 ```
 
-`ds` is then passed as the `primary` or `reference` argument to [launch\_app](https://github.com/Arize-ai/phoenix/blob/docs/docs/inferences/broken-reference/README.md).
+`ds` is then passed as the `primary` or `reference` argument to [launch_app](/phoenix/inferences/how-to-inferences/manage-the-app#launch-the-app).
 
 ## phoenix.Schema
 
@@ -127,7 +127,7 @@ class EmbeddingColumnNames(
 )
 ```
 
-A dataclass that associates one or more columns of a dataframe with an [embedding](https://github.com/Arize-ai/phoenix/blob/main/docs/api/broken-reference/README.md) feature. Instances of this class are only used as values in a dictionary passed to the `embedding_feature_column_names` field of [Schema](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.schema).
+A dataclass that associates one or more columns of a dataframe with an [embedding](/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis) feature. Instances of this class are only used as values in a dictionary passed to the `embedding_feature_column_names` field of [Schema](/phoenix/inferences/inference-and-schema#phoenixschema).
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/inferences/schema.py)**]**
 

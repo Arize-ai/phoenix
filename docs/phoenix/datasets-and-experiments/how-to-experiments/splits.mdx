@@ -1,11 +1,12 @@
 ---
-title: Splits
+title: "Splits"
 description: >-
-  How to run experiments over select splits of your dataset for targeted experimentation
+  How to run experiments over select splits of your dataset for targeted
+  experimentation
 ---
-<Info>
+<Success>
 dataset splits are available in `arize-phoenix` [12.7.0](https://github.com/Arize-ai/phoenix/releases/tag/arize-phoenix-v12.7.0).
-</Info>
+</Success>
 
 Often we want to run an experiment over just a subset of our entire dataset. These subsets of dataset examples are called "splits." Common splits include:
 
@@ -24,13 +25,13 @@ Experiments can be run over previously configured splits either via the Python o
 Currently, Splits can be created in the UI on the dataset page. When inspecting the dataset you will see a new splits column along with a splits filter.
 
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/splits_column_and_filter.png" alt="Splits column and filter" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/splits_column_and_filter.png" alt="repetition carousel" />
 </Frame>
 
 On the split filter we have the ability to assign splits and create splits
 
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/create_splits.png" alt="Create splits" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/create_splits.png" alt="repetition carousel" />
 </Frame>
 
 A split can be assigned a name, description and a color
@@ -56,13 +57,13 @@ Splits can currently only be assigned from the UI on the dataset page. To assign
 <Tabs>
 <Tab title="Assigning Splits">
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assigning_splits.png" alt="Assigning splits" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assigning_splits.png" alt="Create split dialog" />
 </Frame>
 </Tab>
 
 <Tab title="Splits Assigned">
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assign_splits_complete.png" alt="Splits assigned" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/assign_splits_complete.png" alt="Split creation complete" />
 </Frame>
 </Tab>
 </Tabs>
@@ -72,15 +73,16 @@ Splits can currently only be assigned from the UI on the dataset page. To assign
 For the rest of this example we will be working with the following dataset, which has 3 examples assigned to test and 7 examples assigned to train.
 
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/example_dataset.png" alt="Example dataset" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/example_dataset.png" alt="repetition carousel" />
 </Frame>
+
 
 <Tabs>
 <Tab title="UI">
 Experiments can be ran over dataset splits from the playground UI. With dataset splits, the dataset selector UI now shows the dataset with the ability to select all examples or to select from a set of splits
 
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/playground_dataset_select.png" alt="Playground dataset select" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/playground_dataset_select.png" alt="repetition carousel" />
 </Frame>
 
 To run an experiment over the "train" split, we can select the dataset by the train split which shows the 7 selected examples and hit Run
@@ -88,18 +90,18 @@ To run an experiment over the "train" split, we can select the dataset by the tr
 <Tabs>
 <Tab title="Selected Split">
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/playground_test_select.png" alt="Selected split" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/playground_test_select.png" alt="repetition carousel" />
 </Frame>
 </Tab>
 
 <Tab title="Run Experiment on Split">
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/run_experiment.png" alt="Run experiment on split" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/run_experiment.png" alt="Split creation complete" />
 </Frame>
 </Tab>
 </Tabs>
-</Tab>
 
+</Tab>
 <Tab title="Python">
 Splits are implicitly configured when a dataset is pulled from the Phoenix server using the `get_dataset` client method. Subsequent invocations of `run_experiment` only run on the examples belonging to the split(s).
 
@@ -166,11 +168,11 @@ For example, if you run an experiment on the "train" split when it contains 7 ex
 When comparing experiments run on splits we will now see this new overlap states where a experiment comparison either doesn't contain those example IDs:
 
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/no_overlap_example.png" alt="No overlap example" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/no_overlap_example.png" alt="No overlap" />
 </Frame>
 
 Or the expected state when there is an overlap:
 
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/overlap_example.png" alt="Overlap example" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/overlap_example.png" alt="Overlap" />
 </Frame>

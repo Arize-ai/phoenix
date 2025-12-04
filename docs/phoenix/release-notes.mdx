@@ -8,6 +8,56 @@ GitHub
 </Card>
 
 
+<Update label="11.29.2025">
+## [11.29.2025: Add support for Claude Opus 4-5](/phoenix/release-notes/11-2025/11-29-2025-add-support-for-claude-opus-4-5) 🤖
+
+**Available in Phoenix 12.18+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-opus-4-5-support.png" alt="Claude Opus 4-5 support" />
+</Frame>
+
+Phoenix now supports Claude Opus 4 and 4-5 as models you can invoke from the Playground.
+</Update>
+
+<Update label="11.27.2025">
+## [11.27.2025: Show Server Credential Setup in Playground API Keys](/phoenix/release-notes/11-2025/11-27-2025-show-server-credential-setup-in-playground-api-keys) 🔐
+
+**Available in Phoenix 12.18+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/playground-server-credential-set-up.png" alt="Playground server credential setup" />
+</Frame>
+
+The Playground now clearly indicates when server credentials are configured.
+</Update>
+
+<Update label="11.25.2025">
+## [11.25.2025: Split Assignments When Uploading a Dataset](/phoenix/release-notes/11-2025/11-25-2025-split-assignments-when-uploading-a-dataset) 🗂️
+
+**Available in Phoenix 12.18+**
+
+<Frame>
+  <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/upload-dataset-splits.mp4" controls style={{ width: '100%' }} />
+</Frame>
+
+You can now assign data splits (ex: train/test/validation) directly when uploading a dataset into Arize Phoenix.
+</Update>
+
+<Update label="11.23.2025">
+## [11.23.2025: Repetitions for Manual Playground Invocations](/phoenix/release-notes/11-2025/11-23-2025-repetitions-for-manual-playground-invocations) 🛝
+
+**Available in Phoenix 12.17+**
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/playground-repetitions-rn.png" alt="Playground repetitions feature" />
+</Frame>
+
+This update adds an easy way to run several repetitions of the same prompt directly from the Playground.
+</Update>
+
+
+
 <Update label="11.14.2025">
 ## [11.14.2025: Expanded Provider Support with OpenAI 5.1 + Gemini 3](/phoenix/release-notes/11-2025/11-19-2025-expanded-provider-support-with-openai-5-1-+-gemini-3) 🔧
 
@@ -1073,7 +1123,7 @@ You can now delete experiments directly from the action menu, making it quicker 
     <iframe src="https://cdn.iframe.ly/gxMnPmb" width={1000} height={400} allowFullScreen></iframe>
 </Frame>
 
-In the New Project tab, we've added quick setup to instrument your application for **BeeAI**, **SmolAgents**, and the **OpenAI Agents SDK**. Easily configure these integrations with streamlined instructions. Check out all Phoenix[tracing integrations](https://github.com/Arize-ai/phoenix/blob/docs/docs/section-release-notes/broken-reference/README.md) here.
+In the New Project tab, we've added quick setup to instrument your application for **BeeAI**, **SmolAgents**, and the **OpenAI Agents SDK**. Easily configure these integrations with streamlined instructions. Check out all Phoenix [tracing integrations](/phoenix/integrations) here.
 </Update>
 
 
@@ -1101,7 +1151,7 @@ We've added the ability to resize Span, Trace, and Session tables. Resizing pref
     <iframe src="https://cdn.iframe.ly/sDk1x3T" width={1000} height={400} allowFullScreen></iframe>
 </Frame>
 
-We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance. For more details on a quick setup, check out our [docs](https://github.com/Arize-ai/phoenix/blob/docs/docs/section-release-notes/broken-reference/README.md).
+We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance. For more details on a quick setup, check out our [docs](/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing).
 
 ```sh
 pip install openinference-instrumentation-openai-agents openai-agents

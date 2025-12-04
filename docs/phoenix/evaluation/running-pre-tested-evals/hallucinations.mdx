@@ -16,7 +16,7 @@ It is not designed to check hallucinations on what the LLM was trained on. It is
 
 ## Hallucination Eval Template
 
-```bash expandable
+```bash
 In this task, you will be presented with a query, some context and a response. The response
 is generated to the question based on the context. The response may contain false
 information. You must use the context to determine if the response to the question
@@ -52,7 +52,7 @@ We are continually iterating our templates, view the most up-to-date template [o
 
 The `HallucinationEvaluator` requires three inputs called `input`, `output`, and `context`. You can use the `.describe()` method on any evaluator to learn more about it, including it's `input_schema` which has information about required inputs.&#x20;
 
-```python expandable
+```python
 from phoenix.evals.llm import LLM
 from phoenix.evals.metrics import HallucinationEvaluator
 
@@ -63,7 +63,7 @@ hallucination = HallucinationEvaluator(llm=llm)
 # use the .describe() method to inspect the input_schema of any evaluator
 print(hallucination_evaluator.describe())
 >>> {'name': 'hallucination',
- 'source': 'llm',
+ 'kind': 'llm',
  'direction': 'maximize',
  'input_schema': {'properties': {
    'input': {'description': 'The input query.',
@@ -88,7 +88,7 @@ eval_input = {
 
 scores = hallucination.evaluate(eval_input=eval_input)
 print(scores[0])
->>> Score(name='hallucination', score=1.0, label='factual', explanation='The response correctly identifies the location of the Eiffel Tower as stated in the context.', metadata={'model': 'gpt-4o'}, source='llm', direction='maximize')
+>>> Score(name='hallucination', score=1.0, label='factual', explanation='The response correctly identifies the location of the Eiffel Tower as stated in the context.', metadata={'model': 'gpt-4o'}, kind='llm', direction='maximize')
 ```
 
 ## Benchmark Results

@@ -65,7 +65,6 @@ If you'd prefer to self-host using alternative deployment services, see [this gu
 
   <Step title={<span className="step-title">(optional) Add Collaborators</span>}>
     Phoenix Cloud supports team collaboration by allowing you to invite members to your space. You can also assign roles and permissions to manage access levels securely.
-
     ### Roles
 
     * **Admins** have full control over the space, including managing members, settings, system and user API keys, and roles.
@@ -129,7 +128,7 @@ Running Phoenix through your terminal is the fastest way to get Phoenix up and r
     docker info
     ```
 
-         If you don't see any server information in the output, make sure Docker is installed correctly and launch the Docker daemon.
+        If you don't see any server information in the output, make sure Docker is installed correctly and launch the Docker daemon.
 
     2. Phoenix Version: Our Docker Compose files are pegged to the latest release of Phoenix. If you want to use a different version, you can specify it in the `docker-compose.yml` file.
 
@@ -257,7 +256,7 @@ Running Phoenix through your terminal is the fastest way to get Phoenix up and r
         docker compose up --build
         ```
 
-        Note that the above setup is using your local disc as a volume mount to store the postgres data. For production deployments you will have to setup a persistent volume.You can also run Phoenix using SQLite with a persistent disc attached:
+        Note that the above setup is using your local disc as a volume mount to store the postgres data. For production deployments you will have to setup a persistent volume. You can also run Phoenix using SQLite with a persistent disc attached.
       </Tab>
 
       <Tab title="SQLite">

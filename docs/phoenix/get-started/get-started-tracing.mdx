@@ -6,7 +6,7 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
 
 <Steps>
   <Step title={<span className="step-title">Launch Phoenix</span>}>
-    Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./overview-get-started).
+    Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](/phoenix/get-started).
 
     <Tabs>
       <Tab title="Phoenix Cloud">
@@ -50,7 +50,7 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
       <Tab title="TS">
         ```bash
         # npm, pnpm, yarn, etc
-        npm install @arizeai/openinference-semantic-conventions @opentelemetry/semantic-conventions @opentelemetry/api @opentelemetry/instrumentation @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto
+        npm install @arizeai/phoenix-otel
         ```
       </Tab>
     </Tabs>
@@ -76,15 +76,16 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
         npm install openai @arizeai/openinference-instrumentation-openai
         ```
 
-        Update your `instrumentation.ts`file, registering the instrumentation. Steps will vary depending on if your project is configured for CommonJS or ESM style module resolution.
+        Update your `instrumentation.ts` file, registering the instrumentation. Steps will vary depending on if your project is configured for CommonJS or ESM style module resolution.
 
         <Tabs>
           <Tab title="ESM Project">
             ```typescript
             // instrumentation.ts
+
             // ... rest of imports
             import OpenAI from "openai"
-            import { registerInstrumentations } from "@opentelemetry/instrumentation";
+            import { registerInstrumentations } from "@arizeai/phoenix-otel";
             import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
             // ... previous code
@@ -101,8 +102,9 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
           <Tab title="CommonJS Project">
             ```typescript
             // instrumentation.ts
+
             // ... rest of imports
-            import { registerInstrumentations } from "@opentelemetry/instrumentation";
+            import { registerInstrumentations } from "@arizeai/phoenix-otel";
             import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
             // ... previous code
@@ -176,46 +178,28 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
 
         ```typescript
         // instrumentation.ts
-        import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
-        import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-        import { resourceFromAttributes } from "@opentelemetry/resources";
-        import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
-        import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-        import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
+        import { register } from "@arizeai/phoenix-otel";
 
-        import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-
-        diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
-
-        const COLLECTOR_ENDPOINT = process.env.PHOENIX_COLLECTOR_ENDPOINT;
-        const SERVICE_NAME = "my-llm-app";
-
-        const provider = new NodeTracerProvider({
-          resource: resourceFromAttributes({
-            [ATTR_SERVICE_NAME]: SERVICE_NAME,
-            // defaults to "default" in the Phoenix UI
-            [SEMRESATTRS_PROJECT_NAME]: SERVICE_NAME,
-          }),
-          spanProcessors: [
-            // BatchSpanProcessor will flush spans in batches after some time,
-            // this is recommended in production. For development or testing purposes
-            // you may try SimpleSpanProcessor for instant span flushing to the Phoenix UI.
-            new BatchSpanProcessor(
-              new OTLPTraceExporter({
-                url: `${COLLECTOR_ENDPOINT}/v1/traces`,
-                // (optional) if connecting to Phoenix Cloud
-                // headers: { "api_key": process.env.PHOENIX_API_KEY },
-                // (optional) if connecting to self-hosted Phoenix with Authentication enabled
-                // headers: { "Authorization": `Bearer ${process.env.PHOENIX_API_KEY}` }
-              })
-            ),
-          ],
+        const provider = register({
+          projectName: "my-llm-app", // Sets the project name in Phoenix UI
         });
-
-        provider.register();
         ```
 
-        Now, import this file at the top of your main program entrypoint, or invoke it with the node cli's `require`flag:
+        The `register` function automatically:
+
+        * Reads `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` from environment variables
+        * Configures the collector endpoint (defaults to `http://localhost:6006`)
+        * Sets up batch span processing for production use
+        * Registers the provider globally
+
+        <Info>
+        **Environment Variables:**
+
+        * `PHOENIX_COLLECTOR_ENDPOINT` - The URL to your Phoenix instance (e.g., `https://app.phoenix.arize.com`)
+        * `PHOENIX_API_KEY` - Your Phoenix API key for authentication
+        </Info>
+
+        Now, import this file at the top of your main program entrypoint, or invoke it with the node cli's `--require` flag:
 
         * Import Method:
           * In main.ts or similar: `import "./instrumentation.ts"`

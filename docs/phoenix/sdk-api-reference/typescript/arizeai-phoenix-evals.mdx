@@ -8,7 +8,6 @@ TypeScript evaluation library for LLM applications. This package is vendor agnos
 
 <Note>
 **Note**: This package is in alpha and subject to change.
-
 </Note>
 
 ## Installation
@@ -23,7 +22,7 @@ npm install @arizeai/phoenix-evals
 
 Create custom evaluators for tasks like hallucination detection, relevance scoring, or any binary/multi-class classification:
 
-```javascript expandable
+```javascript 
 import { createClassifier } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 
@@ -74,7 +73,7 @@ console.log(result);
 
 The library includes several pre-built evaluators for common evaluation tasks. These evaluators come with optimized prompts and can be used directly with any AI SDK model.
 
-```javascript expandable
+```javascript 
 import {
   createHallucinationEvaluator,
 } from "@arizeai/phoenix-evals/llm";
@@ -112,7 +111,7 @@ This package works seamlessly with [`@arizeai/phoenix-client`](https://www.npmjs
 npm install @arizeai/phoenix-client
 ```
 
-```javascript expandable
+```javascript 
 import { createHallucinationEvaluator } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 import { createDataset } from "@arizeai/phoenix-client/datasets";
