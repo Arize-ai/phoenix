@@ -1598,6 +1598,24 @@ class OAuth2User(User):
         )
 
 
+def LDAPUser(
+    *,
+    email: str,
+    username: str,
+    ldap_dn: str | None = None,
+    user_role_id: int | None = None,
+) -> OAuth2User:
+    from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
+
+    return OAuth2User(
+        email=email,
+        username=username,
+        oauth2_client_id=LDAP_CLIENT_ID_MARKER,
+        oauth2_user_id=ldap_dn,
+        user_role_id=user_role_id,
+    )
+
+
 class PasswordResetToken(HasId):
     __tablename__ = "password_reset_tokens"
     user_id: Mapped[int] = mapped_column(

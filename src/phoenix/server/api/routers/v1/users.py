@@ -36,7 +36,7 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked, require_admin
-from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER, is_ldap_user
+from phoenix.server.ldap import is_ldap_user
 
 logger = logging.getLogger(__name__)
 
@@ -268,12 +268,9 @@ async def create_user(
             oauth2_user_id=user_data.oauth2_user_id or None,
         )
     elif isinstance(user_data, LDAPUserData):
-        # LDAP users are stored as OAuth2 users with special marker
-        user = models.OAuth2User(
+        user = models.LDAPUser(
             email=email,
             username=username,
-            oauth2_client_id=LDAP_CLIENT_ID_MARKER,
-            oauth2_user_id=None,
         )
     else:
         assert_never(user_data)

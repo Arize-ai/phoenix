@@ -4,16 +4,22 @@ Comprehensive LDAP TLS Security Test Suite
 
 Validates LDAP TLS implementations by:
 1. Testing baseline LDAP connectivity (plaintext, STARTTLS, LDAPS)
-2. Testing Phoenix LDAP authentication via MITM proxy
-3. Testing Grafana LDAP for comparison
-4. Analyzing MITM proxy logs for credential extraction
-5. Verifying any extracted credentials actually work
+2. Testing Phoenix LDAP authentication via MITM proxy (service account mode)
+3. Testing Phoenix anonymous bind mode (no service account)
+4. Testing Grafana LDAP for comparison
+5. Analyzing MITM proxy logs for credential extraction
+6. Verifying any extracted credentials actually work
 
 Test strategy:
 - Route STARTTLS traffic through adversarial MITM proxy
 - Proxy attempts to parse LDAP protocol and extract passwords
 - If proxy succeeds → TLS vulnerability detected
 - If proxy fails → TLS properly encrypted credentials
+
+Anonymous Bind Mode:
+- Tests the AUTO_BIND_DEFAULT flow in ldap.py
+- Verifies TLS is established before anonymous bind
+- Confirms user password verification also uses TLS
 
 Exit codes:
   0 = All tests passed, no credentials leaked
@@ -27,15 +33,21 @@ import os
 import ssl
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable, Final
+from typing import Final
 
 import requests
 from ldap3 import ALL, AUTO_BIND_TLS_BEFORE_BIND, Connection, Server, Tls
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+# HTTP status codes
+HTTP_OK: Final = 200
+HTTP_NO_CONTENT: Final = 204
+HTTP_UNAUTHORIZED: Final = 401
 
 
 class TestPhase(Enum):
@@ -54,9 +66,9 @@ class TestStatus(Enum):
     SECURITY_ISSUE = auto()
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class TestResult:
-    """Test result with rich metadata."""
+    """Immutable test result with rich metadata."""
 
     name: str
     status: TestStatus
@@ -70,9 +82,9 @@ class TestResult:
         return self.status == TestStatus.PASSED
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ServiceConfig:
-    """Configuration for test services."""
+    """Immutable configuration for test services."""
 
     ldap_host: str
     ldap_port: int
@@ -80,8 +92,11 @@ class ServiceConfig:
     ldap_bind_password: str
     phoenix_starttls_url: str
     phoenix_ldaps_url: str
+    phoenix_anonymous_ldaps_url: str
+    phoenix_anonymous_starttls_url: str
     grafana_url: str
     mitm_api_url: str
+    mitm_anonymous_api_url: str  # For anonymous STARTTLS proxy
 
 
 class LDAPTLSSecurityTester:
@@ -96,7 +111,7 @@ class LDAPTLSSecurityTester:
     Collects all results and determines if any security vulnerabilities exist.
     """
 
-    TEST_TIMEOUT: Final[int] = 10
+    TEST_TIMEOUT: Final[int] = 30  # Increased for anonymous STARTTLS via MITM proxy
     SERVICE_WAIT_TIMEOUT: Final[int] = 60
 
     def __init__(self, config: ServiceConfig) -> None:
@@ -198,7 +213,7 @@ class LDAPTLSSecurityTester:
         self,
         name: str,
         url: str,
-        payload: dict,
+        payload: dict[str, str],
         expected_status: int,
         description: str,
     ) -> TestResult:
@@ -218,7 +233,7 @@ class LDAPTLSSecurityTester:
                     details="Authentication routed through MITM proxy for analysis",
                 )
 
-            if response.status_code == 401:
+            if response.status_code == HTTP_UNAUTHORIZED:
                 return TestResult(
                     name=name,
                     status=TestStatus.FAILED,
@@ -232,7 +247,7 @@ class LDAPTLSSecurityTester:
                 message=f"✗ Unexpected status: {response.status_code}",
             )
 
-        except Exception as e:
+        except requests.RequestException as e:
             return TestResult(
                 name=name,
                 status=TestStatus.FAILED,
@@ -246,7 +261,7 @@ class LDAPTLSSecurityTester:
             name="Phoenix STARTTLS Mode",
             url=f"{self.config.phoenix_starttls_url}/auth/ldap/login",
             payload={"username": "admin", "password": "password123"},
-            expected_status=204,
+            expected_status=HTTP_NO_CONTENT,
             description="Login successful via MITM proxy",
         )
 
@@ -256,8 +271,66 @@ class LDAPTLSSecurityTester:
             name="Phoenix LDAPS Mode",
             url=f"{self.config.phoenix_ldaps_url}/auth/ldap/login",
             payload={"username": "admin", "password": "password123"},
-            expected_status=204,
+            expected_status=HTTP_NO_CONTENT,
             description="Login successful via LDAPS",
+        )
+
+    def test_phoenix_anonymous_ldaps(self) -> TestResult:
+        """Test Phoenix anonymous bind via LDAPS (no service account, TLS from start).
+
+        This tests the AUTO_BIND_DEFAULT flow where:
+        1. Connection opened without credentials
+        2. TLS established from start (LDAPS mode, port 636)
+        3. Anonymous bind() called by context manager
+        4. User search performed with anonymous access
+        5. User password verified via separate TLS-protected bind
+        """
+        return self._test_http_login(
+            name="Phoenix Anonymous LDAPS Mode",
+            url=f"{self.config.phoenix_anonymous_ldaps_url}/auth/ldap/login",
+            payload={"username": "admin", "password": "password123"},
+            expected_status=HTTP_NO_CONTENT,
+            description="Login successful via anonymous LDAPS (AUTO_BIND_DEFAULT)",
+        )
+
+    def test_phoenix_anonymous_ldaps_invalid_password(self) -> TestResult:
+        """Test Phoenix anonymous LDAPS rejects invalid passwords."""
+        return self._test_http_login(
+            name="Phoenix Anonymous LDAPS - Invalid Password",
+            url=f"{self.config.phoenix_anonymous_ldaps_url}/auth/ldap/login",
+            payload={"username": "admin", "password": "wrongpassword"},
+            expected_status=HTTP_UNAUTHORIZED,
+            description="Invalid password correctly rejected (anonymous LDAPS mode)",
+        )
+
+    def test_phoenix_anonymous_starttls(self) -> TestResult:
+        """Test Phoenix anonymous bind via STARTTLS (no service account, TLS upgrade).
+
+        This tests the AUTO_BIND_DEFAULT flow where:
+        1. Connection opened without credentials
+        2. STARTTLS upgrades plaintext to TLS (port 389 → TLS)
+        3. Anonymous bind() called by context manager
+        4. User search performed with anonymous access
+        5. User password verified via separate TLS-protected bind
+
+        Traffic routed through MITM proxy to verify TLS protects user credentials.
+        """
+        return self._test_http_login(
+            name="Phoenix Anonymous STARTTLS Mode",
+            url=f"{self.config.phoenix_anonymous_starttls_url}/auth/ldap/login",
+            payload={"username": "admin", "password": "password123"},
+            expected_status=HTTP_NO_CONTENT,
+            description="Login successful via anonymous STARTTLS (AUTO_BIND_DEFAULT)",
+        )
+
+    def test_phoenix_anonymous_starttls_invalid_password(self) -> TestResult:
+        """Test Phoenix anonymous STARTTLS rejects invalid passwords."""
+        return self._test_http_login(
+            name="Phoenix Anonymous STARTTLS - Invalid Password",
+            url=f"{self.config.phoenix_anonymous_starttls_url}/auth/ldap/login",
+            payload={"username": "admin", "password": "wrongpassword"},
+            expected_status=HTTP_UNAUTHORIZED,
+            description="Invalid password correctly rejected (anonymous STARTTLS mode)",
         )
 
     def test_grafana_starttls(self) -> TestResult:
@@ -266,58 +339,66 @@ class LDAPTLSSecurityTester:
             name="Grafana STARTTLS Mode",
             url=f"{self.config.grafana_url}/login",
             payload={"user": "alice", "password": "password123"},
-            expected_status=200,
+            expected_status=HTTP_OK,
             description="Login successful via MITM proxy",
         )
 
     def analyze_mitm_proxy_logs(self) -> None:
-        """Analyze MITM proxy logs to extract stolen credentials by application."""
-        try:
-            response = requests.get(
-                f"{self.config.mitm_api_url.rstrip('/')}/events",
-                timeout=self.TEST_TIMEOUT,
-            )
-            response.raise_for_status()
-            payload = response.json()
-            events = payload.get("events", [])
+        """Analyze MITM proxy logs from both proxies to extract stolen credentials."""
+        # Query both MITM proxies - main proxy and anonymous proxy
+        all_events: list[dict] = []
 
-            seen_all: set[tuple[str, str]] = set()
-            seen_phoenix: set[tuple[str, str]] = set()
-            seen_grafana: set[tuple[str, str]] = set()
+        for api_url in [self.config.mitm_api_url, self.config.mitm_anonymous_api_url]:
+            try:
+                response = requests.get(
+                    f"{api_url.rstrip('/')}/events",
+                    timeout=self.TEST_TIMEOUT,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                all_events.extend(payload.get("events", []))
+            except requests.RequestException as e:
+                logger.warning(f"  (Could not query {api_url}: {e})")
 
-            for event in events:
-                if event.get("event") != "credentials_stolen":
-                    continue
+        seen_all: set[tuple[str, str]] = set()
+        seen_phoenix: set[tuple[str, str]] = set()
+        seen_grafana: set[tuple[str, str]] = set()
 
-                dn = event.get("bind_dn")
-                password = event.get("password")
-                application = event.get("application", "")
+        for event in all_events:
+            if event.get("event") != "credentials_stolen":
+                continue
 
-                if not dn or not password:
-                    continue
+            dn = event.get("bind_dn")
+            password = event.get("password")
+            application = event.get("application", "")
 
-                credential = (dn, password)
-                if credential in seen_all:
-                    continue
+            if not dn or not password:
+                continue
 
-                # Track all credentials for backward compatibility
-                self.stolen_credentials.append(credential)
-                seen_all.add(credential)
+            credential = (dn, password)
+            if credential in seen_all:
+                continue
 
-                # Separate by application for granular analysis
-                if application.startswith("phoenix-"):
-                    if credential not in seen_phoenix:
-                        self.phoenix_stolen_credentials.append(credential)
-                        seen_phoenix.add(credential)
-                elif application == "grafana-ldap":
-                    if credential not in seen_grafana:
-                        self.grafana_stolen_credentials.append(credential)
-                        seen_grafana.add(credential)
+            # Track all credentials for backward compatibility
+            self.stolen_credentials.append(credential)
+            seen_all.add(credential)
 
-        except requests.RequestException as e:
-            logger.warning(f"  (Could not analyze proxy logs: {e})")
-        except ValueError as e:
-            logger.warning(f"  (Unexpected response from proxy API: {e})")
+            # Separate by application for granular analysis
+            if application.startswith("phoenix-"):
+                if credential not in seen_phoenix:
+                    self.phoenix_stolen_credentials.append(credential)
+                    seen_phoenix.add(credential)
+            elif application == "grafana-ldap":
+                if credential not in seen_grafana:
+                    self.grafana_stolen_credentials.append(credential)
+                    seen_grafana.add(credential)
+            else:
+                # Unknown application - could be Phoenix with failed DNS lookup
+                # Treat as potential Phoenix leak for safety (fail-secure)
+                logger.warning(f"  ⚠️  Credential stolen from unknown app: {application}")
+                if credential not in seen_phoenix:
+                    self.phoenix_stolen_credentials.append(credential)
+                    seen_phoenix.add(credential)
 
     def verify_stolen_credentials(self) -> TestResult:
         """Verify extracted credentials actually work (Phoenix only - Grafana is informational)."""
@@ -454,6 +535,10 @@ class LDAPTLSSecurityTester:
             [
                 self.test_phoenix_starttls,
                 self.test_phoenix_ldaps,
+                self.test_phoenix_anonymous_ldaps,
+                self.test_phoenix_anonymous_ldaps_invalid_password,
+                self.test_phoenix_anonymous_starttls,
+                self.test_phoenix_anonymous_starttls_invalid_password,
                 self.test_grafana_starttls,
             ],
         )
@@ -468,8 +553,18 @@ class LDAPTLSSecurityTester:
         self.analyze_mitm_proxy_logs()
 
         logger.info("")
-        logger.info(f"Phoenix credentials extracted: {len(self.phoenix_stolen_credentials)}")
-        logger.info(f"Grafana credentials extracted: {len(self.grafana_stolen_credentials)}")
+        logger.info(f"Total credentials extracted: {len(self.stolen_credentials)}")
+        logger.info(f"  Phoenix (attributed): {len(self.phoenix_stolen_credentials)}")
+        logger.info(f"  Grafana (attributed): {len(self.grafana_stolen_credentials)}")
+        # Sanity check: all stolen credentials should be attributed
+        unattributed = (
+            len(self.stolen_credentials)
+            - len(self.phoenix_stolen_credentials)
+            - len(self.grafana_stolen_credentials)
+        )
+        if unattributed > 0:
+            # This shouldn't happen since unknown apps are now treated as Phoenix
+            logger.warning(f"  ⚠️  Unattributed: {unattributed} (possible attribution bug)")
         logger.info("")
 
         logger.info("Test 3.1: Verifying Phoenix TLS security...")
@@ -576,8 +671,11 @@ class LDAPTLSSecurityTester:
         logger.info("=" * 80)
         logger.info("")
         logger.info("Phoenix LDAP TLS Security:")
-        logger.info("  ✓ STARTTLS properly encrypts credentials")
-        logger.info("  ✓ LDAPS properly encrypts credentials")
+        logger.info("  ✓ STARTTLS properly encrypts credentials (service account mode)")
+        logger.info("  ✓ LDAPS properly encrypts credentials (service account mode)")
+        logger.info("  ✓ Anonymous LDAPS mode works correctly (AUTO_BIND_DEFAULT)")
+        logger.info("  ✓ Anonymous STARTTLS mode works correctly (AUTO_BIND_DEFAULT)")
+        logger.info("  ✓ Anonymous modes reject invalid passwords")
         logger.info("  ✓ Adversarial MITM proxy could not extract Phoenix credentials")
         logger.info("  ✓ Network attacker cannot steal Phoenix passwords")
         logger.info("")
@@ -606,25 +704,33 @@ class LDAPTLSSecurityTester:
         logger.info("")
 
 
+def _check_service_health(url: str) -> bool:
+    """Check if a service is healthy by hitting its health endpoint."""
+    try:
+        return requests.get(url, timeout=2).status_code == HTTP_OK
+    except requests.RequestException:
+        return False
+
+
 def wait_for_services(config: ServiceConfig, max_attempts: int = 30) -> bool:
     """Wait for all services to be ready."""
-    logger.info("⏳ Waiting for services (Phoenix STARTTLS, Phoenix LDAPS, Grafana)...")
+    logger.info(
+        "⏳ Waiting for services (Phoenix STARTTLS, LDAPS, Anonymous LDAPS, "
+        "Anonymous STARTTLS, Grafana)..."
+    )
+
+    health_endpoints = [
+        f"{config.phoenix_starttls_url}/healthz",
+        f"{config.phoenix_ldaps_url}/healthz",
+        f"{config.phoenix_anonymous_ldaps_url}/healthz",
+        f"{config.phoenix_anonymous_starttls_url}/healthz",
+        f"{config.grafana_url}/api/health",
+    ]
 
     for attempt in range(max_attempts):
-        try:
-            phoenix_starttls = (
-                requests.get(f"{config.phoenix_starttls_url}/healthz", timeout=2).status_code == 200
-            )
-            phoenix_ldaps = (
-                requests.get(f"{config.phoenix_ldaps_url}/healthz", timeout=2).status_code == 200
-            )
-            grafana = requests.get(f"{config.grafana_url}/api/health", timeout=2).status_code == 200
-
-            if phoenix_starttls and phoenix_ldaps and grafana:
-                logger.info("✅ All services ready!\n")
-                return True
-        except requests.exceptions.RequestException:
-            pass
+        if all(_check_service_health(url) for url in health_endpoints):
+            logger.info("✅ All services ready!\n")
+            return True
 
         if attempt < max_attempts - 1:
             time.sleep(2)
@@ -642,8 +748,17 @@ def main() -> int:
         ldap_bind_password="readonly_password",
         phoenix_starttls_url=os.getenv("PHOENIX_STARTTLS_URL", "http://phoenix-starttls:6006"),
         phoenix_ldaps_url=os.getenv("PHOENIX_LDAPS_URL", "http://phoenix:6006"),
+        phoenix_anonymous_ldaps_url=os.getenv(
+            "PHOENIX_ANONYMOUS_LDAPS_URL", "http://phoenix-anonymous-ldaps:6006"
+        ),
+        phoenix_anonymous_starttls_url=os.getenv(
+            "PHOENIX_ANONYMOUS_STARTTLS_URL", "http://phoenix-anonymous-starttls:6006"
+        ),
         grafana_url=os.getenv("GRAFANA_URL", "http://grafana-ldap:3000"),
         mitm_api_url=os.getenv("MITM_API_URL", "http://ldap-mitm-proxy:8080"),
+        mitm_anonymous_api_url=os.getenv(
+            "MITM_ANONYMOUS_API_URL", "http://ldap-anonymous-mitm-proxy:8080"
+        ),
     )
 
     if not wait_for_services(config):

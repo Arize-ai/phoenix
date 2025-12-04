@@ -356,10 +356,13 @@ Example: "(&(objectClass=user)(sAMAccountName=%s))"
 ENV_PHOENIX_LDAP_ATTR_EMAIL = "PHOENIX_LDAP_ATTR_EMAIL"
 """
 LDAP attribute containing user's email address. Defaults to "mail".
+Must be present in LDAP or login fails.
+https://www.rfc-editor.org/rfc/rfc2798#section-9.1.3
 """
 ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME = "PHOENIX_LDAP_ATTR_DISPLAY_NAME"
 """
 LDAP attribute containing user's display name. Defaults to "displayName".
+https://www.rfc-editor.org/rfc/rfc2798.html#section-2.3
 """
 ENV_PHOENIX_LDAP_ATTR_MEMBER_OF = "PHOENIX_LDAP_ATTR_MEMBER_OF"
 """
@@ -1510,7 +1513,7 @@ class LDAPConfig:
     user_search_base: str = ""
     user_search_filter: str = "(&(objectClass=user)(sAMAccountName=%s))"
 
-    # Attribute mapping (RFC 2256, RFC 4524)
+    # Attribute mapping (RFC RFC 2798 §9.1.3, §2.3)
     attr_email: str = "mail"  # REQUIRED: Must be present in LDAP or login fails
     attr_display_name: str = "displayName"
     attr_member_of: str = "memberOf"

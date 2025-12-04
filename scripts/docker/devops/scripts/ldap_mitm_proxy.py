@@ -27,11 +27,12 @@ import socket
 import sys
 import threading
 import time
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import closing, contextmanager
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from itertools import count
 from typing import Final
 from urllib.parse import parse_qs, urlparse
 
@@ -66,25 +67,57 @@ class LDAPProtocol:
 
 @dataclass
 class TLSDetectionResult:
-    """Result of TLS detection analysis with rich metadata."""
+    """Thread-safe result of TLS detection analysis with rich metadata."""
 
     connection_id: int
     client_ip: str = ""
     client_port: int = 0
     application: str = "unknown"
-    starttls_requested: bool = False
-    tls_handshake_detected: bool = False
-    extracted_credentials: list[tuple[str, str]] = field(default_factory=list)
+    _starttls_requested: bool = field(default=False, repr=False)
+    _tls_handshake_detected: bool = field(default=False, repr=False)
+    _extracted_credentials: list[tuple[str, str]] = field(default_factory=list, repr=False)
     timestamp: float = field(default_factory=time.time)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    @property
+    def starttls_requested(self) -> bool:
+        with self._lock:
+            return self._starttls_requested
+
+    @starttls_requested.setter
+    def starttls_requested(self, value: bool) -> None:
+        with self._lock:
+            self._starttls_requested = value
+
+    @property
+    def tls_handshake_detected(self) -> bool:
+        with self._lock:
+            return self._tls_handshake_detected
+
+    @tls_handshake_detected.setter
+    def tls_handshake_detected(self, value: bool) -> None:
+        with self._lock:
+            self._tls_handshake_detected = value
+
+    @property
+    def extracted_credentials(self) -> list[tuple[str, str]]:
+        with self._lock:
+            return list(self._extracted_credentials)  # Return copy
+
+    def add_credential(self, bind_dn: str, password: str) -> None:
+        """Thread-safe credential addition."""
+        with self._lock:
+            self._extracted_credentials.append((bind_dn, password))
 
     @property
     def verdict(self) -> SecurityVerdict:
         """Determine security verdict for this connection."""
-        if self.extracted_credentials:
-            return SecurityVerdict.VULNERABLE
-        if self.tls_handshake_detected:
-            return SecurityVerdict.SECURE
-        return SecurityVerdict.NO_BIND
+        with self._lock:
+            if self._extracted_credentials:
+                return SecurityVerdict.VULNERABLE
+            if self._tls_handshake_detected:
+                return SecurityVerdict.SECURE
+            return SecurityVerdict.NO_BIND
 
 
 class LDAPMITMProxy:
@@ -100,6 +133,7 @@ class LDAPMITMProxy:
     """
 
     EVENT_LOG_LIMIT: Final[int] = 1000
+    SOCKET_TIMEOUT: Final[int] = 60  # Prevents hung connections
 
     def __init__(
         self,
@@ -116,37 +150,31 @@ class LDAPMITMProxy:
         self.api_host = api_host
         self.api_port = api_port
 
-        self._connection_counter = 0
+        self._connection_id_generator = count(1)  # Thread-safe counter
         self._results: dict[int, TLSDetectionResult] = {}
+        self._results_lock = threading.Lock()  # Protects _results dict
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._event_log: list[dict] = []
-        self._log_lock = threading.Lock()
+        self._log_lock = threading.Lock()  # Protects _event_log
         self._http_server: ThreadingHTTPServer | None = None
         self._http_thread: threading.Thread | None = None
-
-    @contextmanager
-    def _connect_to_ldap(self):
-        """Context manager for LDAP server connection."""
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            sock.connect((self.ldap_host, self.ldap_port))
-            yield sock
-        finally:
-            sock.close()
 
     def _identify_application(self, client_ip: str) -> str:
         """Identify application via reverse DNS lookup."""
         try:
             hostname, *_ = socket.gethostbyaddr(client_ip)
+            hostname_lower = hostname.lower()
 
+            # Order matters: more specific patterns first
             # Only STARTTLS traffic goes through this proxy (LDAPS connects directly)
-            patterns = {
-                "starttls": "phoenix-starttls",
-                "grafana": "grafana-ldap",
-            }
+            patterns = [
+                ("anonymous-starttls", "phoenix-anonymous-starttls"),
+                ("starttls", "phoenix-starttls"),
+                ("grafana", "grafana-ldap"),
+            ]
 
-            for pattern, app_name in patterns.items():
-                if pattern in hostname.lower():
+            for pattern, app_name in patterns:
+                if pattern in hostname_lower:
                     return app_name
 
             return f"unknown({hostname})"
@@ -236,13 +264,17 @@ class LDAPMITMProxy:
 
     def _log_structured(self, event: str, conn_id: int, **kwargs) -> None:
         """Emit structured JSON log entry."""
-        result = self._results.get(conn_id)
+        with self._results_lock:
+            result = self._results.get(conn_id)
+            application = result.application if result else "unknown"
+            client_ip = result.client_ip if result else ""
+
         entry = {
             "timestamp": time.time(),
             "event": event,
             "connection_id": conn_id,
-            "application": result.application if result else "unknown",
-            "client_ip": result.client_ip if result else "",
+            "application": application,
+            "client_ip": client_ip,
             **kwargs,
         }
         print(json.dumps(entry), flush=True)
@@ -251,6 +283,27 @@ class LDAPMITMProxy:
             self._event_log.append(entry)
             if len(self._event_log) > self.EVENT_LOG_LIMIT:
                 self._event_log.pop(0)
+
+    @staticmethod
+    def _parse_asn1_length(data: bytes, idx: int) -> tuple[int, int]:
+        """Parse ASN.1 BER length encoding, return (length, new_idx)."""
+        if idx >= len(data):
+            raise IndexError("Unexpected end of data")
+
+        length_byte = data[idx]
+        idx += 1
+
+        if length_byte & 0x80 == 0:
+            # Short form: length is directly in this byte
+            return length_byte, idx
+
+        # Long form: lower 7 bits indicate number of length bytes
+        num_length_bytes = length_byte & 0x7F
+        if num_length_bytes == 0 or idx + num_length_bytes > len(data):
+            raise IndexError("Invalid ASN.1 length encoding")
+
+        length = int.from_bytes(data[idx : idx + num_length_bytes], "big")
+        return length, idx + num_length_bytes
 
     def _parse_ldap_bind_credentials(self, data: bytes) -> tuple[str, str] | None:
         """
@@ -265,21 +318,21 @@ class LDAPMITMProxy:
                 return None
 
             idx += 1
-            length_byte = data[idx]
-            idx += 1
+            # Skip bind request length
+            _, idx = self._parse_asn1_length(data, idx)
 
-            if length_byte & 0x80:
-                idx += length_byte & 0x7F
-
-            if idx + 3 <= len(data) and data[idx] == 0x02:
-                idx += 3
-
-            if idx + 2 > len(data) or data[idx] != LDAPProtocol.ASN1_OCTET_STRING:
+            # Skip message ID (INTEGER)
+            if idx >= len(data) or data[idx] != 0x02:
                 return None
+            idx += 1
+            msg_id_len, idx = self._parse_asn1_length(data, idx)
+            idx += msg_id_len
 
+            # Parse DN (OCTET STRING)
+            if idx >= len(data) or data[idx] != LDAPProtocol.ASN1_OCTET_STRING:
+                return None
             idx += 1
-            dn_length = data[idx]
-            idx += 1
+            dn_length, idx = self._parse_asn1_length(data, idx)
 
             if idx + dn_length > len(data):
                 return None
@@ -287,12 +340,11 @@ class LDAPMITMProxy:
             bind_dn = data[idx : idx + dn_length].decode("utf-8", errors="ignore")
             idx += dn_length
 
-            if idx + 2 > len(data) or data[idx] != LDAPProtocol.ASN1_CONTEXT_SPECIFIC_0:
+            # Parse password (context-specific [0] for simple auth)
+            if idx >= len(data) or data[idx] != LDAPProtocol.ASN1_CONTEXT_SPECIFIC_0:
                 return None
-
             idx += 1
-            pwd_length = data[idx]
-            idx += 1
+            pwd_length, idx = self._parse_asn1_length(data, idx)
 
             if idx + pwd_length > len(data):
                 return None
@@ -311,7 +363,14 @@ class LDAPMITMProxy:
         direction: str,
     ) -> None:
         """Inspect traffic for security indicators."""
-        if LDAPProtocol.TLS_HANDSHAKE_START in data and not result.tls_handshake_detected:
+        # TLS handshake detection: only valid at START of chunk after STARTTLS
+        # Checking anywhere in data could cause false positives if \x16\x03 appears
+        # in regular LDAP data (e.g., binary attributes, passwords)
+        if (
+            data[:2] == LDAPProtocol.TLS_HANDSHAKE_START
+            and result.starttls_requested
+            and not result.tls_handshake_detected
+        ):
             logger.info(f"[Connection {result.connection_id}] ✓ TLS handshake detected")
             self._log_structured(
                 "tls_handshake_detected", result.connection_id, direction=direction
@@ -334,7 +393,7 @@ class LDAPMITMProxy:
         ):
             if credentials := self._parse_ldap_bind_credentials(data):
                 bind_dn, password = credentials
-                result.extracted_credentials.append((bind_dn, password))
+                result.add_credential(bind_dn, password)
 
                 logger.warning(
                     f"[Connection {result.connection_id}] "
@@ -358,49 +417,88 @@ class LDAPMITMProxy:
         dst: socket.socket,
         conn_id: int,
         direction: str,
+        stop_event: threading.Event,
     ) -> None:
         """Forward data while inspecting for TLS indicators."""
-        result = self._results[conn_id]
+        with self._results_lock:
+            result = self._results.get(conn_id)
+        if not result:
+            return
 
         try:
-            while chunk := src.recv(4096):
-                self._inspect_traffic(chunk, result, direction)
-                dst.sendall(chunk)
+            while not stop_event.is_set():
+                try:
+                    chunk = src.recv(4096)
+                    if not chunk:
+                        break  # Connection closed cleanly
+                    self._inspect_traffic(chunk, result, direction)
+                    dst.sendall(chunk)
+                except socket.timeout:
+                    continue  # Check stop_event and retry
         except (ConnectionResetError, BrokenPipeError, OSError):
-            pass
+            pass  # Connection closed - normal termination
+        finally:
+            stop_event.set()  # Signal other thread to stop
 
     def _handle_connection(self, client_socket: socket.socket, conn_id: int) -> None:
         """Handle a single client connection with proper resource management."""
+        # Set shorter timeout for recv() so threads can check stop_event
+        client_socket.settimeout(5.0)
+        stop_event = threading.Event()
+
+        server_socket: socket.socket | None = None
         try:
-            with closing(client_socket), self._connect_to_ldap() as server_socket:
-                # Use dedicated threads instead of executor to avoid deadlock
-                # (executor workers calling result() would block waiting for tasks
-                # that can't run because workers are blocked)
-                c2s_thread = threading.Thread(
-                    target=self._forward_and_inspect,
-                    args=(client_socket, server_socket, conn_id, "client→server"),
-                    daemon=True,
-                )
-                s2c_thread = threading.Thread(
-                    target=self._forward_and_inspect,
-                    args=(server_socket, client_socket, conn_id, "server→client"),
-                    daemon=True,
-                )
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.settimeout(5.0)
+            server_socket.connect((self.ldap_host, self.ldap_port))
 
-                c2s_thread.start()
-                s2c_thread.start()
+            c2s_thread = threading.Thread(
+                target=self._forward_and_inspect,
+                args=(client_socket, server_socket, conn_id, "client→server", stop_event),
+                daemon=True,
+            )
+            s2c_thread = threading.Thread(
+                target=self._forward_and_inspect,
+                args=(server_socket, client_socket, conn_id, "server→client", stop_event),
+                daemon=True,
+            )
 
-                c2s_thread.join()
-                s2c_thread.join()
+            c2s_thread.start()
+            s2c_thread.start()
 
-        except Exception as e:
-            logger.error(f"[Connection {conn_id}] Error: {e}")
+            # Wait for either thread to finish (connection closed) or timeout
+            c2s_thread.join(timeout=self.SOCKET_TIMEOUT)
+            stop_event.set()  # Signal threads to stop
+            s2c_thread.join(timeout=5.0)  # Short timeout for cleanup
+
+        except socket.timeout:
+            logger.warning(f"[Connection {conn_id}] Timeout - closing connection")
+        except OSError as e:
+            logger.error(f"[Connection {conn_id}] Connection error: {e}")
         finally:
+            stop_event.set()  # Ensure threads stop
+            # Close sockets after threads have been signaled
+            try:
+                client_socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            client_socket.close()
+            if server_socket:
+                try:
+                    server_socket.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                server_socket.close()
             self._print_connection_summary(conn_id)
+            # Clean up result to prevent memory leak (keep last 1000)
+            self._cleanup_old_results()
 
     def _print_connection_summary(self, conn_id: int) -> None:
         """Print security assessment for completed connection."""
-        result = self._results[conn_id]
+        with self._results_lock:
+            result = self._results.get(conn_id)
+        if not result:
+            return
         verdict = result.verdict
 
         logger.info(f"\n[Connection {conn_id}] Security Analysis:")
@@ -434,18 +532,19 @@ class LDAPMITMProxy:
                 while True:
                     client_socket, (client_ip, client_port) = server.accept()
 
-                    self._connection_counter += 1
-                    conn_id = self._connection_counter
+                    conn_id = next(self._connection_id_generator)
 
-                    self._results[conn_id] = TLSDetectionResult(
+                    result = TLSDetectionResult(
                         connection_id=conn_id,
                         client_ip=client_ip,
                         client_port=client_port,
                         application=self._identify_application(client_ip),
                     )
+                    with self._results_lock:
+                        self._results[conn_id] = result
 
                     logger.info(f"\n[Connection {conn_id}] New from {client_ip}:{client_port}")
-                    logger.info(f"[Connection {conn_id}] App: {self._results[conn_id].application}")
+                    logger.info(f"[Connection {conn_id}] App: {result.application}")
 
                     self._log_structured(
                         "connection_established",
@@ -463,9 +562,19 @@ class LDAPMITMProxy:
                 self._shutdown_api_server()
                 self.print_final_summary()
 
+    def _cleanup_old_results(self) -> None:
+        """Remove old results to prevent memory leak, keeping last 1000."""
+        with self._results_lock:
+            if len(self._results) > self.EVENT_LOG_LIMIT:
+                # Keep only the most recent results
+                sorted_ids = sorted(self._results.keys())
+                for old_id in sorted_ids[: -self.EVENT_LOG_LIMIT]:
+                    del self._results[old_id]
+
     def get_security_violations(self) -> list[TLSDetectionResult]:
         """Get all connections with security violations."""
-        return [r for r in self._results.values() if r.extracted_credentials]
+        with self._results_lock:
+            return [r for r in self._results.values() if r.extracted_credentials]
 
     def print_final_summary(self) -> None:
         """Print comprehensive security summary."""
@@ -475,16 +584,14 @@ class LDAPMITMProxy:
         logger.info("🛡️  ADVERSARIAL SECURITY ASSESSMENT")
         logger.info("=" * 80)
 
-        app_stats: dict[str, dict[str, int]] = {}
-        for result in self._results.values():
-            if result.application not in app_stats:
-                app_stats[result.application] = {
-                    "total": 0,
-                    "vulnerable": 0,
-                    "secure": 0,
-                    "stolen": 0,
-                }
+        # Snapshot results under lock
+        with self._results_lock:
+            results_snapshot = list(self._results.values())
 
+        app_stats: defaultdict[str, dict[str, int]] = defaultdict(
+            lambda: {"total": 0, "vulnerable": 0, "secure": 0, "stolen": 0}
+        )
+        for result in results_snapshot:
             stats = app_stats[result.application]
             stats["total"] += 1
             if result.extracted_credentials:
@@ -493,10 +600,10 @@ class LDAPMITMProxy:
             elif result.tls_handshake_detected:
                 stats["secure"] += 1
 
-        logger.info(f"\nTotal Connections: {len(self._results)}")
-        stolen_count = sum(len(r.extracted_credentials) for r in self._results.values())
+        logger.info(f"\nTotal Connections: {len(results_snapshot)}")
+        stolen_count = sum(len(r.extracted_credentials) for r in results_snapshot)
         logger.info(f"Credentials Stolen: {stolen_count}")
-        logger.info(f"Secure Connections: {len(self._results) - len(violations)}")
+        logger.info(f"Secure Connections: {len(results_snapshot) - len(violations)}")
 
         logger.info("\n" + "─" * 80)
         logger.info("BY APPLICATION:")

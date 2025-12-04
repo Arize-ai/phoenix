@@ -224,15 +224,9 @@ async def _ensure_admins(
                     password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
                 )
             elif use_ldap:
-                # LDAP users are stored as OAuth2User with special marker
-                # oauth2_user_id is NULL initially, will be upgraded to DN on first login
-                from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
-
-                user = models.OAuth2User(
+                user = models.LDAPUser(
                     email=email,
                     username=username,
-                    oauth2_client_id=LDAP_CLIENT_ID_MARKER,
-                    oauth2_user_id=None,
                 )
             else:
                 user = models.OAuth2User(

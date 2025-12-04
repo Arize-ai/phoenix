@@ -70,6 +70,7 @@ from typing import Any, Final, Literal, NamedTuple, Optional, overload
 import anyio
 from ldap3 import (
     ALL,
+    AUTO_BIND_DEFAULT,
     AUTO_BIND_NO_TLS,
     AUTO_BIND_TLS_BEFORE_BIND,
     SUBTREE,
@@ -345,12 +346,27 @@ class LDAPAuthenticator:
                 receive_timeout=30,  # Timeout for LDAP operations (bind, search)
             )
 
-        # Anonymous bind case - must manually call start_tls() if needed
+        # Anonymous bind case - must manually sequence open/start_tls before bind
+        #
+        # AUTO_BIND_DEFAULT defers bind() until the context manager is entered.
+        # This is NOT the same as AUTO_BIND_NONE (which skips bind entirely).
+        #
+        # Why not AUTO_BIND_TLS_BEFORE_BIND?
+        #   That performs open→start_tls→bind atomically in the constructor.
+        #   For anonymous binds (no user/password), we need manual sequencing
+        #   to ensure start_tls() completes before bind(). The sequence is:
+        #
+        #   1. Connection() - creates connection object (no network I/O)
+        #   2. open() - establishes TCP connection
+        #   3. start_tls() - upgrades to TLS (for STARTTLS mode)
+        #   4. return conn - caller uses `with conn:` which triggers bind()
+        #
+        #   This ensures TLS is active before any bind credentials are sent.
         conn = Connection(
             server,
-            auto_bind=False,
+            auto_bind=AUTO_BIND_DEFAULT,
             raise_exceptions=True,
-            receive_timeout=30,  # Timeout for LDAP operations
+            receive_timeout=30,
         )
         try:
             conn.open()

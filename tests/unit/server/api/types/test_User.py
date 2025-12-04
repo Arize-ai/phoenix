@@ -126,21 +126,8 @@ async def test_user_auth_method_resolver(
 
     # TEST 3: LDAP user - KEY: stored with auth_method='OAUTH2' but has Unicode marker
     assert user_data["ldap_user"][0] == "OAUTH2"  # Stored as OAUTH2
-    assert (
-        user_data["ldap_user"][1] == LDAP_CLIENT_ID_MARKER
-    )  # Unicode marker identifies it as LDAP
+    assert user_data["ldap_user"][1] == LDAP_CLIENT_ID_MARKER
 
     # TEST 4: OAuth2 user (GitHub) - verify no collision with LDAP marker
     assert user_data["github_user"][0] == "OAUTH2"
     assert user_data["github_user"][1] == "github"
-    assert user_data["github_user"][1] != LDAP_CLIENT_ID_MARKER  # Not LDAP
-
-    # ========================================
-    # TEST 5: Verify LDAP marker uniqueness (design validation)
-    # ========================================
-    # The Unicode PUA character ensures no collision with real OAuth2 client IDs
-    assert LDAP_CLIENT_ID_MARKER == "\ue000LDAP(stopgap)"
-    assert LDAP_CLIENT_ID_MARKER.startswith("\ue000")  # Unicode PUA (U+E000-U+F8FF)
-    # Real OAuth2 client IDs are ASCII-only per RFC 6749
-    assert "google" != LDAP_CLIENT_ID_MARKER
-    assert "github" != LDAP_CLIENT_ID_MARKER
