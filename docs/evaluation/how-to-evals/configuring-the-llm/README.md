@@ -1,6 +1,6 @@
 # Configuring the LLM
 
-LLM Evaluators require an LLM in order to score an evaluation input. Phoenix evals are provider agnostic and work virtually any foundation model.
+LLM Evaluators require an LLM in order to score an evaluation input. Phoenix evals are provider agnostic and work with virtually any foundation model.
 
 {% tabs %}
 {% tab title="Python" %}
@@ -38,7 +38,7 @@ LLM(provider="openai", model="gpt-5", client="litellm")  # uses LiteLLM to make 
 {% tab title="TypeScript" %}
 The TypeScript evaluation library `@arizeai/phoenix-evals` uses the [AI SDK](https://sdk.vercel.ai/docs) model abstraction. This allows you to use any model provider supported by the AI SDK ecosystem. Model providers are installed separately, giving you flexibility to use only the providers you need.
 
-### Installation
+#### Installation
 
 ```bash
 # Install the evals package
@@ -51,7 +51,7 @@ npm install @ai-sdk/google      # For Google models
 npm install @ai-sdk/azure       # For Azure OpenAI models
 ```
 
-### Using Model Providers
+#### Using Model Providers
 
 Import and configure your model provider, then pass it to evaluators:
 
