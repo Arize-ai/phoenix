@@ -440,7 +440,9 @@ class EvaluatorMutationMixin:
             builtin_evaluator = get_builtin_evaluator_by_id(evaluator_rowid)
             if builtin_evaluator is None:
                 raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
-            assignment_name = IdentifierModel.model_validate(builtin_evaluator.name)
+            assignment_name = IdentifierModel.model_validate(
+                builtin_evaluator.name.lower().replace(" ", "_")
+            )
         else:
             async with info.context.db() as session:
                 evaluator = await session.get(models.Evaluator, evaluator_rowid)
