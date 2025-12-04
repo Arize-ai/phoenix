@@ -35,16 +35,12 @@ class _ToolKwargs(TypedDict, total=False):
     tools: list[types.Tool]
 
 
-class _GenerateContentConfigKwargs(TypedDict, total=False):
-    tool_config: types.ToolConfig
-    tools: list[types.Tool]
-    temperature: float
-    max_output_tokens: int
-    stop_sequences: list[str]
-    presence_penalty: float
-    frequency_penalty: float
-    top_p: float
-    top_k: int
+class _GenerateContentConfigKwargs(
+    _ToolKwargs,
+    v1.PromptGoogleInvocationParameters,
+    TypedDict,
+    total=False,
+):
     system_instruction: str | list[str]
 
 
