@@ -95,6 +95,40 @@ logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
+
+async def _get_evaluators(
+    evaluator_inputs: list[PlaygroundEvaluatorInput],
+    db: DbSessionFactory,
+) -> list[models.LLMEvaluator]:
+    if not evaluator_inputs:
+        return []
+
+    evaluator_rowids = set()
+    for evaluator_input in evaluator_inputs:
+        type_name, db_id = from_global_id(evaluator_input.id)
+        if type_name != "LLMEvaluator":
+            logger.info(f"Skipping non-LLM evaluator: {evaluator_input.id}")
+            continue
+        evaluator_rowids.add(db_id)
+
+    async with db() as session:
+        evaluators: list[models.LLMEvaluator] = list(
+            await session.scalars(
+                select(models.LLMEvaluator).where(models.LLMEvaluator.id.in_(evaluator_rowids))
+            )
+        )
+    if len(evaluators) < len(evaluator_rowids):
+        missing_rowids = evaluator_rowids - set(evaluator.id for evaluator in evaluators)
+        raise NotFound(
+            f"Could not find all LLM evaluators with IDs {', '.join(map(_quote, missing_rowids))}"
+        )
+    return evaluators
+
+
+def _quote(string: str) -> str:
+    return f'"{string}"'
+
+
 ChatCompletionMessage: TypeAlias = tuple[
     ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]
 ]
@@ -270,6 +304,9 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        evaluators = await _get_evaluators(input.evaluators or [], info.context.db)
+        print(f"{evaluators=}")
+
         llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         async with info.context.db() as session:
             if (
