@@ -1,6 +1,6 @@
 import asyncio
+import json
 import logging
-import random
 from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain, islice
@@ -22,7 +22,7 @@ from opentelemetry.trace import StatusCode
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 from strawberry.types import Info
-from typing_extensions import assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
@@ -33,7 +33,14 @@ from phoenix.db.helpers import (
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.evaluators import (
+    EvaluationResult,
+    evaluation_result_to_model,
+    evaluation_result_to_span_annotation,
+    get_builtin_evaluator_by_id,
+    get_llm_evaluators,
+)
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -71,13 +78,16 @@ from phoenix.server.api.types.node import from_global_id, from_global_id_with_ex
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
-from phoenix.trace.attributes import unflatten
+from phoenix.trace.attributes import get_attribute_value, unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
 
 logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
+
+ExampleRowID: TypeAlias = int
+RepetitionNumber: TypeAlias = int
 
 ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[Any]]]
 
@@ -272,25 +282,76 @@ class ChatCompletionMutationMixin:
             session.add_all(experiment_runs)
             await session.flush()
 
-        evaluations: list[ExperimentRunAnnotation] = []
+        evaluations: dict[tuple[ExampleRowID, RepetitionNumber], list[ExperimentRunAnnotation]] = {}
         if input.evaluators:
             async with info.context.db() as session:
-                for ii, evaluator in enumerate(input.evaluators):
-                    _, db_id = from_global_id(evaluator.id)
-                    evaluator_record = await session.get(models.Evaluator, db_id)
-                    if evaluator_record is None:
-                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
-                    evaluator_name = evaluator_record.name.root
-                    dummy_annotation = ExperimentRunAnnotation.from_dict(
-                        {
-                            "name": evaluator_name,
-                            "label": f"dummy {ii}",
-                            "score": random.random(),
-                            "explanation": "dummy evaluation",
-                            "metadata": {},
-                        }
-                    )
-                    evaluations.append(dummy_annotation)
+                llm_evaluators = await get_llm_evaluators(
+                    dataset_evaluator_ids=[evaluator.id for evaluator in input.evaluators],
+                    session=session,
+                    llm_client=llm_client,
+                )
+                for (revision, repetition_number), experiment_run in zip(
+                    unbatched_items, experiment_runs
+                ):
+                    if experiment_run.error:
+                        continue  # skip runs that errored out
+                    evaluation_key = (revision.dataset_example_id, repetition_number)
+                    evaluations[evaluation_key] = []
+
+                    context_dict: dict[str, Any] = {
+                        "input": json.dumps(revision.input),
+                        "expected": json.dumps(revision.output),
+                        "output": json.dumps(experiment_run.output),
+                    }
+
+                    # Run builtin evaluators
+                    for evaluator in input.evaluators:
+                        _, db_id = from_global_id(evaluator.id)
+                        if _is_builtin_evaluator(db_id):
+                            builtin_evaluator = get_builtin_evaluator_by_id(db_id)
+                            if builtin_evaluator is None:
+                                continue
+                            builtin = builtin_evaluator()
+                            eval_result: EvaluationResult = builtin.evaluate(
+                                context=context_dict,
+                                input_mapping=evaluator.input_mapping,
+                            )
+                            annotation_model = evaluation_result_to_model(
+                                eval_result,
+                                experiment_run_id=experiment_run.id,
+                            )
+                            session.add(annotation_model)
+                            await session.flush()
+                            evaluations[evaluation_key].append(
+                                ExperimentRunAnnotation(
+                                    id=annotation_model.id,
+                                    db_record=annotation_model,
+                                )
+                            )
+
+                    # Run LLM evaluators
+                    input_mappings_by_evaluator_id = {
+                        from_global_id(evaluator.id)[1]: evaluator.input_mapping
+                        for evaluator in input.evaluators
+                    }
+                    for llm_evaluator in llm_evaluators:
+                        input_mapping = input_mappings_by_evaluator_id[llm_evaluator.db_id]
+                        eval_result = await llm_evaluator.evaluate(
+                            context=context_dict,
+                            input_mapping=input_mapping,
+                        )
+                        annotation_model = evaluation_result_to_model(
+                            eval_result,
+                            experiment_run_id=experiment_run.id,
+                        )
+                        session.add(annotation_model)
+                        await session.flush()
+                        evaluations[evaluation_key].append(
+                            ExperimentRunAnnotation(
+                                id=annotation_model.id,
+                                db_record=annotation_model,
+                            )
+                        )
 
         for (revision, repetition_number), experiment_run, result in zip(
             unbatched_items, experiment_runs, results
@@ -299,20 +360,26 @@ class ChatCompletionMutationMixin:
                 models.DatasetExample.__name__, str(revision.dataset_example_id)
             )
             experiment_run_id = GlobalID(models.ExperimentRun.__name__, str(experiment_run.id))
-            example_payload = ChatCompletionOverDatasetMutationExamplePayload(
-                dataset_example_id=dataset_example_id,
-                repetition_number=repetition_number,
-                experiment_run_id=experiment_run_id,
-                repetition=ChatCompletionRepetition(
+            evaluation_key = (revision.dataset_example_id, repetition_number)
+
+            if isinstance(result, BaseException):
+                repetition = ChatCompletionRepetition(
                     repetition_number=repetition_number,
                     content=None,
                     tool_calls=[],
                     span=None,
                     error_message=str(result),
-                    evaluations=evaluations,
+                    evaluations=[],
                 )
-                if isinstance(result, BaseException)
-                else result[0],
+            else:
+                repetition = result[0]
+                repetition.evaluations = evaluations.get(evaluation_key, [])
+
+            example_payload = ChatCompletionOverDatasetMutationExamplePayload(
+                dataset_example_id=dataset_example_id,
+                repetition_number=repetition_number,
+                experiment_run_id=experiment_run_id,
+                repetition=repetition,
             )
             payload.examples.append(example_payload)
         return payload
@@ -337,6 +404,89 @@ class ChatCompletionMutationMixin:
             )
             results.extend(batch_results)
 
+        # Run evaluations if evaluators are specified
+        evaluations_by_repetition: dict[int, list[ExperimentRunAnnotation]] = {}
+        if input.evaluators:
+            async with info.context.db() as session:
+                llm_evaluators = await get_llm_evaluators(
+                    dataset_evaluator_ids=[evaluator.id for evaluator in input.evaluators],
+                    session=session,
+                    llm_client=llm_client,
+                )
+                for repetition_number, result in enumerate(results, start=1):
+                    if isinstance(result, BaseException):
+                        continue  # skip failed completions
+                    _, db_span = result
+                    evaluations_by_repetition[repetition_number] = []
+
+                    context_dict: dict[str, Any] = {
+                        "input": json.dumps(
+                            get_attribute_value(db_span.attributes, LLM_INPUT_MESSAGES)
+                        ),
+                        "output": json.dumps(
+                            get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES)
+                        ),
+                    }
+
+                    # Run builtin evaluators
+                    for evaluator in input.evaluators:
+                        _, db_id = from_global_id(evaluator.id)
+                        if _is_builtin_evaluator(db_id):
+                            builtin_evaluator = get_builtin_evaluator_by_id(db_id)
+                            if builtin_evaluator is None:
+                                continue
+                            builtin = builtin_evaluator()
+                            eval_result: EvaluationResult = builtin.evaluate(
+                                context=context_dict,
+                                input_mapping=evaluator.input_mapping,
+                            )
+                            annotation_model = evaluation_result_to_span_annotation(
+                                eval_result,
+                                span_rowid=db_span.id,
+                            )
+                            session.add(annotation_model)
+                            await session.flush()
+                            evaluations_by_repetition[repetition_number].append(
+                                ExperimentRunAnnotation.from_dict(
+                                    {
+                                        "name": eval_result["name"],
+                                        "label": eval_result["label"],
+                                        "score": eval_result["score"],
+                                        "explanation": eval_result["explanation"],
+                                        "metadata": eval_result["metadata"],
+                                    }
+                                )
+                            )
+
+                    # Run LLM evaluators
+                    input_mappings_by_evaluator_id = {
+                        from_global_id(evaluator.id)[1]: evaluator.input_mapping
+                        for evaluator in input.evaluators
+                    }
+                    for llm_evaluator in llm_evaluators:
+                        input_mapping = input_mappings_by_evaluator_id[llm_evaluator.db_id]
+                        eval_result = await llm_evaluator.evaluate(
+                            context=context_dict,
+                            input_mapping=input_mapping,
+                        )
+                        annotation_model = evaluation_result_to_span_annotation(
+                            eval_result,
+                            span_rowid=db_span.id,
+                        )
+                        session.add(annotation_model)
+                        await session.flush()
+                        evaluations_by_repetition[repetition_number].append(
+                            ExperimentRunAnnotation.from_dict(
+                                {
+                                    "name": eval_result["name"],
+                                    "label": eval_result["label"],
+                                    "score": eval_result["score"],
+                                    "explanation": eval_result["explanation"],
+                                    "metadata": eval_result["metadata"],
+                                }
+                            )
+                        )
+
         repetitions: list[ChatCompletionRepetition] = []
         for repetition_number, result in enumerate(results, start=1):
             if isinstance(result, BaseException):
@@ -347,10 +497,12 @@ class ChatCompletionMutationMixin:
                         tool_calls=[],
                         span=None,
                         error_message=str(result),
+                        evaluations=[],
                     )
                 )
             else:
                 repetition, _ = result
+                repetition.evaluations = evaluations_by_repetition.get(repetition_number, [])
                 repetitions.append(repetition)
 
         return ChatCompletionMutationPayload(repetitions=repetitions)
@@ -518,26 +670,6 @@ class ChatCompletionMutationMixin:
 
         gql_span = Span(id=span.id, db_record=span)
 
-        evaluations: list[ExperimentRunAnnotation] = []
-        if input.evaluators:
-            async with info.context.db() as session:
-                for ii, evaluator in enumerate(input.evaluators):
-                    _, db_id = from_global_id(evaluator.id)
-                    evaluator_record = await session.get(models.Evaluator, db_id)
-                    if evaluator_record is None:
-                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
-                    evaluator_name = evaluator_record.name.root
-                    dummy_annotation = ExperimentRunAnnotation.from_dict(
-                        {
-                            "name": evaluator_name,
-                            "label": f"dummy {ii}",
-                            "score": random.random(),
-                            "explanation": "dummy evaluation",
-                            "metadata": {},
-                        }
-                    )
-                    evaluations.append(dummy_annotation)
-
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
 
         if status_code is StatusCode.ERROR:
@@ -547,7 +679,7 @@ class ChatCompletionMutationMixin:
                 tool_calls=[],
                 span=gql_span,
                 error_message=status_message,
-                evaluations=evaluations,
+                evaluations=[],
             )
         else:
             repetition = ChatCompletionRepetition(
@@ -556,7 +688,7 @@ class ChatCompletionMutationMixin:
                 tool_calls=list(tool_calls.values()),
                 span=gql_span,
                 error_message=None,
-                evaluations=evaluations,
+                evaluations=[],
             )
         return repetition, span
 
@@ -650,6 +782,10 @@ def _get_batches(
     iterator = iter(iterable)
     while batch := list(islice(iterator, batch_size)):
         yield batch
+
+
+def _is_builtin_evaluator(evaluator_id: int) -> bool:
+    return evaluator_id < 0
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value

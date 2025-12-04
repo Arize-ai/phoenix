@@ -1,6 +1,6 @@
 import asyncio
+import json
 import logging
-import random
 from collections import deque
 from collections.abc import AsyncIterator, Iterator
 from datetime import datetime, timedelta, timezone
@@ -37,9 +37,10 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     EvaluationResult,
+    LLMEvaluator,
     evaluation_result_to_model,
-    evaluation_result_to_span_annotation,
     get_builtin_evaluator_by_id,
+    get_llm_evaluators,
 )
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.playground_clients import (
@@ -59,7 +60,6 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
@@ -76,11 +76,11 @@ from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
-from phoenix.server.api.types.SpanAnnotation import SpanAnnotation
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
@@ -113,6 +113,7 @@ async def _stream_single_chat_completion(
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
     info: Info[Context, None],
+    llm_evaluators: list[LLMEvaluator],
 ) -> ChatStream:
     messages = [
         (
@@ -161,12 +162,11 @@ async def _stream_single_chat_completion(
 
     if input.evaluators:
         context_dict: dict[str, Any] = {
-            "input": [message.content for message in input.messages],
-            "expected": None,
-            "output": span.attributes.get(LLM_OUTPUT_MESSAGES),
+            "input": json.dumps(get_attribute_value(span.attributes, LLM_INPUT_MESSAGES)),
+            "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),
         }
         async with info.context.db() as session:
-            for ii, evaluator in enumerate[PlaygroundEvaluatorInput](input.evaluators):
+            for evaluator in input.evaluators:
                 _, db_id = from_global_id(evaluator.id)  # pyright: ignore
                 if _is_builtin_evaluator(db_id):
                     builtin_evaluator = get_builtin_evaluator_by_id(db_id)
@@ -177,41 +177,46 @@ async def _stream_single_chat_completion(
                         context=context_dict,
                         input_mapping=evaluator.input_mapping,
                     )
-                    annotation_model = evaluation_result_to_span_annotation(
-                        result,
-                        span_rowid=db_span.id,
-                    )
-                    session.add(annotation_model)
-                    await session.flush()
-                    yield EvaluationChunk(
-                        span_evaluation=SpanAnnotation(
-                            id=annotation_model.id,
-                            db_record=annotation_model,
-                        ),
-                        experiment_run_evaluation=None,
-                        dataset_example_id=None,
-                        repetition_number=None,
-                    )
-                else:
-                    evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
-                    if evaluator_record is None:
-                        raise NotFound(f"Could not find evaluator with ID {db_id}")
-                    evaluator_name = evaluator_record.name.root if evaluator_record else ""  # pyright: ignore
-                    dummy_annotation = ExperimentRunAnnotation.from_dict(
+                    annotation = ExperimentRunAnnotation.from_dict(
                         {
-                            "name": evaluator_name,
-                            "label": f"dummy {ii}",
-                            "score": random.random(),
-                            "explanation": "dummy evaluation",
-                            "metadata": {},
+                            "name": result["name"],
+                            "label": result["label"],
+                            "score": result["score"],
+                            "explanation": result["explanation"],
+                            "metadata": result["metadata"],
                         }
                     )
+                    await session.flush()
                     yield EvaluationChunk(
-                        experiment_run_evaluation=dummy_annotation,
-                        span_evaluation=None,
+                        experiment_run_evaluation=annotation,
                         dataset_example_id=None,
-                        repetition_number=None,
+                        repetition_number=repetition_number,
                     )
+            input_mappings_by_evaluator_id = {
+                from_global_id(evaluator.id)[1]: evaluator.input_mapping
+                for evaluator in input.evaluators
+            }
+            for llm_evaluator in llm_evaluators:
+                input_mapping = input_mappings_by_evaluator_id[llm_evaluator.db_id]
+                result = await llm_evaluator.evaluate(
+                    context=context_dict,
+                    input_mapping=input_mapping,
+                )
+                annotation = ExperimentRunAnnotation.from_dict(
+                    {
+                        "name": result["name"],
+                        "label": result["label"],
+                        "score": result["score"],
+                        "explanation": result["explanation"],
+                        "metadata": result["metadata"],
+                    }
+                )
+                yield EvaluationChunk(
+                    experiment_run_evaluation=annotation,
+                    span_evaluation=None,
+                    dataset_example_id=None,
+                    repetition_number=repetition_number,
+                )
 
 
 async def _chat_completion_span_result_payloads(
@@ -272,6 +277,11 @@ class Subscription:
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         async with info.context.db() as session:
+            llm_evaluators = await get_llm_evaluators(
+                dataset_evaluator_ids=[evaluator.id for evaluator in input.evaluators],
+                session=session,
+                llm_client=llm_client,
+            )
             if (
                 playground_project_id := await session.scalar(
                     select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
@@ -297,6 +307,7 @@ class Subscription:
                     repetition_number=repetition_number,
                     results=results,
                     info=info,
+                    llm_evaluators=llm_evaluators,
                 ),
             )
             for repetition_number in range(1, input.repetitions + 1)
@@ -393,6 +404,11 @@ class Subscription:
             else None
         )
         async with info.context.db() as session:
+            llm_evaluators = await get_llm_evaluators(
+                dataset_evaluator_ids=[evaluator.id for evaluator in input.evaluators],
+                session=session,
+                llm_client=llm_client,
+            )
             if (
                 await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
             ) is None:
@@ -589,11 +605,11 @@ class Subscription:
                         if run is None:
                             continue
                         context_dict: dict[str, Any] = {
-                            "input": revision.input,
-                            "expected": revision.output,
-                            "output": str(run.output),
+                            "input": json.dumps(revision.input),
+                            "expected": json.dumps(revision.output),
+                            "output": json.dumps(run.output),
                         }
-                        for ii, evaluator in enumerate(input.evaluators):
+                        for evaluator in input.evaluators:
                             _, db_id = from_global_id(evaluator.id)  # pyright: ignore
                             if _is_builtin_evaluator(db_id):
                                 builtin_evaluator = get_builtin_evaluator_by_id(db_id)
@@ -619,28 +635,31 @@ class Subscription:
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
-                            else:
-                                evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
-                                if evaluator_record is None:
-                                    raise NotFound(f"Could not find evaluator with ID {db_id}")
-                                evaluator_name = (
-                                    evaluator_record.name.root if evaluator_record else ""
-                                )  # pyright: ignore
-                                dummy_annotation = ExperimentRunAnnotation.from_dict(
-                                    {
-                                        "name": evaluator_name,
-                                        "label": f"dummy {ii}",
-                                        "score": random.random(),
-                                        "explanation": "dummy evaluation",
-                                        "metadata": {},
-                                    }
-                                )
-                                yield EvaluationChunk(
-                                    experiment_run_evaluation=dummy_annotation,
-                                    span_evaluation=None,
-                                    dataset_example_id=example_id,
-                                    repetition_number=repetition_number,
-                                )
+                        input_mappings_by_evaluator_id = {
+                            from_global_id(evaluator.id)[1]: evaluator.input_mapping
+                            for evaluator in input.evaluators
+                        }
+                        for llm_evaluator in llm_evaluators:
+                            input_mapping = input_mappings_by_evaluator_id[llm_evaluator.db_id]
+                            result = await llm_evaluator.evaluate(
+                                context=context_dict,
+                                input_mapping=input_mapping,
+                            )
+                            annotation_model = evaluation_result_to_model(
+                                result,
+                                experiment_run_id=run.id,
+                            )
+                            session.add(annotation_model)
+                            await session.flush()
+                            yield EvaluationChunk(
+                                experiment_run_evaluation=ExperimentRunAnnotation(
+                                    id=annotation_model.id,
+                                    db_record=annotation_model,
+                                ),
+                                span_evaluation=None,
+                                dataset_example_id=example_id,
+                                repetition_number=repetition_number,
+                            )
 
 
 async def _stream_chat_completion_over_dataset_example(
@@ -878,6 +897,7 @@ def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> st
     return name
 
 
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT

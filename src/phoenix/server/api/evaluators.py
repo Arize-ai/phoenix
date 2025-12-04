@@ -1,20 +1,45 @@
+import json
 import zlib
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Any, Optional, TypeVar
+from typing import Any, Optional, TypeAlias, TypeVar
 
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
-from typing_extensions import TypedDict
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
+from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
-from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.helpers.evaluators import (
+    validate_consistent_llm_evaluator_and_prompt_version,
+)
+from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
+from phoenix.server.api.helpers.prompts.models import (
+    PromptChatTemplate,
+    PromptTemplateFormat,
+    RoleConversion,
+    TextContentPart,
+    denormalize_tools,
+)
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import (
     PromptChatTemplateInput,
     TextContentValueInput,
 )
+from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
+from phoenix.server.api.types.node import from_global_id
+
+ToolCallId: TypeAlias = str
+
+
+class ToolCall(TypedDict):
+    name: str
+    arguments: str
 
 
 class EvaluationResult(TypedDict):
@@ -28,6 +53,155 @@ class EvaluationResult(TypedDict):
     trace_id: Optional[str]
     start_time: datetime
     end_time: datetime
+
+
+class LLMEvaluator:
+    def __init__(
+        self,
+        llm_evaluator_orm: models.LLMEvaluator,
+        prompt_version_orm: models.PromptVersion,
+        llm_client: PlaygroundStreamingClient,
+    ) -> None:
+        validate_consistent_llm_evaluator_and_prompt_version(prompt_version_orm, llm_evaluator_orm)
+        self._llm_evaluator_orm = llm_evaluator_orm
+        self._prompt_version_orm = prompt_version_orm
+        self._llm_client = llm_client
+
+    @property
+    def db_id(self) -> int:
+        return self._llm_evaluator_orm.id
+
+    @property
+    def name(self) -> str:
+        return self._llm_evaluator_orm.name.root
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._llm_evaluator_orm.description
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self._llm_evaluator_orm.metadata_
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        prompt_version = self._prompt_version_orm
+        template = prompt_version.template
+        assert isinstance(template, PromptChatTemplate)
+        formatter = get_template_formatter(prompt_version.template_format)
+        variables: set[str] = set()
+
+        for msg in template.messages:
+            if isinstance(msg.content, str):
+                variables.update(formatter.parse(msg.content))
+            elif isinstance(msg.content, list):
+                for part in msg.content:
+                    if isinstance(part, TextContentPart):
+                        variables.update(formatter.parse(part.text))
+            else:
+                assert_never(msg.content)
+
+        properties = {var: {"type": "string"} for var in variables}
+        return {
+            "type": "object",
+            "properties": properties,
+            "required": list(variables),
+        }
+
+    async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMappingInput,
+    ) -> EvaluationResult:
+        prompt_version = self._prompt_version_orm
+        evaluator = self._llm_evaluator_orm
+        prompt_tools = prompt_version.tools
+        assert prompt_tools is not None
+        template = prompt_version.template
+        assert isinstance(template, PromptChatTemplate)
+        template_variables = apply_input_mapping(
+            input_schema=self.input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
+        template_formatter = get_template_formatter(prompt_version.template_format)
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
+        ] = []
+        for msg in template.messages:
+            role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
+            if isinstance(msg.content, str):
+                formatted_content = template_formatter.format(msg.content, **template_variables)
+            else:
+                text_parts = []
+                for part in msg.content:
+                    if isinstance(part, TextContentPart):
+                        formatted_text = template_formatter.format(part.text, **template_variables)
+                        text_parts.append(formatted_text)
+                formatted_content = "".join(text_parts)
+            messages.append((role, formatted_content, None, None))
+
+        denormalized_tools, _ = denormalize_tools(
+            prompt_tools, prompt_version.model_provider
+        )  # todo: denormalize tool choice and pass as part of invocation parameters
+
+        tool_call_by_id: dict[ToolCallId, ToolCall] = {}
+        error_message: Optional[str] = None
+        start_time = datetime.now(timezone.utc)
+        try:
+            async for chunk in self._llm_client.chat_completion_create(
+                messages=messages,
+                tools=denormalized_tools,
+            ):
+                if isinstance(chunk, ToolCallChunk):
+                    if chunk.id not in tool_call_by_id:
+                        tool_call_by_id[chunk.id] = ToolCall(
+                            name=chunk.function.name,
+                            arguments=chunk.function.arguments,
+                        )
+                    else:
+                        tool_call_by_id[chunk.id]["arguments"] += chunk.function.arguments
+        except Exception as e:
+            error_message = str(e)
+            end_time = datetime.now(timezone.utc)
+            return EvaluationResult(
+                name=evaluator.annotation_name,
+                annotator_kind="LLM",
+                label=None,
+                score=None,
+                explanation=None,
+                metadata={},
+                error=error_message or "No tool calls received",
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        finally:
+            end_time = datetime.now(timezone.utc)
+
+        tool_call = next(iter(tool_call_by_id.values()))
+        args = json.loads(tool_call["arguments"])
+        assert len(args) == 1
+        label = next(iter(args.values()))
+        output_config = evaluator.output_config
+        scores_by_label = {
+            config_value.label: config_value.score for config_value in output_config.values
+        }
+        score = scores_by_label.get(label)
+
+        return EvaluationResult(
+            name=evaluator.annotation_name,
+            annotator_kind="LLM",
+            label=label,
+            score=score,
+            explanation=None,
+            metadata={},
+            error=None,
+            trace_id=None,
+            start_time=start_time,
+            end_time=end_time,
+        )
 
 
 class BuiltInEvaluator(ABC):
@@ -75,6 +249,67 @@ def get_builtin_evaluator_ids() -> list[int]:
 
 def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvaluator]]:
     return _BUILTIN_EVALUATORS_BY_ID.get(evaluator_id)
+
+
+async def get_llm_evaluators(
+    dataset_evaluator_ids: list[GlobalID],
+    session: AsyncSession,
+    llm_client: PlaygroundStreamingClient,
+) -> list[LLMEvaluator]:
+    from phoenix.server.api.types.Evaluator import DatasetEvaluator
+
+    if not dataset_evaluator_ids:
+        return []
+
+    dataset_evaluator_db_to_node_id: dict[int, GlobalID] = {}
+    for dataset_evaluator_node_id in dataset_evaluator_ids:
+        type_name, db_id = from_global_id(dataset_evaluator_node_id)
+        if type_name == DatasetEvaluator.__name__:
+            dataset_evaluator_db_to_node_id[db_id] = dataset_evaluator_node_id
+
+    if not dataset_evaluator_db_to_node_id:
+        return []
+
+    result = (
+        await session.execute(
+            select(
+                models.LLMEvaluator,
+                models.DatasetEvaluators.id,
+            )
+            .join(
+                models.DatasetEvaluators,
+                models.LLMEvaluator.id == models.DatasetEvaluators.evaluator_id,
+            )
+            .where(models.DatasetEvaluators.id.in_(dataset_evaluator_db_to_node_id.keys()))
+        )
+    ).all()
+    llm_evaluators: list[LLMEvaluator] = []
+    for llm_evaluator_orm, dataset_evaluator_id in result:
+        prompt_id = llm_evaluator_orm.prompt_id
+        prompt_version_tag_id = llm_evaluator_orm.prompt_version_tag_id
+        if prompt_version_tag_id is not None:
+            # Get the tagged version
+            prompt_version_query = (
+                select(models.PromptVersion)
+                .join(models.PromptVersionTag)
+                .where(models.PromptVersionTag.id == prompt_version_tag_id)
+            )
+        else:
+            # Get the latest version
+            prompt_version_query = (
+                select(models.PromptVersion)
+                .where(models.PromptVersion.prompt_id == prompt_id)
+                .order_by(models.PromptVersion.id.desc())
+                .limit(1)
+            )
+        prompt_version = await session.scalar(prompt_version_query)
+        if prompt_version is None:
+            dataset_evaluator_node_id = dataset_evaluator_db_to_node_id[dataset_evaluator_id]
+            raise NotFound(f"Prompt version not found for evaluator '{dataset_evaluator_node_id}'")
+
+        llm_evaluators.append(LLMEvaluator(llm_evaluator_orm, prompt_version, llm_client))
+
+    return llm_evaluators
 
 
 def apply_input_mapping(
