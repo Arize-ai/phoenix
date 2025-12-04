@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import random
 from collections import deque
 from collections.abc import AsyncIterator, Iterator
 from datetime import datetime, timedelta, timezone
@@ -508,6 +507,12 @@ class Subscription:
     async def chat_completion_over_dataset(
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        evaluators_list = await _get_evaluators(input.evaluators, info.context.db)
+        llm_evaluators = {e.id: e for e in evaluators_list}
+        prompt_versions = await _get_prompt_versions_for_evaluators(
+            evaluators_list, info.context.db
+        )
+
         llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         version_id = (
@@ -745,23 +750,29 @@ class Subscription:
                                     repetition_number=repetition_number,
                                 )
                             else:
-                                evaluator_record = await session.get(models.Evaluator, db_id)  # pyright: ignore
-                                if evaluator_record is None:
-                                    raise NotFound(f"Could not find evaluator with ID {db_id}")
-                                evaluator_name = (
-                                    evaluator_record.name.root if evaluator_record else ""
-                                )  # pyright: ignore
-                                dummy_annotation = ExperimentRunAnnotation.from_dict(
-                                    {
-                                        "name": evaluator_name,
-                                        "label": f"dummy {ii}",
-                                        "score": random.random(),
-                                        "explanation": "dummy evaluation",
-                                        "metadata": {},
-                                    }
+                                # LLM evaluator
+                                llm_evaluator = llm_evaluators.get(db_id)
+                                prompt_version = prompt_versions.get(db_id)
+                                if llm_evaluator is None or prompt_version is None:
+                                    continue
+                                result = await run_evaluator(
+                                    evaluator=llm_evaluator,
+                                    prompt_version=prompt_version,
+                                    context=context_dict,
+                                    input_mapping=evaluator.input_mapping,
+                                    info=info,
                                 )
+                                annotation_model = evaluation_result_to_model(
+                                    result,
+                                    experiment_run_id=run.id,
+                                )
+                                session.add(annotation_model)
+                                await session.flush()
                                 yield EvaluationChunk(
-                                    experiment_run_evaluation=dummy_annotation,
+                                    experiment_run_evaluation=ExperimentRunAnnotation(
+                                        id=annotation_model.id,
+                                        db_record=annotation_model,
+                                    ),
                                     span_evaluation=None,
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
