@@ -226,7 +226,7 @@ interface ApiKey {
 input AssignEvaluatorToDatasetInput {
   datasetId: ID!
   evaluatorId: ID!
-  displayName: String = null
+  displayName: Identifier = null
   inputMapping: EvaluatorInputMappingInput = null
 }
 
@@ -822,7 +822,7 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
-  evaluator(evaluatorId: ID!, displayName: String!): Evaluator!
+  evaluator(evaluatorId: ID!, displayName: Identifier!): Evaluator!
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
   lastUpdatedAt: DateTime
 }
@@ -840,7 +840,7 @@ type DatasetBuiltInEvaluator implements Evaluator & Node {
   isAssignedToDataset: Boolean!
   datasetInputMapping: EvaluatorInputMapping
   user: User
-  displayName: String!
+  displayName: Identifier!
 }
 
 type DatasetCodeEvaluator implements Evaluator & Node {
@@ -856,7 +856,7 @@ type DatasetCodeEvaluator implements Evaluator & Node {
   isAssignedToDataset: Boolean!
   datasetInputMapping: EvaluatorInputMapping
   user: User
-  displayName: String!
+  displayName: Identifier!
 }
 
 enum DatasetColumn {
@@ -967,7 +967,7 @@ type DatasetLLMEvaluator implements Evaluator & Node {
   promptVersionTag: PromptVersionTag
   user: User
   promptVersion: PromptVersion!
-  displayName: String!
+  displayName: Identifier!
 }
 
 type DatasetLLMEvaluatorMutationPayload {
@@ -4035,7 +4035,7 @@ type UMAPPoints {
 input UnassignEvaluatorFromDatasetInput {
   datasetId: ID!
   evaluatorId: ID!
-  displayName: String!
+  displayName: Identifier!
 }
 
 type UnparsableConfig {
@@ -4075,7 +4075,7 @@ input UpdateAnnotationInput {
 input UpdateDatasetLLMEvaluatorInput {
   evaluatorId: ID!
   datasetId: ID!
-  originalDisplayName: String!
+  originalDisplayName: Identifier!
   name: Identifier!
   description: String = null
   promptVersion: ChatPromptVersionInput!
