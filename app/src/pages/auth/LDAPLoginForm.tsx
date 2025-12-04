@@ -83,7 +83,7 @@ export function LDAPLoginForm(props: LDAPLoginFormProps) {
           <Alert variant="danger">{error}</Alert>{" "}
         </View>
       ) : null}
-      <Form>
+      <Form onSubmit={handleSubmit(onSubmit)}>
         <Flex direction="column" gap="size-200">
           <Flex direction="column" gap="size-100">
             <Controller
@@ -98,6 +98,12 @@ export function LDAPLoginForm(props: LDAPLoginFormProps) {
                   onBlur={onBlur}
                   value={value}
                   autoComplete="username"
+                  onKeyDown={(e) => {
+                    // Prevent form submission on Enter - user likely wants to tab to password
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                    }
+                  }}
                 >
                   <Label>LDAP Username</Label>
                   <Input placeholder="your LDAP username" />
@@ -114,11 +120,6 @@ export function LDAPLoginForm(props: LDAPLoginFormProps) {
                   isRequired
                   onChange={onChange}
                   value={value}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSubmit(onSubmit)();
-                    }
-                  }}
                   autoComplete="current-password"
                 >
                   <Label>LDAP Password</Label>
@@ -129,11 +130,11 @@ export function LDAPLoginForm(props: LDAPLoginFormProps) {
           </Flex>
           <Button
             variant="primary"
+            type="submit"
             isDisabled={isLoading}
             leadingVisual={
               isLoading ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
             }
-            onPress={() => handleSubmit(onSubmit)()}
           >
             {isLoading ? "Logging In" : "Log In"}
           </Button>

@@ -84,7 +84,7 @@ export function LoginForm(props: LoginFormProps) {
           <Alert variant="danger">{error}</Alert>{" "}
         </View>
       ) : null}
-      <Form>
+      <Form onSubmit={handleSubmit(onSubmit)}>
         <Flex direction="column" gap="size-200">
           <Flex direction="column" gap="size-100">
             <Controller
@@ -99,6 +99,12 @@ export function LoginForm(props: LoginFormProps) {
                   onBlur={onBlur}
                   value={value}
                   autoComplete="email"
+                  onKeyDown={(e) => {
+                    // Prevent form submission on Enter - user likely wants to tab to password
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                    }
+                  }}
                 >
                   <Label>Email</Label>
                   <Input placeholder="your email address" />
@@ -127,11 +133,6 @@ export function LoginForm(props: LoginFormProps) {
                     isRequired
                     onChange={onChange}
                     value={value}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleSubmit(onSubmit)();
-                      }
-                    }}
                     autoComplete="current-password"
                   >
                     <Label>Password</Label>
@@ -146,11 +147,11 @@ export function LoginForm(props: LoginFormProps) {
           </Flex>
           <Button
             variant="primary"
+            type="submit"
             isDisabled={isLoading}
             leadingVisual={
               isLoading ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
             }
-            onPress={() => handleSubmit(onSubmit)()}
           >
             {isLoading ? "Logging In" : "Log In"}
           </Button>
