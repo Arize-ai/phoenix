@@ -1,13 +1,14 @@
 import base64
 import json
 import logging
-from typing import Any, Dict, Type, Union, cast
+from typing import Any, Dict, List, Type, Union, cast
 from urllib.parse import urlparse
 
 from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
 from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
 
+from ...prompts import Message, MessageRole, PromptLike
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .factories import OpenAIClientWrapper, create_azure_openai_client, create_openai_client
@@ -82,7 +83,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         return inspect.iscoroutinefunction(create_method)
 
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
         """Generate text using OpenAI client."""
         if self._is_async:
             raise ValueError("Cannot call sync method generate_text() on async OpenAI client.")
@@ -100,7 +101,9 @@ class OpenAIAdapter(BaseLLMAdapter):
             logger.error(f"OpenAI completion failed: {e}")
             raise
 
-    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def async_generate_text(
+        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
+    ) -> str:
         """Async text generation using OpenAI client."""
         if not self._is_async:
             raise ValueError(
@@ -122,7 +125,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -167,7 +170,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -211,7 +214,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def _generate_with_structured_output(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -240,7 +243,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -272,7 +275,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_structured_output(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -301,7 +304,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: Union[PromptLike, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -376,54 +379,126 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         return tool_definition
 
-    def _build_messages(self, prompt: Union[str, MultimodalPrompt]) -> list[dict[str, Any]]:
+    def _system_role(self) -> str:
+        # OpenAI uses different semantics for "system" roles for different models
+        if "gpt" in self.model_name:
+            return "system"
+        if "o1-mini" in self.model_name:
+            return "user"  # o1-mini does not support either "system" or "developer" roles
+        if "o1-preview" in self.model_name:
+            return "user"  # o1-preview does not support "system" or "developer" roles
+        if "o1" in self.model_name:
+            return "developer"
+        if "o3" in self.model_name:
+            return "developer"
+        return "system"
+
+    def _transform_messages_to_openai(self, messages: List[Message]) -> list[dict[str, Any]]:
+        """Transform List[Message] TypedDict to OpenAI message format.
+
+        Args:
+            messages: List of Message TypedDicts with MessageRole enum.
+
+        Returns:
+            List of OpenAI-formatted message dicts.
+        """
+        openai_messages: list[dict[str, Any]] = []
+
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+
+            # Map MessageRole enum to OpenAI role strings
+            if role == MessageRole.AI:
+                openai_role = "assistant"
+            elif role == MessageRole.USER:
+                openai_role = "user"
+            elif role == MessageRole.SYSTEM:
+                openai_role = self._system_role()
+            else:
+                # Fallback for any unexpected roles
+                openai_role = role.value if isinstance(role, MessageRole) else str(role)
+
+            # Handle content - can be string or List[ContentPart]
+            if isinstance(content, str):
+                openai_messages.append({"role": openai_role, "content": content})
+            else:
+                # Extract text from TextContentPart items only
+                # For now, skip image_url parts (as per plan)
+                text_parts = []
+                for part in content:
+                    if part.get("type") == "text" and "text" in part:
+                        text_parts.append(part["text"])
+
+                # Join all text parts with newlines
+                combined_text = "\n".join(text_parts)
+                openai_messages.append({"role": openai_role, "content": combined_text})
+
+        return openai_messages
+
+    def _build_messages(self, prompt: Union[PromptLike, MultimodalPrompt]) -> list[dict[str, Any]]:
         """Build messages for OpenAI API from prompt."""
         if isinstance(prompt, str):
             return [{"role": "user", "content": prompt}]
 
+        if isinstance(prompt, list):
+            # Check if this is List[Message] with MessageRole enum
+            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+                # Transform List[Message] to OpenAI format
+                return self._transform_messages_to_openai(cast(List[Message], prompt))
+            # Otherwise, already in OpenAI message format (backward compatibility)
+            return cast(list[dict[str, Any]], prompt)
+
+        # Handle legacy MultimodalPrompt
         messages: list[dict[str, Any]] = []
-        for part in prompt.parts:
-            if part.content_type == PromptPartContentType.TEXT:
-                messages.append({"role": "user", "content": part.content})
-            elif part.content_type == PromptPartContentType.AUDIO:
-                format = str(get_audio_format_from_base64(part.content))
-                if format not in SUPPORTED_AUDIO_FORMATS:
-                    raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "input_audio",
-                                "input_audio": {
-                                    "data": part.content,
-                                    "format": format,
-                                },
-                            }
-                        ],
-                    }
-                )
-            elif part.content_type == PromptPartContentType.IMAGE:
-                if _is_base64(part.content):
-                    content_url = f"data:image/jpeg;base64,{part.content}"
-                elif _is_url(part.content):
-                    content_url = part.content
+        if isinstance(prompt, MultimodalPrompt):
+            for part in prompt.parts:
+                if part.content_type == PromptPartContentType.TEXT:
+                    messages.append({"role": "user", "content": part.content})
+                elif part.content_type == PromptPartContentType.AUDIO:
+                    format = str(get_audio_format_from_base64(part.content))
+                    if format not in SUPPORTED_AUDIO_FORMATS:
+                        raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "input_audio",
+                                    "input_audio": {
+                                        "data": part.content,
+                                        "format": format,
+                                    },
+                                }
+                            ],
+                        }
+                    )
+                elif part.content_type == PromptPartContentType.IMAGE:
+                    if _is_base64(part.content):
+                        content_url = f"data:image/jpeg;base64,{part.content}"
+                    elif _is_url(part.content):
+                        content_url = part.content
+                    else:
+                        raise ValueError("Only base64 encoded images or image URLs are supported")
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": content_url},
+                                }
+                            ],
+                        }
+                    )
                 else:
-                    raise ValueError("Only base64 encoded images or image URLs are supported")
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": content_url},
-                            }
-                        ],
-                    }
-                )
-            else:
-                raise ValueError(f"Unsupported content type: {part.content_type}")
-        return messages
+                    raise ValueError(f"Unsupported content type: {part.content_type}")
+            return messages
+
+        # If we get here, prompt is an unexpected type
+        raise ValueError(
+            f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
+        )
 
     def _ensure_additional_properties_false(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """

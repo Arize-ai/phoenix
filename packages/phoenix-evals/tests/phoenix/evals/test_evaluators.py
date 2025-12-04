@@ -16,8 +16,7 @@ from phoenix.evals.evaluators import (
     evaluate_dataframe,
     to_thread,
 )
-from phoenix.evals.llm import LLM
-from phoenix.evals.templating import Template
+from phoenix.evals.llm import LLM, PromptTemplate
 
 
 # --- Shared Mock Classes ---
@@ -352,18 +351,8 @@ class TestLLMEvaluator:
         assert evaluator.name == "test_evaluator"
         assert evaluator.kind == "llm"
         assert evaluator.llm == llm
-        assert isinstance(evaluator.prompt_template, Template)
+        assert isinstance(evaluator.prompt_template, PromptTemplate)
         assert evaluator._get_required_fields(None) == expected_required_fields
-
-    def test_llm_evaluator_initialization_with_template_object(self):
-        """Test LLMEvaluator initialization with Template object."""
-        llm = MockLLM()
-        template = Template(template="Test template with {input}")
-
-        evaluator = LLMEvaluator(name="test_evaluator", llm=llm, prompt_template=template)
-
-        assert evaluator.prompt_template == template
-        assert evaluator._get_required_fields(None) == {"input"}
 
     def test_llm_evaluator_initialization_with_explicit_required_fields(self):
         """Test LLMEvaluator initialization with explicit required_fields."""
@@ -378,6 +367,16 @@ class TestLLMEvaluator:
             prompt_template=template,
             input_schema=InputModel,
         )
+        assert evaluator._get_required_fields(None) == {"input"}
+
+    def test_llm_evaluator_initialization_with_prompt_template_instance(self):
+        """Test LLMEvaluator accepts PromptTemplate instance."""
+        llm = MockLLM()
+        prompt_template = PromptTemplate(template="Test template with {input}")
+
+        evaluator = LLMEvaluator(name="test_evaluator", llm=llm, prompt_template=prompt_template)
+
+        assert evaluator.prompt_template is prompt_template
         assert evaluator._get_required_fields(None) == {"input"}
 
 
@@ -483,6 +482,33 @@ class TestClassificationEvaluator:
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
+
+    def test_classification_evaluator_with_message_list_template(self):
+        """Test ClassificationEvaluator with message list template."""
+        llm = MockLLM()
+        messages = [
+            {"role": "system", "content": "You are {role}"},
+            {"role": "user", "content": "Classify this: {text}"},
+        ]
+        choices = ["good", "bad"]  # Use labels that match MockLLM's return value
+
+        evaluator = ClassificationEvaluator(
+            name="sentiment", llm=llm, prompt_template=messages, choices=choices
+        )
+
+        # Verify the template is stored correctly as PromptTemplate
+        assert isinstance(evaluator.prompt_template, PromptTemplate)
+        assert set(evaluator.prompt_template.variables) == {"role", "text"}
+
+        # Verify the required fields were extracted correctly
+        assert set(evaluator._get_required_fields(None)) == {"role", "text"}
+
+        # Verify evaluation works with message list template
+        result = evaluator._evaluate({"role": "a classifier", "text": "hello world"})
+
+        assert len(result) == 1
+        assert result[0].name == "sentiment"
+        assert result[0].label == "good"  # MockLLM returns "good"
 
 
 class TestCreateEvaluatorAsync:

@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.6.1...arize-phoenix-evals-v2.7.0) (2025-12-04)
+
+
+### Features
+
+* **evals:** support prompt/template messages ([#10356](https://github.com/Arize-ai/phoenix/issues/10356)) ([7d3dc7d](https://github.com/Arize-ai/phoenix/commit/7d3dc7d2846807053da63a8aa9cb776283deb370))
+
 ## [2.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.6.0...arize-phoenix-evals-v2.6.1) (2025-11-22)
 
 

@@ -729,7 +729,10 @@ def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
     Returns:
         ParseResult: Modified endpoint with "/v1/traces" path.
     """
-    return parsed_endpoint._replace(path="/v1/traces")
+    traces_suffix = "/v1/traces"
+    if parsed_endpoint.path.endswith(traces_suffix):
+        return parsed_endpoint
+    return parsed_endpoint._replace(path=traces_suffix)
 
 
 def _construct_phoenix_cloud_endpoint(parsed_endpoint: ParseResult) -> ParseResult:

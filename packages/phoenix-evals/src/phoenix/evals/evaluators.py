@@ -35,9 +35,9 @@ from .legacy.evaluators import (
     SummarizationEvaluator,
     ToxicityEvaluator,
 )
-from .llm import LLM
+from .llm import LLM, PromptLike
+from .llm.prompts import PromptTemplate, Template
 from .llm.types import ObjectGenerationMethod
-from .templating import Template
 from .utils import (
     _deprecate_positional_args,
     _deprecate_source_and_heuristic,
@@ -377,8 +377,9 @@ class LLMEvaluator(Evaluator):
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
         llm: The LLM instance to use for evaluation.
-        prompt_template: The prompt template (string or Template) with placeholders for
-            required fields; used to infer required variables.
+        prompt_template: The prompt template with placeholders for required fields; used to infer
+            required variables. Can be either a string template or a list of message dictionaries
+            (for chat-based models).
         schema: Optional tool/JSON schema for structured output when supported by the LLM.
         input_schema: Optional Pydantic model describing/validating inputs. If not provided,
             a model is dynamically created from the prompt variables (all str, required).
@@ -392,16 +393,19 @@ class LLMEvaluator(Evaluator):
         *,
         name: str,
         llm: LLM,
-        prompt_template: Union[str, Template],
+        prompt_template: Union[PromptLike, PromptTemplate, Template],
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
         **kwargs: Any,
     ):
-        # Infer required fields from prompt_template
-        if isinstance(prompt_template, str):
-            prompt_template = Template(template=prompt_template)
-        required_fields = prompt_template.variables
+        # Convert to PromptTemplate for uniform handling
+        if isinstance(prompt_template, PromptTemplate):
+            self._prompt_template = prompt_template
+        else:
+            self._prompt_template = PromptTemplate(template=prompt_template)
+
+        required_fields = self._prompt_template.variables
 
         # If no explicit input_schema, create a Pydantic model with all fields as required str
         if input_schema is None:
@@ -423,8 +427,12 @@ class LLMEvaluator(Evaluator):
             input_schema=input_schema,
         )
         self.llm = llm
-        self.prompt_template = prompt_template
         self.schema = schema
+
+    @property
+    def prompt_template(self) -> PromptTemplate:
+        """Get the prompt template."""
+        return self._prompt_template
 
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         raise NotImplementedError("Subclasses must implement _evaluate")
@@ -455,8 +463,9 @@ class ClassificationEvaluator(LLMEvaluator):
         name: Identifier for this evaluator and the name used in produced Scores.
         llm: The LLM instance to use for evaluation. Must support tool calling or
             structured output for reliable classification.
-        prompt_template: The prompt template (string or Template) with placeholders for
-            required input fields. Template variables are inferred automatically.
+        prompt_template: The prompt template with placeholders for required input fields.
+            Can be either a string template or a list of message dictionaries (for chat-based
+            models). Template variables are inferred automatically.
         choices: Classification choices in one of three formats:
             a. List[str]: Simple list of label names (e.g., ["positive", "negative"]).
                 Scores will be None.
@@ -544,7 +553,7 @@ class ClassificationEvaluator(LLMEvaluator):
         *,
         name: str,
         llm: LLM,
-        prompt_template: Union[str, Template],
+        prompt_template: Union[PromptLike, PromptTemplate, Template],
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
         ],
@@ -586,10 +595,12 @@ class ClassificationEvaluator(LLMEvaluator):
         self.labels = labels
 
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
-        prompt_filled = self.prompt_template.render(variables=eval_input)
+        # Render template using PromptTemplate
+        prompt_filled = self._prompt_template.render(variables=eval_input)
+
         method = (
             ObjectGenerationMethod.TOOL_CALLING
-            if isinstance(self.labels, Dict)
+            if isinstance(self.labels, dict)
             else ObjectGenerationMethod.AUTO
         )
         response = self.llm.generate_classification(
@@ -626,10 +637,12 @@ class ClassificationEvaluator(LLMEvaluator):
         ]
 
     async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
-        prompt_filled = self.prompt_template.render(variables=eval_input)
+        # Render template using PromptTemplate
+        prompt_filled = self._prompt_template.render(variables=eval_input)
+
         method = (
             ObjectGenerationMethod.TOOL_CALLING
-            if isinstance(self.labels, Dict)
+            if isinstance(self.labels, dict)
             else ObjectGenerationMethod.AUTO
         )
         response = await self.llm.async_generate_classification(
