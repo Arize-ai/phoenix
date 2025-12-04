@@ -28,11 +28,11 @@ Provide any remaining important reminders for the LLM to keep in mind while grad
 
 const USER_PROMPT = `
 <reference_answer>
-{{reference_answer}}
+{{expected}}
 </reference_answer>
 
 <provided_answer>
-{{provided_answer}}
+{{output}}
 </provided_answer>
 `;
 
