@@ -490,6 +490,37 @@ class LDAPAuthenticator:
                         # but the network round-trip and TLS operations equalize timing.
                         self._dummy_bind_for_timing(server, password)
                         logger.debug("User not found in LDAP directory")
+
+                        # DESIGN DECISION: Return immediately instead of trying other servers
+                        #
+                        # Why not failover to other servers when user is not found?
+                        #
+                        # 1. SEMANTIC CORRECTNESS (primary reason):
+                        #    In a properly configured LDAP environment, "user not found" is a
+                        #    definitive answer. Failover servers are replicas of the same directory
+                        #    and should have identical user sets. If user doesn't exist on server A,
+                        #    they won't exist on server B either. Multi-server failover is designed
+                        #    for server unavailability (LDAPException → continue), not for data
+                        #    inconsistency between replicas.
+                        #
+                        # 2. EDGE CASES (replica lag, AD GC/DC differences):
+                        #    Temporary inconsistencies can occur during replication, but these are
+                        #    rare and transient. Designing around them would add complexity for
+                        #    little practical benefit, and could mask underlying infrastructure
+                        #    issues that should be addressed at the LDAP layer.
+                        #
+                        # 3. TIMING ATTACK CONSIDERATION:
+                        #    Trying multiple servers would also introduce a timing side-channel:
+                        #      - User on server A: search(A) + bind(A) → ~150ms
+                        #      - User on server B: search(A) + dummy(A) + search(B) + bind(B) → ~300ms
+                        #    Attackers could potentially infer which server contains the user.
+                        #    The current design provides consistent timing regardless of user
+                        #    existence, which is a security benefit (though not the primary driver).
+                        #
+                        # If multi-server search is required for your environment, consider:
+                        #   - Ensuring replicas are consistent before routing authentication traffic
+                        #   - Using a load balancer that routes to consistent replicas
+                        #   - Implementing application-level retry with exponential backoff
                         return None
 
                     user_dn = user_entry.entry_dn
