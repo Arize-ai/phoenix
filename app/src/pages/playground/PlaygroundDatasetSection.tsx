@@ -173,6 +173,7 @@ export function PlaygroundDatasetSection({
                 evaluators={evaluators}
                 selectedIds={selectedEvaluatorIds}
                 onSelectionChange={setSelectedEvaluatorIds}
+                datasetId={datasetId}
               />
               {experimentIds.length > 0 && (
                 <LinkButton

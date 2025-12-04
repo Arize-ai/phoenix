@@ -36,9 +36,9 @@ export const EditDatasetEvaluatorSlideover = ({
   displayName,
   ...props
 }: {
-  evaluatorId: string;
+  evaluatorId?: string;
   datasetId: string;
-  displayName: string;
+  displayName?: string;
   updateConnectionIds?: string[];
 } & ModalOverlayProps) => {
   return (
@@ -47,13 +47,15 @@ export const EditDatasetEvaluatorSlideover = ({
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>
-              <EditEvaluatorDialog
-                evaluatorId={evaluatorId}
-                onClose={close}
-                datasetId={datasetId}
-                updateConnectionIds={updateConnectionIds}
-                displayName={displayName}
-              />
+              {!!evaluatorId && !!displayName && (
+                <EditEvaluatorDialog
+                  evaluatorId={evaluatorId}
+                  onClose={close}
+                  datasetId={datasetId}
+                  updateConnectionIds={updateConnectionIds}
+                  displayName={displayName}
+                />
+              )}
             </Suspense>
           )}
         </Dialog>
