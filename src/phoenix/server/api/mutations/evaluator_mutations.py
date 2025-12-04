@@ -20,7 +20,7 @@ from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import get_builtin_evaluator_by_id
+from phoenix.server.api.evaluators import get_builtin_evaluator_by_id, get_builtin_evaluator_ids
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
@@ -392,11 +392,20 @@ class EvaluatorMutationMixin:
                 raise BadRequest(f"Invalid evaluator id: {str(evaluator_gid)}")
             evaluator_rowids.add(evaluator_rowid)
 
-        stmt = delete(models.Evaluator).where(models.Evaluator.id.in_(evaluator_rowids))
+        builtin_evaluator_ids = set(get_builtin_evaluator_ids())
+        filtered_rowids: list[int] = []
+        filtered_gids: list[GlobalID] = []
+        for gid, rowid in zip(input.evaluator_ids, evaluator_rowids):
+            if rowid in builtin_evaluator_ids:
+                continue
+            filtered_rowids.append(rowid)
+            filtered_gids.append(gid)
+
+        stmt = delete(models.Evaluator).where(models.Evaluator.id.in_(filtered_rowids))
         async with info.context.db() as session:
             await session.execute(stmt)
         return DeleteEvaluatorsPayload(
-            evaluator_ids=input.evaluator_ids,
+            evaluator_ids=filtered_gids,
             query=Query(),
         )
 

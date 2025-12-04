@@ -479,8 +479,7 @@ class Dataset(Node):
         except ValueError:
             raise BadRequest(f"Invalid evaluator ID: {evaluator_id}")
         display_name_model = IdentifierModel.model_validate(display_name)
-        # join the polymorphic evaluator models with the datasets_evaluators
-        # table for this dataset id
+
         is_builtin = evaluator_rowid < 0
         if is_builtin:
             builtin_existence_stmt = select(models.DatasetsEvaluators).where(
