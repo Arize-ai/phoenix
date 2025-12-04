@@ -1,6 +1,6 @@
 # Get Started: Evaluations
 
-Now that you have Phoenix up and running, and sent traces to your first project, the next step you can take is running **evaluations** of your Python application. Evaluations let you measure and monitor the quality of your application by scoring traces against metrics like accuracy, relevance, or custom checks.
+Now that you have Phoenix up and running, and sent traces to your first project, the next step you can take is running **evaluations** of your application. Evaluations let you measure and monitor the quality of your application by scoring traces against metrics like accuracy, relevance, or custom checks.
 
 {% stepper %}
 {% step %}
@@ -255,10 +255,13 @@ You'll now be able to log your evaluations in your project view.
 {% tabs %}
 {% tab title="Python" %}
 ```python
+from phoenix.evals.utils import to_annotation_dataframe
+
+evaluations = to_annotation_dataframe(
+    dataframe=results_df
+)
 client.log_span_annotations(
-    dataframe=results_df,
-    annotation_name="QA Correctness",
-    annotator_kind="LLM"
+    dataframe=evaluations
 )
 ```
 {% endtab %}

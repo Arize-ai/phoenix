@@ -30,7 +30,7 @@ question can be answered by the information in the Reference text.
 "relevant" means the reference text contains an answer to the Question. '''
 ```
 
-For more information about prompt templates, see the API Reference for [Prompt Template](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#prompt-template). For more information about how to configure the LLM judge, see [Configuring the LLM](configuring-the-llm/).
+For more information about prompt templates, [Prompt Formats](configuring-the-llm/prompt-formats.md). For more information about how to configure the LLM judge, see [Configuring the LLM](configuring-the-llm/).
 
 #### Label Choices
 
@@ -45,7 +45,7 @@ The `choices` of a `ClassificationEvaluator` can be structured in a couple of wa
 
 The `ClassificationEvaluator` also supports multi-class labels and scores, for example: `choices = {"good": 1.0, "bad": 0.0, "neutral": 0.5}`
 
-There is no limit to the number of label choices you can provide, and you can specify any numeric scores (not limited to values between 0 and 1). For example, you can set `choices = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}` for a numeric rating task.&#x20;
+There is no limit to the number of label choices you can provide, and you can specify any numeric scores (not limited to values between 0 and 1). For example, you can set `choices = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}` for a numeric rating task.
 
 #### Putting it together
 
@@ -68,9 +68,9 @@ results = relevance_classifier.evaluate({"query": "input query goes here", "refe
 
 ### Custom Numeric Rating LLM Evaluator
 
-The `ClassificationEvaluator` is a flexible LLM-as-a-judge construct that can also be used to produce numeric ratings (also known as Likert scores).&#x20;
+The `ClassificationEvaluator` is a flexible LLM-as-a-judge construct that can also be used to produce numeric ratings (also known as Likert scores).
 
-**Note**: We generally recommend using categorical labels over numeric ratings for most evaluation tasks. LLMs have inherent limitations in their numeric reasoning abilities, and numeric scores do not correlate as well with human judgements. See this [technical report](https://arize.com/blog/testing-binary-vs-score-llm-evals-on-the-latest-models/) for more information about our findings on this subject.&#x20;
+**Note**: We generally recommend using categorical labels over numeric ratings for most evaluation tasks. LLMs have inherent limitations in their numeric reasoning abilities, and numeric scores do not correlate as well with human judgements. See this [technical report](https://arize.com/blog/testing-binary-vs-score-llm-evals-on-the-latest-models/) for more information about our findings on this subject.
 
 Here is a prompt that asks the LLM to rate the spelling/grammatical correctness of some input context on a scale from 1-10:
 
@@ -97,7 +97,7 @@ Please rate the percentage of errors in the context on a scale from 1 to 10.
 """
 ```
 
-This numeric rating task can be framed as a classification task where the set of labels is the set of numbers on the rating scale (here, 1-10). Then we can set up a custom `ClassificationEvaluator` for our evaluation task, similar to how we did above. Make sure to set the optimization `direction = "minimize"` here since a lower score is better on this task (fewer spelling errors).&#x20;
+This numeric rating task can be framed as a classification task where the set of labels is the set of numbers on the rating scale (here, 1-10). Then we can set up a custom `ClassificationEvaluator` for our evaluation task, similar to how we did above. Make sure to set the optimization `direction = "minimize"` here since a lower score is better on this task (fewer spelling errors).
 
 ```python
 from phoenix.evals ClassificationEvaluator
@@ -120,7 +120,7 @@ spelling_classifier.evaluate({"context": "This is a test. There are is some typo
 
 Alternatively, for LLM-as-a-judge tasks that don't fit the classification paradigm, it is also possible to create a custom evaluator that implements the base [`LLMEvaluator`](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#llmevaluator) class. We can implement our own `LLMEvaluator` for almost any complex eval that doesn't fit into the classification type.
 
-In this example, we implement the same spelling evaluator from above as a fully custom `LLMEvaluator.` &#x20;
+In this example, we implement the same spelling evaluator from above as a fully custom `LLMEvaluator.`
 
 #### Steps to create a custom evaluator:
 

@@ -106,6 +106,7 @@
 * [How to: Evals](evaluation/how-to-evals/README.md)
   * [Custom LLM Evaluators](evaluation/how-to-evals/custom-llm-evaluators.md)
   * [Configuring the LLM](evaluation/how-to-evals/configuring-the-llm/README.md)
+    * [Prompt Formats](evaluation/how-to-evals/configuring-the-llm/prompt-formats.md)
     * [Calling models with LiteLLM](evaluation/how-to-evals/configuring-the-llm/calling-models-with-litellm.md)
   * [Code Evaluators](evaluation/how-to-evals/code-evaluators.md)
   * [Batch Evaluations](evaluation/how-to-evals/batch-evaluations.md)
