@@ -110,7 +110,7 @@ export const createLLMEvaluatorPayload = ({
     promptVersion: prunedPromptInput,
     outputConfig: {
       name: choiceConfig.name,
-      optimizationDirection: "MAXIMIZE",
+      optimizationDirection: choiceConfig.optimizationDirection,
       values: choiceConfig.choices.map((choice) => ({
         label: choice.label,
         score: choice.score,
