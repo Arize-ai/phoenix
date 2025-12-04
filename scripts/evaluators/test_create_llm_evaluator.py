@@ -24,7 +24,7 @@ mutation CreateLLMEvaluator($input: CreateLLMEvaluatorInput!) {
 """)
 
 
-async def main():
+async def main() -> None:
     transport = AIOHTTPTransport(url="http://localhost:6006/graphql")
 
     async with Client(transport=transport, fetch_schema_from_transport=False) as session:

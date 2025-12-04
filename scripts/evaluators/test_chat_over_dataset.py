@@ -1,6 +1,5 @@
-#!/usr/bin/env python
 """
-Simple script to test the chat completion GraphQL subscription.
+Test script for chatCompletionOverDataset GraphQL subscription.
 """
 
 import asyncio
@@ -10,39 +9,63 @@ from gql import Client, gql
 from gql.transport.websockets import WebsocketsTransport
 
 SUBSCRIPTION = gql("""
-subscription PlaygroundOutputSubscription($input: ChatCompletionInput!) {
-  chatCompletion(input: $input) {
+subscription PlaygroundDatasetExamplesTableSubscription(
+  $input: ChatCompletionOverDatasetInput!
+) {
+  chatCompletionOverDataset(input: $input) {
     __typename
-    repetitionNumber
     ... on TextChunk {
       content
+      datasetExampleId
+      repetitionNumber
     }
     ... on ToolCallChunk {
       id
+      datasetExampleId
+      repetitionNumber
       function {
         name
         arguments
       }
     }
+    ... on ChatCompletionSubscriptionExperiment {
+      experiment {
+        id
+      }
+    }
     ... on ChatCompletionSubscriptionResult {
+      datasetExampleId
+      repetitionNumber
       span {
+        id
+        tokenCountTotal
+        latencyMs
+        project {
+          id
+        }
+        context {
+          traceId
+        }
+      }
+      experimentRun {
         id
       }
     }
     ... on ChatCompletionSubscriptionError {
+      datasetExampleId
+      repetitionNumber
       message
     }
     ... on EvaluationChunk {
-      spanEvaluation {
+      datasetExampleId
+      repetitionNumber
+      experimentRunEvaluation {
         id
         name
         label
         score
-      }
-      experimentRunEvaluation {
-        name
-        label
-        score
+        annotatorKind
+        explanation
         metadata
       }
     }
@@ -57,7 +80,7 @@ async def main() -> None:
         subprotocols=["graphql-transport-ws"],
     )
 
-    # The evaluator ID from test_create_llm_evaluator.py
+    # LLM Evaluator ID from test_create_llm_evaluator.py
     evaluator_id = "TExNRXZhbHVhdG9yOjE="
 
     evaluators = [
@@ -72,10 +95,12 @@ async def main() -> None:
         }
     ]
 
+    dataset_id = "RGF0YXNldDozNA=="
+
     variables = {
         "input": {
             "messages": [
-                {"content": "You are a chatbot", "role": "SYSTEM"},
+                {"content": "You are a helpful assistant.", "role": "SYSTEM"},
                 {"content": "{{question}}", "role": "USER"},
             ],
             "model": {
@@ -86,17 +111,16 @@ async def main() -> None:
             },
             "invocationParameters": [],
             "repetitions": 1,
-            "template": {
-                "variables": {"question": "who won the nba finals last year?"},
-                "format": "MUSTACHE",
-            },
+            "templateFormat": "MUSTACHE",
+            "datasetId": dataset_id,
+            "splitIds": None,
             "evaluators": evaluators,
         }
     }
 
     async with Client(transport=transport, fetch_schema_from_transport=False) as session:
         async for result in session.subscribe(SUBSCRIPTION, variable_values=variables):
-            payload = result["chatCompletion"]
+            payload = result["chatCompletionOverDataset"]
             print(json.dumps(payload))
 
 
