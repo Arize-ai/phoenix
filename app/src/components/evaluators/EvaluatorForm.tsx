@@ -53,6 +53,7 @@ const DEFAULT_FORM_VALUES: EvaluatorFormValues = {
   },
   choiceConfig: {
     name: "",
+    optimizationDirection: "MAXIMIZE",
     choices: [
       { label: "", score: undefined },
       { label: "", score: undefined },

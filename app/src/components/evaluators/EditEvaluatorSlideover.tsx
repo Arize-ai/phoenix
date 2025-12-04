@@ -94,6 +94,7 @@ const EditEvaluatorDialog = ({
           }
           outputConfig {
             name
+            optimizationDirection
             values {
               label
               score
@@ -159,6 +160,8 @@ const EditEvaluatorDialog = ({
       },
       choiceConfig: {
         name: evaluator.outputConfig?.name ?? "",
+        optimizationDirection:
+          evaluator.outputConfig?.optimizationDirection ?? "MAXIMIZE",
         choices: evaluator.outputConfig?.values.map((value) => ({
           label: value.label,
           score: value.score ?? undefined,
