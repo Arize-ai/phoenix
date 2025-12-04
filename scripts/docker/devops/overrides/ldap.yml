@@ -79,6 +79,8 @@ services:
       - PHOENIX_LDAP_ATTR_EMAIL=mail
       - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
       - PHOENIX_LDAP_ATTR_MEMBER_OF=memberOf
+      # Optional: Immutable unique ID (only needed if you expect email changes)
+      # - PHOENIX_LDAP_ATTR_UNIQUE_ID=entryUUID
       - PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]
       - PHOENIX_LDAP_ALLOW_SIGN_UP=true
     depends_on:

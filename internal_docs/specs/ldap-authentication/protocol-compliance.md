@@ -698,24 +698,19 @@ def canonicalize_dn(dn: str) -> str:
     return ",".join(canonical_parts)
 ```
 
-**Usage** (`src/phoenix/server/api/routers/auth.py:_get_or_create_ldap_user`):
-```python
-from phoenix.server.ldap import canonicalize_dn
+**Note on DN Usage**:
 
-# Canonicalize DN before storage/lookup
-user_dn = user_info.user_dn
-user_dn_canonical = canonicalize_dn(user_dn)
+Phoenix no longer uses DN for user identity matching (DNs change too frequently in enterprise
+environments). Instead, Phoenix uses:
+- **Simple mode**: Email as identifier
+- **Enterprise mode**: Immutable unique ID (objectGUID/entryUUID) via `PHOENIX_LDAP_ATTR_UNIQUE_ID`
 
-# Direct string comparison (DN already canonical)
-user = await session.scalar(
-    select(models.User)
-    .where(models.User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
-    .where(models.User.oauth2_user_id == user_dn_canonical)
-)
+See [User Identification Strategy](./user-identification-strategy.md) for details.
 
-# Store canonical DN
-user.oauth2_user_id = user_dn_canonical
-```
+DN canonicalization is still used for:
+- Audit logging (consistent DN format in logs)
+- Group DN matching in role mappings
+- Debug output consistency
 
 **Key Design Points**:
 - **Parsing**: Uses `ldap3.utils.dn.parse_dn()` for RFC-compliant DN parsing

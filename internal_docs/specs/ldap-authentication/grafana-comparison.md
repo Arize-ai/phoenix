@@ -63,9 +63,11 @@ Phoenix adapts Grafana's configuration format while accounting for Phoenix-speci
 - **Compatibility**: Same logical structure, different serialization format
 
 ### User Identification
-- **Both**: Use DN as primary identifier
-- **Both**: Support email synchronization
-- **Difference**: Grafana uses separate `user_auth` table; Phoenix uses existing `oauth2_user_id` column
+- **Grafana**: Uses DN as primary identifier (stored in `user_auth.auth_id`)
+- **Phoenix**: Uses email (simple mode) or immutable unique ID like objectGUID (enterprise mode)
+- **Key difference**: Phoenix doesn't use DN for identity matching (DNs change too frequently)
+- **Both**: Support email synchronization on login
+- See [User Identification Strategy](./user-identification-strategy.md) for details
 
 ### TLS Security
 - **Both**: Support STARTTLS and LDAPS
@@ -73,9 +75,9 @@ Phoenix adapts Grafana's configuration format while accounting for Phoenix-speci
 - **Finding**: Grafana v11.4 has STARTTLS vulnerability (tested via adversarial MITM proxy)
 
 ### DN Handling
-- **Grafana**: Case-insensitive via `strings.EqualFold()`
-- **Phoenix**: RFC 4514-compliant canonicalization (case, whitespace, RDN ordering)
-- **Result**: Phoenix more RFC-compliant
+- **Grafana**: Case-insensitive via `strings.EqualFold()`, used for user identification
+- **Phoenix**: RFC 4514-compliant canonicalization for group DN matching only
+- **Key difference**: Phoenix doesn't use DN for user identification (uses email or unique_id instead)
 
 ## Additional Grafana Implementation Patterns
 
@@ -84,7 +86,7 @@ For detailed analysis of Grafana-specific patterns that informed Phoenix's imple
 - [Configuration Reference](./configuration.md) - Phoenix vs. Grafana environment variable mapping
 - [Security Deep-Dive](./security.md) - LDAP injection prevention (based on Grafana patterns)
 - [Protocol Compliance](./protocol-compliance.md) - TLS security testing (includes Grafana v11.4 vulnerability findings)
-- [User Identification Strategy](./user-identification-strategy.md) - DN + Email hybrid approach
+- [User Identification Strategy](./user-identification-strategy.md) - Email/Unique ID identification (not DN)
 
 **Note**: The main specification document contains extensive Grafana compatibility analysis throughout, including:
 - Phase 0: Grafana Compatibility Verification (lines 874-908)

@@ -285,7 +285,7 @@ def _env_ldap(_ldap_server: _LDAPServer) -> dict[str, str]:
         "PHOENIX_LDAP_ATTR_MEMBER_OF": "memberOf",
         "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
             '[{"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"}, '
-            '{"group_dn": "cn=viewers,ou=groups,dc=example,dc=com", "role": "MEMBER"}, '
+            '{"group_dn": "cn=members,ou=groups,dc=example,dc=com", "role": "MEMBER"}, '
             '{"group_dn": "*", "role": "VIEWER"}]'
         ),
         # Default: allow_sign_up=true (users auto-created on first login)
@@ -298,6 +298,21 @@ def _env_ldap_no_sign_up(_env_ldap: Mapping[str, str]) -> dict[str, str]:
     return {
         **_env_ldap,
         "PHOENIX_LDAP_ALLOW_SIGN_UP": "false",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_ldap_unique_id(_env_ldap: Mapping[str, str]) -> dict[str, str]:
+    """Configure LDAP with unique_id attribute (enterprise mode).
+
+    Uses entryUUID as the unique identifier. This enables:
+    - Identity preserved across email changes
+    - Identity preserved across DN changes
+    - Compliance scenarios requiring stable user identifiers
+    """
+    return {
+        **_env_ldap,
+        "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
     }
 
 
@@ -329,7 +344,7 @@ def _env_ldap_posix(_ldap_server: _LDAPServer) -> dict[str, str]:
         "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(member=%s)",  # %s replaced with user DN
         "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
             '[{"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"}, '
-            '{"group_dn": "cn=viewers,ou=groups,dc=example,dc=com", "role": "MEMBER"}, '
+            '{"group_dn": "cn=members,ou=groups,dc=example,dc=com", "role": "MEMBER"}, '
             '{"group_dn": "*", "role": "VIEWER"}]'
         ),
         # Default: allow_sign_up=true (users auto-created on first login)
@@ -416,6 +431,17 @@ def _env_ports_posix(
 
 
 @pytest.fixture(scope="package")
+def _env_ports_ldap_unique_id(
+    _ports: Iterator[int],
+) -> dict[str, str]:
+    """Separate port allocation for LDAP unique_id app."""
+    return {
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+    }
+
+
+@pytest.fixture(scope="package")
 def _app_ldap_posix(
     _env_auth: Mapping[str, str],
     _env_database: Mapping[str, str],
@@ -438,6 +464,35 @@ def _app_ldap_posix(
         **_env_smtp,
         **_env_oauth2,
         **_env_ldap_posix,
+    }
+    with _server(_AppInfo(env)) as app:
+        yield app
+
+
+@pytest.fixture(scope="package")
+def _app_ldap_unique_id(
+    _env_auth: Mapping[str, str],
+    _env_database: Mapping[str, str],
+    _env_oauth2: Mapping[str, str],
+    _env_ldap_unique_id: Mapping[str, str],
+    _env_ports_ldap_unique_id: Mapping[str, str],
+    _env_smtp: Mapping[str, str],
+    _env_tls: Mapping[str, str],
+) -> Iterator[_AppInfo]:
+    """App instance with LDAP configured for unique_id identification (enterprise mode).
+
+    Uses PHOENIX_LDAP_ATTR_UNIQUE_ID=entryUUID to identify users by a stable
+    unique identifier rather than email. This enables identity preservation
+    across email and DN changes.
+    """
+    env = {
+        **_env_tls,
+        **_env_ports_ldap_unique_id,
+        **_env_database,
+        **_env_auth,
+        **_env_smtp,
+        **_env_oauth2,
+        **_env_ldap_unique_id,
     }
     with _server(_AppInfo(env)) as app:
         yield app

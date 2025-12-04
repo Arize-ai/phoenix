@@ -124,6 +124,27 @@ class TestRoleMapping:
         role = authenticator.map_groups_to_role(groups)
         assert role == "ADMIN"
 
+    def test_dn_normalization_matching(self) -> None:
+        """Group matching should handle spacing/order differences via canonicalization."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base="ou=users,dc=example,dc=com",
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_role_mappings=(
+                {
+                    "group_dn": "cn=Admins+email=admins@example.com,ou=Groups,dc=Example,dc=Com",
+                    "role": "ADMIN",
+                },
+            ),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        # Same group, different ordering/casing/spacing
+        groups = ["EMAIL=admins@example.com+CN=ADMINS, OU=Groups , DC=example , DC=com"]
+        role = authenticator.map_groups_to_role(groups)
+        assert role == "ADMIN"
+
     def test_no_groups_no_wildcard(self) -> None:
         """Test user with no matching groups is denied when no wildcard."""
         config = LDAPConfig(

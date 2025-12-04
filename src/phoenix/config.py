@@ -390,7 +390,29 @@ Special group_dn value "*" matches all users (wildcard).
 ENV_PHOENIX_LDAP_ALLOW_SIGN_UP = "PHOENIX_LDAP_ALLOW_SIGN_UP"
 """
 Allow automatic user creation on first LDAP login. Defaults to "true".
-Set to "false" to require pre-provisioned users.
+Set to "false" to require pre-provisioned users (created via PHOENIX_ADMINS
+env var or the application's user management UI before first login).
+Pre-provisioned users are matched by email on first LDAP login.
+"""
+ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID = "PHOENIX_LDAP_ATTR_UNIQUE_ID"
+"""
+Optional: LDAP attribute containing an immutable unique identifier.
+
+WHEN TO USE: Only configure this if you expect user emails to change
+(company rebranding, M&A, frequent name changes) or have compliance requirements
+for immutable user tracking. For most organizations, the default email-based
+identification is sufficient.
+
+When set, this attribute is used as the primary identifier, allowing users
+to survive email changes without creating duplicate accounts.
+
+Values by directory type:
+- Active Directory: "objectGUID"
+- OpenLDAP: "entryUUID" (RFC 4530)
+- 389 Directory Server: "nsUniqueId"
+
+When not set (default), email is used as the identifier. Both modes handle
+DN changes (OU moves, renames). The only difference is email change handling.
 """
 
 ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
@@ -1374,28 +1396,32 @@ class LDAPConfig:
     Phoenix uses LDAP (RFC 4510-4519) for user authentication against corporate directories
     like Active Directory, OpenLDAP, and 389 Directory Server.
 
-    Key Design: DN as Primary Identifier
-    -------------------------------------
-    Phoenix uses Distinguished Name (DN) as the authoritative unique identifier for LDAP users,
-    with email as a required secondary attribute.
+    User Identity Strategy
+    ----------------------
+    Phoenix identifies LDAP users using a stable identifier:
 
-    DN Canonicalization (RFC 4514):
-    - DNs are canonicalized (case normalization, whitespace, RDN ordering) before storage
-    - Prevents duplicate accounts from case/whitespace variations
-    - Immune to DN format changes across directory replicas
-    - Database lookup uses canonicalized DN for O(1) account matching
+    1. Email (default, recommended for most deployments):
+       When PHOENIX_LDAP_ATTR_UNIQUE_ID is not set, email is used as the identifier.
+       Survives: DN changes, OU moves, renames.
+       If email changes in LDAP: User gets new account (admin can merge manually).
 
-    Why DN (not email or username)?
-    - DN is the true unique identifier in LDAP (RFC 4514)
-    - Survives email changes without breaking account continuity
-    - Handles duplicate usernames across OUs (e.g., contractors)
-    - Aligns with LDAP's hierarchical identity model
+    2. Unique ID attribute (only if you expect email changes):
+       Set PHOENIX_LDAP_ATTR_UNIQUE_ID to use an immutable LDAP attribute:
+       - Active Directory: "objectGUID"
+       - OpenLDAP: "entryUUID" (RFC 4530)
+       - 389 DS: "nsUniqueId"
+
+       Use this only if you expect user emails to change (company rebranding, M&A,
+       frequent name changes). Otherwise, email-based identification is simpler.
+       Survives: Everything including email changes.
+
+    Both modes handle DN changes. The only difference is email change handling.
+    DN is NOT used for identity matching (DNs change too frequently).
 
     Email as Required Attribute:
     - Email MUST be present in LDAP for authentication to succeed
     - Used for Phoenix's user email field (UI, notifications, audit logs)
     - Provides human-readable identifier for operators
-    - Supports email-based account lookups for compatibility
 
     See: internal_docs/specs/ldap-authentication.md for full design rationale.
 
@@ -1517,6 +1543,7 @@ class LDAPConfig:
     attr_email: str = "mail"  # REQUIRED: Must be present in LDAP or login fails
     attr_display_name: str = "displayName"
     attr_member_of: str = "memberOf"
+    attr_unique_id: Optional[str] = None  # Optional: objectGUID (AD), entryUUID (OpenLDAP)
 
     # Group search (for POSIX/OpenLDAP without memberOf)
     group_search_base: Optional[str] = None
@@ -1688,6 +1715,7 @@ class LDAPConfig:
             attr_email=getenv(ENV_PHOENIX_LDAP_ATTR_EMAIL, "mail"),
             attr_display_name=getenv(ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, "displayName"),
             attr_member_of=attr_member_of,
+            attr_unique_id=getenv(ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID),
             group_search_base=group_search_base,
             group_search_filter=group_search_filter,
             group_role_mappings=tuple(group_role_mappings_list),

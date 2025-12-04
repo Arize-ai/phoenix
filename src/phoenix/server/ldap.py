@@ -176,7 +176,17 @@ def is_ldap_user(oauth2_client_id: str | None) -> bool:
 
 
 class LDAPUserInfo(NamedTuple):
-    """Authenticated LDAP user information."""
+    """Authenticated LDAP user information.
+
+    Attributes:
+        email: User's email address (required, used as identifier if unique_id not configured)
+        display_name: User's display name for UI
+        groups: List of group DNs the user belongs to
+        user_dn: User's Distinguished Name (for audit/logging, NOT used for identity matching)
+        ldap_username: Username used to authenticate
+        role: Phoenix role mapped from LDAP groups
+        unique_id: Optional immutable identifier (objectGUID/entryUUID) if configured
+    """
 
     email: str
     display_name: str
@@ -184,6 +194,7 @@ class LDAPUserInfo(NamedTuple):
     user_dn: str
     ldap_username: str
     role: str
+    unique_id: Optional[str] = None  # objectGUID (AD), entryUUID (OpenLDAP) if configured
 
 
 class LDAPAuthenticator:
@@ -508,19 +519,6 @@ class LDAPAuthenticator:
                         #    rare and transient. Designing around them would add complexity for
                         #    little practical benefit, and could mask underlying infrastructure
                         #    issues that should be addressed at the LDAP layer.
-                        #
-                        # 3. TIMING ATTACK CONSIDERATION:
-                        #    Trying multiple servers would also introduce a timing side-channel:
-                        #      - User on server A: search(A) + bind(A) → ~150ms
-                        #      - User on server B: search(A) + dummy(A) + search(B) + bind(B) → ~300ms
-                        #    Attackers could potentially infer which server contains the user.
-                        #    The current design provides consistent timing regardless of user
-                        #    existence, which is a security benefit (though not the primary driver).
-                        #
-                        # If multi-server search is required for your environment, consider:
-                        #   - Ensuring replicas are consistent before routing authentication traffic
-                        #   - Using a load balancer that routes to consistent replicas
-                        #   - Implementing application-level retry with exponential backoff
                         return None
 
                     user_dn = user_entry.entry_dn
@@ -543,6 +541,22 @@ class LDAPAuthenticator:
 
                     display_name = self._get_attribute(user_entry, self.config.attr_display_name)
 
+                    # Extract unique_id if configured (objectGUID, entryUUID, etc.)
+                    unique_id: Optional[str] = None
+                    if self.config.attr_unique_id:
+                        unique_id = self._get_unique_id(user_entry, self.config.attr_unique_id)
+                        if not unique_id:
+                            # Fail loudly: user explicitly configured unique_id, so missing
+                            # attribute indicates misconfiguration (likely typo). Don't silently
+                            # fall back to email - that would mask the error.
+                            logger.error(
+                                f"LDAP user missing configured unique_id attribute "
+                                f"({self.config.attr_unique_id}). "
+                                f"Check PHOENIX_LDAP_ATTR_UNIQUE_ID "
+                                f"spelling. Common values: objectGUID (AD), entryUUID (OpenLDAP)."
+                            )
+                            return None
+
                     # Step 6: Get user's group memberships
                     # Reuses the existing service/anonymous connection
                     groups = self._get_user_groups(conn, user_entry, user_dn)
@@ -563,6 +577,7 @@ class LDAPAuthenticator:
                         user_dn=user_dn,
                         ldap_username=username,
                         role=role,
+                        unique_id=unique_id,
                     )
 
             except LDAPException as e:
@@ -592,16 +607,22 @@ class LDAPAuthenticator:
             User entry or None if not found or ambiguous
         """
         user_filter = self.config.user_search_filter.replace("%s", escaped_username)
+
+        # Build attribute list - include unique_id if configured
+        attributes = [
+            self.config.attr_email,
+            self.config.attr_display_name,
+            self.config.attr_member_of,
+        ]
+        if self.config.attr_unique_id:
+            attributes.append(self.config.attr_unique_id)
+
         # Use the search base as-is (it's a DN that contains commas)
         conn.search(
             search_base=self.config.user_search_base,
             search_filter=user_filter,
             search_scope=SUBTREE,
-            attributes=[
-                self.config.attr_email,
-                self.config.attr_display_name,
-                self.config.attr_member_of,
-            ],
+            attributes=attributes,
         )
 
         # Handle search results
@@ -809,6 +830,48 @@ class LDAPAuthenticator:
             return values
         return values[0] if values else None
 
+    def _get_unique_id(self, entry: Any, attr_name: str) -> Optional[str]:
+        """Extract unique identifier attribute, handling binary values.
+
+        Active Directory's objectGUID is stored as binary (16 bytes).
+        OpenLDAP's entryUUID is stored as a string.
+        This method handles both cases and returns a string representation.
+
+        Args:
+            entry: LDAP entry object
+            attr_name: Attribute name (e.g., "objectGUID", "entryUUID")
+
+        Returns:
+            String representation of the unique ID, or None if not present
+        """
+        if not hasattr(entry, attr_name):
+            return None
+
+        attr = getattr(entry, attr_name)
+        if not attr:
+            return None
+
+        # Get raw value - could be bytes (objectGUID) or str (entryUUID)
+        raw_value = attr.raw_values[0] if hasattr(attr, "raw_values") and attr.raw_values else None
+        if raw_value is None:
+            return None
+
+        # Handle binary values (AD objectGUID is 16 bytes)
+        if isinstance(raw_value, bytes):
+            # Convert to standard UUID string format for consistency
+            # objectGUID is stored in little-endian format
+            if len(raw_value) == 16:
+                import uuid
+
+                # AD stores GUID in mixed-endian format (first 3 components are little-endian)
+                return str(uuid.UUID(bytes_le=raw_value))
+            else:
+                # Unknown binary format - hex encode for safety
+                return raw_value.hex()
+
+        # String value (entryUUID, nsUniqueId, etc.)
+        return str(raw_value)
+
     def map_groups_to_role(self, group_dns: list[str]) -> Optional[str]:
         """Map LDAP group DNs to Phoenix role.
 
@@ -816,7 +879,7 @@ class LDAPAuthenticator:
         - Iterates through mappings in order (first match wins)
         - Supports wildcard "*" to match all users
         - Case-insensitive DN matching per RFC 4514
-        - Simple string comparison (no DN normalization)
+        - DN normalization via canonicalize_dn to handle spacing/order/escape differences
 
         Args:
             group_dns: List of LDAP group DNs the user is a member of
@@ -824,13 +887,16 @@ class LDAPAuthenticator:
         Returns:
             Phoenix role name (ADMIN, MEMBER, VIEWER) or None if no match
         """
+        # Normalize user group DNs once to avoid repeated canonicalization
+        canonical_user_groups = {canonicalize_dn(dn) for dn in group_dns}
+
         # Iterate through mappings in priority order (first match wins)
         for mapping in self.config.group_role_mappings:
             group_dn = mapping["group_dn"]
             role = mapping["role"]
 
             # Check if user matches this mapping
-            if self._is_member_of(group_dns, group_dn):
+            if self._is_member_of(canonical_user_groups, group_dn):
                 return self._validate_phoenix_role(role)
 
         # No matching groups - deny access
@@ -855,13 +921,13 @@ class LDAPAuthenticator:
         logger.warning(f"Invalid role '{role}' in group mapping, defaulting to MEMBER")
         return "MEMBER"
 
-    def _is_member_of(self, user_groups: list[str], target_group: str) -> bool:
+    def _is_member_of(self, canonical_user_groups: set[str], target_group: str) -> bool:
         """Check if user is member of LDAP group.
 
         Matching logic:
         - Wildcard "*" matches all users (useful for default roles)
         - Case-insensitive DN comparison per RFC 4514
-        - Simple string match without DN normalization
+        - Canonical DN comparison to account for spacing/order/escape differences
 
         Args:
             user_groups: List of group DNs the user is a member of
@@ -874,10 +940,6 @@ class LDAPAuthenticator:
         if target_group == "*":
             return True
 
-        # Case-insensitive string comparison
-        target_lower = target_group.lower()
-        for group in user_groups:
-            if group.lower() == target_lower:
-                return True
-
-        return False
+        # Canonical comparison handles ordering/spacing/escaping differences
+        target_canonical = canonicalize_dn(target_group)
+        return target_canonical in canonical_user_groups

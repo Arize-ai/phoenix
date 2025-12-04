@@ -59,6 +59,15 @@ class LDAPUser:
             return self.custom_dn
         return f"uid={self.username},ou=users,dc=example,dc=com"
 
+    @property
+    def entry_uuid(self) -> str:
+        """User's entryUUID (immutable unique identifier).
+
+        For testing, we use the username as the UUID since it's already unique.
+        Real LDAP servers use actual UUIDs (RFC 4530).
+        """
+        return self.username
+
     def matches_credentials(self, dn: str, password: str) -> bool:
         """Check if provided credentials match this user (RFC 4514 canonical comparison)."""
         return canonicalize_dn(self.dn) == canonicalize_dn(dn) and self.password == password
@@ -655,6 +664,7 @@ class _LDAPRequestHandler(socketserver.BaseRequestHandler):
             attrs.setComponentByPosition(2, display_attr)
 
         # Add memberOf attribute (groups)
+        next_pos = 3 if user.display_name else 2
         if user.groups:
             member_attr = PartialAttribute()
             member_attr.setComponentByPosition(0, "memberOf")
@@ -662,8 +672,16 @@ class _LDAPRequestHandler(socketserver.BaseRequestHandler):
             for i, group_dn in enumerate(user.groups):
                 member_vals.setComponentByPosition(i, group_dn)
             member_attr.setComponentByPosition(1, member_vals)
-            next_pos = 3 if user.display_name else 2
             attrs.setComponentByPosition(next_pos, member_attr)
+            next_pos += 1
+
+        # Add entryUUID attribute (immutable unique identifier for enterprise mode)
+        uuid_attr = PartialAttribute()
+        uuid_attr.setComponentByPosition(0, "entryUUID")
+        uuid_vals = Vals()
+        uuid_vals.setComponentByPosition(0, user.entry_uuid)
+        uuid_attr.setComponentByPosition(1, uuid_vals)
+        attrs.setComponentByPosition(next_pos, uuid_attr)
 
         # Build search result entry
         entry = SearchResultEntry()

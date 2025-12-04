@@ -1,5 +1,6 @@
 import logging
 import secrets
+from typing import Optional, cast
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
@@ -9,7 +10,7 @@ from sqlalchemy.orm import joinedload
 from phoenix.auth import sanitize_email
 from phoenix.config import LDAPConfig
 from phoenix.db import models
-from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER, LDAPUserInfo, canonicalize_dn, is_ldap_user
+from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER, LDAPUserInfo, is_ldap_user
 
 logger = logging.getLogger(__name__)
 
@@ -22,42 +23,49 @@ async def get_or_create_ldap_user(
     """
     Retrieves an existing LDAP user or creates a new one.
 
-    Implements the zero-migration strategy using LDAP_CLIENT_ID_MARKER.
+    User Identity Strategy:
+        Phoenix identifies LDAP users using a stable identifier. The strategy
+        depends on whether PHOENIX_LDAP_ATTR_UNIQUE_ID is configured:
 
-    DN Case-Insensitivity:
-        Per RFC 4514, DNs are case-insensitive. However, LDAP servers may return
-        DNs with different casing (e.g., "uid=alice" vs "uid=Alice") across logins,
-        especially in multi-DC Active Directory environments. To prevent lockouts:
-        - DNs are normalized to lowercase before storage
-        - Lookups use case-insensitive comparison (func.lower)
+        1. If PHOENIX_LDAP_ATTR_UNIQUE_ID is set (e.g., "objectGUID" or "entryUUID"):
+           - Stores the immutable LDAP unique ID in oauth2_user_id
+           - Primary lookup by oauth2_user_id, fallback by email
+           - Survives: DN changes, email changes, renames, OU moves, domain consolidation
+           - This is how enterprise IAM systems (Okta, Azure AD Connect) work
+
+        2. Otherwise (default):
+           - oauth2_user_id is NULL (no redundant email storage)
+           - Lookup by email column directly
+           - Survives: DN changes, OU moves, renames
+           - Simple setup for most organizations
+
+    Admin-Provisioned Users:
+        Admins can pre-create users with oauth2_user_id=NULL. On first login,
+        the user is matched by email and oauth2_user_id is populated (if unique_id
+        is configured).
     """
-    # Canonicalize DN per RFC 4514 (DNs are case-insensitive)
-    # Handles: case, whitespace, multi-valued RDN ordering, hex encoding
-    user_dn = user_info.user_dn
-    user_dn_canonical = canonicalize_dn(user_dn)
     email = sanitize_email(user_info.email)
+    unique_id = user_info.unique_id  # None if not configured
 
-    # Look up LDAP user by DN (case-insensitive, stable identifier)
-    user = await session.scalar(
-        select(models.User)
-        .where(models.User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
-        .where(models.User.oauth2_user_id == user_dn_canonical)
-        .options(joinedload(models.User.role))
-    )
+    # Step 1: Look up user
+    # Strategy depends on whether unique_id is configured
+    user: Optional[models.User] = None
 
-    # Fallback: If not found by DN, try email lookup (for admin-provisioned users)
-    if not user:
-        user = await session.scalar(
-            select(models.User)
-            .where(models.User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
-            .where(models.User.oauth2_user_id.is_(None))
-            .where(func.lower(models.User.email) == email)
-            .options(joinedload(models.User.role))
-        )
-        # If found by email, upgrade to DN-based storage (canonical)
-        if user:
-            user.oauth2_user_id = user_dn_canonical
+    if unique_id:
+        # Enterprise mode: lookup by unique_id first
+        user = await _lookup_by_unique_id(session, unique_id)
 
+        # Fallback: email lookup (handles migration to unique_id)
+        if not user:
+            user = await _lookup_by_email(session, email)
+            if user:
+                user.oauth2_user_id = unique_id
+                logger.info(f"LDAP user migrated to unique_id (user_id: {user.id})")
+    else:
+        # Simple mode: lookup by email only (oauth2_user_id is NULL)
+        user = await _lookup_by_email(session, email)
+
+    # Step 2: Validate role exists
     role = await session.scalar(
         select(models.UserRole).where(models.UserRole.name == user_info.role)
     )
@@ -67,10 +75,12 @@ async def get_or_create_ldap_user(
             detail="Role not found in database",
         )
 
+    # Step 3: Update existing user attributes
     if user:
-        # Sync LDAP attributes on every login
+        # Sync email on every login (email may have changed in LDAP)
         if user.email != email:
             user.email = email
+
         # Note: Do NOT sync username - it should remain stable
         # Updating username could cause collisions if displayName changes in LDAP
 
@@ -79,9 +89,8 @@ async def get_or_create_ldap_user(
             user.role = role
         return user
 
-    # Check if sign-up is allowed
+    # Step 4: Create new user (if sign-up is allowed)
     if not ldap_config.allow_sign_up:
-        # User doesn't exist and auto-sign-up is disabled
         raise HTTPException(
             status_code=401,
             detail="Invalid username and/or password",
@@ -100,30 +109,50 @@ async def get_or_create_ldap_user(
             detail="Invalid username and/or password",
         )
 
-    # Create new LDAP user (store normalized DN per RFC 4514)
     # Username strategy: Try displayName first (user-friendly), handle collisions gracefully
-    # If displayName collides (multiple "John Smith"), append suffix for uniqueness
     username = user_info.display_name
-
-    # Check if username already exists (potential collision)
     existing_username = await session.scalar(
         select(models.User).where(models.User.username == username)
     )
-
     if existing_username:
         # Collision detected - append short suffix to make unique
         username = f"{user_info.display_name} ({secrets.token_hex(2)})"
-        # If this suffixed username also collides (extremely rare),
-        # we'll get a DB constraint error.
 
     user = models.User(
-        email=user_info.email,
+        # Store sanitized email to avoid casing/whitespace mismatches on lookup
+        email=email,
         username=username,
         role=role,
         reset_password=False,
         auth_method="OAUTH2",  # TODO: change to LDAP in future db migration
         oauth2_client_id=LDAP_CLIENT_ID_MARKER,
-        oauth2_user_id=user_dn_canonical,
+        oauth2_user_id=unique_id,  # None if unique_id not configured (use email column)
     )
     session.add(user)
     return user
+
+
+async def _lookup_by_unique_id(session: AsyncSession, unique_id: str) -> Optional[models.User]:
+    """Look up LDAP user by immutable unique ID (objectGUID, entryUUID, etc.)."""
+    return cast(
+        Optional[models.User],
+        await session.scalar(
+            select(models.User)
+            .where(models.User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
+            .where(models.User.oauth2_user_id == unique_id)
+            .options(joinedload(models.User.role))
+        ),
+    )
+
+
+async def _lookup_by_email(session: AsyncSession, email: str) -> Optional[models.User]:
+    """Look up LDAP user by email (case-insensitive fallback)."""
+    return cast(
+        Optional[models.User],
+        await session.scalar(
+            select(models.User)
+            .where(models.User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
+            .where(func.lower(models.User.email) == email)
+            .options(joinedload(models.User.role))
+        ),
+    )

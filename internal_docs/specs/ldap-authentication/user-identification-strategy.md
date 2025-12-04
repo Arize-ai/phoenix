@@ -1,262 +1,241 @@
 # LDAP User Identification Strategy
 
-### DN + Email Hybrid Approach
+## Overview
 
-This appendix explains Phoenix's LDAP user identification strategy, which uses DN (Distinguished Name) as the primary identifier with email as a fallback for admin-provisioned users.
+Phoenix identifies LDAP users using a stable identifier. The strategy depends on configuration:
 
-## Performance Analysis
+| Mode | Identifier | `oauth2_user_id` | Survives |
+|------|------------|------------------|----------|
+| **Simple** (default) | Email | `NULL` | DN changes, OU moves, renames |
+| **Enterprise** | Unique ID (objectGUID/entryUUID) | UUID string | Everything including email changes |
 
-**Claim**: "DN lookup is as fast as email lookup"
+## Which Mode Should I Use?
 
-**Evidence**:
-```sql
--- Both columns are indexed
-CREATE UNIQUE INDEX idx_users_email ON users(email);
--- If we stored DN: CREATE INDEX idx_users_oauth2_user_id ON users(oauth2_user_id);
+**Use Simple Mode (default)** for most deployments:
+- ✅ No extra configuration needed
+- ✅ Handles DN changes, OU moves, renames
+- ✅ Email is stable in most organizations
+- ⚠️ If email changes in LDAP, user gets a new Phoenix account (admin can merge)
 
--- Both queries are O(1)
-SELECT * FROM users WHERE oauth2_user_id = 'cn=john,...';  -- Index scan
-SELECT * FROM users WHERE LOWER(email) = 'john@example.com';  -- Index scan
+**Use Enterprise Mode only if** you expect user emails to change:
+- Company rebranding (oldcorp.com → newcorp.com)
+- Frequent name changes in your organization
+- M&A scenarios with email domain migrations
+- Compliance requirements for immutable user tracking
+
+**The difference is narrow**: Both modes handle DN changes. The only additional benefit of Enterprise Mode is surviving **email changes** without creating duplicate accounts.
+
+## Why Not DN?
+
+DN (Distinguished Name) was considered but rejected as an identifier:
+
+| Issue | Frequency | Impact |
+|-------|-----------|--------|
+| OU reorganization | Common (quarterly/annually) | Users locked out |
+| Domain consolidation | Occasional (M&A) | Mass lockouts |
+| User renames | Occasional | User locked out |
+| DN casing variations | Multi-DC AD | Duplicate accounts |
+
+**DNs change too frequently** in enterprise environments. Organizational restructuring is routine, and each change would orphan users or require admin intervention.
+
+## Simple Mode (Default)
+
+When `PHOENIX_LDAP_ATTR_UNIQUE_ID` is not set:
+
+```
+oauth2_user_id = NULL
+Lookup: By email column (case-insensitive)
 ```
 
-**Benchmark data**: Not measured, but both use B-tree index lookup (logarithmic→constant for practical table sizes).
+**Behavior:**
 
-**Conclusion**: No measurable performance difference.
+| Scenario | Behavior |
+|----------|----------|
+| DN changes (OU move, rename) | ✅ User found by email |
+| Email unchanged | ✅ Normal login |
+| Email changes in LDAP | ⚠️ New account created (admin intervention needed) |
 
-## Storage & Lookup Strategy
-
-**Phoenix Implementation** (DN + Email Hybrid):
-
-| Component | Implementation | Purpose |
-|-----------|----------------|---------|
-| **Primary Identifier** | DN in `oauth2_user_id` (RFC 4514 canonical) | Stable across email/username changes |
-| **DN Canonicalization** | `canonicalize_dn()` before storage/comparison | RFC 4514 compliance (case, whitespace, RDN ordering) |
-| **Fallback Identifier** | Email lookup when `oauth2_user_id` IS NULL | Admin-provisioned users upgrade on first login |
-| **Email Sync** | Update `email` column on every login | Always reflects current LDAP state |
-| **Storage Cost** | ~100-200 bytes per user (DN length) | No additional columns needed |
-
-**Why This Approach:**
-- ✅ **Handles email changes**: DN remains stable
-- ✅ **Handles DN formatting changes**: RFC 4514 canonicalization prevents duplicates from case, whitespace, or RDN ordering variations
-- ✅ **Admin-friendly**: Admins can pre-provision users by email, DN filled on first login
-- ✅ **No migration needed**: Uses existing `oauth2_user_id` column
-- ✅ **Consistent with OAuth2**: Same pattern as storing OAuth2 provider IDs
-
-## Uniqueness Guarantees
-
-**LDAP DN:**
-```
-Uniqueness: Guaranteed by LDAP directory structure
-Scope: Within single LDAP server
-Example: cn=john,ou=eng,dc=example,dc=com
-```
-
-**Phoenix Email:**
-```sql
-Uniqueness: Enforced by database UNIQUE constraint
-Scope: Within Phoenix instance
-Example: john@example.com
-```
-
-**Phoenix Behavior (DN Primary, Email Fallback):**
-
-| Scenario | Behavior | Status |
-|----------|----------|--------|
-| **Same username, different OUs** | Different DNs → unique users | ✅ Handled |
-| **User moves between OUs** | DN changes → Phoenix sees as new user | ⚠️ Limitation (rare) |
-| **Username changes** | DN changes → Phoenix sees as new user | ⚠️ Limitation (rare) |
-| **Email changes in LDAP** | DN lookup succeeds → email updated | ✅ Handled |
-| **DN casing changes** | Canonicalized lookup → same user | ✅ Handled (RFC 4514) |
-| **Multiple LDAP forests** | Different DNs → unique users | ✅ Handled |
-| **Admin pre-provision** | Email-only → upgrades to DN on first login | ✅ Handled |
-
-**Assessment**: DN-based approach handles all common scenarios. OU/username changes are rare in practice and can be handled via admin user merge if needed.
-
-## Real-World LDAP Email Coverage
-
-**Research findings** (from Grafana analysis and LDAP RFCs):
-
-1. **Active Directory** (Microsoft):
-   - `mail` attribute: 95%+ populated (required for Exchange, Microsoft 365)
-   - Alternative: `userPrincipalName` (always present, format: `user@domain.local`)
-   - Source: [Grafana LDAP docs](https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/ldap/)
-
-2. **OpenLDAP** (RFC-compliant):
-   - `mail` attribute: Standard in `inetOrgPerson` schema (RFC 2798)
-   - Adoption: ~90% for organizations using email services
-   - Fallback: Can synthesize from `uid` + domain
-
-3. **389 Directory Server** (Red Hat):
-   - `mail` attribute: Standard, usually populated
-   - Similar to OpenLDAP patterns
-
-4. **Edge Cases** (no email):
-   - Small organizations without email services
-   - Legacy UNIX LDAP (POSIX-only schemas)
-   - Test/development LDAP servers
-   - **Estimated**: <5% of production corporate LDAP deployments
-
-**Mitigation for edge cases**:
-```bash
-# Configure alternate attribute
-PHOENIX_LDAP_ATTR_EMAIL="userPrincipalName"  # Active Directory
-PHOENIX_LDAP_ATTR_EMAIL="uid"  # Fallback (if unique)
-```
-
-## Phoenix vs Grafana Comparison
-
-**Similarities (DN-based approach):**
-
-1. **Email changes handled seamlessly**:
-   ```
-   User: john@old.com → john@new.com (in LDAP)
-   Grafana: DN lookup → finds user → updates email ✅
-   Phoenix: DN lookup → finds user → updates email ✅ (SAME)
-   ```
-
-2. **True LDAP identifier tracking**:
-   ```
-   Grafana: Stores DN in user_auth.auth_id
-   Phoenix: Stores canonicalized DN in oauth2_user_id (RFC 4514)
-   Result: Both track stable LDAP identifier ✅
-   ```
-
-3. **DN canonicalization (RFC 4514)**:
-   ```
-   Grafana: Uses DN string comparison (case-sensitive by default)
-   Phoenix: Canonicalizes DN per RFC 4514 (case, whitespace, RDN ordering)
-   Result: Phoenix more RFC-compliant ✅
-   ```
-
-**Key Difference:**
-
-| Feature | Grafana | Phoenix |
-|---------|---------|---------|
-| **Multi-auth per user** | ✅ user_id=123 can have LDAP + OAuth2 | ❌ One user = one auth method |
-| **Schema** | Separate `user_auth` table | Stores in `oauth2_user_id` column |
-| **Complexity** | Higher (separate auth table) | Lower (single users table) |
-
-**Phoenix's intentional design trade-off:**
-- ✅ Simpler: One user = one auth method
-- ✅ Sufficient: 99% of deployments don't need multi-auth
-- ⚠️ Limitation: User can't have both LDAP + Google auth simultaneously
-
-**DN Storage Implementation:**
-
-| Capability | Implementation | Benefit |
-|------------|----------------|---------|
-| DN storage | `oauth2_user_id = canonicalize_dn(user_dn)` | Stable identifier, RFC 4514 compliant |
-| DN lookup | Primary lookup via `oauth2_user_id == user_dn_canonical` | O(1) indexed, case-insensitive |
-| Email fallback | For admin-provisioned users (`oauth2_user_id IS NULL`) | Graceful upgrade on first login |
-| Email sync | Update `email` on every login | Always reflects current LDAP state |
-| Single auth method | One user = one auth method | Simpler model, adequate for most use cases |
-
-## Implementation Approach
-
-**DN-based lookup flow (actual implementation):**
+**Implementation:**
 
 ```python
-# Step 1: DN extraction and canonicalization (RFC 4514)
-from phoenix.server.ldap import canonicalize_dn
-user_dn = user_entry.entry_dn
-user_dn_canonical = canonicalize_dn(user_dn)
-
-# Step 2: DN-based lookup (primary) - direct string comparison (DN already canonical)
+# Simple mode: lookup by email only
 user = await session.scalar(
     select(User)
     .where(User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
-    .where(User.oauth2_user_id == user_dn_canonical)
+    .where(func.lower(User.email) == email.lower())
 )
 
-# Step 3: Email fallback for admin-provisioned users
+# New user creation
+user = User(
+    email=email,
+    oauth2_client_id=LDAP_CLIENT_ID_MARKER,
+    oauth2_user_id=None,  # Not used in simple mode
+    ...
+)
+```
+
+**Why email works for most organizations:**
+- Email changes are rare for individual users
+- When emails do change (rebranding, mergers), it's a planned event
+- Admins can merge accounts if needed
+
+## Enterprise Mode (Unique ID)
+
+When `PHOENIX_LDAP_ATTR_UNIQUE_ID` is set (e.g., `objectGUID`, `entryUUID`):
+
+```
+oauth2_user_id = <immutable unique ID from LDAP>
+Lookup: By oauth2_user_id, fallback to email for migration
+```
+
+**Configuration:**
+
+```bash
+# Active Directory
+PHOENIX_LDAP_ATTR_UNIQUE_ID=objectGUID
+
+# OpenLDAP (RFC 4530)
+PHOENIX_LDAP_ATTR_UNIQUE_ID=entryUUID
+
+# 389 Directory Server
+PHOENIX_LDAP_ATTR_UNIQUE_ID=nsUniqueId
+```
+
+**Behavior:**
+
+| Scenario | Behavior |
+|----------|----------|
+| DN changes (OU move, rename) | ✅ User found by unique_id |
+| Email changes in LDAP | ✅ User found by unique_id, email updated |
+| Domain consolidation | ✅ User found by unique_id |
+| Migration from simple mode | ✅ Existing users matched by email, unique_id populated |
+
+**Implementation:**
+
+```python
+# Enterprise mode: lookup by unique_id first
+user = await session.scalar(
+    select(User)
+    .where(User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
+    .where(User.oauth2_user_id == unique_id)
+)
+
+# Fallback: email lookup (handles migration)
 if not user:
     user = await session.scalar(
         select(User)
         .where(User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
-        .where(User.oauth2_user_id.is_(None))  # Admin-provisioned, DN not yet set
         .where(func.lower(User.email) == email.lower())
     )
-    # Upgrade to DN-based storage (canonical)
     if user:
-        user.oauth2_user_id = user_dn_canonical
+        user.oauth2_user_id = unique_id  # Migrate to unique_id
 
-# Step 4: Email sync on every login
-if user.email != ldap_email:
-    user.email = ldap_email
+# New user creation
+user = User(
+    email=email,
+    oauth2_client_id=LDAP_CLIENT_ID_MARKER,
+    oauth2_user_id=unique_id,  # Immutable identifier
+    ...
+)
 ```
 
-**Key Implementation Details:**
-- DNs canonicalized per RFC 4514 before storage (case, whitespace, RDN ordering)
-- Direct string comparison (no `func.lower()` needed - DN already canonical)
-- Email fallback only for users where `oauth2_user_id IS NULL` (admin-provisioned)
-- First successful login upgrades from email-based to DN-based lookup
+## Unique ID Attribute Details
 
-## Security Implications
+### Active Directory: objectGUID
 
-**Email-based approach:**
+- **Type**: Binary (16 bytes, little-endian)
+- **Immutability**: Never changes, survives all operations
+- **Availability**: All AD user objects
+- **Phoenix handling**: Converted to UUID string format
 
-✅ **Advantages**:
-- Email validation at LDAP layer (RFC 5321 format check possible)
-- Phoenix's existing email sanitization applies
-- Database constraint prevents duplicate accounts
-
-⚠️ **Risks**:
-- Email changes can lock out users (vs DN which is stable)
-- Email enumeration via timing attacks (mitigated by generic errors)
-
-**Assessment**: Security profile equivalent to DN approach.
-
-## Future Enhancement: Dedicated DN Column
-
-Current implementation stores DN in `oauth2_user_id`. If future requirements demand semantic clarity:
-
-```sql
--- Approach 2 migration: Add dedicated LDAP column
-ALTER TABLE users ADD COLUMN ldap_dn TEXT;
-
--- Migrate existing LDAP users
-UPDATE users 
-SET ldap_dn = oauth2_user_id
-WHERE auth_method = 'OAUTH2' 
-  AND oauth2_client_id = '\ue000LDAP(stopgap)';
-
--- Then update auth_method
-UPDATE users 
-SET auth_method = 'LDAP' 
-WHERE oauth2_client_id = '\ue000LDAP(stopgap)';
-
--- New lookup pattern
-SELECT * FROM users 
-WHERE auth_method = 'LDAP' 
-  AND ldap_dn = 'cn=john,...';  -- Direct comparison (DN already canonical)
+```python
+# AD stores GUID in mixed-endian format
+import uuid
+unique_id = str(uuid.UUID(bytes_le=raw_bytes))  # e.g., "550e8400-e29b-41d4-a716-446655440000"
 ```
 
-**Two-way door**: Can migrate to dedicated column without data loss (see [Migration Plan](./migration-plan.md)).
+### OpenLDAP: entryUUID (RFC 4530)
+
+- **Type**: String (UUID format)
+- **Immutability**: Never changes
+- **Availability**: Requires `entryUUID` operational attribute
+- **Phoenix handling**: Used directly as string
+
+### 389 Directory Server: nsUniqueId
+
+- **Type**: String
+- **Immutability**: Never changes
+- **Phoenix handling**: Used directly as string
+
+## Switching from Simple to Enterprise Mode
+
+If you start with simple mode (email-based) and later enable `PHOENIX_LDAP_ATTR_UNIQUE_ID`:
+
+1. Set `PHOENIX_LDAP_ATTR_UNIQUE_ID=objectGUID` (or `entryUUID`, etc.)
+2. Users log in normally
+3. Email lookup finds existing user
+4. `oauth2_user_id` populated with unique_id
+5. Future logins use unique_id lookup
+
+**No manual migration required** - happens automatically on next login.
+
+## Admin-Provisioned Users
+
+Admins can pre-create LDAP users before their first login:
+
+```graphql
+mutation {
+  createUser(
+    email: "alice@example.com"
+    username: "Alice Smith"
+    role: MEMBER
+    auth_method: LDAP
+  )
+}
+```
+
+**State after admin creation:**
+- `oauth2_client_id = LDAP_CLIENT_ID_MARKER`
+- `oauth2_user_id = NULL`
+- `email = "alice@example.com"`
+
+**State after first login:**
+- Simple mode: `oauth2_user_id` remains `NULL`
+- Enterprise mode: `oauth2_user_id = <unique_id from LDAP>`
+
+## Comparison with Other Systems
+
+### Grafana
+
+Grafana uses DN as the primary identifier (stored in `user_auth.auth_id`).
+
+| Aspect | Grafana | Phoenix |
+|--------|---------|---------|
+| Primary identifier | DN | Email (simple) or unique_id (enterprise) |
+| DN changes | User locked out | ✅ Handled |
+| Email changes | ✅ Handled via DN | ✅ Handled via unique_id (enterprise) |
+| Schema | Separate `user_auth` table | Uses `oauth2_user_id` column |
+
+**Phoenix's advantage**: More resilient to organizational restructuring.
+
+### Okta, Azure AD Connect
+
+Enterprise IAM systems use `objectGUID`/`entryUUID` as the primary identifier.
+
+**Phoenix enterprise mode matches this pattern** when `PHOENIX_LDAP_ATTR_UNIQUE_ID` is configured.
 
 ## Design Decision Summary
 
-**Phoenix uses DN as primary identifier with email fallback:**
+| Decision | Rationale |
+|----------|-----------|
+| **Email as default identifier** | Simple, works for most orgs, no extra config |
+| **Optional unique_id support** | Enterprise-grade stability when needed |
+| **No DN storage for lookup** | DNs change too frequently |
+| **No email in oauth2_user_id** | Avoid redundant storage |
+| **Fallback to email in enterprise mode** | Graceful migration from simple mode |
 
-1. **Stability**: DN stored in `oauth2_user_id` survives email/username changes
-2. **RFC Compliance**: RFC 4514 canonicalized DN storage (case, whitespace, RDN ordering)
-3. **Performance**: O(1) indexed lookup via `oauth2_user_id`
-4. **Admin-Friendly**: Pre-provisioned users (email-only) upgrade to DN on first login
-5. **Consistency**: Same pattern as OAuth2 provider ID storage
-6. **No Migration**: Uses existing `oauth2_user_id` column (Approach 1)
+## References
 
-**Why not email-only:**
-- ❌ Email changes in LDAP would lock out users or create duplicates
-- ❌ Less stable than DN across directory reorganizations
-
-**Why not DN-only:**
-- ❌ Admins couldn't pre-provision users before first LDAP login
-- ❌ Requires DN knowledge for admin user creation
-
-**Hybrid approach combines the best of both**: DN stability + email convenience for admin provisioning.
-
-**References**:
-- [RFC 4524 - LDAP mail attribute](https://www.rfc-editor.org/rfc/rfc4524.html)
-- [RFC 2798 - inetOrgPerson schema](https://www.rfc-editor.org/rfc/rfc2798.html)
-- [Grafana user sync](https://github.com/grafana/grafana/blob/84a07be6e4e1acd8f064c3b390c30188d5703afc/pkg/services/authn/authnimpl/sync/user_sync.go#L622-L672)
-- [Phoenix email constraint](https://github.com/Arize-ai/phoenix/blob/main/scripts/ddl/postgresql_schema.sql) - `UNIQUE (email)`
-
+- [RFC 4530 - entryUUID operational attribute](https://www.rfc-editor.org/rfc/rfc4530.html)
+- [MS-ADTS - objectGUID attribute](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/)
+- [Okta LDAP Agent - User Matching](https://help.okta.com/en/prod/Content/Topics/Directory/LDAP-agent-overview.htm)

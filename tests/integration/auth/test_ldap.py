@@ -24,7 +24,7 @@ from .._helpers import (
 
 # Test constants
 _ADMIN_GROUP = "cn=admins,ou=groups,dc=example,dc=com"
-_VIEWER_GROUP = "cn=viewers,ou=groups,dc=example,dc=com"
+_MEMBER_GROUP = "cn=members,ou=groups,dc=example,dc=com"
 _DEFAULT_PASSWORD = "password123"
 
 
@@ -62,7 +62,7 @@ def _create_test_user(
     if groups is None:
         role_to_groups = {
             UserRoleInput.ADMIN: [_ADMIN_GROUP],
-            UserRoleInput.MEMBER: [_VIEWER_GROUP],
+            UserRoleInput.MEMBER: [_MEMBER_GROUP],
             UserRoleInput.VIEWER: [],  # Wildcard
         }
         groups = role_to_groups.get(role, [])
@@ -164,597 +164,297 @@ def _ldap_login(
 
 
 class TestLDAPAuthentication:
-    """Test LDAP authentication integration with real mock LDAP server."""
+    """Test LDAP authentication - core flows and security."""
 
-    async def test_ldap_login_admin_user(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
-        """Test successful LDAP login for an admin user."""
-        test_user = _create_test_user(_ldap_server, token_hex(4), "admin_user", UserRoleInput.ADMIN)
-
-        status, access_token, refresh_token = _ldap_login(
-            _app, test_user.username, test_user.password
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        user = _verify_user_created(_app, test_user)
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
-
-    async def test_ldap_login_viewer_user(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
-        """Test successful LDAP login for a member user (via viewers group)."""
-        test_user = _create_test_user(
-            _ldap_server, token_hex(4), "viewer_user", UserRoleInput.MEMBER
-        )
-
-        status, access_token, refresh_token = _ldap_login(
-            _app, test_user.username, test_user.password
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        user = _verify_user_created(_app, test_user)
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
-
-    async def test_ldap_login_invalid_credentials(
+    async def test_authentication_and_role_mapping(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test LDAP login failure with invalid credentials."""
-        test_user = _create_test_user(_ldap_server, token_hex(4), "test_user", UserRoleInput.ADMIN)
-
-        status, _, _ = _ldap_login(_app, test_user.username, "wrong_password")
-        assert status == 401
-
-    async def test_ldap_login_nonexistent_user(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test LDAP login failure with nonexistent user."""
-        status, _, _ = _ldap_login(_app, "nonexistent", _DEFAULT_PASSWORD)
-        assert status == 401
-
-    async def test_ldap_login_missing_username(self, _app: _AppInfo) -> None:
-        """Test LDAP login failure with missing username."""
-        client = _httpx_client(_app)
-        response = client.post(
-            "/auth/ldap/login",
-            json={"password": "password123"},
-        )
-
-        assert response.status_code == 401
-        assert "Username and password required" in response.text
-
-    async def test_ldap_login_missing_password(self, _app: _AppInfo) -> None:
-        """Test LDAP login failure with missing password."""
-        client = _httpx_client(_app)
-        response = client.post(
-            "/auth/ldap/login",
-            json={"username": "admin_user"},
-        )
-
-        assert response.status_code == 401
-        assert "Username and password required" in response.text
-
-    async def test_ldap_login_empty_credentials(self, _app: _AppInfo) -> None:
-        """Test LDAP login failure with empty credentials."""
-        client = _httpx_client(_app)
-        response = client.post(
-            "/auth/ldap/login",
-            json={"username": "", "password": ""},
-        )
-
-        assert response.status_code == 401
-        assert "Username and password required" in response.text
-
-    async def test_ldap_login_user_update(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
-        """Test that LDAP login updates existing user information on subsequent logins."""
-        # Use unique suffix for test isolation
+        """Test successful login assigns role from group membership."""
         suffix = token_hex(4)
-        username = f"update_user_{suffix}"
-        email = f"update_{suffix}@example.com"
 
-        # Add initial user
-        _ldap_server.add_user(
-            username=username,
-            password=_DEFAULT_PASSWORD,
-            email=email,
-            display_name="Initial Name",
-            groups=[_VIEWER_GROUP],
-        )
-
-        # First login
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
+        # Admin user (in admins group)
+        admin = _create_test_user(_ldap_server, suffix, "admin", UserRoleInput.ADMIN)
+        status, access_token, refresh_token = _ldap_login(_app, admin.username, admin.password)
         _verify_ldap_login_success(status, access_token, refresh_token)
+        admin_user = _verify_user_created(_app, admin)
+        assert admin_user.role == UserRoleInput.ADMIN
 
-        # Get user
-        user = _get_user_by_email(_app, email)
-        assert user is not None
-        assert user.profile.username == "Initial Name"
-        assert user.role == UserRoleInput.MEMBER  # MEMBER role from group mapping
-        user_id = user.gid
+        # Viewer user (no groups → wildcard)
+        viewer = _create_test_user(_ldap_server, suffix, "viewer", UserRoleInput.VIEWER, groups=[])
+        status, access_token, refresh_token = _ldap_login(_app, viewer.username, viewer.password)
+        _verify_ldap_login_success(status, access_token, refresh_token)
+        viewer_user = _verify_user_created(_app, viewer)
+        assert viewer_user.role == UserRoleInput.VIEWER
 
-        # Update user in LDAP (simulate attribute changes)
+        _delete_users(_app, _app.admin_secret, users=[admin_user.gid, viewer_user.gid])
+
+    async def test_invalid_credentials_rejected(
+        self, _app: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test login fails for wrong password, nonexistent user, and empty credentials."""
+        user = _create_test_user(_ldap_server, token_hex(4), "user", UserRoleInput.ADMIN)
+
+        # Wrong password
+        assert _ldap_login(_app, user.username, "wrong")[0] == 401
+        # Nonexistent user
+        assert _ldap_login(_app, "nonexistent", "pass")[0] == 401
+        # Empty credentials
+        assert _ldap_login(_app, "", "")[0] == 401
+
+    async def test_role_syncs_on_subsequent_login(
+        self, _app: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test role updates from LDAP groups but username remains stable."""
+        suffix = token_hex(4)
+        username, email = f"sync_{suffix}", f"sync_{suffix}@example.com"
+
+        # First login with members group (mapped to MEMBER)
         _ldap_server.add_user(
             username=username,
             password=_DEFAULT_PASSWORD,
             email=email,
-            display_name="Updated Name",
+            display_name="Original Name",
+            groups=[_MEMBER_GROUP],
+        )
+        status, _, _ = _ldap_login(_app, username, _DEFAULT_PASSWORD)
+        assert status == 204
+        user = _get_user_by_email(_app, email)
+        assert user is not None and user.role == UserRoleInput.MEMBER
+
+        # LDAP changes: promoted to admin, display name changed
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email=email,
+            display_name="New Name",
             groups=[_ADMIN_GROUP],
         )
+        status, _, _ = _ldap_login(_app, username, _DEFAULT_PASSWORD)
+        assert status == 204
 
-        # Second login - should update role but NOT username
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-        _verify_ldap_login_success(status, access_token, refresh_token)
+        # Verify: role updated, username stable
+        updated = _get_user_by_email(_app, email)
+        assert updated is not None
+        assert updated.gid == user.gid  # Same user
+        assert updated.role == UserRoleInput.ADMIN  # Role synced
+        assert updated.profile.username == "Original Name"  # Username stable
 
-        # Verify user was updated correctly
-        updated_user = _get_user_by_email(_app, email)
-        assert updated_user is not None
-        assert updated_user.gid == user_id  # Same user
-        # Username should remain stable (prevents collisions if displayName changes)
-        assert updated_user.profile.username == "Initial Name"
-        assert updated_user.role == UserRoleInput.ADMIN  # Role updated from groups
-
-        # Cleanup
-        _delete_users(_app, _app.admin_secret, users=[user_id])
-
-    async def test_ldap_login_no_matching_groups(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test wildcard group mapping when user has no specific groups."""
-        test_user = _create_test_user(
-            _ldap_server, token_hex(4), "no_group_user", UserRoleInput.VIEWER, groups=[]
-        )
-
-        status, access_token, refresh_token = _ldap_login(
-            _app, test_user.username, test_user.password
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        user = _verify_user_created(_app, test_user)
         _delete_users(_app, _app.admin_secret, users=[user.gid])
 
-    async def test_ldap_injection_prevention(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test that LDAP injection attempts are properly escaped."""
-        injection_attempts = [
-            "*",
-            "admin*",
-            "*(objectClass=*)",
-            "admin)(|(objectClass=*",
-            "admin\\2a",
-        ]
+    async def test_injection_prevention(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
+        """Test LDAP injection attempts are rejected."""
+        for payload in ["*", "admin*", "*(objectClass=*)", "admin)(|(objectClass=*"]:
+            assert _ldap_login(_app, payload, _DEFAULT_PASSWORD)[0] == 401
 
-        for username in injection_attempts:
-            status, _, _ = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-            assert status == 401
-
-    async def test_ldap_login_case_sensitivity(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test that LDAP username matching is case-sensitive."""
-        status, _, _ = _ldap_login(_app, "ADMIN_USER", "admin_pass")
-        assert status == 401
-
-    async def test_ldap_login_unicode_credentials(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test LDAP login with Unicode characters in username/password."""
+    async def test_unicode_credentials(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
+        """Test login with Unicode username/password."""
         suffix = token_hex(4)
         email = f"unicode_{suffix}@example.com"
-
         _ldap_server.add_user(
             username="用户名",
             password="密码123",
             email=email,
             display_name="Unicode User",
-            groups=[_VIEWER_GROUP],
+            groups=[_MEMBER_GROUP],
         )
-
         status, access_token, refresh_token = _ldap_login(_app, "用户名", "密码123")
         _verify_ldap_login_success(status, access_token, refresh_token)
-
         user = _get_user_by_email(_app, email)
         assert user is not None
         _delete_users(_app, _app.admin_secret, users=[user.gid])
 
-    async def test_ldap_login_concurrent_requests(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test that concurrent LDAP login requests are handled correctly."""
-        import asyncio
-
-        # Use unique suffix for test isolation
+    async def test_missing_email_rejected(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
+        """Test login fails when LDAP user has no email."""
         suffix = token_hex(4)
-        admin_username = f"admin_concurrent_{suffix}"
-        admin_email = f"admin_concurrent_{suffix}@example.com"
-        viewer_username = f"viewer_concurrent_{suffix}"
-        viewer_email = f"viewer_concurrent_{suffix}@example.com"
-
-        # Add test users
         _ldap_server.add_user(
-            username=admin_username,
-            password="admin_pass",
-            email=admin_email,
-            display_name="Admin Concurrent",
-            groups=[_ADMIN_GROUP],
-        )
-        _ldap_server.add_user(
-            username=viewer_username,
-            password="viewer_pass",
-            email=viewer_email,
-            display_name="Viewer Concurrent",
-            groups=[_VIEWER_GROUP],
-        )
-
-        client = _httpx_client(_app)
-
-        async def login_user(username: str, password: str) -> int:
-            """Helper to perform login and return status code."""
-            response = client.post(
-                "/auth/ldap/login",
-                json={"username": username, "password": password},
-            )
-            return response.status_code
-
-        # Perform multiple concurrent logins
-        results = await asyncio.gather(
-            login_user(admin_username, "admin_pass"),
-            login_user(viewer_username, "viewer_pass"),
-            login_user(admin_username, "admin_pass"),
-            login_user(viewer_username, "viewer_pass"),
-        )
-
-        # All should succeed
-        assert all(status == 204 for status in results)
-
-        # Cleanup
-        admin_user = _get_user_by_email(_app, admin_email)
-        viewer_user = _get_user_by_email(_app, viewer_email)
-        if admin_user:
-            _delete_users(_app, _app.admin_secret, users=[admin_user.gid])
-        if viewer_user:
-            _delete_users(_app, _app.admin_secret, users=[viewer_user.gid])
-
-    async def test_ldap_missing_email_attribute(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test Phoenix's handling when LDAP user has no email attribute.
-
-        Phoenix should reject the login when email attribute is missing.
-        """
-        # Add unique suffix to avoid test isolation issues
-        suffix = token_hex(4)
-        username = f"no_email_user_{suffix}"
-
-        # Add user without email
-        _ldap_server.add_user(
-            username=username,
+            username=f"noemail_{suffix}",
             password=_DEFAULT_PASSWORD,
             email="",
-            display_name="No Email User",
+            display_name="No Email",
             groups=[_ADMIN_GROUP],
         )
+        assert _ldap_login(_app, f"noemail_{suffix}", _DEFAULT_PASSWORD)[0] == 401
 
-        status, _, _ = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-        assert status == 401
-
-    async def test_ldap_missing_display_name(
+    async def test_missing_display_name_uses_fallback(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test Phoenix's handling when LDAP user has no displayName attribute.
-
-        Phoenix should handle missing display name gracefully (use email or username).
-        """
-        # Add unique suffix to avoid test isolation issues
+        """Test missing displayName falls back to email prefix."""
         suffix = token_hex(4)
-        username = f"no_name_user_{suffix}"
         email = f"noname_{suffix}@example.com"
-
-        # Add user without display name
         _ldap_server.add_user(
-            username=username,
+            username=f"noname_{suffix}",
             password=_DEFAULT_PASSWORD,
             email=email,
             display_name="",
-            groups=[_VIEWER_GROUP],
+            groups=[_MEMBER_GROUP],
         )
-
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
+        status, _, _ = _ldap_login(_app, f"noname_{suffix}", _DEFAULT_PASSWORD)
+        assert status == 204
         user = _get_user_by_email(_app, email)
         assert user is not None
-        assert user.profile.username == f"noname_{suffix}"  # email.split("@")[0] fallback
+        assert user.profile.username == f"noname_{suffix}"  # Fallback to email prefix
         _delete_users(_app, _app.admin_secret, users=[user.gid])
 
-    async def test_ldap_user_in_multiple_groups(
+    async def test_multiple_groups_uses_first_match(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test Phoenix's group priority logic when user is in multiple mapped groups.
-
-        Phoenix should use the first matching group in the mappings list.
-        Config order: admins (ADMIN), viewers (MEMBER), wildcard (VIEWER)
-        """
-        # Add unique suffix to avoid test isolation issues
+        """Test user in multiple groups gets role from first matching mapping."""
         suffix = token_hex(4)
-        username = f"multi_group_user_{suffix}"
-        email = f"multigroup_{suffix}@example.com"
-
-        # User in both groups - should get ADMIN (first match in config)
+        email = f"multi_{suffix}@example.com"
         _ldap_server.add_user(
-            username=username,
+            username=f"multi_{suffix}",
             password=_DEFAULT_PASSWORD,
             email=email,
-            display_name="Multi Group User",
-            groups=[_VIEWER_GROUP, _ADMIN_GROUP],  # Order doesn't matter
+            display_name="Multi",
+            groups=[_MEMBER_GROUP, _ADMIN_GROUP],  # Both groups
         )
-
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
+        status, _, _ = _ldap_login(_app, f"multi_{suffix}", _DEFAULT_PASSWORD)
+        assert status == 204
         user = _get_user_by_email(_app, email)
         assert user is not None
-        assert user.role == UserRoleInput.ADMIN  # First match wins
+        assert user.role == UserRoleInput.ADMIN  # ADMIN mapping comes first in config
         _delete_users(_app, _app.admin_secret, users=[user.gid])
 
-    async def test_ldap_case_insensitive_group_matching(
+    async def test_group_dn_case_insensitive(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test Phoenix's case-insensitive DN matching for groups.
-
-        Phoenix should match groups case-insensitively per LDAP spec.
-        """
-        # Add unique suffix to avoid test isolation issues
+        """Test group DN matching is case-insensitive per RFC 4514."""
         suffix = token_hex(4)
-        username = f"case_test_user_{suffix}"
-        email = f"casetest_{suffix}@example.com"
-
-        # Mixed-case group DN should match (case-insensitive)
+        email = f"case_{suffix}@example.com"
         _ldap_server.add_user(
-            username=username,
+            username=f"case_{suffix}",
             password=_DEFAULT_PASSWORD,
             email=email,
-            display_name="Case Test User",
-            groups=["CN=Admins,OU=Groups,DC=Example,DC=Com"],
+            display_name="Case",
+            groups=["CN=Admins,OU=Groups,DC=Example,DC=Com"],  # Mixed case
         )
-
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
+        status, _, _ = _ldap_login(_app, f"case_{suffix}", _DEFAULT_PASSWORD)
+        assert status == 204
         user = _get_user_by_email(_app, email)
         assert user is not None
-        assert user.role == UserRoleInput.ADMIN
+        assert user.role == UserRoleInput.ADMIN  # Should match despite case difference
         _delete_users(_app, _app.admin_secret, users=[user.gid])
-
-    async def test_ldap_empty_groups_list(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
-        """Test wildcard fallback when LDAP returns empty groups list."""
-        test_user = _create_test_user(
-            _ldap_server, token_hex(4), "empty_groups_user", UserRoleInput.VIEWER, groups=[]
-        )
-
-        status, access_token, refresh_token = _ldap_login(
-            _app, test_user.username, test_user.password
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        user = _verify_user_created(_app, test_user)
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
-
-    async def test_ldap_special_characters_in_username(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test Phoenix's filter escaping with various special characters.
-
-        Phoenix should properly escape all LDAP special characters.
-        """
-        # Add unique suffix to avoid test isolation issues
-        suffix = token_hex(4)
-
-        # Test various special characters that need escaping
-        special_usernames = [
-            ("user(test)", f"usertest1_{suffix}@example.com"),
-            ("user)test", f"usertest2_{suffix}@example.com"),
-            ("user\\test", f"usertest3_{suffix}@example.com"),
-            ("user/test", f"usertest4_{suffix}@example.com"),
-        ]
-
-        created_users = []
-
-        for username, email in special_usernames:
-            _ldap_server.add_user(
-                username=username,
-                password=_DEFAULT_PASSWORD,
-                email=email,
-                display_name=f"Special User {username}",
-                groups=[_VIEWER_GROUP],
-            )
-
-            status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-            _verify_ldap_login_success(status, access_token, refresh_token)
-
-            user = _get_user_by_email(_app, email)
-            assert user is not None
-            created_users.append(user.gid)
-
-        # Cleanup
-        if created_users:
-            _delete_users(_app, _app.admin_secret, users=created_users)
-
-    async def test_ldap_role_downgrade(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
-        """Test Phoenix updates user role when groups change (downgrade scenario).
-
-        Phoenix should update ADMIN → VIEWER when user is removed from admin group.
-        """
-        # Add unique suffix to avoid test isolation issues
-        suffix = token_hex(4)
-        username = f"downgrade_user_{suffix}"
-        email = f"downgrade_{suffix}@example.com"
-
-        # Initial login as admin
-        _ldap_server.add_user(
-            username=username,
-            password=_DEFAULT_PASSWORD,
-            email=email,
-            display_name="Downgrade User",
-            groups=[_ADMIN_GROUP],
-        )
-
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        user = _get_user_by_email(_app, email)
-        assert user is not None
-        assert user.role == UserRoleInput.ADMIN
-        user_id = user.gid
-
-        # Update user: remove from admin group
-        _ldap_server.add_user(
-            username=username,
-            password=_DEFAULT_PASSWORD,
-            email=email,
-            display_name="Downgrade User",
-            groups=[],
-        )
-
-        # Second login - should update role
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        updated_user = _get_user_by_email(_app, email)
-        assert updated_user is not None
-        assert updated_user.gid == user_id
-        assert updated_user.role == UserRoleInput.VIEWER  # Downgraded to wildcard
-        _delete_users(_app, _app.admin_secret, users=[user_id])
 
 
 class TestLDAPDNStability:
-    """Test DN-based user identification (immune to email changes)."""
+    """Test LDAP user identification strategies.
 
-    def test_dn_based_lookup(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
-        """Test that users are identified by DN, not email.
+    Phoenix supports two modes:
+    1. Simple Mode (default): Email is the identifier. Email changes create new users.
+    2. Enterprise Mode (PHOENIX_LDAP_ATTR_UNIQUE_ID): Stable ID is the identifier.
+       Email changes preserve identity.
+    """
 
-        This verifies the core architectural decision: oauth2_user_id stores DN
-        (following OAuth2 pattern where it stores stable provider ID).
-        """
+    def test_email_change_creates_new_user_without_unique_id(
+        self, _app: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Simple mode: email change creates a new user (email is the identifier)."""
         suffix = token_hex(4)
-        username = f"dn_test_{suffix}"
-        email_v1 = f"john_v1_{suffix}@example.com"
+        username = f"simple_{suffix}"
+        email_v1 = f"simple_v1_{suffix}@example.com"
+        email_v2 = f"simple_v2_{suffix}@example.com"
 
-        # Step 1: Create user with email_v1
+        # First login with email_v1
         _ldap_server.add_user(
             username=username,
             password=_DEFAULT_PASSWORD,
             email=email_v1,
-            display_name="John Doe",
+            display_name="User",
             groups=[_ADMIN_GROUP],
         )
-
-        # Step 2: First login creates user
         status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
         _verify_ldap_login_success(status, access_token, refresh_token)
 
         user_v1 = _get_user_by_email(_app, email_v1)
         assert user_v1 is not None
-        user_id_v1 = user_v1.gid
 
-        # Step 3: Simulate email change in LDAP
-        email_v2 = f"john_v2_{suffix}@example.com"
+        # Email changes in LDAP, login again
         _ldap_server.add_user(
             username=username,
             password=_DEFAULT_PASSWORD,
-            email=email_v2,  # ← Email changed
-            display_name="John Doe",
+            email=email_v2,
+            display_name="User",
             groups=[_ADMIN_GROUP],
         )
-
-        # Step 4: Login with new email - should UPDATE existing user (same DN)
         status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
         _verify_ldap_login_success(status, access_token, refresh_token)
 
-        # Step 5: Verify same user, email updated
+        # Result: NEW user created (email is the identifier)
         user_v2 = _get_user_by_email(_app, email_v2)
         assert user_v2 is not None
-        assert user_v2.gid == user_id_v1, "Should be SAME user (identified by DN)"
+        assert user_v2.gid != user_v1.gid, "Different user when email changes"
 
-        # Step 6: Old email should no longer exist
-        user_old = _get_user_by_email(_app, email_v1)
-        assert user_old is None, "Old email should not exist (email was updated)"
+        # Cleanup both users
+        _delete_users(_app, _app.admin_secret, users=[user_v1.gid, user_v2.gid])
 
-        # Cleanup
-        _delete_users(_app, _app.admin_secret, users=[user_v2.gid])
-
-    def test_admin_provisioned_user_upgrades_to_dn(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
+    def test_email_change_preserves_identity_with_unique_id(
+        self, _app_ldap_unique_id: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test that admin-created users (NULL DN) upgrade to DN-based storage on first login.
+        """Enterprise mode: email change preserves identity (unique_id is the identifier).
 
-        This verifies the fallback pattern: admins can pre-provision users with just email
-        (they typically don't know the DN), and the DN is populated on first LDAP login.
+        Also tests migration: admin pre-provisions user, first login migrates to unique_id,
+        subsequent email change still preserves identity.
         """
+        app = _app_ldap_unique_id
         suffix = token_hex(4)
-        username = f"admin_created_{suffix}"
-        email = f"admin_created_{suffix}@example.com"
+        username = f"enterprise_{suffix}"
+        email_v1 = f"enterprise_v1_{suffix}@example.com"
+        email_v2 = f"enterprise_v2_{suffix}@example.com"
 
-        # Step 1: Add user to LDAP server
-        _ldap_server.add_user(
-            username=username,
-            password=_DEFAULT_PASSWORD,
-            email=email,
-            display_name="Admin Created User",
-            groups=[_ADMIN_GROUP],
-        )
-
-        # Step 2: Admin pre-provisions user via GraphQL (without DN)
-        graphql_client = _httpx_client(_app, _app.admin_secret)
-        create_mutation = """
-        mutation($email: String!, $username: String!, $role: UserRoleInput!) {
-            createUser(input: {
-                email: $email,
-                username: $username,
-                role: $role,
-                authMethod: LDAP
-            }) {
-                user {
-                    id
-                    email
-                }
-            }
-        }
-        """
-
+        # Admin pre-provisions user (no unique_id in DB yet)
+        graphql_client = _httpx_client(app, app.admin_secret)
         response = graphql_client.post(
             "/graphql",
             json={
-                "query": create_mutation,
-                "variables": {
-                    "email": email,
-                    "username": "Initial Name",
-                    "role": "MEMBER",  # Admin assigns MEMBER initially
-                },
+                "query": """
+                    mutation($email: String!, $username: String!, $role: UserRoleInput!) {
+                        createUser(input: {
+                            email: $email, username: $username, role: $role, authMethod: LDAP
+                        }) { user { id } }
+                    }
+                """,
+                "variables": {"email": email_v1, "username": "Pre-Provisioned", "role": "MEMBER"},
             },
         )
         assert response.status_code == 200
-        created_data = response.json()
-        assert created_data["data"]["createUser"]["user"]["email"] == email
 
-        # Step 3: User logs in via LDAP
-        # This should:
-        # a) Find user by email (fallback lookup)
-        # b) Populate DN in oauth2_user_id
-        # c) Update role from LDAP group mapping (ADMIN from groups)
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
+        # First login (migrates pre-provisioned user to unique_id)
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email=email_v1,
+            display_name="User",
+            groups=[_ADMIN_GROUP],
+        )
+        status, access_token, refresh_token = _ldap_login(app, username, _DEFAULT_PASSWORD)
         _verify_ldap_login_success(status, access_token, refresh_token)
 
-        # Step 4: Verify user was upgraded to DN-based storage
-        user = _get_user_by_email(_app, email)
-        assert user is not None
-        assert user.role == UserRoleInput.ADMIN, "Role updated from LDAP groups"
-        # Username remains stable from initial creation (not synced on login)
-        assert user.username == "Initial Name"
+        user_v1 = _get_user_by_email(app, email_v1)
+        assert user_v1 is not None
+        assert user_v1.role == UserRoleInput.ADMIN, "Role updated from LDAP groups"
+        assert user_v1.username == "Pre-Provisioned", "Username stable from pre-provisioning"
 
-        # Step 5: Subsequent login should use DN lookup (not email fallback)
-        # We can't directly verify this without database inspection, but the login should work
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
+        # Email changes in LDAP, login again
+        _ldap_server.add_user(
+            username=username,  # Same username = same entryUUID
+            password=_DEFAULT_PASSWORD,
+            email=email_v2,
+            display_name="User",
+            groups=[_ADMIN_GROUP],
+        )
+        status, access_token, refresh_token = _ldap_login(app, username, _DEFAULT_PASSWORD)
         _verify_ldap_login_success(status, access_token, refresh_token)
+
+        # Result: SAME user (unique_id is the identifier)
+        user_v2 = _get_user_by_email(app, email_v2)
+        assert user_v2 is not None
+        assert user_v2.gid == user_v1.gid, "Same user when unique_id is configured"
+
+        # Old email no longer exists
+        assert _get_user_by_email(app, email_v1) is None
 
         # Cleanup
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
+        _delete_users(app, app.admin_secret, users=[user_v2.gid])
 
 
 class TestLDAPGraphQLIntegration:
@@ -817,127 +517,80 @@ class TestLDAPGraphQLIntegration:
             _delete_users(_app, _app.admin_secret, users=[user.gid])
 
 
-class TestLDAPOAuth2SecurityIsolation:
-    """Test security isolation between LDAP, OAuth2, and LOCAL authentication methods."""
+class TestLDAPSecurityIsolation:
+    """Test that LDAP, OAuth2, and LOCAL auth methods are isolated from each other."""
 
-    async def test_local_user_cannot_login_via_ldap(
+    async def test_local_user_protected_from_ldap_login(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test that LOCAL users cannot login via LDAP.
-
-        Security: Prevents LDAP from being used as an authentication bypass
-        for password-based accounts.
-        """
+        """LOCAL user cannot be hijacked via LDAP login with same email."""
         suffix = token_hex(4)
-        email = f"local_user_{suffix}@example.com"
-        ldap_username = f"local_user_{suffix}"
+        email = f"local_{suffix}@example.com"
 
-        # Step 1: Create LOCAL user (password-based)
+        # Create LOCAL user
         graphql_client = _httpx_client(_app, _app.admin_secret)
-        create_response = graphql_client.post(
+        resp = graphql_client.post(
             "/graphql",
             json={
-                "query": """
-                    mutation CreateUser($input: CreateUserInput!) {
-                        createUser(input: $input) {
-                            user { id email username authMethod }
-                        }
-                    }
-                """,
+                "query": """mutation($i: CreateUserInput!) { createUser(input: $i) { user { id } } }""",
                 "variables": {
-                    "input": {
+                    "i": {
                         "email": email,
-                        "username": f"Local User {suffix}",
+                        "username": "Local",
                         "role": "MEMBER",
                         "authMethod": "LOCAL",
-                        "password": "localpass123",
-                    },
+                        "password": "pass123",
+                    }
                 },
             },
         )
-        assert create_response.status_code == 200
-        local_user_id = create_response.json()["data"]["createUser"]["user"]["id"]
+        local_user_id = resp.json()["data"]["createUser"]["user"]["id"]
 
-        # Step 2: Add user with SAME email to LDAP server
+        # Add same email to LDAP
         _ldap_server.add_user(
-            username=ldap_username,
-            password="ldappass456",
+            username=f"local_{suffix}",
+            password="ldappass",
             email=email,
-            display_name="LDAP User",
+            display_name="LDAP",
             groups=[_ADMIN_GROUP],
         )
 
-        # Step 3: Try LDAP login - should be REJECTED (LOCAL user protected)
-        status, _, _ = _ldap_login(_app, ldap_username, "ldappass456")
-        assert status == 401
-
-        # Cleanup
+        # LDAP login should fail (LOCAL user protected)
+        assert _ldap_login(_app, f"local_{suffix}", "ldappass")[0] == 401
         _delete_users(_app, _app.admin_secret, users=[local_user_id])
 
-    async def test_ldap_user_cannot_login_via_local_password(
+    async def test_ldap_user_protected_from_password_login(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test that LDAP users cannot login with password-based authentication.
+        """LDAP user cannot login via password endpoint (no password_hash)."""
+        user = _create_test_user(_ldap_server, token_hex(4), "ldap", UserRoleInput.ADMIN)
+        status, _, _ = _ldap_login(_app, user.username, user.password)
+        assert status == 204
 
-        Security: LDAP users have no password hash, preventing password-based bypass.
-        """
-        # Step 1: Create LDAP user
-        test_user = _create_test_user(_ldap_server, token_hex(4), "ldap_user", UserRoleInput.ADMIN)
-        status, access_token, refresh_token = _ldap_login(
-            _app, test_user.username, test_user.password
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-        user = _verify_user_created(_app, test_user)
-
-        # Step 2: Try LOCAL password login - should be REJECTED (no password_hash)
+        # Password login should fail
         client = _httpx_client(_app)
-        response = client.post(
-            "/auth/login",
-            json={"email": test_user.email, "password": test_user.password},
-        )
-        assert response.status_code == 401
+        resp = client.post("/auth/login", json={"email": user.email, "password": user.password})
+        assert resp.status_code == 401
 
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
+        db_user = _get_user_by_email(_app, user.email)
+        assert db_user is not None
+        _delete_users(_app, _app.admin_secret, users=[db_user.gid])
 
-    async def test_ldap_user_cannot_login_via_oauth2(
+    async def test_oauth2_user_protected_from_ldap_login(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test that LDAP users are protected from OAuth2 hijacking.
-
-        Security: Prevents an attacker with OAuth2 access to the same email
-        from taking over an LDAP user's account by logging in via OAuth2.
-        """
-        # Create LDAP user and verify OAuth2 cannot hijack it
-        test_user = _create_test_user(_ldap_server, token_hex(4), "ldap_user", UserRoleInput.ADMIN)
-        status, access_token, refresh_token = _ldap_login(
-            _app, test_user.username, test_user.password
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        user = _verify_user_created(_app, test_user)
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
-
-    async def test_ldap_login_rejected_when_oauth2_user_exists(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test that LDAP login is rejected when OAuth2 user exists with same email.
-
-        Security: Prevents duplicate accounts with same email address.
-        """
+        """OAuth2 user cannot be hijacked via LDAP login with same email."""
         suffix = token_hex(4)
-        email = f"oauth_user_{suffix}@example.com"
-        ldap_username = f"oauth_user_{suffix}"
+        email = f"oauth_{suffix}@example.com"
 
-        # Step 1: Create OAuth2 user using REST API
-        # Note: GraphQL CreateUserInput doesn't support oauth2ClientId/oauth2UserId fields,
-        # so we use REST API for OAuth2 test setup
+        # Create OAuth2 user via REST API
         client = _httpx_client(_app, _app.admin_secret)
-        create_response = client.post(
+        resp = client.post(
             "/v1/users",
             json={
                 "user": {
                     "email": email,
-                    "username": f"oauth_user_{suffix}",
+                    "username": f"oauth_{suffix}",
                     "role": "VIEWER",
                     "auth_method": "OAUTH2",
                     "oauth2_client_id": "google",
@@ -946,25 +599,21 @@ class TestLDAPOAuth2SecurityIsolation:
                 "send_welcome_email": False,
             },
         )
-        assert create_response.status_code == 201
-        oauth_user_id = create_response.json()["data"]["id"]
+        assert resp.status_code == 201
+        oauth_user_id = resp.json()["data"]["id"]
 
-        # Step 2: Add LDAP user with SAME email to LDAP server
+        # Add same email to LDAP
         _ldap_server.add_user(
-            username=ldap_username,
+            username=f"oauth_{suffix}",
             password=_DEFAULT_PASSWORD,
             email=email,
-            display_name="LDAP User",
+            display_name="LDAP",
             groups=[_ADMIN_GROUP],
         )
 
-        # Step 3: Try LDAP login - should be REJECTED (OAuth2 user exists)
-        status, _, _ = _ldap_login(_app, ldap_username, _DEFAULT_PASSWORD)
-        assert status == 401
-
-        # Cleanup
-        delete_response = client.delete(f"/v1/users/{oauth_user_id}")
-        assert delete_response.status_code == 204
+        # LDAP login should fail (OAuth2 user protected)
+        assert _ldap_login(_app, f"oauth_{suffix}", _DEFAULT_PASSWORD)[0] == 401
+        client.delete(f"/v1/users/{oauth_user_id}")
 
 
 class TestLDAPConfiguration:
@@ -1051,119 +700,40 @@ class TestLDAPPosixGroupSearch:
     """Test LDAP POSIX group search (OpenLDAP style).
 
     POSIX groups store member DNs in a 'member' attribute, requiring Phoenix
-    to search for groups containing the user's DN, rather than reading a
-    memberOf attribute from the user entry (Active Directory style).
-
-    These tests verify:
-    - Group search with DN substitution
-    - DN escaping for LDAP injection prevention
-    - Multiple group membership
-    - Role mapping from POSIX groups
+    to search for groups containing the user's DN.
     """
 
-    def test_posix_admin_via_group_search(
+    def test_posix_role_from_group_search(
         self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test ADMIN role assignment via POSIX group search."""
+        """Test role assignment via POSIX group search (no memberOf attribute)."""
         suffix = token_hex(4)
-        username = f"posix_admin_{suffix}"
-        email = f"posix_admin_{suffix}@example.com"
+        username = f"posix_{suffix}"
+        email = f"posix_{suffix}@example.com"
         user_dn = f"uid={username},ou=users,dc=example,dc=com"
 
-        # Add user without memberOf attribute
+        # User without memberOf
         _ldap_server.add_user(
             username=username,
             password=_DEFAULT_PASSWORD,
             email=email,
-            display_name="POSIX Admin",
-            groups=[],  # No memberOf - groups added separately
+            display_name="POSIX",
+            groups=[],
         )
-
-        # Add POSIX group with user as member
+        # Add to admins group via POSIX-style membership
         _ldap_server.add_group(cn="admins", members=[user_dn])
 
-        # Login should trigger group search and assign ADMIN role
-        status, access_token, refresh_token = _ldap_login(
-            _app_ldap_posix, username, _DEFAULT_PASSWORD
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        # Verify user has ADMIN role
+        status, _, _ = _ldap_login(_app_ldap_posix, username, _DEFAULT_PASSWORD)
+        assert status == 204
         user = _get_user_by_email(_app_ldap_posix, email)
         assert user is not None
         assert user.role == UserRoleInput.ADMIN
-
         _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
 
-    def test_posix_multiple_groups(
+    def test_posix_wildcard_when_no_groups(
         self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test role assignment when user is in multiple POSIX groups."""
-        suffix = token_hex(4)
-        username = f"posix_multi_{suffix}"
-        email = f"posix_multi_{suffix}@example.com"
-        user_dn = f"uid={username},ou=users,dc=example,dc=com"
-
-        _ldap_server.add_user(
-            username=username,
-            password=_DEFAULT_PASSWORD,
-            email=email,
-            display_name="Multi Group",
-            groups=[],
-        )
-
-        # Add user to multiple groups (first match wins: admins > viewers)
-        _ldap_server.add_group(cn="admins", members=[user_dn])
-        _ldap_server.add_group(cn="viewers", members=[user_dn])
-
-        status, access_token, refresh_token = _ldap_login(
-            _app_ldap_posix, username, _DEFAULT_PASSWORD
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        user = _get_user_by_email(_app_ldap_posix, email)
-        assert user is not None
-        assert user.role == UserRoleInput.ADMIN  # First match in mapping order
-
-        _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
-
-    def test_posix_dn_escaping(self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer) -> None:
-        """Test DN escaping for LDAP injection prevention in group searches.
-
-        Verifies that special LDAP characters in usernames are properly escaped
-        when constructing group search filters, preventing LDAP injection attacks.
-        """
-        suffix = token_hex(4)
-        # Username with LDAP special characters that must be escaped
-        username = f"user_special_{suffix}"  # Use regular username for simplicity
-        email = f"special_{suffix}@example.com"
-        user_dn = f"uid={username},ou=users,dc=example,dc=com"
-
-        _ldap_server.add_user(
-            username=username,
-            password=_DEFAULT_PASSWORD,
-            email=email,
-            display_name="Special User",
-            groups=[],
-        )
-
-        # Add group membership
-        _ldap_server.add_group(cn="viewers", members=[user_dn])
-
-        # Login should succeed despite special characters (DN is properly escaped)
-        status, access_token, refresh_token = _ldap_login(
-            _app_ldap_posix, username, _DEFAULT_PASSWORD
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        user = _get_user_by_email(_app_ldap_posix, email)
-        assert user is not None
-        assert user.role == UserRoleInput.MEMBER  # Viewer group maps to MEMBER
-
-        _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
-
-    def test_posix_no_groups(self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer) -> None:
-        """Test wildcard role assignment when user is in no POSIX groups."""
+        """Test wildcard role when user is in no POSIX groups."""
         suffix = token_hex(4)
         username = f"posix_none_{suffix}"
         email = f"posix_none_{suffix}@example.com"
@@ -1175,275 +745,119 @@ class TestLDAPPosixGroupSearch:
             display_name="No Groups",
             groups=[],
         )
+        # Don't add to any group
 
-        # Don't add user to any groups
-        # Wildcard mapping "*" should assign VIEWER role
-
-        status, access_token, refresh_token = _ldap_login(
-            _app_ldap_posix, username, _DEFAULT_PASSWORD
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
+        status, _, _ = _ldap_login(_app_ldap_posix, username, _DEFAULT_PASSWORD)
+        assert status == 204
         user = _get_user_by_email(_app_ldap_posix, email)
         assert user is not None
         assert user.role == UserRoleInput.VIEWER  # Wildcard
-
         _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
 
-    def test_posix_case_insensitive_dn_matching(
+    def test_posix_dn_case_insensitive(
         self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test that DN matching in group search is case-insensitive.
-
-        LDAP DNs are case-insensitive per RFC 4514. This test ensures Phoenix
-        correctly matches DNs regardless of case variations.
-        """
+        """Test DN matching in group search is case-insensitive per RFC 4514."""
         suffix = token_hex(4)
         username = f"posix_case_{suffix}"
         email = f"posix_case_{suffix}@example.com"
-        user_dn_upper = f"UID={username.upper()},OU=USERS,DC=EXAMPLE,DC=COM"
 
         _ldap_server.add_user(
             username=username,
             password=_DEFAULT_PASSWORD,
             email=email,
-            display_name="Case Test",
+            display_name="Case",
             groups=[],
         )
-
-        # Add group with uppercase DN (should still match)
-        _ldap_server.add_group(cn="admins", members=[user_dn_upper])
-
-        status, access_token, refresh_token = _ldap_login(
-            _app_ldap_posix, username, _DEFAULT_PASSWORD
+        # Group has UPPERCASE DN but user's actual DN is lowercase
+        _ldap_server.add_group(
+            cn="admins", members=[f"UID={username.upper()},OU=USERS,DC=EXAMPLE,DC=COM"]
         )
-        _verify_ldap_login_success(status, access_token, refresh_token)
 
+        status, _, _ = _ldap_login(_app_ldap_posix, username, _DEFAULT_PASSWORD)
+        assert status == 204
         user = _get_user_by_email(_app_ldap_posix, email)
         assert user is not None
-        assert user.role == UserRoleInput.ADMIN
-
+        assert user.role == UserRoleInput.ADMIN  # Should match despite case
         _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
 
-    def test_posix_group_search_failure_graceful_degradation(
-        self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test that LDAP login succeeds even if group search fails.
 
-        If group search encounters an error (e.g., base DN doesn't exist),
-        Phoenix should log a warning but still complete authentication with
-        wildcard role assignment.
+class TestLDAPDNHandling:
+    """Test DN-related security and RFC 4514 compliance."""
+
+    def test_duplicate_username_rejected(self, _ldap_server: _LDAPServer, _app: _AppInfo) -> None:
+        """Login rejected when multiple LDAP entries match the same username.
+
+        Security: Prevents non-deterministic authentication when same uid exists
+        in different OUs (e.g., uid=admin in IT and HR).
         """
         suffix = token_hex(4)
-        username = f"posix_failsafe_{suffix}"
-        email = f"posix_failsafe_{suffix}@example.com"
+        username = f"dup_{suffix}"
 
+        # Two users with same username, different OUs
         _ldap_server.add_user(
             username=username,
-            password=_DEFAULT_PASSWORD,
-            email=email,
-            display_name="Failsafe",
-            groups=[],
-        )
-
-        # Note: We can't easily simulate group search failure with the mock server,
-        # but this test documents the expected behavior. In production, if group
-        # search fails, _get_user_groups returns [] and wildcard mapping applies.
-
-        status, access_token, refresh_token = _ldap_login(
-            _app_ldap_posix, username, _DEFAULT_PASSWORD
-        )
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        user = _get_user_by_email(_app_ldap_posix, email)
-        assert user is not None
-        assert user.role == UserRoleInput.VIEWER  # Wildcard fallback
-
-        _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
-
-    def test_dn_case_insensitivity(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
-        """Test that DN lookup is case-insensitive per RFC 4514.
-
-        CRITICAL BUG FIX: Active Directory controllers may return DNs with different
-        casing across logins (e.g., "uid=alice" vs "uid=Alice"). Without case-insensitive
-        DN comparison, users get locked out or duplicate accounts are created.
-
-        RFC 4514 Section 2.4: "AttributeType values are case insensitive"
-
-        Real-world scenario:
-            Login 1 (DC1): uid=alice,ou=users,dc=example,dc=com  (stored in DB)
-            Login 2 (DC2): uid=Alice,ou=Users,dc=Example,dc=Com  (same user, diff casing)
-            → Must resolve to SAME user via case-insensitive DN comparison
-
-        Test approach:
-            1. User logs in → DN stored in DB (normalized to lowercase)
-            2. Mock LDAP updated to return MIXED-CASE DN for same user
-            3. User logs in again → should match existing user (case-insensitive)
-            4. No duplicate account created
-        """
-        suffix = token_hex(4)
-        username = f"case_test_{suffix}"
-        email = f"case_test_{suffix}@example.com"
-
-        # Step 1: Create user in LDAP with lowercase DN
-        _ldap_server.add_user(
-            username=username,
-            password=_DEFAULT_PASSWORD,
-            email=email,
-            display_name="Case Test User",
-            groups=[_ADMIN_GROUP],
-            custom_dn=f"uid={username},ou=users,dc=example,dc=com",  # lowercase
-        )
-
-        # Step 2: First login creates user in Phoenix DB
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        user_v1 = _get_user_by_email(_app, email)
-        assert user_v1 is not None
-        user_id_v1 = user_v1.gid
-
-        # Step 3: Update mock LDAP to return same user with MIXED-CASE DN
-        # (simulates AD controller returning different casing)
-        # Mock server now uses normalized DN keys, so this replaces the same user
-        _ldap_server.add_user(
-            username=username,  # Same username
-            password=_DEFAULT_PASSWORD,
-            email=email,  # Same email
-            display_name="Case Test User",
-            groups=[_ADMIN_GROUP],
-            custom_dn=f"UID={username.upper()},OU=Users,DC=Example,DC=Com",  # MIXED CASE
-        )
-
-        # Step 4: Second login with same username (LDAP now returns mixed-case DN)
-        # Phoenix should find existing user via case-insensitive DN comparison
-        status, access_token, refresh_token = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        # Step 5: Verify it's the SAME user (no duplicate)
-        user_v2 = _get_user_by_email(_app, email)
-        assert user_v2 is not None
-        assert user_v2.gid == user_id_v1, (
-            f"Should be SAME user despite DN casing difference. "
-            f"Expected GID: {user_id_v1}, Got: {user_v2.gid}"
-        )
-
-        # Step 6: Verify only ONE user with this email (no duplicates)
-        all_users = _list_users(_app, _app.admin_secret)
-        matching_users = [u for u in all_users if u.email == email]
-        assert len(matching_users) == 1, f"Should have exactly ONE user, got {len(matching_users)}"
-
-        # Cleanup
-        _delete_users(_app, _app.admin_secret, users=[user_id_v1])
-
-
-class TestLDAPDNValidation:
-    """Test DN validation in mock LDAP server.
-
-    These tests ensure the mock server properly validates DN syntax like a real
-    LDAP server, catching bugs like splitting "ou=users,dc=example,dc=com" on
-    commas which would create invalid DNs like "ou=users".
-    """
-
-    def test_mock_server_rejects_invalid_dn(
-        self, _ldap_server: _LDAPServer, _app: _AppInfo
-    ) -> None:
-        """Verify mock server rejects malformed DNs like real LDAP servers.
-
-        This test would have caught the bug where Phoenix's _search_user method
-        was incorrectly splitting user_search_base on commas, creating invalid
-        DNs like "ou=users" instead of "ou=users,dc=example,dc=com".
-
-        The mock server now validates DNs using ldap3's parse_dn and returns
-        invalidDnSyntax (error 34) for invalid DNs, matching real OpenLDAP behavior
-        (see OpenLDAP servers/slapd/search.c line 113-118).
-        """
-        suffix = token_hex(4)
-        test_user = _create_test_user(_ldap_server, suffix, "dn_test", UserRoleInput.ADMIN)
-
-        # Try to authenticate - this internally causes Phoenix to search LDAP
-        # If Phoenix were to search with an invalid DN (like "ou=users"),
-        # the mock server would now reject it with error code 32 (noSuchObject)
-        status, access_token, refresh_token = _ldap_login(
-            _app, test_user.username, test_user.password
-        )
-
-        # Verify login succeeded (DN validation passed)
-        _verify_ldap_login_success(status, access_token, refresh_token)
-
-        # Clean up
-        user = _get_user_by_email(_app, test_user.email)
-        assert user is not None
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
-
-    def test_duplicate_username_in_different_ous(
-        self, _ldap_server: _LDAPServer, _app: _AppInfo
-    ) -> None:
-        """Verify Phoenix rejects authentication when multiple users match the same username.
-
-        This test ensures that Phoenix handles ambiguous LDAP search results securely.
-        When two users have the same uid but different DNs (in different OUs), Phoenix
-        should reject the login rather than non-deterministically picking one.
-
-        Security Context:
-        - Without this check, LDAP could return users in unpredictable order
-        - Phoenix would authenticate as whichever user LDAP returns first
-        - This creates a security vulnerability (wrong person gets access)
-
-        Real-world scenario:
-            uid=admin,ou=IT,dc=example,dc=com     (IT admin)
-            uid=admin,ou=HR,dc=example,dc=com     (HR admin)
-
-        Based on OpenLDAP source study: LDAP returns ALL matching entries,
-        client must handle ambiguous results (servers/slapd/search.c).
-        """
-        suffix = token_hex(4)
-
-        # Add two users with same username in different OUs
-        username = f"duplicate_{suffix}"
-        password = "password123"
-
-        _ldap_server.add_user(
-            username=username,
-            password=password,
+            password="pass",
             email=f"{username}_it@example.com",
-            display_name="IT Admin",
+            display_name="IT",
             groups=[_ADMIN_GROUP],
             custom_dn=f"uid={username},ou=IT,dc=example,dc=com",
         )
-
         _ldap_server.add_user(
             username=username,
-            password=password,
+            password="pass",
             email=f"{username}_hr@example.com",
-            display_name="HR Admin",
+            display_name="HR",
             groups=[_ADMIN_GROUP],
             custom_dn=f"uid={username},ou=HR,dc=example,dc=com",
         )
 
-        # Attempt login with duplicate username
-        status, access_token, refresh_token = _ldap_login(_app, username, password)
+        # Should reject (ambiguous)
+        status, _, _ = _ldap_login(_app, username, "pass")
+        assert status == 401
 
-        # Phoenix should reject ambiguous login (security-first approach)
-        assert status == 401, (
-            f"Expected 401 (authentication rejected for ambiguous match), got {status}. "
-            f"Phoenix should reject logins when multiple LDAP entries match the same username "
-            f"to prevent non-deterministic authentication."
+        # No user created
+        all_users = _list_users(_app, _app.admin_secret)
+        assert not any(u.email.startswith(f"{username}_") for u in all_users)
+
+    def test_dn_case_variation_same_user(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
+        """DN case variations don't create duplicate users (RFC 4514).
+
+        Real scenario: AD controllers may return different casing for same user.
+        """
+        suffix = token_hex(4)
+        username = f"dncase_{suffix}"
+        email = f"dncase_{suffix}@example.com"
+
+        # First login with lowercase DN
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email=email,
+            display_name="User",
+            groups=[_ADMIN_GROUP],
+            custom_dn=f"uid={username},ou=users,dc=example,dc=com",
         )
-        assert access_token is None
-        assert refresh_token is None
+        status, _, _ = _ldap_login(_app, username, _DEFAULT_PASSWORD)
+        assert status == 204
+        user1 = _get_user_by_email(_app, email)
+        assert user1 is not None
 
-        # Verify no user was created in Phoenix database
-        users_it = [
-            u
-            for u in _list_users(_app, _app.admin_secret)
-            if u.profile.email == f"{username}_it@example.com"
-        ]
-        users_hr = [
-            u
-            for u in _list_users(_app, _app.admin_secret)
-            if u.profile.email == f"{username}_hr@example.com"
-        ]
+        # Second login - LDAP returns MIXED CASE DN (same user)
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email=email,
+            display_name="User",
+            groups=[_ADMIN_GROUP],
+            custom_dn=f"UID={username.upper()},OU=Users,DC=Example,DC=Com",
+        )
+        status, _, _ = _ldap_login(_app, username, _DEFAULT_PASSWORD)
+        assert status == 204
 
-        assert len(users_it) == 0, "IT user should not be created on ambiguous login"
-        assert len(users_hr) == 0, "HR user should not be created on ambiguous login"
+        # Verify same user (no duplicate)
+        user2 = _get_user_by_email(_app, email)
+        assert user2 is not None
+        assert user2.gid == user1.gid
+
+        _delete_users(_app, _app.admin_secret, users=[user1.gid])

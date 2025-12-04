@@ -1,15 +1,15 @@
 # Database Schema Details
 
-#### Option 1: Zero-Migration Storage
+## Current Implementation (Stopgap)
 
 **Storage Format**:
 ```
 users table:
   auth_method = 'OAUTH2'
-  oauth2_client_id = '\ue000LDAP(stopgap)'  ← Identifies as LDAP
-  oauth2_user_id = 'uid=jdoe,ou=users,dc=example,dc=com'  ← Stable LDAP DN
-  email = 'john@example.com'       ← Synced from LDAP (can change!)
-  username = 'John Doe'            ← Display name (synced from LDAP)
+  oauth2_client_id = '\ue000LDAP(stopgap)'  ← Identifies as LDAP user
+  oauth2_user_id = '<unique_id>' or NULL    ← Immutable ID (if configured) or NULL (email-based)
+  email = 'john@example.com'                ← User identifier (simple mode) or synced attribute
+  username = 'John Doe'                     ← Display name (synced from LDAP)
 ```
 
 **Marker Format**: `\ue000LDAP(stopgap)`
@@ -23,7 +23,14 @@ users table:
 3. **Real-World Validation**: No OAuth2 provider uses Unicode characters in client IDs
 4. **Active Defense**: `_validate_oauth2_client_id()` rejects PUA characters in configured OAuth2 client IDs
 
-**Detailed Analysis**: See [Appendix G: Collision Prevention Analysis](#appendix-g-collision-prevention-analysis)
+**User Identification**:
+
+| Mode | `oauth2_user_id` | Lookup |
+|------|------------------|--------|
+| Simple (default) | `NULL` | By `email` column |
+| Enterprise | objectGUID/entryUUID | By `oauth2_user_id`, fallback to `email` |
+
+See [User Identification Strategy](./user-identification-strategy.md) for details.
 
 **Implementation**:
 
@@ -35,146 +42,67 @@ LDAP_CLIENT_ID_MARKER = "\ue000LDAP(stopgap)"  # Simple constant marker
 ```python
 LDAP_CLIENT_ID_MARKER = "\ue000LDAP(stopgap)"
 
-def is_ldap_user(user: models.User) -> bool:
+def is_ldap_user(oauth2_client_id: Optional[str]) -> bool:
     """Check if user is authenticated via LDAP."""
-    return (
-        user.auth_method == "OAUTH2" and 
-        user.oauth2_client_id == LDAP_CLIENT_ID_MARKER
-    )
-
-def get_ldap_user_dn(user: models.User) -> Optional[str]:
-    """Get DN for LDAP user (primary stable identifier)."""
-    if not is_ldap_user(user):
-        return None
-    return user.oauth2_user_id  # DN stored here (RFC 4514 canonical)
+    return oauth2_client_id == LDAP_CLIENT_ID_MARKER
 ```
 
 **Database Queries**:
 ```sql
 -- Find all LDAP users
 SELECT * FROM users 
-WHERE auth_method='OAUTH2' 
-  AND oauth2_client_id = E'\uE000LDAP';
+WHERE oauth2_client_id = E'\uE000LDAP(stopgap)';
 
--- Find specific LDAP user by DN (primary lookup, RFC 4514 canonical)
+-- Simple mode: Find LDAP user by email
 SELECT * FROM users 
-WHERE oauth2_client_id = E'\uE000LDAP'
-  AND oauth2_user_id = 'uid=jdoe,ou=users,dc=example,dc=com';
-
--- Find LDAP user by email (fallback for admin-provisioned users)
-SELECT * FROM users 
-WHERE oauth2_client_id = E'\uE000LDAP'
-  AND oauth2_user_id IS NULL
+WHERE oauth2_client_id = E'\uE000LDAP(stopgap)'
   AND LOWER(email) = 'john@example.com';
+
+-- Enterprise mode: Find LDAP user by unique_id
+SELECT * FROM users 
+WHERE oauth2_client_id = E'\uE000LDAP(stopgap)'
+  AND oauth2_user_id = '550e8400-e29b-41d4-a716-446655440000';
 ```
 
 ---
 
-#### Option 2: Dedicated Columns (With Migration)
+## Future Migration (Dedicated Schema)
 
-**Column Design**:
+If/when we migrate to a dedicated LDAP schema, the changes would be:
 
-Only 1 column needed for LDAP authentication:
-
-| Column | Purpose |
-|--------|---------|
-| `ldap_dn` | The LDAP Distinguished Name (e.g., `"uid=jdoe,ou=users,dc=example,dc=com"`). Stable identifier, RFC 4514 canonicalized. |
-
-**Migration Script**:
+**Schema Changes**:
 ```sql
--- Step 1: Add dedicated LDAP column
-ALTER TABLE users ADD COLUMN ldap_dn VARCHAR;
-
--- Step 2: Update auth_method enum constraint
+-- Step 1: Allow 'LDAP' as auth_method
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_auth_method_check;
 ALTER TABLE users ADD CONSTRAINT users_auth_method_check
     CHECK (auth_method IN ('LOCAL', 'OAUTH2', 'LDAP'));
 
--- Step 3: Drop and recreate password constraints to account for LDAP
--- Old constraint: "LOCAL must have password, non-LOCAL must not"
--- New constraint: "LOCAL must have password, LDAP/OAUTH2 must not"
-ALTER TABLE users DROP CONSTRAINT IF EXISTS users_auth_method_check1;
-ALTER TABLE users ADD CONSTRAINT users_auth_method_check1 CHECK (
-    (auth_method = 'LOCAL' AND password_hash IS NOT NULL AND password_salt IS NOT NULL 
-     AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL AND ldap_dn IS NULL)
-    OR (auth_method = 'OAUTH2' AND password_hash IS NULL AND password_salt IS NULL 
-     AND oauth2_client_id IS NOT NULL AND oauth2_user_id IS NOT NULL AND ldap_dn IS NULL)
-    OR (auth_method = 'LDAP' AND password_hash IS NULL AND password_salt IS NULL 
-     AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL AND ldap_dn IS NOT NULL)
-);
+-- Step 2: Migrate LDAP users
+UPDATE users 
+SET auth_method = 'LDAP'
+WHERE oauth2_client_id = E'\uE000LDAP(stopgap)';
 ```
 
-**SQLAlchemy Model**:
-```python
-# Update AuthMethod type alias
-AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
+**Note**: We do NOT add a `ldap_dn` column. DN is not used for user identification
+(DNs change too frequently). Users are identified by email or unique_id (objectGUID/entryUUID).
 
-# Add polymorphic LDAPUser class
-class LDAPUser(User):
-    """LDAP-authenticated user with DN-based identification."""
-    
-    __mapper_args__ = {
-        "polymorphic_identity": "LDAP",
-    }
-    
-    def __init__(
-        self,
-        *,
-        email: str,
-        username: str,
-        user_dn: str,  # RFC 4514 canonicalized DN
-        user_role_id: Optional[int] = None,
-    ) -> None:
-        from phoenix.server.ldap import canonicalize_dn
-        
-        if not user_dn:
-            raise ValueError("user_dn required for LDAPUser")
-        
-        canonical_dn = canonicalize_dn(user_dn)
-        
-        super().__init__(
-            email=email.strip(),
-            username=username.strip(),
-            user_role_id=user_role_id,
-            reset_password=False,
-            auth_method="LDAP",
-            ldap_dn=canonical_dn,  # RFC 4514 canonicalized DN
-            oauth2_client_id=None,  # Clear OAuth2 columns
-            oauth2_user_id=None,     # (complete separation)
-        )
-```
-
-**Usage**:
-```python
-# Create LDAP user with type safety
-ldap_user = LDAPUser(
-    email="jdoe@example.com",
-    username="John Doe",
-    user_dn="uid=jdoe,ou=users,dc=example,dc=com",  # Full DN, will be canonicalized
-    user_role_id=admin_role_id,
-)
-
-# Type checking works
-assert isinstance(ldap_user, LDAPUser)  # True
-assert ldap_user.auth_method == "LDAP"  # True
-assert ldap_user.ldap_dn == "uid=jdoe,ou=users,dc=example,dc=com"  # Canonical form
-
-# Query for LDAP users only
-ldap_users = session.query(LDAPUser).all()  # Type: list[LDAPUser]
-```
-
-**Database Queries**:
+**Post-Migration Queries**:
 ```sql
--- Find all LDAP users (simple!)
-SELECT * FROM users WHERE auth_method='LDAP';
+-- Find all LDAP users (cleaner!)
+SELECT * FROM users WHERE auth_method = 'LDAP';
 
--- Find specific LDAP user by DN (primary identifier, RFC 4514 canonical)
+-- Simple mode: Find LDAP user by email
 SELECT * FROM users 
-WHERE auth_method='LDAP' 
-  AND ldap_dn='uid=jdoe,ou=users,dc=example,dc=com';
+WHERE auth_method = 'LDAP'
+  AND LOWER(email) = 'john@example.com';
+
+-- Enterprise mode: Find LDAP user by unique_id
+SELECT * FROM users 
+WHERE auth_method = 'LDAP'
+  AND oauth2_user_id = '550e8400-e29b-41d4-a716-446655440000';
 ```
 
-**Key Design**: Option 2 completely separates LDAP from OAuth2 schema. OAuth2 columns (`oauth2_client_id`, `oauth2_user_id`) are NULL for LDAP users. This delivers Approach 2's promise of "clean schema, no technical debt."
+**Key Point**: The migration only changes `auth_method` for semantic clarity. The identification
+strategy (email or unique_id) remains unchanged.
 
----
-
+See [Migration Plan](./migration-plan.md) for full details.

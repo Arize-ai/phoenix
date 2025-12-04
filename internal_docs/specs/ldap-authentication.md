@@ -25,7 +25,7 @@ Phoenix's `users` table CHECK constraint (`auth_method IN ('LOCAL', 'OAUTH2')`) 
 **Approach 2: Schema Migration (Architecture-First)**  
 *Choose when: Code consistency from the start outweighs time-to-adoption*
 
-- **Mechanism**: Update CHECK constraint to allow `auth_method='LDAP'`, add dedicated `ldap_dn` column, clear OAuth2 columns
+- **Mechanism**: Update CHECK constraint to allow `auth_method='LDAP'` (user identification by email/unique_id unchanged)
 - **Advantage**: Clean schema, full polymorphism, no technical debt, complete OAuth2/LDAP separation
 - **Tradeoff**: Requires database migration before release (self-hosted users must upgrade, timing must be coordinated)
 - **Reversibility**: N/A (this is the target state)
@@ -67,9 +67,9 @@ Phoenix supports three authentication methods: LOCAL, OAuth2, and LDAP. All vali
 
 ### User Identification
 
-LDAP users are identified by DN (Distinguished Name) stored in `oauth2_user_id`, with email as a fallback for admin-provisioned users. DNs are canonicalized per RFC 4514 (case, whitespace, RDN ordering) before storage and comparison.
+LDAP users are identified by email (default) or immutable unique ID (objectGUID/entryUUID if configured via `PHOENIX_LDAP_ATTR_UNIQUE_ID`). DN is NOT used for identification (DNs change too frequently in enterprise environments).
 
-→ *Full rationale*: [DN + Email Strategy](#ldap-user-identification-dn--email-strategy) | [User Identification Strategy](./ldap-authentication/user-identification-strategy.md)
+→ *Full rationale*: [User Identification Strategy](./ldap-authentication/user-identification-strategy.md)
 
 ---
 
@@ -95,7 +95,7 @@ All appendices have been extracted to separate files. See [ldap-authentication/R
 
 **Most Frequently Used**:
 - [Configuration Reference](./ldap-authentication/configuration.md) - Environment variables, Phoenix vs. Grafana comparison
-- [Protocol Compliance](./ldap-authentication/protocol-compliance.md) - STARTTLS security, DN canonicalization, Docker testing
+- [Protocol Compliance](./ldap-authentication/protocol-compliance.md) - STARTTLS security, group DN matching, Docker testing
 - [Security Deep-Dive](./ldap-authentication/security.md) - Threat model, LDAP injection prevention
 - [Code Examples](./ldap-authentication/code-examples.md) - LDAPConfig, LDAPAuthenticator, API endpoints
 
@@ -153,13 +153,13 @@ Phoenix supports three authentication methods (**LOCAL**, **OAuth2**, **LDAP**) 
 
 ---
 
-## LDAP User Identification: DN + Email Strategy
+## LDAP User Identification
 
-Phoenix uses DN (Distinguished Name) as primary identifier with RFC 4514 canonicalization, email as fallback for admin-provisioned users.
+Phoenix identifies LDAP users by email (default) or immutable unique ID (if `PHOENIX_LDAP_ATTR_UNIQUE_ID` is configured).
 
-**Key Design**: DN stable across email changes | Email fallback for startup admins | RFC 4514 canonicalization prevents duplicates
+**Key Design**: Email for most deployments | Unique ID (objectGUID/entryUUID) for email change resilience | DN NOT used (changes too frequently)
 
-→ *Full details*: [User Identification Strategy (Appendix)](./ldap-authentication/dn-email-strategy.md)
+→ *Full details*: [User Identification Strategy](./ldap-authentication/user-identification-strategy.md)
 
 ---
 
@@ -245,7 +245,7 @@ if (user.authMethod === "LDAP") {
 Existing columns:              New usage:
 - auth_method = 'OAUTH2'   →   Satisfies CHECK constraint
 - oauth2_client_id = ?     →   '\ue000LDAP(stopgap)' (marker)
-- oauth2_user_id = ?       →   DN (stable LDAP identifier, NULL for admin-provisioned)
+- oauth2_user_id = ?       →   Unique ID (if configured) or NULL (email-based)
 ```
 
 **✅ Strengths**:
@@ -777,13 +777,13 @@ See **[ldap-authentication/README.md](./ldap-authentication/README.md)** for the
 
 **Design & Architecture**:
 - [Database Schema](./ldap-authentication/database-schema.md) - Option 1 (zero-migration) vs. Option 2 (dedicated columns)
-- [User Identification Strategy](./ldap-authentication/user-identification-strategy.md) - DN + Email hybrid, RFC 4514 canonicalization
+- [User Identification Strategy](./ldap-authentication/user-identification-strategy.md) - Email/Unique ID identification
 - [Decision Reversibility](./ldap-authentication/decision-reversibility.md) - One-way vs. two-way door analysis
 - [Migration Plan](./ldap-authentication/migration-plan.md) - Approach 1 → 2 migration guide (if needed)
 
 **Security & Compliance**:
 - [Security Deep-Dive](./ldap-authentication/security.md) - Threat model, injection prevention, TLS, rate limiting
-- [Protocol Compliance](./ldap-authentication/protocol-compliance.md) - OpenLDAP validation, STARTTLS security, DN canonicalization
+- [Protocol Compliance](./ldap-authentication/protocol-compliance.md) - OpenLDAP validation, STARTTLS security, group DN matching
 - [Collision Prevention](./ldap-authentication/collision-prevention.md) - Unicode marker safety analysis
 
 **Research & Comparison**:

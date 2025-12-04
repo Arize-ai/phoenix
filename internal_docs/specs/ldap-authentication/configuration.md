@@ -24,6 +24,8 @@
 | `PHOENIX_LDAP_GROUP_SEARCH_BASE` | Optional | - | string | For POSIX groups (if no `memberOf`) |
 | `PHOENIX_LDAP_GROUP_SEARCH_FILTER` | Optional | - | string | `%s` = user DN placeholder |
 | `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS` | ✅ **Required** | `[]` | JSON array | **Grafana-compatible format** |
+| `PHOENIX_LDAP_ALLOW_SIGN_UP` | Optional | `true` | boolean | Auto-create users on first login |
+| `PHOENIX_LDAP_ATTR_UNIQUE_ID` | Optional | - | string | Immutable ID (only if expecting email changes) |
 
 ### TLS Mode Default
 
@@ -63,6 +65,7 @@ This table maps Phoenix's environment variables to Grafana's TOML configuration 
 | **Group Search Filter** | `PHOENIX_LDAP_GROUP_SEARCH_FILTER="(member=%s)"` | `group_search_filter = "(member=%s)"` | Identical: `%s` = user DN |
 | **Group→Role Mapping** | `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[`<br>`  {"group_dn": "cn=admins,...", "role": "ADMIN"}`<br>`]'` | `[[servers.group_mappings]]`<br>`group_dn = "cn=admins,..."`<br>`org_role = "Admin"` | Phoenix: JSON with `role` (no org)<br>Grafana: TOML with `org_role` |
 | **Allow Sign-Up** | `PHOENIX_LDAP_ALLOW_SIGN_UP="true"` | `[auth.ldap]`<br>`allow_sign_up = true` | Both default to `true` |
+| **Unique ID** | `PHOENIX_LDAP_ATTR_UNIQUE_ID="objectGUID"` | Not supported | Phoenix: Optional immutable identifier for email change resilience |
 | **Timeout** | Not exposed (uses ldap3 defaults) | `timeout = 10` | Grafana: Configurable in seconds |
 | **Connection Pooling** | Not exposed (uses ldap3 defaults) | Not configurable | Both use underlying library defaults |
 
@@ -188,6 +191,18 @@ PHOENIX_LDAP_ATTR_DISPLAY_NAME="displayName"
 PHOENIX_LDAP_ATTR_MEMBER_OF="memberOf"
 
 # ==============================================================================
+# User Identification (Optional)
+# ==============================================================================
+
+# Immutable unique ID attribute (only configure if you expect email changes)
+# Use cases: company rebranding, M&A, frequent name changes, compliance requirements
+# - Active Directory: "objectGUID"
+# - OpenLDAP: "entryUUID"
+# - 389 Directory Server: "nsUniqueId"
+# When not set (default), email is used as the identifier.
+# PHOENIX_LDAP_ATTR_UNIQUE_ID="objectGUID"
+
+# ==============================================================================
 # Group Search (for POSIX/OpenLDAP without memberOf)
 # ==============================================================================
 
@@ -249,7 +264,10 @@ PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[
 # Allow automatic user creation on first LDAP login
 # Options: "true" (default, matches Grafana) or "false"
 # - "true": Any valid LDAP user can create an account on first login
-# - "false": Users must be pre-provisioned by administrators (prevents unauthorized sign-ups)
+# - "false": Users must be pre-provisioned before first login:
+#     * Via PHOENIX_ADMINS env var at startup
+#     * Via the application's user management UI
+#   Pre-provisioned users are matched by email on first LDAP login.
 # Security: Set to "false" in environments requiring pre-approved access
 PHOENIX_LDAP_ALLOW_SIGN_UP="true"
 
@@ -270,6 +288,8 @@ PHOENIX_LDAP_USER_SEARCH_FILTER="(&(objectClass=user)(sAMAccountName=%s))"
 PHOENIX_LDAP_ATTR_EMAIL="mail"
 PHOENIX_LDAP_ATTR_DISPLAY_NAME="displayName"
 PHOENIX_LDAP_ATTR_MEMBER_OF="memberOf"
+# Optional: Only set if you expect user emails to change (rebranding, M&A)
+# PHOENIX_LDAP_ATTR_UNIQUE_ID="objectGUID"
 PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[
   {"group_dn": "CN=Phoenix Admins,OU=Groups,DC=corp,DC=com", "role": "ADMIN"},
   {"group_dn": "CN=Phoenix Users,OU=Groups,DC=corp,DC=com", "role": "MEMBER"}
@@ -288,6 +308,8 @@ PHOENIX_LDAP_USER_SEARCH_FILTER="(&(objectClass=inetOrgPerson)(uid=%s))"
 PHOENIX_LDAP_ATTR_EMAIL="mail"
 PHOENIX_LDAP_ATTR_DISPLAY_NAME="cn"
 PHOENIX_LDAP_ATTR_MEMBER_OF=""  # POSIX groups don't use memberOf
+# Optional: Only set if you expect user emails to change
+# PHOENIX_LDAP_ATTR_UNIQUE_ID="entryUUID"
 PHOENIX_LDAP_GROUP_SEARCH_BASE="ou=groups,dc=example,dc=com"
 PHOENIX_LDAP_GROUP_SEARCH_FILTER="(&(objectClass=posixGroup)(memberUid=%s))"
 PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[
