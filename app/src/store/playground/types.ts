@@ -204,7 +204,7 @@ export interface PlaygroundProps {
   instances: Array<PlaygroundInstance>;
   /**
    * The current template format for all instances
-   * @default "mustache"
+   * @default "MUSTACHE"
    */
   templateFormat: TemplateFormat;
   /**
