@@ -3,6 +3,7 @@ from secrets import token_hex
 from typing import Any, Mapping
 
 import pytest
+from deepdiff.diff import DeepDiff
 from faker import Faker
 from google.genai import types
 
@@ -38,10 +39,10 @@ class TestContentConversion:
         new_obj: types.Content = next(
             _ContentConversion.to_google(_ContentConversion.from_google(obj), {}, NO_OP_FORMATTER)
         )
-        assert obj.role == new_obj.role
-        assert len(obj.parts or []) == len(new_obj.parts or [])
-        for orig_part, new_part in zip(obj.parts or [], new_obj.parts or []):
-            assert orig_part.text == new_part.text
+        assert not DeepDiff(
+            obj.model_dump(),
+            new_obj.model_dump(),
+        )
 
 
 class TestTextPartConversion:
@@ -50,7 +51,10 @@ class TestTextPartConversion:
         new_obj: types.Part = _TextContentPartConversion.to_google(
             _TextContentPartConversion.from_google(obj), {}, NO_OP_FORMATTER
         )
-        assert obj.text == new_obj.text
+        assert not DeepDiff(
+            obj.model_dump(),
+            new_obj.model_dump(),
+        )
 
     def test_formatter(self) -> None:
         obj = TextContentPart(type="text", text=token_hex(8))
@@ -67,38 +71,9 @@ def _g(a: list[int], b: float, c: list[str], d: bool, e: list[dict[str, Any]]) -
     raise NotImplementedError
 
 
-# Create function declarations manually for google-genai
 _FUNCTION_DECLARATIONS = [
-    types.FunctionDeclaration(
-        name="_f",
-        description="Function f",
-        parameters={
-            "type": "object",
-            "properties": {
-                "a": {"type": "integer"},
-                "b": {"type": "array", "items": {"type": "number"}},
-                "c": {"type": "string"},
-                "d": {"type": "array", "items": {"type": "boolean"}},
-                "e": {"type": "object"},
-            },
-            "required": ["a", "b", "c", "d", "e"],
-        },
-    ),
-    types.FunctionDeclaration(
-        name="_g",
-        description="Function g",
-        parameters={
-            "type": "object",
-            "properties": {
-                "a": {"type": "array", "items": {"type": "integer"}},
-                "b": {"type": "number"},
-                "c": {"type": "array", "items": {"type": "string"}},
-                "d": {"type": "boolean"},
-                "e": {"type": "array", "items": {"type": "object"}},
-            },
-            "required": ["a", "b", "c", "d", "e"],
-        },
-    ),
+    types.FunctionDeclaration.from_callable(callable=_f),
+    types.FunctionDeclaration.from_callable(callable=_g),
 ]
 
 
@@ -111,8 +86,10 @@ class TestFunctionDeclarationConversion:
         new_obj: types.FunctionDeclaration = _FunctionDeclarationConversion.to_google(
             _FunctionDeclarationConversion.from_google(obj)
         )
-        assert obj.name == new_obj.name
-        assert obj.description == new_obj.description
+        assert not DeepDiff(
+            obj.model_dump(),
+            new_obj.model_dump(),
+        )
 
 
 _TOOLS = [types.Tool(function_declarations=_FUNCTION_DECLARATIONS)]
@@ -146,25 +123,17 @@ class TestToolKwargsConversion:
         new_obj = _ToolKwargsConversion.to_google(_ToolKwargsConversion.from_google(obj))
         assert "tools" in obj
         assert "tools" in new_obj
-        # Compare tool function declarations
-        for orig_tool, new_tool in zip(obj["tools"], new_obj["tools"]):
-            orig_fds = orig_tool.function_declarations or []
-            new_fds = new_tool.function_declarations or []
-            assert len(orig_fds) == len(new_fds)
-            for orig_fd, new_fd in zip(orig_fds, new_fds):
-                assert orig_fd.name == new_fd.name
-                assert orig_fd.description == new_fd.description
-        # Compare tool config
+        for i in range(len(obj["tools"])):
+            assert not DeepDiff(
+                obj["tools"][i].model_dump(),
+                new_obj["tools"][i].model_dump(),
+            )
         assert "tool_config" in obj
         assert "tool_config" in new_obj
-        orig_fcc = obj["tool_config"].function_calling_config
-        new_fcc = new_obj["tool_config"].function_calling_config
-        assert orig_fcc is not None
-        assert new_fcc is not None
-        # Normalize mode comparison
-        orig_mode = orig_fcc.mode.value.lower() if orig_fcc.mode else "auto"
-        new_mode = new_fcc.mode.value.lower() if new_fcc.mode else "auto"
-        assert orig_mode == new_mode
+        assert not DeepDiff(
+            obj["tool_config"].model_dump(),
+            new_obj["tool_config"].model_dump(),
+        )
 
 
 class _MockFormatter:
