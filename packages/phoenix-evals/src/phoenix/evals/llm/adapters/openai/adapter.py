@@ -379,6 +379,20 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         return tool_definition
 
+    def _system_role(self) -> str:
+        # OpenAI uses different semantics for "system" roles for different models
+        if "gpt" in self.model_name:
+            return "system"
+        if "o1-mini" in self.model_name:
+            return "user"  # o1-mini does not support either "system" or "developer" roles
+        if "o1-preview" in self.model_name:
+            return "user"  # o1-preview does not support "system" or "developer" roles
+        if "o1" in self.model_name:
+            return "developer"
+        if "o3" in self.model_name:
+            return "developer"
+        return "system"
+
     def _transform_messages_to_openai(self, messages: List[Message]) -> list[dict[str, Any]]:
         """Transform List[Message] TypedDict to OpenAI message format.
 
@@ -400,7 +414,7 @@ class OpenAIAdapter(BaseLLMAdapter):
             elif role == MessageRole.USER:
                 openai_role = "user"
             elif role == MessageRole.SYSTEM:
-                openai_role = "system"
+                openai_role = self._system_role()
             else:
                 # Fallback for any unexpected roles
                 openai_role = role.value if isinstance(role, MessageRole) else str(role)
