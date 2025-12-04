@@ -1,33 +1,18 @@
 import { graphql, readInlineData } from "relay-runtime";
 
-import {
-  ContentPartInput,
-  CreateLLMEvaluatorInput,
-  PromptChatTemplateInput,
-} from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
+import { CreateLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import { UpdateLLMEvaluatorInput } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
 import { InputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { ChoiceConfig } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { chatMessageRoleToPromptMessageRole } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
-import {
-  findToolCallArguments,
-  findToolCallId,
-  findToolCallName,
-  fromOpenAIToolDefinition,
-} from "@phoenix/schemas";
+import { fromOpenAIToolDefinition } from "@phoenix/schemas";
 import {
   CategoricalChoiceToolType,
   CategoricalChoiceToolTypeSchema,
 } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
-import {
-  ChatMessage,
-  PlaygroundChatTemplate,
-} from "@phoenix/store/playground/types";
-import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 /**
  * Create a payload for the createLLMEvaluator or updateLLMEvaluator mutations.
