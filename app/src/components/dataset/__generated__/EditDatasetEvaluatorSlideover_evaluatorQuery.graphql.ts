@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bac1c32eb4ae4f68c3fc6e026151dd5a>>
+ * @generated SignedSource<<30dbb547ff80a8213fb2e4df6eb2d90c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -400,6 +400,13 @@ return {
                       {
                         "alias": null,
                         "args": null,
+                        "kind": "ScalarField",
+                        "name": "optimizationDirection",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
                         "concreteType": "CategoricalAnnotationValue",
                         "kind": "LinkedField",
                         "name": "values",
@@ -440,12 +447,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "47b9b80553ef2cb76d731268f37e511f",
+    "cacheID": "3cd66fe2ad86dc30e84c0e27915b953d",
     "id": null,
     "metadata": {},
     "name": "EditDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query EditDatasetEvaluatorSlideover_evaluatorQuery(\n  $evaluatorId: ID!\n  $datasetId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    ... on Evaluator {\n      __isEvaluator: __typename\n      ...EditDatasetEvaluatorSlideover_evaluator_1wYocp\n    }\n    id\n  }\n}\n\nfragment EditDatasetEvaluatorSlideover_evaluator_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "query EditDatasetEvaluatorSlideover_evaluatorQuery(\n  $evaluatorId: ID!\n  $datasetId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    ... on Evaluator {\n      __isEvaluator: __typename\n      ...EditDatasetEvaluatorSlideover_evaluator_1wYocp\n    }\n    id\n  }\n}\n\nfragment EditDatasetEvaluatorSlideover_evaluator_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();
