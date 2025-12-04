@@ -11,6 +11,8 @@ import {
   Input,
   Label,
   NumberField,
+  Radio,
+  RadioGroup,
   Text,
   TextField,
 } from "@phoenix/components";
@@ -21,12 +23,21 @@ type Choice = {
   score?: number;
 };
 
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
+
 export type ChoiceConfig = {
   name: string;
+  optimizationDirection: OptimizationDirection;
   choices: Choice[];
 };
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+const optimizationDirections = [
+  "MAXIMIZE",
+  "MINIMIZE",
+  "NONE",
+] satisfies OptimizationDirection[];
 
 type EvaluatorLLMChoiceProps = {
   control: Control<EvaluatorFormValues, unknown>;
@@ -60,6 +71,36 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
               <Input placeholder="e.g. correctness" />
               <FieldError>{error?.message}</FieldError>
             </TextField>
+          )}
+        />
+        <Controller
+          control={control}
+          name="choiceConfig.optimizationDirection"
+          render={({ field }) => (
+            <RadioGroup
+              {...field}
+              aria-label="Optimization Direction"
+              data-testid="optimization-direction-picker"
+              css={css`
+                height: 100%;
+              `}
+            >
+              <Label>Optimization Direction</Label>
+              {optimizationDirections.map((direction) => (
+                <Radio key={direction} value={direction}>
+                  {direction.charAt(0).toUpperCase() +
+                    direction.slice(1).toLowerCase()}
+                </Radio>
+              ))}
+              <Text marginTop="auto" slot="description">
+                Maximize - higher the score the better - e.g., correctness
+                <br />
+                Minimize - lower the score the better - e.g., hallucinations
+                <br />
+                None - higher is not better or worse
+                <br />
+              </Text>
+            </RadioGroup>
           )}
         />
         <Flex direction="column" gap="size-100">
