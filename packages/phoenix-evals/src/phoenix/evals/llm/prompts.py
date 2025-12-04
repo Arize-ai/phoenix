@@ -468,6 +468,9 @@ class MessageTemplate:
             ]
             self._is_string_content = False
 
+        else:
+            raise TypeError(f"Content must be str or list, got {type(content).__name__}")
+
     @property
     def content(self) -> Union[str, List[Dict[str, Any]]]:
         """Get the original content in its input format.

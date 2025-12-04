@@ -283,7 +283,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     def _is_text_content_part(self, part: ContentPart) -> bool:
         """Type guard to check if a content part is a TextContentPart."""
-        return part.get("type") == "text"
+        return part.get("type") == "text" and "text" in part
 
     def _transform_messages_to_langchain(self, messages: List[Message]) -> List[Any]:
         """Transform List[Message] TypedDict to LangChain message objects.
@@ -332,8 +332,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
     def _build_prompt(self, prompt: Union[PromptLike, MultimodalPrompt]) -> Union[str, List[Any]]:
         if isinstance(prompt, str):
             return prompt
-
-        if isinstance(prompt, list):
+        elif isinstance(prompt, list):
             # Check if this is List[Message] with MessageRole enum
             if prompt and isinstance(prompt[0].get("role"), MessageRole):
                 # Transform List[Message] to LangChain format
@@ -380,15 +379,15 @@ class LangChainModelAdapter(BaseLLMAdapter):
                         # Default to HumanMessage for unknown roles
                         lc_messages.append(HumanMessage(content=text_content))
                 return lc_messages
-
-        # Handle legacy MultimodalPrompt
-        if isinstance(prompt, MultimodalPrompt):
+        elif isinstance(prompt, MultimodalPrompt):
+            # Handle legacy MultimodalPrompt
             return prompt.to_text_only_prompt()
-
-        # If we get here, prompt is an unexpected type
-        raise ValueError(
-            f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
-        )
+        else:
+            # If we get here, prompt is an unexpected type
+            # This should never happen given the type hints, but we raise an error to be explicit
+            raise ValueError(
+                f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
+            )
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get(
