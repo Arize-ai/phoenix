@@ -419,11 +419,23 @@ ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
 """
 A semicolon-separated list of username and email address pairs to create as admin users on startup.
 The format is `username=email`, e.g., `John Doe=john@example.com;Doe, Jane=jane@example.com`.
-The password for each user will be randomly generated and will need to be reset. The application
-will not start if this environment variable is set but cannot be parsed or contains invalid emails.
-If the username or email address already exists in the database, the user record will not be
-modified, e.g., changed from non-admin to admin. Changing this environment variable for the next
-startup will not undo any records created in previous startups.
+
+User Type Selection:
+The type of user created depends on the authentication configuration:
+- If basic auth is enabled (PHOENIX_DISABLE_BASIC_AUTH=false, default): Creates a LocalUser
+  with a randomly generated password that must be reset on first login.
+- If basic auth is disabled AND LDAP is configured: Creates an LDAPUser that will be matched
+  by email on first LDAP login.
+- If basic auth is disabled AND only OAuth2 is configured: Creates an OAuth2User that will be
+  matched by email on first OAuth2 login.
+
+Notes:
+- The application will not start if this environment variable is set but cannot be parsed or
+  contains invalid emails.
+- If the username or email address already exists in the database, the user record will not be
+  modified, e.g., changed from non-admin to admin.
+- Changing this environment variable for the next startup will not undo any records created in
+  previous startups.
 """
 ENV_PHOENIX_ROOT_URL = "PHOENIX_ROOT_URL"
 """

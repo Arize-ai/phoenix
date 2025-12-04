@@ -25,7 +25,5 @@ tiktoken
 types-pytz
 typing-extensions
 vcrpy
-aiohttp>=3.0; python_version < "3.10"
-urllib3<2.0; python_version < "3.10"
 pytest-smtpd
 freezegun

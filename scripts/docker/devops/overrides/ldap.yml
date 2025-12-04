@@ -67,8 +67,15 @@ services:
     environment:
       # Enable LDAP authentication
       - PHOENIX_ENABLE_AUTH=true
+      - PHOENIX_ADMINS=
       - PHOENIX_DISABLE_BASIC_AUTH=false
+      # OAuth2 Dev IDP Configuration
+      - PHOENIX_OAUTH2_DEV_ALLOW_SIGN_UP=true
       - PHOENIX_OAUTH2_DEV_AUTO_LOGIN=false
+      # Role syncing via OIDC: request 'roles' scope, extract 'role' claim, map to Phoenix roles
+      - PHOENIX_OAUTH2_DEV_SCOPES=roles
+      - PHOENIX_OAUTH2_DEV_ROLE_ATTRIBUTE_PATH=role
+      - PHOENIX_OAUTH2_DEV_ROLE_MAPPING=admin:ADMIN,editor:MEMBER,viewer:VIEWER
       # LDAP Configuration
       - PHOENIX_LDAP_HOST=ldap
       - PHOENIX_LDAP_USE_TLS=false

@@ -395,17 +395,16 @@ services:
       echo '';
       python3 /test_ldap_integration.py;
       EXIT_CODE=$$?;
-      echo '';
-      if [ $$EXIT_CODE -eq 0 ]; then
-        echo '✅ All LDAP tests passed';
-      else
-        echo '❌ Some LDAP tests failed';
-      fi;
-      echo '';
       echo '🧪 Running comprehensive LDAP TLS security tests...';
       echo '';
       python3 /test_ldap_tls.py;
       TLS_EXIT_CODE=$$?;
+      echo '';
+      if [ $$EXIT_CODE -eq 0 ]; then
+        echo '✅ All LDAP integration tests passed';
+      else
+        echo '❌ Some LDAP integration tests failed';
+      fi;
       echo '';
       if [ $$TLS_EXIT_CODE -eq 0 ]; then
         echo '✅ All TLS security tests passed';
