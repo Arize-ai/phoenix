@@ -103,6 +103,8 @@ class AnthropicAdapter(BaseLLMAdapter):
                 "Cannot call async method async_generate_text() on sync Anthropic client."
             )
         messages, system = self._build_messages(prompt)
+        required_kwargs = {"max_tokens": 4096}  # max_tokens is required for Anthropic
+        kwargs = {**required_kwargs, **kwargs}
 
         # Add system message if present
         if system:
@@ -163,6 +165,9 @@ class AnthropicAdapter(BaseLLMAdapter):
                 "Cannot call async method async_generate_object() on sync Anthropic client."
             )
         self._validate_schema(schema)
+
+        required_kwargs = {"max_tokens": 4096}  # max_tokens is required for Anthropic
+        kwargs = {**required_kwargs, **kwargs}
 
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
             raise ValueError(
