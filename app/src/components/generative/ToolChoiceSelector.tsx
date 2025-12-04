@@ -13,8 +13,10 @@ import {
 import {
   AnthropicToolChoice,
   findToolChoiceName,
+  GoogleToolChoice,
   makeAnthropicToolChoice,
   makeAwsToolChoice,
+  makeGoogleToolChoice,
   makeOpenAIToolChoice,
   OpenaiToolChoice,
 } from "@phoenix/schemas/toolChoiceSchemas";
@@ -35,6 +37,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   OLLAMA: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
   AWS: ["any", "auto", "none"] as const,
+  GOOGLE: ["any", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
 >;
@@ -85,7 +88,24 @@ export const findToolChoiceType = (
       }
       return choice;
     case "GOOGLE":
-      // TODO(apowell): #5348 Add Google tool choice schema
+      if (isObject(choice) && "function_calling_config" in choice) {
+        const functionCallingConfig = choice.function_calling_config;
+        if (isObject(functionCallingConfig)) {
+          if (
+            "allowed_function_names" in functionCallingConfig &&
+            Array.isArray(functionCallingConfig.allowed_function_names) &&
+            functionCallingConfig.allowed_function_names.length === 1
+          ) {
+            return "tool"; // a specific tool has been selected
+          }
+          if (
+            "mode" in functionCallingConfig &&
+            typeof functionCallingConfig.mode === "string"
+          ) {
+            return functionCallingConfig.mode;
+          }
+        }
+      }
       return "auto";
     default:
       assertUnreachable(provider);
@@ -212,11 +232,13 @@ type ToolChoiceSelectorProps<
   /**
    * The current choice including the default {@link ToolChoice} and any user defined tools
    */
-  choice: OpenaiToolChoice | AnthropicToolChoice | undefined;
+  choice: OpenaiToolChoice | AnthropicToolChoice | GoogleToolChoice | undefined;
   /**
    * Callback for when the tool choice changes
    */
-  onChange: (choice: OpenaiToolChoice | AnthropicToolChoice) => void;
+  onChange: (
+    choice: OpenaiToolChoice | AnthropicToolChoice | GoogleToolChoice
+  ) => void;
   /**
    * A list of user defined tool names
    */
@@ -271,6 +293,16 @@ export function ToolChoiceSelector<
                 })
               );
               break;
+            case "GOOGLE":
+              onChange(
+                makeGoogleToolChoice({
+                  function_calling_config: {
+                    mode: "any",
+                    allowed_function_names: [removeToolNamePrefix(choice)],
+                  },
+                })
+              );
+              break;
             default:
               assertUnreachable(provider);
           }
@@ -298,6 +330,15 @@ export function ToolChoiceSelector<
               onChange(
                 makeAnthropicToolChoice({
                   type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["ANTHROPIC"][number],
+                })
+              );
+              break;
+            case "GOOGLE":
+              onChange(
+                makeGoogleToolChoice({
+                  function_calling_config: {
+                    mode: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["GOOGLE"][number],
+                  },
                 })
               );
               break;
