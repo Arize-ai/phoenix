@@ -193,7 +193,7 @@ export const EvaluatorForm = () => {
               <Label>Preview</Label>
             </Switch>
             {showPromptPreview ? (
-              <EvaluatorPromptPreview />
+              <EvaluatorPromptPreview evaluatorInput={evaluatorInputObject} />
             ) : (
               <EvaluatorChatTemplate />
             )}
