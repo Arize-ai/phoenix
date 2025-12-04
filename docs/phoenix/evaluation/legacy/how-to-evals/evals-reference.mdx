@@ -22,7 +22,7 @@ Evaluates a pandas dataframe using a set of user-specified evaluators that asses
 
 * **dataframe** (pandas.DataFrame): A pandas dataframe in which each row represents an individual record to be evaluated. Each evaluator uses an LLM and an evaluation prompt template to assess the rows of the dataframe, and those template variables must appear as column names in the dataframe.
 
-* **evaluators** (List\[LLMEvaluator]): A list of evaluators to apply to the input dataframe. Each evaluator class accepts a [model](/phoenix/evaluation/legacy/how-to-evals/evaluation-models) as input, which is used in conjunction with an evaluation prompt template to evaluate the rows of the input dataframe and to output labels, scores, and optional explanations. Currently supported evaluators include:
+* **evaluators** (List\[LLMEvaluator]): A list of evaluators to apply to the input dataframe. Each evaluator class accepts a [model](/docs/phoenix/evaluation/legacy/how-to-evals/evaluation-models) as input, which is used in conjunction with an evaluation prompt template to evaluate the rows of the input dataframe and to output labels, scores, and optional explanations. Currently supported evaluators include:
 
   * **HallucinationEvaluator:** Evaluates whether a response (stored under an "output" column) is a hallucination given a query (stored under an "input" column) and one or more retrieved documents (stored under a "reference" column).
 
@@ -53,7 +53,7 @@ Evaluates a pandas dataframe using a set of user-specified evaluators that asses
 To use `run_evals`, you must first wrangle your LLM application data into a pandas dataframe either manually or by querying and exporting the spans collected by your Phoenix session. Once your dataframe is wrangled into the appropriate format, you can instantiate your evaluators by passing the model to be used during evaluation.
 
 <Info>
-This example uses `OpenAIModel`, but you can use any of our [supported evaluation models](/phoenix/evaluation/legacy/how-to-evals/evaluation-models).
+This example uses `OpenAIModel`, but you can use any of our [supported evaluation models](/docs/phoenix/evaluation/legacy/how-to-evals/evaluation-models).
 
 </Info>
 
@@ -84,7 +84,7 @@ hallucination_eval_df, qa_correctness_eval_df = run_evals(
 
 Assuming your `dataframe` contains the "input", "reference", and "output" columns required by `HallucinationEvaluator` and `QAEvaluator`, your output dataframes should contain the results of the corresponding evaluator applied to the input dataframe, including columns for labels (e.g., "factual" or "hallucinated"), scores (e.g., 0 for factual labels, 1 for hallucinated labels), and explanations. If your dataframe was exported from your Phoenix session, you can then ingest the evaluations using `phoenix.log_evaluations` so that the evals will be visible as annotations inside Phoenix.
 
-For an end-to-end example, see the [evals quickstart](/phoenix/evaluation/evals).
+For an end-to-end example, see the [evals quickstart](/docs/phoenix/evaluation/evals).
 
 ## phoenix.evals.PromptTemplate
 

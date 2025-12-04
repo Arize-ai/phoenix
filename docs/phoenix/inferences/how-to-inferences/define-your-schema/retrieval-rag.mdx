@@ -3,11 +3,11 @@ title: "Retrieval (RAG)"
 description: How to import data for the Retrieval-Augmented Generation (RAG) use case
 ---
 
-In Retrieval-Augmented Generation (RAG), the retrieval step returns from a (proprietary) knowledge base (a.k.a. [corpus](/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data)) a list of documents relevant to the user query, then the generation step adds the retrieved documents to the prompt context to improve response accuracy of the Large Language Model (LLM). The IDs of the retrieval documents along with the relevance scores, if present, can be imported into Phoenix as follows.
+In Retrieval-Augmented Generation (RAG), the retrieval step returns from a (proprietary) knowledge base (a.k.a. [corpus](/docs/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data)) a list of documents relevant to the user query, then the generation step adds the retrieved documents to the prompt context to improve response accuracy of the Large Language Model (LLM). The IDs of the retrieval documents along with the relevance scores, if present, can be imported into Phoenix as follows.
 
 ## Dataframe
 
-Below shows only the relevant subsection of the dataframe. The `retrieved_document_ids` should matched the `id`s in the [corpus](/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data) data. Note that for each row, the list under the `relevance_scores` column have a matching length as the one under the `retrievals` column. But it's not necessary for all retrieval lists to have the same length.
+Below shows only the relevant subsection of the dataframe. The `retrieved_document_ids` should matched the `id`s in the [corpus](/docs/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data) data. Note that for each row, the list under the `relevance_scores` column have a matching length as the one under the `retrievals` column. But it's not necessary for all retrieval lists to have the same length.
 
 | query                                             | embedding                        | retrieved\_document\_ids      | relevance\_scores             |
 | ------------------------------------------------- | -------------------------------- | ----------------------------- | ----------------------------- |

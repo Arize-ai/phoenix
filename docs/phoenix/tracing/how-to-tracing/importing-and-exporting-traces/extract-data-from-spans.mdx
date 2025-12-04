@@ -7,10 +7,10 @@ description: Various options for to help you get data out of Phoenix
 
 | Method                                                                                                                                                                | Description                                       | Helpful for                                                                                                                                    |
 | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Download all spans as a dataframe](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#downloading-all-spans-as-a-dataframe) | Exports all spans in a project as a dataframe     | **Evaluation** - Filtering your spans locally using pandas instead of Phoenix DSL.                                                             |
-| [Span Queries](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries)                                      | Exports specific spans or traces based on filters | **Evaluation** - Querying spans from Phoenix                                                                                                   |
-| [Pre-defined Queries](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#pre-defined-queries)                                | Exports specific groups of spans                  | **Agent Evaluation** - Easily export tool calls.<br/>**RAG Evaluation** - Easily exporting retrieved documents or Q\&A data from a RAG system. |
-| [Saving All Traces](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#save-all-traces)                                      | Saves all traces as a local file                  | **Storing Data** - Backing up an entire Phoenix instance.                                                                                      |
+| [Download all spans as a dataframe](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#downloading-all-spans-as-a-dataframe) | Exports all spans in a project as a dataframe     | **Evaluation** - Filtering your spans locally using pandas instead of Phoenix DSL.                                                             |
+| [Span Queries](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries)                                      | Exports specific spans or traces based on filters | **Evaluation** - Querying spans from Phoenix                                                                                                   |
+| [Pre-defined Queries](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#pre-defined-queries)                                | Exports specific groups of spans                  | **Agent Evaluation** - Easily export tool calls.<br/>**RAG Evaluation** - Easily exporting retrieved documents or Q\&A data from a RAG system. |
+| [Saving All Traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#save-all-traces)                                      | Saves all traces as a local file                  | **Storing Data** - Backing up an entire Phoenix instance.                                                                                      |
 
 ## Connect to Phoenix
 
@@ -99,7 +99,7 @@ phoenix_df = px_client.query_spans(start_time=start, end_time=end)
 
 ### How to Specify a Project
 
-By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](/phoenix/sdk-api-reference) have an optional parameter named `project_name`
+By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](/docs/phoenix/sdk-api-reference) have an optional parameter named `project_name`
 
 ```python
 import phoenix as px
@@ -117,7 +117,7 @@ px.Client().query_spans(query, project_name="<my-project>")
 
 Let's say we want to extract the retrieved documents into a DataFrame that looks something like the table below, where `input` denotes the query for the retriever, `reference` denotes the content of each document, and `document_position` denotes the (zero-based) index in each span's list of retrieved documents.
 
-Note that this DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance#how-to-run-the-eval).
+Note that this DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance#how-to-run-the-eval).
 
 | context.span\_id | document\_position | input                                            | reference                                                |
 | :---------------- | :------------------ | :------------------------------------------------ | :-------------------------------------------------------- |
@@ -126,7 +126,7 @@ Note that this DataFrame can be used directly as input for the [Retrieval (RAG) 
 | ...              | ...                | ...                                              | ...                                                      |
 | E19B7EC3GG02     | 0                  | What did the author learn about ...              | The good part was that I got paid huge amounts of ...    |
 
-We can accomplish this with a simple query as follows. Also see [Predefined Queries](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#retrieved-documents) for a helper function executing this query.
+We can accomplish this with a simple query as follows. Also see [Predefined Queries](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#retrieved-documents) for a helper function executing this query.
 
 ```python expandable
 from phoenix.trace.dsl import SpanQuery
@@ -153,7 +153,7 @@ px.Client().query_spans(query)
 
 ### How to Explode Attributes
 
-In addition to the document content, if we also want to explode the document score, we can simply add the `document.score` attribute to the `.explode()` method alongside `document.content` as follows. Keyword arguments are necessary to name the output columns, and in this example we name the output columns as `reference` and `score`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#arbitrary-output-column-names) for an example.)
+In addition to the document content, if we also want to explode the document score, we can simply add the `document.score` attribute to the `.explode()` method alongside `document.content` as follows. Keyword arguments are necessary to name the output columns, and in this example we name the output columns as `reference` and `score`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#arbitrary-output-column-names) for an example.)
 
 ```javascript
 query = SpanQuery().explode(
@@ -175,7 +175,7 @@ query = SpanQuery().where(
 
 #### Filtering Spans by Evaluation Results
 
-Filtering spans by evaluation results, e.g. `score` or `label`, can be done via a special syntax. The name of the evaluation is specified as an indexer on the special keyword `evals`. The example below filters for spans with the `incorrect` label on their `correctness` evaluations. (See [here](/phoenix/evaluation/running-pre-tested-evals) for how to compute evaluations for traces, and [here](/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations) for how to ingest those results back to Phoenix.)
+Filtering spans by evaluation results, e.g. `score` or `label`, can be done via a special syntax. The name of the evaluation is specified as an indexer on the special keyword `evals`. The example below filters for spans with the `incorrect` label on their `correctness` evaluations. (See [here](/docs/phoenix/evaluation/running-pre-tested-evals) for how to compute evaluations for traces, and [here](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations) for how to ingest those results back to Phoenix.)
 
 ```python
 query = SpanQuery().where(
@@ -216,7 +216,7 @@ query = SpanQuery().where(
 
 ### How to Apply Filters (UI)
 
-You can also use Python boolean expressions to filter spans in the Phoenix UI. These expressions can be entered directly into the search bar above your experiment runs, allowing you to apply complex conditions involving span attributes. Any expressions that work with the `.where()` method [above](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-apply-filters) can also be used in the UI.
+You can also use Python boolean expressions to filter spans in the Phoenix UI. These expressions can be entered directly into the search bar above your experiment runs, allowing you to apply complex conditions involving span attributes. Any expressions that work with the `.where()` method [above](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-apply-filters) can also be used in the UI.
 
 ### How to Extract Attributes
 
@@ -255,7 +255,7 @@ query = SpanQuery().select(**{
 
 #### Concatenating
 
-The document contents can also be concatenated together. The query below concatenates the list of `document.content` with (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#arbitrary-output-column-names) for an example.)
+The document contents can also be concatenated together. The query below concatenates the list of `document.content` with (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#arbitrary-output-column-names) for an example.)
 
 ```javascript
 query = SpanQuery().concat(
@@ -290,7 +290,7 @@ query = SpanQuery().select(
 
 #### Joining a Span to Its Parent
 
-To do this, we would provide two queries to Phoenix which will return two simultaneous dataframes that can be joined together by pandas. The `query_for_child_spans` uses `parent_id` as index as shown in [Using Parent ID as Index](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#using-parent-id-as-index), and `px.Client().query_spans()` returns a list of dataframes when multiple queries are given.
+To do this, we would provide two queries to Phoenix which will return two simultaneous dataframes that can be joined together by pandas. The `query_for_child_spans` uses `parent_id` as index as shown in [Using Parent ID as Index](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#using-parent-id-as-index), and `px.Client().query_spans()` returns a list of dataframes when multiple queries are given.
 
 ```python
 import pandas as pd
@@ -309,7 +309,7 @@ pd.concatenate(
 
 #### Extract the Input and Output from LLM Spans
 
-To learn more about extracting span attributes, see [Extracting Span Attributes](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#extracting-span-attributes).
+To learn more about extracting span attributes, see [Extracting Span Attributes](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#extracting-span-attributes).
 
 ```bash
 from phoenix.trace.dsl import SpanQuery
@@ -327,11 +327,11 @@ px.Client().query_spans(query)
 
 ### Retrieval (RAG) Relevance Evaluations
 
-To extract the dataframe input for [Retrieval (RAG) Relevance evaluations](/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance#how-to-run-the-eval), we can apply the query described in the [Example](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#example), or leverage the [helper](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#retrieved-documents) function implementing the same query.
+To extract the dataframe input for [Retrieval (RAG) Relevance evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance#how-to-run-the-eval), we can apply the query described in the [Example](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#example), or leverage the [helper](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#retrieved-documents) function implementing the same query.
 
 ### Q\&A on Retrieved Data Evaluations
 
-To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data#how-to-run-the-eval), we can use a [helper](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#q-and-a-on-retrieved-data) function or use the following query (which is what's inside the helper function). This query applies techniques described in the [Advanced Usage](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#advanced-usage) section.
+To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data#how-to-run-the-eval), we can use a [helper](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#q-and-a-on-retrieved-data) function or use the following query (which is what's inside the helper function). This query applies techniques described in the [Advanced Usage](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#advanced-usage) section.
 
 ```python expandable
 import pandas as pd
@@ -377,7 +377,7 @@ If you need to run the query against a specific project, you can add the `projec
 
 ### Tool Calls
 
-The query below will automatically export any tool calls selected by LLM calls. The output DataFrame can be easily combined with [Agent Function Calling Eval](/phoenix/evaluation/running-pre-tested-evals/tool-calling-eval).
+The query below will automatically export any tool calls selected by LLM calls. The output DataFrame can be easily combined with [Agent Function Calling Eval](/docs/phoenix/evaluation/running-pre-tested-evals/tool-calling-eval).
 
 ```python
 from phoenix.trace.dsl.helpers import get_called_tools
@@ -388,7 +388,7 @@ tools_df
 
 ### Retrieved Documents
 
-The query shown in the example can be done more simply with a helper function as follows. The output DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance#how-to-run-the-eval).
+The query shown in the example can be done more simply with a helper function as follows. The output DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance#how-to-run-the-eval).
 
 ```python
 from phoenix.session.evaluation import get_retrieved_documents
@@ -399,7 +399,7 @@ retrieved_documents
 
 ### Q\&A on Retrieved Data
 
-To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data#how-to-run-the-eval), we can use the following helper function.
+To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data#how-to-run-the-eval), we can use the following helper function.
 
 ```python
 from phoenix.session.evaluation import get_qa_with_reference
@@ -408,7 +408,7 @@ qa_with_reference = get_qa_with_reference(px.Client())
 qa_with_reference
 ```
 
-The output DataFrame would look something like the one below. The `input` contains contains the question, the `output` column contains the answer, and the `reference` column contains a concatenation of all the retrieved documents. This helper function assumes that the questions and answers are the `input.value` and `output.value` attributes of the root spans, and the list of retrieved documents are contained in a direct child span of the root span. (The helper function applies the techniques described in the [Advanced Usage](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#advanced-usage) section.)
+The output DataFrame would look something like the one below. The `input` contains contains the question, the `output` column contains the answer, and the `reference` column contains a concatenation of all the retrieved documents. This helper function assumes that the questions and answers are the `input.value` and `output.value` attributes of the root spans, and the list of retrieved documents are contained in a direct child span of the root span. (The helper function applies the techniques described in the [Advanced Usage](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#advanced-usage) section.)
 
 | context.span\_id | input                               | output                     | reference                                            |
 | :---------------- | :----------------------------------- | :-------------------------- | :---------------------------------------------------- |

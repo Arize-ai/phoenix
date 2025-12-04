@@ -30,7 +30,7 @@ colab.research.google.com
 !pip install -q "arize-phoenix>=8.0.0" datasets openinference-instrumentation-openai
 ```
 
-Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](/phoenix/self-hosting) if you'd prefer.
+Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](/docs/phoenix/self-hosting) if you'd prefer.
 
 ```py
 import os
@@ -46,7 +46,7 @@ if not os.environ.get("OPENAI_API_KEY"):
 
 ## Load Dataset into Phoenix
 
-Phoenix offers many [pre-built evaluation templates](/phoenix/evaluation/running-pre-tested-evals) for LLM as a Judge, but often, you may need to build a custom evaluator for specific use cases.
+Phoenix offers many [pre-built evaluation templates](/docs/phoenix/evaluation/running-pre-tested-evals) for LLM as a Judge, but often, you may need to build a custom evaluator for specific use cases.
 
 In this tutorial, we will focus on creating an LLM as a Judge prompt designed to assess empathy and emotional intelligence in chatbot responses. This is especially useful for use cases like mental health chatbots or customer support interactions.
 
@@ -254,7 +254,7 @@ experiment = run_experiment(
 
 ### Technique 2: Human in the Loop
 
-Keeping a human in the loop improves the accuracy of an LLM as a Judge by providing oversight, validation, and corrections where needed. In Phoenix, we can do this with [annotations](/phoenix/tracing/llm-traces/how-to-annotate-traces). While LLMs can evaluate responses based on predefined criteria, human reviewers help:
+Keeping a human in the loop improves the accuracy of an LLM as a Judge by providing oversight, validation, and corrections where needed. In Phoenix, we can do this with [annotations](/docs/phoenix/tracing/llm-traces/how-to-annotate-traces). While LLMs can evaluate responses based on predefined criteria, human reviewers help:
 
 * Catch edge cases and biases that the model may overlook.
 

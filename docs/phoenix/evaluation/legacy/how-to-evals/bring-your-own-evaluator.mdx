@@ -19,7 +19,7 @@ Feel free to set up your template however you'd like to match your dataset.
 
 ### Preparing your data
 
-You will need a dataset of results to evaluate. This dataset should be a pandas dataframe. If you are already collecting traces with Phoenix, you can [export these traces](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans) and use them as the dataframe to evaluate:
+You will need a dataset of results to evaluate. This dataset should be a pandas dataframe. If you are already collecting traces with Phoenix, you can [export these traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans) and use them as the dataframe to evaluate:
 
 ```javascript
 trace_df = px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
@@ -63,7 +63,7 @@ The categorical template defines the expected output of the LLM, and the rails d
 ```python
 from phoenix.evals import (
     llm_classify,
-    OpenAIModel # see /phoenix/evaluation/legacy/how-to-evals/evaluation-models
+    OpenAIModel # see /docs/phoenix/evaluation/legacy/how-to-evals/evaluation-models
     # for a full list of supported models
 )
 
@@ -137,7 +137,7 @@ We use the more generic `llm_generate` function that can be used for almost any 
 ```python
 from phoenix.evals import (
     llm_generate,
-    OpenAIModel # see /phoenix/evaluation/legacy/how-to-evals/evaluation-models
+    OpenAIModel # see /docs/phoenix/evaluation/legacy/how-to-evals/evaluation-models
     # for a full list of supported models
 )
 
@@ -204,8 +204,8 @@ At this point, you've constructed a custom Eval, but you have no understanding o
 
 1. Start with a labeled ground truth set of data. Each input would be a row of your dataframe of examples, and each labeled output would be the correct judge label
 
-2. Test your eval on that labeled set of examples, and compare to the ground truth to calculate F1, precision, and recall scores. For an example of this, see [Hallucinations](/phoenix/evaluation/running-pre-tested-evals/hallucinations)
+2. Test your eval on that labeled set of examples, and compare to the ground truth to calculate F1, precision, and recall scores. For an example of this, see [Hallucinations](/docs/phoenix/evaluation/running-pre-tested-evals/hallucinations)
 
-3. Tweak your prompt and retest. See [/phoenix/evaluation/how-to-evals/custom-llm-evaluators](/phoenix/evaluation/how-to-evals/custom-llm-evaluators) for an example of how to do this in an automated way.
+3. Tweak your prompt and retest. See [/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators) for an example of how to do this in an automated way.
 
 

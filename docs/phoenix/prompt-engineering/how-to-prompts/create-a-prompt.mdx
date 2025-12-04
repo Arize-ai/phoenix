@@ -9,7 +9,7 @@ Prompts with Phoenix can be created using the playground as well as via the phoe
 
 Navigate to the **Prompts** in the navigation and click the add prompt button on the top right. This will navigate you to the Playground.
 
-The [playground](/phoenix/prompt-engineering/overview-prompts/prompt-playground) is like the IDE where you will develop your prompt. The prompt section on the right lets you add more messages, change the template format (f-string or mustache), and an output schema (JSON mode).
+The [playground](/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground) is like the IDE where you will develop your prompt. The prompt section on the right lets you add more messages, change the template format (f-string or mustache), and an output schema (JSON mode).
 
 ### Compose a prompt
 
@@ -33,7 +33,7 @@ Prompts can be loaded back into the Playground at any time by clicking on "open 
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/open_prompt.gif" />
 </Frame>
 
-To view the details of a prompt, click on the prompt name. You will be taken to the prompt details view. The prompt details view shows all the [parts of the prompt](/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#prompt) that has been saved (ex: the model used, the invocation parameters, etc.)
+To view the details of a prompt, click on the prompt name. You will be taken to the prompt details view. The prompt details view shows all the [parts of the prompt](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#prompt) that has been saved (ex: the model used, the invocation parameters, etc.)
 
 <Frame caption="The details of a prompt shows everything that is saved about a prompt">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/32906c7f-image.jpeg" />
@@ -41,7 +41,7 @@ To view the details of a prompt, click on the prompt name. You will be taken to 
 
 ### Making edits to a prompt
 
-Once you've created a prompt, you probably need to make tweaks over time. The best way to make tweaks to a prompt is using the playground. Depending on how destructive a change you are making you might want to just create a new [prompt version](/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#prompt-version) or [clone](/phoenix/prompt-engineering/how-to-prompts/create-a-prompt#cloning-a-prompt) the prompt.
+Once you've created a prompt, you probably need to make tweaks over time. The best way to make tweaks to a prompt is using the playground. Depending on how destructive a change you are making you might want to just create a new [prompt version](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#prompt-version) or [clone](/docs/phoenix/prompt-engineering/how-to-prompts/create-a-prompt#cloning-a-prompt) the prompt.
 
 #### Editing a prompt in the playground
 
@@ -70,7 +70,7 @@ This approach ensures that your edits are flexible and reversible, preventing un
 Starting with prompts, Phoenix has a dedicated client that lets you programmatically. Make sure you have installed the appropriate [phoenix-client](/phoenix#packages) before proceeding.
 
 <Info>
-phoenix-client for both Python and TypeScript are very early in it's development and may not have every feature you might be looking for. Please drop us an issue if there's an enhancement you'd like to see. [https://github.com/Arize-ai/phoenix/issues](https://github.com/Arize-ai/phoenix/issues)
+phoenix-client for both Python and TypeScript are very early in it's development and may not have every feature you might be looking for. Please drop us an issue if there's an enhancement you'd like to see. [https://github.com/Arize-ai/phoenix/issues](https://github.com/Arize-ai/docs/phoenix/issues)
 
 </Info>
 
@@ -111,7 +111,7 @@ Creating a prompt in code can be useful if you want a programatic way to sync pr
     prompt = px.Client().prompts.get(prompt_identifier=prompt_name)
     ```
 
-    If a version is [tagged](/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) with, e.g. "production", it can retrieved as follows.
+    If a version is [tagged](/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) with, e.g. "production", it can retrieved as follows.
 
     ```python
     prompt = px.Client().prompts.get(prompt_identifier=prompt_name, tag="production")
@@ -157,7 +157,7 @@ Creating a prompt in code can be useful if you want a programatic way to sync pr
     // ^ you now have a strongly-typed prompt object, in the Phoenix SDK Prompt type
     ```
 
-    If a version is [tagged](/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) with, e.g. "production", it can retrieved as follows.
+    If a version is [tagged](/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) with, e.g. "production", it can retrieved as follows.
 
     ```javascript
     const promptByTag = await getPrompt({ tag: "production", name: "article-bullet-summarizer" });

@@ -15,7 +15,7 @@ class Inferences(
 
 A collection of inferences containing a split or cohort of data to be analyzed independently or compared to another cohort. Common examples include training, validation, test, or production data.
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/inferences/inferences.py)**]**
+**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/docs/phoenix/inferences/inferences.py)**]**
 
 ### Parameters
 
@@ -52,7 +52,7 @@ Alternatively, provide a name for the inferences that will appear in the applica
 ds = px.Inferences(df, schema, name="training")
 ```
 
-`ds` is then passed as the `primary` or `reference` argument to [launch_app](/phoenix/inferences/how-to-inferences/manage-the-app#launch-the-app).
+`ds` is then passed as the `primary` or `reference` argument to [launch_app](/docs/phoenix/inferences/how-to-inferences/manage-the-app#launch-the-app).
 
 ## phoenix.Schema
 
@@ -75,7 +75,7 @@ class Schema(
 
 Assigns the columns of a pandas dataframe to the appropriate model dimensions (predictions, actuals, features, etc.). Each column of the dataframe should appear in the corresponding schema at most once.
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/inferences/schema.py)**]**
+**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/docs/phoenix/inferences/schema.py)**]**
 
 ### Parameters
 
@@ -105,9 +105,9 @@ Assigns the columns of a pandas dataframe to the appropriate model dimensions (p
 
 * **actual\_score\_column\_name** (Optional\[str]): The name of the dataframe's actual score column, if one exists. Actual (i.e., ground truth) scores are used for regression problems with continuous numerical output.
 
-* **prompt\_column\_names** (Optional\[[EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames)]): An instance of [EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames) delineating the column names of an [LLM](/phoenix/user-guide) model's *prompt* embedding vector, *prompt* text, and optionally links to external resources.
+* **prompt\_column\_names** (Optional\[[EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames)]): An instance of [EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames) delineating the column names of an [LLM](/docs/phoenix/user-guide) model's *prompt* embedding vector, *prompt* text, and optionally links to external resources.
 
-* **response\_column\_names** (Optional\[[EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames)]): An instance of [EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames) delineating the column names of an [LLM](/phoenix/user-guide) model's *response* embedding vector, *response* text, and optionally links to external resources.
+* **response\_column\_names** (Optional\[[EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames)]): An instance of [EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames) delineating the column names of an [LLM](/docs/phoenix/user-guide) model's *response* embedding vector, *response* text, and optionally links to external resources.
 
 * **embedding\_feature\_column\_names** (Optional\[Dict\[str, [EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames)]]): A dictionary mapping the name of each embedding feature to an instance of [EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames) if any embedding features exist, otherwise, None. Each instance of [EmbeddingColumnNames](https://github.com/Arize-ai/phoenix/blob/main/docs/api/dataset-and-schema.md#phoenix.embeddingcolumnnames) associates one or more dataframe columns containing vector data, image links, or text with the same embedding feature. Note that the keys of the dictionary are user-specified names that appear in the Phoenix UI and do not refer to columns of the dataframe.
 
@@ -115,7 +115,7 @@ Assigns the columns of a pandas dataframe to the appropriate model dimensions (p
 
 ### Usage
 
-See the guide on how to [create your own dataset](/phoenix/inferences/how-to-inferences/define-your-schema) for examples.
+See the guide on how to [create your own dataset](/docs/phoenix/inferences/how-to-inferences/define-your-schema) for examples.
 
 ## phoenix.EmbeddingColumnNames
 
@@ -127,9 +127,9 @@ class EmbeddingColumnNames(
 )
 ```
 
-A dataclass that associates one or more columns of a dataframe with an [embedding](/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis) feature. Instances of this class are only used as values in a dictionary passed to the `embedding_feature_column_names` field of [Schema](/phoenix/inferences/inference-and-schema#phoenixschema).
+A dataclass that associates one or more columns of a dataframe with an [embedding](/docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis) feature. Instances of this class are only used as values in a dictionary passed to the `embedding_feature_column_names` field of [Schema](/docs/phoenix/inferences/inference-and-schema#phoenixschema).
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/inferences/schema.py)**]**
+**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/docs/phoenix/inferences/schema.py)**]**
 
 ### Parameters
 
@@ -140,13 +140,13 @@ A dataclass that associates one or more columns of a dataframe with an [embeddin
 * **link\_to\_data\_column\_name** (Optional\[str]): The name of the dataframe column containing links to images associated with an embedding feature, if such a column exists. This field is used when an embedding feature describes an image, for example, in the context of computer vision.
 
 <Info>
-See [here](/phoenix/inferences/how-to-inferences/define-your-schema#local-images) for recommendations on handling local image files.
+See [here](/docs/phoenix/inferences/how-to-inferences/define-your-schema#local-images) for recommendations on handling local image files.
 
 </Info>
 
 ### Usage
 
-See the guide on how to [create embedding features](/phoenix/inferences/how-to-inferences/define-your-schema#embedding-features)for examples.
+See the guide on how to [create embedding features](/docs/phoenix/inferences/how-to-inferences/define-your-schema#embedding-features)for examples.
 
 ## phoenix.TraceDataset
 
@@ -157,19 +157,19 @@ class TraceDataset(
 )
 ```
 
-Wraps a dataframe that is a flattened representation of spans and traces. Note that it does not require a Schema. See [LLM Traces](/phoenix/tracing/llm-traces) on how to monitor your LLM application using traces. Because Phoenix can also receive traces from your LLM application directly in real time, `TraceDataset` is mostly used for loading trace data that has been previously saved to file.
+Wraps a dataframe that is a flattened representation of spans and traces. Note that it does not require a Schema. See [LLM Traces](/docs/phoenix/tracing/llm-traces) on how to monitor your LLM application using traces. Because Phoenix can also receive traces from your LLM application directly in real time, `TraceDataset` is mostly used for loading trace data that has been previously saved to file.
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/trace/trace_dataset.py)**]**
+**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/docs/phoenix/trace/trace_dataset.py)**]**
 
 ### **Parameters**
 
-* **dataframe** (pandas.DataFrame): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](/phoenix/tracing/llm-traces) for more on traces and spans.
+* **dataframe** (pandas.DataFrame): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](/docs/phoenix/tracing/llm-traces) for more on traces and spans.
 
 * **name** (str): The name used to identify the dataset in the application. If not provided, a random name will be generated.
 
 ### Attributes
 
-* **dataframe** (pandas.DataFrame): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](/phoenix/tracing/llm-traces) for more on traces and spans.
+* **dataframe** (pandas.DataFrame): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](/docs/phoenix/tracing/llm-traces) for more on traces and spans.
 
 * **name** (Optional\[str]): The name used to identify the dataset in the application.
 

@@ -1,7 +1,4 @@
 # Exclude everything except the docs folder
-# This ensures Mintlify only processes files from docs/
-
-# Exclude all root-level directories except docs/
 api_reference/
 app/
 examples/
@@ -19,18 +16,15 @@ requirements/
 schemas/
 
 # Exclude root-level markdown and other files (keep only docs.json and .mintignore)
-/*.md
-/*.mdx
-/*.py
-/*.ts
-/*.tsx
-/*.js
-/*.json
+*.md
+*.py
+*.ts
+*.tsx
+*.js
+*.json
 !/docs.json
 !/.mintignore
-!/.gitignore
 
-# Exclude other root-level files
 *.yml
 *.yaml
 *.toml
@@ -47,24 +41,34 @@ schemas/
 *.bat
 *.lock
 *.conf
+*.graphql
+*.mjs
+Dockerfile
+IP_NOTICE
+LICENSE
+docker-compose.yml
+pyproject.toml
+pyment.conf
+release-please-config.json
+cspell.json
+tox.ini
+MIGRATION.md
+SECURITY.md
+CHANGELOG.md
+CLA.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+DEVELOPMENT.md
+README.md
 
-# Exclude node_modules and build artifacts
-node_modules/
-.git/
-.tox/
-__pycache__/
-.pytest_cache/
-.mypy_cache/
-dist/
-build/
-.venv/
-venv/
-.env
-.env.local
-
-# Exclude VS Code and editor configuration files
-.vscode/
-*.code-workspace
-.idea/
-*.sublime-project
-*.sublime-workspace
+# Exclude root-level dotfiles and config files
+.pre-commit-config.yaml
+.readthedocs.yaml
+.editorconfig
+.dockerignore
+.eslintignore
+.prettierignore
+.gitignore
+.release-please-manifest.json
+.nvmrc
+.DS_Store

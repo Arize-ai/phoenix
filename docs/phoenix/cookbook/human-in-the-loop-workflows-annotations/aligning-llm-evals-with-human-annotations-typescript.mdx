@@ -7,9 +7,9 @@ description: "In this tutorial, we’ll run a Mastra agent and build a custom ev
     <iframe width="100%" height="420" className="aspect-video" src="https://www.youtube.com/embed/RsFDe-sVcNE" title="Aligning LLM Evals with Human Annotations (TypeScript)" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 </Frame>
 
-In this tutorial, you’ll learn how to align your evaluator so it’s tailored to your specific use case. Instead of relying only on [pre-built evaluators](/phoenix/evaluation/running-pre-tested-evals) in Phoenix—which are tested on general benchmark datasets but may miss the nuances of your application—we’ll show you how to build your own.
+In this tutorial, you’ll learn how to align your evaluator so it’s tailored to your specific use case. Instead of relying only on [pre-built evaluators](/docs/phoenix/evaluation/running-pre-tested-evals) in Phoenix—which are tested on general benchmark datasets but may miss the nuances of your application—we’ll show you how to build your own.
 
-We'll run a [**Mastra**](/phoenix/integrations/typescript/mastra) **agent**, capture its traces, and then run evaluations on those traces. Using a small set of **human-annotated examples** as our ground truth, we’ll identify where the evaluator falls short. From there, we’ll refine the evaluation prompt and repeat the cycle until the evaluator’s outputs align with the human annotations.
+We'll run a [**Mastra**](/docs/phoenix/integrations/typescript/mastra) **agent**, capture its traces, and then run evaluations on those traces. Using a small set of **human-annotated examples** as our ground truth, we’ll identify where the evaluator falls short. From there, we’ll refine the evaluation prompt and repeat the cycle until the evaluator’s outputs align with the human annotations.
 
 This iterative loop—**run agent → gather traces → evaluate → refine**—ensures your evaluator evolves to match the exact requirements of your application.&#x20;
 

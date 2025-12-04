@@ -6,7 +6,7 @@ hidden: true
   <img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/nodejs_deployment.png" alt="You can trace your NodeJS application over OpenTelemetry" />
 </Frame>
 
-Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However, it can be stood up as a trace collector so that your LLM traces from your NodeJS application (e.g., LlamaIndex.TS, Langchain.js) can be collected. The traces collected by Phoenix can then be downloaded to a Jupyter notebook and used to run evaluations (e.g., [LLM Evals](/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations), Ragas).
+Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However, it can be stood up as a trace collector so that your LLM traces from your NodeJS application (e.g., LlamaIndex.TS, Langchain.js) can be collected. The traces collected by Phoenix can then be downloaded to a Jupyter notebook and used to run evaluations (e.g., [LLM Evals](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations), Ragas).
 
 ## Getting Started
 
@@ -99,7 +99,7 @@ console.log("👀 OpenInference initialized");
 
 This basic setup has will instrument chat completions via native calls to the OpenAI client.
 
-As shown above with OpenAI, you can register additional instrumentation libraries with the OpenTelemetry provider in order to generate telemetry data for your dependencies. For more information, see [Integrations](/phoenix/integrations).
+As shown above with OpenAI, you can register additional instrumentation libraries with the OpenTelemetry provider in order to generate telemetry data for your dependencies. For more information, see [Integrations](/docs/phoenix/integrations).
 
 **Picking the right span processor**
 
@@ -114,7 +114,7 @@ In most cases, stick with `BatchSpanProcessor` over `SimpleSpanProcessor`.
 Now that you have configured a tracer provider, and instrumented the `openai` package, lets see how we can generate traces for a sample application.
 
 <Info>
-The following code assumes you have Phoenix running locally, on its default port of 6006. See our [Get Started: Tracing](/phoenix/get-started/get-started-tracing) documentation if you'd like to learn more about running Phoenix.
+The following code assumes you have Phoenix running locally, on its default port of 6006. See our [Get Started: Tracing](/docs/phoenix/get-started/get-started-tracing) documentation if you'd like to learn more about running Phoenix.
 </Info>
 
 First, install the dependencies required for our sample app.
@@ -591,4 +591,4 @@ This functionality is supported across all OpenInference JavaScript instrumentat
 * **BeeAI**: `@arizeai/openinference-instrumentation-beeai`
 * **OpenAI JS**: `@arizeai/openinference-instrumentation-openai`
 
-For specific examples with each instrumentation, see their respective documentation pages in the [Integrations section](/phoenix/integrations).
+For specific examples with each instrumentation, see their respective documentation pages in the [Integrations section](/docs/phoenix/integrations).

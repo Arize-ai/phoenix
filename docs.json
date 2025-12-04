@@ -1091,7 +1091,7 @@
                     "pages": [
                       "docs/phoenix/release-notes/04-2025/04-30-2025-span-querying-and-data-extraction-for-phoenix-client",
                       "docs/phoenix/release-notes/04-2025/04-28-2025-tls-support-for-phoenix-server",
-                      "doc/phoenix/release-notes/04-2025/04-28-2025-improved-shutdown-handling",
+                      "docs/phoenix/release-notes/04-2025/04-28-2025-improved-shutdown-handling",
                       "docs/phoenix/release-notes/04-2025/04-25-2025-scroll-selected-span-into-view",
                       "docs/phoenix/release-notes/04-2025/04-18-2025-tracing-for-mcp-client-server-applications",
                       "docs/phoenix/release-notes/04-2025/04-16-2025-api-key-generation-via-api",

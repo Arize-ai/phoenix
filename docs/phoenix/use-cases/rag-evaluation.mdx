@@ -41,7 +41,7 @@ There are five key stages within RAG, which will in turn be a part of any larger
 
 ## Build a RAG system
 
-Now that we have understood the stages of RAG, let's build a pipeline. We will use [LlamaIndex](https://www.llamaindex.ai/) for RAG and [Phoenix Evals](/phoenix/evaluation/llm-evals) for evaluation.
+Now that we have understood the stages of RAG, let's build a pipeline. We will use [LlamaIndex](https://www.llamaindex.ai/) for RAG and [Phoenix Evals](/docs/phoenix/evaluation/llm-evals) for evaluation.
 
 ```python
 !pip install -qq "arize-phoenix[experimental,llama-index]>=2.0"
@@ -350,7 +350,7 @@ for _, row in questions_with_document_chunk_df.iterrows():
     print(f"Question: {question}\nAnswer: {response_vector.response}\n")
 ```
 
-Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to Phoenix. (For an in-depth explanation of how to export trace data from the Phoenix runtime, consult the [docs](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)).
+Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to Phoenix. (For an in-depth explanation of how to export trace data from the Phoenix runtime, consult the [docs](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)).
 
 ```python
 from phoenix.session.evaluation import get_retrieved_documents
@@ -543,7 +543,7 @@ qa_with_reference_df
 
 174 rows × 3 columns
 
-Now that we have a dataset of the question, context, and response (input, reference, and output), we now can measure how well the LLM is responding to the queries. For details on the QA correctness evaluation, see the [LLM Evals documentation](/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data).
+Now that we have a dataset of the question, context, and response (input, reference, and output), we now can measure how well the LLM is responding to the queries. For details on the QA correctness evaluation, see the [LLM Evals documentation](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data).
 
 ```python
 from phoenix.evals import (
@@ -625,4 +625,4 @@ phoenix URL http://localhost:6006/
 
 We have explored how to build and evaluate a RAG pipeline using LlamaIndex and Phoenix, with a specific focus on evaluating the retrieval system and generated responses within the pipelines.
 
-Phoenix offers a variety of other evaluations that can be used to assess the performance of your LLM Application. For more details, see the [LLM Evals](/phoenix/evaluation/llm-evals) documentation.
+Phoenix offers a variety of other evaluations that can be used to assess the performance of your LLM Application. For more details, see the [LLM Evals](/docs/phoenix/evaluation/llm-evals) documentation.

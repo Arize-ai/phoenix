@@ -10,7 +10,7 @@ For a conceptual overview of inferences, including an explanation of when to use
 
 </Info>
 
-To define inferences, you must load your data into a pandas dataframe and [create a matching schema](/phoenix/inferences/how-to-inferences/define-your-schema). If you have a dataframe `prim_df` and a matching `prim_schema`, you can define inferences named "primary" with
+To define inferences, you must load your data into a pandas dataframe and [create a matching schema](/docs/phoenix/inferences/how-to-inferences/define-your-schema). If you have a dataframe `prim_df` and a matching `prim_schema`, you can define inferences named "primary" with
 
 ```py
 prim_ds = px.Inferences(prim_df, prim_schema, "primary")
@@ -22,7 +22,7 @@ If you additionally have a dataframe `ref_df` and a matching `ref_schema`, you c
 ref_ds = px.Inferences(ref_df, ref_schema, "reference")
 ```
 
-See [Corpus Data](/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data) if you have corpus data for an Information Retrieval use case.
+See [Corpus Data](/docs/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data) if you have corpus data for an Information Retrieval use case.
 
 ## Launch the App
 
