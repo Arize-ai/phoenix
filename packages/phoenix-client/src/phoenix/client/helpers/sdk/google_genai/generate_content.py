@@ -15,7 +15,7 @@ from typing import (
     cast,
 )
 
-from typing_extensions import Required, TypeAlias, assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.template_formatters import TemplateFormatter, to_formatter
@@ -35,8 +35,7 @@ class _ToolKwargs(TypedDict, total=False):
     tools: list[types.Tool]
 
 
-class GoogleModelKwargs(_ToolKwargs, TypedDict, total=False):
-    model_name: Required[str]
+class _GenerateContentConfigKwargs(_ToolKwargs, TypedDict, total=False):
     temperature: float
     max_output_tokens: int
     stop_sequences: list[str]
@@ -45,6 +44,11 @@ class GoogleModelKwargs(_ToolKwargs, TypedDict, total=False):
     top_p: float
     top_k: int
     system_instruction: str | list[str]
+
+
+class GoogleModelKwargs(TypedDict):
+    model: str
+    config: types.GenerateContentConfig
 
 
 logger = logging.getLogger(__name__)
@@ -73,6 +77,8 @@ def to_chat_messages_and_kwargs(
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
 ) -> tuple[list[types.Content], GoogleModelKwargs]:
+    from google.genai import types
+
     formatter = formatter or to_formatter(obj)
     assert formatter is not None
     template = obj["template"]
@@ -89,12 +95,19 @@ def to_chat_messages_and_kwargs(
         raise NotImplementedError
     else:
         assert_never(template)
-    kwargs: GoogleModelKwargs = _to_model_kwargs(obj)
+
+    # Build the config object
+    config_kwargs = _to_config_kwargs(obj)
     if system_messages:
         if len(system_messages) == 1:
-            kwargs["system_instruction"] = system_messages[0]
+            config_kwargs["system_instruction"] = system_messages[0]
         else:
-            kwargs["system_instruction"] = system_messages
+            config_kwargs["system_instruction"] = system_messages
+
+    kwargs: GoogleModelKwargs = {
+        "model": obj["model_name"],
+        "config": types.GenerateContentConfig(**config_kwargs),
+    }
     return messages, kwargs
 
 
@@ -113,18 +126,17 @@ def _extract_system_text(
                 yield formatter.format(part["text"], variables=variables)
 
 
-def _to_model_kwargs(
+def _to_config_kwargs(
     obj: v1.PromptVersionData,
     /,
-) -> GoogleModelKwargs:
+) -> _GenerateContentConfigKwargs:
+    """Extract config parameters for GenerateContentConfig."""
     invocation_parameters: v1.PromptGoogleInvocationParametersContent = (
         obj["invocation_parameters"]["google"]
         if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "google"
         else {}
     )
-    ans: GoogleModelKwargs = {
-        "model_name": obj["model_name"],
-    }
+    ans: _GenerateContentConfigKwargs = {}
     if "temperature" in invocation_parameters:
         ans["temperature"] = invocation_parameters["temperature"]
     if "max_output_tokens" in invocation_parameters:

@@ -275,8 +275,10 @@ class TestToChatMessagesAndKwargs:
             assert len(msg.parts or []) > 0
 
         # Verify kwargs has expected structure
-        assert "model_name" in kwargs
-        assert kwargs["model_name"] == prompt_version_data["model_name"]
+        assert "model" in kwargs
+        assert kwargs["model"] == prompt_version_data["model_name"]
+        assert "config" in kwargs
+        assert isinstance(kwargs["config"], types.GenerateContentConfig)
 
     def test_invocation_parameters_are_passed(self) -> None:
         """Test that invocation parameters are correctly passed to kwargs."""
@@ -305,9 +307,10 @@ class TestToChatMessagesAndKwargs:
             prompt_version_data, formatter=NO_OP_FORMATTER
         )
 
-        assert kwargs["temperature"] == 0.5
-        assert kwargs["max_output_tokens"] == 512
-        assert kwargs["top_p"] == 0.8
+        config = kwargs["config"]
+        assert config.temperature == 0.5
+        assert config.max_output_tokens == 512
+        assert config.top_p == 0.8
 
     def test_message_content_preserved(self) -> None:
         """Test that message content is preserved correctly."""
