@@ -488,6 +488,10 @@ class DatasetBuiltInEvaluator(BuiltInEvaluator, Node):
     display_name: Identifier
 
     @strawberry.field
+    async def name(self) -> Identifier:
+        return self.display_name
+
+    @strawberry.field
     async def dataset_input_mapping(
         self,
         info: Info[Context, None],
@@ -512,6 +516,10 @@ class DatasetLLMEvaluator(LLMEvaluator, Node):
     display_name: Identifier
 
     @strawberry.field
+    async def name(self) -> Identifier:
+        return self.display_name
+
+    @strawberry.field
     async def dataset_input_mapping(
         self,
         info: Info[Context, None],
@@ -534,6 +542,10 @@ class DatasetLLMEvaluator(LLMEvaluator, Node):
 class DatasetCodeEvaluator(CodeEvaluator, Node):
     dataset_id: NodeID[int]
     display_name: Identifier
+
+    @strawberry.field
+    async def name(self) -> Identifier:
+        return self.display_name
 
     @strawberry.field
     async def dataset_input_mapping(
