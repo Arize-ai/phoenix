@@ -73,21 +73,21 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
         # Try Pydantic v2 model_dump() method first
         if hasattr(config, "model_dump"):
             try:
-                return config.model_dump()
+                return config.model_dump()  # type: ignore[no-any-return]
             except Exception:
                 pass
 
         # Try Pydantic v1 dict() method
         if hasattr(config, "dict"):
             try:
-                return config.dict()
+                return config.dict()  # type: ignore[no-any-return]
             except Exception:
                 pass
 
         # Try to_dict() method (common in dataclasses and other models)
         if hasattr(config, "to_dict"):
             try:
-                return config.to_dict()
+                return config.to_dict()  # type: ignore[no-any-return]
             except Exception:
                 pass
 
@@ -497,10 +497,10 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             # Convert plain dict messages to Google format
             # Extract system messages for system_instruction parameter
             system_messages_dicts: List[Dict[str, Any]] = [
-                msg for msg in prompt if msg.get("role") == "system"
+                msg for msg in cast(List[Dict[str, Any]], prompt) if msg.get("role") == "system"
             ]
             non_system_messages_dicts: List[Dict[str, Any]] = [
-                msg for msg in prompt if msg.get("role") != "system"
+                msg for msg in cast(List[Dict[str, Any]], prompt) if msg.get("role") != "system"
             ]
             system_instruction = "\n".join(
                 self._extract_text_from_content(msg.get("content", ""))

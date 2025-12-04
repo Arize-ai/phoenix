@@ -328,10 +328,10 @@ class AnthropicAdapter(BaseLLMAdapter):
 
             # Otherwise, plain dict format - extract system messages
             system_messages_dicts: List[Dict[str, Any]] = [
-                msg for msg in prompt if msg.get("role") == "system"
+                msg for msg in cast(List[Dict[str, Any]], prompt) if msg.get("role") == "system"
             ]
             non_system_messages_dicts: List[Dict[str, Any]] = [
-                msg for msg in prompt if msg.get("role") != "system"
+                msg for msg in cast(List[Dict[str, Any]], prompt) if msg.get("role") != "system"
             ]
             system_content = "\n".join(
                 self._extract_text_from_content(msg.get("content", ""))
