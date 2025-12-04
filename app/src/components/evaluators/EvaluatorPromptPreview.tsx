@@ -8,31 +8,127 @@ import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import { Card, Flex, Icon, Icons, Text, View } from "@phoenix/components";
-import { EvaluatorPromptPreviewQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorPromptPreviewQuery.graphql";
 import {
-  EvaluatorInput,
-  playgroundChatTemplateToGqlPromptChatTemplate,
-} from "@phoenix/components/evaluators/utils";
+  ContentPartInput,
+  EvaluatorPromptPreviewQuery,
+  PromptChatTemplateInput,
+  PromptTemplateFormat,
+} from "@phoenix/components/evaluators/__generated__/EvaluatorPromptPreviewQuery.graphql";
+import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
 import { Skeleton } from "@phoenix/components/loading/Skeleton";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import { chatMessageRoleToPromptMessageRole } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { denormalizePlaygroundInstance } from "@phoenix/pages/playground/playgroundUtils";
+import {
+  findToolCallArguments,
+  findToolCallId,
+  findToolCallName,
+} from "@phoenix/schemas/toolCallSchemas";
 import {
   ChatMessage,
   PlaygroundChatTemplate,
 } from "@phoenix/store/playground/types";
+import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
+
+/**
+ * Converts a ChatMessage to an array of ContentPartInput.
+ * Handles text content, tool calls, and tool results.
+ */
+const chatMessageToContentParts = (
+  message: ChatMessage
+): ContentPartInput[] => {
+  const parts: ContentPartInput[] = [];
+
+  // Handle tool result messages (role === "tool" with toolCallId)
+  if (message.role === "tool" && message.toolCallId) {
+    parts.push({
+      toolResult: {
+        toolCallId: message.toolCallId,
+        result: message.content ?? "",
+      },
+    });
+    return parts;
+  }
+
+  // Handle text content
+  if (message.content) {
+    parts.push({
+      text: { text: message.content },
+    });
+  }
+
+  // Handle tool calls (typically from AI/assistant messages)
+  if (message.toolCalls && message.toolCalls.length > 0) {
+    for (const toolCall of message.toolCalls) {
+      const toolCallId = findToolCallId(toolCall);
+      const toolCallName = findToolCallName(toolCall);
+      const toolCallArguments = findToolCallArguments(toolCall);
+
+      if (toolCallId) {
+        const argsStr =
+          typeof toolCallArguments === "string"
+            ? toolCallArguments
+            : safelyStringifyJSON(toolCallArguments).json || "";
+        parts.push({
+          toolCall: {
+            toolCallId,
+            toolCall: {
+              name: toolCallName || toolCallId,
+              arguments: argsStr,
+            },
+          },
+        });
+      }
+    }
+  }
+
+  return parts;
+};
+
+/**
+ * A function that converts a playground chat template to a GQL chat template.
+ * This is used to create a preview of the prompt that will be used for the llm evals.
+ *
+ * Note: this overlaps heavily with the instanceToPromptVersion function in fetchPlaygroundPrompt.ts
+ * If used in the future, we should refactor to use the same function.
+ */
+export function playgroundChatTemplateToGqlPromptChatTemplate(
+  template: PlaygroundChatTemplate
+): PromptChatTemplateInput {
+  return {
+    messages: template.messages
+      .map((message) => {
+        const contentParts = chatMessageToContentParts(message);
+        // Skip messages with no content parts
+        if (contentParts.length === 0) {
+          return null;
+        }
+        return {
+          role: chatMessageRoleToPromptMessageRole(message.role),
+          content: contentParts,
+        };
+      })
+      .filter((m): m is NonNullable<typeof m> => m !== null),
+  };
+}
 
 type EvaluatorPromptPreviewProps = {
   evaluatorInput: EvaluatorInput | null;
 };
 
-function EvaluatorPromptPreviewSkeleton() {
+function EvaluatorPromptPreviewSkeleton({
+  messageCount,
+}: {
+  messageCount: number;
+}) {
   return (
     <Flex direction="column" gap="size-200">
-      <Skeleton height={300} />
-      <Skeleton height={300} />
+      {Array.from({ length: messageCount }).map((_, i) => (
+        <Skeleton key={i} height={300} />
+      ))}
     </Flex>
   );
 }
@@ -61,16 +157,6 @@ function EvaluatorPromptPreviewErrorFallback(
 }
 
 export function EvaluatorPromptPreview(props: EvaluatorPromptPreviewProps) {
-  return (
-    <ErrorBoundary fallback={EvaluatorPromptPreviewErrorFallback}>
-      <Suspense fallback={<EvaluatorPromptPreviewSkeleton />}>
-        <EvaluatorPromptPreviewBody {...props} />
-      </Suspense>
-    </ErrorBoundary>
-  );
-}
-
-export function EvaluatorPromptPreviewBody(props: EvaluatorPromptPreviewProps) {
   const instance = usePlaygroundContext((state) => state.instances[0]);
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
@@ -95,6 +181,36 @@ export function EvaluatorPromptPreviewBody(props: EvaluatorPromptPreviewProps) {
     () => playgroundChatTemplateToGqlPromptChatTemplate(chatTemplate),
     [chatTemplate]
   );
+
+  const messageCount = gqlTemplate.messages.length;
+
+  return (
+    <ErrorBoundary fallback={EvaluatorPromptPreviewErrorFallback}>
+      <Suspense
+        fallback={
+          <EvaluatorPromptPreviewSkeleton messageCount={messageCount} />
+        }
+      >
+        <EvaluatorPromptPreviewContent
+          gqlTemplate={gqlTemplate}
+          templateFormat={templateFormat}
+          evaluatorInput={props.evaluatorInput}
+        />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+type EvaluatorPromptPreviewContentProps = {
+  gqlTemplate: PromptChatTemplateInput;
+  templateFormat: PromptTemplateFormat;
+  evaluatorInput: EvaluatorInput | null;
+};
+
+function EvaluatorPromptPreviewContent(
+  props: EvaluatorPromptPreviewContentProps
+) {
+  const { gqlTemplate, templateFormat, evaluatorInput } = props;
 
   const data = useLazyLoadQuery<EvaluatorPromptPreviewQuery>(
     graphql`
@@ -123,8 +239,8 @@ export function EvaluatorPromptPreviewBody(props: EvaluatorPromptPreviewProps) {
     {
       template: gqlTemplate,
       templateOptions: {
-        // TODO: this doesn't appply the mappings. Probably will push this into the API
-        variables: props.evaluatorInput ?? {},
+        // TODO: this doesn't apply the mappings. Probably will push this into the API
+        variables: evaluatorInput ?? {},
         format: templateFormat,
       },
     }
