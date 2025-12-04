@@ -26,10 +26,10 @@ import {
 } from "@phoenix/components/chart";
 import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
 
@@ -38,6 +38,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
+  const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
     const errorValue = payload[0]?.value ?? null;

@@ -27,6 +27,7 @@ import {
 import type {
   Evaluator,
   ExperimentEvaluationRun,
+  ExperimentEvaluatorLike,
   ExperimentInfo,
   ExperimentRun,
   ExperimentRunID,
@@ -43,6 +44,9 @@ import {
   getDatasetUrl,
   getExperimentUrl,
 } from "../utils/urlUtils";
+
+import { getExperimentInfo } from "./getExperimentInfo";
+import { getExperimentEvaluators } from "./helpers";
 
 import assert from "assert";
 import { queue } from "async";
@@ -85,7 +89,7 @@ export type RunExperimentParams = ClientFn & {
   /**
    * The evaluators to use
    */
-  evaluators?: Evaluator[];
+  evaluators?: ExperimentEvaluatorLike[];
   /**
    * The logger to use
    */
@@ -200,6 +204,8 @@ export async function runExperiment({
   let taskTracer: Tracer;
   let experiment: ExperimentInfo;
   if (isDryRun) {
+    const now = new Date().toISOString();
+    const totalExamples = nExamples;
     experiment = {
       id: localId(),
       datasetId: dataset.id,
@@ -208,6 +214,13 @@ export async function runExperiment({
       datasetSplits: datasetSelector?.splits ?? [],
       projectName,
       metadata: experimentMetadata,
+      repetitions,
+      createdAt: now,
+      updatedAt: now,
+      exampleCount: totalExamples,
+      successfulRunCount: 0,
+      failedRunCount: 0,
+      missingRunCount: totalExamples * repetitions,
     };
     taskTracer = createNoOpProvider().getTracer("no-op");
   } else {
@@ -241,7 +254,14 @@ export async function runExperiment({
       // @todo: the dataset should return splits in response body
       datasetSplits: datasetSelector?.splits ?? [],
       projectName,
-      metadata: experimentResponse.metadata,
+      repetitions: experimentResponse.repetitions,
+      metadata: experimentResponse.metadata || {},
+      createdAt: experimentResponse.created_at,
+      updatedAt: experimentResponse.updated_at,
+      exampleCount: experimentResponse.example_count,
+      successfulRunCount: experimentResponse.successful_run_count,
+      failedRunCount: experimentResponse.failed_run_count,
+      missingRunCount: experimentResponse.missing_run_count,
     };
     // Initialize the tracer, now that we have a project name
     const baseUrl = client.config.baseUrl;
@@ -333,6 +353,16 @@ export async function runExperiment({
   ranExperiment.evaluationRuns = evaluationRuns;
 
   logger.info(`✅ Experiment ${experiment.id} completed`);
+
+  // Refresh experiment info from server to get updated counts (non-dry-run only)
+  if (!isDryRun) {
+    const updatedExperiment = await getExperimentInfo({
+      client,
+      experimentId: experiment.id,
+    });
+    // Update the experiment info with the latest from the server
+    Object.assign(ranExperiment, updatedExperiment);
+  }
 
   if (!isDryRun && client.config.baseUrl) {
     const experimentUrl = getExperimentUrl({
@@ -506,7 +536,7 @@ export async function evaluateExperiment({
    **/
   experiment: RanExperiment;
   /** The evaluators to use */
-  evaluators: Evaluator[];
+  evaluators: ExperimentEvaluatorLike[];
   /** The client to use */
   client?: PhoenixClient;
   /** The logger to use */
@@ -624,7 +654,8 @@ export async function evaluateExperiment({
 
   // Run evaluators against all runs
   // Flat list of evaluator + run tuples
-  const evaluatorsAndRuns = evaluators.flatMap((evaluator) =>
+  const normalizedEvaluators = getExperimentEvaluators(evaluators);
+  const evaluatorsAndRuns = normalizedEvaluators.flatMap((evaluator) =>
     runsToEvaluate.map((run) => ({
       evaluator,
       run,
@@ -646,7 +677,7 @@ export async function evaluateExperiment({
             [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
               OpenInferenceSpanKind.EVALUATOR,
             [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
-            [SemanticConventions.INPUT_VALUE]: JSON.stringify({
+            [SemanticConventions.INPUT_VALUE]: ensureString({
               input: examplesById[evaluatorAndRun.run.datasetExampleId]?.input,
               output: evaluatorAndRun.run.output,
               expected:
@@ -797,6 +828,7 @@ async function runEvaluator({
  * @param params.kind - The kind of evaluator (e.g., "CODE", "LLM")
  * @param params.evaluate - The evaluator function.
  * @returns The evaluator object.
+ * @deprecated use asExperimentEvaluator instead
  */
 export function asEvaluator({
   name,

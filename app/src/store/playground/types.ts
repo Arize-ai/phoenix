@@ -12,6 +12,7 @@ import {
 
 import { ModelConfigByProvider } from "../preferencesStore";
 export type GenAIOperationType = "chat" | "text_completion";
+import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 
 /**
  * A chat message with a role and content
@@ -64,6 +65,11 @@ export type PlaygroundInput = {
   variablesValueCache?: Record<string, string | undefined>;
 };
 
+export type PlaygroundError = {
+  title: string;
+  message?: string;
+};
+
 export type ModelConfig = {
   provider: ModelProvider;
   modelName: string | null;
@@ -78,9 +84,12 @@ export type ModelConfig = {
    * Custom headers to be sent with requests to the LLM provider
    */
   customHeaders?: Record<string, string> | null;
-  invocationParameters: InvocationParameterInput[];
+  invocationParameters: (InvocationParameterInput & { dirty?: boolean })[];
   supportedInvocationParameters: InvocationParameter[];
 };
+
+export type ModelInvocationParameterInput =
+  ModelConfig["invocationParameters"][number];
 
 /**
  * The type of a tool in the playground
@@ -109,6 +118,22 @@ export type PlaygroundInstancePrompt = {
   tag: string | null;
 };
 
+export type PlaygroundRepetitionStatus =
+  | "notStarted"
+  | "pending" // awaiting first token in streaming mode or awaiting response in non-streaming mode
+  | "streamInProgress" // only in streaming mode
+  | "finished"; // includes error states
+
+type ToolCallId = string;
+
+export type PlaygroundRepetition = {
+  output: ChatMessage[] | string | null;
+  toolCalls: Record<ToolCallId, PartialOutputToolCall>;
+  spanId: string | null;
+  error: PlaygroundError | null;
+  status: PlaygroundRepetitionStatus;
+};
+
 /**
  * A single instance of the playground that has
  * - a template
@@ -128,8 +153,7 @@ export interface PlaygroundInstance {
    */
   toolChoice?: OpenaiToolChoice | AnthropicToolChoice;
   model: ModelConfig;
-  output?: ChatMessage[] | string;
-  spanId: string | null;
+  repetitions: Record<number, PlaygroundRepetition | undefined>;
   activeRunId: number | null;
   /**
    * The id of the experiment associated with the last playground run on the instance if any
@@ -139,6 +163,10 @@ export interface PlaygroundInstance {
    * Details about the prompt hub prompt associated with the instance, if any
    */
   prompt?: PlaygroundInstancePrompt | null;
+  /**
+   * The selected repetition number for the instance
+   */
+  selectedRepetitionNumber: number;
 }
 
 /**
@@ -364,4 +392,65 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Set the dirty state of an instance
    */
   setDirty: (instanceId: number, dirty: boolean) => void;
+  /**
+   * Set the selected repetition number for an instance, which controls the currently displayed repetition
+   */
+  setSelectedRepetitionNumber: (
+    instanceId: number,
+    repetitionNumber: number
+  ) => void;
+  /**
+   * Append a content chunk to the output of an instance
+   */
+  appendRepetitionOutput: (
+    instanceId: number,
+    repetitionNumber: number,
+    content: string
+  ) => void;
+  /**
+   * Set the error for a repetition
+   */
+  setRepetitionError: (
+    instanceId: number,
+    repetitionNumber: number,
+    error: PlaygroundError
+  ) => void;
+  /**
+   * Set the span id for a repetition
+   */
+  setRepetitionSpanId: (
+    instanceId: number,
+    repetitionNumber: number,
+    spanId: string
+  ) => void;
+  /**
+   * Set the status for a repetition
+   */
+  setRepetitionStatus: (
+    instanceId: number,
+    repetitionNumber: number,
+    status: PlaygroundRepetitionStatus
+  ) => void;
+  /**
+   * Add a partial tool call to a repetition
+   * If the tool call already exists, it will be updated with the new arguments
+   * If the tool call does not exist, it will be added
+   */
+  addRepetitionPartialToolCall: (
+    instanceId: number,
+    repetitionNumber: number,
+    toolCall: PartialOutputToolCall
+  ) => void;
+  /**
+   * Set the tool calls for a repetition
+   */
+  setRepetitionToolCalls: (
+    instanceId: number,
+    repetitionNumber: number,
+    toolCalls: PartialOutputToolCall[]
+  ) => void;
+  /**
+   * Clears all repetitions for an instance
+   */
+  clearRepetitions: (instanceId: number) => void;
 }

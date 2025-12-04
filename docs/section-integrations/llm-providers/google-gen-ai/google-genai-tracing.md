@@ -6,8 +6,6 @@ description: Instrument LLM calls made using the Google Gen AI Python SDK
 
 ### Launch Phoenix <a href="#launch-phoenix" id="launch-phoenix"></a>
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ### Install <a href="#install" id="install"></a>
 
 ```bash

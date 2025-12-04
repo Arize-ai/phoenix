@@ -8,7 +8,6 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 from loguru import logger
-from openinference.instrumentation.openai import OpenAIInstrumentor
 from rag import initialize_vector_store
 from tools import analyze_rag_response, create_rag_response, initialize_tool_llm, web_search
 
@@ -18,14 +17,16 @@ load_dotenv()
 open_ai_llm = None
 
 
-def initialize_instrumentor(project_name):
+def initialize_instrumentor(project_name, endpoint=None):
     """
     Initialize the OpenAIInstrumentor, so all the llm calls are instrumented
     """
-    if os.environ.get("PHOENIX_API_KEY"):
-        os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.environ.get('PHOENIX_API_KEY')}"
-    tracer_provider = register(project_name=project_name)
-    OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+    tracer_provider = register(
+        project_name=project_name,
+        endpoint=endpoint,
+        batch=True,
+        auto_instrument=True,
+    )
     tracer = tracer_provider.get_tracer(__name__)
     logger.info("Instrumentor initialized")
     return tracer
@@ -106,7 +107,7 @@ def construct_agent():
 def main():
     logger.info("RAG Agent Started....")
 
-    initialize_instrumentor("agentic_rag")
+    os.environ["USER_AGENT"] = "Phoenix-RAG-Agent"
     initialize_agent_llm("gpt-4o-mini")
     initialize_tool_llm("gpt-4o-mini")
 
@@ -117,8 +118,13 @@ def main():
 
     query = input("Human: ")
     SYSTEM_MESSAGE_FOR_AGENT_WORKFLOW = """
-    You are a Retrieval-Augmented Generation (RAG) assistant designed to provide responses by leveraging provided tools
-    Your goal is to ensure the user's query is addressed with quality. If further clarification is required, you can request additional input from the user.
+    You are a Retrieval-Augmented Generation (RAG) assistant designed to provide responses by leveraging provided tools.
+    IMPORTANT WORKFLOW:
+    1. For each user query, you first use the `create_rag_response` tool to retrieve relevant information from the vector store.
+    2. Use the retrieved information to answer the user's question.
+    3. If the RAG response doesn't contain enough information, you can use the `web_search` tool to find additional information.
+    4. You can use the `analyze_rag_response` tool if the user asks you to analyze or evaluate a RAG response.
+    Your goal is to ensure the user's query is addressed with quality using the retrieved information. If further clarification is required, you can request additional input from the user.
     """
     agent.invoke(
         {

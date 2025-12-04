@@ -17,7 +17,9 @@
     "ci:version": "pnpm changeset version",
     "ci:publish": "pnpm run -r build && pnpm publish -r --access public --provenance",
     "docs:generate": "typedoc",
-    "docs:preview": "rimraf docs && pnpm run docs:generate && pnpx http-server ./docs -p 8080 -o"
+    "docs:preview": "rimraf docs && pnpm run docs:generate && pnpx http-server ./docs -p 8080 -o",
+    "clean": "pnpm run clean:node_modules",
+    "clean:node_modules": "rimraf --glob '**/node_modules/**'"
   },
   "keywords": [
     "telemetry",
@@ -41,7 +43,7 @@
     "typedoc": "^0.27.9",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.40.0",
-    "vitest": "^2.1.9"
+    "vitest": "^4.0.10"
   },
   "engines": {
     "node": ">=10",

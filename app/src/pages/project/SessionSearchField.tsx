@@ -3,8 +3,6 @@ import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { AddonBefore } from "@arizeai/components";
-
 import { Flex, Icon, Icons } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 
@@ -42,6 +40,10 @@ const fieldCSS = css`
     border-color: var(--ac-global-color-danger);
   }
   box-sizing: border-box;
+  .search-icon {
+    margin-left: var(--ac-global-dimension-static-size-100);
+    margin-top: var(--ac-global-dimension-static-size-100);
+  }
 `;
 
 type SessionsSubstringFieldProps = {
@@ -63,9 +65,7 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
       css={fieldCSS}
     >
       <Flex direction="row">
-        <AddonBefore>
-          <Icon svg={<Icons.Search />} />
-        </AddonBefore>
+        <Icon svg={<Icons.Search />} className="search-icon" />
         <CodeMirror
           css={codeMirrorCSS}
           indentWithTab={false}

@@ -13,11 +13,15 @@ import {
   Popover,
   PopoverArrow,
   SelectChevronUpDownIcon,
+  Text,
   TimeRangeForm,
   View,
 } from "@phoenix/components";
 import { ComponentSize } from "@phoenix/components/types";
-import { timeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { usePreferencesContext } from "@phoenix/contexts";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
+import { getTimeZoneShortName } from "@phoenix/utils/timeFormatUtils";
+import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
 
 import { LAST_N_TIME_RANGES } from "./constants";
 import { OpenTimeRangeWithKey } from "./types";
@@ -34,26 +38,35 @@ const listBoxCSS = css`
   width: 130px;
 `;
 
-/**
- * Get the display text for the time range key. Shows the explicit time range in the case of "custom"
- */
-function getDisplayText({ timeRangeKey, start, end }: OpenTimeRangeWithKey) {
-  if (timeRangeKey === "custom") {
-    return timeRangeFormatter({ start, end });
-  }
-  const rangeValue = LAST_N_TIME_RANGES.find(
-    (range) => range.key === timeRangeKey
-  );
-  if (!rangeValue) {
-    // Should never happen but must make sure to handle it
-    return "invalid";
-  }
-  return rangeValue.label;
-}
-
 export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const { value, isDisabled, onChange, size = "S" } = props;
   const { timeRangeKey, start, end } = value;
+  const { timeRangeFormatter } = useTimeFormatters();
+  const displayTimezone = usePreferencesContext(
+    (state) => state.displayTimezone
+  );
+  /**
+   * Get the display text for the time range key. Shows the explicit time range in the case of "custom"
+   */
+  const getDisplayText = ({
+    timeRangeKey,
+    start,
+    end,
+  }: OpenTimeRangeWithKey) => {
+    if (timeRangeKey === "custom") {
+      return timeRangeFormatter({ start, end });
+    }
+    const rangeValue = LAST_N_TIME_RANGES.find(
+      (range) => range.key === timeRangeKey
+    );
+    if (!rangeValue) {
+      // Should never happen but must make sure to handle it
+      return "invalid";
+    }
+    return rangeValue.label;
+  };
+  const hasDisplayTimeZone = displayTimezone !== undefined;
+  const absoluteTimeZone = displayTimezone ?? getTimeZone();
   return (
     <DialogTrigger>
       <Button
@@ -61,7 +74,17 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         leadingVisual={<Icon svg={<Icons.CalendarOutline />} />}
         isDisabled={isDisabled}
       >
-        {getDisplayText(value)}
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <>{getDisplayText(value)}</>
+          {hasDisplayTimeZone && (
+            <Text size="S" color="text-500">
+              {getTimeZoneShortName({
+                locale: getLocale(),
+                timeZone: absoluteTimeZone,
+              })}
+            </Text>
+          )}
+        </Flex>
         <SelectChevronUpDownIcon />
       </Button>
       <Popover placement="bottom end">
@@ -77,14 +100,19 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                       <Heading level={2} weight="heavy">
                         Time Range
                       </Heading>
+                      <Text color="text-700" size="S">
+                        {`Displayed in ${absoluteTimeZone} (${getTimeZoneShortName({ locale: getLocale(), timeZone: absoluteTimeZone })})`}
+                      </Text>
                       <TimeRangeForm
                         initialValue={{ start, end }}
+                        timeZone={displayTimezone}
                         onSubmit={(timeRange) => {
-                          onChange &&
+                          if (onChange) {
                             onChange({
                               timeRangeKey: "custom",
                               ...timeRange,
                             });
+                          }
                           close();
                         }}
                       />

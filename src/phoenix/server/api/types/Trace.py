@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union
 
 import pandas as pd
 import strawberry
+from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import desc, select
+from sqlalchemy import desc, or_, select
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
@@ -21,9 +22,9 @@ from phoenix.server.api.input_types.TraceAnnotationSort import TraceAnnotationSo
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
+    Cursor,
     CursorString,
-    connection_from_list,
+    connection_from_cursors_and_nodes,
 )
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
@@ -195,26 +196,94 @@ class Trace(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        root_spans_only: Optional[bool] = UNSET,
+        orphan_span_as_root_span: Optional[bool] = True,
     ) -> Connection[Span]:
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, CursorString) else None,
-            last=last,
-            before=before if isinstance(before, CursorString) else None,
-        )
-        stmt = (
+        # Validate pagination arguments
+        if isinstance(first, int) and first <= 0:
+            raise ValueError('Argument "first" must be a positive int')
+
+        # Build base query for spans in this trace
+        base_query = (
             select(models.Span.id)
             .join(models.Trace)
             .where(models.Trace.id == self.id)
             # Sort descending because the root span tends to show up later
             # in the ingestion process.
             .order_by(desc(models.Span.id))
-            .limit(first)
         )
+        # Handle cursor pagination (forward pagination only)
+        if after is not UNSET and after is not None:
+            # Type narrowing: after is guaranteed to be str at this point
+            assert after is not None  # Type narrowing for mypy
+            try:
+                cursor = Cursor.from_string(after)
+            except Exception as e:
+                raise ValueError(f"Invalid cursor format: {after}") from e
+            # For descending order, "after" means we want spans with smaller IDs
+            # (going forward in descending order)
+            base_query = base_query.where(models.Span.id < cursor.rowid)
+        # Note: backward pagination (last/before) is not yet implemented
+        # as it requires more complex handling with reversed ordering
+        if before is not UNSET or (last is not UNSET and last is not None):
+            raise ValueError("Backward pagination (last/before) is not yet supported")
+
+        # Build final query based on filtering requirements
+        if root_spans_only:
+            if orphan_span_as_root_span:
+                # A root span is either a span with no parent_id or an orphan span
+                # (a span whose parent_id references a span that doesn't exist in the current trace)
+                # We need parent_id to check for orphan spans, so add it to the query
+                # and create a CTE
+                candidate_spans = base_query.add_columns(models.Span.parent_id).cte(
+                    "candidate_spans"
+                )
+                # Subquery to get all span_ids that exist in this trace
+                parent_spans_in_trace = (
+                    select(models.Span.span_id)
+                    .where(models.Span.trace_rowid == self.id)
+                    .alias("parent_spans")
+                )
+                # Filter candidates to only root spans (NULL parent_id or orphan spans)
+                stmt = (
+                    select(candidate_spans.c.id)
+                    .where(
+                        or_(
+                            candidate_spans.c.parent_id.is_(None),
+                            ~select(1)
+                            .where(candidate_spans.c.parent_id == parent_spans_in_trace.c.span_id)
+                            .exists(),
+                        )
+                    )
+                    .order_by(desc(candidate_spans.c.id))
+                )
+            else:
+                # Only include explicit root spans (spans with parent_id = NULL)
+                stmt = base_query.where(models.Span.parent_id.is_(None))
+        else:
+            # Return all spans (no root span filtering)
+            stmt = base_query
+
+        # Over-fetch by one to determine whether there's a next page
+        limit = first if isinstance(first, int) else 50
+        stmt = stmt.limit(limit + 1)
+
+        cursors_and_nodes = []
         async with info.context.db() as session:
             span_rowids = await session.stream_scalars(stmt)
-            data = [Span(id=span_rowid) async for span_rowid in span_rowids]
-        return connection_from_list(data=data, args=args)
+            async for span_rowid in islice(span_rowids, limit):
+                cursor = Cursor(rowid=span_rowid)
+                cursors_and_nodes.append((cursor, Span(id=span_rowid)))
+            has_next_page = True
+            try:
+                await span_rowids.__anext__()
+            except StopAsyncIteration:
+                has_next_page = False
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes,
+            has_previous_page=False,
+            has_next_page=has_next_page,
+        )
 
     @strawberry.field(description="Annotations associated with the trace.")  # type: ignore
     async def trace_annotations(

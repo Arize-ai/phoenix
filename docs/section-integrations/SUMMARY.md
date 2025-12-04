@@ -72,6 +72,8 @@
   * [DSPy Tracing](python/dspy/dspy-tracing.md)
 * [Google ADK](python/google-adk/README.md)
   * [Google ADK Tracing](python/google-adk/google-adk-tracing.md)
+* [Graphite](python/graphite/README.md)
+  * [Graphite Integration Guide](python/graphite/arize-integration.md)
 * [Guardrails AI](python/guardrails-ai/README.md)
   * [Guardrails AI Tracing](python/guardrails-ai/guardrails-ai-tracing.md)
 * [Haystack](python/haystack/README.md)

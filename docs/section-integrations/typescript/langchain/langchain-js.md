@@ -7,68 +7,66 @@ This module provides automatic instrumentation for LangChain.js, more specifical
 ## Install
 
 ```bash
-npm install --save @arizeai/openinference-instrumentation-langchain
+npm install --save @arizeai/openinference-instrumentation-langchain \
+  @arizeai/phoenix-otel
 ```
 
 ## Setup
 
-To load the LangChain instrumentation, manually instrument the `@langchain/core/callbacks/manager` module. The callbacks manager must be manually instrumented due to the non-traditional module structure in `@langchain/core`. Additional instrumentations can be registered as usual in the registerInstrumentations function.
+To load the LangChain instrumentation, manually instrument the `@langchain/core/callbacks/manager` module. The callbacks manager must be manually instrumented due to the non-traditional module structure in `@langchain/core`.
 
 ```typescript
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import { 
-  LangChainInstrumentation 
-} from "@arizeai/openinference-instrumentation-langchain";
+import { register } from "@arizeai/phoenix-otel";
+import { LangChainInstrumentation } from "@arizeai/openinference-instrumentation-langchain";
 import * as CallbackManagerModule from "@langchain/core/callbacks/manager";
 
-const provider = new NodeTracerProvider();
-provider.register();
+const provider = register({
+  projectName: "langchain-app",
+});
 
 const lcInstrumentation = new LangChainInstrumentation();
 // LangChain must be manually instrumented as it doesn't have 
 // a traditional module structure
 lcInstrumentation.manuallyInstrument(CallbackManagerModule);
-
 ```
+
+Once instrumentation is setup, your agent will automatically export traces to Phoenix.
+
+```typescript
+import * as z from "zod";
+// npm install @langchain/anthropic to call the model
+import { createAgent, tool } from "langchain";
+
+const getWeather = tool(
+  ({ city }) => `It's always sunny in ${city}!`,
+  {
+    name: "get_weather",
+    description: "Get the weather for a given city",
+    schema: z.object({
+      city: z.string(),
+    }),
+  },
+);
+
+const agent = createAgent({
+  model: "claude-sonnet-4-5-20250929",
+  tools: [getWeather],
+});
+
+console.log(
+  await agent.invoke({
+    messages: [{ role: "user", content: "What's the weather in Tokyo?" }],
+  })
+);
+```
+
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/langgraphjs.png" alt=""><figcaption></figcaption></figure>
 
 ## Support
 
-Instrumentation version >1.0.0 supports both attribute masking and context attribute propagation to spans.
+Instrumentation version >=4.0.0 supports LangChain 1.0 and above.&#x20;
 
-<table data-full-width="false"><thead><tr><th width="226">Instrumentation Version</th><th width="177" align="center">LangChain ^0.3.0</th><th width="181" align="center">LangChain ^0.2.0</th><th align="center">LangChain ^0.1.0</th></tr></thead><tbody><tr><td>>1.0.0</td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td></tr><tr><td>>0.2.0</td><td align="center">❌</td><td align="center">✅</td><td align="center">✅</td></tr><tr><td>>0.1.0</td><td align="center">❌</td><td align="center">❌</td><td align="center">✅</td></tr></tbody></table>
-
-## Custom Tracer Provider
-
-You can specify a custom tracer provider for LangChain instrumentation in multiple ways:
-
-### Method 1: Pass tracerProvider on instantiation
-
-```typescript
-const lcInstrumentation = new LangChainInstrumentation({
-  tracerProvider: customTracerProvider,
-});
-lcInstrumentation.manuallyInstrument(CallbackManagerModule);
-```
-
-### Method 2: Set tracerProvider after instantiation
-
-```typescript
-const lcInstrumentation = new LangChainInstrumentation();
-lcInstrumentation.setTracerProvider(customTracerProvider);
-lcInstrumentation.manuallyInstrument(CallbackManagerModule);
-```
-
-### Method 3: Pass tracerProvider to registerInstrumentations
-
-```typescript
-const lcInstrumentation = new LangChainInstrumentation();
-lcInstrumentation.manuallyInstrument(CallbackManagerModule);
-
-registerInstrumentations({
-  instrumentations: [lcInstrumentation],
-  tracerProvider: customTracerProvider,
-});
-```
+If you are still using older versions of LangChain we recommend using the dedicated package [`@arizeai/openinference-instrumentation-langchain-v0`](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain-v0)  which will receive patches for the older versions.
 
 ## Resources
 

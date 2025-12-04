@@ -58,7 +58,9 @@ export function MessageBar({
 
   const handleSend = () => {
     if (message.trim()) {
-      onSendMessage && onSendMessage(message.trim());
+      if (onSendMessage) {
+        onSendMessage(message.trim());
+      }
       setMessage("");
     }
   };

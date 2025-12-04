@@ -1,0 +1,193 @@
+# @arizeai/phoenix-otel
+
+[![NPM](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel)
+
+A simple wrapper around OpenTelemetry for use with [Arize Phoenix](https://github.com/Arize-ai/phoenix). This package simplifies the setup of OpenTelemetry tracing for Node.js applications, providing an easy way to send traces to Phoenix for observability and analysis.
+
+> **Note**: This package is still under active development and is subject to change.
+
+## Installation
+
+```bash
+npm install @arizeai/phoenix-otel
+```
+
+## Quick Start
+
+The simplest way to get started is to use the `register` function with minimal configuration:
+
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+
+// Register with default settings (connects to localhost:6006)
+register({
+  projectName: "my-app",
+});
+```
+
+For production use with Arize Phoenix cloud:
+
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+
+register({
+  projectName: "my-app",
+  url: "https://app.phoenix.arize.com",
+  apiKey: "your-api-key",
+});
+```
+
+## Configuration
+
+### Environment Variables
+
+The package automatically reads from the following environment variables if configuration parameters are not provided:
+
+- `PHOENIX_COLLECTOR_ENDPOINT` - The URL to the Phoenix collector endpoint
+- `PHOENIX_API_KEY` - The API key for authentication
+
+**Example:**
+
+```bash
+PHOENIX_COLLECTOR_ENDPOINT='https://app.phoenix.arize.com' \
+PHOENIX_API_KEY='your-api-key' \
+node your-app.js
+```
+
+### Configuration Options
+
+The `register` function accepts a `RegisterParams` object with the following options:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `projectName` | `string` | `"default"` | The project name that spans should be associated with |
+| `url` | `string` | `"http://localhost:6006"` | The URL to the Phoenix server (can include tracing path) |
+| `apiKey` | `string` | `undefined` | The API key for Phoenix instance authentication |
+| `headers` | `Record<string, string>` | `{}` | Custom headers to include in OTLP requests |
+| `batch` | `boolean` | `true` | Whether to use batch span processing (recommended for production) |
+| `instrumentations` | `Instrumentation[]` | `undefined` | Array of OpenTelemetry instrumentations to register |
+| `global` | `boolean` | `true` | Whether to set the tracer as a global provider |
+| `diagLogLevel` | `DiagLogLevel` | `undefined` | Diagnostic logging level for debugging |
+
+## Usage Examples
+
+### Basic Configuration
+
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "my-application",
+  url: "http://localhost:6006",
+  batch: true,
+});
+```
+
+### With Auto-Instrumentation
+
+Automatically instrument common libraries (works best with CommonJS projects):
+
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
+
+register({
+  projectName: "my-express-app",
+  url: "https://app.phoenix.arize.com",
+  apiKey: process.env.PHOENIX_API_KEY,
+  instrumentations: [
+    new HttpInstrumentation(),
+    new ExpressInstrumentation(),
+  ],
+});
+```
+
+> **Note**: Auto-instrumentation may only work with CommonJS projects. ESM projects will require manually applying instrumentation.
+
+### With Custom Headers
+
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+
+register({
+  projectName: "my-app",
+  url: "https://app.phoenix.arize.com",
+  headers: {
+    "X-Custom-Header": "custom-value",
+  },
+});
+```
+
+### Development vs Production Configuration
+
+For development with local Phoenix instance:
+
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+import { DiagLogLevel } from "@opentelemetry/api";
+
+register({
+  projectName: "my-app-dev",
+  url: "http://localhost:6006",
+  batch: false, // Use simple span processor for immediate feedback
+  diagLogLevel: DiagLogLevel.DEBUG, // Enable debug logging
+});
+```
+
+For production:
+
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+
+register({
+  projectName: "my-app-prod",
+  url: "https://app.phoenix.arize.com",
+  apiKey: process.env.PHOENIX_API_KEY,
+  batch: true, // Use batch processing for better performance
+});
+```
+
+### Manual Tracing
+
+After registration, you can create custom spans using the OpenTelemetry API:
+
+```typescript
+import { register, trace } from "@arizeai/phoenix-otel";
+
+register({ projectName: "my-app" });
+
+const tracer = trace.getTracer("my-tracer");
+
+async function myFunction() {
+  return tracer.startActiveSpan("my-operation", async (span) => {
+    try {
+      // Your code here
+      const result = await someOperation();
+      span.setAttribute("result.count", result.length);
+      return result;
+    } catch (error) {
+      span.recordException(error as Error);
+      throw error;
+    } finally {
+      span.end();
+    }
+  });
+}
+```
+
+### Non-Global Provider
+
+If you don't want to set the provider globally:
+
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "my-app",
+  global: false, // Don't register globally
+});
+
+// Use the provider explicitly
+const tracer = provider.getTracer("my-tracer");
+```

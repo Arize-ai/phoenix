@@ -370,6 +370,17 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                             "inputs": {"type": "array", "items": {"type": "object"}},
                             "outputs": {"type": "array", "items": {"type": "object"}},
                             "metadata": {"type": "array", "items": {"type": "object"}},
+                            "splits": {
+                                "type": "array",
+                                "items": {
+                                    "oneOf": [
+                                        {"type": "string"},
+                                        {"type": "array", "items": {"type": "string"}},
+                                        {"type": "null"},
+                                    ]
+                                },
+                                "description": "Split per example: string, string array, or null",
+                            },
                         },
                     }
                 },
@@ -395,6 +406,12 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 "type": "array",
                                 "items": {"type": "string"},
                                 "uniqueItems": True,
+                            },
+                            "split_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                                "description": "Column names for auto-assigning examples to splits",
                             },
                             "file": {"type": "string", "format": "binary"},
                         },
@@ -445,6 +462,7 @@ async def upload_dataset(
                     input_keys,
                     output_keys,
                     metadata_keys,
+                    split_keys,
                     file,
                 ) = await _parse_form_data(form)
             except ValueError as e:
@@ -465,10 +483,12 @@ async def upload_dataset(
             if file_content_type is FileContentType.CSV:
                 encoding = FileContentEncoding(file.headers.get("content-encoding"))
                 examples = await _process_csv(
-                    content, encoding, input_keys, output_keys, metadata_keys
+                    content, encoding, input_keys, output_keys, metadata_keys, split_keys
                 )
             elif file_content_type is FileContentType.PYARROW:
-                examples = await _process_pyarrow(content, input_keys, output_keys, metadata_keys)
+                examples = await _process_pyarrow(
+                    content, input_keys, output_keys, metadata_keys, split_keys
+                )
             else:
                 assert_never(file_content_type)
         except ValueError as e:
@@ -546,6 +566,7 @@ Description: TypeAlias = Optional[str]
 InputKeys: TypeAlias = frozenset[str]
 OutputKeys: TypeAlias = frozenset[str]
 MetadataKeys: TypeAlias = frozenset[str]
+SplitKeys: TypeAlias = frozenset[str]
 DatasetId: TypeAlias = int
 Examples: TypeAlias = Iterator[ExampleContent]
 
@@ -562,18 +583,55 @@ def _process_json(
         raise ValueError("input is required")
     if not isinstance(inputs, list) or not _is_all_dict(inputs):
         raise ValueError("Input should be a list containing only dictionary objects")
-    outputs, metadata = data.get("outputs"), data.get("metadata")
+    outputs, metadata, splits = data.get("outputs"), data.get("metadata"), data.get("splits")
     for k, v in {"outputs": outputs, "metadata": metadata}.items():
         if v and not (isinstance(v, list) and len(v) == len(inputs) and _is_all_dict(v)):
             raise ValueError(
                 f"{k} should be a list of same length as input containing only dictionary objects"
             )
+
+    # Validate splits format if provided
+    if splits is not None:
+        if not isinstance(splits, list):
+            raise ValueError("splits must be a list")
+        if len(splits) != len(inputs):
+            raise ValueError(
+                f"splits must have same length as inputs ({len(splits)} != {len(inputs)})"
+            )
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
+        # Extract split values, validating they're non-empty strings
+        split_set: set[str] = set()
+        if splits:
+            split_value = splits[i]
+            if split_value is None:
+                # Sparse assignment: None means no splits for this example
+                pass
+            elif isinstance(split_value, str):
+                # Format 1: Single string value
+                if split_value.strip():
+                    split_set.add(split_value.strip())
+            elif isinstance(split_value, list):
+                # Format 2: List of strings (multiple splits)
+                for v in split_value:
+                    if v is None:
+                        continue  # Skip None values in the list
+                    if not isinstance(v, str):
+                        raise ValueError(
+                            f"Split value must be a string or None, got {type(v).__name__}"
+                        )
+                    if v.strip():
+                        split_set.add(v.strip())
+            else:
+                raise ValueError(
+                    f"Split value must be a string, list of strings, or None, "
+                    f"got {type(split_value).__name__}"
+                )
         example = ExampleContent(
             input=obj,
             output=outputs[i] if outputs else {},
             metadata=metadata[i] if metadata else {},
+            splits=frozenset(split_set),
         )
         examples.append(example)
     action = DatasetAction(cast(Optional[str], data.get("action")) or "create")
@@ -586,6 +644,7 @@ async def _process_csv(
     input_keys: InputKeys,
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
+    split_keys: SplitKeys,
 ) -> Examples:
     if content_encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
@@ -600,12 +659,15 @@ async def _process_csv(
     if freq > 1:
         raise ValueError(f"Duplicated column header in CSV file: {header}")
     column_headers = frozenset(reader.fieldnames)
-    _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys)
+    _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys, split_keys)
     return (
         ExampleContent(
             input={k: row.get(k) for k in input_keys},
             output={k: row.get(k) for k in output_keys},
             metadata={k: row.get(k) for k in metadata_keys},
+            splits=frozenset(
+                str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
+            ),  # Only include non-empty, non-whitespace split values
         )
         for row in iter(reader)
     )
@@ -616,13 +678,14 @@ async def _process_pyarrow(
     input_keys: InputKeys,
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
+    split_keys: SplitKeys,
 ) -> Awaitable[Examples]:
     try:
         reader = pa.ipc.open_stream(content)
     except pa.ArrowInvalid as e:
         raise ValueError("File is not valid pyarrow") from e
     column_headers = frozenset(reader.schema.names)
-    _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys)
+    _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys, split_keys)
 
     def get_examples() -> Iterator[ExampleContent]:
         for row in reader.read_pandas().to_dict(orient="records"):
@@ -630,6 +693,9 @@ async def _process_pyarrow(
                 input={k: row.get(k) for k in input_keys},
                 output={k: row.get(k) for k in output_keys},
                 metadata={k: row.get(k) for k in metadata_keys},
+                splits=frozenset(
+                    str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
+                ),  # Only include non-empty, non-whitespace split values
             )
 
     return run_in_threadpool(get_examples)
@@ -648,11 +714,13 @@ def _check_keys_exist(
     input_keys: InputKeys,
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
+    split_keys: SplitKeys,
 ) -> None:
     for desc, keys in (
         ("input", input_keys),
         ("output", output_keys),
         ("metadata", metadata_keys),
+        ("split", split_keys),
     ):
         if keys and (diff := keys.difference(column_headers)):
             raise ValueError(f"{desc} keys not found in column headers: {diff}")
@@ -667,6 +735,7 @@ async def _parse_form_data(
     InputKeys,
     OutputKeys,
     MetadataKeys,
+    SplitKeys,
     UploadFile,
 ]:
     name = cast(Optional[str], form.get("name"))
@@ -680,6 +749,7 @@ async def _parse_form_data(
     input_keys = frozenset(filter(bool, cast(list[str], form.getlist("input_keys[]"))))
     output_keys = frozenset(filter(bool, cast(list[str], form.getlist("output_keys[]"))))
     metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
+    split_keys = frozenset(filter(bool, cast(list[str], form.getlist("split_keys[]"))))
     return (
         action,
         name,
@@ -687,6 +757,7 @@ async def _parse_form_data(
         input_keys,
         output_keys,
         metadata_keys,
+        split_keys,
         file,
     )
 

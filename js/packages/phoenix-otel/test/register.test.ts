@@ -18,6 +18,14 @@ test.each([
   ["http://localhost:6006", "http://localhost:6006/v1/traces"],
   ["http://localhost:6006/v1/traces", "http://localhost:6006/v1/traces"],
   ["http://localhost:6006/v1/traces/", "http://localhost:6006/v1/traces/"],
+  [
+    "https://app.phoenix.arize.com/s/my-space",
+    "https://app.phoenix.arize.com/s/my-space/v1/traces",
+  ],
+  [
+    "https://app.phoenix.arize.com/s/my-space/v1/traces",
+    "https://app.phoenix.arize.com/s/my-space/v1/traces",
+  ],
 ])("ensureCollectorEndpoint(%0) should return %1", (url, collectorURL) => {
   expect(ensureCollectorEndpoint(url)).toBe(collectorURL);
 });

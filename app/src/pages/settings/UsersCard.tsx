@@ -66,17 +66,15 @@ export function UsersCard() {
         </Button>
       }
     >
-      <View overflow="auto">
-        <Suspense
-          fallback={
-            <View padding="size-200">
-              <Loading />
-            </View>
-          }
-        >
-          <UsersTable query={data} />
-        </Suspense>
-      </View>
+      <Suspense
+        fallback={
+          <View padding="size-200">
+            <Loading />
+          </View>
+        }
+      >
+        <UsersTable query={data} />
+      </Suspense>
       {dialog}
     </Card>
   );

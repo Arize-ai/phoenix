@@ -14,7 +14,7 @@ export function usePrettyText(text: string): {
     try {
       const parsed = JSON.parse(text);
       return { text: JSON.stringify(parsed, null, 2), textType: "json" };
-    } catch (e) {
+    } catch (_e) {
       return { text, textType: "string" };
     }
   }, [text]);

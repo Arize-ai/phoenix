@@ -36,13 +36,13 @@ import {
 import { usePointCloudContext } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { MetricDefinition } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   getMetricDescriptionByMetricKey,
   getMetricShortNameByMetricKey,
 } from "@phoenix/utils/metricFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import {
   calculateGranularity,
   calculateGranularityWithRollingAverage,
@@ -70,6 +70,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const { color, barColor } = useColors();
+  const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     const metricValue = payload[1]?.value ?? null;
     const count = payload[0]?.value ?? null;

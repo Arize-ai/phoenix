@@ -8,7 +8,7 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { useTimeFormatters } from "@phoenix/hooks";
 
 import { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
 
@@ -16,6 +16,7 @@ type SpanHeaderProps = {
   span: SpanHeader_span$key;
 };
 export function SpanHeader(props: SpanHeaderProps) {
+  const { fullTimeFormatter } = useTimeFormatters();
   const span = useFragment(
     graphql`
       fragment SpanHeader_span on Span {

@@ -4,19 +4,19 @@ Now that you have Phoenix up and running, and sent traces to your first project,
 
 {% stepper %}
 {% step %}
-### Launch Phoenix&#x20;
+#### Launch Phoenix
 
-Before running evals, make sure Phoenix is running & you have sent traces in your project. For more step by step instructions, check out this [Get Started guide](./) & [Get Started with Tracing guide](get-started-tracing.md).&#x20;
-
-{% tabs %}
-{% tab title="Phoenix Cloud" %}
-Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).&#x20;
+Before running evals, make sure Phoenix is running & you have sent traces in your project. For more step by step instructions, check out this [Get Started guide](./) & [Get Started with Tracing guide](get-started-tracing.md).
 
 {% tabs %}
 {% tab title="Phoenix Cloud" %}
-Log in, create a space, navigate to the settings page in your space, and create your API keys.&#x20;
+Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](./).
 
-In your code, set your environment variables.&#x20;
+{% tabs %}
+{% tab title="Phoenix Cloud" %}
+Log in, create a space, navigate to the settings page in your space, and create your API keys.
+
+In your code, set your environment variables.
 
 ```python
 import os
@@ -24,27 +24,27 @@ os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX Collector endpoint"
 ```
 
-You can find your collector endpoint here:&#x20;
+You can find your collector endpoint here:
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings. "><figcaption><p>Launch your space, navigate to settings &#x26; copy your hostname for your collector endpoint </p></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings."><figcaption><p>Launch your space, navigate to settings &#x26; copy your hostname for your collector endpoint</p></figcaption></figure>
 
-Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.&#x20;
+Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.
 {% endtab %}
 {% endtabs %}
 {% endtab %}
 
 {% tab title="Local (Self-hosted)" %}
-If you installed Phoenix locally, you have a variety of options for deployment methods including: Terminal, Docker, Kubernetes, Railway, & AWS CloudFormation.  ([Learn more: Self-Hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/))
+If you installed Phoenix locally, you have a variety of options for deployment methods including: Terminal, Docker, Kubernetes, Railway, & AWS CloudFormation. ([Learn more: Self-Hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/))
 
-To host on your local machine, run `phoenix serve` in your terminal.&#x20;
+To host on your local machine, run `phoenix serve` in your terminal.
 
-Navigate to your localhost in your browser. (example localhost:6006)&#x20;
+Navigate to your localhost in your browser. (example localhost:6006)
 {% endtab %}
 {% endtabs %}
 {% endstep %}
 
 {% step %}
-### Install Phoenix Evals
+#### Install Phoenix Evals
 
 You'll need to install the evals library that's apart of Phoenix. For the most recent version, run a version above 2.0.
 
@@ -54,9 +54,9 @@ You'll need to install the evals library that's apart of Phoenix. For the most r
 {% endstep %}
 
 {% step %}
-### Pull down your Trace Data&#x20;
+#### Pull down your Trace Data
 
-Since, we are running our evaluations on our trace data from our first project, we'll need to pull that data into our code.&#x20;
+Since, we are running our evaluations on our trace data from our first project, we'll need to pull that data into our code.
 
 ```python
 from phoenix.client import Client
@@ -67,15 +67,15 @@ primary_df = px_client.spans.get_spans_dataframe(project_identifier="my-llm-app"
 {% endstep %}
 
 {% step %}
-### Set Up Evaluations
+#### Set Up Evaluations
 
-In this example, we will define, create, and run our own evaluator. There's a number of different evaluators you can run, but this quick start will go through an LLM as a Judge Model.&#x20;
+In this example, we will define, create, and run our own evaluator. There's a number of different evaluators you can run, but this quick start will go through an LLM as a Judge Model.
 
-#### 1) Define your LLM Judge Model&#x20;
+**1) Define your LLM Judge Model**
 
-We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](../evaluation/how-to-evals/configuring-the-llm/).&#x20;
+We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](../evaluation/how-to-evals/configuring-the-llm/).
 
-If you haven't yet defined your OpenAI API Key from the previous step, let's first add it to our environment.&#x20;
+If you haven't yet defined your OpenAI API Key from the previous step, let's first add it to our environment.
 
 ```python
 import os
@@ -90,7 +90,7 @@ from phoenix.evals.llm import LLM
 llm = LLM(model="gpt-4o", provider="openai")
 ```
 
-#### 2) Define your Evaluators
+**2) Define your Evaluators**
 
 We will set up a Q\&A correctness Evaluator with the LLM of choice. I want to first define my LLM-as-a-Judge prompt template. Most LLM-as-a-judge evaluations can be framed as a classification task where the output is one of two or more categorical labels.
 
@@ -129,9 +129,9 @@ correctness_evaluator = create_classifier(
 {% endstep %}
 
 {% step %}
-### Run Evaluation&#x20;
+#### Run Evaluation
 
-Now that we have defined our evaluator, we're ready to evaluate our traces.&#x20;
+Now that we have defined our evaluator, we're ready to evaluate our traces.
 
 ```python
 from phoenix.evals import evaluate_dataframe
@@ -144,9 +144,9 @@ results_df = evaluate_dataframe(
 {% endstep %}
 
 {% step %}
-### Log results to Visualize in Phoenix&#x20;
+#### Log results to Visualize in Phoenix
 
-You'll now be able to log your evaluations in your project view.&#x20;
+You'll now be able to log your evaluations in your project view.
 
 ```python
 client.log_span_annotations(
@@ -160,4 +160,4 @@ client.log_span_annotations(
 
 ### Learn More:
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>Evaluation Concepts </td><td><a href="https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge">https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge</a></td></tr><tr><td>Evals in Phoenix </td><td><a href="https://arize.com/docs/phoenix/evaluation/llm-evals">https://arize.com/docs/phoenix/evaluation/llm-evals</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>Evaluation Concepts</td><td><a href="https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge">https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge</a></td></tr><tr><td>Evals in Phoenix</td><td><a href="https://arize.com/docs/phoenix/evaluation/llm-evals">https://arize.com/docs/phoenix/evaluation/llm-evals</a></td></tr></tbody></table>

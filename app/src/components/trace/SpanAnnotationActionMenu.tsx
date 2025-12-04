@@ -1,8 +1,6 @@
 import { startTransition, useCallback, useRef, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import type { NoticeConfig } from "@arizeai/components/dist/notification/types";
-
 import {
   Button,
   ButtonProps,
@@ -25,6 +23,7 @@ import {
   DialogTitle,
 } from "@phoenix/components/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { NotificationHookParams } from "@phoenix/contexts/NotificationContext";
 
 import { SpanAnnotationActionMenuDeleteMutation } from "./__generated__/SpanAnnotationActionMenuDeleteMutation.graphql";
 
@@ -34,9 +33,7 @@ type SpanAnnotationActionMenuProps = {
   annotationId: string;
   spanNodeId: string;
   annotationName: string;
-  onSpanAnnotationActionSuccess: (
-    notifyProps: Omit<NoticeConfig, "variant">
-  ) => void;
+  onSpanAnnotationActionSuccess: (notifyProps: NotificationHookParams) => void;
   onSpanAnnotationActionError: (error: Error) => void;
 };
 
@@ -54,6 +51,7 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
     buttonVariant,
     buttonSize,
   } = props;
+  const [deleting, setDeleting] = useState(false);
   const [commitDelete] = useMutation<SpanAnnotationActionMenuDeleteMutation>(
     graphql`
       mutation SpanAnnotationActionMenuDeleteMutation(
@@ -103,7 +101,6 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
   ]);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [deleting, setDeleting] = useState(false);
 
   return (
     <>

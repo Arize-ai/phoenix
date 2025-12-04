@@ -1,4 +1,6 @@
+import { ObjectMapping } from "./data";
 import { WithTelemetry } from "./otel";
+import { PromptTemplate } from "./templating";
 
 import { LanguageModel } from "ai";
 
@@ -77,25 +79,44 @@ export interface CreateClassifierArgs extends WithTelemetry {
   /**
    * The prompt template to use for classification
    */
-  promptTemplate: string;
+  promptTemplate: PromptTemplate;
 }
 
-export interface CreateEvaluatorArgs {
+export interface CreateEvaluatorArgs<
+  ExampleType extends Record<string, unknown> = Record<string, unknown>,
+> extends WithTelemetry {
   /**
    * The name of the metric that the evaluator produces
    * E.x. "correctness"
    */
   name: string;
   /**
+   * The kind of the evaluation. Also known as the "kind" of evaluator.
+   */
+  kind: EvaluationKind;
+  /**
    * If present, represents the direction in which you want the metric to be optimized
    * E.x. "MAXIMIZE" means you want the number to be higher.
    */
   optimizationDirection?: OptimizationDirection;
+  /**
+   * The mapping of the input to evaluate to the shape that the evaluator expects
+   */
+  inputMapping?: ObjectMapping<ExampleType>;
 }
 
-export interface CreateClassificationEvaluatorArgs
-  extends CreateClassifierArgs,
-    CreateEvaluatorArgs {}
+export type CreateLLMEvaluatorArgs<RecordType extends Record<string, unknown>> =
+  Omit<CreateEvaluatorArgs<RecordType>, "kind">;
+
+export interface CreateClassificationEvaluatorArgs<
+  RecordType extends Record<string, unknown>,
+> extends CreateClassifierArgs,
+    CreateLLMEvaluatorArgs<RecordType> {
+  /**
+   * The prompt template to use for classification
+   */
+  promptTemplate: PromptTemplate;
+}
 
 export type EvaluatorFn<ExampleType extends Record<string, unknown>> = (
   args: ExampleType
@@ -135,7 +156,7 @@ interface EvaluatorDescription {
  * The Base Evaluator interface
  * This is the interface that all evaluators must implement
  */
-export interface Evaluator<ExampleType extends Record<string, unknown>>
+export interface EvaluatorInterface<ExampleType extends Record<string, unknown>>
   extends EvaluatorDescription {
   /**
    * The function that evaluates the example

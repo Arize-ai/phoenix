@@ -10,8 +10,6 @@ Phoenix provides auto-instrumentation for [Haystack](https://haystack.deepset.ai
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

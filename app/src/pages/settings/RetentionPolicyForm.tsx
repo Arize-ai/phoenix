@@ -3,6 +3,7 @@ import { CronExpressionParser } from "cron-parser";
 
 import {
   Button,
+  FieldError,
   Flex,
   Form,
   Heading,
@@ -19,7 +20,7 @@ import {
 } from "@phoenix/utils/retentionPolicyUtils";
 export type RetentionPolicyFormParams = {
   name: string;
-  numberOfTraces?: number;
+  numberOfTraces?: number | null;
   numberOfDays?: number;
   schedule: string;
 };
@@ -32,17 +33,19 @@ type RetentionPolicyFormProps = {
   onCancel?: () => void;
 };
 export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
+  "use no memo";
   const { onSubmit, mode, isSubmitting, defaultValues } = props;
   const { control, watch, handleSubmit } = useForm<RetentionPolicyFormParams>({
     defaultValues: defaultValues ?? {
       name: "New Policy",
-      numberOfTraces: undefined,
+      numberOfTraces: null,
       numberOfDays: 400,
       schedule: "0 0 * * 0",
     },
     mode: "onChange",
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const [numberOfDays, numberOfTraces, schedule] = watch([
     "numberOfDays",
     "numberOfTraces",
@@ -72,13 +75,22 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
               rules={{
                 required: "Name is required",
               }}
-              render={({ field }) => (
-                <TextField {...field} size="S" value={field.value}>
+              render={({ field, fieldState: { invalid, error } }) => (
+                <TextField
+                  {...field}
+                  size="S"
+                  value={field.value}
+                  isInvalid={invalid}
+                >
                   <Label>Name</Label>
                   <Input />
-                  <Text slot="description">
-                    The name of the retention policy
-                  </Text>
+                  {!error ? (
+                    <Text slot="description">
+                      The name of the retention policy
+                    </Text>
+                  ) : (
+                    <FieldError>{error?.message}</FieldError>
+                  )}
                 </TextField>
               )}
             />
@@ -93,13 +105,17 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
                   message: "Number of days must be at least 0",
                 },
               }}
-              render={({ field }) => (
-                <NumberField step={1} size="S" {...field}>
+              render={({ field, fieldState: { invalid, error } }) => (
+                <NumberField step={1} size="S" {...field} isInvalid={invalid}>
                   <Label>Number of Days</Label>
                   <Input />
-                  <Text slot="description">
-                    The number of days that will be kept
-                  </Text>
+                  {!error ? (
+                    <Text slot="description">
+                      The number of days that will be kept
+                    </Text>
+                  ) : (
+                    <FieldError>{error?.message}</FieldError>
+                  )}
                 </NumberField>
               )}
             />
@@ -112,19 +128,24 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
                   message: "Number of traces must be at least 0",
                 },
               }}
-              render={({ field }) => (
+              render={({ field, fieldState: { invalid, error } }) => (
                 <NumberField
                   step={1}
                   size="S"
                   value={field.value ?? undefined}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
+                  isInvalid={invalid}
                 >
                   <Label>Number of Traces</Label>
                   <Input />
-                  <Text slot="description">
-                    The number of traces that will be kept
-                  </Text>
+                  {!error ? (
+                    <Text slot="description">
+                      The number of traces that will be kept
+                    </Text>
+                  ) : (
+                    <FieldError>{error?.message}</FieldError>
+                  )}
                 </NumberField>
               )}
             />
@@ -165,9 +186,7 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
                   <Label>Schedule</Label>
                   <Input />
                   {fieldState.error ? (
-                    <Text slot="errorMessage" color="danger">
-                      {fieldState.error.message}
-                    </Text>
+                    <FieldError>{fieldState.error.message}</FieldError>
                   ) : (
                     <Text slot="description">
                       A cron expression for the hour of the week
@@ -183,7 +202,7 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
             <Text color="text-700">
               {createPolicyDeletionSummaryText({
                 numberOfDays,
-                numberOfTraces,
+                numberOfTraces: numberOfTraces ?? undefined,
               })}
             </Text>
             <br />

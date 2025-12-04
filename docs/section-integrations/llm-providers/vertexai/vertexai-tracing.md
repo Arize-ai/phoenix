@@ -8,8 +8,6 @@ The VertexAI SDK can be instrumented using the [`openinference-instrumentation-v
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```shell

@@ -1,4 +1,4 @@
-import { useFragment } from "react-relay";
+import { useFragment, usePreloadedQuery } from "react-relay";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
@@ -17,6 +17,8 @@ import {
 } from "@phoenix/components";
 
 import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
+import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
+import { promptLoaderQuery } from "./promptLoader";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 const mainCSS = css`
@@ -49,6 +51,11 @@ const mainCSS = css`
 
 export function PromptLayout() {
   const loaderData = usePromptIdLoader();
+  const preloadedData = usePreloadedQuery<promptLoaderQueryType>(
+    promptLoaderQuery,
+    loaderData.queryRef
+  );
+
   const navigate = useNavigate();
   const { pathname } = useLocation();
   let defaultTab = "prompt";
@@ -77,7 +84,7 @@ export function PromptLayout() {
         }
       }
     `,
-    loaderData.prompt
+    preloadedData.prompt
   );
 
   return (
@@ -95,7 +102,7 @@ export function PromptLayout() {
           alignItems="center"
         >
           <Flex direction="column">
-            <Heading level={1}>{loaderData.prompt.name}</Heading>
+            <Heading level={1}>{data.name}</Heading>
             {data.sourcePrompt && (
               <Text color="text-700">
                 cloned from{" "}
@@ -112,11 +119,11 @@ export function PromptLayout() {
         onSelectionChange={(key) => {
           let url: string;
           if (key === "versions") {
-            url = `/prompts/${loaderData.prompt.id}/versions`;
+            url = `/prompts/${data.id}/versions`;
           } else if (key === "config") {
-            url = `/prompts/${loaderData.prompt.id}/config`;
+            url = `/prompts/${data.id}/config`;
           } else {
-            url = `/prompts/${loaderData.prompt.id}`;
+            url = `/prompts/${data.id}`;
           }
           navigate(url);
         }}

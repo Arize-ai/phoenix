@@ -111,6 +111,48 @@ console.log(result);
 // Output: { label: "hallucinated", score: 0, explanation: "..." }
 ```
 
+### Data Mapping
+
+When your data structure doesn't match what an evaluator expects, use `bindEvaluator` to map your fields to the evaluator's expected input format:
+
+```typescript
+import {
+  bindEvaluator,
+  createHallucinationEvaluator,
+} from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const model = openai("gpt-4o-mini");
+
+type ExampleType = {
+  question: string;
+  context: string;
+  answer: string;
+};
+
+const evaluator = bindEvaluator<ExampleType>(
+  createHallucinationEvaluator({ model }),
+  {
+    inputMapping: {
+      input: "question", // Map "input" from "question"
+      reference: "context", // Map "reference" from "context"
+      output: "answer", // Map "output" from "answer"
+    },
+  }
+);
+
+const result = await evaluator.evaluate({
+  question: "Is Arize Phoenix Open Source?",
+  context:
+    "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
+  answer: "Arize is not open source.",
+});
+```
+
+Mapping supports simple properties (`"fieldName"`), dot notation (`"user.profile.name"`), array access (`"items[0].id"`), JSONPath expressions (`"$.items[*].id"`), and function extractors (`(data) => data.customField`).
+
+See the complete example in [`examples/bind_evaluator_example.ts`](examples/bind_evaluator_example.ts).
+
 ## Experimentation with Phoenix
 
 This package works seamlessly with [`@arizeai/phoenix-client`](https://www.npmjs.com/package/@arizeai/phoenix-client) to enable experimentation workflows. You can create datasets, run experiments, and trace evaluation calls for analysis and debugging.

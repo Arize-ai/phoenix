@@ -233,11 +233,11 @@ Once you have identified datapoints of interest, you can export this data direct
 
 See more on exporting data [here](../../how-to/export-your-data.md).
 
-### Step 8 (Optional): Enable production observability with Arize
+### Step 8 (Optional): Enable production observability with Arize AX
 
-Once your model is ready for production, you can add Arize to enable production-grade observability. Phoenix works in conjunction with Arize to enable end-to-end model development and observability.
+Once your model is ready for production, you can add Arize AX to enable production-grade observability. Phoenix works in conjunction with Arize AX to enable end-to-end model development and observability.
 
-With Arize, you will additionally benefit from:
+With Arize AX, you will additionally benefit from:
 
 * Being able to publish and observe your models in real-time as inferences are being served, and/or via direct connectors from your table/storage solution
 * Scalable compute to handle billions of predictions
@@ -247,7 +247,7 @@ With Arize, you will additionally benefit from:
 * Enterprise-grade RBAC and SSO
 * Experiment with infinite permutations of model versions and filters
 
-Create your [free account](https://arize.com/join) and see the full suite of [Arize](https://docs.arize.com/arize/) features.
+Create your [free account](https://arize.com/join) and see the full suite of [Arize AX](https://docs.arize.com/arize/) features.
 
 ## Where to go from here?
 

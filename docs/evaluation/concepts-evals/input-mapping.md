@@ -1,18 +1,20 @@
 # Input Mapping
 
-Evaluators are defined with a specific input schema, and the input payload is expected to take a certain shape. However, the input data is not always structured properly, so evaluators can be bound with an optional `input_mapping` which map/transforms the input to the shape they require. The powerful input mapping capabilities allow you to extract and transform data from complex nested structures.&#x20;
+Evaluators are defined with a specific input schema, and the input payload is expected to take a certain shape. However, the input data is not always structured properly, so evaluators can be bound with an optional `input_mapping` which map/transforms the input to the shape they require. The powerful input mapping capabilities allow you to extract and transform data from complex nested structures.
 
 ### Summary
 
 * Use `input_mapping` to map/transform evaluator-required field names to your input data.
 * You can bind an `input_mapping` to an evaluator for reuse with multiple inputs using `.bind` or `bind_evaluator`
 
-### Why do evaluators accept a payload and an input\_mapping vs. kwargs?&#x20;
+### Why do evaluators accept a payload and an input\_mapping vs. kwargs?
 
 Different evaluators require different keyword arguments to operate. These arguments may not perfectly match those in your example or dataset.
 
-Let's say our example looks like this, where the inputs and outputs contain nested dictionaries:
+Let's say our example looks like this, where the inputs and outputs contain nested values:
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 eval_input = {
 	"input": {
@@ -23,6 +25,12 @@ eval_input = {
 	"expected": "correct answer"
 }
 ```
+{% endtab %}
+
+{% tab title="Typeccript" %}
+
+{% endtab %}
+{% endtabs %}
 
 We want to run two evaluators over this example:
 
@@ -33,6 +41,10 @@ Rather than modifying our data to fit the two evaluators, we make the evaluators
 
 Binding an `input_mapping` enables the evaluators to run on the same payload - the map/transform steps are handled by the evaluator itself.
 
+
+
+{% tabs %}
+{% tab title="Python" %}
 ```python
 # define an input_mapping to map inputs required by hallucination evaluator to our data
 input_mapping = {
@@ -45,17 +57,25 @@ input_mapping = {
 # the evaluator uses the input_mapping to transform the eval_input into the expected input schema
 result = hallucination_evaluator.evaluate(eval_input, input_mapping)
 ```
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+{% endtab %}
+{% endtabs %}
 
 ### Input Mapping Types
 
 The `input_mapping` parameter accepts several types of mappings:
 
 1. **Simple key mapping**: `{"field": "key"}` - maps evaluator field to input key
-2. **Path mapping**: `{"field": "nested.path"}` - uses JSON path syntax from [jsonpath-ng](https://pypi.org/project/jsonpath-ng/)
+2. **Path mapping**: `{"field": "nested.path"}` - uses JSON path syntax from [jsonpath](https://www.rfc-editor.org/rfc/rfc9535.html)
 3. **Callable mapping**: `{"field": lambda x: x["key"]}` - custom extraction logic
 
 #### Path Mapping Examples
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 # Nested dictionary access
 input_mapping = {
@@ -76,10 +96,20 @@ input_mapping = {
 }
 ```
 
+
+{% endtab %}
+
+{% tab title="Typescrpt" %}
+
+{% endtab %}
+{% endtabs %}
+
 #### Callable Mappings
 
 For complex transformations, use callable functions that accept an `eval_input` payload:
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 # Callable example
 def extract_context(eval_input):
@@ -99,9 +129,17 @@ input_mapping = {
 }
 ```
 
+
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+{% endtab %}
+{% endtabs %}
+
 ### Pydantic Input Schemas
 
-Evaluators use Pydantic models for input validation and type safety. Most of the time (e.g. for `ClassificationEvaluator` or functions decorated with `create_evaluator`), the input schema is inferred. But, you can always define your own. The Pydantic model allows you to annotate input fields with additional information such as aliases or descriptions.
+Python Evaluators use Pydantic models for input validation and type safety. Most of the time (e.g. for `ClassificationEvaluator` or functions decorated with `create_evaluator`), the input schema is inferred. But, you can always define your own. The Pydantic model allows you to annotate input fields with additional information such as aliases or descriptions.
 
 ```python
 from pydantic import BaseModel
@@ -126,6 +164,8 @@ Most evaluators automatically infer schemas if not provided at instantiation.
 
 LLM evaluators infer schemas from prompt templates:
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 # This creates a schema with required str fields: query, context, response
 evaluator = LLMEvaluator(
@@ -134,9 +174,17 @@ evaluator = LLMEvaluator(
     prompt_template="Query: {query}\nContext: {context}\nResponse: {response}"
 )
 ```
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+{% endtab %}
+{% endtabs %}
 
 Decorated function evaluators infer schemas from the function signature:
 
+{% tabs %}
+{% tab title="Python" %}
 ```python
 @create_evaluator(name="exact_match")
 def exact_match(output: str, expected: str) -> Score:
@@ -150,8 +198,20 @@ def exact_match(output: str, expected: str) -> Score:
 }
 ```
 
+
+{% endtab %}
+
+{% tab title="Typescript" %}
+[https://github.com/Arize-ai/phoenix/issues/10393](https://github.com/Arize-ai/phoenix/issues/10393)
+{% endtab %}
+{% endtabs %}
+
 ### Binding System
 
+
+
+{% tabs %}
+{% tab title="Python" %}
 Use `bind_evaluator` or `.bind` to create a pre-configured evaluator with a fixed input mapping. At evaluation time, you only need to provide the `eval_input` and the mapping is handled internally.
 
 ```python
@@ -173,3 +233,9 @@ scores = bound_evaluator({
     "output": {"answer": "  Go to settings > reset.  "}
 })
 ```
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+{% endtab %}
+{% endtabs %}

@@ -3,12 +3,11 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Form } from "@arizeai/components";
-
 import {
   Alert,
   Button,
   FieldError,
+  Form,
   Input,
   Label,
   Text,
@@ -54,7 +53,7 @@ export function ResetPasswordWithTokenForm({
           setError(text);
           return;
         }
-      } catch (error) {
+      } catch (_error) {
         setError(DEFAULT_ERROR_MESSAGE);
         return;
       } finally {

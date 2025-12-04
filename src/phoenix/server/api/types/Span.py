@@ -481,13 +481,13 @@ class Span(Node):
     async def cumulative_token_count_total(
         self,
         info: Info[Context, None],
-    ) -> Optional[int]:
+    ) -> Optional[float]:
         if self.db_record:
-            return self.db_record.cumulative_llm_token_count_total
+            return float(self.db_record.cumulative_llm_token_count_total)
         value = await info.context.data_loaders.span_fields.load(
             (self.id, models.Span.cumulative_llm_token_count_total),
         )
-        return cast(Optional[int], value)
+        return float(value) if value is not None else None
 
     @strawberry.field(
         description="Cumulative (prompt) token count from self and all descendant "
@@ -496,13 +496,13 @@ class Span(Node):
     async def cumulative_token_count_prompt(
         self,
         info: Info[Context, None],
-    ) -> Optional[int]:
+    ) -> Optional[float]:
         if self.db_record:
-            return self.db_record.cumulative_llm_token_count_prompt
+            return float(self.db_record.cumulative_llm_token_count_prompt)
         value = await info.context.data_loaders.span_fields.load(
             (self.id, models.Span.cumulative_llm_token_count_prompt),
         )
-        return cast(Optional[int], value)
+        return float(value) if value is not None else None
 
     @strawberry.field(
         description="Cumulative (completion) token count from self and all descendant "
@@ -511,13 +511,13 @@ class Span(Node):
     async def cumulative_token_count_completion(
         self,
         info: Info[Context, None],
-    ) -> Optional[int]:
+    ) -> Optional[float]:
         if self.db_record:
-            return self.db_record.cumulative_llm_token_count_completion
+            return float(self.db_record.cumulative_llm_token_count_completion)
         value = await info.context.data_loaders.span_fields.load(
             (self.id, models.Span.cumulative_llm_token_count_completion),
         )
-        return cast(Optional[int], value)
+        return float(value) if value is not None else None
 
     @strawberry.field(
         description="Propagated status code that percolates up error status codes from "

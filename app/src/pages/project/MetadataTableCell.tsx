@@ -31,7 +31,7 @@ export const MetadataTableCell = ({ metadata }: MetadataTableCellProps) => {
       }
 
       return [parsed, stringified];
-    } catch (e) {
+    } catch (_e) {
       // If parsing fails, show nothing
       return [null, null];
     }

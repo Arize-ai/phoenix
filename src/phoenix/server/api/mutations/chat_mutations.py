@@ -4,7 +4,7 @@ from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain, islice
 from traceback import format_exc
-from typing import Any, Iterable, Iterator, List, Optional, TypeVar, Union
+from typing import Any, Iterable, Iterator, Optional, TypeVar, Union
 
 import strawberry
 from openinference.instrumentation import safe_json_dumps
@@ -19,7 +19,6 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
 from opentelemetry.trace import StatusCode
 from sqlalchemy import insert, select
-from strawberry import Private
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import assert_never
@@ -85,7 +84,7 @@ logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
-ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[Any]]]
+ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[Any]]]
 
 
 @strawberry.type
@@ -101,17 +100,17 @@ class ChatCompletionToolCall:
 
 
 @strawberry.type
-class ChatCompletionMutationPayload:
-    db_span: Private[models.Span]
+class ChatCompletionRepetition:
+    repetition_number: int
     content: Optional[str]
-    tool_calls: List[ChatCompletionToolCall]
-    span: Span
+    tool_calls: list[ChatCompletionToolCall]
+    span: Optional[Span]
     error_message: Optional[str]
 
 
 @strawberry.type
-class ChatCompletionMutationError:
-    message: str
+class ChatCompletionMutationPayload:
+    repetitions: list[ChatCompletionRepetition]
 
 
 @strawberry.type
@@ -119,7 +118,7 @@ class ChatCompletionOverDatasetMutationExamplePayload:
     dataset_example_id: GlobalID
     repetition_number: int
     experiment_run_id: GlobalID
-    result: Union[ChatCompletionMutationPayload, ChatCompletionMutationError]
+    repetition: ChatCompletionRepetition
 
 
 @strawberry.type
@@ -225,7 +224,7 @@ class ChatCompletionMutationMixin:
                 ]
             await insert_experiment_with_examples_snapshot(session, experiment)
 
-        results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
+        results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
         batch_size = 3
         start_time = datetime.now(timezone.utc)
         unbatched_items = [
@@ -252,6 +251,7 @@ class ChatCompletionMutationMixin:
                             prompt_name=input.prompt_name,
                             repetitions=repetition_number,
                         ),
+                        repetition_number=repetition_number,
                         project_name=project_name,
                     )
                     for revision, repetition_number in batch
@@ -278,7 +278,7 @@ class ChatCompletionMutationMixin:
                     error=str(result),
                 )
             else:
-                db_span: models.Span = result.db_span
+                repetition, db_span = result
                 experiment_run = models.ExperimentRun(
                     experiment_id=experiment.id,
                     dataset_example_id=revision.dataset_example_id,
@@ -291,7 +291,7 @@ class ChatCompletionMutationMixin:
                     repetition_number=repetition_number,
                     start_time=db_span.start_time,
                     end_time=db_span.end_time,
-                    error=str(result.error_message) if result.error_message else None,
+                    error=str(repetition.error_message) if repetition.error_message else None,
                 )
             experiment_runs.append(experiment_run)
 
@@ -310,9 +310,15 @@ class ChatCompletionMutationMixin:
                 dataset_example_id=dataset_example_id,
                 repetition_number=repetition_number,
                 experiment_run_id=experiment_run_id,
-                result=result
-                if isinstance(result, ChatCompletionMutationPayload)
-                else ChatCompletionMutationError(message=str(result)),
+                repetition=ChatCompletionRepetition(
+                    repetition_number=repetition_number,
+                    content=None,
+                    tool_calls=[],
+                    span=None,
+                    error_message=str(result),
+                )
+                if isinstance(result, BaseException)
+                else result[0],
             )
             payload.examples.append(example_payload)
         return payload
@@ -346,7 +352,38 @@ class ChatCompletionMutationMixin:
                 f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
                 f"{str(error)}"
             )
-        return await cls._chat_completion(info, llm_client, input)
+
+        results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
+        batch_size = 3
+        for batch in _get_batches(range(1, input.repetitions + 1), batch_size):
+            batch_results = await asyncio.gather(
+                *(
+                    cls._chat_completion(
+                        info, llm_client, input, repetition_number=repetition_number
+                    )
+                    for repetition_number in batch
+                ),
+                return_exceptions=True,
+            )
+            results.extend(batch_results)
+
+        repetitions: list[ChatCompletionRepetition] = []
+        for repetition_number, result in enumerate(results, start=1):
+            if isinstance(result, BaseException):
+                repetitions.append(
+                    ChatCompletionRepetition(
+                        repetition_number=repetition_number,
+                        content=None,
+                        tool_calls=[],
+                        span=None,
+                        error_message=str(result),
+                    )
+                )
+            else:
+                repetition, _ = result
+                repetitions.append(repetition)
+
+        return ChatCompletionMutationPayload(repetitions=repetitions)
 
     @classmethod
     async def _chat_completion(
@@ -354,9 +391,10 @@ class ChatCompletionMutationMixin:
         info: Info[Context, None],
         llm_client: PlaygroundStreamingClient,
         input: ChatCompletionInput,
+        repetition_number: int,
         project_name: str = PLAYGROUND_PROJECT_NAME,
         project_description: str = "Traces from prompt playground",
-    ) -> ChatCompletionMutationPayload:
+    ) -> tuple[ChatCompletionRepetition, models.Span]:
         attributes: dict[str, Any] = {}
         attributes.update(dict(prompt_metadata(input.prompt_name)))
 
@@ -508,21 +546,22 @@ class ChatCompletionMutationMixin:
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
 
         if status_code is StatusCode.ERROR:
-            return ChatCompletionMutationPayload(
-                db_span=span,
+            repetition = ChatCompletionRepetition(
+                repetition_number=repetition_number,
                 content=None,
                 tool_calls=[],
                 span=gql_span,
                 error_message=status_message,
             )
         else:
-            return ChatCompletionMutationPayload(
-                db_span=span,
+            repetition = ChatCompletionRepetition(
+                repetition_number=repetition_number,
                 content=text_content if text_content else None,
                 tool_calls=list(tool_calls.values()),
                 span=gql_span,
                 error_message=None,
             )
+        return repetition, span
 
 
 def _formatted_messages(

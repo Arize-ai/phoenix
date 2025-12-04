@@ -18,6 +18,7 @@ import {
   ProgressBar,
   RichTooltip,
   Text,
+  Token,
   TooltipTrigger,
   TriggerWrap,
   View,
@@ -163,6 +164,15 @@ export function ExperimentsTable({
                 project {
                   id
                 }
+                datasetSplits {
+                  edges {
+                    node {
+                      id
+                      name
+                      color
+                    }
+                  }
+                }
                 costSummary {
                   total {
                     tokens
@@ -279,6 +289,25 @@ export function ExperimentsTable({
       header: "created at",
       accessorKey: "createdAt",
       cell: TimestampCell,
+    },
+    {
+      header: "splits",
+      accessorKey: "datasetSplits",
+      cell: ({ row }) => {
+        const datasetSplits = row.original.datasetSplits;
+        if (!datasetSplits || datasetSplits.edges.length === 0) {
+          return <>all examples</>;
+        }
+        return (
+          <Flex direction="row" gap="size-100" alignItems="center" wrap="wrap">
+            {datasetSplits.edges.map((edge) => (
+              <Token key={edge.node.id} color={edge.node.color}>
+                {edge.node.name}
+              </Token>
+            ))}
+          </Flex>
+        );
+      },
     },
   ];
 
@@ -489,7 +518,6 @@ export function ExperimentsTable({
     }
     return [colSizes];
     // Disabled lint as per tanstack docs linked above
-    // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
 

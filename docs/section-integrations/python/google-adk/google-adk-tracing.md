@@ -8,8 +8,6 @@ description: Instrument LLM calls made using the Google ADK Python SDK
 
 Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ### Install <a href="#install" id="install"></a>
 
 ```bash
@@ -112,37 +110,60 @@ When using **Vertex AI Agent Engine** for remote deployment, instrumentation mus
 For Agent Engine deployment, include the instrumentation packages in your requirements and set up instrumentation in your agent module:
 
 **Main Application:**
+
 ```python
+# Initialize Vertex AI
+
+# Builds instrumentor inside agent engine setup
+def build_instrumentor(project_id):
+    import os
+    from phoenix.otel import register
+    from openinference.instrumentation.google_adk import GoogleADKInstrumentor
+
+    # Configure instrumentation within the remote agent
+    tracer_provider = register(
+        project_name=project_id,
+    )
+    GoogleADKInstrumentor().instrument(tracer_provider=tracer_provider)
+
+
+# Configure the agent app
+app = vertexai.agent_engines.AdkApp(
+    agent=root_agent,
+    enable_tracing=True,
+    instrumentor_builder=build_instrumentor,
+)
+
 remote_agent = agent_engines.create(
-    agent_engine=ModuleAgent(module_name="adk_agent", agent_name="app"),
+    agent_engine=app,
     requirements=[
         "google-cloud-aiplatform[agent_engines,adk]",
         "arize-otel",
         "openinference-instrumentation-google-adk",
     ],
     extra_packages=["adk_agent.py"],
-    env_vars={
-        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp.arize.com/v1",
-        "OTEL_EXPORTER_OTLP_TIMEOUT": "60000",  # Optional, can prevent "context deadline exceeded" errors
-    },
+    "env_vars": {
+        "OTEL_LOG_LEVEL": "DEBUG",
+        "NO_PROXY": "app.phoenix.arize.com",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://app.phoenix.arize.com/s/your-space",
+        "OTEL_EXPORTER_OTLP_TIMEOUT": "60000",  # 60 seconds,
+        "PHOENIX_API_KEY": "YOUR_PHOENIX_API_KEY",
+    }
 )
 ```
 
 **Agent Module (`adk_agent.py`):**
+
 ```python
-from phoenix.otel import register
-from openinference.instrumentation.google_adk import GoogleADKInstrumentor
-
-# Configure instrumentation within the remote agent
-tracer_provider = register(
-    project_name="adk-agent",
+root_agent = Agent(
+   name="test_agent",
+   model="gemini-2.0-flash-exp",
+   description="Agent to answer questions.",
 )
-GoogleADKInstrumentor().instrument(tracer_provider=tracer_provider)
-
-# Your agent code here...
 ```
 
 ### Resources:
 
 * [OpenInference Package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-adk)
 * [Google ADK documentation](https://google.github.io/adk-docs/)
+* [VertexAI ADK](https://github.com/googleapis/python-aiplatform/blob/main/vertexai/agent_engines/templates/adk.py)

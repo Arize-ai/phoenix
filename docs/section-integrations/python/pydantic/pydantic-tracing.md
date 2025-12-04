@@ -8,8 +8,6 @@ description: How to use the python PydanticAIInstrumentor to trace PydanticAI ag
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

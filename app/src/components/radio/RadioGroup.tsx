@@ -4,9 +4,9 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { SizingProps, StylableProps } from "@phoenix/components/types";
+import { classNames } from "@phoenix/utils";
 
 const baseRadioGroupCSS = css(`
   // fixes esoteric overflow bug with VisuallyHidden, which is used by Radio

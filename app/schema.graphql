@@ -10,16 +10,6 @@ type AddAnnotationConfigToProjectPayload {
   project: Project!
 }
 
-input AddDatasetExamplesToDatasetSplitsInput {
-  datasetSplitIds: [ID!]!
-  exampleIds: [ID!]!
-}
-
-type AddDatasetExamplesToDatasetSplitsMutationPayload {
-  query: Query!
-  examples: [DatasetExample!]!
-}
-
 input AddExamplesToDatasetInput {
   datasetId: ID!
   examples: [DatasetExampleInput!]!
@@ -261,18 +251,9 @@ enum ChatCompletionMessageRole {
   AI
 }
 
-type ChatCompletionMutationError {
-  message: String!
-}
-
 type ChatCompletionMutationPayload {
-  content: String
-  toolCalls: [ChatCompletionToolCall!]!
-  span: Span!
-  errorMessage: String
+  repetitions: [ChatCompletionRepetition!]!
 }
-
-union ChatCompletionMutationPayloadChatCompletionMutationError = ChatCompletionMutationPayload | ChatCompletionMutationError
 
 input ChatCompletionOverDatasetInput {
   messages: [ChatCompletionMessageInput!]!
@@ -295,7 +276,7 @@ type ChatCompletionOverDatasetMutationExamplePayload {
   datasetExampleId: ID!
   repetitionNumber: Int!
   experimentRunId: ID!
-  result: ChatCompletionMutationPayloadChatCompletionMutationError!
+  repetition: ChatCompletionRepetition!
 }
 
 type ChatCompletionOverDatasetMutationPayload {
@@ -303,6 +284,14 @@ type ChatCompletionOverDatasetMutationPayload {
   datasetVersionId: ID!
   experimentId: ID!
   examples: [ChatCompletionOverDatasetMutationExamplePayload!]!
+}
+
+type ChatCompletionRepetition {
+  repetitionNumber: Int!
+  content: String
+  toolCalls: [ChatCompletionToolCall!]!
+  span: Span
+  errorMessage: String
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
@@ -354,8 +343,9 @@ input ClearProjectInput {
 
 input ClonePromptInput {
   name: Identifier!
-  description: String = null
   promptId: ID!
+  description: String
+  metadata: JSON
 }
 
 type Cluster {
@@ -441,6 +431,7 @@ input CreateChatPromptInput {
   name: Identifier!
   description: String = null
   promptVersion: ChatPromptVersionInput!
+  metadata: JSON = null
 }
 
 input CreateChatPromptVersionInput {
@@ -935,6 +926,10 @@ input DeletePromptVersionTagInput {
 }
 
 input DeleteUsersInput {
+  userIds: [ID!]!
+}
+
+type DeleteUsersPayload {
   userIds: [ID!]!
 }
 
@@ -1828,8 +1823,7 @@ type Mutation {
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
-  addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
-  removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
+  setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
@@ -1878,7 +1872,7 @@ type Mutation {
   createUser(input: CreateUserInput!): UserMutationPayload!
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
-  deleteUsers(input: DeleteUsersInput!): Void
+  deleteUsers(input: DeleteUsersInput!): DeleteUsersPayload!
 }
 
 """An object with a Globally Unique ID"""
@@ -1961,7 +1955,8 @@ input PatchProjectTraceRetentionPolicyInput {
 
 input PatchPromptInput {
   promptId: ID!
-  description: String!
+  description: String
+  metadata: JSON
 }
 
 input PatchPromptLabelInput {
@@ -2289,6 +2284,7 @@ type Prompt implements Node {
   sourcePromptId: ID
   name: Identifier!
   description: String
+  metadata: JSON!
   createdAt: DateTime!
   version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
   versionTags: [PromptVersionTag!]!
@@ -2547,16 +2543,6 @@ type RemoveAnnotationConfigFromProjectPayload {
   project: Project!
 }
 
-input RemoveDatasetExamplesFromDatasetSplitsInput {
-  datasetSplitIds: [ID!]!
-  exampleIds: [ID!]!
-}
-
-type RemoveDatasetExamplesFromDatasetSplitsMutationPayload {
-  query: Query!
-  examples: [DatasetExample!]!
-}
-
 type ResponseFormat {
   definition: JSON!
 }
@@ -2595,6 +2581,16 @@ type Segments {
 
 type ServerStatus {
   insufficientStorage: Boolean!
+}
+
+input SetDatasetExampleSplitsInput {
+  exampleId: ID!
+  datasetSplitIds: [ID!]!
+}
+
+type SetDatasetExampleSplitsMutationPayload {
+  query: Query!
+  example: DatasetExample!
 }
 
 input SetDatasetLabelsInput {
@@ -2657,17 +2653,17 @@ type Span implements Node {
   """
   Cumulative (prompt plus completion) token count from self and all descendant spans (children, grandchildren, etc.)
   """
-  cumulativeTokenCountTotal: Int
+  cumulativeTokenCountTotal: Float
 
   """
   Cumulative (prompt) token count from self and all descendant spans (children, grandchildren, etc.)
   """
-  cumulativeTokenCountPrompt: Int
+  cumulativeTokenCountPrompt: Float
 
   """
   Cumulative (completion) token count from self and all descendant spans (children, grandchildren, etc.)
   """
-  cumulativeTokenCountCompletion: Int
+  cumulativeTokenCountCompletion: Float
 
   """
   Propagated status code that percolates up error status codes from descendant spans (children, grandchildren, etc.)
@@ -3098,7 +3094,7 @@ type Trace implements Node {
   session: ProjectSession
   rootSpan: Span
   numSpans: Int!
-  spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
+  spans(first: Int = 50, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
 
   """Annotations associated with the trace."""
   traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
@@ -3381,6 +3377,3 @@ type ValidationResult {
 enum VectorDriftMetric {
   euclideanDistance
 }
-
-"""Represents NULL values"""
-scalar Void

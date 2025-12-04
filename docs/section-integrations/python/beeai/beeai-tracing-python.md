@@ -8,8 +8,6 @@ Phoenix provides seamless observability and tracing for BeeAI agents through the
 
 ## Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash
@@ -82,4 +80,4 @@ Phoenix provides visibility into your BeeAI agent operations by automatically tr
 
 ## Resources
 
-* &#x20;[OpenInference package for Python](https://pypi.org/project/openinference-instrumentation-beeai/)
+* [OpenInference package for Python](https://pypi.org/project/openinference-instrumentation-beeai/)

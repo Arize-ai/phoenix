@@ -17,9 +17,11 @@ export const createPolicyDeletionSummaryText = ({
     return "This policy will not delete any traces.";
   }
   const daysPolicyString =
-    typeof numberOfDays === "number" ? `older than ${numberOfDays} days` : "";
+    numberOfDays != null && !isNaN(numberOfDays)
+      ? `older than ${numberOfDays} days`
+      : "";
   const tracesPolicyString =
-    typeof numberOfTraces === "number"
+    numberOfTraces != null && !isNaN(numberOfTraces)
       ? `when there are more than ${numberOfTraces} traces`
       : "";
 
@@ -27,6 +29,10 @@ export const createPolicyDeletionSummaryText = ({
     daysPolicyString && tracesPolicyString
       ? `${daysPolicyString} or ${tracesPolicyString}`
       : daysPolicyString || tracesPolicyString;
+
+  if (policyString === "") {
+    return "Enter a number of days or a number of traces, or both, to configure this policy.";
+  }
   return `This policy will delete traces ${policyString}`;
 };
 /**
@@ -42,12 +48,12 @@ export const createPolicyScheduleSummaryText = ({
   let scheduleString = "unknown";
   try {
     CronExpressionParser.parse(schedule);
-  } catch (error) {
+  } catch {
     return "invalid schedule";
   }
   try {
     scheduleString = cronstrue.toString(schedule);
-  } catch (error) {
+  } catch {
     return "invalid schedule";
   }
   return `${scheduleString} (UTC)`;

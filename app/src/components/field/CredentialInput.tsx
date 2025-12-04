@@ -11,7 +11,7 @@ import { useSize } from "@phoenix/contexts/SizeContext";
 
 import { useCredentialContext } from "./CredentialContext";
 
-export interface CredentialInputProps extends Omit<AriaInputProps, "type"> {}
+export type CredentialInputProps = Omit<AriaInputProps, "type">;
 
 /**
  * A specialized text field for entering sensitive information like passwords, API keys, and tokens.

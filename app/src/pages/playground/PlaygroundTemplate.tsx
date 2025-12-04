@@ -1,7 +1,5 @@
 import { Suspense, useCallback, useMemo } from "react";
 
-import { Content } from "@arizeai/components";
-
 import {
   Button,
   Card,
@@ -171,7 +169,7 @@ function DeleteButton(props: PlaygroundInstanceProps) {
       />
       <Tooltip>
         <TooltipArrow />
-        <Content>Delete this instance of the playground</Content>
+        Delete this instance of the playground
       </Tooltip>
     </TooltipTrigger>
   );
@@ -191,15 +189,9 @@ function SaveButton({ instanceId, dirty }: SaveButtonProps) {
   }
   return (
     <DialogTrigger>
-      <TooltipTrigger delay={100}>
-        <Button variant={dirty ? "primary" : undefined} size="S">
-          Save Prompt
-        </Button>
-        <Tooltip placement="top">
-          <TooltipArrow />
-          <Content>Save this prompt</Content>
-        </Tooltip>
-      </TooltipTrigger>
+      <Button variant={dirty ? "primary" : undefined} size="S">
+        Save Prompt
+      </Button>
       <ModalOverlay>
         <Modal>
           <UpsertPromptFromTemplateDialog

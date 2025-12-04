@@ -1,5 +1,47 @@
 # @arizeai/phoenix-evals
 
+## 0.6.2
+
+### Patch Changes
+
+- 0589fc3: create evaluator helper
+
+## 0.6.1
+
+### Patch Changes
+
+- 5cacc22: create evaluator helper function
+
+## 0.6.0
+
+### Minor Changes
+
+- 84877d6: add data mapping helpers for evaluators
+
+## 0.5.1
+
+### Patch Changes
+
+- 9408838: add message template support
+
+## 0.5.0
+
+### Minor Changes
+
+- aa5dc26: serialize nested values in templates as JSON
+
+## 0.4.0
+
+### Minor Changes
+
+- 885be2a: make phoenix-client be able to take in phoenix evals directly
+
+## 0.3.1
+
+### Patch Changes
+
+- a756a95: fix Mustache.render by disabling HTML escape
+
 ## 0.3.0
 
 ### Minor Changes

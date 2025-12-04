@@ -1,5 +1,4 @@
 import asyncio
-import os
 import time
 from operator import add
 from typing import Any, List, cast
@@ -19,7 +18,7 @@ from phoenix.otel import register
 client = None
 
 agent_llm = None
-COMPUTER_USE_BETA_FLAG = "computer-use-2024-10-22"
+COMPUTER_USE_BETA_FLAG = "computer-use-2025-01-24"
 PROMPT_CACHING_BETA_FLAG = "prompt-caching-2024-07-31"
 betas = [COMPUTER_USE_BETA_FLAG, PROMPT_CACHING_BETA_FLAG]
 
@@ -35,10 +34,13 @@ class ComputerUseState(TypedDict):
     current_iteration: int
 
 
-def initialize_instrumentor(project_name):
-    if os.environ.get("PHOENIX_API_KEY"):
-        os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.environ.get('PHOENIX_API_KEY')}"
-    tracer_provider = register(project_name=project_name)
+def initialize_instrumentor(project_name, endpoint=None):
+    tracer_provider = register(
+        project_name=project_name,
+        endpoint=endpoint,
+        auto_instrument=True,
+        batch=True,
+    )
     AnthropicBetaInstrumentor().instrument(tracer_provider=tracer_provider)
     logger.info("Instrumentor initialized")
     tracer = tracer_provider.get_tracer(__name__)
@@ -66,7 +68,7 @@ async def call_llm(state):
         raw_response = client.beta.messages.create(
             max_tokens=4096,
             messages=messages,
-            model="claude-3-5-sonnet-20241022",
+            model="claude-opus-4-0",
             system=[system],
             tools=tool_collection.to_params(),
             betas=betas,

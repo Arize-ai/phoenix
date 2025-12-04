@@ -10,7 +10,6 @@ import {
 import { css } from "@emotion/react";
 
 import {
-  classNames,
   Flex,
   Heading,
   Icon,
@@ -19,6 +18,7 @@ import {
   PopoverArrow,
   Text,
 } from "@phoenix/components";
+import { classNames } from "@phoenix/utils";
 
 const menuCss = css`
   --menu-min-width: 250px;

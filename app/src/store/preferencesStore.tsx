@@ -2,6 +2,7 @@ import { create, StateCreator } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
+import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
 import { ModelConfig } from "./playground";
 
@@ -17,6 +18,8 @@ export type ProjectSortOrder = {
   column: "name" | "endTime";
   direction: "asc" | "desc";
 };
+
+export type DisplayTimezone = string;
 
 export interface PreferencesProps {
   /**
@@ -68,6 +71,11 @@ export interface PreferencesProps {
    * @default true
    */
   isSideNavExpanded: boolean;
+  /**
+   * The timezone to display timestamps in
+   * @default undefined - use the browser's local timezone
+   */
+  displayTimezone?: DisplayTimezone;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -125,19 +133,28 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the side nav open state
    */
   setIsSideNavExpanded: (isSideNavExpanded: boolean) => void;
+  /**
+   * Setter for the display timezone
+   */
+  setDisplayTimezone: (displayTimezone: DisplayTimezone | undefined) => void;
 }
 
 export const createPreferencesStore = (
   initialProps?: Partial<PreferencesProps>
 ) => {
-  const preferencesStore: StateCreator<PreferencesState> = (set) => ({
+  const preferencesStore: StateCreator<
+    PreferencesState,
+    [["zustand/devtools", unknown]]
+  > = (set) => ({
     markdownDisplayMode: "text",
     setMarkdownDisplayMode: (markdownDisplayMode) => {
-      set({ markdownDisplayMode });
+      set({ markdownDisplayMode }, false, { type: "setMarkdownDisplayMode" });
     },
     traceStreamingEnabled: true,
     setTraceStreamingEnabled: (traceStreamingEnabled) => {
-      set({ traceStreamingEnabled });
+      set({ traceStreamingEnabled }, false, {
+        type: "setTraceStreamingEnabled",
+      });
     },
     lastNTimeRangeKey: "7d",
     setLastNTimeRangeKey: (lastNTimeRangeKey) => {
@@ -145,50 +162,70 @@ export const createPreferencesStore = (
     },
     projectsAutoRefreshEnabled: true,
     setProjectAutoRefreshEnabled: (projectsAutoRefreshEnabled) => {
-      set({ projectsAutoRefreshEnabled });
+      set({ projectsAutoRefreshEnabled }, false, {
+        type: "setProjectAutoRefreshEnabled",
+      });
     },
     showMetricsInTraceTree: true,
     setShowMetricsInTraceTree: (showMetricsInTraceTree) => {
-      set({ showMetricsInTraceTree });
+      set({ showMetricsInTraceTree }, false, {
+        type: "setShowMetricsInTraceTree",
+      });
     },
     modelConfigByProvider: {},
     setModelConfigForProvider: ({ provider, modelConfig }) => {
-      set((state) => {
-        return {
-          modelConfigByProvider: {
-            ...state.modelConfigByProvider,
-            [provider]: modelConfig,
-          },
-        };
-      });
+      set(
+        (state) => {
+          return {
+            modelConfigByProvider: {
+              ...state.modelConfigByProvider,
+              [provider]: modelConfig,
+            },
+          };
+        },
+        false,
+        { type: "setModelConfigForProvider" }
+      );
     },
     playgroundStreamingEnabled: true,
     setPlaygroundStreamingEnabled: (playgroundStreamingEnabled) => {
-      set({ playgroundStreamingEnabled });
+      set({ playgroundStreamingEnabled }, false, {
+        type: "setPlaygroundStreamingEnabled",
+      });
     },
     isAnnotatingSpans: true,
     setIsAnnotatingSpans: (isAnnotatingSpans) => {
-      set({ isAnnotatingSpans });
+      set({ isAnnotatingSpans }, false, { type: "setIsAnnotatingSpans" });
     },
     projectViewMode: "grid",
     setProjectViewMode: (projectViewMode) => {
-      set({ projectViewMode });
+      set({ projectViewMode }, false, { type: "setProjectViewMode" });
     },
     projectSortOrder: {
       column: "endTime",
       direction: "desc",
     },
     setProjectSortOrder: (projectSortOrder) => {
-      set({ projectSortOrder });
+      set({ projectSortOrder }, false, { type: "setProjectSortOrder" });
     },
     isSideNavExpanded: true,
     setIsSideNavExpanded: (isSideNavExpanded) => {
-      set({ isSideNavExpanded });
+      set({ isSideNavExpanded }, false, { type: "setIsSideNavExpanded" });
+    },
+    setDisplayTimezone: (displayTimezone) => {
+      // Just to be extra safe of what we store in local storage.
+      if (
+        displayTimezone &&
+        !getSupportedTimezones().includes(displayTimezone)
+      ) {
+        throw new Error(`Invalid timezone: ${displayTimezone}`);
+      }
+      set({ displayTimezone }, false, { type: "setDisplayTimezone" });
     },
     ...initialProps,
   });
   return create<PreferencesState>()(
-    persist(devtools(preferencesStore), {
+    persist(devtools(preferencesStore, { name: "preferencesStore" }), {
       name: "arize-phoenix-preferences",
     })
   );

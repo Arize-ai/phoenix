@@ -309,7 +309,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -327,6 +326,10 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 invocation_name="response_format",
                 label="Response Format",
                 canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
+            ),
+            JSONInvocationParameter(
+                invocation_name="extra_body",
+                label="Extra Body",
             ),
         ]
 
@@ -643,13 +646,17 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
-        "anthropic.claude-3-5-sonnet-20240620-v1:0",
-        "anthropic.claude-3-7-sonnet-20250219-v1:0",
-        "anthropic.claude-3-haiku-20240307-v1:0",
-        "anthropic.claude-3-5-sonnet-20241022-v2:0",
-        "anthropic.claude-3-5-haiku-20241022-v1:0",
+        "anthropic.claude-opus-4-5-20251101-v1:0",
+        "anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "anthropic.claude-haiku-4-5-20251001-v1:0",
+        "anthropic.claude-opus-4-1-20250805-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
         "anthropic.claude-sonnet-4-20250514-v1:0",
+        "anthropic.claude-3-7-sonnet-20250219-v1:0",
+        "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "anthropic.claude-3-5-haiku-20241022-v1:0",
+        "anthropic.claude-3-haiku-20240307-v1:0",
         "amazon.titan-embed-text-v2:0",
         "amazon.nova-pro-v1:0",
         "amazon.nova-premier-v1:0:8k",
@@ -684,31 +691,36 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         import boto3  # type: ignore[import-untyped]
 
         super().__init__(model=model, credentials=credentials)
-        self.region = model.region or "us-east-1"
+        region = model.region or "us-east-1"
         self.api = "converse"
-        self.custom_headers = model.custom_headers or {}
-        self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
+        custom_headers = model.custom_headers
+        aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
             "AWS_ACCESS_KEY_ID"
         )
-        self.aws_secret_access_key = _get_credential_value(
+        aws_secret_access_key = _get_credential_value(
             credentials, "AWS_SECRET_ACCESS_KEY"
         ) or getenv("AWS_SECRET_ACCESS_KEY")
-        self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
+        aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
             "AWS_SESSION_TOKEN"
         )
         self.model_name = model.name
-        self.client = boto3.client(
-            service_name="bedrock-runtime",
-            region_name=self.region,
-            aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
-            aws_session_token=self.aws_session_token,
+        session = boto3.Session(
+            region_name=region,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
         )
+        client = session.client(service_name="bedrock-runtime")
 
         # Add custom headers support via boto3 event system
-        if self.custom_headers:
-            self._setup_custom_headers(self.client, self.custom_headers)
+        if custom_headers:
 
+            def add_custom_headers(request: "AWSPreparedRequest", **kwargs: Any) -> None:
+                request.headers.update(custom_headers)
+
+            client.meta.events.register("before-send.*", add_custom_headers)
+
+        self.client = client
         self._attributes[LLM_PROVIDER] = "aws"
         self._attributes[LLM_SYSTEM] = "aws"
 
@@ -717,11 +729,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         """Setup custom headers using boto3's event system."""
         if not custom_headers:
             return
-
-        def add_custom_headers(request: "AWSPreparedRequest", **kwargs: Any) -> None:
-            request.headers.update(custom_headers)
-
-        client.meta.events.register("before-send.*", add_custom_headers)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -748,7 +755,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -767,21 +773,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        import boto3
-
-        if (
-            self.client.meta.region_name != self.region
-        ):  # override the region if it's different from the default
-            self.client = boto3.client(
-                "bedrock-runtime",
-                region_name=self.region,
-                aws_access_key_id=self.aws_access_key_id,
-                aws_secret_access_key=self.aws_secret_access_key,
-                aws_session_token=self.aws_session_token,
-            )
-            # Re-setup custom headers for the new client
-            if self.custom_headers:
-                self._setup_custom_headers(self.client, self.custom_headers)
         if self.api == "invoke":
             async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
                 yield chunk
@@ -803,15 +794,25 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         # Build messages in Converse API format
         converse_messages = self._build_converse_messages(messages)
 
+        inference_config = {}
+        if (
+            "max_tokens" in invocation_parameters
+            and invocation_parameters["max_tokens"] is not None
+        ):
+            inference_config["maxTokens"] = invocation_parameters["max_tokens"]
+        if (
+            "temperature" in invocation_parameters
+            and invocation_parameters["temperature"] is not None
+        ):
+            inference_config["temperature"] = invocation_parameters["temperature"]
+        if "top_p" in invocation_parameters and invocation_parameters["top_p"] is not None:
+            inference_config["topP"] = invocation_parameters["top_p"]
+
         # Build the request parameters for Converse API
         converse_params: dict[str, Any] = {
             "modelId": self.model_name,
             "messages": converse_messages,
-            "inferenceConfig": {
-                "maxTokens": invocation_parameters["max_tokens"],
-                "temperature": invocation_parameters["temperature"],
-                "topP": invocation_parameters["top_p"],
-            },
+            "inferenceConfig": inference_config,
         }
 
         # Add system prompt if available
@@ -944,13 +945,23 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         bedrock_messages, system_prompt = self._build_bedrock_messages(messages)
         bedrock_params = {
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": invocation_parameters["max_tokens"],
             "messages": bedrock_messages,
             "system": system_prompt,
-            "temperature": invocation_parameters["temperature"],
-            "top_p": invocation_parameters["top_p"],
             "tools": tools,
         }
+
+        if (
+            "max_tokens" in invocation_parameters
+            and invocation_parameters["max_tokens"] is not None
+        ):
+            bedrock_params["max_tokens"] = invocation_parameters["max_tokens"]
+        if (
+            "temperature" in invocation_parameters
+            and invocation_parameters["temperature"] is not None
+        ):
+            bedrock_params["temperature"] = invocation_parameters["temperature"]
+        if "top_p" in invocation_parameters and invocation_parameters["top_p"] is not None:
+            bedrock_params["top_p"] = invocation_parameters["top_p"]
 
         response = self.client.invoke_model_with_response_stream(
             modelId=self.model_name,
@@ -1178,6 +1189,10 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 _OPENAI_REASONING_MODELS = [
+    "gpt-5.1",
+    "gpt-5.1-2025-11-13",
+    "gpt-5.1-chat-latest",
+    "gpt-5.1-codex-mini",
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
@@ -1230,6 +1245,10 @@ class OpenAIReasoningReasoningModelsMixin:
                 invocation_name="response_format",
                 label="Response Format",
                 canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
+            ),
+            JSONInvocationParameter(
+                invocation_name="extra_body",
+                label="Extra Body",
             ),
         ]
 
@@ -1462,13 +1481,8 @@ class AzureOpenAIReasoningNonStreamingClient(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-3-5-sonnet-latest",
         "claude-3-5-haiku-latest",
-        "claude-3-5-sonnet-20241022",
         "claude-3-5-haiku-20241022",
-        "claude-3-5-sonnet-20240620",
-        "claude-3-opus-latest",
-        "claude-3-sonnet-20240229",
         "claude-3-haiku-20240307",
     ],
 )
@@ -1531,7 +1545,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=None,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -1677,11 +1690,16 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
+        "claude-opus-4-5",
+        "claude-opus-4-5-20251101",
         "claude-sonnet-4-5",
-        "claude-sonnet-4-0",
-        "claude-sonnet-4-20250514",
+        "claude-sonnet-4-5-20250929",
+        "claude-haiku-4-5",
+        "claude-haiku-4-5-20251001",
         "claude-opus-4-1",
         "claude-opus-4-1-20250805",
+        "claude-sonnet-4-0",
+        "claude-sonnet-4-20250514",
         "claude-opus-4-0",
         "claude-opus-4-20250514",
         "claude-3-7-sonnet-latest",
@@ -1780,7 +1798,6 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -1819,7 +1836,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                     LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
                 }
             )
-            yield TextChunk(content=event.text)
+            # google genai thinking returns thought tokens captured under
+            # event.candidates and event.parts
+            yield TextChunk(content=event.text or "")
 
     def _build_google_messages(
         self,
@@ -1879,7 +1898,6 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -1888,6 +1906,61 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
                 label="Top K",
             ),
         ]
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.GOOGLE,
+    model_names=[
+        "gemini-3-pro-preview",
+    ],
+)
+class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        return [
+            StringInvocationParameter(
+                invocation_name="thinking_level",
+                label="Thinking Level",
+                canonical_name=CanonicalParameterName.REASONING_EFFORT,
+            ),
+            *super().supported_invocation_parameters(),
+        ]
+
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        # Extract thinking_level and construct thinking_config
+        thinking_level = invocation_parameters.pop("thinking_level", None)
+
+        if thinking_level:
+            try:
+                import google.genai
+                from packaging.version import parse as parse_version
+
+                if parse_version(google.genai.__version__) < parse_version("1.50.0"):
+                    raise ImportError
+            except (ImportError, AttributeError):
+                raise BadRequest(
+                    "Reasoning capabilities for Gemini models require `google-genai>=1.50.0` "
+                    "and Python >= 3.10."
+                )
+
+            # NOTE: as of gemini 1.51.0 medium thinking is not supported
+            # but will eventually be added in a future version
+            # we are purposefully allowing users to select medium knowing
+            # it does not work.
+            invocation_parameters["thinking_config"] = {
+                "include_thoughts": True,
+                "thinking_level": thinking_level.upper(),
+            }
+
+        async for chunk in super().chat_completion_create(messages, tools, **invocation_parameters):
+            yield chunk
 
 
 def initialize_playground_clients() -> None:

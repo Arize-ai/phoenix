@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from pathlib import Path
 from secrets import token_hex
 from typing import Any
@@ -10,32 +9,27 @@ import pytest
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
-from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser, _gql
+from .._helpers import _AppInfo, _await_or_return, _gql
 
 
 class TestDatasetIntegration:
     """Integration tests for dataset operations against a real Phoenix server."""
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_create_and_get_dataset(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_dataset_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_dataset_{token_hex(4)}"
 
         # Create dataset with JSON data
         dataset = await _await_or_return(
@@ -66,23 +60,19 @@ class TestDatasetIntegration:
         assert len(retrieved) == 2
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_add_examples_to_dataset(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_dataset_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_dataset_{token_hex(4)}"
 
         # Create initial dataset
         dataset = await _await_or_return(
@@ -109,23 +99,19 @@ class TestDatasetIntegration:
         assert updated.version_id != dataset.version_id  # New version
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_dataset_versions(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_dataset_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_dataset_{token_hex(4)}"
 
         # Create dataset
         dataset = await _await_or_return(
@@ -160,28 +146,26 @@ class TestDatasetIntegration:
     async def test_create_dataset_from_csv(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
         tmp_path: Path,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        # Create CSV file
+        # Create CSV file with split column
         csv_file = tmp_path / "test_data.csv"
-        csv_content = """question,answer,category
-What is 2+2?,4,math
-Capital of France?,Paris,geography
-Who wrote Hamlet?,Shakespeare,literature
+        csv_content = """question,answer,category,data_split
+What is 2+2?,4,math,train
+Capital of France?,Paris,geography,test
+Who wrote Hamlet?,Shakespeare,literature,train
 """
         csv_file.write_text(csv_content)
 
-        unique_name = f"test_csv_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_csv_{token_hex(4)}"
 
         dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -190,6 +174,7 @@ Who wrote Hamlet?,Shakespeare,literature
                 input_keys=["question"],
                 output_keys=["answer"],
                 metadata_keys=["category"],
+                split_keys=["data_split"],
             )
         )
 
@@ -198,15 +183,67 @@ Who wrote Hamlet?,Shakespeare,literature
         assert dataset[0]["output"]["answer"] == "4"
         assert dataset[0]["metadata"]["category"] == "math"
 
+        # Verify split filtering works - "train" split should return 2 examples
+        train_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=["train"],
+            )
+        )
+        assert len(train_dataset) == 2
+
+        # "test" split should return 1 example
+        test_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=["test"],
+            )
+        )
+        assert len(test_dataset) == 1
+
+        # Test add_examples_to_dataset with CSV and split_keys
+        append_csv = tmp_path / "append_data.csv"
+        append_csv.write_text("""question,answer,category,data_split
+What is 3+3?,6,math,train
+Capital of Germany?,Berlin,geography,validation
+""")
+        updated_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=dataset.id,
+                csv_file_path=append_csv,
+                input_keys=["question"],
+                output_keys=["answer"],
+                metadata_keys=["category"],
+                split_keys=["data_split"],
+            )
+        )
+        assert len(updated_dataset) == 5
+
+        # Verify train now has 3 examples (2 original + 1 appended)
+        train_after = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=["train"],
+            )
+        )
+        assert len(train_after) == 3
+
+        # Verify new "validation" split has 1 example
+        validation_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=dataset.id,
+                splits=["validation"],
+            )
+        )
+        assert len(validation_dataset) == 1
+
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_create_dataset_from_dataframe(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -221,7 +258,7 @@ Who wrote Hamlet?,Shakespeare,literature
             }
         )
 
-        unique_name = f"test_df_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_df_{token_hex(4)}"
 
         dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -242,18 +279,16 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_dataset_to_dataframe_round_trip(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_roundtrip_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_roundtrip_{token_hex(4)}"
 
         # Create dataset
         dataset = await _await_or_return(
@@ -287,7 +322,7 @@ Who wrote Hamlet?,Shakespeare,literature
         metadata: list[dict[str, Any]] = df["metadata"].tolist()  # pyright: ignore[reportUnknownVariableType]
 
         # Create new dataset from DataFrame data
-        new_name = f"test_from_df_{uuid.uuid4().hex[:8]}"
+        new_name = f"test_from_df_{token_hex(4)}"
         new_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=new_name,
@@ -305,11 +340,9 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_dataset_examples_parameter(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -317,7 +350,7 @@ Who wrote Hamlet?,Shakespeare,literature
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         # Create source dataset
-        source_name = f"test_source_{uuid.uuid4().hex[:8]}"
+        source_name = f"test_source_{token_hex(4)}"
         source = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=source_name,
@@ -328,7 +361,7 @@ Who wrote Hamlet?,Shakespeare,literature
         )
 
         # Create target dataset with single example from source
-        target_name = f"test_target_{uuid.uuid4().hex[:8]}"
+        target_name = f"test_target_{token_hex(4)}"
         target = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=target_name,
@@ -350,22 +383,90 @@ Who wrote Hamlet?,Shakespeare,literature
 
         assert len(updated) == 3
 
+        # Test creating dataset with splits via examples parameter
+        splits_name = f"test_splits_{token_hex(4)}"
+        splits_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=splits_name,
+                examples=[
+                    {"input": {"q": "Q1"}, "output": {"a": "A1"}, "splits": "train"},
+                    {"input": {"q": "Q2"}, "output": {"a": "A2"}, "splits": ["test", "hard"]},
+                    {"input": {"q": "Q3"}, "output": {"a": "A3"}, "splits": None},
+                ],
+            )
+        )
+        assert len(splits_dataset) == 3
+
+        # Verify split filtering works
+        train_only = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=splits_dataset.id,
+                splits=["train"],
+            )
+        )
+        assert len(train_only) == 1
+
+        test_only = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=splits_dataset.id,
+                splits=["test"],
+            )
+        )
+        assert len(test_only) == 1
+
+        # Test add_examples_to_dataset with splits (ensures client append+splits works)
+        updated_splits_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=splits_dataset.id,
+                examples=[
+                    {"input": {"q": "Q4"}, "output": {"a": "A4"}, "splits": "train"},
+                    {"input": {"q": "Q5"}, "output": {"a": "A5"}, "splits": ["test", "new_split"]},
+                ],
+            )
+        )
+        assert len(updated_splits_dataset) == 5
+
+        # Verify train now has 2 examples (Q1 + Q4)
+        train_after_append = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=splits_dataset.id,
+                splits=["train"],
+            )
+        )
+        assert len(train_after_append) == 2
+
+        # Verify test now has 2 examples (Q2 + Q5)
+        test_after_append = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=splits_dataset.id,
+                splits=["test"],
+            )
+        )
+        assert len(test_after_append) == 2
+
+        # Verify new_split has 1 example (Q5)
+        new_split_examples = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=splits_dataset.id,
+                splits=["new_split"],
+            )
+        )
+        assert len(new_split_examples) == 1
+
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_dataset_identifier_flexibility(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_flex_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_flex_{token_hex(4)}"
 
         # Create dataset
         dataset = await _await_or_return(
@@ -408,11 +509,9 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_error_handling(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -438,17 +537,13 @@ Who wrote Hamlet?,Shakespeare,literature
             )
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_dataset_examples_direct_pass(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that dataset.examples can be passed directly to add_examples_to_dataset."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -456,7 +551,7 @@ Who wrote Hamlet?,Shakespeare,literature
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         # Create source dataset with multiple examples
-        source_name = f"test_source_{uuid.uuid4().hex[:8]}"
+        source_name = f"test_source_{token_hex(4)}"
         source_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=source_name,
@@ -481,7 +576,7 @@ Who wrote Hamlet?,Shakespeare,literature
         assert len(source_dataset) == 3
 
         # Create empty target dataset
-        target_name = f"test_target_{uuid.uuid4().hex[:8]}"
+        target_name = f"test_target_{token_hex(4)}"
         target_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=target_name,
@@ -514,7 +609,7 @@ Who wrote Hamlet?,Shakespeare,literature
             assert target_example["metadata"] == source_example["metadata"]
 
         # Also test passing a subset of examples
-        subset_target_name = f"test_subset_{uuid.uuid4().hex[:8]}"
+        subset_target_name = f"test_subset_{token_hex(4)}"
         subset_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=subset_target_name,
@@ -530,12 +625,10 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_legacy_experiments_compatibility(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
         monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
@@ -543,7 +636,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_legacy_compat_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_legacy_compat_{token_hex(4)}"
 
         dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -578,7 +671,7 @@ Who wrote Hamlet?,Shakespeare,literature
             dataset=dataset,
             task=simple_task,
             evaluators=[simple_evaluator],
-            experiment_name=f"test_legacy_compat_{uuid.uuid4().hex[:8]}",
+            experiment_name=f"test_legacy_compat_{token_hex(4)}",
             dry_run=True,  # Use dry run to avoid database operations
             print_summary=False,
         )
@@ -604,12 +697,10 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_dataset_json_round_trip(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that Dataset.to_dict() and Dataset.from_dict() work correctly for round-tripping."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -617,7 +708,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_json_roundtrip_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_json_roundtrip_{token_hex(4)}"
 
         original_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -711,12 +802,9 @@ Who wrote Hamlet?,Shakespeare,literature
             Dataset.from_dict(invalid_json)
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_list_datasets_with_pagination(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """
@@ -739,8 +827,7 @@ Who wrote Hamlet?,Shakespeare,literature
         - Consistency between list and get_dataset APIs
         - Type safety with proper v1.Dataset annotations
         """  # noqa: E501
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -952,17 +1039,13 @@ Who wrote Hamlet?,Shakespeare,literature
         assert test_dataset_from_list["metadata"] == individual_dataset.metadata
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_dataset_with_splits(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test dataset splits functionality including creating splits and filtering by splits."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = user.create_api_key(_app)
+        api_key = _app.admin_secret
         api_key_str = str(api_key)
 
         from phoenix.client import AsyncClient
@@ -970,7 +1053,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_splits_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_splits_{token_hex(4)}"
 
         # Create dataset with examples
         dataset = await _await_or_return(
@@ -1026,7 +1109,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Split 2: Examples 2 and 3
         split2_result, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=split1_mutation,
             variables={
                 "input": {
@@ -1106,17 +1189,13 @@ Who wrote Hamlet?,Shakespeare,literature
         )
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_dataset_splits_no_duplicates(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that filtering by multiple splits returns distinct examples (no duplicates)."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = user.create_api_key(_app)
+        api_key = _app.admin_secret
         api_key_str = str(api_key)
 
         from phoenix.client import AsyncClient
@@ -1124,7 +1203,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        unique_name = f"test_splits_dedup_{uuid.uuid4().hex[:8]}"
+        unique_name = f"test_splits_dedup_{token_hex(4)}"
 
         # Create dataset with examples
         dataset = await _await_or_return(
@@ -1162,7 +1241,7 @@ Who wrote Hamlet?,Shakespeare,literature
         """
         split1_result, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=split1_mutation,
             variables={
                 "input": {
@@ -1179,7 +1258,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Create split 2: Examples 0, 2, 3 (examples 0 and 3 overlap with split 1)
         split2_result, _ = _gql(
             _app,
-            api_key,
+            _app.admin_secret,
             query=split1_mutation,
             variables={
                 "input": {

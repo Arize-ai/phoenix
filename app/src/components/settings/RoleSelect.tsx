@@ -63,10 +63,10 @@ export function RoleSelect({
       css={!includeLabel ? hiddenLabelCSS : undefined}
       className="role-select"
       size={size}
-      selectedKey={role ?? undefined}
+      value={role ?? undefined}
       aria-label="User Role"
       isInvalid={isInvalid}
-      onSelectionChange={(key) => {
+      onChange={(key) => {
         if (isUserRole(key)) {
           onChange(key);
         }

@@ -1,7 +1,4 @@
-import { timeFormat } from "d3-time-format";
 import { css } from "@emotion/react";
-
-import { FieldColorDesignation } from "@arizeai/components";
 
 import {
   Input,
@@ -12,8 +9,8 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { useInferences } from "@phoenix/contexts";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 
-const timeFormatter = timeFormat("%x %X");
 type ReferenceInferencesTimeRangeProps = {
   inferencesRole: InferencesRole;
   /**
@@ -26,35 +23,34 @@ export function ReferenceInferencesTimeRange({
   timeRange,
 }: ReferenceInferencesTimeRangeProps) {
   const { referenceInferences } = useInferences();
+  const { fullTimeFormatter } = useTimeFormatters();
   const name = referenceInferences?.name ?? "reference";
   const nameAbbr = name.slice(0, 10);
   return (
     <div
       css={css`
         .ac-textfield {
-          min-width: 331px;
+          min-width: 365px;
         }
       `}
     >
-      <FieldColorDesignation color={"designationPurple"}>
-        <TooltipTrigger>
-          <TextField
-            size="S"
-            isReadOnly
-            aria-label={"reference inferences time range"}
-            value={`${timeFormatter(timeRange.start)} - ${timeFormatter(
-              timeRange.end
-            )}`}
-          >
-            <Label>{`${nameAbbr} inferences`}</Label>
-            <Input />
-          </TextField>
-          <Tooltip>
-            <TooltipArrow />
-            The static time range of the reference inferences
-          </Tooltip>
-        </TooltipTrigger>
-      </FieldColorDesignation>
+      <TooltipTrigger>
+        <TextField
+          size="S"
+          isReadOnly
+          aria-label={"reference inferences time range"}
+          value={`${fullTimeFormatter(timeRange.start)} - ${fullTimeFormatter(
+            timeRange.end
+          )}`}
+        >
+          <Label>{`${nameAbbr} inferences`}</Label>
+          <Input />
+        </TextField>
+        <Tooltip>
+          <TooltipArrow />
+          The static time range of the reference inferences
+        </Tooltip>
+      </TooltipTrigger>
     </div>
   );
 }

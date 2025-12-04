@@ -28,6 +28,7 @@ import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useViewerCanModify } from "@phoenix/contexts";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 
 import { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
@@ -42,6 +43,7 @@ type PromptsTableProps = {
 };
 
 export function PromptsTable(props: PromptsTableProps) {
+  "use no memo";
   const { filter, selectedPromptLabelIds } = usePromptsFilterContext();
   const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
@@ -130,6 +132,7 @@ export function PromptsTable(props: PromptsTableProps) {
     },
     [hasNext, isLoadingNext, loadNext, queryArgs]
   );
+  const canModify = useViewerCanModify();
 
   type TableRow = (typeof tableData)[number];
   const columns = useMemo(() => {
@@ -173,7 +176,9 @@ export function PromptsTable(props: PromptsTableProps) {
         accessorKey: "lastUpdatedAt",
         cell: TimestampCell,
       },
-      {
+    ];
+    if (canModify) {
+      cols.push({
         id: "actions",
         header: "",
         size: 5,
@@ -205,11 +210,12 @@ export function PromptsTable(props: PromptsTableProps) {
             </Flex>
           );
         },
-      },
-    ];
+      });
+    }
     return cols;
-  }, [refetch, queryArgs]);
+  }, [refetch, queryArgs, canModify]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

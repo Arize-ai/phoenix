@@ -1,5 +1,55 @@
 # @arizeai/phoenix-client
 
+## 5.5.1
+
+### Patch Changes
+
+- Updated dependencies [ce5febf]
+  - @arizeai/phoenix-otel@0.3.1
+
+## 5.5.0
+
+### Minor Changes
+
+- cb45336: support splits when creating dataset or adding examples
+
+## 5.4.1
+
+### Patch Changes
+
+- b87d2a4: account for sub-paths in baseURLs properly
+
+## 5.4.0
+
+### Minor Changes
+
+- 885be2a: make phoenix-client be able to take in phoenix evals directly
+
+## 5.3.0
+
+### Minor Changes
+
+- 557865c: Add experiment resume and management features
+
+  **New APIs:**
+  - `createExperiment()` - Create an experiment without running it
+  - `resumeExperiment()` - Resume incomplete experiment runs (handles failed or missing runs)
+  - `resumeEvaluation()` - Add evaluations to completed experiments or retry failed evaluations
+  - `listExperiments()` - List experiments with filtering and pagination
+  - `deleteExperiment()` - Delete experiments
+
+### Patch Changes
+
+- b000189: fix bug with channel error
+- 0c92232: allow metadata when creating prompts
+
+## 5.2.1
+
+### Patch Changes
+
+- Updated dependencies [419ea76]
+  - @arizeai/phoenix-otel@0.3.0
+
 ## 5.2.0
 
 ### Minor Changes

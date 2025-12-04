@@ -237,15 +237,16 @@ function RunExperimentExampleSwitcher() {
   );
 }
 
-export function RunExperimentButton({
-  variant = "default",
-}: {
-  variant?: ButtonProps["variant"];
-}) {
+export function RunExperimentButton(
+  { variant = "default", size = "S" }: Pick<ButtonProps, "variant" | "size"> = {
+    variant: "default",
+    size: "S",
+  }
+) {
   return (
     <DialogTrigger>
       <Button
-        size="S"
+        size={size}
         variant={variant}
         leadingVisual={<Icon svg={<Icons.ExperimentOutline />} />}
       >

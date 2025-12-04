@@ -298,6 +298,13 @@ const TYPESCRIPT_PLATFORM_INTEGRATIONS: IntegrationLinkProps[] = [
     githubHref: "https://github.com/vercel/otel",
     icon: <VercelSVG />,
   },
+  {
+    name: "Mastra",
+    docsHref: "https://mastra.ai/docs/observability/ai-tracing/exporters/arize",
+    githubHref:
+      "https://github.com/mastra-ai/mastra/tree/main/observability/arize",
+    icon: <MastraSVG />,
+  },
 ];
 export function TypeScriptPlatformIntegrations() {
   return (
@@ -339,9 +346,8 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Mastra",
     docsHref:
-      "https://arize.com/docs/phoenix/integrations/mastra/mastra-tracing",
-    githubHref:
-      "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-mastra",
+      "https://arize.com/docs/phoenix/integrations/typescript/mastra/mastra-tracing",
+    githubHref: "https://github.com/mastra-ai/mastra",
     icon: <MastraSVG />,
   },
   {

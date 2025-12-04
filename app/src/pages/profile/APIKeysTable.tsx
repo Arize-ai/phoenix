@@ -21,6 +21,7 @@ import { APIKeysTableQuery } from "./__generated__/APIKeysTableQuery.graphql";
 const TIMESTAMP_CELL_SIZE = 70;
 
 export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
+  "use no memo";
   const [data, refetch] = useRefetchableFragment<
     APIKeysTableQuery,
     APIKeysTableFragment$key
@@ -133,6 +134,7 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
     ];
     return cols;
   }, [handleDelete]);
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

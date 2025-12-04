@@ -128,36 +128,6 @@ postgresql:
       cpu: 100m
       memory: 256Mi
 
-## DEPRECATED
-postgres:
-  # -- Docker image for PostgreSQL (DEPRECATED for new postgresql.image)
-  image: "postgres:14.5"
-
-  persistence:
-    # -- Enable persistent storage for PostgreSQL data (DEPRECATED for new postgresql.primary.persistence)
-    enabled: true
-
-    # -- Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence)
-    size: "20Gi"
-
-    # -- Kubernetes storage class for PostgreSQL volume (DEPRECATED for new postgresql.primary.persistence)
-    storageClass: "standard"
-
-  resources:
-    limits:
-      # -- CPU limit for PostgreSQL container (DEPRECATED for new postgresql)
-      cpu: "500m"
-
-      # -- Memory limit for PostgreSQL container (DEPRECATED for new postgresql)
-      memory: "512Mi"
-
-    requests:
-      # -- CPU request for PostgreSQL container (DEPRECATED for new postgresql)
-      cpu: "100m"
-
-      # -- Memory request for PostgreSQL container (DEPRECATED for new postgresql)
-      memory: "256Mi"
-
 server:
   # -- Annotations to add to the Phoenix service
   annotations: {}
@@ -425,7 +395,7 @@ auth:
       #   display_name: "Google"  # Optional, defaults to provider name
       #   allow_sign_up: true     # Optional, defaults to true
       #   auto_login: false       # Optional, defaults to false
-      
+
       # Example AWS Cognito with group-based access control:
       # aws_cognito:
       #   client_id: "your-aws-cognito-client-id"
@@ -437,7 +407,7 @@ auth:
       #   # Advanced: Group-based access control (requires cognito:groups in ID token)
       #   groups_attribute_path: "cognito:groups"  # JMESPath to extract groups (use quotes for special chars)
       #   allowed_groups: ["Admins", "PowerUsers"]  # Only these groups can sign in
-      
+
       # Example Microsoft Entra ID with custom scopes:
       # microsoft_entra_id:
       #   client_id: "your-microsoft-entra-id-client-id"
@@ -448,7 +418,7 @@ auth:
       #   auto_login: false
       #   # Advanced: Request additional scopes beyond "openid email profile"
       #   scopes: "offline_access User.Read"  # Space-separated additional scopes
-      
+
       # Example Keycloak with nested group path:
       # keycloak:
       #   client_id: "phoenix"
@@ -464,7 +434,7 @@ auth:
       #   role_attribute_path: "resource_access.phoenix.role"  # JMESPath to extract role
       #   role_mapping: "admin:ADMIN,user:MEMBER"  # Map IDP roles to Phoenix roles
       #   role_attribute_strict: false  # If true, deny access when role cannot be determined
-      
+
       # Example public client with PKCE (no client secret):
       # mobile_app:
       #   client_id: "mobile-app-client-id"
@@ -476,7 +446,7 @@ auth:
       #   # Advanced: Public client configuration
       #   use_pkce: true  # Enable PKCE for enhanced security (RFC 7636)
       #   token_endpoint_auth_method: "none"  # No client authentication for public clients
-      
+
       # Example with client_secret_post authentication:
       # custom_idp:
       #   client_id: "custom-client-id"
@@ -566,7 +536,7 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-12.9.0-nonroot
+  tag: version-12.19.0-nonroot
 
 # -- Resource configuration
 resources:

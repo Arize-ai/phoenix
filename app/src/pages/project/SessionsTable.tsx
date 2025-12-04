@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import React, {
   startTransition,
   useEffect,
@@ -478,7 +477,7 @@ export function SessionsTable(props: SessionsTableProps) {
     }
     return colSizes;
     // Disabled lint as per tanstack docs linked above
-    // eslint-disable-next-line react-compiler/react-compiler
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
   return (

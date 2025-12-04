@@ -1,5 +1,197 @@
 # Changelog
 
+## [12.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.18.0...arize-phoenix-v12.19.0) (2025-12-01)
+
+
+### Features
+
+* splits on experiments table ([#10422](https://github.com/Arize-ai/phoenix/issues/10422)) ([cb72a8f](https://github.com/Arize-ai/phoenix/commit/cb72a8f1d943c68827e46d6253250712d4ae4e9b))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10418](https://github.com/Arize-ai/phoenix/issues/10418)) ([8819bdc](https://github.com/Arize-ai/phoenix/commit/8819bdc29acfffd8dd84fe3bd50c34498e2a7fd6))
+* exclude none values for bedrock invocation parameters ([#10421](https://github.com/Arize-ai/phoenix/issues/10421)) ([1116686](https://github.com/Arize-ai/phoenix/commit/1116686bba245e93a47c643824a6f853fc119077))
+
+## [12.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.17.0...arize-phoenix-v12.18.0) (2025-11-25)
+
+
+### Features
+
+* Add support for claude opus 4-5 ([#10392](https://github.com/Arize-ai/phoenix/issues/10392)) ([b702c12](https://github.com/Arize-ai/phoenix/commit/b702c12d139dcb3077da14ebc514c5e35de0797f))
+* show server credential setup in the playground api keys ([#10391](https://github.com/Arize-ai/phoenix/issues/10391)) ([6c952b4](https://github.com/Arize-ai/phoenix/commit/6c952b4a05f019140897f283abb68cc0e70276d2))
+* **splits:** Allow split assignment from dataset upload ([#10353](https://github.com/Arize-ai/phoenix/issues/10353)) ([cb45336](https://github.com/Arize-ai/phoenix/commit/cb45336da7ed2016760de11772afd12e9d46f262))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10364](https://github.com/Arize-ai/phoenix/issues/10364)) ([4914f36](https://github.com/Arize-ai/phoenix/commit/4914f361fe19175b11cf8cd540cea7093f2fe17a))
+* **deps:** update arize-phoenix-client to 1.25.0 ([#10390](https://github.com/Arize-ai/phoenix/issues/10390)) ([e5a02b6](https://github.com/Arize-ai/phoenix/commit/e5a02b668636f89f182a7963c74630e78558619d))
+* **deps:** update arize-phoenix-client to 1.26.0 ([#10406](https://github.com/Arize-ai/phoenix/issues/10406)) ([f00bf8e](https://github.com/Arize-ai/phoenix/commit/f00bf8e62eb2d86530ed0714f3fc7e8dae8ff7cb))
+* **deps:** update arize-phoenix-evals to 2.6.1 ([#10363](https://github.com/Arize-ai/phoenix/issues/10363)) ([7dace89](https://github.com/Arize-ai/phoenix/commit/7dace8984f2d8ec73c02db6b88eb6c3f9c44a3d4))
+* **playground:** make boto3 clients independent ([#10396](https://github.com/Arize-ai/phoenix/issues/10396)) ([4be5ec5](https://github.com/Arize-ai/phoenix/commit/4be5ec5970a07e4470cf25a3724e4bfdf2d3e65c))
+* svg rendering for bedrock ([#10387](https://github.com/Arize-ai/phoenix/issues/10387)) ([d0cbe7f](https://github.com/Arize-ai/phoenix/commit/d0cbe7f5c6e0b5ba55ad74e82cfc8699e9b411ca))
+
+## [12.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.16.0...arize-phoenix-v12.17.0) (2025-11-24)
+
+
+### Features
+
+* Improve UX of retention policy form ([#10345](https://github.com/Arize-ai/phoenix/issues/10345)) ([605df86](https://github.com/Arize-ai/phoenix/commit/605df86442c2d853c7c19ded39cce247591369d2))
+* **playground:** enable repetitions for manual playground invocations ([#10197](https://github.com/Arize-ai/phoenix/issues/10197)) ([63b40dc](https://github.com/Arize-ai/phoenix/commit/63b40dc8a40e8022472e081024a1a15860625cd5))
+* switch client to be Apache 2.0 ([#10332](https://github.com/Arize-ai/phoenix/issues/10332)) ([ee6f6ee](https://github.com/Arize-ai/phoenix/commit/ee6f6ee15deca45430aff2732fb5ac7253d82522))
+
+
+### Bug Fixes
+
+* correct corepack invocation in dockerfile ([#10365](https://github.com/Arize-ai/phoenix/issues/10365)) ([45886a3](https://github.com/Arize-ai/phoenix/commit/45886a396199cfa31a9d2d071bd63e7e69440987))
+* correct the validation icon on regex field ([#10338](https://github.com/Arize-ai/phoenix/issues/10338)) ([d8f953f](https://github.com/Arize-ai/phoenix/commit/d8f953f7dd0c33ccfdbbbdd7a4473d626745c3fd))
+* **deps:** update arize-phoenix-client to 1.24.0 ([#10337](https://github.com/Arize-ai/phoenix/issues/10337)) ([78e9110](https://github.com/Arize-ai/phoenix/commit/78e9110668f09840fbc366f822dfc753da05bab1))
+* **deps:** update arize-phoenix-otel to 0.14.0 ([#10335](https://github.com/Arize-ai/phoenix/issues/10335)) ([27e3df3](https://github.com/Arize-ai/phoenix/commit/27e3df3e1b4b51e4d9c64d0ace49e05b98b37d12))
+* **experiments:** fix casing on avg in experiment compare page ([#10331](https://github.com/Arize-ai/phoenix/issues/10331)) ([02b3f41](https://github.com/Arize-ai/phoenix/commit/02b3f412b6a6a1570bb333358611ae7ab9a87d25))
+* make users table scrollable ([#10311](https://github.com/Arize-ai/phoenix/issues/10311)) ([af14425](https://github.com/Arize-ai/phoenix/commit/af14425c5bf570a1a6b33968f66c54496fc4bfe9))
+* **playground:** ensure playground repetition status is cleared ([#10351](https://github.com/Arize-ai/phoenix/issues/10351)) ([54baafd](https://github.com/Arize-ai/phoenix/commit/54baafd8bafbc1cb02aecc0ed1a881ff11df9a92))
+* Restore outline on &lt;ColorSwatchPicker /&gt; component ([#10346](https://github.com/Arize-ai/phoenix/issues/10346)) ([d888c7d](https://github.com/Arize-ai/phoenix/commit/d888c7da66b4c1d93372b9e58332a39fc9f54523))
+* **splits:** Make split assignment idempotent ([#10252](https://github.com/Arize-ai/phoenix/issues/10252)) ([2d47be0](https://github.com/Arize-ai/phoenix/commit/2d47be04a6bcbfb9a9d1d94963c280931acb9605))
+
+## [12.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.15.1...arize-phoenix-v12.16.0) (2025-11-19)
+
+
+### Features
+
+* add openai 5.1 family ([#10318](https://github.com/Arize-ai/phoenix/issues/10318)) ([cb1f40b](https://github.com/Arize-ai/phoenix/commit/cb1f40bbb3fcb2ca55405586d7b5d260e26e5bcc))
+* implement connection pagination on trace spans ([#10298](https://github.com/Arize-ai/phoenix/issues/10298)) ([f38ce95](https://github.com/Arize-ai/phoenix/commit/f38ce95d81f3f37e0897385f3603d379c0845fe5))
+* **reasoning:** support reasoning for openai, gemini and add gemini-3 ([#10309](https://github.com/Arize-ai/phoenix/issues/10309)) ([eed38d4](https://github.com/Arize-ai/phoenix/commit/eed38d48cd66a042027e470f1730ecf3876f91d4))
+
+
+### Bug Fixes
+
+* account for large traces ([#10296](https://github.com/Arize-ai/phoenix/issues/10296)) ([2c906e1](https://github.com/Arize-ai/phoenix/commit/2c906e14dbfaff68c4a000d20ae49557f0cdfff1))
+* drop support for python 3.9 ([#10310](https://github.com/Arize-ai/phoenix/issues/10310)) ([7f0b8c9](https://github.com/Arize-ai/phoenix/commit/7f0b8c96bd21be92a0cde49fe49a2f5cecfe8362))
+
+## [12.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.15.0...arize-phoenix-v12.15.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10278](https://github.com/Arize-ai/phoenix/issues/10278)) ([e27e1cd](https://github.com/Arize-ai/phoenix/commit/e27e1cd7547d6c6200f3f1c12b6d35c918984676))
+* incremental fetch strategy for generative models caching ([#10287](https://github.com/Arize-ai/phoenix/issues/10287)) ([c7bb87a](https://github.com/Arize-ai/phoenix/commit/c7bb87aac115bde965acabf545a21f20f596db44))
+* use float to account for large ints ([#10294](https://github.com/Arize-ai/phoenix/issues/10294)) ([07234ab](https://github.com/Arize-ai/phoenix/commit/07234aba2b58a1db861f2e4c668d89e5a424f380))
+
+## [12.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.14.2...arize-phoenix-v12.15.0) (2025-11-13)
+
+
+### Features
+
+* Update Anthropic model list ([#10255](https://github.com/Arize-ai/phoenix/issues/10255)) ([2fdd305](https://github.com/Arize-ai/phoenix/commit/2fdd30517ce829a6b73d441da344059e6494d1ff))
+
+## [12.14.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.14.1...arize-phoenix-v12.14.2) (2025-11-13)
+
+
+### Bug Fixes
+
+* bump playwright ([#10250](https://github.com/Arize-ai/phoenix/issues/10250)) ([6602f22](https://github.com/Arize-ai/phoenix/commit/6602f228b526458e6b02a3f6e9d15ffba6797c17))
+* use loadQuery for prompts ([#10247](https://github.com/Arize-ai/phoenix/issues/10247)) ([4d48301](https://github.com/Arize-ai/phoenix/commit/4d483013c80b2221d7a6d77d842bc6c6b2d81dd3))
+
+## [12.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.14.0...arize-phoenix-v12.14.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* add type safety to loader data ([#10245](https://github.com/Arize-ai/phoenix/issues/10245)) ([e6f89ce](https://github.com/Arize-ai/phoenix/commit/e6f89cece9ad1cec4cd94fc1258d8d9d5a06a0ca))
+
+## [12.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.13.1...arize-phoenix-v12.14.0) (2025-11-12)
+
+
+### Features
+
+* Add react compiler behind a config ([#9782](https://github.com/Arize-ai/phoenix/issues/9782)) ([2f1de04](https://github.com/Arize-ai/phoenix/commit/2f1de04f09d7d3de6ced5a9c4a7fa11eb71bb9cb))
+
+## [12.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.13.0...arize-phoenix-v12.13.1) (2025-11-12)
+
+
+### Bug Fixes
+
+* backslashes were not escaped in py str sanitization ([#10199](https://github.com/Arize-ai/phoenix/issues/10199)) ([694d9b3](https://github.com/Arize-ai/phoenix/commit/694d9b327c90e68f63bd3291c1c345630068f7b5))
+* **deps:** update arize-phoenix-evals to 2.6.0 ([#10240](https://github.com/Arize-ai/phoenix/issues/10240)) ([ada4aa4](https://github.com/Arize-ai/phoenix/commit/ada4aa4e54493f3889d24851f919a9b5ed9b4f04))
+
+## [12.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.12.0...arize-phoenix-v12.13.0) (2025-11-12)
+
+
+### Features
+
+* make render only contain pure functions ([#10210](https://github.com/Arize-ai/phoenix/issues/10210)) ([2ac490e](https://github.com/Arize-ai/phoenix/commit/2ac490ea5d60397288edeaac5c879de38dcdbe3f))
+* move off @arizeai/components" ([#10191](https://github.com/Arize-ai/phoenix/issues/10191)) ([08bc957](https://github.com/Arize-ai/phoenix/commit/08bc957192c728c03f88efb0f872ac5b6bccd414))
+
+
+### Bug Fixes
+
+* charting colors restored ([#10208](https://github.com/Arize-ai/phoenix/issues/10208)) ([4525082](https://github.com/Arize-ai/phoenix/commit/4525082086045df676034fb5c6c9768abd105ffb))
+* **cost:** update built-in model token prices ([#10201](https://github.com/Arize-ai/phoenix/issues/10201)) ([eef565c](https://github.com/Arize-ai/phoenix/commit/eef565c83d9a7eca9c9a170bb8528f965ca38639))
+* enable adding span to empty dataset ([#10213](https://github.com/Arize-ai/phoenix/issues/10213)) ([63a30db](https://github.com/Arize-ai/phoenix/commit/63a30dbfd94f1b326321467121d83727f987426c))
+* remove default color thresholds for latency ([#10175](https://github.com/Arize-ai/phoenix/issues/10175)) ([3fbbb39](https://github.com/Arize-ai/phoenix/commit/3fbbb39a2f32ba5fb894d735330504ed57de10f8))
+* type error during mustache substitution ([#10232](https://github.com/Arize-ai/phoenix/issues/10232)) ([f36dfed](https://github.com/Arize-ai/phoenix/commit/f36dfed3065ee1982c643089dc852d2746043044))
+
+
+### Documentation
+
+* add extensions to dev tools ([#10222](https://github.com/Arize-ai/phoenix/issues/10222)) ([c8f9cc0](https://github.com/Arize-ai/phoenix/commit/c8f9cc0289d7673ebef82ea1805c46951f8b8edb))
+* update typescript guide ([#10177](https://github.com/Arize-ai/phoenix/issues/10177)) ([f321dd5](https://github.com/Arize-ai/phoenix/commit/f321dd58b8767fba835b23d43f5cb137094295b2))
+
+## [12.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.11.1...arize-phoenix-v12.12.0) (2025-11-07)
+
+
+### Features
+
+* page titles derived from navw ([#10172](https://github.com/Arize-ai/phoenix/issues/10172)) ([3716944](https://github.com/Arize-ai/phoenix/commit/3716944e818ffab646892a250d3529c2bb01bb6a))
+
+## [12.11.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.11.0...arize-phoenix-v12.11.1) (2025-11-07)
+
+
+### Bug Fixes
+
+* timezone selector on safari and firefox ([#10168](https://github.com/Arize-ai/phoenix/issues/10168)) ([09f5369](https://github.com/Arize-ai/phoenix/commit/09f5369cc8509dab76e87fc46255f1c0270d9e23))
+
+## [12.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.10.0...arize-phoenix-v12.11.0) (2025-11-07)
+
+
+### Features
+
+* user display timezone preference ([#10133](https://github.com/Arize-ai/phoenix/issues/10133)) ([e4d0174](https://github.com/Arize-ai/phoenix/commit/e4d01748e228129de027b2ec239981f50dee74bd))
+
+
+### Bug Fixes
+
+* bump minimum version of client ([#10165](https://github.com/Arize-ai/phoenix/issues/10165)) ([396cac1](https://github.com/Arize-ai/phoenix/commit/396cac190db35aee9c3dd64437c476759fc3b3fd))
+* improve identifier form validation ([#10149](https://github.com/Arize-ai/phoenix/issues/10149)) ([d4a4111](https://github.com/Arize-ai/phoenix/commit/d4a411142322089bed42c3b2ab347c03d5b1afa7))
+* make lastN time ranges work for metrics page ([#10154](https://github.com/Arize-ai/phoenix/issues/10154)) ([72e5068](https://github.com/Arize-ai/phoenix/commit/72e5068a597631a60015246c51f2d2017e59f7a1))
+
+## [12.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.9.0...arize-phoenix-v12.10.0) (2025-11-05)
+
+
+### Features
+
+* add es2022 as new target ([#10143](https://github.com/Arize-ai/phoenix/issues/10143)) ([cccc40a](https://github.com/Arize-ai/phoenix/commit/cccc40a21172819539395406a9ee8d3a4a45976b))
+* Add extra body param ([#10131](https://github.com/Arize-ai/phoenix/issues/10131)) ([41e1746](https://github.com/Arize-ai/phoenix/commit/41e1746671c2e90006b1593041b2f5ce3e334450))
+* add system theme ([#10030](https://github.com/Arize-ai/phoenix/issues/10030)) ([90f133a](https://github.com/Arize-ai/phoenix/commit/90f133ab315085b2ae1dd0eb2025dbb62f91ac61))
+* add valueFrom option to auth.secret ([#9932](https://github.com/Arize-ai/phoenix/issues/9932)) ([0c6a3e8](https://github.com/Arize-ai/phoenix/commit/0c6a3e86cd418e6e9b4f24c102a89e2edc1f76c3))
+* added additionalEnv support ([#10022](https://github.com/Arize-ai/phoenix/issues/10022)) ([b2aadb3](https://github.com/Arize-ai/phoenix/commit/b2aadb321ae40f90f4c42fb36ae3ee884069a46b))
+* **auth:** hide prominent actions for viewers. ([#10124](https://github.com/Arize-ai/phoenix/issues/10124)) ([bd24cba](https://github.com/Arize-ai/phoenix/commit/bd24cba088337ce02cb08809a6f3bed707b3f79d))
+* classnames migration to vendored approach ([#10098](https://github.com/Arize-ai/phoenix/issues/10098)) ([37e106b](https://github.com/Arize-ai/phoenix/commit/37e106b968614a28e13ca4a248b99869b906f505))
+* **helm:** Allow fullname override, enhance helm tests ([#10106](https://github.com/Arize-ai/phoenix/issues/10106)) ([1788b84](https://github.com/Arize-ai/phoenix/commit/1788b840fdbfcae1f7ce9052e6a3f4534cc798f7))
+* metadata for prompts ([#10097](https://github.com/Arize-ai/phoenix/issues/10097)) ([0c92232](https://github.com/Arize-ai/phoenix/commit/0c92232a91679d1b8146167a26aecd20326fce9c))
+* OIDC role mapping ([#9982](https://github.com/Arize-ai/phoenix/issues/9982)) ([29615ef](https://github.com/Arize-ai/phoenix/commit/29615ef4b38a4ef076d887a71affb96a033edd7d))
+* prometheus metrics for trace retention sweeper ([#10130](https://github.com/Arize-ai/phoenix/issues/10130)) ([3c9d92b](https://github.com/Arize-ai/phoenix/commit/3c9d92b4bd07aafe9f61f4fb55ad36a6d1e491ac))
+* resume experiment and evaluation ([#9994](https://github.com/Arize-ai/phoenix/issues/9994)) ([557865c](https://github.com/Arize-ai/phoenix/commit/557865c60b08dee5b09912bd09dfd2593231f713))
+* **ui:** playground dataset label ([#9902](https://github.com/Arize-ai/phoenix/issues/9902)) ([12d6855](https://github.com/Arize-ai/phoenix/commit/12d685551248948ea88272c20fa020d0956288c3))
+
+
+### Bug Fixes
+
+* **helm:** in-memory deployment from conflicting values ([#10118](https://github.com/Arize-ai/phoenix/issues/10118)) ([8e16a62](https://github.com/Arize-ai/phoenix/commit/8e16a622fdd29dfe3db29e96d958146b9b0c4558))
+* **playground:** remove useMemo ([#10110](https://github.com/Arize-ai/phoenix/issues/10110)) ([bcbe5bd](https://github.com/Arize-ai/phoenix/commit/bcbe5bdf407e25532459ef08e305911ba411333e))
+* render tool messages with undefined outputs ([#10116](https://github.com/Arize-ai/phoenix/issues/10116)) ([c7d76e1](https://github.com/Arize-ai/phoenix/commit/c7d76e1bd39371ac2c0549721835fbe7fc850724))
+
 ## [12.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.8.0...arize-phoenix-v12.9.0) (2025-10-29)
 
 

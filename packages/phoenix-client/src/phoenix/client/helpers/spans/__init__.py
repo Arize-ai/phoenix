@@ -6,12 +6,27 @@ from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from phoenix.client.__generated__ import v1
 
+from .rag import (
+    async_get_input_output_context,
+    async_get_retrieved_documents,
+    get_input_output_context,
+    get_retrieved_documents,
+)
+
 Span = v1.Span
 
 if TYPE_CHECKING:
     import pandas as pd
 
-__all__ = ["uniquify_spans", "uniquify_spans_dataframe", "dataframe_to_spans"]
+__all__ = [
+    "uniquify_spans",
+    "uniquify_spans_dataframe",
+    "dataframe_to_spans",
+    "get_input_output_context",
+    "get_retrieved_documents",
+    "async_get_input_output_context",
+    "async_get_retrieved_documents",
+]
 
 # Source implementation:opentelemetry.sdk.trace.id_generator.RandomIdGenerator
 
@@ -179,7 +194,7 @@ def uniquify_spans_dataframe(
     if "context.trace_id" in df.columns:
         unique_trace_ids = df["context.trace_id"].dropna().unique()  # pyright: ignore
         for old_trace_id in unique_trace_ids:  # pyright: ignore
-            old_trace_id_str = str(old_trace_id)
+            old_trace_id_str = str(old_trace_id)  # pyright: ignore[reportUnknownArgumentType]
             if old_trace_id_str and old_trace_id_str not in trace_id_mapping:
                 trace_id_mapping[old_trace_id_str] = _generate_trace_id()
 

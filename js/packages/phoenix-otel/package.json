@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-otel",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "description": "Otel registration and convenience methods",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
@@ -17,7 +17,8 @@
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "type:check": "tsc --noEmit",
-    "test": "vitest --typecheck"
+    "test": "vitest run",
+    "test:watch": "vitest watch"
   },
   "files": [
     "dist",
@@ -35,7 +36,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^1.1.0",
-    "@arizeai/openinference-vercel": "^2.3.1",
+    "@arizeai/openinference-vercel": "^2.5.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/core": "^1.25.1",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.57.2",
@@ -46,6 +47,6 @@
   },
   "devDependencies": {
     "@types/node": "^24.9.1",
-    "vitest": "^2.1.9"
+    "vitest": "^4.0.10"
   }
 }

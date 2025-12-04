@@ -24,10 +24,10 @@ import {
 } from "@phoenix/components/chart";
 import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { TraceErrorsTimeSeriesQuery } from "./__generated__/TraceErrorsTimeSeriesQuery.graphql";
 
@@ -41,6 +41,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
+  const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     const errorValue = payload[0]?.value ?? null;
     const errorString =

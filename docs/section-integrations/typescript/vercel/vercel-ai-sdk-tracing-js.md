@@ -4,20 +4,14 @@
 
 [![npm version](https://badge.fury.io/js/@arizeai%2Fopeninference-vercel.svg)](https://badge.fury.io/js/@arizeai%2Fopeninference-vercel)
 
-This package provides a set of utilities to ingest [Vercel AI SDK](https://github.com/vercel/ai)(>= 3.3) spans into platforms like [Arize](https://arize.com/) and [Phoenix](https://phoenix.arize.com/).
+This package provides a set of utilities to ingest [Vercel AI SDK](https://github.com/vercel/ai)(>= 3.3) spans into platforms like [Arize AX](https://arize.com/) and [Phoenix](https://phoenix.arize.com/).
 
 > Note: This package requires you to be using the Vercel AI SDK version 3.3 or higher.
 
 ### Installation
 
 ```shell
-npm i --save @arizeai/openinference-vercel
-```
-
-You will also need to install OpenTelemetry packages into your project.
-
-```shell
-npm i --save @arizeai/openinference-semantic-conventions @opentelemetry/api @opentelemetry/exporter-trace-otlp-proto @opentelemetry/resources @opentelemetry/sdk-trace-node @opentelemetry/semantic-conventions
+npm i --save @arizeai/openinference-vercel @arizeai/phoenix-otel
 ```
 
 ### Usage
@@ -38,43 +32,11 @@ Here are two example instrumentation configurations:
 ```typescript
 // instrumentation.ts
 // Node environment instrumentation
-// Boilerplate imports
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
-// OpenInference Vercel imports
-import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import { OpenInferenceSimpleSpanProcessor } from "@arizeai/openinference-vercel";
+import { register } from "@arizeai/phoenix-otel";
 
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
-
-// e.g. http://localhost:6006
-// e.g. https://app.phoenix.arize.com/s/<your-space>
-const COLLECTOR_ENDPOINT = process.env.PHOENIX_COLLECTOR_ENDPOINT;
-// The project name that may appear in your collector's interface
-const SERVICE_NAME = "phoenix-vercel-ai-sdk-app";
-
-export const provider = new NodeTracerProvider({
-  resource: resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: SERVICE_NAME,
-    [SEMRESATTRS_PROJECT_NAME]: SERVICE_NAME,
-  }),
-  spanProcessors: [
-    // In production-like environments it is recommended to use 
-    // OpenInferenceBatchSpanProcessor instead
-    new OpenInferenceSimpleSpanProcessor({
-      exporter: new OTLPTraceExporter({
-        url: `${COLLECTOR_ENDPOINT}/v1/traces`,
-        // (optional) if connecting to a collector with Authentication enabled
-        headers: { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
-      }),
-    }),
-  ],
+export const provider = register({
+  projectName: "phoenix-vercel-ai-sdk-app",
 });
-
-provider.register();
 
 console.log("Provider registered");
 

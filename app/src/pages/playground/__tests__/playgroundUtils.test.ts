@@ -70,7 +70,16 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
   },
   tools: [],
   toolChoice: "auto",
-  spanId: null,
+  repetitions: {
+    1: {
+      output: null,
+      spanId: null,
+      error: null,
+      status: "notStarted",
+      toolCalls: {},
+    },
+  },
+  selectedRepetitionNumber: 1,
   template: {
     __type: "chat",
     messages: [],
@@ -88,7 +97,16 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   },
   tools: [],
   toolChoice: "auto",
-  spanId: "fake-span-global-id",
+  repetitions: {
+    1: {
+      output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
+      spanId: "fake-span-global-id",
+      error: null,
+      status: "finished",
+      toolCalls: {},
+    },
+  },
+  selectedRepetitionNumber: 1,
   template: {
     __type: "chat",
     // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
@@ -98,7 +116,6 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
       { id: 3, content: "hello?", role: "user" },
     ],
   },
-  output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
 };
 
 const defaultTemplate = {
@@ -137,7 +154,16 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           supportedInvocationParameters: [],
         },
         template: defaultTemplate,
-        output: undefined,
+        repetitions: {
+          1: {
+            output: null,
+            spanId: "fake-span-global-id",
+            error: null,
+            status: "notStarted",
+            toolCalls: {},
+          },
+        },
+        selectedRepetitionNumber: 1,
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     });
@@ -157,7 +183,16 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           modelName: "gpt-4o",
         },
         template: defaultTemplate,
-        output: undefined,
+        repetitions: {
+          1: {
+            output: null,
+            spanId: "fake-span-global-id",
+            error: null,
+            status: "finished",
+            toolCalls: {},
+          },
+        },
+        selectedRepetitionNumber: 1,
       },
       playgroundInput: undefined,
       parsingErrors: [
@@ -185,7 +220,15 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
-        output: undefined,
+        repetitions: {
+          1: {
+            output: null,
+            spanId: "fake-span-global-id",
+            error: null,
+            status: "finished",
+            toolCalls: {},
+          },
+        },
       },
       parsingErrors: [
         OUTPUT_MESSAGES_PARSING_ERROR,
@@ -212,8 +255,15 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
-
-        output: "This is an AI Answer",
+        repetitions: {
+          1: {
+            output: "This is an AI Answer",
+            spanId: "fake-span-global-id",
+            error: null,
+            status: "finished",
+            toolCalls: {},
+          },
+        },
       },
       parsingErrors: [OUTPUT_MESSAGES_PARSING_ERROR],
     });
@@ -275,7 +325,15 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
             },
           ],
         },
-        output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+        repetitions: {
+          1: {
+            output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+            spanId: "fake-span-global-id",
+            error: null,
+            status: "finished",
+            toolCalls: {},
+          },
+        },
       },
       parsingErrors: [],
     });
@@ -326,7 +384,15 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
             },
           ],
         },
-        output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+        repetitions: {
+          1: {
+            output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+            spanId: "fake-span-global-id",
+            error: null,
+            status: "finished",
+            toolCalls: {},
+          },
+        },
       },
       parsingErrors: [],
     });
@@ -373,7 +439,15 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
             definition: testSpanOpenAIToolJsonSchema,
           },
         ],
-        output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
+        repetitions: {
+          1: {
+            output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
+            spanId: "fake-span-global-id",
+            error: null,
+            status: "finished",
+            toolCalls: {},
+          },
+        },
       },
       parsingErrors: [],
     });
@@ -1134,7 +1208,16 @@ describe("getVariablesMapFromInstances", () => {
     },
     tools: [],
     toolChoice: "auto",
-    spanId: null,
+    repetitions: {
+      1: {
+        output: null,
+        spanId: null,
+        error: null,
+        status: "notStarted",
+        toolCalls: {},
+      },
+    },
+    selectedRepetitionNumber: 1,
     template: {
       __type: "chat",
       messages: [],

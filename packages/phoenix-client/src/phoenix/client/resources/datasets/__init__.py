@@ -315,11 +315,16 @@ class DatasetKeys:
     """
 
     def __init__(
-        self, input_keys: frozenset[str], output_keys: frozenset[str], metadata_keys: frozenset[str]
+        self,
+        input_keys: frozenset[str],
+        output_keys: frozenset[str],
+        metadata_keys: frozenset[str],
+        split_keys: frozenset[str] = frozenset(),
     ):
         self.input = input_keys
         self.output = output_keys
         self.metadata = metadata_keys
+        self.split = split_keys
 
         if self.input & self.output:
             raise ValueError(f"Input and output keys overlap: {self.input & self.output}")
@@ -327,16 +332,22 @@ class DatasetKeys:
             raise ValueError(f"Input and metadata keys overlap: {self.input & self.metadata}")
         if self.output & self.metadata:
             raise ValueError(f"Output and metadata keys overlap: {self.output & self.metadata}")
+        if self.input & self.split:
+            raise ValueError(f"Input and split keys overlap: {self.input & self.split}")
+        if self.output & self.split:
+            raise ValueError(f"Output and split keys overlap: {self.output & self.split}")
+        if self.metadata & self.split:
+            raise ValueError(f"Metadata and split keys overlap: {self.metadata & self.split}")
 
     def check_differences(self, available_keys: frozenset[str]) -> None:
         """Check that all specified keys exist in available keys."""
-        all_keys = self.input | self.output | self.metadata
+        all_keys = self.input | self.output | self.metadata | self.split
         if diff := all_keys - available_keys:
             raise ValueError(f"Keys not found in available columns: {diff}")
 
     def __iter__(self) -> "Iterator[str]":
         """Allow iteration over all keys."""
-        return iter(self.input | self.output | self.metadata)
+        return iter(self.input | self.output | self.metadata | self.split)
 
 
 def _parse_datetime(datetime_str: str) -> datetime:
@@ -721,6 +732,7 @@ class Datasets:
         input_keys: Iterable[str] = (),
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -740,6 +752,7 @@ class Datasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
+            split_keys: List of column names used for automatically assigning examples to splits.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -767,6 +780,7 @@ class Datasets:
         if dataframe is not None and csv_file_path is not None:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
+        splits_from_examples: list[Any] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -782,6 +796,7 @@ class Datasets:
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
+            splits_from_examples = [example.get("splits", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -792,6 +807,7 @@ class Datasets:
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
+                split_keys=split_keys,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -802,6 +818,7 @@ class Datasets:
                 inputs=inputs,
                 outputs=outputs,
                 metadata=metadata,
+                splits=splits_from_examples if examples is not None else [],
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -817,6 +834,7 @@ class Datasets:
         input_keys: Iterable[str] = (),
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -836,6 +854,7 @@ class Datasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
+            split_keys: List of column names used for automatically assigning examples to splits.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -879,6 +898,7 @@ class Datasets:
         if dataframe is not None and csv_file_path is not None:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
+        splits_from_examples: list[Any] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -894,6 +914,7 @@ class Datasets:
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
+            splits_from_examples = [example.get("splits") for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -904,6 +925,7 @@ class Datasets:
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
+                split_keys=split_keys,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -914,6 +936,7 @@ class Datasets:
                 inputs=inputs,
                 outputs=outputs,
                 metadata=metadata,
+                splits=splits_from_examples if examples is not None else [],
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -963,6 +986,7 @@ class Datasets:
         input_keys: Iterable[str],
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -973,6 +997,7 @@ class Datasets:
         input_keys_set = frozenset(input_keys)
         output_keys_set = frozenset(output_keys)
         metadata_keys_set = frozenset(metadata_keys)
+        split_keys_set = frozenset(split_keys)
 
         # Auto-infer keys if none provided
         if not any([input_keys_set, output_keys_set, metadata_keys_set]):
@@ -981,7 +1006,7 @@ class Datasets:
             output_keys_set = frozenset(output_keys_tuple)
             metadata_keys_set = frozenset(metadata_keys_tuple)
 
-        keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set)
+        keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set, split_keys_set)
 
         if isinstance(table, Path) or isinstance(table, str):
             file = _prepare_csv(Path(table), keys)
@@ -1008,6 +1033,7 @@ class Datasets:
                 "input_keys[]": sorted(keys.input),
                 "output_keys[]": sorted(keys.output),
                 "metadata_keys[]": sorted(keys.metadata),
+                "split_keys[]": sorted(keys.split),
             },
             params={"sync": True},
             headers={"accept": "application/json"},
@@ -1023,6 +1049,7 @@ class Datasets:
         inputs: Iterable[Mapping[str, Any]],
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
+        splits: Iterable[Any] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1034,6 +1061,7 @@ class Datasets:
         inputs_list = list(inputs)
         outputs_list = list(outputs) if outputs else []
         metadata_list = list(metadata) if metadata else []
+        splits_list = list(splits) if splits else []
 
         if not inputs_list:
             raise ValueError("inputs must be non-empty")
@@ -1041,7 +1069,10 @@ class Datasets:
         if not _is_all_dict(inputs_list):
             raise ValueError("inputs must contain only dictionaries")
 
-        for name, data in [("outputs", outputs_list), ("metadata", metadata_list)]:
+        for name, data in [
+            ("outputs", outputs_list),
+            ("metadata", metadata_list),
+        ]:
             if data:
                 if len(data) != len(inputs_list):
                     raise ValueError(
@@ -1051,12 +1082,19 @@ class Datasets:
                 if not _is_all_dict(data):
                     raise ValueError(f"{name} must contain only dictionaries")
 
+        # Validate splits separately (can be string, list of strings, or None)
+        if splits_list and len(splits_list) != len(inputs_list):
+            raise ValueError(
+                f"splits must have same length as inputs ({len(splits_list)} != {len(inputs_list)})"
+            )
+
         payload = {
             "action": action,
             "name": dataset_name,
             "inputs": inputs_list,
             "outputs": outputs_list or [{}] * len(inputs_list),
             "metadata": metadata_list or [{}] * len(inputs_list),
+            "splits": splits_list or [None] * len(inputs_list),
         }
 
         if dataset_description is not None:
@@ -1437,6 +1475,7 @@ class AsyncDatasets:
         input_keys: Iterable[str] = (),
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1456,6 +1495,7 @@ class AsyncDatasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
+            split_keys: List of column names used for automatically assigning examples to splits.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -1483,6 +1523,7 @@ class AsyncDatasets:
         if dataframe is not None and csv_file_path is not None:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
+        splits_from_examples: list[Any] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -1498,6 +1539,7 @@ class AsyncDatasets:
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
+            splits_from_examples = [example.get("splits", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1508,6 +1550,7 @@ class AsyncDatasets:
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
+                split_keys=split_keys,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -1518,6 +1561,7 @@ class AsyncDatasets:
                 inputs=inputs,
                 outputs=outputs,
                 metadata=metadata,
+                splits=splits_from_examples if examples is not None else [],
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -1533,6 +1577,7 @@ class AsyncDatasets:
         input_keys: Iterable[str] = (),
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1552,6 +1597,7 @@ class AsyncDatasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
+            split_keys: List of column names used for automatically assigning examples to splits.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -1595,6 +1641,7 @@ class AsyncDatasets:
         if dataframe is not None and csv_file_path is not None:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
+        splits_from_examples: list[Any] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -1610,6 +1657,7 @@ class AsyncDatasets:
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
+            splits_from_examples = [example.get("splits") for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1620,6 +1668,7 @@ class AsyncDatasets:
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
+                split_keys=split_keys,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1630,6 +1679,7 @@ class AsyncDatasets:
                 inputs=inputs,
                 outputs=outputs,
                 metadata=metadata,
+                splits=splits_from_examples if examples is not None else [],
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1666,6 +1716,7 @@ class AsyncDatasets:
         input_keys: Iterable[str],
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1674,6 +1725,7 @@ class AsyncDatasets:
         input_keys_set = frozenset(input_keys)
         output_keys_set = frozenset(output_keys)
         metadata_keys_set = frozenset(metadata_keys)
+        split_keys_set = frozenset(split_keys)
 
         # Auto-infer keys if none provided
         if not any([input_keys_set, output_keys_set, metadata_keys_set]):
@@ -1682,7 +1734,7 @@ class AsyncDatasets:
             output_keys_set = frozenset(output_keys_tuple)
             metadata_keys_set = frozenset(metadata_keys_tuple)
 
-        keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set)
+        keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set, split_keys_set)
 
         if isinstance(table, Path) or isinstance(table, str):
             file = _prepare_csv(Path(table), keys)
@@ -1709,6 +1761,7 @@ class AsyncDatasets:
                 "input_keys[]": sorted(keys.input),
                 "output_keys[]": sorted(keys.output),
                 "metadata_keys[]": sorted(keys.metadata),
+                "split_keys[]": sorted(keys.split),
             },
             params={"sync": True},
             headers={"accept": "application/json"},
@@ -1724,6 +1777,7 @@ class AsyncDatasets:
         inputs: Iterable[Mapping[str, Any]],
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
+        splits: Iterable[Any] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1733,6 +1787,7 @@ class AsyncDatasets:
         inputs_list = list(inputs)
         outputs_list = list(outputs) if outputs else []
         metadata_list = list(metadata) if metadata else []
+        splits_list = list(splits) if splits else []
 
         if not inputs_list:
             raise ValueError("inputs must be non-empty")
@@ -1740,7 +1795,10 @@ class AsyncDatasets:
         if not _is_all_dict(inputs_list):
             raise ValueError("inputs must contain only dictionaries")
 
-        for name, data in [("outputs", outputs_list), ("metadata", metadata_list)]:
+        for name, data in [
+            ("outputs", outputs_list),
+            ("metadata", metadata_list),
+        ]:
             if data:
                 if len(data) != len(inputs_list):
                     raise ValueError(
@@ -1750,12 +1808,19 @@ class AsyncDatasets:
                 if not _is_all_dict(data):
                     raise ValueError(f"{name} must contain only dictionaries")
 
+        # Validate splits separately (can be string, list of strings, or None)
+        if splits_list and len(splits_list) != len(inputs_list):
+            raise ValueError(
+                f"splits must have same length as inputs ({len(splits_list)} != {len(inputs_list)})"
+            )
+
         payload = {
             "action": action,
             "name": dataset_name,
             "inputs": inputs_list,
             "outputs": outputs_list or [{}] * len(inputs_list),
             "metadata": metadata_list or [{}] * len(inputs_list),
+            "splits": splits_list or [None] * len(inputs_list),
         }
 
         if dataset_description is not None:
@@ -1861,11 +1926,13 @@ def _prepare_dataframe_as_csv(
 
     keys.check_differences(frozenset(df.columns))
 
-    # Ensure consistent column ordering: input, output, metadata
-    selected_columns = sorted(keys.input) + sorted(keys.output) + sorted(keys.metadata)
+    # Ensure consistent column ordering: input, output, metadata, split
+    selected_columns = (
+        sorted(keys.input) + sorted(keys.output) + sorted(keys.metadata) + sorted(keys.split)
+    )
 
     csv_buffer = BytesIO()
-    df[selected_columns].to_csv(csv_buffer, index=False)
+    df[selected_columns].to_csv(csv_buffer, index=False)  # pyright: ignore[reportUnknownMemberType]
     csv_buffer.seek(0)
 
     compressed = BytesIO()

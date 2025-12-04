@@ -8,10 +8,7 @@ import {
   Label,
 } from "react-aria-components";
 import { Controller, useForm } from "react-hook-form";
-import {
-  getLocalTimeZone,
-  parseAbsoluteToLocal,
-} from "@internationalized/date";
+import { getLocalTimeZone, parseAbsolute } from "@internationalized/date";
 import { css } from "@emotion/react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
@@ -62,15 +59,23 @@ export type TimeRangeFormProps = {
    * Called when the form is submitted.
    */
   onSubmit: (data: OpenTimeRange) => void;
+  /**
+   * The time zone to use for the date and time pickers.
+   * Defaults to the user's time zone.
+   */
+  timeZone?: string;
 };
 
-function timeRangeToFormParams(timeRange: OpenTimeRange): TimeRangeFormParams {
+function timeRangeToFormParams(
+  timeRange: OpenTimeRange,
+  timeZone: string
+): TimeRangeFormParams {
   return {
     startDate: timeRange.start
-      ? parseAbsoluteToLocal(timeRange.start.toISOString())
+      ? parseAbsolute(timeRange.start.toISOString(), timeZone)
       : null,
     endDate: timeRange.end
-      ? parseAbsoluteToLocal(timeRange.end.toISOString())
+      ? parseAbsolute(timeRange.end.toISOString(), timeZone)
       : null,
   };
 }
@@ -79,7 +84,11 @@ function timeRangeToFormParams(timeRange: OpenTimeRange): TimeRangeFormParams {
  * A form that displays a date and time picker.
  */
 export function TimeRangeForm(props: TimeRangeFormProps) {
-  const { initialValue, onSubmit: propsOnSubmit } = props;
+  const {
+    initialValue,
+    onSubmit: propsOnSubmit,
+    timeZone = getLocalTimeZone(),
+  } = props;
   const {
     control,
     handleSubmit,
@@ -88,7 +97,7 @@ export function TimeRangeForm(props: TimeRangeFormProps) {
     setError,
     clearErrors,
   } = useForm<TimeRangeFormParams>({
-    defaultValues: timeRangeToFormParams(initialValue || {}),
+    defaultValues: timeRangeToFormParams(initialValue || {}, timeZone),
   });
 
   const onStartClear = useCallback(() => {
@@ -103,8 +112,8 @@ export function TimeRangeForm(props: TimeRangeFormProps) {
     (data: TimeRangeFormParams) => {
       clearErrors();
       const { startDate, endDate } = data;
-      const start = startDate ? startDate.toDate(getLocalTimeZone()) : null;
-      const end = endDate ? endDate.toDate(getLocalTimeZone()) : null;
+      const start = startDate ? startDate.toDate(timeZone) : null;
+      const end = endDate ? endDate.toDate(timeZone) : null;
       if (start && end && start > end) {
         setError("endDate", {
           message: "End must be after the start date",
@@ -113,7 +122,7 @@ export function TimeRangeForm(props: TimeRangeFormProps) {
       }
       propsOnSubmit({ start, end });
     },
-    [propsOnSubmit, setError, clearErrors]
+    [propsOnSubmit, setError, clearErrors, timeZone]
   );
   return (
     <Form

@@ -10,8 +10,6 @@ Phoenix provides auto-instrumentation for the [OpenAI Python Library](https://gi
 
 We have several code samples below on different ways to integrate with OpenAI, based on how you want to use Phoenix.
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
-
 ## Install
 
 ```bash

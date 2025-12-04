@@ -119,6 +119,19 @@ BULK_LOADER_LAST_ACTIVITY = Gauge(
     documentation="Unix timestamp when bulk loader last processed items",
 )
 
+RETENTION_SWEEPER_LAST_RUN = Gauge(
+    namespace="phoenix",
+    name="retention_sweeper_last_run_seconds",
+    documentation="Unix timestamp (seconds since epoch) of the last retention sweeper run",
+)
+
+RETENTION_POLICY_EXECUTIONS = Counter(
+    namespace="phoenix",
+    name="retention_policy_executions_total",
+    documentation="Total number of retention policy executions",
+    labelnames=["status"],
+)
+
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
