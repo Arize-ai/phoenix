@@ -101,7 +101,7 @@ class UpdateDatasetLLMEvaluatorInput:
 
 
 @strawberry.type
-class LLMEvaluatorMutationPayload:
+class DatasetLLMEvaluatorMutationPayload:
     evaluator: DatasetLLMEvaluator
     query: Query
 
@@ -197,7 +197,7 @@ class EvaluatorMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_llm_evaluator(
         self, info: Info[Context, None], input: CreateDatasetLLMEvaluatorInput
-    ) -> LLMEvaluatorMutationPayload:
+    ) -> DatasetLLMEvaluatorMutationPayload:
         dataset_id = from_global_id_with_expected_type(
             global_id=input.dataset_id, expected_type_name=Dataset.__name__
         )
@@ -254,7 +254,7 @@ class EvaluatorMutationMixin:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
             raise BadRequest(f"Evaluator with name {input.name} already exists")
-        return LLMEvaluatorMutationPayload(
+        return DatasetLLMEvaluatorMutationPayload(
             evaluator=DatasetLLMEvaluator(
                 id=llm_evaluator.id,
                 db_record=llm_evaluator,
@@ -267,7 +267,7 @@ class EvaluatorMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def update_dataset_llm_evaluator(
         self, info: Info[Context, None], input: UpdateDatasetLLMEvaluatorInput
-    ) -> LLMEvaluatorMutationPayload:
+    ) -> DatasetLLMEvaluatorMutationPayload:
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
         if "user" in request.scope:
@@ -371,7 +371,7 @@ class EvaluatorMutationMixin:
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict("An evaluator with this name already exists")
 
-        return LLMEvaluatorMutationPayload(
+        return DatasetLLMEvaluatorMutationPayload(
             evaluator=DatasetLLMEvaluator(
                 id=llm_evaluator.id,
                 db_record=llm_evaluator,

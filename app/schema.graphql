@@ -970,6 +970,11 @@ type DatasetLLMEvaluator implements Evaluator & Node {
   displayName: String!
 }
 
+type DatasetLLMEvaluatorMutationPayload {
+  evaluator: DatasetLLMEvaluator!
+  query: Query!
+}
+
 type DatasetLabel implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2409,11 +2414,6 @@ type LLMEvaluator implements Evaluator & Node {
   promptVersion: PromptVersion!
 }
 
-type LLMEvaluatorMutationPayload {
-  evaluator: DatasetLLMEvaluator!
-  query: Query!
-}
-
 type LabelFraction {
   label: String!
   fraction: Float!
@@ -2481,8 +2481,8 @@ type Mutation {
   setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
-  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
-  updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
+  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetLLMEvaluatorMutationPayload!
+  updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetLLMEvaluatorMutationPayload!
   deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
   assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
   unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!

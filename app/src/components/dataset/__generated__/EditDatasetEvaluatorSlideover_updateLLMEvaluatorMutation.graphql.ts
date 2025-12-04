@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6e21276d4b566a93f6642185d65234c2>>
+ * @generated SignedSource<<ed1e1d1f19f1190480354d999320d6c7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -195,7 +195,7 @@ return {
       {
         "alias": null,
         "args": (v2/*: any*/),
-        "concreteType": "LLMEvaluatorMutationPayload",
+        "concreteType": "DatasetLLMEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "updateDatasetLlmEvaluator",
         "plural": false,
@@ -258,7 +258,7 @@ return {
       {
         "alias": null,
         "args": (v2/*: any*/),
-        "concreteType": "LLMEvaluatorMutationPayload",
+        "concreteType": "DatasetLLMEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "updateDatasetLlmEvaluator",
         "plural": false,
