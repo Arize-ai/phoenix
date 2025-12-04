@@ -199,8 +199,8 @@ class PromptVersion:
                     formatter=formatter,
                 )
             )
-        if sdk == "google_generativeai":
-            return GoogleGenerativeaiPrompt(
+        if sdk == "google_genai":
+            return GoogleGenaiPrompt(
                 *to_messages_google(
                     obj,
                     variables=variables,
@@ -333,7 +333,7 @@ class PromptVersion:
         )
 
     @classmethod
-    def from_google_generativeai(
+    def from_google_genai(
         cls,
         obj: Any,
         /,
@@ -402,14 +402,14 @@ class AnthropicPrompt(_FormattedPrompt):
 
 
 @dataclass(frozen=True)
-class GoogleGenerativeaiPrompt(_FormattedPrompt):
+class GoogleGenaiPrompt(_FormattedPrompt):
     messages: Sequence[google_genai_types.Content]
     kwargs: GoogleModelKwargs
 
 
 SDK: TypeAlias = Literal[
     "anthropic",  # https://pypi.org/project/anthropic/
-    "google_generativeai",  # https://pypi.org/project/google-generativeai/
+    "google_genai",  # https://pypi.org/project/google-genai/
     "openai",  # https://pypi.org/project/openai/
     "boto3",  # https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
 ]
@@ -434,7 +434,7 @@ def _to_sdk(
     if model_provider == "ANTHROPIC":
         return "anthropic"
     if model_provider == "GOOGLE":
-        return "google_generativeai"
+        return "google_genai"
     if model_provider == "DEEPSEEK":
         return "openai"
     if model_provider == "XAI":
