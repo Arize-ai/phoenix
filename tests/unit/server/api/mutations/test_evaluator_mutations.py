@@ -722,7 +722,7 @@ async def code_evaluator(
         datasets_evaluators=[
             models.DatasetsEvaluators(
                 dataset_id=empty_dataset.id,
-                name=evaluator_name.root,
+                display_name=evaluator_name,
                 input_mapping={},
             )
         ],
@@ -780,7 +780,7 @@ async def llm_evaluator(
         datasets_evaluators=[
             models.DatasetsEvaluators(
                 dataset_id=empty_dataset.id,
-                name=evaluator_name.root,
+                display_name=evaluator_name,
                 input_mapping={},
             )
         ],

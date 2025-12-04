@@ -5,6 +5,7 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.types import DbSessionFactory
 
 DatasetID: TypeAlias = int
@@ -24,6 +25,7 @@ class DatasetsEvaluatorsDataLoader(DataLoader[Key, Result]):
         async with self._db() as session:
             conditions = []
             for dataset_id, evaluator_id, name in keys:
+                name = IdentifierModel.model_validate(name)
                 if evaluator_id < 0:
                     conditions.append(
                         and_(
@@ -47,11 +49,11 @@ class DatasetsEvaluatorsDataLoader(DataLoader[Key, Result]):
                     dataset_id = junction.dataset_id
                     evaluator_id = junction.evaluator_id
                     builtin_evaluator_id = junction.builtin_evaluator_id
-                    name = junction.display_name
-                    if evaluator_id is not None and name is not None:
+                    name = junction.display_name.root
+                    if evaluator_id is not None:
                         key = (dataset_id, evaluator_id, name)
                         datasets_evaluators_by_key[key] = junction
-                    elif builtin_evaluator_id is not None and name is not None:
+                    elif builtin_evaluator_id is not None:
                         key = (dataset_id, builtin_evaluator_id, name)
                         datasets_evaluators_by_key[key] = junction
 

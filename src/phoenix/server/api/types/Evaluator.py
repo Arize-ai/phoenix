@@ -516,7 +516,7 @@ def _to_gql_categorical_annotation_config(
 @strawberry.type
 class DatasetBuiltInEvaluator(BuiltInEvaluator, Node):
     dataset_id: NodeID[int]
-    display_name: str
+    display_name: Identifier
 
     @strawberry.field
     async def is_assigned_to_dataset(
@@ -550,7 +550,7 @@ class DatasetBuiltInEvaluator(BuiltInEvaluator, Node):
 @strawberry.type
 class DatasetLLMEvaluator(LLMEvaluator, Node):
     dataset_id: NodeID[int]
-    display_name: str
+    display_name: Identifier
 
     @strawberry.field
     async def is_assigned_to_dataset(
@@ -584,7 +584,7 @@ class DatasetLLMEvaluator(LLMEvaluator, Node):
 @strawberry.type
 class DatasetCodeEvaluator(CodeEvaluator, Node):
     dataset_id: NodeID[int]
-    display_name: str
+    display_name: Identifier
 
     @strawberry.field
     async def is_assigned_to_dataset(

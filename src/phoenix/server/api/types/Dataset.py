@@ -14,6 +14,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import get_builtin_evaluators
 from phoenix.server.api.exceptions import BadRequest
@@ -34,6 +35,7 @@ from phoenix.server.api.types.Evaluator import (
     Evaluator,
 )
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -468,7 +470,7 @@ class Dataset(Node):
 
     @strawberry.field
     async def evaluator(
-        self, info: Info[Context, None], evaluatorId: GlobalID, displayName: str
+        self, info: Info[Context, None], evaluatorId: GlobalID, displayName: Identifier
     ) -> Evaluator:
         try:
             _, evaluator_rowid = from_global_id(
@@ -476,6 +478,7 @@ class Dataset(Node):
             )
         except ValueError:
             raise BadRequest(f"Invalid evaluator ID: {evaluatorId}")
+        display_name_model = IdentifierModel.model_validate(displayName)
         # join the polymorphic evaluator models with the datasets_evaluators
         # table for this dataset id
         PolymorphicEvaluator = with_polymorphic(
@@ -485,7 +488,7 @@ class Dataset(Node):
             select(PolymorphicEvaluator)
             .join(models.DatasetsEvaluators)
             .where(PolymorphicEvaluator.id == evaluator_rowid)
-            .where(models.DatasetsEvaluators.display_name == displayName)
+            .where(models.DatasetsEvaluators.display_name == display_name_model)
             .where(models.DatasetsEvaluators.dataset_id == self.id)
             .where(
                 or_(
@@ -580,7 +583,7 @@ class Dataset(Node):
                         id=evaluator.id,
                         db_record=evaluator,
                         dataset_id=self.id,
-                        display_name=display_name,
+                        display_name=display_name.root,
                     )
                 )
             elif isinstance(evaluator, models.CodeEvaluator):
@@ -589,7 +592,7 @@ class Dataset(Node):
                         id=evaluator.id,
                         db_record=evaluator,
                         dataset_id=self.id,
-                        display_name=display_name,
+                        display_name=display_name.root,
                     )
                 )
             else:
@@ -603,15 +606,12 @@ class Dataset(Node):
         async with info.context.db() as session:
             builtin_assigned_evaluators = await session.scalars(builtin_stmt)
             for builtin_assigned_evaluator in builtin_assigned_evaluators:
-                if (
-                    builtin_assigned_evaluator.builtin_evaluator_id in builtin_evaluators_ids
-                    and builtin_assigned_evaluator.display_name is not None
-                ):
+                if builtin_assigned_evaluator.builtin_evaluator_id in builtin_evaluators_ids:
                     data.append(
                         DatasetBuiltInEvaluator(
                             id=builtin_assigned_evaluator.builtin_evaluator_id,
                             dataset_id=self.id,
-                            display_name=builtin_assigned_evaluator.display_name,
+                            display_name=builtin_assigned_evaluator.display_name.root,
                         )
                     )
         return connection_from_list(data=data, args=args)
