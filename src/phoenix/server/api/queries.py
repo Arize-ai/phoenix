@@ -1,3 +1,4 @@
+import json
 import re
 from collections import defaultdict
 from datetime import datetime
@@ -42,6 +43,8 @@ from phoenix.server.api.helpers.experiment_run_filters import (
 )
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.helpers.prompts.models import PromptMessageRole
+from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
@@ -55,6 +58,8 @@ from phoenix.server.api.input_types.InvocationParameters import InvocationParame
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
+from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
+from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
@@ -116,6 +121,18 @@ from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptLabel import PromptLabel
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
+from phoenix.server.api.types.PromptVersionTemplate import (
+    ContentPart,
+    PromptChatTemplate,
+    PromptMessage,
+    TextContentPart,
+    TextContentValue,
+    ToolCallContentPart,
+    ToolCallContentValue,
+    ToolCallFunction,
+    ToolResultContentPart,
+    ToolResultContentValue,
+)
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
@@ -1701,6 +1718,71 @@ class Query:
         if session_row:
             return ProjectSession(id=session_row.id, db_record=session_row)
         return None
+
+    @strawberry.field
+    async def apply_chat_template(
+        self,
+        info: Info[Context, None],
+        template: PromptChatTemplateInput,
+        template_options: PromptTemplateOptions,
+    ) -> PromptChatTemplate:
+        """
+        Applies template formatting to a prompt chat template.
+
+        Takes a template with messages containing template placeholders and template options
+        (format and variables), and returns the messages with placeholders replaced.
+        """
+        formatter = get_template_formatter(template_options.format)
+        # Ensure variables is a dict - JSON scalar can be any JSON type
+        raw_variables = template_options.variables
+        if isinstance(raw_variables, dict):
+            variables = raw_variables
+        elif isinstance(raw_variables, str):
+            parsed = json.loads(raw_variables)
+            if not isinstance(parsed, dict):
+                raise ValueError("Variables JSON string must parse to a dictionary")
+            variables = parsed
+        else:
+            raise ValueError("Variables must be a dictionary or a string")
+
+        messages: list[PromptMessage] = []
+        for msg in template.messages:
+            content_parts: list[ContentPart] = []
+            for part in msg.content:
+                if part.text is not UNSET:
+                    assert part.text is not None
+                    formatted_text = formatter.format(part.text.text, **variables)
+                    content_parts.append(
+                        TextContentPart(text=TextContentValue(text=formatted_text))
+                    )
+                elif part.tool_call is not UNSET:
+                    assert part.tool_call is not None
+                    tc = part.tool_call
+                    content_parts.append(
+                        ToolCallContentPart(
+                            tool_call=ToolCallContentValue(
+                                tool_call_id=tc.tool_call_id,
+                                tool_call=ToolCallFunction(
+                                    name=tc.tool_call.name,
+                                    arguments=tc.tool_call.arguments,
+                                ),
+                            )
+                        )
+                    )
+                elif part.tool_result is not UNSET:
+                    assert part.tool_result is not None
+                    tr = part.tool_result
+                    content_parts.append(
+                        ToolResultContentPart(
+                            tool_result=ToolResultContentValue(
+                                tool_call_id=tr.tool_call_id,
+                                result=tr.result,
+                            )
+                        )
+                    )
+            messages.append(PromptMessage(role=PromptMessageRole(msg.role), content=content_parts))
+
+        return PromptChatTemplate(messages=messages)
 
 
 def _consolidate_sqlite_db_table_stats(

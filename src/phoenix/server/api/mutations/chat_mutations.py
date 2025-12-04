@@ -50,7 +50,7 @@ from phoenix.server.api.helpers.playground_spans import (
     prompt_metadata,
 )
 from phoenix.server.api.helpers.playground_users import get_user
-from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -74,12 +74,6 @@ from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
-from phoenix.utilities.template_formatters import (
-    FStringTemplateFormatter,
-    MustacheTemplateFormatter,
-    NoOpFormatter,
-    TemplateFormatter,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -574,7 +568,7 @@ def _formatted_messages(
     """
     Formats the messages using the given template options.
     """
-    template_formatter = _template_formatter(template_format=template_options.format)
+    template_formatter = get_template_formatter(template_format=template_options.format)
     (
         roles,
         templates,
@@ -587,19 +581,6 @@ def _formatted_messages(
     )
     formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
     return formatted_messages
-
-
-def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
-    """
-    Instantiates the appropriate template formatter for the template format.
-    """
-    if template_format is PromptTemplateFormat.MUSTACHE:
-        return MustacheTemplateFormatter()
-    if template_format is PromptTemplateFormat.F_STRING:
-        return FStringTemplateFormatter()
-    if template_format is PromptTemplateFormat.NONE:
-        return NoOpFormatter()
-    assert_never(template_format)
 
 
 def _output_value_and_mime_type(
