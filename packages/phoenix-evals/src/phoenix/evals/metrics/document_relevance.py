@@ -5,7 +5,7 @@ from ..__generated__.classification_evaluator_configs import (
 )
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
-from ..templating import Template, TemplateFormat
+from ..llm.prompts import PromptTemplate
 
 
 class DocumentRelevanceEvaluator(ClassificationEvaluator):
@@ -39,9 +39,10 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
     """
 
     NAME = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.name
-    PROMPT = Template(
-        template=DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.messages[0].content,
-        template_format=TemplateFormat.MUSTACHE,
+    PROMPT = PromptTemplate(
+        template=[
+            msg.model_dump() for msg in DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.messages
+        ],
     )
     CHOICES = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.choices
     DIRECTION = DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.optimization_direction
@@ -57,7 +58,7 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         super().__init__(
             name=self.NAME,
             llm=llm,
-            prompt_template=self.PROMPT,
+            prompt_template=self.PROMPT.template,
             choices=self.CHOICES,
             direction=self.DIRECTION,
             input_schema=self.DocumentRelevanceInputSchema,

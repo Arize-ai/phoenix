@@ -5,7 +5,7 @@ from ..__generated__.classification_evaluator_configs import (
 )
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
-from ..templating import Template, TemplateFormat
+from ..llm.prompts import PromptTemplate
 
 
 class HallucinationEvaluator(ClassificationEvaluator):
@@ -41,9 +41,10 @@ class HallucinationEvaluator(ClassificationEvaluator):
     """
 
     NAME = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.name
-    PROMPT = Template(
-        template=HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.messages[0].content,
-        template_format=TemplateFormat.MUSTACHE,
+    PROMPT = PromptTemplate(
+        template=[
+            msg.model_dump() for msg in HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.messages
+        ],
     )
     CHOICES = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.choices
     DIRECTION = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.optimization_direction
@@ -60,7 +61,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
         super().__init__(
             name=self.NAME,
             llm=llm,
-            prompt_template=self.PROMPT,
+            prompt_template=self.PROMPT.template,
             choices=self.CHOICES,
             direction=self.DIRECTION,
             input_schema=self.HallucinationInputSchema,
