@@ -1,5 +1,4 @@
 import json
-import logging
 import zlib
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -32,8 +31,6 @@ from phoenix.utilities.template_formatters import (
     TemplateFormatter,
 )
 
-logger = logging.getLogger(__name__)
-
 
 class EvaluationResult(TypedDict):
     name: str
@@ -54,6 +51,10 @@ class LLMEvaluator:
     ) -> None:
         self._llm_evaluator_orm = llm_evaluator_orm
         self._prompt_version_orm = prompt_version_orm
+
+    @property
+    def id(self) -> GlobalID:
+        return GlobalID(type_name="LLMEvaluator", node_id=str(self._llm_evaluator_orm.id))
 
     @property
     def name(self) -> str:

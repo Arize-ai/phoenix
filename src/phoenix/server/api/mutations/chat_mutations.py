@@ -68,7 +68,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
@@ -510,11 +510,10 @@ class ChatCompletionMutationMixin:
                 "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),
             }
             input_mappings_by_evaluator_id = {
-                from_global_id(evaluator.id)[1]: evaluator.input_mapping
-                for evaluator in input.evaluators
+                evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
             }
             for llm_evaluator in llm_evaluators:
-                input_mapping = input_mappings_by_evaluator_id[llm_evaluator._llm_evaluator_orm.id]
+                input_mapping = input_mappings_by_evaluator_id[llm_evaluator.id]
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=input_mapping,

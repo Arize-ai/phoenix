@@ -197,10 +197,10 @@ async def _stream_single_chat_completion(
                         repetition_number=None,
                     )
             input_mappings_by_evaluator_id = {
-                from_global_id(e.id)[1]: e.input_mapping for e in input.evaluators
+                evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
             }
             for llm_evaluator in llm_evaluators:
-                input_mapping = input_mappings_by_evaluator_id[llm_evaluator._llm_evaluator_orm.id]
+                input_mapping = input_mappings_by_evaluator_id[llm_evaluator.id]
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=input_mapping,
@@ -638,13 +638,10 @@ class Subscription:
                                     repetition_number=repetition_number,
                                 )
                         input_mappings_by_evaluator_id = {
-                            from_global_id(evaluator.id)[1]: evaluator.input_mapping
-                            for evaluator in input.evaluators
+                            evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
                         }
                         for llm_evaluator in llm_evaluators:
-                            input_mapping = input_mappings_by_evaluator_id[
-                                llm_evaluator._llm_evaluator_orm.id
-                            ]
+                            input_mapping = input_mappings_by_evaluator_id[llm_evaluator.id]
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
                                 input_mapping=input_mapping,
