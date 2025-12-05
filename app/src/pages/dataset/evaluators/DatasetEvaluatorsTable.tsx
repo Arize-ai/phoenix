@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { usePaginationFragment } from "react-relay";
 import { useParams } from "react-router";
 import { graphql } from "relay-runtime";
@@ -30,14 +30,13 @@ export const useDatasetEvaluatorsTable = (
         first: { type: "Int", defaultValue: 100 }
         sort: { type: "EvaluatorSort", defaultValue: null }
         filter: { type: "EvaluatorFilter", defaultValue: null }
-        datasetId: { type: "ID", defaultValue: null }
       ) {
         evaluators(first: $first, after: $after, sort: $sort, filter: $filter)
           @connection(key: "DatasetEvaluatorsTable_evaluators") {
           __id
           edges {
             node {
-              ...EvaluatorsTable_row @arguments(datasetId: $datasetId)
+              ...EvaluatorsTable_row
             }
           }
         }
@@ -77,6 +76,8 @@ export type UseDatasetEvaluatorsTableParams = ReturnType<
 
 type DatasetEvaluatorsTableProps = UseDatasetEvaluatorsTableParams;
 
+const EMPTY_CONNECTION_IDS: string[] = [];
+
 export const DatasetEvaluatorsTable = ({
   filter,
   data,
@@ -87,6 +88,12 @@ export const DatasetEvaluatorsTable = ({
 }: DatasetEvaluatorsTableProps) => {
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
+  const connectionsToUpdate = useMemo(() => {
+    if (data.evaluators.__id) {
+      return [data.evaluators.__id];
+    }
+    return EMPTY_CONNECTION_IDS;
+  }, [data]);
   return (
     <EvaluatorsTable
       rowReferences={data.evaluators.edges.map((edge) => edge.node)}
@@ -105,6 +112,7 @@ export const DatasetEvaluatorsTable = ({
         />
       }
       datasetId={datasetId}
+      updateConnectionIds={connectionsToUpdate}
     />
   );
 };
