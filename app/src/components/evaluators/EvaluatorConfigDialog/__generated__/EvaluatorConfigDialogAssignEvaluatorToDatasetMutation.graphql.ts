@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6d6961041b0ec5ab9764f3e649473f21>>
+ * @generated SignedSource<<3c25f1b122351dd25e0efdd4c4792bbb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -96,55 +96,18 @@ v8 = {
   "name": "updatedAt",
   "storageKey": null
 },
-v9 = [
-  (v3/*: any*/),
-  (v4/*: any*/)
-],
-v10 = {
-  "kind": "InlineFragment",
+v9 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Prompt",
+  "kind": "LinkedField",
+  "name": "prompt",
+  "plural": false,
   "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "Prompt",
-      "kind": "LinkedField",
-      "name": "prompt",
-      "plural": false,
-      "selections": (v9/*: any*/),
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "PromptVersion",
-      "kind": "LinkedField",
-      "name": "promptVersion",
-      "plural": false,
-      "selections": [
-        (v3/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "isLatest",
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "PromptVersionTag",
-      "kind": "LinkedField",
-      "name": "promptVersionTag",
-      "plural": false,
-      "selections": (v9/*: any*/),
-      "storageKey": null
-    }
+    (v3/*: any*/),
+    (v4/*: any*/)
   ],
-  "type": "LLMEvaluator",
-  "abstractKey": null
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -182,7 +145,26 @@ return {
                   (v6/*: any*/),
                   (v7/*: any*/),
                   (v8/*: any*/),
-                  (v10/*: any*/)
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v9/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersionTag",
+                        "kind": "LinkedField",
+                        "name": "promptVersionTag",
+                        "plural": false,
+                        "selections": [
+                          (v4/*: any*/)
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "LLMEvaluator",
+                    "abstractKey": null
+                  }
                 ],
                 "args": null,
                 "argumentDefinitions": []
@@ -239,7 +221,27 @@ return {
               (v6/*: any*/),
               (v7/*: any*/),
               (v8/*: any*/),
-              (v10/*: any*/)
+              {
+                "kind": "InlineFragment",
+                "selections": [
+                  (v9/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PromptVersionTag",
+                    "kind": "LinkedField",
+                    "name": "promptVersionTag",
+                    "plural": false,
+                    "selections": [
+                      (v4/*: any*/),
+                      (v3/*: any*/)
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "type": "LLMEvaluator",
+                "abstractKey": null
+              }
             ],
             "storageKey": null
           },
@@ -270,12 +272,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5f38b2828caecb6e4537a2ccbfd49d29",
+    "cacheID": "56a80314e13a48ce53adc55bbfb6395f",
     "id": null,
     "metadata": {},
     "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();

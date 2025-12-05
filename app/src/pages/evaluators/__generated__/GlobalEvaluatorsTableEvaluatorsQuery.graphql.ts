@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d4b70d94c2db4350a8492cc5a2e8454b>>
+ * @generated SignedSource<<d3a0b840599690cbe0c902d80138e1e7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -93,11 +93,7 @@ v3 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-},
-v4 = [
-  (v2/*: any*/),
-  (v3/*: any*/)
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -195,25 +191,9 @@ return {
                         "kind": "LinkedField",
                         "name": "prompt",
                         "plural": false,
-                        "selections": (v4/*: any*/),
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptVersion",
-                        "kind": "LinkedField",
-                        "name": "promptVersion",
-                        "plural": false,
                         "selections": [
                           (v2/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "isLatest",
-                            "storageKey": null
-                          }
+                          (v3/*: any*/)
                         ],
                         "storageKey": null
                       },
@@ -224,7 +204,10 @@ return {
                         "kind": "LinkedField",
                         "name": "promptVersionTag",
                         "plural": false,
-                        "selections": (v4/*: any*/),
+                        "selections": [
+                          (v3/*: any*/),
+                          (v2/*: any*/)
+                        ],
                         "storageKey": null
                       }
                     ],
@@ -299,12 +282,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "68fdc08fcb008e301a9850e8da0125f0",
+    "cacheID": "8d0c24cadc2a0b7f789292de7612ab65",
     "id": null,
     "metadata": {},
     "name": "GlobalEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

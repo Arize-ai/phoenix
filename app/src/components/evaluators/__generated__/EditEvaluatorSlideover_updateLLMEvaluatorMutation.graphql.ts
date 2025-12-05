@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4df910c9cf3821a67df33026876a4b9a>>
+ * @generated SignedSource<<c82fb9dfbb237dd2af0b0064efb0e6f7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -152,38 +152,20 @@ v8 = {
   "name": "updatedAt",
   "storageKey": null
 },
-v9 = [
-  (v3/*: any*/),
-  (v4/*: any*/)
-],
-v10 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "Prompt",
   "kind": "LinkedField",
   "name": "prompt",
   "plural": false,
-  "selections": (v9/*: any*/),
+  "selections": [
+    (v3/*: any*/),
+    (v4/*: any*/)
+  ],
   "storageKey": null
 },
-v11 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "isLatest",
-  "storageKey": null
-},
-v12 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "PromptVersionTag",
-  "kind": "LinkedField",
-  "name": "promptVersionTag",
-  "plural": false,
-  "selections": (v9/*: any*/),
-  "storageKey": null
-},
-v13 = [
+v10 = [
   {
     "alias": null,
     "args": null,
@@ -192,14 +174,14 @@ v13 = [
     "storageKey": null
   }
 ],
-v14 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v15 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -263,21 +245,19 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v10/*: any*/),
+                          (v9/*: any*/),
                           {
                             "alias": null,
                             "args": null,
-                            "concreteType": "PromptVersion",
+                            "concreteType": "PromptVersionTag",
                             "kind": "LinkedField",
-                            "name": "promptVersion",
+                            "name": "promptVersionTag",
                             "plural": false,
                             "selections": [
-                              (v3/*: any*/),
-                              (v11/*: any*/)
+                              (v4/*: any*/)
                             ],
                             "storageKey": null
-                          },
-                          (v12/*: any*/)
+                          }
                         ],
                         "type": "LLMEvaluator",
                         "abstractKey": null
@@ -355,7 +335,20 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v10/*: any*/),
+                      (v9/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersionTag",
+                        "kind": "LinkedField",
+                        "name": "promptVersionTag",
+                        "plural": false,
+                        "selections": [
+                          (v4/*: any*/),
+                          (v3/*: any*/)
+                        ],
+                        "storageKey": null
+                      },
                       {
                         "alias": null,
                         "args": null,
@@ -365,7 +358,6 @@ return {
                         "plural": false,
                         "selections": [
                           (v3/*: any*/),
-                          (v11/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -394,7 +386,7 @@ return {
                             "kind": "LinkedField",
                             "name": "responseFormat",
                             "plural": false,
-                            "selections": (v13/*: any*/),
+                            "selections": (v10/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -405,7 +397,7 @@ return {
                             "name": "template",
                             "plural": false,
                             "selections": [
-                              (v14/*: any*/),
+                              (v11/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -432,7 +424,7 @@ return {
                                         "name": "content",
                                         "plural": true,
                                         "selections": [
-                                          (v14/*: any*/),
+                                          (v11/*: any*/),
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
@@ -469,7 +461,7 @@ return {
                                                 "name": "toolCall",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v15/*: any*/),
+                                                  (v12/*: any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -507,7 +499,7 @@ return {
                                                 "name": "toolResult",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v15/*: any*/),
+                                                  (v12/*: any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -556,13 +548,12 @@ return {
                             "kind": "LinkedField",
                             "name": "tools",
                             "plural": true,
-                            "selections": (v13/*: any*/),
+                            "selections": (v10/*: any*/),
                             "storageKey": null
                           }
                         ],
                         "storageKey": null
                       },
-                      (v12/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -646,12 +637,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a1576698e1ff3e1d813eb87ee833e7de",
+    "cacheID": "88a8ebf463f0ee8005d15f333ce47275",
     "id": null,
     "metadata": {},
     "name": "EditEvaluatorSlideover_updateLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EditEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateLLMEvaluatorInput!\n) {\n  updateLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n      ...EditEvaluatorSlideover_evaluator\n    }\n  }\n}\n\nfragment EditEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "mutation EditEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateLLMEvaluatorInput!\n) {\n  updateLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n      ...EditEvaluatorSlideover_evaluator\n    }\n  }\n}\n\nfragment EditEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();

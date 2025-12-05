@@ -30,6 +30,7 @@ import {
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { DatasetEvaluatorActionMenu } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorActionMenu";
 import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
 import {
@@ -37,7 +38,6 @@ import {
   EvaluatorSort,
 } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
-import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
 
 export const convertEvaluatorSortToTanstackSort = (
   sort: EvaluatorSort | null | undefined
@@ -106,12 +106,7 @@ const readRow = (row: EvaluatorsTable_row$key) => {
             id
             name
           }
-          promptVersion {
-            id
-            isLatest
-          }
           promptVersionTag {
-            id
             name
           }
         }
@@ -212,7 +207,6 @@ export const EvaluatorsTable = ({
         cell: ({ row }) => (
           <PromptCell
             prompt={row.original.prompt}
-            promptVersionId={row.original.promptVersion?.id}
             promptVersionTag={row.original.promptVersionTag?.name}
           />
         ),
@@ -372,11 +366,9 @@ export const EvaluatorsTable = ({
 
 const PromptCell = ({
   prompt,
-  promptVersionId,
   promptVersionTag,
 }: {
   prompt?: { id: string; name: string };
-  promptVersionId?: string;
   promptVersionTag?: string;
 }) => {
   if (!prompt) {
@@ -385,7 +377,6 @@ const PromptCell = ({
   return (
     <PromptLink
       promptId={prompt.id}
-      promptVersionId={promptVersionId}
       promptName={prompt.name}
       promptVersionTag={promptVersionTag}
     />
@@ -394,29 +385,24 @@ const PromptCell = ({
 
 const PromptLink = ({
   promptId,
-  promptVersionId,
   promptName,
   promptVersionTag,
 }: {
   promptId: string;
-  promptVersionId?: string;
   promptName: string;
   promptVersionTag?: string;
 }) => {
-  // TODO: enable linking to a tag
-  // TODO: pull tag color
   let to: string;
   let specifier: ReactNode;
+  // if tag exists, that means the evaluator is pinned to a specific version of the prompt
+  // otherwise, we assume the latest version is pinned
   if (promptVersionTag) {
     specifier = (
       <Token size="S" color="var(--ac-global-color-grey-700)">
-        {promptVersionTag}
+        <Truncate maxWidth="10rem">{promptVersionTag}</Truncate>
       </Token>
     );
-    to = `/prompts/${promptId}`; // TODO: link to tag
-  } else if (promptVersionId) {
-    specifier = <IdTruncate id={promptVersionId} />;
-    to = `/prompts/${promptId}/versions/${promptVersionId}`;
+    to = `/prompts/${promptId}`; // TODO: enable linking to a tag
   } else {
     specifier = (
       <Token size="S" color="var(--ac-global-color-grey-700)">
@@ -426,10 +412,15 @@ const PromptLink = ({
     to = `/prompts/${promptId}`;
   }
   return (
-    <Link to={to}>
+    <Link
+      to={to}
+      css={css`
+        text-decoration: none;
+      `}
+    >
       <Flex alignItems="center">
-        {promptName}
-        <Text color="text-300">&nbsp;@ </Text>
+        <Truncate maxWidth="10rem">{promptName}</Truncate>
+        <Text color="text-300">&nbsp;@&nbsp;</Text>
         {specifier}
       </Flex>
     </Link>

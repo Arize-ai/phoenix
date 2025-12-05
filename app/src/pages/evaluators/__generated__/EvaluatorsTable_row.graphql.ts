@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d77ad347583e09322852e1460b0d663d>>
+ * @generated SignedSource<<e0e2056e833764653f1c40555f5c1141>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,12 +21,7 @@ export type EvaluatorsTable_row$data = {
     readonly id: string;
     readonly name: string;
   };
-  readonly promptVersion?: {
-    readonly id: string;
-    readonly isLatest: boolean;
-  };
   readonly promptVersionTag?: {
-    readonly id: string;
     readonly name: string;
   } | null;
   readonly updatedAt: string;
@@ -42,6 +37,6 @@ const node: ReaderInlineDataFragment = {
   "name": "EvaluatorsTable_row"
 };
 
-(node as any).hash = "c35448c24fb3e306aa8d09e016ec6128";
+(node as any).hash = "c186b042884598f41e4b50c8132e7632";
 
 export default node;
