@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c8a045f799e671cb02a67d5a3954d4da>>
+ * @generated SignedSource<<ec0f8e2da1d5419f97e48eef644d3e1c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -155,8 +155,20 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "kind": "ScalarField",
-                        "name": "pinnedPromptVersionId",
+                        "concreteType": "PromptVersion",
+                        "kind": "LinkedField",
+                        "name": "promptVersion",
+                        "plural": false,
+                        "selections": [
+                          (v1/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "isLatest",
+                            "storageKey": null
+                          }
+                        ],
                         "storageKey": null
                       },
                       {
@@ -241,12 +253,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bad767d8000f788f892e123787fc1be3",
+    "cacheID": "63a827e7ca1d199015d2c7ff0ffdd8ba",
     "id": null,
     "metadata": {},
     "name": "evaluatorsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row_1f0XAO on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    pinnedPromptVersionId\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1f0XAO\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row_1f0XAO on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1f0XAO\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

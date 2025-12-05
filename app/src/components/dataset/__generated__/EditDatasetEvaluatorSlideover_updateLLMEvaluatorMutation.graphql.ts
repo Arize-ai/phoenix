@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<18827f10a86c4882437bd4dbc4c4000a>>
+ * @generated SignedSource<<a69401ddd56123cf7d4334c02a154298>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -170,7 +170,7 @@ v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "pinnedPromptVersionId",
+  "name": "isLatest",
   "storageKey": null
 },
 v12 = {
@@ -264,7 +264,19 @@ return {
                         "kind": "InlineFragment",
                         "selections": [
                           (v10/*: any*/),
-                          (v11/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersion",
+                            "kind": "LinkedField",
+                            "name": "promptVersion",
+                            "plural": false,
+                            "selections": [
+                              (v3/*: any*/),
+                              (v11/*: any*/)
+                            ],
+                            "storageKey": null
+                          },
                           (v12/*: any*/)
                         ],
                         "type": "LLMEvaluator",
@@ -344,8 +356,6 @@ return {
                     "kind": "InlineFragment",
                     "selections": [
                       (v10/*: any*/),
-                      (v11/*: any*/),
-                      (v12/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -355,6 +365,7 @@ return {
                         "plural": false,
                         "selections": [
                           (v3/*: any*/),
+                          (v11/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -551,6 +562,7 @@ return {
                         ],
                         "storageKey": null
                       },
+                      (v12/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -634,12 +646,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5b05438d16e099cfcc0ef8b6245a1a31",
+    "cacheID": "04d1806001b7260ae2467ca814b61461",
     "id": null,
     "metadata": {},
     "name": "EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateLLMEvaluatorInput!\n) {\n  updateLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n      ...EditEvaluatorSlideover_evaluator\n    }\n  }\n}\n\nfragment EditEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    pinnedPromptVersionId\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "mutation EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateLLMEvaluatorInput!\n) {\n  updateLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n      ...EditEvaluatorSlideover_evaluator\n    }\n  }\n}\n\nfragment EditEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();

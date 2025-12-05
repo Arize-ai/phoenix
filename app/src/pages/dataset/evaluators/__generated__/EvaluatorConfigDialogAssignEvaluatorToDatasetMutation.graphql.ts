@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<718ba660d673808a7a4ca72834f89e91>>
+ * @generated SignedSource<<9988a6ceef531592402faa1e52e44e5d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -147,8 +147,20 @@ v14 = {
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "pinnedPromptVersionId",
+      "concreteType": "PromptVersion",
+      "kind": "LinkedField",
+      "name": "promptVersion",
+      "plural": false,
+      "selections": [
+        (v6/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "isLatest",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     },
     {
@@ -514,12 +526,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dbedab7881dd99f04fd757d4e92269ab",
+    "cacheID": "2b1057e6ddd9b2fb8e0591e791ae3f1b",
     "id": null,
     "metadata": {},
     "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n  $datasetId: ID!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...PlaygroundDatasetSection_evaluators_1wYocp\n        ...DatasetEvaluatorsTable_evaluators_1wYocp\n        id\n      }\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row_1wYocp\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    pinnedPromptVersionId\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n  $datasetId: ID!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...PlaygroundDatasetSection_evaluators_1wYocp\n        ...DatasetEvaluatorsTable_evaluators_1wYocp\n        id\n      }\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row_1wYocp\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

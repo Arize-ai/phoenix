@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<80b7d15f7c4e422a1e802e9aa37f4368>>
+ * @generated SignedSource<<26a37f37f516ad67f93bea0edc0a5895>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -172,8 +172,20 @@ v10 = {
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "pinnedPromptVersionId",
+      "concreteType": "PromptVersion",
+      "kind": "LinkedField",
+      "name": "promptVersion",
+      "plural": false,
+      "selections": [
+        (v3/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "isLatest",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     },
     {
@@ -345,12 +357,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "34ba21f94ab6fc40f420a4103d9a2f73",
+    "cacheID": "e53da74f19ceac0469d5e96edf51dac0",
     "id": null,
     "metadata": {},
     "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    pinnedPromptVersionId\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n"
   }
 };
 })();
