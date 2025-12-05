@@ -804,9 +804,9 @@ class Subscription:
                         if run is None:
                             continue
                         context_dict: dict[str, Any] = {
-                            "input": revision.input,
-                            "expected": revision.output,
-                            "output": str(run.output),
+                            "input": json.dumps(revision.input),
+                            "expected": json.dumps(revision.output),
+                            "output": json.dumps(run.output),
                         }
                         for ii, evaluator in enumerate(input.evaluators):
                             _, db_id = from_global_id(evaluator.id)  # pyright: ignore
