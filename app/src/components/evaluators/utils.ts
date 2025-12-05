@@ -1,9 +1,6 @@
 import { graphql, readInlineData } from "relay-runtime";
 
-import type {
-  ChatPromptVersionInput,
-  CreateDatasetLLMEvaluatorInput,
-} from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
+import type { CreateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
@@ -60,7 +57,7 @@ const createPromptVersionInput = ({
    * The dataset ID to assign the evaluator to.
    */
   datasetId?: string;
-}): ChatPromptVersionInput => {
+}) => {
   const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
     instanceId,
     playgroundStore
