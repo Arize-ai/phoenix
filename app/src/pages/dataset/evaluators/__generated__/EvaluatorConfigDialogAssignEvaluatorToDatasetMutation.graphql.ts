@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dabbcaeb2b39bfc93cb4ca704e35583c>>
+ * @generated SignedSource<<4646a99b9e049fcfcde3bfe0e868011c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -130,19 +130,36 @@ v12 = {
 v13 = {
   "alias": null,
   "args": null,
+  "concreteType": "Prompt",
+  "kind": "LinkedField",
+  "name": "prompt",
+  "plural": false,
+  "selections": [
+    (v6/*: any*/),
+    (v7/*: any*/)
+  ],
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v14 = [
+v15 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 100
   }
 ],
-v15 = [
-  (v13/*: any*/),
+v16 = [
+  (v7/*: any*/),
+  (v6/*: any*/)
+],
+v17 = [
+  (v14/*: any*/),
   {
     "kind": "TypeDiscriminator",
     "abstractKey": "__isEvaluator"
@@ -153,7 +170,25 @@ v15 = [
   (v9/*: any*/),
   (v10/*: any*/),
   (v11/*: any*/),
-  (v12/*: any*/)
+  (v12/*: any*/),
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      (v13/*: any*/),
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "PromptVersionTag",
+        "kind": "LinkedField",
+        "name": "promptVersionTag",
+        "plural": false,
+        "selections": (v16/*: any*/),
+        "storageKey": null
+      }
+    ],
+    "type": "LLMEvaluator",
+    "abstractKey": null
+  }
 ];
 return {
   "fragment": {
@@ -224,7 +259,27 @@ return {
                   (v9/*: any*/),
                   (v10/*: any*/),
                   (v11/*: any*/),
-                  (v12/*: any*/)
+                  (v12/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v13/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersionTag",
+                        "kind": "LinkedField",
+                        "name": "promptVersionTag",
+                        "plural": false,
+                        "selections": [
+                          (v7/*: any*/)
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "LLMEvaluator",
+                    "abstractKey": null
+                  }
                 ],
                 "args": (v5/*: any*/),
                 "argumentDefinitions": [
@@ -275,14 +330,14 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v13/*: any*/),
+                  (v14/*: any*/),
                   (v6/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
                       {
                         "alias": null,
-                        "args": (v14/*: any*/),
+                        "args": (v15/*: any*/),
                         "concreteType": "EvaluatorConnection",
                         "kind": "LinkedField",
                         "name": "evaluators",
@@ -304,7 +359,7 @@ return {
                                 "name": "node",
                                 "plural": false,
                                 "selections": [
-                                  (v13/*: any*/),
+                                  (v14/*: any*/),
                                   (v6/*: any*/),
                                   (v7/*: any*/),
                                   {
@@ -342,10 +397,7 @@ return {
                                         "kind": "LinkedField",
                                         "name": "outputConfig",
                                         "plural": false,
-                                        "selections": [
-                                          (v7/*: any*/),
-                                          (v6/*: any*/)
-                                        ],
+                                        "selections": (v16/*: any*/),
                                         "storageKey": null
                                       }
                                     ],
@@ -362,7 +414,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "node",
                                 "plural": false,
-                                "selections": (v15/*: any*/),
+                                "selections": (v17/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -417,7 +469,7 @@ return {
                       },
                       {
                         "alias": null,
-                        "args": (v14/*: any*/),
+                        "args": (v15/*: any*/),
                         "filters": [
                           "sort",
                           "filter"
@@ -444,7 +496,7 @@ return {
             "kind": "LinkedField",
             "name": "evaluator",
             "plural": false,
-            "selections": (v15/*: any*/),
+            "selections": (v17/*: any*/),
             "storageKey": null
           },
           {
@@ -474,12 +526,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "72d7ad9d5494f7350372024f80902c0a",
+    "cacheID": "e472729a3aca5d50b88ca6cfdddb6888",
     "id": null,
     "metadata": {},
     "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n  $datasetId: ID!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...PlaygroundDatasetSection_evaluators_1wYocp\n        ...DatasetEvaluatorsTable_evaluators_1wYocp\n        id\n      }\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row_1wYocp\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n  $datasetId: ID!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...PlaygroundDatasetSection_evaluators_1wYocp\n        ...DatasetEvaluatorsTable_evaluators_1wYocp\n        id\n      }\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row_1wYocp\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

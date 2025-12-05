@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72701039989ac8498bbd757338d8e1f6>>
+ * @generated SignedSource<<2f97c0f6b1815b6fd3ee9bc9e6e399b3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -151,6 +151,19 @@ v8 = {
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Prompt",
+  "kind": "LinkedField",
+  "name": "prompt",
+  "plural": false,
+  "selections": [
+    (v3/*: any*/),
+    (v4/*: any*/)
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -205,6 +218,26 @@ return {
                         "kind": "ScalarField",
                         "name": "isAssignedToDataset",
                         "storageKey": null
+                      },
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          (v9/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersionTag",
+                            "kind": "LinkedField",
+                            "name": "promptVersionTag",
+                            "plural": false,
+                            "selections": [
+                              (v4/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "LLMEvaluator",
+                        "abstractKey": null
                       }
                     ],
                     "type": "Evaluator",
@@ -270,6 +303,27 @@ return {
                     "kind": "ScalarField",
                     "name": "isAssignedToDataset",
                     "storageKey": null
+                  },
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v9/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersionTag",
+                        "kind": "LinkedField",
+                        "name": "promptVersionTag",
+                        "plural": false,
+                        "selections": [
+                          (v4/*: any*/),
+                          (v3/*: any*/)
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "LLMEvaluator",
+                    "abstractKey": null
                   }
                 ],
                 "type": "Evaluator",
@@ -305,12 +359,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "312cd6aa960ab7bc1ed044658a243f5f",
+    "cacheID": "cd5160aaaf309855430032674c2256b8",
     "id": null,
     "metadata": {},
     "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n"
+    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5b76dc1b76fb49c3c06e2c4f3b86edf5>>
+ * @generated SignedSource<<686aec11a16f045a58d016912806b3ab>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -121,7 +121,14 @@ v14 = [
   (v9/*: any*/),
   (v10/*: any*/),
   (v11/*: any*/)
-];
+],
+v15 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -218,13 +225,7 @@ return {
                             "abstractKey": "__isEvaluator"
                           },
                           (v13/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "name",
-                            "storageKey": null
-                          },
+                          (v15/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -261,6 +262,39 @@ return {
                             "kind": "ScalarField",
                             "name": "isAssignedToDataset",
                             "storageKey": null
+                          },
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "Prompt",
+                                "kind": "LinkedField",
+                                "name": "prompt",
+                                "plural": false,
+                                "selections": [
+                                  (v13/*: any*/),
+                                  (v15/*: any*/)
+                                ],
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "PromptVersionTag",
+                                "kind": "LinkedField",
+                                "name": "promptVersionTag",
+                                "plural": false,
+                                "selections": [
+                                  (v15/*: any*/),
+                                  (v13/*: any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "type": "LLMEvaluator",
+                            "abstractKey": null
                           }
                         ],
                         "storageKey": null
@@ -337,12 +371,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d7158ade4ff1ff32de8885c362ae0713",
+    "cacheID": "f3e3143b916cb8b3d001c190554e046c",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $datasetId: ID = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_385SQm\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_385SQm on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $datasetId: ID = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_385SQm\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_385SQm on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();

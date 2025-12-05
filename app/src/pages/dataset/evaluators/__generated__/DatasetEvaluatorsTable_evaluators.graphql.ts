@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0e0f2f834295655d47dc53ec4ed3b6db>>
+ * @generated SignedSource<<47aa9fe9c496a0c6111d741f7b9c6b94>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,7 +45,14 @@ v2 = {
   "name": "id",
   "storageKey": null
 },
-v3 = [
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v4 = [
   {
     "kind": "Variable",
     "name": "datasetId",
@@ -147,13 +154,7 @@ return {
                   "name": "EvaluatorsTable_row",
                   "selections": [
                     (v2/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "name",
-                      "storageKey": null
-                    },
+                    (v3/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -184,13 +185,45 @@ return {
                     },
                     {
                       "alias": null,
-                      "args": (v3/*: any*/),
+                      "args": (v4/*: any*/),
                       "kind": "ScalarField",
                       "name": "isAssignedToDataset",
                       "storageKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "Prompt",
+                          "kind": "LinkedField",
+                          "name": "prompt",
+                          "plural": false,
+                          "selections": [
+                            (v2/*: any*/),
+                            (v3/*: any*/)
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "PromptVersionTag",
+                          "kind": "LinkedField",
+                          "name": "promptVersionTag",
+                          "plural": false,
+                          "selections": [
+                            (v3/*: any*/)
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "LLMEvaluator",
+                      "abstractKey": null
                     }
                   ],
-                  "args": (v3/*: any*/),
+                  "args": (v4/*: any*/),
                   "argumentDefinitions": [
                     (v0/*: any*/)
                   ]
