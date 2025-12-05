@@ -353,35 +353,6 @@ class LLMEvaluator(Evaluator, Node):
         return User(id=user_id)
 
     @strawberry.field
-    async def pinned_prompt_version_id(self, info: Info[Context, None]) -> Optional[GlobalID]:
-        prompt_version_tag_id: Optional[int]
-        prompt_version_id: Optional[int]
-        if self.db_record:
-            prompt_version_tag_id = self.db_record.prompt_version_tag_id
-            prompt_version_id = getattr(self.db_record, "prompt_version_id", None)
-        else:
-            prompt_version_tag_id = await info.context.data_loaders.llm_evaluator_fields.load(
-                (self.id, models.LLMEvaluator.prompt_version_tag_id)
-            )
-            if hasattr(models.LLMEvaluator, "prompt_version_id"):
-                prompt_version_id = await info.context.data_loaders.llm_evaluator_fields.load(
-                    (self.id, getattr(models.LLMEvaluator, "prompt_version_id"))
-                )
-            else:
-                prompt_version_id = None
-
-        # if no tag, assume the latest version is pinned and return None
-        if prompt_version_tag_id is None:
-            return None
-
-        if prompt_version_id is not None:
-            from .PromptVersion import PromptVersion
-
-            return GlobalID(PromptVersion.__name__, str(prompt_version_id))
-
-        return None
-
-    @strawberry.field
     async def prompt_version(
         self,
         info: Info[Context, None],

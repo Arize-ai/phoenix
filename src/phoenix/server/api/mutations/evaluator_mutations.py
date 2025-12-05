@@ -250,6 +250,19 @@ class EvaluatorMutationMixin:
         try:
             async with info.context.db() as session:
                 session.add(llm_evaluator)
+                await session.flush()
+                tag_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
+                prompt_tag = models.PromptVersionTag(
+                    name=tag_name,
+                    prompt_id=prompt.id,
+                    prompt_version_id=prompt_version.id,
+                )
+                llm_evaluator.prompt_version_tag = prompt_tag
+                # Manually update the updated_at field because updating the description
+                # or other fields solely on the parent record Evaluator does not
+                # trigger an update of the updated_at field on the LLMEvaluator record.
+                llm_evaluator.updated_at = datetime.now(timezone.utc)
+                session.add(llm_evaluator)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")

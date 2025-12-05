@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<94959da1216e2642d49827d8405f6715>>
+ * @generated SignedSource<<daaeb340c88789c757b080c613053812>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -183,8 +183,20 @@ return {
                         {
                           "alias": null,
                           "args": null,
-                          "kind": "ScalarField",
-                          "name": "pinnedPromptVersionId",
+                          "concreteType": "PromptVersion",
+                          "kind": "LinkedField",
+                          "name": "promptVersion",
+                          "plural": false,
+                          "selections": [
+                            (v1/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "isLatest",
+                              "storageKey": null
+                            }
+                          ],
                           "storageKey": null
                         },
                         {

@@ -2411,7 +2411,6 @@ type LLMEvaluator implements Evaluator & Node {
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   user: User
-  pinnedPromptVersionId: ID
   promptVersion: PromptVersion!
 }
 

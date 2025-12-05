@@ -106,7 +106,10 @@ const readRow = (row: EvaluatorsTable_row$key) => {
             id
             name
           }
-          pinnedPromptVersionId
+          promptVersion {
+            id
+            isLatest
+          }
           promptVersionTag {
             id
             name
@@ -209,7 +212,7 @@ export const EvaluatorsTable = ({
         cell: ({ row }) => (
           <PromptCell
             prompt={row.original.prompt}
-            promptVersionId={row.original.pinnedPromptVersionId ?? undefined}
+            promptVersionId={row.original.promptVersion?.id}
             promptVersionTag={row.original.promptVersionTag?.name}
           />
         ),
@@ -404,16 +407,16 @@ const PromptLink = ({
   // TODO: pull tag color
   let to: string;
   let specifier: ReactNode;
-  if (promptVersionId) {
-    specifier = <IdTruncate id={promptVersionId} />;
-    to = `/prompts/${promptId}/versions/${promptVersionId}`;
-  } else if (promptVersionTag) {
+  if (promptVersionTag) {
     specifier = (
       <Token size="S" color="var(--ac-global-color-grey-700)">
         {promptVersionTag}
       </Token>
     );
     to = `/prompts/${promptId}`; // TODO: link to tag
+  } else if (promptVersionId) {
+    specifier = <IdTruncate id={promptVersionId} />;
+    to = `/prompts/${promptId}/versions/${promptVersionId}`;
   } else {
     specifier = (
       <Token size="S" color="var(--ac-global-color-grey-700)">
