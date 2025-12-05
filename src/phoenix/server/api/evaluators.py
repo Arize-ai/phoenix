@@ -2,7 +2,7 @@ import json
 import zlib
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Any, Optional, TypeVar
+from typing import Any, Optional, TypeAlias, TypeVar
 
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
@@ -33,6 +33,13 @@ from phoenix.utilities.template_formatters import (
     NoOpFormatter,
     TemplateFormatter,
 )
+
+ToolCallId: TypeAlias = str
+
+
+class ToolCall(TypedDict):
+    name: str
+    arguments: str
 
 
 class EvaluationResult(TypedDict):
@@ -106,21 +113,18 @@ class LLMEvaluator:
     ) -> EvaluationResult:
         prompt_version = self._prompt_version_orm
         evaluator = self._llm_evaluator_orm
-
-        tools_obj = prompt_version.tools
-        assert tools_obj is not None
+        prompt_tools = prompt_version.tools
+        assert prompt_tools is not None
         template = prompt_version.template
         assert isinstance(template, PromptChatTemplate)
-
         template_variables = apply_input_mapping(
             input_schema=self.input_schema,
             input_mapping=input_mapping,
             context=context,
         )
         template_formatter = _get_template_formatter(prompt_version.template_format)
-
         messages: list[
-            tuple["ChatCompletionMessageRole", str, Optional[str], Optional[list[str]]]
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
         ] = []
         for msg in template.messages:
             role = _prompt_role_to_chat_role(msg.role)
@@ -135,32 +139,29 @@ class LLMEvaluator:
                 formatted_content = "".join(text_parts)
             messages.append((role, formatted_content, None, None))
 
-        # Convert PromptTools to provider-specific format for the LLM client
-        tool_definitions, _ = denormalize_tools(tools_obj, prompt_version.model_provider)
+        denormalized_tools, _ = denormalize_tools(
+            prompt_tools, prompt_version.model_provider
+        )  # todo: denormalize tool choice and pass as part of invocation parameters
 
-        # Make the LLM call - collect all chunks
-        tool_calls: dict[str, dict[str, str]] = {}  # id -> {name, arguments}
-        start_time = datetime.now(timezone.utc)
+        tool_call_by_id: dict[ToolCallId, ToolCall] = {}
         error_message: Optional[str] = None
+        start_time = datetime.now(timezone.utc)
         try:
             async for chunk in llm_client.chat_completion_create(
                 messages=messages,
-                tools=tool_definitions,
+                tools=denormalized_tools,
             ):
                 if isinstance(chunk, ToolCallChunk):
-                    if chunk.id not in tool_calls:
-                        tool_calls[chunk.id] = {
-                            "name": chunk.function.name,
-                            "arguments": chunk.function.arguments,
-                        }
+                    if chunk.id not in tool_call_by_id:
+                        tool_call_by_id[chunk.id] = ToolCall(
+                            name=chunk.function.name,
+                            arguments=chunk.function.arguments,
+                        )
                     else:
-                        tool_calls[chunk.id]["arguments"] += chunk.function.arguments
+                        tool_call_by_id[chunk.id]["arguments"] += chunk.function.arguments
         except Exception as e:
             error_message = str(e)
-        end_time = datetime.now(timezone.utc)
-
-        # Handle error case
-        if error_message or not tool_calls:
+            end_time = datetime.now(timezone.utc)
             return EvaluationResult(
                 name=evaluator.annotation_name,
                 annotator_kind="LLM",
@@ -173,9 +174,10 @@ class LLMEvaluator:
                 start_time=start_time,
                 end_time=end_time,
             )
+        finally:
+            end_time = datetime.now(timezone.utc)
 
-        # Find score and label from tool call
-        tool_call = next(iter(tool_calls.values()))
+        tool_call = next(iter(tool_call_by_id.values()))
         args = json.loads(tool_call["arguments"])
         assert len(args) == 1
         label = next(iter(args.values()))
