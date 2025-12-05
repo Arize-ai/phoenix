@@ -1,4 +1,5 @@
 import {
+  ReactNode,
   startTransition,
   useCallback,
   useEffect,
@@ -17,7 +18,15 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text, Token, View } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  Text,
+  Token,
+  View,
+} from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -28,6 +37,7 @@ import {
   EvaluatorSort,
 } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
+import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
 
 export const convertEvaluatorSortToTanstackSort = (
   sort: EvaluatorSort | null | undefined
@@ -91,6 +101,17 @@ const readRow = (row: EvaluatorsTable_row$key) => {
         description
         createdAt
         updatedAt
+        ... on LLMEvaluator {
+          prompt {
+            id
+            name
+          }
+          pinnedPromptVersionId
+          promptVersionTag {
+            id
+            name
+          }
+        }
       }
     `,
     row
@@ -181,6 +202,17 @@ export const EvaluatorsTable = ({
         accessorKey: "description",
         cell: TextCell,
         enableSorting: false,
+      },
+      {
+        header: "prompt",
+        accessorKey: "prompt",
+        cell: ({ row }) => (
+          <PromptCell
+            prompt={row.original.prompt}
+            promptVersionId={row.original.pinnedPromptVersionId ?? undefined}
+            promptVersionTag={row.original.promptVersionTag?.name}
+          />
+        ),
       },
       {
         header: "last updated",
@@ -332,5 +364,71 @@ export const EvaluatorsTable = ({
         </tbody>
       </table>
     </div>
+  );
+};
+
+const PromptCell = ({
+  prompt,
+  promptVersionId,
+  promptVersionTag,
+}: {
+  prompt?: { id: string; name: string };
+  promptVersionId?: string;
+  promptVersionTag?: string;
+}) => {
+  if (!prompt) {
+    return null;
+  }
+  return (
+    <PromptLink
+      promptId={prompt.id}
+      promptVersionId={promptVersionId}
+      promptName={prompt.name}
+      promptVersionTag={promptVersionTag}
+    />
+  );
+};
+
+const PromptLink = ({
+  promptId,
+  promptVersionId,
+  promptName,
+  promptVersionTag,
+}: {
+  promptId: string;
+  promptVersionId?: string;
+  promptName: string;
+  promptVersionTag?: string;
+}) => {
+  // TODO: enable linking to a tag
+  // TODO: pull tag color
+  let to: string;
+  let specifier: ReactNode;
+  if (promptVersionId) {
+    specifier = <IdTruncate id={promptVersionId} />;
+    to = `/prompts/${promptId}/versions/${promptVersionId}`;
+  } else if (promptVersionTag) {
+    specifier = (
+      <Token size="S" color="var(--ac-global-color-grey-700)">
+        {promptVersionTag}
+      </Token>
+    );
+    to = `/prompts/${promptId}`; // TODO: link to tag
+  } else {
+    specifier = (
+      <Token size="S" color="var(--ac-global-color-grey-700)">
+        latest
+      </Token>
+    );
+    to = `/prompts/${promptId}`;
+  }
+  return (
+    <Link to={to}>
+      <Flex alignItems="center">
+        {promptName}
+        <Text color="text-300">&nbsp;@ </Text>
+        {specifier}
+      </Flex>
+    </Link>
   );
 };

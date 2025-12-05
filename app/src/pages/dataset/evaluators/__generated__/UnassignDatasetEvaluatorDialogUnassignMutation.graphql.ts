@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<98863ac683e33ae8f86ecd8339bda5fa>>
+ * @generated SignedSource<<6f788b5be03bf3e4ec249f4a988bff2f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -109,22 +109,60 @@ v10 = {
   "name": "updatedAt",
   "storageKey": null
 },
-v11 = {
+v11 = [
+  (v5/*: any*/),
+  (v6/*: any*/)
+],
+v12 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Prompt",
+      "kind": "LinkedField",
+      "name": "prompt",
+      "plural": false,
+      "selections": (v11/*: any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "pinnedPromptVersionId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "PromptVersionTag",
+      "kind": "LinkedField",
+      "name": "promptVersionTag",
+      "plural": false,
+      "selections": (v11/*: any*/),
+      "storageKey": null
+    }
+  ],
+  "type": "LLMEvaluator",
+  "abstractKey": null
+},
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v12 = [
+v14 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 100
   }
 ],
-v13 = [
-  (v11/*: any*/),
+v15 = [
+  (v13/*: any*/),
   {
     "kind": "TypeDiscriminator",
     "abstractKey": "__isEvaluator"
@@ -134,7 +172,8 @@ v13 = [
   (v7/*: any*/),
   (v8/*: any*/),
   (v9/*: any*/),
-  (v10/*: any*/)
+  (v10/*: any*/),
+  (v12/*: any*/)
 ];
 return {
   "fragment": {
@@ -199,7 +238,8 @@ return {
                   (v7/*: any*/),
                   (v8/*: any*/),
                   (v9/*: any*/),
-                  (v10/*: any*/)
+                  (v10/*: any*/),
+                  (v12/*: any*/)
                 ],
                 "args": null,
                 "argumentDefinitions": []
@@ -248,14 +288,14 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v11/*: any*/),
+                  (v13/*: any*/),
                   (v5/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
                       {
                         "alias": null,
-                        "args": (v12/*: any*/),
+                        "args": (v14/*: any*/),
                         "concreteType": "EvaluatorConnection",
                         "kind": "LinkedField",
                         "name": "evaluators",
@@ -276,7 +316,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "node",
                                 "plural": false,
-                                "selections": (v13/*: any*/),
+                                "selections": (v15/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -331,7 +371,7 @@ return {
                       },
                       {
                         "alias": null,
-                        "args": (v12/*: any*/),
+                        "args": (v14/*: any*/),
                         "filters": [
                           "sort",
                           "filter"
@@ -358,7 +398,7 @@ return {
             "kind": "LinkedField",
             "name": "evaluator",
             "plural": false,
-            "selections": (v13/*: any*/),
+            "selections": (v15/*: any*/),
             "storageKey": null
           }
         ],
@@ -367,12 +407,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4b431898cb19cb2a467cccf6da31b945",
+    "cacheID": "b5b81f12bbe1f3ee5112d1dfdebaa32a",
     "id": null,
     "metadata": {},
     "name": "UnassignDatasetEvaluatorDialogUnassignMutation",
     "operationKind": "mutation",
-    "text": "mutation UnassignDatasetEvaluatorDialogUnassignMutation(\n  $input: UnassignEvaluatorFromDatasetInput!\n  $datasetId: ID!\n) {\n  unassignEvaluatorFromDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...DatasetEvaluatorsTable_evaluators\n        id\n      }\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n}\n"
+    "text": "mutation UnassignDatasetEvaluatorDialogUnassignMutation(\n  $input: UnassignEvaluatorFromDatasetInput!\n  $datasetId: ID!\n) {\n  unassignEvaluatorFromDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...DatasetEvaluatorsTable_evaluators\n        id\n      }\n    }\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    pinnedPromptVersionId\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n"
   }
 };
 })();
