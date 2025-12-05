@@ -106,14 +106,17 @@ See Also:
 from __future__ import annotations
 
 import logging
+import random
 import ssl
 from secrets import token_hex
-from typing import Any, Final, Literal, NamedTuple, Optional, overload
+from typing import Any, Final, Literal, NamedTuple, overload
 
 import anyio
+from anyio import CapacityLimiter
 from ldap3 import (
     AUTO_BIND_DEFAULT,
     AUTO_BIND_NO_TLS,
+    AUTO_BIND_NONE,
     AUTO_BIND_TLS_BEFORE_BIND,
     NONE,
     SUBTREE,
@@ -121,13 +124,34 @@ from ldap3 import (
     Server,
     Tls,
 )
-from ldap3.core.exceptions import LDAPException, LDAPInvalidDnError
+from ldap3.core.exceptions import LDAPException, LDAPInvalidCredentialsResult, LDAPInvalidDnError
 from ldap3.utils.conv import escape_filter_chars
 from ldap3.utils.dn import parse_dn
 
 from phoenix.config import LDAPConfig
 
 logger = logging.getLogger(__name__)
+
+# Limit concurrent LDAP operations to prevent thread pool exhaustion.
+# Each LDAP authentication spawns a thread (ldap3 is synchronous-only). This
+# limit acts as a safety valve against credential stuffing attacks or runaway
+# retry loops, not as a throughput target. 10 concurrent operations is more
+# than sufficient for typical Phoenix deployments.
+_LDAP_CONCURRENCY_LIMIT: Final[int] = 10
+_ldap_limiter: CapacityLimiter | None = None
+
+
+def _get_ldap_limiter() -> CapacityLimiter:
+    """Get or create the LDAP concurrency limiter (lazy initialization).
+
+    Lazy initialization is required because CapacityLimiter must be created
+    within an async context (it uses the current event loop). Creating it at
+    module load time would fail since there's no event loop yet.
+    """
+    global _ldap_limiter
+    if _ldap_limiter is None:
+        _ldap_limiter = CapacityLimiter(_LDAP_CONCURRENCY_LIMIT)
+    return _ldap_limiter
 
 
 def canonicalize_dn(dn: str) -> str:
@@ -267,7 +291,7 @@ class LDAPUserInfo(NamedTuple):
     user_dn: str
     ldap_username: str
     role: str
-    unique_id: Optional[str] = None  # objectGUID (AD), entryUUID (OpenLDAP) if configured
+    unique_id: str | None = None  # objectGUID (AD), entryUUID (OpenLDAP) if configured
 
 
 class LDAPAuthenticator:
@@ -280,6 +304,11 @@ class LDAPAuthenticator:
     - TLS/LDAPS with certificate validation (RFC 4513)
     - Group-based role mapping with wildcard support
     """
+
+    # Maximum credential lengths to prevent DoS via oversized inputs.
+    # These are generous limits - real usernames/passwords are much shorter.
+    _MAX_USERNAME_LENGTH: Final[int] = 256
+    _MAX_PASSWORD_LENGTH: Final[int] = 1024
 
     def __init__(self, config: LDAPConfig):
         """Initialize LDAP authenticator with configuration.
@@ -478,11 +507,9 @@ class LDAPAuthenticator:
         )
         try:
             conn.open()
-
             # Upgrade to TLS for STARTTLS mode before any bind operations
             if self.config.tls_mode == "starttls":
                 conn.start_tls()
-
             return conn
         except Exception:
             # CRITICAL: Unbind on any exception to prevent socket leak
@@ -546,6 +573,25 @@ class LDAPAuthenticator:
               Python threads running native C code cannot be cancelled, so this only
               returns an error to the client—the thread continues until socket timeout.
 
+            Multi-Server Failover & Load Distribution:
+            When multiple LDAP servers are configured, they are shuffled randomly on each
+            authentication attempt. This provides load distribution across replicas and
+            prevents a slow primary from always causing delays. Failover to the next
+            server occurs on LDAPException (connection failure, timeout, etc.).
+
+            Each server attempt can take up to 30s (receive_timeout) if the server
+            accepts TCP but doesn't respond to LDAP ops.
+
+            With N unresponsive servers: N × 30s total time before all servers exhausted.
+            - 1 server: 30s max (well within 60s HTTP timeout)
+            - 2 servers: 60s max (equals HTTP timeout—may return before 2nd completes)
+            - 3+ servers: exceeds 60s (HTTP timeout fires, not all servers tried)
+
+            This is an intentional trade-off: the 60s HTTP timeout prioritizes client
+            experience over exhaustively trying all servers. In practice, if multiple
+            servers are all unresponsive, the infrastructure has larger problems. The
+            60s limit also aligns with common load balancer timeouts (nginx, AWS ALB).
+
         Security:
             - Empty username/password rejected (prevents anonymous bind bypass)
             - LDAP injection prevention via RFC 4515 escaping (blocks filter manipulation)
@@ -560,17 +606,40 @@ class LDAPAuthenticator:
             password: User's password
 
         Returns:
-            LDAPUserInfo object or None if authentication fails
-
-        Raises:
-            LDAPException: If LDAP server communication fails or times out
+            LDAPUserInfo object or None if authentication fails (including timeout)
         """
-        # Run synchronous ldap3 operations in thread pool to avoid blocking event loop
-        # Note: fail_after() prevents HTTP request hang but cannot stop the thread itself
-        # (threads running native code cannot be cancelled). Real timeout is receive_timeout=30
-        # on Connection objects, which terminates blocking socket operations inside the thread.
-        with anyio.fail_after(60):
-            return await anyio.to_thread.run_sync(self._authenticate, username, password)
+        # Run synchronous ldap3 operations in thread pool to avoid blocking event loop.
+        #
+        # Concurrency limiting: _get_ldap_limiter() caps concurrent LDAP operations to
+        # prevent thread pool exhaustion during traffic spikes. Requests exceeding the
+        # limit will wait (not fail) until a slot is available.
+        #
+        # Timeout handling: fail_after() prevents HTTP request hang but cannot stop the
+        # thread itself (threads running native code cannot be cancelled). The real
+        # timeout is receive_timeout=30 on Connection objects, which terminates blocking
+        # socket operations inside the thread. We catch TimeoutError to return a clean
+        # authentication failure rather than propagating a 500 error.
+        try:
+            with anyio.fail_after(60):
+                return await anyio.to_thread.run_sync(
+                    self._authenticate,
+                    username,
+                    password,
+                    limiter=_get_ldap_limiter(),
+                )
+        except TimeoutError:
+            # LDAP operation exceeded 60s timeout. This typically means:
+            # 1. LDAP server is overloaded or unresponsive
+            # 2. Network issues causing slow responses
+            # 3. Very slow TLS handshake (e.g., OCSP/CRL checks)
+            #
+            # The background thread continues running until socket timeout (30s),
+            # but we return immediately to the client. Log as error for monitoring.
+            logger.error(
+                "LDAP authentication timed out after 60 seconds. "
+                "Check LDAP server health and network connectivity."
+            )
+            return None
 
     def _authenticate(self, username: str, password: str) -> LDAPUserInfo | None:
         """Synchronous LDAP authentication (called from thread pool via authenticate())."""
@@ -586,13 +655,28 @@ class LDAPAuthenticator:
             logger.warning("LDAP authentication rejected: empty password")
             return None
 
+        # SECURITY: Reject oversized credentials to prevent DoS
+        # Threat: Attacker sends megabyte-sized username/password to waste memory,
+        # CPU (escaping, filter building), and LDAP server resources.
+        if len(username) > self._MAX_USERNAME_LENGTH:
+            logger.warning("LDAP authentication rejected: username too long")
+            return None
+        if len(password) > self._MAX_PASSWORD_LENGTH:
+            logger.warning("LDAP authentication rejected: password too long")
+            return None
+
         # SECURITY: Prevent LDAP filter injection (RFC 4515)
         # Attack: username="*" or "admin*" or "admin)(uid=*" could bypass authentication
         # or enumerate users. escape_filter_chars() escapes special LDAP filter characters:
         # * → \2a, ( → \28, ) → \29, \ → \5c, NUL → \00
         escaped_username = escape_filter_chars(username)
 
-        for server in self.servers:
+        # Shuffle servers for load distribution across replicas.
+        # Since LDAP servers are assumed to be replicas with identical data,
+        # randomizing the order prevents the first server from receiving all
+        # initial requests and provides more even load distribution.
+        servers = random.sample(self.servers, len(self.servers))
+        for server in servers:
             try:
                 # Step 1: Create connection with service account (or anonymous)
                 with self._establish_connection(server) as conn:
@@ -614,7 +698,7 @@ class LDAPAuthenticator:
                         # The dummy DN is intentionally invalid and will always fail bind,
                         # but the network round-trip and TLS operations equalize timing.
                         self._dummy_bind_for_timing(server, password)
-                        logger.debug("User not found in LDAP directory")
+                        logger.info("User not found in LDAP directory")
 
                         # DESIGN DECISION: Return immediately instead of trying other servers
                         #
@@ -641,7 +725,7 @@ class LDAPAuthenticator:
                     # We use a separate connection to verify the password to avoid
                     # dropping the main connection which might be needed for group search.
                     if not self._verify_user_password(server, user_dn, password):
-                        logger.debug("LDAP password verification failed")
+                        logger.info("LDAP password verification failed")
                         return None
 
                     # Step 5: Extract user attributes
@@ -678,9 +762,9 @@ class LDAPAuthenticator:
                     # Step 7: Map groups to Phoenix role
                     role = self.map_groups_to_role(groups)
                     if not role:
-                        logger.debug(
-                            "LDAP user has no matching groups for role assignment. "
-                            "Check PHOENIX_LDAP_GROUP_ROLE_MAPPINGS configuration."
+                        logger.info(
+                            "LDAP authentication denied: user not member of any configured group. "
+                            "Configure PHOENIX_LDAP_GROUP_ROLE_MAPPINGS to include user's groups."
                         )
                         return None
 
@@ -746,7 +830,6 @@ class LDAPAuthenticator:
 
             if len(conn.entries) == 0:
                 # Not found in this base, try next
-                logger.debug(f"User not found in search base: {search_base}")
                 continue
             elif len(conn.entries) > 1:
                 # SECURITY: Reject ambiguous results to prevent non-deterministic authentication
@@ -762,7 +845,6 @@ class LDAPAuthenticator:
                 return None
             else:
                 # Exactly one match - success
-                logger.debug(f"User found in search base: {search_base}")
                 return conn.entries[0]
 
         # Not found in any search base
@@ -834,6 +916,11 @@ class LDAPAuthenticator:
             Skipping start_tls() for STARTTLS mode would transmit the password
             in plaintext despite TLS being "enabled" in configuration.
 
+        Exception Handling:
+            LDAPInvalidCredentialsResult is caught and returns False (wrong password).
+            Other LDAPExceptions (server errors, timeouts) are re-raised to trigger
+            failover to the next server in _authenticate().
+
         Args:
             server: Server object with TLS pre-configured.
             user_dn: User's Distinguished Name (e.g., "uid=alice,ou=users,dc=example,dc=com").
@@ -841,12 +928,15 @@ class LDAPAuthenticator:
 
         Returns:
             bool: True if bind succeeds (password valid), False otherwise.
+
+        Raises:
+            LDAPException: For connection/server errors (NOT invalid credentials).
         """
         user_conn = Connection(
             server,
             user=user_dn,
             password=password,
-            auto_bind=False,
+            auto_bind=AUTO_BIND_NONE,  # No auto-bind; we call open/start_tls/bind manually
             raise_exceptions=True,
             receive_timeout=30,  # Timeout for bind operation
             # SECURITY: Disable referral following to prevent credential leakage
@@ -859,6 +949,11 @@ class LDAPAuthenticator:
                 user_conn.start_tls()
             user_conn.bind()
             return user_conn.bound
+        except LDAPInvalidCredentialsResult:
+            # Wrong password - return False instead of raising.
+            # This prevents invalid credentials from triggering server failover
+            # in _authenticate() (failover is for server errors, not auth failures).
+            return False
         finally:
             # CRITICAL: Always unbind to prevent socket leak
             # Threat: If open() or start_tls() or bind() raises, connection has an open
@@ -953,9 +1048,6 @@ class LDAPAuthenticator:
                     )
                     for group_entry in conn.entries:
                         groups.append(group_entry.entry_dn)
-                    logger.debug(
-                        f"Found {len(conn.entries)} groups in search base: {group_search_base}"
-                    )
                 except LDAPException as e:
                     # SECURITY: Don't leak internal LDAP server error details
                     logger.warning(

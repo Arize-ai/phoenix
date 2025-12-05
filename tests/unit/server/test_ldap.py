@@ -8,6 +8,7 @@ Tests security-critical functionality:
 - DN validation
 """
 
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -104,6 +105,51 @@ class TestLDAPSecurityValidation:
         # Type ignore since we're testing runtime behavior
         result = await authenticator.authenticate("admin", None)  # type: ignore
         assert result is None
+
+    async def test_oversized_username_rejected(self, authenticator: LDAPAuthenticator) -> None:
+        """SECURITY: Oversized username must be rejected to prevent DoS."""
+        long_username = "a" * 257  # Exceeds 256 limit
+        result = await authenticator.authenticate(long_username, "password123")
+        assert result is None
+
+    async def test_oversized_password_rejected(self, authenticator: LDAPAuthenticator) -> None:
+        """SECURITY: Oversized password must be rejected to prevent DoS."""
+        long_password = "p" * 1025  # Exceeds 1024 limit
+        result = await authenticator.authenticate("admin", long_password)
+        assert result is None
+
+    async def test_max_length_username_accepted(self, authenticator: LDAPAuthenticator) -> None:
+        """Username at exactly max length should be accepted (not rejected)."""
+        max_username = "a" * 256  # Exactly at limit
+        # Will fail for other reasons (no LDAP server), but shouldn't fail length check
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+            mock_conn.entries = []  # User not found
+
+            with patch.object(authenticator, "_dummy_bind_for_timing"):
+                result = await authenticator.authenticate(max_username, "password123")
+
+        # Should return None due to user not found, not length validation
+        assert result is None
+        # Verify the connection was attempted (length check passed)
+        mock_establish.assert_called_once()
+
+    async def test_max_length_password_accepted(self, authenticator: LDAPAuthenticator) -> None:
+        """Password at exactly max length should be accepted (not rejected)."""
+        max_password = "p" * 1024  # Exactly at limit
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+            mock_conn.entries = []
+
+            with patch.object(authenticator, "_dummy_bind_for_timing"):
+                result = await authenticator.authenticate("admin", max_password)
+
+        assert result is None
+        mock_establish.assert_called_once()
 
 
 class TestAuthenticationFlow:
@@ -517,7 +563,7 @@ class TestMultipleSearchBases:
             # Track search calls to verify both bases are searched
             search_call_count = 0
 
-            def search_side_effect(**kwargs):
+            def search_side_effect(**kwargs: Any) -> None:
                 nonlocal search_call_count
                 search_call_count += 1
                 if "ou=employees" in kwargs.get("search_base", ""):
@@ -578,7 +624,7 @@ class TestMultipleSearchBases:
 
             search_call_count = 0
 
-            def search_side_effect(**kwargs):
+            def search_side_effect(**kwargs: Any) -> None:
                 nonlocal search_call_count
                 search_call_count += 1
                 # First base: user found
@@ -1265,7 +1311,7 @@ class TestGetUserGroups:
 
         call_count = 0
 
-        def search_side_effect(**kwargs):
+        def search_side_effect(**kwargs: Any) -> None:
             nonlocal call_count
             if call_count == 0:
                 conn.entries = [group1]
@@ -1309,7 +1355,7 @@ class TestGetUserGroups:
 
         call_count = 0
 
-        def search_side_effect(**kwargs):
+        def search_side_effect(**kwargs: Any) -> None:
             nonlocal call_count
             if call_count == 0:
                 call_count += 1

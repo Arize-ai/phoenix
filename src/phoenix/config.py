@@ -1595,9 +1595,9 @@ class LDAPConfig:
             - When NOT SET: Uses attr_member_of from user entry (AD mode)
             Example: "(&(objectClass=posixGroup)(memberUid=%s))"
         group_search_filter_user_attr: User attribute to substitute for %s
-            - When SET: Uses the attribute value (e.g., "uid" → "admin")
-            - When NOT SET: Uses the user's full DN (legacy behavior)
-            Required for POSIX memberUid filters since memberUid stores usernames, not DNs.
+            - When SET: Uses that attribute's value from the user entry (e.g., "uid" → "admin")
+            - When NOT SET: Uses the login username directly (what the user typed at login)
+            For POSIX memberUid filters, the default (login username) is typically correct.
         group_search_base_dns: List of base DNs for group searches
             - Required when group_search_filter is set
             Example: ["ou=groups,dc=example,dc=com"]
@@ -1803,6 +1803,12 @@ class LDAPConfig:
         group_search_filter = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER)
         group_search_filter_user_attr = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR)
 
+        if group_search_filter and "%s" not in group_search_filter:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER} must contain '%s' placeholder. "
+                f"Got: '{group_search_filter}'"
+            )
+
         group_search_base_dns_list: list[str] = []
         if group_search_base_dns_json:
             try:
@@ -1968,10 +1974,13 @@ class LDAPConfig:
                 f"{ENV_PHOENIX_LDAP_USER_SEARCH_FILTER} must contain '%s' placeholder "
                 f"for username. Got: '{user_search_filter}'"
             )
-        if group_search_filter and "%s" not in group_search_filter:
+
+        bind_dn = getenv(ENV_PHOENIX_LDAP_BIND_DN)
+        bind_password = getenv(ENV_PHOENIX_LDAP_BIND_PASSWORD)
+        if bind_dn and not bind_password:
             raise ValueError(
-                f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER} must contain '%s' placeholder. "
-                f"Got: '{group_search_filter}'"
+                f"{ENV_PHOENIX_LDAP_BIND_DN} is set but {ENV_PHOENIX_LDAP_BIND_PASSWORD} is "
+                "missing. Both are required for service account authentication."
             )
 
         return cls(
@@ -1982,8 +1991,8 @@ class LDAPConfig:
             tls_ca_cert_file=tls_ca_cert_file,
             tls_client_cert_file=tls_client_cert_file,
             tls_client_key_file=tls_client_key_file,
-            bind_dn=getenv(ENV_PHOENIX_LDAP_BIND_DN),
-            bind_password=getenv(ENV_PHOENIX_LDAP_BIND_PASSWORD),
+            bind_dn=bind_dn,
+            bind_password=bind_password,
             user_search_base_dns=tuple(user_search_base_dns_list),
             user_search_filter=user_search_filter,
             attr_email=attr_email,
