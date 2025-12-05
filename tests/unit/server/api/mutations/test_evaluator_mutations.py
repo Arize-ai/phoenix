@@ -27,8 +27,8 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 class TestDatasetLLMEvaluatorMutations:
     _MUTATION = """
-      mutation($input: CreateLLMEvaluatorInput!) {
-        createLlmEvaluator(input: $input) {
+      mutation($input: CreateDatasetLLMEvaluatorInput!) {
+        createDatasetLlmEvaluator(input: $input) {
           evaluator { id name description kind prompt { id } promptVersion { id } }
           query { __typename } } }
     """
@@ -123,7 +123,7 @@ class TestDatasetLLMEvaluatorMutations:
             ),
         )
         assert result.data and not result.errors
-        evaluator = result.data["createLlmEvaluator"]["evaluator"]
+        evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
         assert evaluator["name"] == "test-evaluator" and evaluator["kind"] == "LLM"
         await self._verify_prompt_version_messages(
             gql_client, evaluator["promptVersion"]["id"], "Eval {{input}}"
@@ -140,7 +140,10 @@ class TestDatasetLLMEvaluatorMutations:
                     models.DatasetsEvaluators.evaluator_id == evaluator_id,
                 )
             )
-            assert dataset_evaluator and dataset_evaluator.input_mapping == {}
+            assert dataset_evaluator and dataset_evaluator.input_mapping == {
+                "literal_mapping": {},
+                "path_mapping": {},
+            }
 
         result = await self._create(
             gql_client,
@@ -191,7 +194,7 @@ class TestDatasetLLMEvaluatorMutations:
             ),
         )
         assert result.data and not result.errors
-        evaluator = result.data["createLlmEvaluator"]["evaluator"]
+        evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
         await self._verify_prompt_version_messages(
             gql_client, evaluator["promptVersion"]["id"], "Rate"
         )
@@ -247,7 +250,7 @@ class TestDatasetLLMEvaluatorMutations:
             ),
         )
         assert result.data and not result.errors
-        evaluator = result.data["createLlmEvaluator"]["evaluator"]
+        evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
         await self._verify_prompt_version_messages(
             gql_client, evaluator["promptVersion"]["id"], "Second"
         )
@@ -336,100 +339,6 @@ class TestDatasetLLMEvaluatorMutations:
         assert result.errors
 
 
-class TestCreateEvaluatorsWithoutDataset:
-    _CREATE_LLM_EVALUATOR_MUTATION = """
-      mutation($input: CreateLLMEvaluatorInput!) {
-        createLlmEvaluator(input: $input) {
-          evaluator { id name kind prompt { id } promptVersion { id } }
-          query { __typename }
-        }
-      }
-    """
-
-    _CREATE_CODE_EVALUATOR_MUTATION = """
-      mutation($input: CreateCodeEvaluatorInput!) {
-        createCodeEvaluator(input: $input) {
-          evaluator { id name kind }
-          query { __typename }
-        }
-      }
-    """
-
-    async def test_create_llm_evaluator_without_dataset_relation(
-        self,
-        db: DbSessionFactory,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        result = await gql_client.execute(
-            self._CREATE_LLM_EVALUATOR_MUTATION,
-            {
-                "input": dict(
-                    name="llm-no-dataset",
-                    description="llm eval without dataset relation",
-                    promptVersion=dict(
-                        description="pv",
-                        templateFormat="MUSTACHE",
-                        template=dict(
-                            messages=[dict(role="USER", content=[dict(text=dict(text="Hello"))])]
-                        ),
-                        invocationParameters=dict(
-                            temperature=0.0,
-                            tool_choice=dict(
-                                type="function",
-                                function=dict(name="llm-no-dataset"),
-                            ),
-                        ),
-                        tools=[
-                            dict(
-                                definition=dict(
-                                    type="function",
-                                    function=dict(
-                                        name="llm-no-dataset",
-                                        description="llm eval without dataset relation",
-                                        parameters=dict(
-                                            type="object",
-                                            properties=dict(
-                                                correctness=dict(
-                                                    type="string",
-                                                    enum=["correct", "incorrect"],
-                                                )
-                                            ),
-                                            required=["correctness"],
-                                        ),
-                                    ),
-                                )
-                            )
-                        ],
-                        modelProvider="OPENAI",
-                        modelName="gpt-4",
-                    ),
-                    outputConfig=dict(
-                        name="correctness",
-                        description="description",
-                        optimizationDirection="MAXIMIZE",
-                        values=[
-                            dict(label="correct", score=1),
-                            dict(label="incorrect", score=0),
-                        ],
-                    ),
-                )
-            },
-        )
-        assert result.data and not result.errors
-        evaluator = result.data["createLlmEvaluator"]["evaluator"]
-        assert evaluator["kind"] == "LLM"
-
-        evaluator_id = int(GlobalID.from_id(evaluator["id"]).node_id)
-        async with db() as session:
-            # Ensure no dataset-evaluator relation was created
-            count = await session.scalar(
-                select(sa.func.count())
-                .select_from(models.DatasetsEvaluators)
-                .where(models.DatasetsEvaluators.evaluator_id == evaluator_id)
-            )
-            assert count == 0
-
-
 class TestAssignUnassignEvaluatorMutations:
     _ASSIGN_MUTATION = """
       mutation($input: AssignEvaluatorToDatasetInput!) {
@@ -438,7 +347,7 @@ class TestAssignUnassignEvaluatorMutations:
             id
             name
             kind
-            ... on LLMEvaluator { prompt { id } }
+            ... on DatasetLLMEvaluator { prompt { id } }
           }
           query { __typename }
         }
@@ -458,15 +367,26 @@ class TestAssignUnassignEvaluatorMutations:
       }
     """
 
-    _IS_ASSIGNED_QUERY = """
-      query($evaluatorId: ID!, $datasetId: ID!) {
-        node(id: $evaluatorId) {
-          ... on Evaluator {
-            isAssignedToDataset(datasetId: $datasetId)
-          }
-        }
-      }
-    """
+    async def _is_assigned(
+        self,
+        db: DbSessionFactory,
+        dataset_id: int,
+        evaluator_id: int,
+        display_name: str,
+    ) -> bool:
+        """Helper to check if an evaluator is assigned to a dataset via database."""
+        async with db() as session:
+            count = await session.scalar(
+                select(sa.func.count())
+                .select_from(models.DatasetsEvaluators)
+                .where(
+                    models.DatasetsEvaluators.dataset_id == dataset_id,
+                    models.DatasetsEvaluators.evaluator_id == evaluator_id,
+                    models.DatasetsEvaluators.display_name
+                    == IdentifierModel.model_validate(display_name),
+                )
+            )
+            return bool(count and count > 0)
 
     async def test_assign_and_unassign_evaluators(
         self,
@@ -480,22 +400,12 @@ class TestAssignUnassignEvaluatorMutations:
         dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
         code_eval_id = str(GlobalID("CodeEvaluator", str(code_evaluator.id)))
         llm_eval_id = str(GlobalID("LLMEvaluator", str(llm_evaluator.id)))
+        code_eval_name = code_evaluator.name.root
+        llm_eval_name = llm_evaluator.name.root
 
         # Test 1: Verify evaluators are already assigned (via ORM relationship in fixtures)
-        result = await gql_client.execute(
-            self._IS_ASSIGNED_QUERY,
-            {"evaluatorId": code_eval_id, "datasetId": dataset_id},
-        )
-        assert result.data and not result.errors
-        assert result.data["node"]["isAssignedToDataset"] is True
-
-        # Verify LLM evaluator is also already assigned (via ORM relationship in fixtures)
-        result = await gql_client.execute(
-            self._IS_ASSIGNED_QUERY,
-            {"evaluatorId": llm_eval_id, "datasetId": dataset_id},
-        )
-        assert result.data and not result.errors
-        assert result.data["node"]["isAssignedToDataset"] is True
+        assert await self._is_assigned(db, empty_dataset.id, code_evaluator.id, code_eval_name)
+        assert await self._is_assigned(db, empty_dataset.id, llm_evaluator.id, llm_eval_name)
 
         # Test 2: Idempotency - assign code evaluator again (already assigned)
         result = await gql_client.execute(
@@ -505,7 +415,7 @@ class TestAssignUnassignEvaluatorMutations:
         assert result.data and not result.errors
         evaluator_data = result.data["assignEvaluatorToDataset"]["evaluator"]
         assert evaluator_data["kind"] == "CODE"
-        assert evaluator_data["name"] == code_evaluator.name.root
+        assert evaluator_data["name"] == code_eval_name
 
         # Verify only one assignment exists (idempotency)
         async with db() as session:
@@ -515,6 +425,8 @@ class TestAssignUnassignEvaluatorMutations:
                 .where(
                     models.DatasetsEvaluators.dataset_id == empty_dataset.id,
                     models.DatasetsEvaluators.evaluator_id == code_evaluator.id,
+                    models.DatasetsEvaluators.display_name
+                    == IdentifierModel.model_validate(code_eval_name),
                 )
             )
             assert count == 1
@@ -532,7 +444,13 @@ class TestAssignUnassignEvaluatorMutations:
         # Test 4: Unassign code evaluator
         result = await gql_client.execute(
             self._UNASSIGN_MUTATION,
-            {"input": {"datasetId": dataset_id, "evaluatorId": code_eval_id}},
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": code_eval_id,
+                    "displayName": code_eval_name,
+                }
+            },
         )
         assert result.data and not result.errors
         assert result.data["unassignEvaluatorFromDataset"]["evaluator"]["kind"] == "CODE"
@@ -543,21 +461,24 @@ class TestAssignUnassignEvaluatorMutations:
                 select(models.DatasetsEvaluators).where(
                     models.DatasetsEvaluators.dataset_id == empty_dataset.id,
                     models.DatasetsEvaluators.evaluator_id == code_evaluator.id,
+                    models.DatasetsEvaluators.display_name
+                    == IdentifierModel.model_validate(code_eval_name),
                 )
             )
             assert dataset_evaluator is None
 
-        result = await gql_client.execute(
-            self._IS_ASSIGNED_QUERY,
-            {"evaluatorId": code_eval_id, "datasetId": dataset_id},
-        )
-        assert result.data and not result.errors
-        assert result.data["node"]["isAssignedToDataset"] is False
+        assert not await self._is_assigned(db, empty_dataset.id, code_evaluator.id, code_eval_name)
 
         # Test 5: Unassign LLM evaluator
         result = await gql_client.execute(
             self._UNASSIGN_MUTATION,
-            {"input": {"datasetId": dataset_id, "evaluatorId": llm_eval_id}},
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": llm_eval_id,
+                    "displayName": llm_eval_name,
+                }
+            },
         )
         assert result.data and not result.errors
         assert result.data["unassignEvaluatorFromDataset"]["evaluator"]["kind"] == "LLM"
@@ -568,6 +489,8 @@ class TestAssignUnassignEvaluatorMutations:
                 select(models.DatasetsEvaluators).where(
                     models.DatasetsEvaluators.dataset_id == empty_dataset.id,
                     models.DatasetsEvaluators.evaluator_id == llm_evaluator.id,
+                    models.DatasetsEvaluators.display_name
+                    == IdentifierModel.model_validate(llm_eval_name),
                 )
             )
             assert dataset_evaluator is None
@@ -590,6 +513,104 @@ class TestAssignUnassignEvaluatorMutations:
         assert result.errors
         assert "not found" in result.errors[0].message.lower()
 
+    async def test_assign_same_evaluator_with_different_names(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        llm_evaluator: models.LLMEvaluator,
+    ) -> None:
+        """Test that the same evaluator can be assigned to a dataset multiple times with different names."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        llm_eval_id = str(GlobalID("LLMEvaluator", str(llm_evaluator.id)))
+        default_name = llm_evaluator.name.root
+
+        # Verify initial assignment exists
+        async with db() as session:
+            count = await session.scalar(
+                select(sa.func.count())
+                .select_from(models.DatasetsEvaluators)
+                .where(
+                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetsEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assert count == 1
+
+        # Assign the same evaluator with a custom displayName "correctness"
+        result = await gql_client.execute(
+            self._ASSIGN_MUTATION,
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": llm_eval_id,
+                    "displayName": "correctness",
+                }
+            },
+        )
+        assert result.data and not result.errors
+        evaluator_data = result.data["assignEvaluatorToDataset"]["evaluator"]
+        assert evaluator_data["kind"] == "LLM"
+
+        # Assign the same evaluator with another custom displayName "relevance"
+        result = await gql_client.execute(
+            self._ASSIGN_MUTATION,
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": llm_eval_id,
+                    "displayName": "relevance",
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        # Verify we now have 3 assignments for the same evaluator-dataset pair
+        async with db() as session:
+            assignments = await session.scalars(
+                select(models.DatasetsEvaluators).where(
+                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetsEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assignment_list = assignments.all()
+            assert len(assignment_list) == 3
+
+            names = {a.display_name.root for a in assignment_list}
+            assert names == {default_name, "correctness", "relevance"}
+
+        for display_name in [default_name, "correctness", "relevance"]:
+            assert await self._is_assigned(db, empty_dataset.id, llm_evaluator.id, display_name)
+
+        # Unassign one of the custom names
+        result = await gql_client.execute(
+            self._UNASSIGN_MUTATION,
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": llm_eval_id,
+                    "displayName": "correctness",
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        async with db() as session:
+            count = await session.scalar(
+                select(sa.func.count())
+                .select_from(models.DatasetsEvaluators)
+                .where(
+                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetsEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assert count == 2
+
+        assert not await self._is_assigned(db, empty_dataset.id, llm_evaluator.id, "correctness")
+
+        for display_name in [default_name, "relevance"]:
+            assert await self._is_assigned(db, empty_dataset.id, llm_evaluator.id, display_name)
+
 
 @pytest.fixture
 async def empty_dataset(db: DbSessionFactory) -> AsyncIterator[models.Dataset]:
@@ -608,13 +629,15 @@ async def code_evaluator(
     db: DbSessionFactory, empty_dataset: models.Dataset
 ) -> AsyncIterator[models.CodeEvaluator]:
     """Inserts a code evaluator with dataset relationship."""
+    evaluator_name = IdentifierModel.model_validate(f"test-code-evaluator-{token_hex(4)}")
     evaluator = models.CodeEvaluator(
-        name=IdentifierModel.model_validate(f"test-code-evaluator-{token_hex(4)}"),
+        name=evaluator_name,
         description="test code evaluator",
         kind="CODE",
         datasets_evaluators=[
             models.DatasetsEvaluators(
                 dataset_id=empty_dataset.id,
+                display_name=evaluator_name,
                 input_mapping={},
             )
         ],
@@ -653,8 +676,9 @@ async def llm_evaluator(
             )
         ],
     )
+    evaluator_name = IdentifierModel.model_validate(f"test-llm-evaluator-{token_hex(4)}")
     evaluator = models.LLMEvaluator(
-        name=IdentifierModel.model_validate(f"test-llm-evaluator-{token_hex(4)}"),
+        name=evaluator_name,
         description="test llm evaluator",
         kind="LLM",
         annotation_name="correctness",
@@ -671,6 +695,7 @@ async def llm_evaluator(
         datasets_evaluators=[
             models.DatasetsEvaluators(
                 dataset_id=empty_dataset.id,
+                display_name=evaluator_name,
                 input_mapping={},
             )
         ],

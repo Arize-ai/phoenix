@@ -84,16 +84,13 @@ const EmptyState = () => {
 const readRow = (row: EvaluatorsTable_row$key) => {
   return readInlineData(
     graphql`
-      fragment EvaluatorsTable_row on Evaluator
-      @inline
-      @argumentDefinitions(datasetId: { type: "ID", defaultValue: null }) {
+      fragment EvaluatorsTable_row on Evaluator @inline {
         id
         name
         kind
         description
         createdAt
         updatedAt
-        isAssignedToDataset(datasetId: $datasetId)
       }
     `,
     row
@@ -127,6 +124,10 @@ type EvaluatorsTableProps = {
    * the ability to unassign the evaluator from the dataset.
    */
   datasetId?: string;
+  /**
+   * If provided, these connections will be updated when a row is edited or deleted.
+   */
+  updateConnectionIds?: string[];
 };
 
 export const EvaluatorsTable = ({
@@ -138,6 +139,7 @@ export const EvaluatorsTable = ({
   refetch,
   onRowClick,
   datasetId,
+  updateConnectionIds,
 }: EvaluatorsTableProps) => {
   "use no memo";
   const { sort, setSort, filter } = useEvaluatorsFilterContext();
@@ -195,12 +197,14 @@ export const EvaluatorsTable = ({
             evaluatorId={row.original.id}
             evaluatorName={row.original.name}
             datasetId={datasetId}
+            evaluatorKind={row.original.kind}
+            updateConnectionIds={updateConnectionIds}
           />
         ),
       });
     }
     return cols;
-  }, [datasetId]);
+  }, [datasetId, updateConnectionIds]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
