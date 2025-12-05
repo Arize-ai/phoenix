@@ -65,6 +65,47 @@ data:
   {{- end }}
   {{- end }}
   
+  # LDAP Authentication Configuration
+  {{- if .Values.auth.ldap.enabled }}
+  PHOENIX_LDAP_HOST: {{ .Values.auth.ldap.host | quote }}
+  {{- if .Values.auth.ldap.port }}
+  PHOENIX_LDAP_PORT: {{ .Values.auth.ldap.port | quote }}
+  {{- end }}
+  PHOENIX_LDAP_USE_TLS: {{ .Values.auth.ldap.useTls | quote }}
+  PHOENIX_LDAP_TLS_MODE: {{ .Values.auth.ldap.tlsMode | quote }}
+  PHOENIX_LDAP_TLS_VERIFY: {{ .Values.auth.ldap.tlsVerify | quote }}
+  {{- if .Values.auth.ldap.tlsCaCertFile }}
+  PHOENIX_LDAP_TLS_CA_CERT_FILE: {{ .Values.auth.ldap.tlsCaCertFile | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.tlsClientCertFile }}
+  PHOENIX_LDAP_TLS_CLIENT_CERT_FILE: {{ .Values.auth.ldap.tlsClientCertFile | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.tlsClientKeyFile }}
+  PHOENIX_LDAP_TLS_CLIENT_KEY_FILE: {{ .Values.auth.ldap.tlsClientKeyFile | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.bindDn }}
+  PHOENIX_LDAP_BIND_DN: {{ .Values.auth.ldap.bindDn | quote }}
+  {{- end }}
+  PHOENIX_LDAP_USER_SEARCH_BASE: {{ .Values.auth.ldap.userSearchBase | quote }}
+  PHOENIX_LDAP_USER_SEARCH_FILTER: {{ .Values.auth.ldap.userSearchFilter | quote }}
+  PHOENIX_LDAP_ATTR_EMAIL: {{ .Values.auth.ldap.attrEmail | quote }}
+  PHOENIX_LDAP_ATTR_DISPLAY_NAME: {{ .Values.auth.ldap.attrDisplayName | quote }}
+  {{- if .Values.auth.ldap.attrMemberOf }}
+  PHOENIX_LDAP_ATTR_MEMBER_OF: {{ .Values.auth.ldap.attrMemberOf | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.attrUniqueId }}
+  PHOENIX_LDAP_ATTR_UNIQUE_ID: {{ .Values.auth.ldap.attrUniqueId | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.groupSearchBase }}
+  PHOENIX_LDAP_GROUP_SEARCH_BASE: {{ .Values.auth.ldap.groupSearchBase | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.groupSearchFilter }}
+  PHOENIX_LDAP_GROUP_SEARCH_FILTER: {{ .Values.auth.ldap.groupSearchFilter | quote }}
+  {{- end }}
+  PHOENIX_LDAP_GROUP_ROLE_MAPPINGS: {{ .Values.auth.ldap.groupRoleMappings | quote }}
+  PHOENIX_LDAP_ALLOW_SIGN_UP: {{ .Values.auth.ldap.allowSignUp | quote }}
+  {{- end }}
+
   # Server configuration
   PHOENIX_HOST: {{ .Values.server.host | quote }}
   PHOENIX_PORT: {{ .Values.server.port | quote }}

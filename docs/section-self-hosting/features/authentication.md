@@ -407,6 +407,147 @@ Phoenix can integrate with any OAuth2 IDP that supports OpenID Connect and has a
 3. Deploy Phoenix with the environment variables described above, substituting `<IDP>` with your IDP name, e.g., `AUTH0`. If you have configured a root path via the `PHOENIX_HOST_ROOT_PATH` environment variable, ensure that the root path is included in the path of your callback URL.
 4. Use the optional configuration variables documented above to customize behavior such as display names, sign-up policies, group-based access control, and more.
 
+## Configuring LDAP Authentication
+
+Phoenix supports authentication against LDAP directories, including:
+
+* Microsoft Active Directory
+* OpenLDAP
+* 389 Directory Server
+* Any LDAP v3 compliant directory
+
+LDAP authentication allows users to log in with their corporate directory credentials, enabling centralized user management and integration with existing identity infrastructure.
+
+{% hint style="info" %}
+LDAP (Lightweight Directory Access Protocol) is the industry-standard protocol for accessing directory services. Phoenix uses LDAP to authenticate users against your corporate directory and optionally map directory groups to Phoenix roles.
+{% endhint %}
+
+### Required LDAP Configuration
+
+To enable LDAP authentication, set the following environment variables in addition to `PHOENIX_ENABLE_AUTH` and `PHOENIX_SECRET`:
+
+<table data-full-width="false"><thead><tr><th width="280">Environment Variable</th><th>Description</th></tr></thead><tbody><tr><td><strong>PHOENIX_LDAP_HOST</strong></td><td>LDAP server hostname or IP address. Comma-separated for multiple servers with automatic failover. (Required)<br><br>Examples:<br>• Single server: <code>ldap.corp.example.com</code><br>• Multiple servers: <code>dc1.corp.com,dc2.corp.com,dc3.corp.com</code></td></tr><tr><td><strong>PHOENIX_LDAP_USER_SEARCH_BASE</strong></td><td>Base DN (Distinguished Name) for user searches. This is where Phoenix looks for user accounts. (Required)<br><br>Examples:<br>• Active Directory: <code>OU=Users,DC=corp,DC=example,DC=com</code><br>• OpenLDAP: <code>ou=people,dc=example,dc=com</code></td></tr></tbody></table>
+
+### Optional LDAP Configuration
+
+<table data-full-width="false"><thead><tr><th width="280">Environment Variable</th><th>Description</th></tr></thead><tbody><tr><td><strong>PHOENIX_LDAP_PORT</strong></td><td>LDAP server port. Defaults to <code>389</code> for StartTLS or <code>636</code> for LDAPS based on <code>TLS_MODE</code>.</td></tr><tr><td><strong>PHOENIX_LDAP_USE_TLS</strong></td><td>Enable TLS encryption for LDAP connections. Defaults to <code>true</code>. Should always be <code>true</code> in production to protect credentials.</td></tr><tr><td><strong>PHOENIX_LDAP_TLS_MODE</strong></td><td>TLS connection mode. Options:<br>• <code>starttls</code> (default): Upgrade plaintext connection to TLS on port 389<br>• <code>ldaps</code>: TLS from connection start on port 636</td></tr><tr><td><strong>PHOENIX_LDAP_TLS_VERIFY</strong></td><td>Verify server TLS certificates. Defaults to <code>true</code>. Should always be <code>true</code> in production to prevent MITM attacks.</td></tr><tr><td><strong>PHOENIX_LDAP_TLS_CA_CERT_FILE</strong></td><td>Path to custom CA certificate file (PEM format) for TLS verification. Use when your LDAP server uses a private/internal CA not in the system trust store.<br><br>Example: <code>/etc/ssl/certs/internal-ca.pem</code></td></tr><tr><td><strong>PHOENIX_LDAP_TLS_CLIENT_CERT_FILE</strong></td><td>Path to client certificate file (PEM format) for mutual TLS authentication. Requires <code>TLS_CLIENT_KEY_FILE</code> to also be set.</td></tr><tr><td><strong>PHOENIX_LDAP_TLS_CLIENT_KEY_FILE</strong></td><td>Path to client private key file (PEM format) for mutual TLS authentication. Requires <code>TLS_CLIENT_CERT_FILE</code> to also be set.</td></tr><tr><td><strong>PHOENIX_LDAP_BIND_DN</strong></td><td>Service account DN for binding to the LDAP server. Required for search-then-bind authentication.<br><br>Example: <code>CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com</code></td></tr><tr><td><strong>PHOENIX_LDAP_BIND_PASSWORD</strong></td><td>Service account password for binding to the LDAP server. Should be stored securely (e.g., in a Kubernetes Secret).</td></tr><tr><td><strong>PHOENIX_LDAP_USER_SEARCH_FILTER</strong></td><td>LDAP filter for finding users. Use <code>%s</code> as placeholder for the username.<br><br>Defaults to Active Directory format: <code>(&(objectClass=user)(sAMAccountName=%s))</code><br><br>OpenLDAP example: <code>(&(objectClass=inetOrgPerson)(uid=%s))</code></td></tr><tr><td><strong>PHOENIX_LDAP_ATTR_EMAIL</strong></td><td>LDAP attribute containing user's email address. Defaults to <code>mail</code>. Must be present in LDAP for authentication to succeed.</td></tr><tr><td><strong>PHOENIX_LDAP_ATTR_DISPLAY_NAME</strong></td><td>LDAP attribute containing user's display name. Defaults to <code>displayName</code>.</td></tr><tr><td><strong>PHOENIX_LDAP_ATTR_MEMBER_OF</strong></td><td>LDAP attribute containing group memberships (for Active Directory). Defaults to <code>memberOf</code>. Leave empty for POSIX groups.</td></tr><tr><td><strong>PHOENIX_LDAP_ATTR_UNIQUE_ID</strong></td><td>LDAP attribute containing an immutable unique identifier. Only configure if you expect user emails to change frequently.<br><br>Options:<br>• Active Directory: <code>objectGUID</code><br>• OpenLDAP: <code>entryUUID</code><br>• 389 DS: <code>nsUniqueId</code></td></tr><tr><td><strong>PHOENIX_LDAP_GROUP_SEARCH_BASE</strong></td><td>Base DN for group searches. Required when using POSIX groups (when <code>ATTR_MEMBER_OF</code> is empty).<br><br>Example: <code>ou=groups,dc=example,dc=com</code></td></tr><tr><td><strong>PHOENIX_LDAP_GROUP_SEARCH_FILTER</strong></td><td>LDAP filter for finding groups. Use <code>%s</code> as placeholder for username. Required when using POSIX groups.<br><br>Example: <code>(&(objectClass=posixGroup)(memberUid=%s))</code></td></tr><tr><td><strong>PHOENIX_LDAP_GROUP_ROLE_MAPPINGS</strong></td><td>JSON array mapping LDAP groups to Phoenix roles.<br><br>Format: <code>[{"group_dn": "CN=Group,DC=corp,DC=com", "role": "ADMIN"}]</code><br><br>Supported roles: <code>ADMIN</code>, <code>MEMBER</code>, <code>VIEWER</code> (case-insensitive)<br><br>Special value <code>*</code> for group_dn matches all users (wildcard for default role).</td></tr><tr><td><strong>PHOENIX_LDAP_ALLOW_SIGN_UP</strong></td><td>Allow automatic user creation on first LDAP login. Defaults to <code>true</code>. Set to <code>false</code> to require pre-provisioned users (created via <code>PHOENIX_ADMINS</code> or the UI before first login).</td></tr></tbody></table>
+
+### Active Directory Configuration Example
+
+```bash
+# Enable authentication
+export PHOENIX_ENABLE_AUTH=true
+export PHOENIX_SECRET=your-secret-key-at-least-32-chars
+
+# LDAP server connection
+export PHOENIX_LDAP_HOST=ldap.corp.example.com
+export PHOENIX_LDAP_PORT=389
+export PHOENIX_LDAP_USE_TLS=true
+export PHOENIX_LDAP_TLS_MODE=starttls
+
+# Service account for LDAP queries
+export PHOENIX_LDAP_BIND_DN="CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=example,DC=com"
+export PHOENIX_LDAP_BIND_PASSWORD="service-account-password"
+
+# User search configuration
+export PHOENIX_LDAP_USER_SEARCH_BASE="OU=Users,DC=corp,DC=example,DC=com"
+export PHOENIX_LDAP_USER_SEARCH_FILTER="(&(objectClass=user)(sAMAccountName=%s))"
+
+# Attribute mapping
+export PHOENIX_LDAP_ATTR_EMAIL=mail
+export PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
+export PHOENIX_LDAP_ATTR_MEMBER_OF=memberOf
+
+# Group to role mapping
+export PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[{"group_dn":"CN=Phoenix Admins,OU=Groups,DC=corp,DC=example,DC=com","role":"ADMIN"},{"group_dn":"CN=Phoenix Users,OU=Groups,DC=corp,DC=example,DC=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]'
+```
+
+### OpenLDAP Configuration Example
+
+```bash
+# Enable authentication
+export PHOENIX_ENABLE_AUTH=true
+export PHOENIX_SECRET=your-secret-key-at-least-32-chars
+
+# LDAP server connection
+export PHOENIX_LDAP_HOST=ldap.example.com
+export PHOENIX_LDAP_PORT=636
+export PHOENIX_LDAP_USE_TLS=true
+export PHOENIX_LDAP_TLS_MODE=ldaps
+
+# Service account for LDAP queries
+export PHOENIX_LDAP_BIND_DN="cn=readonly,dc=example,dc=com"
+export PHOENIX_LDAP_BIND_PASSWORD="readonly-password"
+
+# User search configuration
+export PHOENIX_LDAP_USER_SEARCH_BASE="ou=people,dc=example,dc=com"
+export PHOENIX_LDAP_USER_SEARCH_FILTER="(&(objectClass=inetOrgPerson)(uid=%s))"
+
+# Attribute mapping
+export PHOENIX_LDAP_ATTR_EMAIL=mail
+export PHOENIX_LDAP_ATTR_DISPLAY_NAME=cn
+
+# POSIX group configuration (when memberOf overlay is not available)
+export PHOENIX_LDAP_ATTR_MEMBER_OF=""
+export PHOENIX_LDAP_GROUP_SEARCH_BASE="ou=groups,dc=example,dc=com"
+export PHOENIX_LDAP_GROUP_SEARCH_FILTER="(&(objectClass=posixGroup)(memberUid=%s))"
+
+# Group to role mapping
+export PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"*","role":"MEMBER"}]'
+```
+
+### LDAP with Multiple Servers (Failover)
+
+For high availability, configure multiple LDAP servers:
+
+```bash
+export PHOENIX_LDAP_HOST="dc1.corp.com,dc2.corp.com,dc3.corp.com"
+```
+
+Phoenix will try each server in order until a successful connection is established.
+
+### LDAP with Custom CA Certificate
+
+When your LDAP server uses a certificate signed by an internal CA:
+
+```bash
+export PHOENIX_LDAP_TLS_CA_CERT_FILE=/etc/ssl/certs/internal-ca.pem
+```
+
+### LDAP with Mutual TLS (Client Certificates)
+
+For environments requiring client certificate authentication:
+
+```bash
+export PHOENIX_LDAP_TLS_CLIENT_CERT_FILE=/etc/ssl/certs/phoenix-client.crt
+export PHOENIX_LDAP_TLS_CLIENT_KEY_FILE=/etc/ssl/private/phoenix-client.key
+```
+
+### Disabling Password Authentication (LDAP-Only)
+
+To require all users to authenticate via LDAP and disable local password authentication:
+
+```bash
+export PHOENIX_DISABLE_BASIC_AUTH=true
+export PHOENIX_LDAP_HOST=ldap.corp.example.com
+export PHOENIX_LDAP_USER_SEARCH_BASE="OU=Users,DC=corp,DC=example,DC=com"
+# ... other LDAP settings
+```
+
+{% hint style="warning" %}
+**LDAP Security Best Practices:**
+* Always use TLS encryption (`PHOENIX_LDAP_USE_TLS=true`) in production
+* Always verify TLS certificates (`PHOENIX_LDAP_TLS_VERIFY=true`) in production
+* Store the bind password securely (e.g., Kubernetes Secrets, HashiCorp Vault)
+* Use a dedicated service account with minimal read-only permissions
+* Configure group role mappings to follow the principle of least privilege
+{% endhint %}
+
+{% hint style="info" %}
+**User Identity:**
+By default, Phoenix identifies LDAP users by their email address. If you expect user emails to change frequently (e.g., due to company rebranding or name changes), configure `PHOENIX_LDAP_ATTR_UNIQUE_ID` to use an immutable identifier like `objectGUID` (Active Directory) or `entryUUID` (OpenLDAP).
+{% endhint %}
+
 ## Advanced Authentication Configuration
 
 The following optional environment variables provide additional control over authentication behavior for advanced use cases:
