@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import random
 from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain, islice
@@ -39,7 +38,7 @@ from phoenix.server.api.evaluators import (
     get_prompt_versions_for_evaluators,
     run_evaluator,
 )
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -278,26 +277,6 @@ class ChatCompletionMutationMixin:
             session.add_all(experiment_runs)
             await session.flush()
 
-        evaluations: list[ExperimentRunAnnotation] = []
-        if input.evaluators:
-            async with info.context.db() as session:
-                for ii, evaluator in enumerate(input.evaluators):
-                    _, db_id = from_global_id(evaluator.id)
-                    evaluator_record = await session.get(models.Evaluator, db_id)
-                    if evaluator_record is None:
-                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
-                    evaluator_name = evaluator_record.name.root
-                    dummy_annotation = ExperimentRunAnnotation.from_dict(
-                        {
-                            "name": evaluator_name,
-                            "label": f"dummy {ii}",
-                            "score": random.random(),
-                            "explanation": "dummy evaluation",
-                            "metadata": {},
-                        }
-                    )
-                    evaluations.append(dummy_annotation)
-
         for (revision, repetition_number), experiment_run, result in zip(
             unbatched_items, experiment_runs, results
         ):
@@ -315,7 +294,7 @@ class ChatCompletionMutationMixin:
                     tool_calls=[],
                     span=None,
                     error_message=str(result),
-                    evaluations=evaluations,
+                    evaluations=[],  # No evaluations for error cases
                 )
                 if isinstance(result, BaseException)
                 else result[0],
