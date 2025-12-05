@@ -17,19 +17,7 @@ import {
   TextField,
 } from "@phoenix/components";
 import type { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
-
-type Choice = {
-  label: string;
-  score?: number;
-};
-
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-
-export type ChoiceConfig = {
-  name: string;
-  optimizationDirection: OptimizationDirection;
-  choices: Choice[];
-};
+import { EvaluatorOptimizationDirection } from "@phoenix/types";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -37,7 +25,7 @@ const optimizationDirections = [
   "MAXIMIZE",
   "MINIMIZE",
   "NONE",
-] satisfies OptimizationDirection[];
+] satisfies EvaluatorOptimizationDirection[];
 
 type EvaluatorLLMChoiceProps = {
   control: Control<EvaluatorFormValues, unknown>;
