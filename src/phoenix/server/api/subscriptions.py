@@ -37,16 +37,14 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     EvaluationResult,
-    apply_input_mapping,
     evaluation_result_to_model,
     evaluation_result_to_span_annotation,
     get_builtin_evaluator_by_id,
-    get_template_input_schema,
+    get_evaluators,
+    get_prompt_versions_for_evaluators,
+    run_evaluator,
 )
-from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.evaluators import (
-    validate_consistent_llm_evaluator_and_prompt_version,
-)
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -59,20 +57,12 @@ from phoenix.server.api.helpers.playground_spans import (
     streaming_llm_span,
 )
 from phoenix.server.api.helpers.playground_users import get_user
-from phoenix.server.api.helpers.prompts.models import (
-    PromptChatTemplate,
-    PromptTemplateFormat,
-    TextContentPart,
-    denormalize_tools,
-)
+from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
-    EvaluatorInputMappingInput,
-    PlaygroundEvaluatorInput,
-)
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
@@ -80,7 +70,6 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
     ChatCompletionSubscriptionResult,
     EvaluationChunk,
-    ToolCallChunk,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -109,182 +98,6 @@ GenericType = TypeVar("GenericType")
 logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
-
-
-async def _get_evaluators(
-    evaluator_inputs: list[PlaygroundEvaluatorInput],
-    db: DbSessionFactory,
-) -> list[models.LLMEvaluator]:
-    if not evaluator_inputs:
-        return []
-
-    evaluator_rowids = set()
-    for evaluator_input in evaluator_inputs:
-        type_name, db_id = from_global_id(evaluator_input.id)
-        if type_name != "LLMEvaluator":
-            logger.info(f"Skipping non-LLM evaluator: {evaluator_input.id}")
-            continue
-        evaluator_rowids.add(db_id)
-
-    async with db() as session:
-        evaluators: list[models.LLMEvaluator] = list(
-            await session.scalars(
-                select(models.LLMEvaluator).where(models.LLMEvaluator.id.in_(evaluator_rowids))
-            )
-        )
-    if len(evaluators) < len(evaluator_rowids):
-        missing_rowids = evaluator_rowids - set(evaluator.id for evaluator in evaluators)
-        raise NotFound(
-            f"Could not find all LLM evaluators with IDs {', '.join(map(_quote, missing_rowids))}"
-        )
-    return evaluators
-
-
-async def _get_prompt_versions_for_evaluators(
-    evaluators: list[models.LLMEvaluator],
-    db: DbSessionFactory,
-) -> dict[int, models.PromptVersion]:
-    """
-    Fetch the prompt version for each LLM evaluator.
-    Returns a dict mapping evaluator_id -> PromptVersion.
-    """
-    if not evaluators:
-        return {}
-
-    result: dict[int, models.PromptVersion] = {}
-    async with db() as session:
-        for evaluator in evaluators:
-            prompt_id = evaluator.prompt_id
-            prompt_version_tag_id = evaluator.prompt_version_tag_id
-
-            if prompt_version_tag_id is not None:
-                # Get the tagged version
-                stmt = (
-                    select(models.PromptVersion)
-                    .join(models.PromptVersionTag)
-                    .where(models.PromptVersionTag.prompt_id == prompt_id)
-                    .where(models.PromptVersionTag.id == prompt_version_tag_id)
-                )
-            else:
-                # Get the latest version
-                stmt = (
-                    select(models.PromptVersion)
-                    .where(models.PromptVersion.prompt_id == prompt_id)
-                    .order_by(models.PromptVersion.id.desc())
-                    .limit(1)
-                )
-
-            prompt_version = await session.scalar(stmt)
-            if prompt_version is None:
-                raise NotFound(f"Prompt version not found for evaluator {evaluator.id}")
-            result[evaluator.id] = prompt_version
-
-    return result
-
-
-async def run_evaluator(
-    *,
-    evaluator: models.LLMEvaluator,
-    prompt_version: models.PromptVersion,
-    context: dict[str, Any],
-    input_mapping: EvaluatorInputMappingInput,
-    llm_client: PlaygroundStreamingClient,
-) -> EvaluationResult:
-    try:
-        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
-    except ValueError as error:
-        raise BadRequest(str(error))
-
-    tools_obj = prompt_version.tools
-    assert tools_obj is not None
-    template = prompt_version.template
-    assert isinstance(template, PromptChatTemplate)
-    template_variables = apply_input_mapping(
-        input_schema=get_template_input_schema(prompt_version),
-        input_mapping=input_mapping,
-        context=context,
-    )
-    template_formatter = _template_formatter(prompt_version.template_format)
-    messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]] = []
-    for msg in template.messages:
-        role = _prompt_role_to_chat_role(msg.role)
-        if isinstance(msg.content, str):
-            formatted_content = template_formatter.format(msg.content, **template_variables)
-        else:
-            text_parts = []
-            for part in msg.content:
-                if isinstance(part, TextContentPart):
-                    formatted_text = template_formatter.format(part.text, **template_variables)
-                    text_parts.append(formatted_text)
-            formatted_content = "".join(text_parts)
-        messages.append((role, formatted_content, None, None))
-
-    # Convert PromptTools to provider-specific format for the LLM client
-    tool_definitions, _ = denormalize_tools(tools_obj, prompt_version.model_provider)
-
-    # Build invocation parameters, including tool_choice if specified
-    # invocation_params: dict[str, Any] = {}
-
-    # Make the LLM call - collect all chunks
-    tool_calls: dict[str, dict[str, str]] = {}  # id -> {name, arguments}
-    start_time = datetime.now(timezone.utc)
-    error_message: Optional[str] = None
-    async for chunk in llm_client.chat_completion_create(
-        messages=messages,
-        tools=tool_definitions,
-        # **invocation_params, # TODO: add invocation parameters
-    ):
-        if isinstance(chunk, ToolCallChunk):
-            if chunk.id not in tool_calls:
-                tool_calls[chunk.id] = {
-                    "name": chunk.function.name,
-                    "arguments": chunk.function.arguments,
-                }
-            else:
-                tool_calls[chunk.id]["arguments"] += chunk.function.arguments
-    end_time = datetime.now(timezone.utc)
-
-    # Find score and label
-    tool_call = next(iter(tool_calls.values()))
-    args = json.loads(tool_call["arguments"])
-    assert len(args) == 1
-    label = next(iter(args.values()))
-    output_config = evaluator.output_config
-    scores_by_label = {
-        config_value.label: config_value.score for config_value in output_config.values
-    }
-    score = scores_by_label.get(label)
-
-    return EvaluationResult(
-        name=evaluator.annotation_name,
-        annotator_kind="LLM",
-        label=label,
-        score=score,
-        explanation=None,
-        metadata={},
-        error=error_message,
-        trace_id=None,
-        start_time=start_time,
-        end_time=end_time,
-    )
-
-
-def _prompt_role_to_chat_role(role: str) -> ChatCompletionMessageRole:
-    role_lower = role.lower()
-    if role_lower in ("user",):
-        return ChatCompletionMessageRole.USER
-    if role_lower in ("system", "developer"):
-        return ChatCompletionMessageRole.SYSTEM
-    if role_lower in ("ai", "assistant", "model"):
-        return ChatCompletionMessageRole.AI
-    if role_lower in ("tool",):
-        return ChatCompletionMessageRole.TOOL
-    # Default to user
-    return ChatCompletionMessageRole.USER
-
-
-def _quote(string: Any) -> str:
-    return f'"{string}"'
 
 
 ChatCompletionMessage: TypeAlias = tuple[
@@ -471,11 +284,9 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        evaluators_list = await _get_evaluators(input.evaluators or [], info.context.db)
+        evaluators_list = await get_evaluators(input.evaluators or [], info.context.db)
         llm_evaluators = {e.id: e for e in evaluators_list}
-        prompt_versions = await _get_prompt_versions_for_evaluators(
-            evaluators_list, info.context.db
-        )
+        prompt_versions = await get_prompt_versions_for_evaluators(evaluators_list, info.context.db)
 
         llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         async with info.context.db() as session:
@@ -592,11 +403,9 @@ class Subscription:
     async def chat_completion_over_dataset(
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        evaluators_list = await _get_evaluators(input.evaluators, info.context.db)
+        evaluators_list = await get_evaluators(input.evaluators, info.context.db)
         llm_evaluators = {e.id: e for e in evaluators_list}
-        prompt_versions = await _get_prompt_versions_for_evaluators(
-            evaluators_list, info.context.db
-        )
+        prompt_versions = await get_prompt_versions_for_evaluators(evaluators_list, info.context.db)
 
         llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
