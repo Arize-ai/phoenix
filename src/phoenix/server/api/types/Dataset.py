@@ -615,6 +615,10 @@ class Dataset(Node):
                 if builtin_assigned_evaluator.builtin_evaluator_id in builtin_evaluators_ids:
                     data.append(
                         DatasetBuiltInEvaluator(
+                            # TODO: this is broken; if you have multiple builtin evaluators of the
+                            # same underlying type (e.g. two is_correct evaluators),
+                            # but with different names, the UI will get confused because they share
+                            # the same ID.
                             id=builtin_assigned_evaluator.builtin_evaluator_id,
                             dataset_id=self.id,
                             display_name=builtin_assigned_evaluator.display_name.root,

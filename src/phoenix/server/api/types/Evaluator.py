@@ -82,6 +82,10 @@ class Evaluator(Node):
     ) -> Optional[EvaluatorInputMapping]:
         raise NotImplementedError
 
+    @strawberry.field
+    async def is_builtin(self) -> bool:
+        return self.id < 0
+
 
 @strawberry.type
 class CodeEvaluator(Evaluator, Node):
