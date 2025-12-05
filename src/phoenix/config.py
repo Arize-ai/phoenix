@@ -1586,7 +1586,7 @@ class LDAPConfig:
     """
 
     # Server connection (RFC 4511)
-    host: str
+    hosts: tuple[str, ...]
     port: int = 389
     tls_mode: Literal["none", "starttls", "ldaps"] = "starttls"
     tls_verify: bool = True
@@ -1620,6 +1620,10 @@ class LDAPConfig:
     # Sign-up control
     allow_sign_up: bool = True
 
+    def __post_init__(self) -> None:
+        if not self.hosts:
+            raise ValueError(f"{ENV_PHOENIX_LDAP_HOST} must contain at least one host")
+
     @classmethod
     def from_env(cls) -> Optional["LDAPConfig"]:
         """Load LDAP config from environment variables.
@@ -1634,6 +1638,14 @@ class LDAPConfig:
         host = getenv(ENV_PHOENIX_LDAP_HOST)
         if not host:
             return None
+
+        # Normalize and validate host list (remove empty entries from trailing commas, etc.)
+        hosts = tuple(h.strip() for h in host.split(",") if h.strip())
+        if not hosts:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_HOST} must contain at least one non-empty host. "
+                "Example: 'ldap.example.com' or 'dc1.corp.com,dc2.corp.com'"
+            )
 
         # Parse and validate group role mappings
         mappings_json = getenv(ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, "[]")
@@ -1667,6 +1679,11 @@ class LDAPConfig:
             if "role" not in mapping:
                 raise ValueError(
                     f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}] missing required field 'role'"
+                )
+            if not isinstance(mapping["group_dn"], str) or not mapping["group_dn"].strip():
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}].group_dn "
+                    "must be a non-empty string"
                 )
             # Normalize to uppercase for case-insensitive comparison
             role_upper = mapping["role"].upper() if isinstance(mapping["role"], str) else ""
@@ -1731,7 +1748,7 @@ class LDAPConfig:
             )
 
         # Security warnings (log, don't fail)
-        tls_verify = getenv(ENV_PHOENIX_LDAP_TLS_VERIFY, "true").lower() == "true"
+        tls_verify = _bool_val(ENV_PHOENIX_LDAP_TLS_VERIFY, True)
         if tls_mode == "none":
             logger.warning(
                 f"{ENV_PHOENIX_LDAP_TLS_MODE}=none - credentials will be sent in plaintext! "
@@ -1775,8 +1792,7 @@ class LDAPConfig:
                 )
 
         # Parse allow_sign_up
-        allow_sign_up_str = getenv(ENV_PHOENIX_LDAP_ALLOW_SIGN_UP, "true")
-        allow_sign_up = allow_sign_up_str.lower() in ("true", "1", "yes")
+        allow_sign_up = _bool_val(ENV_PHOENIX_LDAP_ALLOW_SIGN_UP, True)
 
         # Determine default port based on TLS mode (if not explicitly set)
         # STARTTLS: port 389 (plaintext, then upgrade)
@@ -1841,7 +1857,7 @@ class LDAPConfig:
                 )
 
         return cls(
-            host=host,
+            hosts=hosts,
             port=port,
             tls_mode=tls_mode,
             tls_verify=tls_verify,

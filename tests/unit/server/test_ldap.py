@@ -61,7 +61,7 @@ class TestLDAPSecurityValidation:
     def config(self) -> LDAPConfig:
         """Minimal LDAP configuration for testing."""
         return LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="none",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
@@ -113,7 +113,7 @@ class TestAuthenticationFlow:
     def config(self) -> LDAPConfig:
         """LDAP configuration for authentication tests."""
         return LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="none",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
@@ -227,7 +227,7 @@ class TestAuthenticationFlow:
     ) -> None:
         """User without configured unique_id attribute must be rejected."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="none",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
@@ -276,7 +276,7 @@ class TestAuthenticationFlow:
     async def test_no_matching_role_rejected(self) -> None:
         """User with no matching group-role mapping must be rejected."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="none",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
@@ -359,7 +359,7 @@ class TestAuthenticationFlow:
     async def test_successful_authentication_with_unique_id(self) -> None:
         """Successful auth with unique_id configured returns complete LDAPUserInfo."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="none",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
@@ -446,7 +446,7 @@ class TestTimingAttackMitigation:
     def config(self) -> LDAPConfig:
         """LDAP configuration for timing tests."""
         return LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="none",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
@@ -494,7 +494,7 @@ class TestMultipleSearchBases:
     async def test_user_found_in_second_search_base(self) -> None:
         """User in second search base should be found after first base returns empty."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="none",
             user_search_base_dns=(
@@ -556,7 +556,7 @@ class TestMultipleSearchBases:
     async def test_user_found_in_first_search_base_stops_search(self) -> None:
         """User found in first search base should not search remaining bases."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="none",
             user_search_base_dns=(
@@ -617,7 +617,7 @@ class TestRoleMapping:
     def authenticator(self) -> LDAPAuthenticator:
         """Create authenticator with role mappings."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -661,7 +661,7 @@ class TestRoleMapping:
         """Test that config order (not user group order) determines role."""
         # Config has MEMBER before ADMIN
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -685,7 +685,7 @@ class TestRoleMapping:
     def test_dn_normalization_matching(self) -> None:
         """Group matching should handle spacing/order differences via canonicalization."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -706,7 +706,7 @@ class TestRoleMapping:
     def test_no_groups_no_wildcard(self) -> None:
         """Test user with no matching groups is denied when no wildcard."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -765,7 +765,7 @@ class TestExceptionSanitization:
     def config(self) -> LDAPConfig:
         """Create test config."""
         return LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1093,7 +1093,7 @@ class TestGetUserGroups:
     def test_ad_mode_returns_member_of_attribute(self) -> None:
         """AD mode: returns groups from memberOf attribute."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1125,7 +1125,7 @@ class TestGetUserGroups:
     def test_ad_mode_empty_member_of(self) -> None:
         """AD mode: returns empty list when memberOf is empty."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1146,7 +1146,7 @@ class TestGetUserGroups:
     def test_ad_mode_missing_member_of(self) -> None:
         """AD mode: returns empty list when memberOf attribute is missing."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1167,7 +1167,7 @@ class TestGetUserGroups:
     def test_posix_mode_searches_for_groups(self) -> None:
         """POSIX mode: searches group base DNs for membership."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1194,7 +1194,7 @@ class TestGetUserGroups:
     def test_posix_mode_no_groups_found(self) -> None:
         """POSIX mode: returns empty list when no groups found."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1217,7 +1217,7 @@ class TestGetUserGroups:
     def test_posix_mode_search_error_logged(self, caplog: LogCaptureFixture) -> None:
         """POSIX mode: logs warning on search error, returns empty list."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1241,7 +1241,7 @@ class TestGetUserGroups:
     def test_posix_mode_aggregates_from_multiple_bases(self) -> None:
         """POSIX mode: aggregates groups from multiple search bases."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1288,7 +1288,7 @@ class TestGetUserGroups:
     ) -> None:
         """POSIX mode: returns groups from successful searches even if some bases fail."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1330,7 +1330,7 @@ class TestGetUserGroups:
     def test_posix_mode_escapes_user_dn_in_filter(self) -> None:
         """SECURITY: User DN with special chars is escaped in group search filter."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1367,7 +1367,7 @@ class TestTLSConfiguration:
     def test_ldaps_mode_sets_use_ssl(self) -> None:
         """Test LDAPS mode enables use_ssl on Server."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=636,
             tls_mode="ldaps",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
@@ -1384,7 +1384,7 @@ class TestTLSConfiguration:
     def test_starttls_mode_no_use_ssl(self) -> None:
         """Test STARTTLS mode does NOT enable use_ssl."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="starttls",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
@@ -1401,7 +1401,7 @@ class TestTLSConfiguration:
     def test_plaintext_mode_no_tls_config(self) -> None:
         """Test plaintext mode has no TLS configuration."""
         config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="none",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
@@ -1423,7 +1423,7 @@ class TestMultiServerFailover:
     def test_multiple_servers_created(self) -> None:
         """Test multiple servers are created from comma-separated hosts."""
         config = LDAPConfig(
-            host="ldap1.example.com,ldap2.example.com,ldap3.example.com",
+            hosts=("ldap1.example.com", "ldap2.example.com", "ldap3.example.com"),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1439,7 +1439,7 @@ class TestMultiServerFailover:
     def test_whitespace_stripped_from_hosts(self) -> None:
         """Test whitespace is stripped from host entries."""
         config = LDAPConfig(
-            host="ldap1.example.com , ldap2.example.com  ,  ldap3.example.com",
+            hosts=("ldap1.example.com", "ldap2.example.com", "ldap3.example.com"),
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -1619,7 +1619,7 @@ class TestSocketLeakPrevention:
     def config(self) -> LDAPConfig:
         """Minimal LDAP configuration for testing."""
         return LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="starttls",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
@@ -1706,7 +1706,7 @@ class TestSocketLeakPrevention:
         """Anonymous bind must close socket when start_tls() fails."""
         # Remove bind credentials to force anonymous bind path
         authenticator.config = LDAPConfig(
-            host="ldap.example.com",
+            hosts=("ldap.example.com",),
             port=389,
             tls_mode="starttls",
             user_search_base_dns=("ou=users,dc=example,dc=com",),

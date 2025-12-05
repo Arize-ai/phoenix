@@ -326,8 +326,6 @@ class LDAPAuthenticator:
         Returns:
             list[Server]: Server objects for all configured hosts (supports failover).
         """
-        hosts = [h.strip() for h in self.config.host.split(",")]
-
         tls_config = None
         use_tls = self.config.tls_mode != "none"
         if use_tls:
@@ -348,7 +346,7 @@ class LDAPAuthenticator:
             tls_config = Tls(**tls_kwargs)
 
         servers = []
-        for host in hosts:
+        for host in self.config.hosts:
             server = Server(
                 host,
                 port=self.config.port,
@@ -887,6 +885,8 @@ class LDAPAuthenticator:
         """
         # Mode determined by group_search_filter presence
         if not self.config.group_search_filter:
+            if not self.config.attr_member_of:
+                return []
             # AD mode: Read memberOf attribute from user entry
             member_of = _get_attribute(user_entry, self.config.attr_member_of, multiple=True)
             return member_of if member_of else []
@@ -1019,8 +1019,9 @@ def _get_attribute(entry: Any, attr_name: str, multiple: bool = False) -> str | 
     Returns:
         Attribute value(s) or None if not present
     """
-    # getattr with default handles LDAPCursorAttributeError (inherits from AttributeError)
-    # if not attr: handles both None (missing) and empty attribute (len(values) == 0)
+    if not attr_name:
+        return None
+
     attr = getattr(entry, attr_name, None)
     if attr is None:
         return None
@@ -1082,8 +1083,9 @@ def _get_unique_id(entry: Any, attr_name: str) -> str | None:
         String representation of the unique ID (lowercase UUID format),
         or None if not present or empty
     """  # noqa: E501
-    # getattr with default handles LDAPCursorAttributeError (inherits from AttributeError)
-    # if not attr: handles both None (missing) and empty attribute (len(values) == 0)
+    if not attr_name:
+        return None
+
     attr = getattr(entry, attr_name, None)
     if attr is None:
         return None

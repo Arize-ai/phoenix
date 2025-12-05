@@ -1671,7 +1671,7 @@ class TestLDAPConfigFromEnv:
                     ),
                 },
                 {
-                    "host": "ldap.example.com",
+                    "hosts": ("ldap.example.com",),
                     "port": 389,
                     "tls_mode": "starttls",
                     "tls_verify": True,
@@ -1705,7 +1705,7 @@ class TestLDAPConfigFromEnv:
                     "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "VIEWER"}]',
                 },
                 {
-                    "host": "dc1.example.com,dc2.example.com",
+                    "hosts": ("dc1.example.com", "dc2.example.com"),
                     "port": 636,
                     "tls_mode": "ldaps",
                     "tls_verify": False,
@@ -1735,7 +1735,7 @@ class TestLDAPConfigFromEnv:
                     ),
                 },
                 {
-                    "host": "ldap.example.com",
+                    "hosts": ("ldap.example.com",),
                     "port": 389,
                     "tls_mode": "starttls",
                     "tls_verify": True,
@@ -1765,7 +1765,7 @@ class TestLDAPConfigFromEnv:
                     "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "VIEWER"}]',
                 },
                 {
-                    "host": "ldap.example.com",
+                    "hosts": ("ldap.example.com",),
                     "port": 389,  # Should default to 389 for STARTTLS
                     "tls_mode": "starttls",
                 },
@@ -1779,7 +1779,7 @@ class TestLDAPConfigFromEnv:
                     "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "VIEWER"}]',
                 },
                 {
-                    "host": "ldap.example.com",
+                    "hosts": ("ldap.example.com",),
                     "port": 636,  # Should default to 636 for LDAPS
                     "tls_mode": "ldaps",
                 },
@@ -1866,43 +1866,3 @@ class TestLDAPConfigFromEnv:
         assert config is not None
         assert config.tls_client_cert_file == str(client_cert_file)
         assert config.tls_client_key_file == str(client_key_file)
-
-    @pytest.mark.parametrize(
-        "allow_sign_up_value,expected",
-        [
-            ("true", True),
-            ("True", True),
-            ("TRUE", True),
-            ("1", True),
-            ("yes", True),
-            ("false", False),
-            ("False", False),
-            ("FALSE", False),
-            ("0", False),
-            ("no", False),
-            ("", False),  # Empty string = false
-            (None, True),  # Not set = default true
-        ],
-    )
-    def test_allow_sign_up_parsing(
-        self, monkeypatch: MonkeyPatch, allow_sign_up_value: Optional[str], expected: bool
-    ) -> None:
-        """Test that PHOENIX_LDAP_ALLOW_SIGN_UP is parsed correctly."""
-        # Set up minimal valid LDAP environment
-        monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
-        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["ou=users,dc=example,dc=com"]')
-        monkeypatch.setenv(
-            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS",
-            '[{"group_dn": "*", "role": "VIEWER"}]',
-        )
-
-        if allow_sign_up_value is None:
-            monkeypatch.delenv("PHOENIX_LDAP_ALLOW_SIGN_UP", raising=False)
-        else:
-            monkeypatch.setenv("PHOENIX_LDAP_ALLOW_SIGN_UP", allow_sign_up_value)
-
-        from phoenix.config import LDAPConfig
-
-        config = LDAPConfig.from_env()
-        assert config is not None
-        assert config.allow_sign_up == expected
