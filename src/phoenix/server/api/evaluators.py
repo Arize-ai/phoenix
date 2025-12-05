@@ -55,15 +55,19 @@ class LLMEvaluator:
         self._llm_evaluator_orm = llm_evaluator_orm
         self._prompt_version_orm = prompt_version_orm
 
+    @property
     def name(self) -> str:
         return self._llm_evaluator_orm.name.root
 
+    @property
     def description(self) -> Optional[str]:
         return self._llm_evaluator_orm.description
 
+    @property
     def metadata(self) -> dict[str, Any]:
         return self._llm_evaluator_orm.metadata_
 
+    @property
     def input_schema(self) -> dict[str, Any]:
         """
         Extract the input schema (JSON Schema) from the prompt version's template.
@@ -124,7 +128,7 @@ class LLMEvaluator:
         assert isinstance(template, PromptChatTemplate)
 
         template_variables = apply_input_mapping(
-            input_schema=self.input_schema(),
+            input_schema=self.input_schema,
             input_mapping=input_mapping,
             context=context,
         )
