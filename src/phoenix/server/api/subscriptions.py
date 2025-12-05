@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from collections import deque
 from collections.abc import AsyncIterator, Iterator
@@ -36,11 +37,16 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     EvaluationResult,
+    apply_input_mapping,
     evaluation_result_to_model,
     evaluation_result_to_span_annotation,
     get_builtin_evaluator_by_id,
+    get_template_input_schema,
 )
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.evaluators import (
+    validate_consistent_llm_evaluator_and_prompt_version,
+)
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -53,7 +59,12 @@ from phoenix.server.api.helpers.playground_spans import (
     streaming_llm_span,
 )
 from phoenix.server.api.helpers.playground_users import get_user
-from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+from phoenix.server.api.helpers.prompts.models import (
+    PromptChatTemplate,
+    PromptTemplateFormat,
+    TextContentPart,
+    denormalize_tools,
+)
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -69,6 +80,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
     ChatCompletionSubscriptionResult,
     EvaluationChunk,
+    ToolCallChunk,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -83,6 +95,7 @@ from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
@@ -175,26 +188,100 @@ async def run_evaluator(
     prompt_version: models.PromptVersion,
     context: dict[str, Any],
     input_mapping: EvaluatorInputMappingInput,
-    info: Info[Context, None],
+    llm_client: PlaygroundStreamingClient,
 ) -> EvaluationResult:
-    """
-    Execute an LLM evaluator and return the result.
+    try:
+        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
+    except ValueError as error:
+        raise BadRequest(str(error))
 
-    TODO: Implement actual LLM evaluation. Currently returns a dummy result.
-    """
-    now = datetime.now(timezone.utc)
+    tools_obj = prompt_version.tools
+    assert tools_obj is not None
+    template = prompt_version.template
+    assert isinstance(template, PromptChatTemplate)
+    template_variables = apply_input_mapping(
+        input_schema=get_template_input_schema(prompt_version),
+        input_mapping=input_mapping,
+        context=context,
+    )
+    template_formatter = _template_formatter(prompt_version.template_format)
+    messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]] = []
+    for msg in template.messages:
+        role = _prompt_role_to_chat_role(msg.role)
+        if isinstance(msg.content, str):
+            formatted_content = template_formatter.format(msg.content, **template_variables)
+        else:
+            text_parts = []
+            for part in msg.content:
+                if isinstance(part, TextContentPart):
+                    formatted_text = template_formatter.format(part.text, **template_variables)
+                    text_parts.append(formatted_text)
+            formatted_content = "".join(text_parts)
+        messages.append((role, formatted_content, None, None))
+
+    # Convert PromptTools to provider-specific format for the LLM client
+    tool_definitions, _ = denormalize_tools(tools_obj, prompt_version.model_provider)
+
+    # Build invocation parameters, including tool_choice if specified
+    # invocation_params: dict[str, Any] = {}
+
+    # Make the LLM call - collect all chunks
+    tool_calls: dict[str, dict[str, str]] = {}  # id -> {name, arguments}
+    start_time = datetime.now(timezone.utc)
+    error_message: Optional[str] = None
+    async for chunk in llm_client.chat_completion_create(
+        messages=messages,
+        tools=tool_definitions,
+        # **invocation_params, # TODO: add invocation parameters
+    ):
+        if isinstance(chunk, ToolCallChunk):
+            if chunk.id not in tool_calls:
+                tool_calls[chunk.id] = {
+                    "name": chunk.function.name,
+                    "arguments": chunk.function.arguments,
+                }
+            else:
+                tool_calls[chunk.id]["arguments"] += chunk.function.arguments
+    end_time = datetime.now(timezone.utc)
+
+    # Find score and label
+    tool_call = next(iter(tool_calls.values()))
+    args = json.loads(tool_call["arguments"])
+    assert len(args) == 1
+    label = next(iter(args.values()))
+    output_config = evaluator.output_config
+    scores_by_label = {
+        config_value.label: config_value.score for config_value in output_config.values
+    }
+    score = scores_by_label.get(label)
+
     return EvaluationResult(
         name=evaluator.annotation_name,
         annotator_kind="LLM",
-        label="dummy_label",
-        score=0.5,
-        explanation="Dummy evaluation - not yet implemented",
+        label=label,
+        score=score,
+        explanation=None,
         metadata={},
-        error=None,
+        error=error_message,
         trace_id=None,
-        start_time=now,
-        end_time=now,
+        start_time=start_time,
+        end_time=end_time,
     )
+
+
+def _prompt_role_to_chat_role(role: str) -> ChatCompletionMessageRole:
+    """Convert a prompt role string to ChatCompletionMessageRole."""
+    role_lower = role.lower()
+    if role_lower in ("user",):
+        return ChatCompletionMessageRole.USER
+    if role_lower in ("system", "developer"):
+        return ChatCompletionMessageRole.SYSTEM
+    if role_lower in ("ai", "assistant", "model"):
+        return ChatCompletionMessageRole.AI
+    if role_lower in ("tool",):
+        return ChatCompletionMessageRole.TOOL
+    # Default to user
+    return ChatCompletionMessageRole.USER
 
 
 def _quote(string: Any) -> str:
@@ -269,9 +356,8 @@ async def _stream_single_chat_completion(
 
     if input.evaluators:
         context_dict: dict[str, Any] = {
-            "input": [message.content for message in input.messages],
-            "expected": None,
-            "output": span.attributes.get(LLM_OUTPUT_MESSAGES),
+            "input": json.dumps(get_attribute_value(span.attributes, LLM_INPUT_MESSAGES)),
+            "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),
         }
         async with info.context.db() as session:
             for ii, evaluator in enumerate[PlaygroundEvaluatorInput](input.evaluators):
@@ -311,7 +397,7 @@ async def _stream_single_chat_completion(
                         prompt_version=prompt_version,
                         context=context_dict,
                         input_mapping=evaluator.input_mapping,
-                        info=info,
+                        llm_client=llm_client,
                     )
                     annotation = ExperimentRunAnnotation.from_dict(
                         {
@@ -760,7 +846,7 @@ class Subscription:
                                     prompt_version=prompt_version,
                                     context=context_dict,
                                     input_mapping=evaluator.input_mapping,
-                                    info=info,
+                                    llm_client=llm_client,
                                 )
                                 annotation_model = evaluation_result_to_model(
                                     result,
@@ -1014,6 +1100,7 @@ def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> st
     return name
 
 
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT

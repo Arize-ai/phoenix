@@ -5,10 +5,21 @@ from typing import Any, Optional, TypeVar
 
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
-from typing_extensions import TypedDict
+from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
+from phoenix.server.api.helpers.prompts.models import (
+    PromptChatTemplate,
+    PromptTemplateFormat,
+    TextContentPart,
+)
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.utilities.template_formatters import (
+    FStringTemplateFormatter,
+    MustacheTemplateFormatter,
+    NoOpFormatter,
+    TemplateFormatter,
+)
 
 
 class EvaluationResult(TypedDict):
@@ -69,6 +80,56 @@ def get_builtin_evaluator_ids() -> list[int]:
 
 def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvaluator]]:
     return _BUILTIN_EVALUATORS_BY_ID.get(evaluator_id)
+
+
+def _get_template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
+    if template_format is PromptTemplateFormat.MUSTACHE:
+        return MustacheTemplateFormatter()
+    if template_format is PromptTemplateFormat.F_STRING:
+        return FStringTemplateFormatter()
+    if template_format is PromptTemplateFormat.NONE:
+        return NoOpFormatter()
+    assert_never(template_format)
+
+
+def get_template_input_schema(
+    prompt_version: models.PromptVersion,
+) -> dict[str, Any]:
+    """
+    Extract the input schema (JSON Schema) from a prompt version's template.
+
+    This parses the template messages to find all template variables (e.g., {{input}}, {output})
+    and returns a JSON Schema with those variables as required string properties.
+
+    Args:
+        prompt_version: The prompt version containing the template
+
+    Returns:
+        A JSON Schema dict with template variables as properties
+    """
+    template = prompt_version.template
+    if not isinstance(template, PromptChatTemplate):
+        raise ValueError("Only PromptChatTemplate is currently supported for LLM evaluators")
+
+    formatter = _get_template_formatter(prompt_version.template_format)
+    variables: set[str] = set()
+
+    for msg in template.messages:
+        if isinstance(msg.content, str):
+            variables.update(formatter.parse(msg.content))
+        elif isinstance(msg.content, list):
+            for part in msg.content:
+                if isinstance(part, TextContentPart):
+                    variables.update(formatter.parse(part.text))
+        else:
+            assert_never(msg.content)
+
+    properties = {var: {"type": "string"} for var in variables}
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": list(variables),
+    }
 
 
 def apply_input_mapping(
