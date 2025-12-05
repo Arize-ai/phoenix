@@ -226,6 +226,7 @@ interface ApiKey {
 input AssignEvaluatorToDatasetInput {
   datasetId: ID!
   evaluatorId: ID!
+  displayName: Identifier = null
   inputMapping: EvaluatorInputMappingInput = null
 }
 
@@ -319,8 +320,7 @@ type BuiltInEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset(datasetId: ID = null): Boolean!
-  datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  datasetInputMapping: EvaluatorInputMapping
   user: User
 }
 
@@ -538,8 +538,7 @@ type CodeEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset(datasetId: ID = null): Boolean!
-  datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  datasetInputMapping: EvaluatorInputMapping
   user: User
 }
 
@@ -623,6 +622,15 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreateDatasetLLMEvaluatorInput {
+  datasetId: ID!
+  name: Identifier!
+  description: String
+  promptVersion: ChatPromptVersionInput!
+  outputConfig: CategoricalAnnotationConfigInput!
+  inputMapping: EvaluatorInputMappingInput = null
+}
+
 input CreateDatasetLabelInput {
   name: String!
   description: String
@@ -660,14 +668,6 @@ input CreateGenerativeModelCustomProviderMutationInput {
 type CreateGenerativeModelCustomProviderMutationPayload {
   provider: GenerativeModelCustomProvider!
   query: Query!
-}
-
-input CreateLLMEvaluatorInput {
-  datasetId: ID
-  name: Identifier!
-  description: String
-  promptVersion: ChatPromptVersionInput!
-  outputConfig: CategoricalAnnotationConfigInput!
 }
 
 input CreateModelMutationInput {
@@ -821,8 +821,39 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
+  evaluator(evaluatorId: ID!, displayName: Identifier!): Evaluator!
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
   lastUpdatedAt: DateTime
+}
+
+type DatasetBuiltInEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  inputSchema: JSON
+  datasetInputMapping: EvaluatorInputMapping
+  user: User
+  displayName: Identifier!
+}
+
+type DatasetCodeEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  inputSchema: JSON
+  datasetInputMapping: EvaluatorInputMapping
+  user: User
+  displayName: Identifier!
 }
 
 enum DatasetColumn {
@@ -914,6 +945,30 @@ input DatasetFilter {
 
 enum DatasetFilterColumn {
   name
+}
+
+type DatasetLLMEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  inputSchema: JSON
+  datasetInputMapping: EvaluatorInputMapping
+  outputConfig: CategoricalAnnotationConfig!
+  prompt: Prompt!
+  promptVersionTag: PromptVersionTag
+  user: User
+  promptVersion: PromptVersion!
+  displayName: Identifier!
+}
+
+type DatasetLLMEvaluatorMutationPayload {
+  evaluator: DatasetLLMEvaluator!
+  query: Query!
 }
 
 type DatasetLabel implements Node {
@@ -1477,8 +1532,7 @@ interface Evaluator implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset(datasetId: ID = null): Boolean!
-  datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  datasetInputMapping: EvaluatorInputMapping
 }
 
 enum EvaluatorColumn {
@@ -2346,18 +2400,12 @@ type LLMEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  isAssignedToDataset(datasetId: ID = null): Boolean!
-  datasetInputMapping(datasetId: ID = null): EvaluatorInputMapping
+  datasetInputMapping: EvaluatorInputMapping
   outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   user: User
   promptVersion: PromptVersion!
-}
-
-type LLMEvaluatorMutationPayload {
-  evaluator: LLMEvaluator!
-  query: Query!
 }
 
 type LabelFraction {
@@ -2427,8 +2475,8 @@ type Mutation {
   setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
-  createLlmEvaluator(input: CreateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
-  updateLlmEvaluator(input: UpdateLLMEvaluatorInput!): LLMEvaluatorMutationPayload!
+  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetLLMEvaluatorMutationPayload!
+  updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetLLMEvaluatorMutationPayload!
   deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
   assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
   unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!
@@ -3981,6 +4029,7 @@ type UMAPPoints {
 input UnassignEvaluatorFromDatasetInput {
   datasetId: ID!
   evaluatorId: ID!
+  displayName: Identifier!
 }
 
 type UnparsableConfig {
@@ -4017,12 +4066,15 @@ input UpdateAnnotationInput {
   source: AnnotationSource! = APP
 }
 
-input UpdateLLMEvaluatorInput {
+input UpdateDatasetLLMEvaluatorInput {
   evaluatorId: ID!
+  datasetId: ID!
+  originalDisplayName: Identifier!
   name: Identifier!
   description: String = null
   promptVersion: ChatPromptVersionInput!
   outputConfig: CategoricalAnnotationConfigInput!
+  inputMapping: EvaluatorInputMappingInput = null
 }
 
 input UpdateModelMutationInput {

@@ -53,7 +53,10 @@ export type EvaluatorParams = {
  * If a value is left empty, the key will be set to the value of the upstream data.
  *
  */
-export type EvaluatorInputMapping = Record<string, string>;
+export type EvaluatorInputMapping = {
+  literalMapping: Record<string, string>;
+  pathMapping: Record<string, string>;
+};
 
 /**
  * The direction to optimize the numeric evaluation score
