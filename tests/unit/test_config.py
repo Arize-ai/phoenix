@@ -1555,7 +1555,7 @@ class TestLDAPConfigFromEnv:
                     "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
                     "PHOENIX_LDAP_TLS_MODE": "invalid",
                 },
-                "must be 'starttls' or 'ldaps'",
+                "must be 'none', 'starttls', or 'ldaps'",
                 id="invalid_tls_mode",
             ),
             pytest.param(
@@ -1672,7 +1672,6 @@ class TestLDAPConfigFromEnv:
                 {
                     "host": "ldap.example.com",
                     "port": 389,
-                    "use_tls": True,
                     "tls_mode": "starttls",
                     "tls_verify": True,
                     "bind_dn": None,
@@ -1707,7 +1706,6 @@ class TestLDAPConfigFromEnv:
                 {
                     "host": "dc1.example.com,dc2.example.com",
                     "port": 636,
-                    "use_tls": True,
                     "tls_mode": "ldaps",
                     "tls_verify": False,
                     "bind_dn": "cn=admin,dc=example,dc=com",
@@ -1738,7 +1736,6 @@ class TestLDAPConfigFromEnv:
                 {
                     "host": "ldap.example.com",
                     "port": 389,
-                    "use_tls": True,
                     "tls_mode": "starttls",
                     "tls_verify": True,
                     "bind_dn": None,
@@ -1769,7 +1766,6 @@ class TestLDAPConfigFromEnv:
                 {
                     "host": "ldap.example.com",
                     "port": 389,  # Should default to 389 for STARTTLS
-                    "use_tls": True,
                     "tls_mode": "starttls",
                 },
                 id="starttls_defaults_to_port_389",
@@ -1784,7 +1780,6 @@ class TestLDAPConfigFromEnv:
                 {
                     "host": "ldap.example.com",
                     "port": 636,  # Should default to 636 for LDAPS
-                    "use_tls": True,
                     "tls_mode": "ldaps",
                 },
                 id="ldaps_defaults_to_port_636",

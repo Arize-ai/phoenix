@@ -221,24 +221,21 @@ class LDAPAuthenticator:
         """Create ldap3 Server objects for all configured hosts.
 
         TLS Configuration Modes:
-            Phoenix supports three LDAP connection modes:
+            Phoenix supports three LDAP connection modes via tls_mode:
 
-            1. LDAPS (TLS from start, port 636):
-                - use_tls=True, tls_mode="ldaps"
+            1. LDAPS (tls_mode="ldaps", port 636):
                 - Server: use_ssl=True, tls=<Tls config>
                 - TLS established at TCP connection layer (like HTTPS)
                 - Bind credentials encrypted from the start
                 - No start_tls() call needed
 
-            2. STARTTLS (upgrade from plaintext, port 389):
-                - use_tls=True, tls_mode="starttls"
+            2. STARTTLS (tls_mode="starttls", port 389):
                 - Server: use_ssl=False, tls=<Tls config>
                 - Connection starts plaintext, upgraded to TLS via start_tls()
                 - Bind credentials encrypted ONLY after start_tls() completes
                 - CRITICAL: Must call start_tls() before bind (see _establish_connection)
 
-            3. Plaintext (no encryption, testing only):
-                - use_tls=False
+            3. Plaintext (tls_mode="none", testing only):
                 - Server: use_ssl=False, tls=None
                 - All data transmitted unencrypted
                 - NOT recommended for production
@@ -259,7 +256,8 @@ class LDAPAuthenticator:
         hosts = [h.strip() for h in self.config.host.split(",")]
 
         tls_config = None
-        if self.config.use_tls:
+        use_tls = self.config.tls_mode != "none"
+        if use_tls:
             # Configure TLS with certificate validation and optional advanced settings
             tls_kwargs: dict[str, Any] = {
                 "validate": ssl.CERT_REQUIRED if self.config.tls_verify else ssl.CERT_NONE
@@ -281,7 +279,7 @@ class LDAPAuthenticator:
             server = Server(
                 host,
                 port=self.config.port,
-                use_ssl=(self.config.use_tls and self.config.tls_mode == "ldaps"),
+                use_ssl=(self.config.tls_mode == "ldaps"),
                 tls=tls_config,
                 connect_timeout=10,
                 get_info=NONE,  # Don't fetch schema/DSA info we don't use
@@ -294,7 +292,7 @@ class LDAPAuthenticator:
         """Establish a connection to the LDAP server.
 
         Connection Flow by TLS Mode:
-            STARTTLS Mode (use_tls=True, tls_mode="starttls"):
+            STARTTLS Mode (tls_mode="starttls"):
                 1. Open plaintext TCP connection (port 389)
                 2. Send Extended Request to upgrade to TLS
                 3. Perform TLS handshake
@@ -303,13 +301,13 @@ class LDAPAuthenticator:
                 Implementation: Use AUTO_BIND_TLS_BEFORE_BIND to ensure step 2-3
                 happen before step 4.
 
-            LDAPS Mode (use_tls=True, tls_mode="ldaps"):
+            LDAPS Mode (tls_mode="ldaps"):
                 1. Establish TLS connection (port 636)
                 2. Send bind credentials (already encrypted)
 
                 Implementation: Use AUTO_BIND_NO_TLS (TLS already active from Server)
 
-            Plaintext Mode (use_tls=False):
+            Plaintext Mode (tls_mode="none"):
                 1. Open plaintext TCP connection (port 389)
                 2. Send bind credentials (unencrypted)
 
@@ -340,11 +338,11 @@ class LDAPAuthenticator:
         # Determine auto_bind mode based on TLS configuration
         # CRITICAL: Must use AUTO_BIND_TLS_BEFORE_BIND for STARTTLS to encrypt passwords
         auto_bind_mode: Literal["DEFAULT", "NONE", "NO_TLS", "TLS_BEFORE_BIND", "TLS_AFTER_BIND"]
-        if self.config.use_tls and self.config.tls_mode == "starttls":
+        if self.config.tls_mode == "starttls":
             auto_bind_mode = AUTO_BIND_TLS_BEFORE_BIND
         else:
             # LDAPS: TLS already active via use_ssl=True on Server, bind normally
-            # Plaintext: No TLS, bind normally
+            # Plaintext (none): No TLS, bind normally
             auto_bind_mode = AUTO_BIND_NO_TLS
 
         if self.config.bind_dn and self.config.bind_password:
@@ -411,7 +409,7 @@ class LDAPAuthenticator:
             conn.open()
 
             # Upgrade to TLS for STARTTLS mode before any bind operations
-            if self.config.use_tls and self.config.tls_mode == "starttls":
+            if self.config.tls_mode == "starttls":
                 conn.start_tls()
 
             return conn
@@ -769,7 +767,7 @@ class LDAPAuthenticator:
         try:
             user_conn.open()
             # CRITICAL: Upgrade to TLS BEFORE sending password for STARTTLS mode
-            if self.config.use_tls and self.config.tls_mode == "starttls":
+            if self.config.tls_mode == "starttls":
                 user_conn.start_tls()
             user_conn.bind()
             return user_conn.bound

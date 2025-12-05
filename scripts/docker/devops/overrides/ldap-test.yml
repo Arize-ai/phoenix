@@ -183,7 +183,6 @@ services:
       # STARTTLS Configuration (via MITM proxy for TLS verification)
       - PHOENIX_LDAP_HOST=ldap-mitm-proxy
       - PHOENIX_LDAP_PORT=3389  # Connect through MITM proxy
-      - PHOENIX_LDAP_USE_TLS=true
       - PHOENIX_LDAP_TLS_MODE=starttls
       - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
       - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
@@ -225,7 +224,6 @@ services:
       # LDAPS Configuration (port 636, TLS from start)
       - PHOENIX_LDAP_HOST=ldap
       # PHOENIX_LDAP_PORT omitted - tests port defaulting (should default to 636 for LDAPS)
-      - PHOENIX_LDAP_USE_TLS=true
       - PHOENIX_LDAP_TLS_MODE=ldaps
       - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
       - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
@@ -265,7 +263,6 @@ services:
       # Uses ldap-anonymous which has ACLs configured for anonymous read access
       - PHOENIX_LDAP_HOST=ldap-anonymous
       - PHOENIX_LDAP_PORT=636
-      - PHOENIX_LDAP_USE_TLS=true
       - PHOENIX_LDAP_TLS_MODE=ldaps
       - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
       # NO PHOENIX_LDAP_BIND_DN - anonymous bind
@@ -306,7 +303,6 @@ services:
       # Anonymous bind via STARTTLS through MITM proxy (no BIND_DN or BIND_PASSWORD)
       - PHOENIX_LDAP_HOST=ldap-anonymous-mitm-proxy
       - PHOENIX_LDAP_PORT=3389  # Connect through MITM proxy
-      - PHOENIX_LDAP_USE_TLS=true
       - PHOENIX_LDAP_TLS_MODE=starttls
       - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
       # NO PHOENIX_LDAP_BIND_DN - anonymous bind

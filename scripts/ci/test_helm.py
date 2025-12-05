@@ -871,7 +871,6 @@ class LDAPValidators:
     def ldap_server_config(
         host: str,
         port: Optional[str] = None,
-        use_tls: bool = True,
         tls_mode: str = "starttls",
         tls_verify: bool = True,
     ) -> Validator:
@@ -887,8 +886,6 @@ class LDAPValidators:
             if data.get("PHOENIX_LDAP_HOST") != host:
                 return False
             if port is not None and data.get("PHOENIX_LDAP_PORT") != port:
-                return False
-            if data.get("PHOENIX_LDAP_USE_TLS") != str(use_tls).lower():
                 return False
             if data.get("PHOENIX_LDAP_TLS_MODE") != tls_mode:
                 return False
@@ -1056,7 +1053,6 @@ class LDAPValidators:
         user_search_base_dns: list[str],
         user_search_filter: str = "(&(objectClass=user)(sAMAccountName=%s))",
         port: Optional[str] = None,
-        use_tls: bool = True,
         tls_mode: str = "starttls",
         bind_dn: Optional[str] = None,
         has_bind_password: bool = False,
@@ -1084,8 +1080,6 @@ class LDAPValidators:
 
             # Optional fields
             if port is not None and data.get("PHOENIX_LDAP_PORT") != port:
-                return False
-            if data.get("PHOENIX_LDAP_USE_TLS") != str(use_tls).lower():
                 return False
             if data.get("PHOENIX_LDAP_TLS_MODE") != tls_mode:
                 return False
@@ -2404,7 +2398,6 @@ def get_test_suite() -> list[TestCase]:
                 LDAPValidators.ldap_server_config(
                     host="ldap.corp.com",
                     port="636",
-                    use_tls=True,
                     tls_mode="ldaps",
                 ),
             ),

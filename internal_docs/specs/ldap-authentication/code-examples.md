@@ -13,8 +13,7 @@ class LDAPConfig:
     # Server connection
     host: str
     port: int = 389
-    use_tls: bool = True
-    tls_mode: Literal["starttls", "ldaps"] = "starttls"
+    tls_mode: Literal["none", "starttls", "ldaps"] = "starttls"
     tls_verify: bool = True
     
     # Advanced TLS (optional, for enterprise)
@@ -115,14 +114,14 @@ class LDAPConfig:
             )
         
         # Security warnings (log, don't fail)
-        use_tls = os.getenv("PHOENIX_LDAP_USE_TLS", "true").lower() == "true"
+        tls_mode = os.getenv("PHOENIX_LDAP_TLS_MODE", "starttls").lower()
         tls_verify = os.getenv("PHOENIX_LDAP_TLS_VERIFY", "true").lower() == "true"
-        if not use_tls:
+        if tls_mode == "none":
             logger.warning(
-                "PHOENIX_LDAP_USE_TLS is false - credentials will be sent in plaintext! "
+                "PHOENIX_LDAP_TLS_MODE=none - credentials will be sent in plaintext! "
                 "This is insecure for production."
             )
-        if use_tls and not tls_verify:
+        if tls_mode != "none" and not tls_verify:
             logger.warning(
                 "PHOENIX_LDAP_TLS_VERIFY is false - certificates will not be validated! "
                 "This is insecure for production (vulnerable to MITM attacks)."
@@ -135,7 +134,6 @@ class LDAPConfig:
         return cls(
             host=host,
             port=int(os.getenv("PHOENIX_LDAP_PORT", "389")),
-            use_tls=use_tls,
             tls_mode=tls_mode,
             tls_verify=tls_verify,
             bind_dn=os.getenv("PHOENIX_LDAP_BIND_DN"),
@@ -174,7 +172,7 @@ class LDAPAuthenticator:
         hosts = [h.strip() for h in self.config.host.split(",")]
         
         tls_config = None
-        if self.config.use_tls:
+        if self.config.tls_mode != "none":
             tls_config = Tls(
                 validate=ssl.CERT_REQUIRED if self.config.tls_verify else ssl.CERT_NONE
             )

@@ -313,14 +313,12 @@ ENV_PHOENIX_LDAP_PORT = "PHOENIX_LDAP_PORT"
 """
 LDAP server port. Defaults to 389 for StartTLS, 636 for LDAPS.
 """
-ENV_PHOENIX_LDAP_USE_TLS = "PHOENIX_LDAP_USE_TLS"
-"""
-Use TLS for LDAP connections. Defaults to true. Should always be true in production.
-"""
 ENV_PHOENIX_LDAP_TLS_MODE = "PHOENIX_LDAP_TLS_MODE"
 """
-TLS connection mode: "starttls" (upgrade from plaintext on port 389) or "ldaps" (TLS from
-start on port 636).
+TLS connection mode. Defaults to "starttls". Options:
+  - "starttls": Upgrade from plaintext to TLS on port 389 (recommended)
+  - "ldaps": TLS from connection start on port 636
+  - "none": No encryption (testing only, credentials sent in plaintext)
 """
 ENV_PHOENIX_LDAP_TLS_VERIFY = "PHOENIX_LDAP_TLS_VERIFY"
 """
@@ -352,6 +350,8 @@ Example: "CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com"
 ENV_PHOENIX_LDAP_BIND_PASSWORD = "PHOENIX_LDAP_BIND_PASSWORD"
 """
 Service account password for binding to LDAP server.
+Required if BIND_DN is set. Should be stored securely (e.g., Kubernetes Secret,
+environment variable from secrets manager). Avoid hardcoding in configuration files.
 """
 ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS = "PHOENIX_LDAP_USER_SEARCH_BASE_DNS"
 """
@@ -1472,8 +1472,10 @@ class LDAPConfig:
     Server Connection (RFC 4511):
         host: LDAP server hostname/IP (required)
         port: LDAP server port (default: 389 for STARTTLS, 636 for LDAPS)
-        use_tls: Enable TLS encryption (RFC 4513 §3, default: True)
-        tls_mode: "starttls" or "ldaps" (default: "starttls")
+        tls_mode: TLS connection mode (default: "starttls")
+            - "starttls": Upgrade from plaintext to TLS on port 389 (recommended)
+            - "ldaps": TLS from connection start on port 636
+            - "none": No encryption (testing only, credentials sent in plaintext)
         tls_verify: Verify server certificate (default: True, disable only for testing)
 
     Advanced TLS Configuration (optional, for enterprise deployments):
@@ -1527,7 +1529,6 @@ class LDAPConfig:
     Active Directory:
         PHOENIX_LDAP_HOST=ldap.corp.example.com
         PHOENIX_LDAP_PORT=389
-        PHOENIX_LDAP_USE_TLS=true
         PHOENIX_LDAP_TLS_MODE=starttls
         PHOENIX_LDAP_BIND_DN=cn=service,ou=accounts,dc=corp,dc=example,dc=com
         PHOENIX_LDAP_BIND_PASSWORD=secret
@@ -1560,8 +1561,7 @@ class LDAPConfig:
     # Server connection (RFC 4511)
     host: str
     port: int = 389
-    use_tls: bool = True
-    tls_mode: Literal["starttls", "ldaps"] = "starttls"
+    tls_mode: Literal["none", "starttls", "ldaps"] = "starttls"
     tls_verify: bool = True
 
     # Advanced TLS configuration (optional, for enterprise deployments)
@@ -1662,11 +1662,12 @@ class LDAPConfig:
 
         # Validate TLS mode
         tls_mode_str = getenv(ENV_PHOENIX_LDAP_TLS_MODE, "starttls").lower()
-        if tls_mode_str not in ("starttls", "ldaps"):
+        if tls_mode_str not in ("none", "starttls", "ldaps"):
             raise ValueError(
-                f"{ENV_PHOENIX_LDAP_TLS_MODE} must be 'starttls' or 'ldaps'. Got: '{tls_mode_str}'"
+                f"{ENV_PHOENIX_LDAP_TLS_MODE} must be 'none', 'starttls', or 'ldaps'. "
+                f"Got: '{tls_mode_str}'"
             )
-        tls_mode = cast(Literal["starttls", "ldaps"], tls_mode_str)
+        tls_mode = cast(Literal["none", "starttls", "ldaps"], tls_mode_str)
 
         # Parse and validate group_search_base_dns (JSON array of base DNs, optional)
         attr_member_of = getenv(ENV_PHOENIX_LDAP_ATTR_MEMBER_OF, "memberOf")
@@ -1703,14 +1704,13 @@ class LDAPConfig:
             )
 
         # Security warnings (log, don't fail)
-        use_tls = getenv(ENV_PHOENIX_LDAP_USE_TLS, "true").lower() == "true"
         tls_verify = getenv(ENV_PHOENIX_LDAP_TLS_VERIFY, "true").lower() == "true"
-        if not use_tls:
+        if tls_mode == "none":
             logger.warning(
-                f"{ENV_PHOENIX_LDAP_USE_TLS} is false - credentials will be sent in plaintext! "
+                f"{ENV_PHOENIX_LDAP_TLS_MODE}=none - credentials will be sent in plaintext! "
                 "This is insecure for production."
             )
-        if use_tls and not tls_verify:
+        if tls_mode != "none" and not tls_verify:
             logger.warning(
                 f"{ENV_PHOENIX_LDAP_TLS_VERIFY} is false - certificates will not be validated! "
                 "This is insecure for production (vulnerable to MITM attacks)."
@@ -1816,7 +1816,6 @@ class LDAPConfig:
         return cls(
             host=host,
             port=port,
-            use_tls=use_tls,
             tls_mode=tls_mode,
             tls_verify=tls_verify,
             tls_ca_cert_file=tls_ca_cert_file,

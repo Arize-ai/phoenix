@@ -369,7 +369,7 @@ conn.bind()
 ```python
 def _establish_connection(self, server: Server) -> Connection:
     # Determine auto_bind mode based on TLS configuration
-    if self.config.use_tls and self.config.tls_mode == "starttls":
+    if self.config.tls_mode == "starttls":
         auto_bind_mode = AUTO_BIND_TLS_BEFORE_BIND
     else:
         auto_bind_mode = True  # AUTO_BIND_NO_TLS for LDAPS or plaintext
@@ -382,7 +382,7 @@ def _establish_connection(self, server: Server) -> Connection:
     # Anonymous bind case
     conn = Connection(server, auto_bind=False, raise_exceptions=True)
     conn.open()
-    if self.config.use_tls and self.config.tls_mode == "starttls":
+    if self.config.tls_mode == "starttls":
         conn.start_tls()
     return conn
 ```
@@ -395,7 +395,7 @@ def _verify_user_password(self, server: Server, user_dn: str, password: str) -> 
     try:
         user_conn.open()
         # CRITICAL: Upgrade to TLS BEFORE sending password
-        if self.config.use_tls and self.config.tls_mode == "starttls":
+        if self.config.tls_mode == "starttls":
             user_conn.start_tls()
         user_conn.bind()
         return user_conn.bound
@@ -487,21 +487,19 @@ Grafana v11.4 exhibits the same vulnerability despite having `start_tls = true` 
 
 **STARTTLS Mode** (port 389, upgrade to TLS):
 ```bash
-PHOENIX_LDAP_USE_TLS=true
 PHOENIX_LDAP_TLS_MODE=starttls
 PHOENIX_LDAP_PORT=389
 ```
 
 **LDAPS Mode** (port 636, TLS from start):
 ```bash
-PHOENIX_LDAP_USE_TLS=true
 PHOENIX_LDAP_TLS_MODE=ldaps
 PHOENIX_LDAP_PORT=636
 ```
 
 **No TLS** (plaintext - testing only):
 ```bash
-PHOENIX_LDAP_USE_TLS=false
+PHOENIX_LDAP_TLS_MODE=none
 PHOENIX_LDAP_PORT=389
 ```
 
@@ -509,14 +507,12 @@ PHOENIX_LDAP_PORT=389
 
 **Private CA Certificate** (for internal LDAP servers):
 ```bash
-PHOENIX_LDAP_USE_TLS=true
 PHOENIX_LDAP_TLS_MODE=ldaps
 PHOENIX_LDAP_TLS_CA_CERT_FILE=/etc/ssl/certs/internal-ca.pem
 ```
 
 **Mutual TLS (Client Certificate)** (for high-security environments):
 ```bash
-PHOENIX_LDAP_USE_TLS=true
 PHOENIX_LDAP_TLS_MODE=ldaps
 PHOENIX_LDAP_TLS_CLIENT_CERT_FILE=/etc/ssl/certs/phoenix-client.crt
 PHOENIX_LDAP_TLS_CLIENT_KEY_FILE=/etc/ssl/private/phoenix-client.key
@@ -527,7 +523,6 @@ PHOENIX_LDAP_TLS_CLIENT_KEY_FILE=/etc/ssl/private/phoenix-client.key
 # Server connection
 PHOENIX_LDAP_HOST=ldaps.corp.example.com
 PHOENIX_LDAP_PORT=636
-PHOENIX_LDAP_USE_TLS=true
 PHOENIX_LDAP_TLS_MODE=ldaps
 
 # TLS security (private CA + mutual TLS)
@@ -824,7 +819,6 @@ PHOENIX_LDAP_TLS_MODE=ldaps
 return cls(
     host=host,
     port=int(getenv(ENV_PHOENIX_LDAP_PORT, "389")),  # ❌ Always 389
-    use_tls=use_tls,
     tls_mode=tls_mode,
 ```
 
@@ -843,7 +837,6 @@ port = int(getenv(ENV_PHOENIX_LDAP_PORT, default_port))
 return cls(
     host=host,
     port=port,
-    use_tls=use_tls,
     tls_mode=tls_mode,
 ```
 
@@ -887,7 +880,7 @@ All Docker LDAP configurations **omit** `PHOENIX_LDAP_PORT` to validate port def
 
 | Configuration | TLS Mode | Port Omitted? | Expected Default | Validated By |
 |--------------|----------|---------------|------------------|--------------|
-| `ldap.yml` | None (`use_tls=false`) | ✅ Yes | 389 | LDAP integration tests |
+| `ldap.yml` | None (`tls_mode=none`) | ✅ Yes | 389 | LDAP integration tests |
 | `ldap-test.yml` (`phoenix-starttls`) | STARTTLS | ✅ Yes | 389 | TLS test script |
 | `ldap-test.yml` (`phoenix`) | LDAPS | ✅ Yes | 636 | TLS test script |
 

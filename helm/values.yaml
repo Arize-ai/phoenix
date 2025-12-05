@@ -391,10 +391,10 @@ auth:
     port: ""
 
     # TLS settings
-    # -- Use TLS for LDAP connections. Should always be true in production.
-    useTls: true
-
-    # -- TLS connection mode: "starttls" (upgrade from plaintext on port 389) or "ldaps" (TLS from start on port 636)
+    # -- TLS connection mode: "starttls", "ldaps", or "none"
+    # - starttls: Upgrade from plaintext to TLS on port 389 (recommended)
+    # - ldaps: TLS from connection start on port 636
+    # - none: No encryption (testing only, credentials sent in plaintext)
     tlsMode: "starttls"
 
     # -- Verify TLS certificates. Should always be true in production.

@@ -78,7 +78,7 @@ services:
       - PHOENIX_OAUTH2_DEV_ROLE_MAPPING=admin:ADMIN,editor:MEMBER,viewer:VIEWER
       # LDAP Configuration
       - PHOENIX_LDAP_HOST=ldap
-      - PHOENIX_LDAP_USE_TLS=false
+      - PHOENIX_LDAP_TLS_MODE=none
       - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
       - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
       - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]

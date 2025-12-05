@@ -71,7 +71,6 @@ data:
   {{- if .Values.auth.ldap.port }}
   PHOENIX_LDAP_PORT: {{ .Values.auth.ldap.port | quote }}
   {{- end }}
-  PHOENIX_LDAP_USE_TLS: {{ .Values.auth.ldap.useTls | quote }}
   PHOENIX_LDAP_TLS_MODE: {{ .Values.auth.ldap.tlsMode | quote }}
   PHOENIX_LDAP_TLS_VERIFY: {{ .Values.auth.ldap.tlsVerify | quote }}
   {{- if .Values.auth.ldap.tlsCaCertFile }}

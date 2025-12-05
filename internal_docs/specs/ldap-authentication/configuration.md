@@ -8,8 +8,7 @@
 |----------|-----------|---------|------|-------|
 | `PHOENIX_LDAP_HOST` | ✅ **Required** | - | string | Comma-separated for failover |
 | `PHOENIX_LDAP_PORT` | Optional | `389` (starttls) or `636` (ldaps) | int | Defaults based on `tls_mode` |
-| `PHOENIX_LDAP_USE_TLS` | Optional | `true` | boolean | **Always true in production** |
-| `PHOENIX_LDAP_TLS_MODE` | Optional | `starttls` | `starttls\|ldaps` | TLS connection mode |
+| `PHOENIX_LDAP_TLS_MODE` | Optional | `starttls` | `none\|starttls\|ldaps` | TLS connection mode |
 | `PHOENIX_LDAP_TLS_VERIFY` | Optional | `true` | boolean | **Always true in production** |
 | `PHOENIX_LDAP_TLS_CA_CERT_FILE` | Optional | - | path | Custom CA certificate (PEM) for private CAs |
 | `PHOENIX_LDAP_TLS_CLIENT_CERT_FILE` | Optional | - | path | Client certificate (PEM) for mutual TLS |
@@ -29,7 +28,7 @@
 
 ### TLS Mode Default
 
-- Phoenix enforces TLS (`PHOENIX_LDAP_USE_TLS="true"`) and defaults `PHOENIX_LDAP_TLS_MODE` to `starttls` so deployments can connect over the commonly open port 389 while still upgrading to TLS before any bind.
+- Phoenix defaults `PHOENIX_LDAP_TLS_MODE` to `starttls` so deployments can connect over the commonly open port 389 while still upgrading to TLS before any bind.
 - This matches what most Active Directory/OpenLDAP environments expect out of the box and avoids asking operators to expose port 636 unless they explicitly choose LDAPS.
 - The implementation always calls `start_tls()` before `bind()` (see [Protocol Compliance](./protocol-compliance.md#7-starttls-implementation--security)), and the docker MITM profile continuously verifies that StartTLS traffic stays encrypted, so the default remains a secure channel rather than plaintext.
 - Admins who prefer TLS-from-byte-zero can set `PHOENIX_LDAP_TLS_MODE=ldaps`, which automatically defaults the port to 636 in `LDAPConfig.from_env`.
@@ -50,7 +49,7 @@ This table maps Phoenix's environment variables to Grafana's TOML configuration 
 | **Enable LDAP** | `PHOENIX_LDAP_HOST` (presence) | `[auth.ldap]`<br>`enabled = true`<br>`config_file = "/etc/grafana/ldap.toml"` | Phoenix: Auto-enabled when HOST is set<br>Grafana: Requires explicit enable + file path |
 | **Server Host** | `PHOENIX_LDAP_HOST="dc1.com,dc2.com"` | `[[servers]]`<br>`host = "dc1.com"`<br>`[[servers]]`<br>`host = "dc2.com"` | Phoenix: Comma-separated string<br>Grafana: Multiple `[[servers]]` blocks |
 | **Server Port** | `PHOENIX_LDAP_PORT=389` | `port = 389` | Both default to 389 |
-| **TLS Mode** | `PHOENIX_LDAP_USE_TLS="true"`<br>`PHOENIX_LDAP_TLS_MODE="starttls"` | `use_ssl = false`<br>`start_tls = false` (default) | Phoenix: Unified TLS config with StartTLS default<br>Grafana: Separate SSL/StartTLS flags; StartTLS disabled until explicitly enabled |
+| **TLS Mode** | `PHOENIX_LDAP_TLS_MODE="starttls"` | `use_ssl = false`<br>`start_tls = false` (default) | Phoenix: Single TLS_MODE with StartTLS default<br>Grafana: Separate SSL/StartTLS flags; StartTLS disabled until explicitly enabled |
 | **TLS Verification** | `PHOENIX_LDAP_TLS_VERIFY="true"` | `ssl_skip_verify = false` | Both verify certificates by default |
 | **Custom CA Cert** | `PHOENIX_LDAP_TLS_CA_CERT_FILE="/path/to/ca.pem"` | `root_ca_cert = "/path/to/ca.pem"` | Identical semantics for private CAs |
 | **Client Cert (mTLS)** | `PHOENIX_LDAP_TLS_CLIENT_CERT_FILE="/path/to/client.crt"`<br>`PHOENIX_LDAP_TLS_CLIENT_KEY_FILE="/path/to/client.key"` | `client_cert = "/path/to/client.crt"`<br>`client_key = "/path/to/client.key"` | Identical semantics for mutual TLS |
@@ -100,7 +99,7 @@ This table maps Phoenix's environment variables to Grafana's TOML configuration 
 | `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='{"admin":["..."]}'` | `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[{"group_dn":"...", "role":"ADMIN"}]'` | Must use JSON array structure with required fields |
 | `"role": "admin"` (lowercase) | `"role": "ADMIN"` (uppercase) | Phoenix uses uppercase role names |
 | `"role": "ADMIN"` (Grafana field) | `"role": "ADMIN"` (Phoenix field) | Phoenix uses `role`, not `org_role` (no org concept) |
-| `PHOENIX_LDAP_USE_TLS=true` (unquoted) | `PHOENIX_LDAP_USE_TLS="true"` (quoted) | Shell requires quotes for boolean strings |
+| `PHOENIX_LDAP_TLS_MODE=starttls` (unquoted) | `PHOENIX_LDAP_TLS_MODE="starttls"` (quoted) | Shell may require quotes for strings |
 | `PHOENIX_LDAP_PORT="389"` (string) | `PHOENIX_LDAP_PORT=389` (int) | Port should be unquoted integer |
 | Multiple `PHOENIX_LDAP_HOST` lines | `PHOENIX_LDAP_HOST="dc1.com,dc2.com"` | Use comma-separated, not multiple vars |
 | `%s` in `GROUP_SEARCH_FILTER` for username | `%s` in `USER_SEARCH_FILTER` | User filter uses username, group filter uses user DN |
@@ -112,7 +111,7 @@ This table maps Phoenix's environment variables to Grafana's TOML configuration 
 4. ✅ `role` values are `"ADMIN"`, `"MEMBER"`, or `"VIEWER"` (case-insensitive) (config.py:1449)
 5. ✅ If `PHOENIX_LDAP_ATTR_MEMBER_OF` is empty, `GROUP_SEARCH_BASE_DNS` and `GROUP_SEARCH_FILTER` must be set
 6. ✅ `TLS_MODE` is either `"starttls"` or `"ldaps"` (config.py:1484-1488)
-7. ⚠️ **Security**: Warn if `USE_TLS=false` or `TLS_VERIFY=false` in production (config.py:1504-1518)
+7. ⚠️ **Security**: Warn if `TLS_MODE=none` or `TLS_VERIFY=false` in production (config.py)
 
 ---
 
@@ -133,8 +132,8 @@ PHOENIX_LDAP_HOST="ldap.corp.example.com"
 PHOENIX_LDAP_PORT=389
 
 # Use TLS (recommended: always true for production)
-# Options: "true" or "false"
-PHOENIX_LDAP_USE_TLS="true"
+# Options: "none", "starttls", "ldaps"
+PHOENIX_LDAP_TLS_MODE="starttls"
 
 # TLS mode: "starttls" or "ldaps"
 # - starttls: Start with plaintext, upgrade to TLS (port 389)
@@ -281,7 +280,6 @@ PHOENIX_LDAP_ALLOW_SIGN_UP="true"
 ```bash
 PHOENIX_LDAP_HOST="ad.corp.com"
 PHOENIX_LDAP_PORT=389
-PHOENIX_LDAP_USE_TLS="true"
 PHOENIX_LDAP_TLS_MODE="starttls"
 PHOENIX_LDAP_BIND_DN="CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com"
 PHOENIX_LDAP_BIND_PASSWORD="password"
@@ -302,7 +300,7 @@ PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[
 ```bash
 PHOENIX_LDAP_HOST="ldap.example.com"
 PHOENIX_LDAP_PORT=389
-PHOENIX_LDAP_USE_TLS="true"
+PHOENIX_LDAP_TLS_MODE="starttls"
 PHOENIX_LDAP_BIND_DN="cn=readonly,dc=example,dc=com"
 PHOENIX_LDAP_BIND_PASSWORD="password"
 PHOENIX_LDAP_USER_SEARCH_BASE_DNS='["ou=people,dc=example,dc=com"]'
@@ -324,7 +322,7 @@ PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[
 ```bash
 PHOENIX_LDAP_HOST="dc1.corp.com,dc2.corp.com,dc3.corp.com"
 PHOENIX_LDAP_PORT=389
-PHOENIX_LDAP_USE_TLS="true"
+PHOENIX_LDAP_TLS_MODE="starttls"
 # ... rest of configuration same as Example 1
 ```
 

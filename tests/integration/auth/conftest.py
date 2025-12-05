@@ -275,7 +275,7 @@ def _env_ldap(_ldap_server: _LDAPServer) -> dict[str, str]:
     return {
         "PHOENIX_LDAP_HOST": _ldap_server.host,
         "PHOENIX_LDAP_PORT": str(_ldap_server.port),
-        "PHOENIX_LDAP_USE_TLS": "false",  # Disable TLS for mock testing
+        "PHOENIX_LDAP_TLS_MODE": "none",  # Disable TLS for mock testing
         "PHOENIX_LDAP_BIND_DN": _ldap_server.bind_dn,
         "PHOENIX_LDAP_BIND_PASSWORD": _ldap_server.bind_password,
         "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": f'["{_ldap_server.user_search_base}"]',
@@ -332,7 +332,7 @@ def _env_ldap_posix(_ldap_server: _LDAPServer) -> dict[str, str]:
     return {
         "PHOENIX_LDAP_HOST": _ldap_server.host,
         "PHOENIX_LDAP_PORT": str(_ldap_server.port),
-        "PHOENIX_LDAP_USE_TLS": "false",  # Disable TLS for mock testing
+        "PHOENIX_LDAP_TLS_MODE": "none",  # Disable TLS for mock testing
         "PHOENIX_LDAP_BIND_DN": _ldap_server.bind_dn,
         "PHOENIX_LDAP_BIND_PASSWORD": _ldap_server.bind_password,
         "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": f'["{_ldap_server.user_search_base}"]',

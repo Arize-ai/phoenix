@@ -394,7 +394,6 @@ sequenceDiagram
 **Phoenix Config**:
 ```bash
 # Default: STARTTLS on port 389
-PHOENIX_LDAP_USE_TLS="true"
 PHOENIX_LDAP_TLS_MODE="starttls"
 
 # Or: LDAPS on port 636

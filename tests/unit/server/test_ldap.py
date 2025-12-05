@@ -34,8 +34,7 @@ class TestLDAPSecurityValidation:
         return LDAPConfig(
             host="ldap.example.com",
             port=389,
-            use_tls=False,
-            tls_mode="starttls",
+            tls_mode="none",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -536,7 +535,6 @@ class TestTLSConfiguration:
         config = LDAPConfig(
             host="ldap.example.com",
             port=636,
-            use_tls=True,
             tls_mode="ldaps",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
@@ -554,7 +552,6 @@ class TestTLSConfiguration:
         config = LDAPConfig(
             host="ldap.example.com",
             port=389,
-            use_tls=True,
             tls_mode="starttls",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
@@ -572,8 +569,7 @@ class TestTLSConfiguration:
         config = LDAPConfig(
             host="ldap.example.com",
             port=389,
-            use_tls=False,
-            tls_mode="starttls",  # Irrelevant when use_tls=False
+            tls_mode="none",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
@@ -791,7 +787,6 @@ class TestSocketLeakPrevention:
         return LDAPConfig(
             host="ldap.example.com",
             port=389,
-            use_tls=True,
             tls_mode="starttls",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
@@ -879,7 +874,6 @@ class TestSocketLeakPrevention:
         authenticator.config = LDAPConfig(
             host="ldap.example.com",
             port=389,
-            use_tls=True,
             tls_mode="starttls",
             user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",

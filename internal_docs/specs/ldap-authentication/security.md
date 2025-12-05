@@ -242,7 +242,7 @@ if config.tls_client_cert_file and config.tls_client_key_file:
 tls_config = Tls(**tls_kwargs)
 ```
 
-**Recommendation**: Enable TLS (`PHOENIX_LDAP_USE_TLS=true`) and certificate validation
+**Recommendation**: Enable TLS (`PHOENIX_LDAP_TLS_MODE=starttls` or `ldaps`) and certificate validation
 (`PHOENIX_LDAP_TLS_VERIFY=true`) in production environments to prevent credential interception.
 
 **STARTTLS Security**: See [Protocol Compliance - STARTTLS Implementation](./protocol-compliance.md#7-starttls-implementation--security) for critical sequencing requirements and adversarial testing methodology.

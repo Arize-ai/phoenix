@@ -58,9 +58,8 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.ldap.tlsCaCertFile | string | `""` | Path to custom CA certificate file (PEM format) for TLS verification. Use when LDAP server uses a private/internal CA not in the system trust store. |
 | auth.ldap.tlsClientCertFile | string | `""` | Path to client certificate file (PEM format) for mutual TLS authentication. Requires tlsClientKeyFile to also be set. |
 | auth.ldap.tlsClientKeyFile | string | `""` | Path to client private key file (PEM format) for mutual TLS authentication. Requires tlsClientCertFile to also be set. |
-| auth.ldap.tlsMode | string | `"starttls"` | TLS connection mode: "starttls" (upgrade from plaintext on port 389) or "ldaps" (TLS from start on port 636) |
+| auth.ldap.tlsMode | string | `"starttls"` | TLS connection mode: "starttls" (upgrade to TLS on port 389), "ldaps" (TLS from start on port 636), or "none" (no encryption, testing only) |
 | auth.ldap.tlsVerify | bool | `true` | Verify TLS certificates. Should always be true in production. |
-| auth.ldap.useTls | bool | `true` | Use TLS for LDAP connections. Should always be true in production. |
 | auth.ldap.userSearchBaseDns | list | `[]` | List of base DNs for user searches (required when enabled). Example: `["OU=Users,DC=corp,DC=com"]` |
 | auth.ldap.userSearchFilter | string | `"(&(objectClass=user)(sAMAccountName=%s))"` | LDAP filter for finding users. Use %s as placeholder for username. Default for Active Directory: "(&(objectClass=user)(sAMAccountName=%s))" OpenLDAP example: "(&(objectClass=inetOrgPerson)(uid=%s))" |
 | auth.name | string | `"phoenix-secret"` | Name of the Kubernetes secret containing authentication credentials |
