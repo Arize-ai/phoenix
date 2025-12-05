@@ -441,6 +441,7 @@ class ChatCompletionMutationMixin:
         trace_id = _generate_trace_id()
         span_id = _generate_span_id()
         async with info.context.db() as session:
+            llm_evaluators = await get_llm_evaluators(input.evaluators, session)
             # Get or create the project ID
             if (
                 project_id := await session.scalar(
@@ -501,7 +502,6 @@ class ChatCompletionMutationMixin:
 
         evaluations: list[ExperimentRunAnnotation] = []
         if input.evaluators:
-            llm_evaluators = await get_llm_evaluators(input.evaluators, info.context.db)
             context_dict: dict[str, str] = {
                 "input": json.dumps(get_attribute_value(span.attributes, LLM_INPUT_MESSAGES)),
                 "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),

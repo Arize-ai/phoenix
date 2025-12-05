@@ -26,10 +26,11 @@ from phoenix.utilities.template_formatters import (
 )
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
     from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
     from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
-    from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
@@ -258,7 +259,7 @@ def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvalu
 
 async def get_llm_evaluators(
     evaluator_inputs: list["PlaygroundEvaluatorInput"],
-    db: "DbSessionFactory",
+    session: "AsyncSession",
 ) -> list[tuple[EvaluatorInputMappingInput, LLMEvaluator]]:
     """
     Fetch LLM evaluators and their prompt versions, returning tuples of input mapping and
@@ -270,7 +271,7 @@ async def get_llm_evaluators(
 
     Args:
         evaluator_inputs: List of evaluator inputs containing global IDs and input mappings
-        db: Database session factory
+        session: Database session
 
     Returns:
         List of (input_mapping, LLMEvaluator) tuples
@@ -296,49 +297,48 @@ async def get_llm_evaluators(
         return []
 
     result: list[tuple[EvaluatorInputMappingInput, LLMEvaluator]] = []
-    async with db() as session:
-        # Fetch all LLM evaluators
-        evaluators: list[models.LLMEvaluator] = list(
-            await session.scalars(
-                select(models.LLMEvaluator).where(models.LLMEvaluator.id.in_(evaluator_rowids))
-            )
+
+    # Fetch all LLM evaluators
+    evaluators: list[models.LLMEvaluator] = list(
+        await session.scalars(
+            select(models.LLMEvaluator).where(models.LLMEvaluator.id.in_(evaluator_rowids))
+        )
+    )
+
+    if len(evaluators) < len(evaluator_rowids):
+        missing_rowids = evaluator_rowids - set(evaluator.id for evaluator in evaluators)
+        raise NotFound(
+            f"Could not find all LLM evaluators with IDs {', '.join(map(_quote, missing_rowids))}"
         )
 
-        if len(evaluators) < len(evaluator_rowids):
-            missing_rowids = evaluator_rowids - set(evaluator.id for evaluator in evaluators)
-            raise NotFound(
-                f"Could not find all LLM evaluators with IDs "
-                f"{', '.join(map(_quote, missing_rowids))}"
+    # Fetch prompt versions and create LLMEvaluator instances
+    for evaluator in evaluators:
+        prompt_id = evaluator.prompt_id
+        prompt_version_tag_id = evaluator.prompt_version_tag_id
+
+        if prompt_version_tag_id is not None:
+            # Get the tagged version
+            stmt = (
+                select(models.PromptVersion)
+                .join(models.PromptVersionTag)
+                .where(models.PromptVersionTag.prompt_id == prompt_id)
+                .where(models.PromptVersionTag.id == prompt_version_tag_id)
+            )
+        else:
+            # Get the latest version
+            stmt = (
+                select(models.PromptVersion)
+                .where(models.PromptVersion.prompt_id == prompt_id)
+                .order_by(models.PromptVersion.id.desc())
+                .limit(1)
             )
 
-        # Fetch prompt versions and create LLMEvaluator instances
-        for evaluator in evaluators:
-            prompt_id = evaluator.prompt_id
-            prompt_version_tag_id = evaluator.prompt_version_tag_id
+        prompt_version = await session.scalar(stmt)
+        if prompt_version is None:
+            raise NotFound(f"Prompt version not found for evaluator {evaluator.id}")
 
-            if prompt_version_tag_id is not None:
-                # Get the tagged version
-                stmt = (
-                    select(models.PromptVersion)
-                    .join(models.PromptVersionTag)
-                    .where(models.PromptVersionTag.prompt_id == prompt_id)
-                    .where(models.PromptVersionTag.id == prompt_version_tag_id)
-                )
-            else:
-                # Get the latest version
-                stmt = (
-                    select(models.PromptVersion)
-                    .where(models.PromptVersion.prompt_id == prompt_id)
-                    .order_by(models.PromptVersion.id.desc())
-                    .limit(1)
-                )
-
-            prompt_version = await session.scalar(stmt)
-            if prompt_version is None:
-                raise NotFound(f"Prompt version not found for evaluator {evaluator.id}")
-
-            input_mapping = input_mappings[evaluator.id]
-            result.append((input_mapping, LLMEvaluator(evaluator, prompt_version)))
+        input_mapping = input_mappings[evaluator.id]
+        result.append((input_mapping, LLMEvaluator(evaluator, prompt_version)))
 
     return result
 
