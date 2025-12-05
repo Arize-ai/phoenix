@@ -79,6 +79,7 @@ const DefaultComponent = () => {
 
   return (
     <PlaygroundEvaluatorSelect
+      datasetId="1"
       evaluators={sampleEvaluators}
       selectedIds={selectedIds}
       onSelectionChange={setSelectedIds}
@@ -91,6 +92,7 @@ const NoEvaluatorsComponent = () => {
 
   return (
     <PlaygroundEvaluatorSelect
+      datasetId="1"
       evaluators={[]}
       selectedIds={selectedIds}
       onSelectionChange={setSelectedIds}
@@ -108,6 +110,7 @@ const WithAlreadyAddedEvaluatorsComponent = () => {
 
   return (
     <PlaygroundEvaluatorSelect
+      datasetId="1"
       evaluators={evaluatorsWithSomeAdded}
       selectedIds={selectedIds}
       onSelectionChange={setSelectedIds}

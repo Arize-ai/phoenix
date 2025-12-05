@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d9c12719a0ae37286cf982f76ae4d964>>
+ * @generated SignedSource<<354a01f6ca4837348964aef1fda5f277>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,9 +13,12 @@ export type EvaluatorKind = "CODE" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type EditDatasetEvaluatorSlideover_evaluator$data = {
+  readonly datasetInputMapping?: {
+    readonly literalMapping: any;
+    readonly pathMapping: any;
+  } | null;
   readonly description: string | null;
   readonly id: string;
-  readonly isAssignedToDataset: boolean;
   readonly kind: EvaluatorKind;
   readonly name: string;
   readonly outputConfig?: {
@@ -79,13 +82,7 @@ v4 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "datasetId"
-    }
-  ],
+  "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
   "name": "EditDatasetEvaluatorSlideover_evaluator",
@@ -107,21 +104,33 @@ return {
       "storageKey": null
     },
     {
-      "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "datasetId",
-          "variableName": "datasetId"
-        }
-      ],
-      "kind": "ScalarField",
-      "name": "isAssignedToDataset",
-      "storageKey": null
-    },
-    {
       "kind": "InlineFragment",
       "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "EvaluatorInputMapping",
+          "kind": "LinkedField",
+          "name": "datasetInputMapping",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "literalMapping",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "pathMapping",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
         {
           "alias": null,
           "args": null,
@@ -393,7 +402,7 @@ return {
           "storageKey": null
         }
       ],
-      "type": "LLMEvaluator",
+      "type": "DatasetLLMEvaluator",
       "abstractKey": null
     }
   ],
@@ -402,6 +411,6 @@ return {
 };
 })();
 
-(node as any).hash = "e50af1ad653615d2563ac8589db6c0ee";
+(node as any).hash = "3631d0ffd532ddb1ae0297d1706325c8";
 
 export default node;
