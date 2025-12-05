@@ -21,15 +21,13 @@ import {
 import { EvaluatorChatTemplate } from "@phoenix/components/evaluators/EvaluatorChatTemplate";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
-import {
-  ChoiceConfig,
-  EvaluatorLLMChoice,
-} from "@phoenix/components/evaluators/EvaluatorLLMChoice";
+import { EvaluatorLLMChoice } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
+import { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 export type EvaluatorFormValues = {
@@ -37,7 +35,7 @@ export type EvaluatorFormValues = {
     name: string;
     description: string;
   };
-  choiceConfig: ChoiceConfig;
+  choiceConfig: ClassificationEvaluatorAnnotationConfig;
   dataset?: {
     readonly: boolean;
     id: string;

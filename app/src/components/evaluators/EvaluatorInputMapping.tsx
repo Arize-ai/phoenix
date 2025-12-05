@@ -26,8 +26,6 @@ import { Flex } from "@phoenix/components/layout/Flex";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
 
-export type InputMapping = Record<string, string>;
-
 type EvaluatorInputMappingProps = {
   control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
   evaluatorInput: EvaluatorInput | null;
