@@ -19,7 +19,6 @@ from phoenix.server.api.helpers.evaluators import (
 from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
-    PromptTemplateFormat,
     TextContentPart,
     denormalize_tools,
 )
@@ -27,12 +26,7 @@ from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInp
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.api.types.node import from_global_id
-from phoenix.utilities.template_formatters import (
-    FStringTemplateFormatter,
-    MustacheTemplateFormatter,
-    NoOpFormatter,
-    TemplateFormatter,
-)
+from phoenix.utilities.template_formatters import get_template_formatter
 
 ToolCallId: TypeAlias = str
 
@@ -84,7 +78,7 @@ class LLMEvaluator:
         prompt_version = self._prompt_version_orm
         template = prompt_version.template
         assert isinstance(template, PromptChatTemplate)
-        formatter = _get_template_formatter(prompt_version.template_format)
+        formatter = get_template_formatter(prompt_version.template_format)
         variables: set[str] = set()
 
         for msg in template.messages:
@@ -122,7 +116,7 @@ class LLMEvaluator:
             input_mapping=input_mapping,
             context=context,
         )
-        template_formatter = _get_template_formatter(prompt_version.template_format)
+        template_formatter = get_template_formatter(prompt_version.template_format)
         messages: list[
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
         ] = []
@@ -326,56 +320,6 @@ def _prompt_role_to_chat_role(role: str) -> "ChatCompletionMessageRole":
 
 def _quote(value: Any) -> str:
     return f'"{value}"'
-
-
-def _get_template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
-    if template_format is PromptTemplateFormat.MUSTACHE:
-        return MustacheTemplateFormatter()
-    if template_format is PromptTemplateFormat.F_STRING:
-        return FStringTemplateFormatter()
-    if template_format is PromptTemplateFormat.NONE:
-        return NoOpFormatter()
-    assert_never(template_format)
-
-
-def get_template_input_schema(
-    prompt_version: models.PromptVersion,
-) -> dict[str, Any]:
-    """
-    Extract the input schema (JSON Schema) from a prompt version's template.
-
-    This parses the template messages to find all template variables (e.g., {{input}}, {output})
-    and returns a JSON Schema with those variables as required string properties.
-
-    Args:
-        prompt_version: The prompt version containing the template
-
-    Returns:
-        A JSON Schema dict with template variables as properties
-    """
-    template = prompt_version.template
-    if not isinstance(template, PromptChatTemplate):
-        raise ValueError("Only PromptChatTemplate is currently supported for LLM evaluators")
-
-    formatter = _get_template_formatter(prompt_version.template_format)
-    variables: set[str] = set()
-
-    for msg in template.messages:
-        if isinstance(msg.content, str):
-            variables.update(formatter.parse(msg.content))
-        elif isinstance(msg.content, list):
-            for part in msg.content:
-                if isinstance(part, TextContentPart):
-                    variables.update(formatter.parse(part.text))
-        else:
-            assert_never(msg.content)
-
-    properties = {var: {"type": "string"} for var in variables}
-    return {
-        "type": "object",
-        "properties": properties,
-        "required": list(variables),
-    }
 
 
 def apply_input_mapping(
