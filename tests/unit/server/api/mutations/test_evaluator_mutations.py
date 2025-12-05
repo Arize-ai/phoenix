@@ -135,9 +135,9 @@ class TestDatasetLLMEvaluatorMutations:
             llm_evaluator = await session.get(models.LLMEvaluator, evaluator_id)
             assert llm_evaluator and llm_evaluator.kind == "LLM"
             dataset_evaluator = await session.scalar(
-                select(models.DatasetsEvaluators).where(
-                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
-                    models.DatasetsEvaluators.evaluator_id == evaluator_id,
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == evaluator_id,
                 )
             )
             assert dataset_evaluator and dataset_evaluator.input_mapping == {
@@ -256,8 +256,8 @@ class TestDatasetLLMEvaluatorMutations:
         )
         async with db() as session:
             evaluators = await session.scalars(
-                select(models.DatasetsEvaluators).where(
-                    models.DatasetsEvaluators.dataset_id == empty_dataset.id
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id
                 )
             )
             assert len(evaluators.all()) >= 2
@@ -378,11 +378,11 @@ class TestAssignUnassignEvaluatorMutations:
         async with db() as session:
             count = await session.scalar(
                 select(sa.func.count())
-                .select_from(models.DatasetsEvaluators)
+                .select_from(models.DatasetEvaluators)
                 .where(
-                    models.DatasetsEvaluators.dataset_id == dataset_id,
-                    models.DatasetsEvaluators.evaluator_id == evaluator_id,
-                    models.DatasetsEvaluators.display_name
+                    models.DatasetEvaluators.dataset_id == dataset_id,
+                    models.DatasetEvaluators.evaluator_id == evaluator_id,
+                    models.DatasetEvaluators.display_name
                     == IdentifierModel.model_validate(display_name),
                 )
             )
@@ -421,11 +421,11 @@ class TestAssignUnassignEvaluatorMutations:
         async with db() as session:
             count = await session.scalar(
                 select(sa.func.count())
-                .select_from(models.DatasetsEvaluators)
+                .select_from(models.DatasetEvaluators)
                 .where(
-                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
-                    models.DatasetsEvaluators.evaluator_id == code_evaluator.id,
-                    models.DatasetsEvaluators.display_name
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == code_evaluator.id,
+                    models.DatasetEvaluators.display_name
                     == IdentifierModel.model_validate(code_eval_name),
                 )
             )
@@ -458,10 +458,10 @@ class TestAssignUnassignEvaluatorMutations:
         # Verify code evaluator unassigned
         async with db() as session:
             dataset_evaluator = await session.scalar(
-                select(models.DatasetsEvaluators).where(
-                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
-                    models.DatasetsEvaluators.evaluator_id == code_evaluator.id,
-                    models.DatasetsEvaluators.display_name
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == code_evaluator.id,
+                    models.DatasetEvaluators.display_name
                     == IdentifierModel.model_validate(code_eval_name),
                 )
             )
@@ -486,10 +486,10 @@ class TestAssignUnassignEvaluatorMutations:
         # Verify LLM evaluator unassigned
         async with db() as session:
             dataset_evaluator = await session.scalar(
-                select(models.DatasetsEvaluators).where(
-                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
-                    models.DatasetsEvaluators.evaluator_id == llm_evaluator.id,
-                    models.DatasetsEvaluators.display_name
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                    models.DatasetEvaluators.display_name
                     == IdentifierModel.model_validate(llm_eval_name),
                 )
             )
@@ -529,10 +529,10 @@ class TestAssignUnassignEvaluatorMutations:
         async with db() as session:
             count = await session.scalar(
                 select(sa.func.count())
-                .select_from(models.DatasetsEvaluators)
+                .select_from(models.DatasetEvaluators)
                 .where(
-                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
-                    models.DatasetsEvaluators.evaluator_id == llm_evaluator.id,
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
                 )
             )
             assert count == 1
@@ -568,9 +568,9 @@ class TestAssignUnassignEvaluatorMutations:
         # Verify we now have 3 assignments for the same evaluator-dataset pair
         async with db() as session:
             assignments = await session.scalars(
-                select(models.DatasetsEvaluators).where(
-                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
-                    models.DatasetsEvaluators.evaluator_id == llm_evaluator.id,
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
                 )
             )
             assignment_list = assignments.all()
@@ -598,10 +598,10 @@ class TestAssignUnassignEvaluatorMutations:
         async with db() as session:
             count = await session.scalar(
                 select(sa.func.count())
-                .select_from(models.DatasetsEvaluators)
+                .select_from(models.DatasetEvaluators)
                 .where(
-                    models.DatasetsEvaluators.dataset_id == empty_dataset.id,
-                    models.DatasetsEvaluators.evaluator_id == llm_evaluator.id,
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
                 )
             )
             assert count == 2
@@ -635,7 +635,7 @@ async def code_evaluator(
         description="test code evaluator",
         kind="CODE",
         datasets_evaluators=[
-            models.DatasetsEvaluators(
+            models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
                 display_name=evaluator_name,
                 input_mapping={},
@@ -693,7 +693,7 @@ async def llm_evaluator(
         ),
         prompt=prompt,
         datasets_evaluators=[
-            models.DatasetsEvaluators(
+            models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
                 display_name=evaluator_name,
                 input_mapping={},

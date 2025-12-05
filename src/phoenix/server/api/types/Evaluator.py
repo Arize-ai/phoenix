@@ -500,7 +500,7 @@ class DatasetBuiltInEvaluator(BuiltInEvaluator, Node):
         self,
         info: Info[Context, None],
     ) -> Optional[EvaluatorInputMapping]:
-        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+        dataset_evaluator = await info.context.data_loaders.dataset_evaluators.load(
             (self.dataset_id, self.id, self.display_name)
         )
         if dataset_evaluator is None:
@@ -528,7 +528,7 @@ class DatasetLLMEvaluator(LLMEvaluator, Node):
         self,
         info: Info[Context, None],
     ) -> Optional[EvaluatorInputMapping]:
-        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+        dataset_evaluator = await info.context.data_loaders.dataset_evaluators.load(
             (self.dataset_id, self.id, self.display_name)
         )
         if dataset_evaluator is None:
@@ -556,7 +556,7 @@ class DatasetCodeEvaluator(CodeEvaluator, Node):
         self,
         info: Info[Context, None],
     ) -> Optional[EvaluatorInputMapping]:
-        dataset_evaluator = await info.context.data_loaders.datasets_evaluators.load(
+        dataset_evaluator = await info.context.data_loaders.dataset_evaluators.load(
             (self.dataset_id, self.id, self.display_name)
         )
         if dataset_evaluator is None:

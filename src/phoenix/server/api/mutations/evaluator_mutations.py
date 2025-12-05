@@ -171,8 +171,8 @@ class EvaluatorMutationMixin:
             description=input.description or None,
             kind="CODE",
             user_id=user_id,
-            datasets_evaluators=[
-                models.DatasetsEvaluators(
+            dataset_evaluators=[
+                models.DatasetEvaluators(
                     dataset_id=dataset_id,
                     display_name=evaluator_name,
                     input_mapping={},
@@ -229,8 +229,8 @@ class EvaluatorMutationMixin:
             output_config=config,
             user_id=user_id,
             prompt=prompt,
-            datasets_evaluators=[
-                models.DatasetsEvaluators(
+            dataset_evaluators=[
+                models.DatasetEvaluators(
                     dataset_id=dataset_id,
                     display_name=evaluator_name,
                     input_mapping=input.input_mapping
@@ -318,14 +318,14 @@ class EvaluatorMutationMixin:
         original_display_name = IdentifierModel.model_validate(input.original_display_name)
         async with info.context.db() as session:
             results = await session.execute(
-                select(models.LLMEvaluator, models.DatasetsEvaluators)
+                select(models.LLMEvaluator, models.DatasetEvaluators)
                 .where(
                     models.LLMEvaluator.id == evaluator_rowid,
-                    models.DatasetsEvaluators.dataset_id == dataset_id,
-                    models.DatasetsEvaluators.evaluator_id == evaluator_rowid,
-                    models.DatasetsEvaluators.display_name == original_display_name,
+                    models.DatasetEvaluators.dataset_id == dataset_id,
+                    models.DatasetEvaluators.evaluator_id == evaluator_rowid,
+                    models.DatasetEvaluators.display_name == original_display_name,
                 )
-                .join(models.DatasetsEvaluators)
+                .join(models.DatasetEvaluators)
                 .options(
                     joinedload(models.LLMEvaluator.prompt).joinedload(
                         models.Prompt.prompt_versions
@@ -336,19 +336,19 @@ class EvaluatorMutationMixin:
             first_result = results.first()
             if first_result is None:
                 raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
-            llm_evaluator, datasets_evaluator = first_result
+            llm_evaluator, dataset_evaluator = first_result
             if llm_evaluator is None or not isinstance(llm_evaluator, models.LLMEvaluator):
                 raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
-            if datasets_evaluator is None or not isinstance(
-                datasets_evaluator, models.DatasetsEvaluators
+            if dataset_evaluator is None or not isinstance(
+                dataset_evaluator, models.DatasetEvaluators
             ):
                 raise NotFound(
                     f"Datasets evaluator with dataset id {dataset_id}, evaluator id "
                     f"{evaluator_rowid}, and display name {input.original_display_name} not found"
                 )
 
-            datasets_evaluator.display_name = evaluator_name
-            datasets_evaluator.input_mapping = (
+            dataset_evaluator.display_name = evaluator_name
+            dataset_evaluator.input_mapping = (
                 input.input_mapping.to_dict()
                 if input.input_mapping is not None
                 else {
@@ -494,7 +494,7 @@ class EvaluatorMutationMixin:
                     insert_on_conflict(
                         values,
                         dialect=info.context.db.dialect,
-                        table=models.DatasetsEvaluators,
+                        table=models.DatasetEvaluators,
                         unique_by=unique_by,
                         on_conflict=OnConflict.DO_UPDATE,
                     )
@@ -549,14 +549,14 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
         display_name = IdentifierModel.model_validate(input.display_name)
-        stmt = delete(models.DatasetsEvaluators).where(
-            models.DatasetsEvaluators.dataset_id == dataset_rowid,
-            models.DatasetsEvaluators.display_name == display_name,
+        stmt = delete(models.DatasetEvaluators).where(
+            models.DatasetEvaluators.dataset_id == dataset_rowid,
+            models.DatasetEvaluators.display_name == display_name,
         )
         if evaluator_rowid < 0:
-            stmt = stmt.where(models.DatasetsEvaluators.builtin_evaluator_id == evaluator_rowid)
+            stmt = stmt.where(models.DatasetEvaluators.builtin_evaluator_id == evaluator_rowid)
         else:
-            stmt = stmt.where(models.DatasetsEvaluators.evaluator_id == evaluator_rowid)
+            stmt = stmt.where(models.DatasetEvaluators.evaluator_id == evaluator_rowid)
         async with info.context.db() as session:
             await session.execute(stmt)
 

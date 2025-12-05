@@ -1105,8 +1105,8 @@ class Dataset(HasId):
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
         "DatasetsDatasetLabel", back_populates="dataset"
     )
-    datasets_evaluators: Mapped[list["DatasetsEvaluators"]] = relationship(
-        "DatasetsEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
+    dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
+        "DatasetEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
     )
 
     @hybrid_property
@@ -2102,8 +2102,8 @@ class Evaluator(HasId):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     user: Mapped[Optional["User"]] = relationship("User")
-    datasets_evaluators: Mapped[list["DatasetsEvaluators"]] = relationship(
-        "DatasetsEvaluators",
+    dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
+        "DatasetEvaluators",
         back_populates="evaluator",
         cascade="all, delete-orphan",
         uselist=True,
@@ -2181,8 +2181,8 @@ class CodeEvaluator(Evaluator):
     )
 
 
-class DatasetsEvaluators(HasId):
-    __tablename__ = "datasets_evaluators"
+class DatasetEvaluators(HasId):
+    __tablename__ = "dataset_evaluators"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
     )
@@ -2198,9 +2198,9 @@ class DatasetsEvaluators(HasId):
     )
     display_name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     input_mapping: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
-    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_evaluators")
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="dataset_evaluators")
     evaluator: Mapped[Optional["Evaluator"]] = relationship(
-        "Evaluator", back_populates="datasets_evaluators"
+        "Evaluator", back_populates="dataset_evaluators"
     )
 
     __table_args__ = (
@@ -2221,7 +2221,7 @@ class DatasetsEvaluators(HasId):
         ),
         # Partial unique indexes to enforce uniqueness on non-NULL values
         Index(
-            "ix_datasets_evaluators_dataset_evaluator_notnull",
+            "ix_dataset_evaluators_dataset_evaluator_notnull",
             "dataset_id",
             "evaluator_id",
             "display_name",
@@ -2230,7 +2230,7 @@ class DatasetsEvaluators(HasId):
             sqlite_where=sa.text("evaluator_id IS NOT NULL"),
         ),
         Index(
-            "ix_datasets_evaluators_dataset_builtin_notnull",
+            "ix_dataset_evaluators_dataset_builtin_notnull",
             "dataset_id",
             "builtin_evaluator_id",
             "display_name",

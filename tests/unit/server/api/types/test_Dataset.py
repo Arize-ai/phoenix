@@ -997,13 +997,13 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
         await session.flush()
 
         # Associate evaluators with dataset via junction table
-        dataset_evaluator_1 = models.DatasetsEvaluators(
+        dataset_evaluator_1 = models.DatasetEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_1.id,
             display_name=Identifier(root="evaluator-1"),
             input_mapping={},
         )
-        dataset_evaluator_2 = models.DatasetsEvaluators(
+        dataset_evaluator_2 = models.DatasetEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_2.id,
             display_name=Identifier(root="evaluator-2"),

@@ -187,7 +187,7 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "datasets_evaluators",
+        "dataset_evaluators",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "dataset_id",
@@ -223,16 +223,16 @@ def upgrade() -> None:
     )
     # Create partial unique indexes to enforce uniqueness on non-NULL values
     op.create_index(
-        "ix_datasets_evaluators_dataset_evaluator_notnull",
-        "datasets_evaluators",
+        "ix_dataset_evaluators_dataset_evaluator_notnull",
+        "dataset_evaluators",
         ["dataset_id", "evaluator_id", "display_name"],
         unique=True,
         postgresql_where=sa.text("evaluator_id IS NOT NULL"),
         sqlite_where=sa.text("evaluator_id IS NOT NULL"),
     )
     op.create_index(
-        "ix_datasets_evaluators_dataset_builtin_notnull",
-        "datasets_evaluators",
+        "ix_dataset_evaluators_dataset_builtin_notnull",
+        "dataset_evaluators",
         ["dataset_id", "builtin_evaluator_id", "display_name"],
         unique=True,
         postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
@@ -241,7 +241,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("datasets_evaluators")
+    op.drop_table("dataset_evaluators")
     op.drop_table("code_evaluators")
     op.drop_table("llm_evaluators")
     op.drop_table("evaluators")

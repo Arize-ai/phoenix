@@ -482,10 +482,10 @@ class Dataset(Node):
 
         is_builtin = evaluator_rowid < 0
         if is_builtin:
-            builtin_existence_stmt = select(models.DatasetsEvaluators).where(
-                models.DatasetsEvaluators.builtin_evaluator_id == evaluator_rowid,
-                models.DatasetsEvaluators.dataset_id == self.id,
-                models.DatasetsEvaluators.display_name == display_name_model,
+            builtin_existence_stmt = select(models.DatasetEvaluators).where(
+                models.DatasetEvaluators.builtin_evaluator_id == evaluator_rowid,
+                models.DatasetEvaluators.dataset_id == self.id,
+                models.DatasetEvaluators.display_name == display_name_model,
             )
             async with info.context.db() as session:
                 builtin_existence = await session.scalar(builtin_existence_stmt)
@@ -502,10 +502,10 @@ class Dataset(Node):
             )
             stmt = (
                 select(PolymorphicEvaluator)
-                .join(models.DatasetsEvaluators)
+                .join(models.DatasetEvaluators)
                 .where(PolymorphicEvaluator.id == evaluator_rowid)
-                .where(models.DatasetsEvaluators.display_name == display_name_model)
-                .where(models.DatasetsEvaluators.dataset_id == self.id)
+                .where(models.DatasetEvaluators.display_name == display_name_model)
+                .where(models.DatasetEvaluators.dataset_id == self.id)
             )
             async with info.context.db() as session:
                 evaluator = await session.scalar(stmt)
@@ -553,9 +553,9 @@ class Dataset(Node):
             models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
         )
         stmt = (
-            select(PolymorphicEvaluator, models.DatasetsEvaluators.display_name)
-            .join(models.DatasetsEvaluators)
-            .where(models.DatasetsEvaluators.dataset_id == self.id)
+            select(PolymorphicEvaluator, models.DatasetEvaluators.display_name)
+            .join(models.DatasetEvaluators)
+            .where(models.DatasetEvaluators.dataset_id == self.id)
         )
         if filter:
             column = getattr(PolymorphicEvaluator, filter.col.value)
@@ -605,9 +605,9 @@ class Dataset(Node):
                 raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 
         builtin_evaluators_ids = [builtin_id for builtin_id, _ in get_builtin_evaluators()]
-        builtin_stmt = select(models.DatasetsEvaluators).where(
-            models.DatasetsEvaluators.dataset_id == self.id,
-            models.DatasetsEvaluators.builtin_evaluator_id.is_not(None),
+        builtin_stmt = select(models.DatasetEvaluators).where(
+            models.DatasetEvaluators.dataset_id == self.id,
+            models.DatasetEvaluators.builtin_evaluator_id.is_not(None),
         )
         async with info.context.db() as session:
             builtin_assigned_evaluators = await session.scalars(builtin_stmt)
