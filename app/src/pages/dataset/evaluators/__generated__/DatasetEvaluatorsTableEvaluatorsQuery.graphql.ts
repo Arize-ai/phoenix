@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5b76dc1b76fb49c3c06e2c4f3b86edf5>>
+ * @generated SignedSource<<3aa70f00d0c0b702b3ef5d56cb8daa7a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,6 @@ export type EvaluatorSort = {
 };
 export type DatasetEvaluatorsTableEvaluatorsQuery$variables = {
   after?: string | null;
-  datasetId?: string | null;
   filter?: EvaluatorFilter | null;
   first?: number | null;
   id: string;
@@ -48,80 +47,66 @@ var v0 = {
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "datasetId"
-},
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
   "name": "filter"
 },
-v3 = {
+v2 = {
   "defaultValue": 100,
   "kind": "LocalArgument",
   "name": "first"
 },
-v4 = {
+v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "id"
 },
-v5 = {
+v4 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "sort"
 },
-v6 = [
+v5 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
+v6 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "first"
+  },
+  {
+    "kind": "Variable",
+    "name": "sort",
+    "variableName": "sort"
+  }
+],
 v7 = {
-  "kind": "Variable",
-  "name": "after",
-  "variableName": "after"
-},
-v8 = {
-  "kind": "Variable",
-  "name": "datasetId",
-  "variableName": "datasetId"
-},
-v9 = {
-  "kind": "Variable",
-  "name": "filter",
-  "variableName": "filter"
-},
-v10 = {
-  "kind": "Variable",
-  "name": "first",
-  "variableName": "first"
-},
-v11 = {
-  "kind": "Variable",
-  "name": "sort",
-  "variableName": "sort"
-},
-v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v13 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-},
-v14 = [
-  (v7/*: any*/),
-  (v9/*: any*/),
-  (v10/*: any*/),
-  (v11/*: any*/)
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -129,8 +114,7 @@ return {
       (v1/*: any*/),
       (v2/*: any*/),
       (v3/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/)
+      (v4/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -138,20 +122,14 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v6/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           {
-            "args": [
-              (v7/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/),
-              (v10/*: any*/),
-              (v11/*: any*/)
-            ],
+            "args": (v6/*: any*/),
             "kind": "FragmentSpread",
             "name": "DatasetEvaluatorsTable_evaluators"
           }
@@ -168,29 +146,28 @@ return {
       (v0/*: any*/),
       (v1/*: any*/),
       (v2/*: any*/),
-      (v3/*: any*/),
-      (v5/*: any*/),
-      (v4/*: any*/)
+      (v4/*: any*/),
+      (v3/*: any*/)
     ],
     "kind": "Operation",
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v6/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v12/*: any*/),
-          (v13/*: any*/),
+          (v7/*: any*/),
+          (v8/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v14/*: any*/),
+                "args": (v6/*: any*/),
                 "concreteType": "EvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "evaluators",
@@ -212,12 +189,12 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v12/*: any*/),
+                          (v7/*: any*/),
                           {
                             "kind": "TypeDiscriminator",
                             "abstractKey": "__isEvaluator"
                           },
-                          (v13/*: any*/),
+                          (v8/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -251,15 +228,6 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "updatedAt",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": [
-                              (v8/*: any*/)
-                            ],
-                            "kind": "ScalarField",
-                            "name": "isAssignedToDataset",
                             "storageKey": null
                           }
                         ],
@@ -317,7 +285,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v14/*: any*/),
+                "args": (v6/*: any*/),
                 "filters": [
                   "sort",
                   "filter"
@@ -337,16 +305,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d7158ade4ff1ff32de8885c362ae0713",
+    "cacheID": "82a1f7216bb88195ce79bc5f179b7514",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $datasetId: ID = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_385SQm\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_385SQm on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4bca7ee0aee30a1a32fd888c3c60cbb6";
+(node as any).hash = "a9111ba5da57dce0f340d503475c3459";
 
 export default node;

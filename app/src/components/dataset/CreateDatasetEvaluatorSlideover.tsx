@@ -1,20 +1,26 @@
-import { Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { ModalOverlayProps } from "react-aria-components";
+import { FormProvider } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
+import invariant from "tiny-invariant";
 
-import {
-  CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation,
-  CreateLLMEvaluatorInput,
-} from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
+import { CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import { Dialog } from "@phoenix/components/dialog";
 import { EditEvaluatorDialogContent } from "@phoenix/components/evaluators/EditEvaluatorDialogContent";
 import {
-  EvaluatorFormProvider,
   EvaluatorFormValues,
   useEvaluatorForm,
 } from "@phoenix/components/evaluators/EvaluatorForm";
+import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
 import { Loading } from "@phoenix/components/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/overlay/Modal";
+import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
+import {
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export const CreateDatasetEvaluatorSlideover = ({
   datasetId,
@@ -31,11 +37,13 @@ export const CreateDatasetEvaluatorSlideover = ({
           {({ close }) => (
             <Suspense fallback={<Loading />}>
               {datasetId && (
-                <CreateEvaluatorDialog
-                  onClose={close}
-                  datasetId={datasetId}
-                  updateConnectionIds={updateConnectionIds}
-                />
+                <EvaluatorPlaygroundProvider>
+                  <CreateEvaluatorDialog
+                    onClose={close}
+                    datasetId={datasetId}
+                    updateConnectionIds={updateConnectionIds}
+                  />
+                </EvaluatorPlaygroundProvider>
               )}
             </Suspense>
           )}
@@ -54,14 +62,20 @@ const CreateEvaluatorDialog = ({
   datasetId: string;
   updateConnectionIds?: string[];
 }) => {
+  const playgroundStore = usePlaygroundStore();
+  const instances = usePlaygroundContext((state) => state.instances);
+  const instanceId = useMemo(() => instances[0].id, [instances]);
+  invariant(instanceId != null, "instanceId is required");
+  const notifySuccess = useNotifySuccess();
+  const [error, setError] = useState<string | undefined>(undefined);
   const [createLlmEvaluator, isCreating] =
     useMutation<CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation>(
       graphql`
         mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(
-          $input: CreateLLMEvaluatorInput!
+          $input: CreateDatasetLLMEvaluatorInput!
           $connectionIds: [ID!]!
         ) {
-          createLlmEvaluator(input: $input) {
+          createDatasetLlmEvaluator(input: $input) {
             evaluator
               @appendNode(
                 connections: $connectionIds
@@ -75,27 +89,6 @@ const CreateEvaluatorDialog = ({
         }
       `
     );
-  const onSubmit = useCallback(
-    (args: {
-      input: CreateLLMEvaluatorInput;
-      onCompleted: ({ name }: { name: string }) => void;
-      onError: (error: Error) => void;
-    }) => {
-      createLlmEvaluator({
-        variables: {
-          input: args.input,
-          connectionIds: updateConnectionIds ?? [],
-        },
-        onCompleted: (response) => {
-          args.onCompleted({
-            name: response.createLlmEvaluator.evaluator.name,
-          });
-        },
-        onError: args.onError,
-      });
-    },
-    [createLlmEvaluator, updateConnectionIds]
-  );
   const defaultValues: Partial<EvaluatorFormValues> = useMemo(() => {
     return {
       dataset: {
@@ -106,15 +99,57 @@ const CreateEvaluatorDialog = ({
     };
   }, [datasetId]);
   const form = useEvaluatorForm(defaultValues);
-
+  const onSubmit = useCallback(() => {
+    const {
+      evaluator: { name, description },
+      dataset,
+      choiceConfig,
+      inputMapping,
+    } = form.getValues();
+    invariant(dataset, "dataset is required");
+    const input = createLLMEvaluatorPayload({
+      playgroundStore,
+      instanceId,
+      name,
+      description,
+      choiceConfig,
+      datasetId: dataset.id,
+      inputMapping,
+    });
+    createLlmEvaluator({
+      variables: {
+        input,
+        connectionIds: updateConnectionIds ?? [],
+      },
+      onCompleted: () => {
+        onClose();
+        notifySuccess({
+          title: "Evaluator created",
+        });
+      },
+      onError: (error) => {
+        const errorMessages = getErrorMessagesFromRelayMutationError(error);
+        setError(errorMessages?.join("\n") ?? undefined);
+      },
+    });
+  }, [
+    form,
+    playgroundStore,
+    instanceId,
+    createLlmEvaluator,
+    updateConnectionIds,
+    onClose,
+    notifySuccess,
+  ]);
   return (
-    <EvaluatorFormProvider form={form}>
+    <FormProvider {...form}>
       <EditEvaluatorDialogContent
         onClose={onClose}
         onSubmit={onSubmit}
         isSubmitting={isCreating}
         mode="create"
+        error={error}
       />
-    </EvaluatorFormProvider>
+    </FormProvider>
   );
 };

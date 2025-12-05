@@ -20,6 +20,7 @@ from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
+from phoenix.server.api.evaluators import get_builtin_evaluator_by_id, get_builtin_evaluator_ids
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
@@ -35,6 +36,9 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     CodeEvaluator,
+    DatasetBuiltInEvaluator,
+    DatasetCodeEvaluator,
+    DatasetLLMEvaluator,
     Evaluator,
     LLMEvaluator,
 )
@@ -55,6 +59,9 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
         LLMEvaluator.__name__: "LLM",
         CodeEvaluator.__name__: "CODE",
         BuiltInEvaluator.__name__: "CODE",
+        DatasetLLMEvaluator.__name__: "LLM",
+        DatasetCodeEvaluator.__name__: "CODE",
+        DatasetBuiltInEvaluator.__name__: "CODE",
     }
     if type_name not in evaluator_types:
         raise ValueError(
@@ -65,12 +72,13 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
 
 
 @strawberry.input
-class CreateLLMEvaluatorInput:
-    dataset_id: Optional[GlobalID] = UNSET
+class CreateDatasetLLMEvaluatorInput:
+    dataset_id: GlobalID
     name: Identifier
     description: Optional[str] = UNSET
     prompt_version: ChatPromptVersionInput
     output_config: CategoricalAnnotationConfigInput
+    input_mapping: Optional[EvaluatorInputMappingInput] = None
 
 
 @strawberry.input
@@ -81,17 +89,20 @@ class CreateCodeEvaluatorInput:
 
 
 @strawberry.input
-class UpdateLLMEvaluatorInput:
+class UpdateDatasetLLMEvaluatorInput:
     evaluator_id: GlobalID
+    dataset_id: GlobalID
+    original_display_name: Identifier
     name: Identifier
     description: Optional[str] = None
     prompt_version: ChatPromptVersionInput
     output_config: CategoricalAnnotationConfigInput
+    input_mapping: Optional[EvaluatorInputMappingInput] = None
 
 
 @strawberry.type
-class LLMEvaluatorMutationPayload:
-    evaluator: LLMEvaluator
+class DatasetLLMEvaluatorMutationPayload:
+    evaluator: DatasetLLMEvaluator
     query: Query
 
 
@@ -113,6 +124,7 @@ class EvaluatorMutationPayload:
 class AssignEvaluatorToDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
+    display_name: Optional[Identifier] = None
     input_mapping: Optional[EvaluatorInputMappingInput] = None
 
 
@@ -120,6 +132,7 @@ class AssignEvaluatorToDatasetInput:
 class UnassignEvaluatorFromDatasetInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
+    display_name: Identifier
 
 
 @strawberry.input
@@ -161,6 +174,7 @@ class EvaluatorMutationMixin:
             datasets_evaluators=[
                 models.DatasetsEvaluators(
                     dataset_id=dataset_id,
+                    display_name=evaluator_name,
                     input_mapping={},
                 )
             ]
@@ -181,14 +195,12 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def create_llm_evaluator(
-        self, info: Info[Context, None], input: CreateLLMEvaluatorInput
-    ) -> LLMEvaluatorMutationPayload:
-        dataset_id: Optional[int] = None
-        if input.dataset_id is not UNSET and input.dataset_id is not None:
-            dataset_id = from_global_id_with_expected_type(
-                global_id=input.dataset_id, expected_type_name=Dataset.__name__
-            )
+    async def create_dataset_llm_evaluator(
+        self, info: Info[Context, None], input: CreateDatasetLLMEvaluatorInput
+    ) -> DatasetLLMEvaluatorMutationPayload:
+        dataset_id = from_global_id_with_expected_type(
+            global_id=input.dataset_id, expected_type_name=Dataset.__name__
+        )
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
         if "user" in request.scope:
@@ -220,12 +232,11 @@ class EvaluatorMutationMixin:
             datasets_evaluators=[
                 models.DatasetsEvaluators(
                     dataset_id=dataset_id,
-                    input_mapping={},
+                    display_name=evaluator_name,
+                    input_mapping=input.input_mapping
+                    or {"literal_mapping": {}, "path_mapping": {}},
                 )
-            ]
-            # only add dataset relationship if dataset_id is provided
-            if dataset_id is not None
-            else [],
+            ],
         )
         # manually update the updated_at field since updating the description or other fields
         # solely on the parent record Evaluator does not trigger an update of the updated_at
@@ -243,15 +254,20 @@ class EvaluatorMutationMixin:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
             raise BadRequest(f"Evaluator with name {input.name} already exists")
-        return LLMEvaluatorMutationPayload(
-            evaluator=LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator),
+        return DatasetLLMEvaluatorMutationPayload(
+            evaluator=DatasetLLMEvaluator(
+                id=llm_evaluator.id,
+                db_record=llm_evaluator,
+                dataset_id=dataset_id,
+                display_name=evaluator_name.root,
+            ),
             query=Query(),
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def update_llm_evaluator(
-        self, info: Info[Context, None], input: UpdateLLMEvaluatorInput
-    ) -> LLMEvaluatorMutationPayload:
+    async def update_dataset_llm_evaluator(
+        self, info: Info[Context, None], input: UpdateDatasetLLMEvaluatorInput
+    ) -> DatasetLLMEvaluatorMutationPayload:
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
         if "user" in request.scope:
@@ -273,23 +289,58 @@ class EvaluatorMutationMixin:
         try:
             evaluator_rowid = from_global_id_with_expected_type(
                 global_id=input.evaluator_id,
-                expected_type_name=LLMEvaluator.__name__,
+                expected_type_name=DatasetLLMEvaluator.__name__,
             )
         except ValueError:
             raise BadRequest(f"Invalid LLM evaluator id: {input.evaluator_id}")
 
+        try:
+            dataset_id = from_global_id_with_expected_type(
+                global_id=input.dataset_id,
+                expected_type_name=Dataset.__name__,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
+
+        original_display_name = IdentifierModel.model_validate(input.original_display_name)
         async with info.context.db() as session:
-            llm_evaluator = await session.scalar(
-                select(models.LLMEvaluator)
-                .where(models.LLMEvaluator.id == evaluator_rowid)
+            results = await session.execute(
+                select(models.LLMEvaluator, models.DatasetsEvaluators)
+                .where(
+                    models.LLMEvaluator.id == evaluator_rowid,
+                    models.DatasetsEvaluators.dataset_id == dataset_id,
+                    models.DatasetsEvaluators.evaluator_id == evaluator_rowid,
+                    models.DatasetsEvaluators.display_name == original_display_name,
+                )
+                .join(models.DatasetsEvaluators)
                 .options(
                     joinedload(models.LLMEvaluator.prompt).joinedload(models.Prompt.prompt_versions)
                 )
             )
-            if llm_evaluator is None:
+            first_result = results.first()
+            if first_result is None:
                 raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
+            llm_evaluator, datasets_evaluator = first_result
+            if llm_evaluator is None or not isinstance(llm_evaluator, models.LLMEvaluator):
+                raise NotFound(f"LLM evaluator with id {input.evaluator_id} not found")
+            if datasets_evaluator is None or not isinstance(
+                datasets_evaluator, models.DatasetsEvaluators
+            ):
+                raise NotFound(
+                    f"Datasets evaluator with dataset id {dataset_id}, evaluator id "
+                    f"{evaluator_rowid}, and display name {input.original_display_name} not found"
+                )
 
-            llm_evaluator.name = evaluator_name
+            datasets_evaluator.display_name = evaluator_name
+            datasets_evaluator.input_mapping = (
+                input.input_mapping.to_dict()
+                if input.input_mapping is not None
+                else {
+                    "literal_mapping": {},
+                    "path_mapping": {},
+                }
+            )
+
             llm_evaluator.description = (
                 input.description if isinstance(input.description, str) else None
             )
@@ -319,8 +370,13 @@ class EvaluatorMutationMixin:
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict("An evaluator with this name already exists")
 
-        return LLMEvaluatorMutationPayload(
-            evaluator=LLMEvaluator(id=llm_evaluator.id, db_record=llm_evaluator),
+        return DatasetLLMEvaluatorMutationPayload(
+            evaluator=DatasetLLMEvaluator(
+                id=llm_evaluator.id,
+                db_record=llm_evaluator,
+                dataset_id=dataset_id,
+                display_name=evaluator_name.root,
+            ),
             query=Query(),
         )
 
@@ -336,11 +392,20 @@ class EvaluatorMutationMixin:
                 raise BadRequest(f"Invalid evaluator id: {str(evaluator_gid)}")
             evaluator_rowids.add(evaluator_rowid)
 
-        stmt = delete(models.Evaluator).where(models.Evaluator.id.in_(evaluator_rowids))
+        builtin_evaluator_ids = set(get_builtin_evaluator_ids())
+        filtered_rowids: list[int] = []
+        filtered_gids: list[GlobalID] = []
+        for gid, rowid in zip(input.evaluator_ids, evaluator_rowids):
+            if rowid in builtin_evaluator_ids:
+                continue
+            filtered_rowids.append(rowid)
+            filtered_gids.append(gid)
+
+        stmt = delete(models.Evaluator).where(models.Evaluator.id.in_(filtered_rowids))
         async with info.context.db() as session:
             await session.execute(stmt)
         return DeleteEvaluatorsPayload(
-            evaluator_ids=input.evaluator_ids,
+            evaluator_ids=filtered_gids,
             query=Query(),
         )
 
@@ -365,21 +430,41 @@ class EvaluatorMutationMixin:
             input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
         )
 
+        is_builtin = evaluator_rowid < 0
+
+        # fallback to evaluator name if display name is not provided
+        assignment_name: IdentifierModel
+        if input.display_name is not None:
+            assignment_name = IdentifierModel.model_validate(input.display_name)
+        elif is_builtin:
+            builtin_evaluator = get_builtin_evaluator_by_id(evaluator_rowid)
+            if builtin_evaluator is None:
+                raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
+            assignment_name = IdentifierModel.model_validate(
+                builtin_evaluator.name.lower().replace(" ", "_")
+            )
+        else:
+            async with info.context.db() as session:
+                evaluator = await session.get(models.Evaluator, evaluator_rowid)
+                if evaluator is None:
+                    raise NotFound(f"Evaluator with id {input.evaluator_id} not found")
+                assignment_name = evaluator.name
+
         # Use upsert for idempotent assignment
         # Foreign key constraints will ensure dataset and evaluator exist
-        is_builtin = evaluator_rowid < 0
         values: dict[str, Any] = {
             "dataset_id": dataset_rowid,
+            "display_name": assignment_name,
             "input_mapping": input_mapping.to_dict(),
         }
         if is_builtin:
             values["builtin_evaluator_id"] = evaluator_rowid
             values["evaluator_id"] = None
-            unique_by = ("dataset_id", "builtin_evaluator_id")
+            unique_by = ("dataset_id", "builtin_evaluator_id", "display_name")
         else:
             values["evaluator_id"] = evaluator_rowid
             values["builtin_evaluator_id"] = None
-            unique_by = ("dataset_id", "evaluator_id")
+            unique_by = ("dataset_id", "evaluator_id", "display_name")
 
         try:
             async with info.context.db() as session:
@@ -404,12 +489,18 @@ class EvaluatorMutationMixin:
         # Return the appropriate evaluator type based on what was provided
         evaluator_instance: Evaluator
         if evaluator_kind == "LLM":
-            evaluator_instance = LLMEvaluator(id=evaluator_rowid)
+            evaluator_instance = DatasetLLMEvaluator(
+                id=evaluator_rowid, dataset_id=dataset_rowid, display_name=assignment_name.root
+            )
         elif evaluator_kind == "CODE":
             if evaluator_rowid < 0:
-                evaluator_instance = BuiltInEvaluator(id=evaluator_rowid)
+                evaluator_instance = DatasetBuiltInEvaluator(
+                    id=evaluator_rowid, dataset_id=dataset_rowid, display_name=assignment_name.root
+                )
             else:
-                evaluator_instance = CodeEvaluator(id=evaluator_rowid)
+                evaluator_instance = DatasetCodeEvaluator(
+                    id=evaluator_rowid, dataset_id=dataset_rowid, display_name=assignment_name.root
+                )
         else:
             assert_never(evaluator_kind)
 
@@ -435,8 +526,10 @@ class EvaluatorMutationMixin:
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
+        display_name = IdentifierModel.model_validate(input.display_name)
         stmt = delete(models.DatasetsEvaluators).where(
             models.DatasetsEvaluators.dataset_id == dataset_rowid,
+            models.DatasetsEvaluators.display_name == display_name,
         )
         if evaluator_rowid < 0:
             stmt = stmt.where(models.DatasetsEvaluators.builtin_evaluator_id == evaluator_rowid)
@@ -448,12 +541,18 @@ class EvaluatorMutationMixin:
         # Return the appropriate evaluator type based on what was provided
         evaluator_instance: Evaluator
         if evaluator_kind == "LLM":
-            evaluator_instance = LLMEvaluator(id=evaluator_rowid)
+            evaluator_instance = DatasetLLMEvaluator(
+                id=evaluator_rowid, dataset_id=dataset_rowid, display_name=display_name.root
+            )
         elif evaluator_kind == "CODE":
             if evaluator_rowid < 0:
-                evaluator_instance = BuiltInEvaluator(id=evaluator_rowid)
+                evaluator_instance = DatasetBuiltInEvaluator(
+                    id=evaluator_rowid, dataset_id=dataset_rowid, display_name=display_name.root
+                )
             else:
-                evaluator_instance = CodeEvaluator(id=evaluator_rowid)
+                evaluator_instance = DatasetCodeEvaluator(
+                    id=evaluator_rowid, dataset_id=dataset_rowid, display_name=display_name.root
+                )
         else:
             assert_never(evaluator_kind)
 
