@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import { Controller, FormProvider, useForm } from "react-hook-form";
 import {
   ConnectionHandler,
   graphql,
@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
+  FieldError,
   Flex,
   Icon,
   Icons,
@@ -41,9 +42,17 @@ import { promptVersionToInstance } from "@phoenix/pages/playground/fetchPlaygrou
 import { extractVariablesFromInstance } from "@phoenix/pages/playground/playgroundUtils";
 import { jsonSchemaZodSchema } from "@phoenix/schemas";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 export type EvaluatorConfigDialogForm = EvaluatorFormValues;
 
+/**
+ * Associate an evaluator with a dataset.
+ * The difference between this and other evaluator forms is that this one operates on an existing evaluator,
+ * creating associations rather than editing the evaluator itself.
+ *
+ * Primarily used for built-in evaluators which will always already exist on the backend.
+ */
 export function EvaluatorConfigDialog({
   evaluatorId,
   onClose,
@@ -166,7 +175,11 @@ function EvaluatorConfigDialogContent({
     `);
 
   const form = useForm<EvaluatorConfigDialogForm>({
+    mode: "onChange",
     defaultValues: {
+      evaluator: {
+        name: evaluator.name?.toLowerCase().replaceAll(/ /g, "_") ?? "",
+      },
       inputMapping: {
         literalMapping: {},
         pathMapping: {},
@@ -174,8 +187,9 @@ function EvaluatorConfigDialogContent({
     },
   });
   const {
-    getValues: getInputMappingValues,
-    formState: { isValid: isInputMappingValid },
+    control,
+    getValues,
+    formState: { isValid: isFormValid },
   } = form;
 
   /**
@@ -228,18 +242,20 @@ function EvaluatorConfigDialogContent({
   );
 
   const onAddEvaluator = () => {
-    if (!isInputMappingValid) {
+    if (!isFormValid) {
       return;
     }
     setError(undefined);
-    const inputMapping = getInputMappingValues().inputMapping;
-    // TODO: the connections to update are not accurate; you cannot go from dataset straight to playground after assignment
-    // without refreshing
+    const {
+      inputMapping,
+      evaluator: { name },
+    } = getValues();
     assignEvaluatorToDataset({
       variables: {
         input: {
           datasetId: dataset.id,
           evaluatorId: evaluator.id,
+          displayName: name,
           inputMapping,
         },
         connectionIds: [datasetEvaluatorsTableConnection],
@@ -306,7 +322,7 @@ function EvaluatorConfigDialogContent({
           <Button
             variant="primary"
             onPress={onAddEvaluator}
-            isDisabled={!isInputMappingValid || isAssigningEvaluatorToDataset}
+            isDisabled={!isFormValid || isAssigningEvaluatorToDataset}
           >
             Done
           </Button>
@@ -327,14 +343,27 @@ function EvaluatorConfigDialogContent({
       >
         <Flex direction="row" alignItems="start" gap="size-200">
           <Flex direction="column" gap="size-300" flex="1">
-            <TextField>
-              <Label>Name</Label>
-              <Input placeholder={`e.g. is_correct`} />
-              <Text slot="description">
-                The name of the annotation that will be produced by this
-                evaluator.
-              </Text>
-            </TextField>
+            <Controller
+              name="evaluator.name"
+              control={control}
+              rules={{
+                validate: validateIdentifier,
+              }}
+              render={({ field, fieldState: { error } }) => (
+                <TextField {...field} isInvalid={!!error}>
+                  <Label>Name</Label>
+                  <Input placeholder={`e.g. is_correct`} />
+                  {error ? (
+                    <FieldError>{error.message}</FieldError>
+                  ) : (
+                    <Text slot="description">
+                      The name of the annotation that will be produced by this
+                      evaluator.
+                    </Text>
+                  )}
+                </TextField>
+              )}
+            />
             {evaluator.kind === "LLM" && (
               <EvaluatorLLMConfig queryRef={evaluator} />
             )}
