@@ -12,6 +12,9 @@
 | **Event Loop DoS** | Slow LDAP connections | Service unavailability | Medium | Thread pool isolation, timeouts |
 | **Regex DoS** | CVE-2024-47764 in python-ldap | Service degradation | Very Low | Use ldap3 (not python-ldap) |
 | **Misconfiguration** | Wrong group mappings | Privilege escalation | Medium | Validation on startup, dry-run mode |
+| **Referral Credential Leak** | Malicious referral to attacker server | Service account compromise | Medium | Disable referral following |
+| **Email Recycling Attack** | Recycled email hijacks old account | Data breach, privilege escalation | Medium | Unique ID conflict detection |
+| **UUID Case Mismatch** | Case-sensitive lookup misses user | Account lockout, duplicate accounts | Low | Case-insensitive lookup, lowercase normalization |
 
 ---
 
@@ -166,6 +169,58 @@ if not success:
 
 ---
 
+## Referral Credential Leakage Prevention
+
+**Threat**: ldap3's default configuration follows LDAP referrals and sends credentials to any server.
+
+**Attack Scenario**:
+1. Attacker compromises or sets up a rogue LDAP server
+2. Legitimate LDAP server sends a referral: `ldap://attacker.com/...`
+3. ldap3 follows the referral and sends service account credentials to attacker
+4. Attacker captures `bind_dn` and `bind_password`
+
+**ldap3 Default Behavior** (VULNERABLE):
+```python
+# ldap3/core/server.py - DEFAULT allows ANY host with credentials!
+if allowed_referral_hosts is None:
+    allowed_referral_hosts = [('*', True)]  # Allow all hosts, send credentials
+```
+
+**Additional Risk with STARTTLS**:
+```python
+# ldap3/strategy/base.py - Referral TLS config ignores original settings!
+tls=Tls(...) if selected_referral['ssl'] else None  # STARTTLS referrals get NO TLS config!
+```
+
+For STARTTLS referrals to `ldap://` URLs:
+- Original connection: `Tls(validate=ssl.CERT_REQUIRED)` ✅
+- Referral creates: `Tls()` with default `validate=ssl.CERT_NONE` ❌
+- Result: MITM possible on referral connections!
+
+**Mitigation** (Phoenix implementation):
+```python
+# Disable referral following on ALL Connection objects
+Connection(
+    server,
+    user=bind_dn,
+    password=bind_password,
+    auto_referrals=False,  # SECURITY: Prevent credential leakage
+    ...
+)
+```
+
+**Why Disable Instead of Restrict?**
+- Phoenix already has multi-server failover for high availability
+- Referrals are typically used for cross-domain queries (not needed for authentication)
+- No legitimate use case for following referrals in Phoenix's LDAP flow
+
+**Affected Connections** (all three):
+1. Service account connection (`_establish_connection`)
+2. Anonymous bind connection (`_establish_connection`)
+3. User password verification (`_verify_user_password`)
+
+---
+
 ## TLS Configuration
 
 **Phoenix TLS Implementation** (see `_create_servers()` in `ldap.py`):
@@ -292,6 +347,160 @@ Thread pool isolation via `anyio.to_thread.run_sync()` is the standard approach 
 
 ---
 
+## Email Recycling Attack Prevention
+
+**Threat**: In enterprise mode (unique_id configured), a new employee with a recycled email could hijack an old employee's account.
+
+**Attack Scenario** (without protection):
+1. User A leaves company (DB: `email=john@corp.com`, `oauth2_user_id=UUID-A`)
+2. User B joins with recycled email (LDAP: `email=john@corp.com`, `unique_id=UUID-B`)
+3. User B logs in:
+   - unique_id lookup: `UUID-B` not found in DB
+   - email fallback: finds User A's account
+   - **Vulnerable code would update User A's `oauth2_user_id` to `UUID-B`**
+   - User B now has access to User A's data!
+
+**Mitigation** (Phoenix implementation):
+```python
+# Only migrate if user has no existing unique_id
+if user.oauth2_user_id is None:
+    user.oauth2_user_id = unique_id  # Safe: first-time migration
+elif user.oauth2_user_id.lower() != unique_id.lower():
+    # Different person - reject (email is unique in DB, can't create new account)
+    raise HTTPException(
+        status_code=403,
+        detail="Account conflict: this email is associated with a different "
+        "LDAP account. Contact your administrator.",
+    )
+```
+
+**Why 403 Instead of Creating New Account?**
+- Email is unique in the database (`CREATE UNIQUE INDEX ix_users_email`)
+- Attempting to create a new user with the same email would fail with constraint violation
+- Explicit 403 gives users a clear error and directs them to admin
+
+**Resolution Options** (admin intervention required):
+1. Delete the old account (if user truly left)
+2. Update the old account's `oauth2_user_id` to the new UUID
+3. Change the old account's email to free it up
+
+---
+
+## UUID Case Normalization
+
+**Threat**: Case-sensitive UUID lookups can cause account lockout or duplicate accounts.
+
+**Scenario**:
+1. Old Phoenix version stored: `oauth2_user_id = "550E8400-..."` (uppercase)
+2. New Phoenix normalizes to: `unique_id = "550e8400-..."` (lowercase)
+3. Case-sensitive lookup fails → user locked out or duplicate created
+
+**Mitigation**:
+
+1. **Normalize output to lowercase** (in `_get_unique_id`):
+```python
+# UUIDs are case-insensitive per RFC 4122
+return decoded.lower()  # Normalize entryUUID
+return str(uuid.UUID(bytes_le=...))  # uuid.UUID always returns lowercase
+```
+
+2. **Case-insensitive database lookup**:
+```python
+# Use func.lower() for case-insensitive comparison
+.where(func.lower(models.User.oauth2_user_id) == unique_id.lower())
+```
+
+3. **Case-insensitive conflict detection**:
+```python
+# Compare lowercase to handle legacy data
+elif user.oauth2_user_id.lower() != unique_id.lower():
+    raise HTTPException(403, ...)
+```
+
+**Result**: Existing users with different UUID casing are found and updated on next login.
+
+---
+
+## Unique ID Extraction Robustness
+
+**Threat**: Malformed or edge-case LDAP attribute values could cause crashes or incorrect IDs.
+
+**Edge Cases Handled**:
+
+| Input | Handling | Result |
+|-------|----------|--------|
+| Missing attribute | `getattr(entry, attr_name, None)` | `None` |
+| Empty attribute (`values=[]`) | Check `attr is None` | `None` |
+| Empty bytes (`b""`) | Length check | `None` |
+| Whitespace-only (`b"   "`) | Strip then check | `None` |
+| 16-byte binary (objectGUID) | `uuid.UUID(bytes_le=...)` | Lowercase UUID |
+| String UUID as bytes (entryUUID) | UTF-8 decode, lowercase | Lowercase UUID |
+| Uppercase UUID | `.lower()` normalization | Lowercase UUID |
+| Invalid UTF-8 binary | `.hex()` fallback | Hex string |
+
+**Implementation** (defensive coding):
+```python
+def _get_unique_id(entry: Any, attr_name: str) -> Optional[str]:
+    attr = getattr(entry, attr_name, None)
+    if attr is None:
+        return None
+    
+    raw_value = attr.raw_values[0] if hasattr(attr, "raw_values") and attr.raw_values else None
+    if raw_value is None:
+        return None
+    
+    if isinstance(raw_value, (bytes, bytearray, memoryview)):
+        raw_bytes = bytes(raw_value)
+        if len(raw_bytes) == 0:
+            return None
+        if len(raw_bytes) == 16:
+            return str(uuid.UUID(bytes_le=raw_bytes))  # Always lowercase
+        else:
+            try:
+                decoded = raw_bytes.decode("utf-8").strip()
+                return decoded.lower() if decoded else None
+            except UnicodeDecodeError:
+                return raw_bytes.hex()  # Hex is already lowercase
+    
+    result = str(raw_value).strip()
+    return result.lower() if result else None
+```
+
+---
+
+## Configuration Validation
+
+**Threat**: Typos in LDAP attribute names cause silent failures.
+
+**Scenario**:
+```bash
+# Typo: space in attribute name
+PHOENIX_LDAP_ATTR_UNIQUE_ID="object GUID"  # Should be "objectGUID"
+```
+
+The LDAP server returns no results for `"object GUID"` (attribute doesn't exist), causing all users to fail authentication with "missing unique_id" errors.
+
+**Mitigation** (startup validation in `config.py`):
+```python
+# Validate attribute names don't contain spaces
+for attr_var, attr_val in [
+    ("PHOENIX_LDAP_ATTR_EMAIL", attr_email),
+    ("PHOENIX_LDAP_ATTR_DISPLAY_NAME", attr_display_name),
+    ("PHOENIX_LDAP_ATTR_MEMBER_OF", attr_member_of),
+    ("PHOENIX_LDAP_ATTR_UNIQUE_ID", attr_unique_id),
+]:
+    if attr_val and " " in attr_val:
+        raise ValueError(
+            f"{attr_var} contains spaces: '{attr_val}'. "
+            f"LDAP attribute names cannot contain spaces. "
+            f"Did you mean '{attr_val.replace(' ', '')}'?"
+        )
+```
+
+**Result**: Configuration errors caught at startup with helpful suggestions.
+
+---
+
 ## Socket Leak Prevention
 
 **Threat**: Failed LDAP operations can leak file descriptors if connections are not properly cleaned up.
@@ -346,7 +555,15 @@ finally:
 
 ## Additional Security Resources
 
+- [User Identification Strategy](./user-identification-strategy.md) - Email recycling protection, case normalization, migration logic
 - [Protocol Compliance](./protocol-compliance.md) - Anonymous bind prevention, ambiguous search rejection, DN validation
 - [Configuration Reference](./configuration.md) - TLS configuration options and security recommendations
 - [Grafana Comparison](./grafana-comparison.md) - Security patterns adopted from Grafana's implementation
+
+## References
+
+- [RFC 4122 - UUID URN Namespace](https://www.rfc-editor.org/rfc/rfc4122.html) - UUIDs are case-insensitive
+- [RFC 4515 - LDAP Search Filter](https://www.rfc-editor.org/rfc/rfc4515.html) - Filter escaping rules
+- [MS-DTYP §2.3.4 - GUID Structure](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/001eec5a-7f8b-4293-9e21-ca349392db40) - objectGUID binary format
+- [ldap3 Referral Handling](https://ldap3.readthedocs.io/en/latest/referrals.html) - Default `auto_referrals=True` behavior
 

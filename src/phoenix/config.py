@@ -371,10 +371,14 @@ identification is sufficient.
 When set, this attribute is used as the primary identifier, allowing users
 to survive email changes without creating duplicate accounts.
 
-Values by directory type:
-- Active Directory: "objectGUID"
-- OpenLDAP: "entryUUID" (RFC 4530)
-- 389 Directory Server: "nsUniqueId"
+Supported attributes (UUID-based only):
+- Active Directory: "objectGUID" (16-byte binary UUID)
+- OpenLDAP: "entryUUID" (RFC 4530, string UUID)
+- 389 Directory Server: "nsUniqueId" (string UUID)
+
+IMPORTANT: Only standard UUID-based attributes are supported. Custom attributes
+containing 16-character string IDs (e.g., "EMP12345ABCD6789") are NOT supported
+and will be incorrectly converted.
 
 When not set (default), email is used as the identifier. Both modes handle
 DN changes (OU moves, renames). The only difference is email change handling.
@@ -1422,6 +1426,12 @@ class LDAPConfig:
        - Active Directory: "objectGUID"
        - OpenLDAP: "entryUUID" (RFC 4530)
        - 389 DS: "nsUniqueId"
+
+       IMPORTANT: Only standard UUID-based attributes are supported. Custom attributes
+       containing 16-character string IDs (e.g., "EMP12345ABCD6789") are NOT supported
+       and will be incorrectly converted. The attribute must contain either:
+       - A 16-byte binary UUID (objectGUID)
+       - A string-format UUID (entryUUID, nsUniqueId)
 
        Use this only if you expect user emails to change (company rebranding, M&A,
        frequent name changes). Otherwise, email-based identification is simpler.

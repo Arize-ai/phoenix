@@ -403,7 +403,7 @@ class LDAPAuthenticator:
             conn.unbind()  # type: ignore[no-untyped-call]
             raise
 
-    async def authenticate(self, username: str, password: str) -> Optional[LDAPUserInfo]:
+    async def authenticate(self, username: str, password: str) -> LDAPUserInfo | None:
         """Authenticate user against LDAP and return user info.
 
         This method performs the following steps:
@@ -465,7 +465,7 @@ class LDAPAuthenticator:
         with anyio.fail_after(60):
             return await anyio.to_thread.run_sync(self._authenticate, username, password)
 
-    def _authenticate(self, username: str, password: str) -> Optional[LDAPUserInfo]:
+    def _authenticate(self, username: str, password: str) -> LDAPUserInfo | None:
         """Synchronous LDAP authentication (called from thread pool via authenticate())."""
         # SECURITY: Reject empty credentials to prevent anonymous bind bypass
         # Threat: LDAP RFC 4513 §5.1.2 defines Simple Authentication with empty password
@@ -549,7 +549,7 @@ class LDAPAuthenticator:
                     display_name = _get_attribute(user_entry, self.config.attr_display_name)
 
                     # Extract unique_id if configured (objectGUID, entryUUID, etc.)
-                    unique_id: Optional[str] = None
+                    unique_id: str | None = None
                     if self.config.attr_unique_id:
                         unique_id = _get_unique_id(user_entry, self.config.attr_unique_id)
                         if not unique_id:
@@ -603,7 +603,7 @@ class LDAPAuthenticator:
         logger.error("All LDAP servers failed")
         return None
 
-    def _search_user(self, conn: Connection, escaped_username: str) -> Optional[Any]:
+    def _search_user(self, conn: Connection, escaped_username: str) -> Any | None:
         """Search for user in LDAP directory.
 
         Args:
@@ -801,7 +801,7 @@ class LDAPAuthenticator:
 
         return groups
 
-    def map_groups_to_role(self, group_dns: list[str]) -> Optional[str]:
+    def map_groups_to_role(self, group_dns: list[str]) -> str | None:
         """Map LDAP group DNs to Phoenix role.
 
         Mapping behavior:
@@ -833,16 +833,14 @@ class LDAPAuthenticator:
 
 
 @overload
-def _get_attribute(
-    entry: Any, attr_name: str, multiple: Literal[False] = False
-) -> Optional[str]: ...
+def _get_attribute(entry: Any, attr_name: str, multiple: Literal[False] = False) -> str | None: ...
 
 
 @overload
-def _get_attribute(entry: Any, attr_name: str, multiple: Literal[True]) -> Optional[list[str]]: ...
+def _get_attribute(entry: Any, attr_name: str, multiple: Literal[True]) -> list[str] | None: ...
 
 
-def _get_attribute(entry: Any, attr_name: str, multiple: bool = False) -> Optional[str | list[str]]:
+def _get_attribute(entry: Any, attr_name: str, multiple: bool = False) -> str | list[str] | None:
     """Safely extract attribute value from LDAP entry.
 
     Args:
@@ -868,7 +866,7 @@ def _get_attribute(entry: Any, attr_name: str, multiple: bool = False) -> Option
     return values[0] if values else None
 
 
-def _get_unique_id(entry: Any, attr_name: str) -> Optional[str]:
+def _get_unique_id(entry: Any, attr_name: str) -> str | None:
     """Extract unique identifier attribute, handling binary values.
 
     Different LDAP servers store unique identifiers in different formats:
@@ -923,9 +921,10 @@ def _get_unique_id(entry: Any, attr_name: str) -> Optional[str]:
         return None
 
     # Get raw value - could be bytes (objectGUID) or str (entryUUID)
-    # ldap3 always returns bytes for raw_values (see ldap3/operation/search.py:410-411):
-    #   def decode_raw_vals(vals):
-    #       return [bytes(val) for val in vals] if vals else None
+    # ldap3's decode_raw_vals (search.py:410-411) returns:
+    #   - [bytes(val) for val in vals] if vals has items (always bytes, never str)
+    #   - None if vals is empty/falsy (NOT an empty list)
+    # The `and attr.raw_values` check handles both None and empty list cases.
     raw_value = attr.raw_values[0] if hasattr(attr, "raw_values") and attr.raw_values else None
     if raw_value is None:
         return None
@@ -942,6 +941,9 @@ def _get_unique_id(entry: Any, attr_name: str) -> Optional[str]:
         if len(raw_bytes) == 16:
             import uuid
 
+            # ASSUMPTION: 16-byte values are binary UUIDs (e.g., AD objectGUID).
+            # Custom 16-character string IDs are NOT supported - see LDAPConfig docs.
+            #
             # MS-DTYP §2.3.4: GUID uses mixed-endian format
             # Data1/Data2/Data3 are little-endian, Data4 is big-endian
             # Python's bytes_le parameter handles this correctly

@@ -60,12 +60,12 @@ This table maps Phoenix's environment variables to Grafana's TOML configuration 
 | **User Search Filter** | `PHOENIX_LDAP_USER_SEARCH_FILTER="(uid=%s)"` | `search_filter = "(uid=%s)"` | Identical: `%s` = username |
 | **Email Attribute** | `PHOENIX_LDAP_ATTR_EMAIL="mail"` | `[servers.attributes]`<br>`email = "mail"` | Phoenix: Direct env var<br>Grafana: Nested TOML section |
 | **Name Attribute** | `PHOENIX_LDAP_ATTR_DISPLAY_NAME="displayName"` | `name = "displayName"` | Both map display name |
+| **Unique ID** | `PHOENIX_LDAP_ATTR_UNIQUE_ID="objectGUID"` | Not supported | Phoenix: Optional immutable identifier for email change resilience |
 | **Group Membership** | `PHOENIX_LDAP_ATTR_MEMBER_OF="memberOf"` | `member_of = "memberOf"` | Active Directory attribute |
 | **Group Search Base** | `PHOENIX_LDAP_GROUP_SEARCH_BASE="ou=groups,..."` | `group_search_base_dns = ["ou=groups,dc=..."]` | For POSIX groups without memberOf |
 | **Group Search Filter** | `PHOENIX_LDAP_GROUP_SEARCH_FILTER="(member=%s)"` | `group_search_filter = "(member=%s)"` | Identical: `%s` = user DN |
 | **Group→Role Mapping** | `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[`<br>`  {"group_dn": "cn=admins,...", "role": "ADMIN"}`<br>`]'` | `[[servers.group_mappings]]`<br>`group_dn = "cn=admins,..."`<br>`org_role = "Admin"` | Phoenix: JSON with `role` (no org)<br>Grafana: TOML with `org_role` |
 | **Allow Sign-Up** | `PHOENIX_LDAP_ALLOW_SIGN_UP="true"` | `[auth.ldap]`<br>`allow_sign_up = true` | Both default to `true` |
-| **Unique ID** | `PHOENIX_LDAP_ATTR_UNIQUE_ID="objectGUID"` | Not supported | Phoenix: Optional immutable identifier for email change resilience |
 | **Timeout** | Not exposed (uses ldap3 defaults) | `timeout = 10` | Grafana: Configurable in seconds |
 | **Connection Pooling** | Not exposed (uses ldap3 defaults) | Not configurable | Both use underlying library defaults |
 

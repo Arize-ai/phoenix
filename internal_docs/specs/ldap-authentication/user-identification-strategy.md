@@ -147,6 +147,28 @@ user = User(
 
 ## Unique ID Attribute Details
 
+### Supported Attribute Types
+
+**Only standard UUID-based attributes are supported:**
+
+| Directory | Attribute | Format | Example |
+|-----------|-----------|--------|---------|
+| Active Directory | `objectGUID` | 16-byte binary (mixed-endian) | `0x...` → `550e8400-e29b-41d4-...` |
+| OpenLDAP | `entryUUID` | String UUID (36 bytes) | `550e8400-e29b-41d4-a716-...` |
+| 389 DS | `nsUniqueId` | String UUID | `550e8400-e29b-41d4-a716-...` |
+
+**Not supported:**
+- Custom attributes containing 16-character string IDs (e.g., `"EMP12345ABCD6789"`)
+- Arbitrary binary formats that aren't UUIDs
+
+**Why this limitation?**
+- 16-byte values are assumed to be binary UUIDs (AD `objectGUID`)
+- A 16-character string ID would be incorrectly converted via `uuid.UUID(bytes_le=...)`
+- This produces a garbled UUID that doesn't match the original string
+- Implementing a heuristic to distinguish them has a ~1 in 7.7 million false positive rate, which is unacceptable for large deployments
+
+If your organization uses non-standard unique ID attributes, use **Simple Mode** (email-based identification) instead.
+
 ### Active Directory: objectGUID
 
 - **Type**: Binary (16 bytes, mixed-endian per MS-DTYP §2.3.4)
@@ -291,6 +313,7 @@ Enterprise IAM systems use `objectGUID`/`entryUUID` as the primary identifier.
 | **Lowercase normalization** | UUIDs are case-insensitive (RFC 4122), prevents mismatches |
 | **Case-insensitive DB lookup** | Handles legacy data with different casing |
 | **Email recycling protection** | Prevents account hijacking via recycled emails |
+| **UUID-only unique_id support** | Heuristics for 16-char strings have unacceptable false positive rates |
 
 ## References
 

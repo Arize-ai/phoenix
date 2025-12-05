@@ -3,6 +3,7 @@ import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from functools import partial
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -44,6 +45,9 @@ from phoenix.server.types import (
     UserId,
 )
 from phoenix.server.utils import prepend_root_path
+
+if TYPE_CHECKING:
+    from phoenix.server.ldap import LDAPAuthenticator
 
 logger = logging.getLogger(__name__)
 
@@ -321,7 +325,7 @@ def create_auth_router(ldap_enabled: bool = False) -> APIRouter:
 async def ldap_login(request: Request) -> Response:
     """Authenticate user via LDAP and return access/refresh tokens."""
     # Use cached authenticator instance to avoid re-parsing TLS config on every request
-    authenticator = getattr(request.app.state, "ldap_authenticator", None)
+    authenticator: LDAPAuthenticator | None = getattr(request.app.state, "ldap_authenticator", None)
 
     if not authenticator:
         raise HTTPException(
