@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<74c3b8e457777788650f1ca5e3c7def1>>
+ * @generated SignedSource<<b25b98da8a68e54617dc1623684f459b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -108,11 +108,7 @@ v8 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-},
-v9 = [
-  (v7/*: any*/),
-  (v8/*: any*/)
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -225,25 +221,9 @@ return {
                         "kind": "LinkedField",
                         "name": "prompt",
                         "plural": false,
-                        "selections": (v9/*: any*/),
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptVersion",
-                        "kind": "LinkedField",
-                        "name": "promptVersion",
-                        "plural": false,
                         "selections": [
                           (v7/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "isLatest",
-                            "storageKey": null
-                          }
+                          (v8/*: any*/)
                         ],
                         "storageKey": null
                       },
@@ -254,7 +234,10 @@ return {
                         "kind": "LinkedField",
                         "name": "promptVersionTag",
                         "plural": false,
-                        "selections": (v9/*: any*/),
+                        "selections": [
+                          (v8/*: any*/),
+                          (v7/*: any*/)
+                        ],
                         "storageKey": null
                       }
                     ],
@@ -329,12 +312,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b7c39565e51be0222f47f175c7258e52",
+    "cacheID": "e2ab67e5e5ea563804c5154ee25b3392",
     "id": null,
     "metadata": {},
     "name": "GlobalEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $datasetId: ID = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_385SQm\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_385SQm on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $datasetId: ID = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_385SQm\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_385SQm on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

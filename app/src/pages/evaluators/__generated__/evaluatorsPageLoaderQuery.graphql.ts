@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ec0f8e2da1d5419f97e48eef644d3e1c>>
+ * @generated SignedSource<<c3c81616ba20502ff8178ab9a56c66cd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -40,11 +40,7 @@ v2 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-},
-v3 = [
-  (v1/*: any*/),
-  (v2/*: any*/)
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -149,25 +145,9 @@ return {
                         "kind": "LinkedField",
                         "name": "prompt",
                         "plural": false,
-                        "selections": (v3/*: any*/),
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptVersion",
-                        "kind": "LinkedField",
-                        "name": "promptVersion",
-                        "plural": false,
                         "selections": [
                           (v1/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "isLatest",
-                            "storageKey": null
-                          }
+                          (v2/*: any*/)
                         ],
                         "storageKey": null
                       },
@@ -178,7 +158,10 @@ return {
                         "kind": "LinkedField",
                         "name": "promptVersionTag",
                         "plural": false,
-                        "selections": (v3/*: any*/),
+                        "selections": [
+                          (v2/*: any*/),
+                          (v1/*: any*/)
+                        ],
                         "storageKey": null
                       }
                     ],
@@ -253,12 +236,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "63a827e7ca1d199015d2c7ff0ffdd8ba",
+    "cacheID": "51825dbf22ebce7c159bdc7c2891f88a",
     "id": null,
     "metadata": {},
     "name": "evaluatorsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row_1f0XAO on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1f0XAO\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row_1f0XAO on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1f0XAO\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

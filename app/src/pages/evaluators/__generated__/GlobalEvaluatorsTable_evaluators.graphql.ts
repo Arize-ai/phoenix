@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ddf448204ac694ed69f1ed572b1f6ff1>>
+ * @generated SignedSource<<2f8b9b45e3ef233097d6bf069c8aea57>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -57,10 +57,6 @@ v4 = [
     "name": "datasetId",
     "variableName": "datasetId"
   }
-],
-v5 = [
-  (v2/*: any*/),
-  (v3/*: any*/)
 ];
 return {
   "argumentDefinitions": [
@@ -197,25 +193,9 @@ return {
                           "kind": "LinkedField",
                           "name": "prompt",
                           "plural": false,
-                          "selections": (v5/*: any*/),
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "PromptVersion",
-                          "kind": "LinkedField",
-                          "name": "promptVersion",
-                          "plural": false,
                           "selections": [
                             (v2/*: any*/),
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "isLatest",
-                              "storageKey": null
-                            }
+                            (v3/*: any*/)
                           ],
                           "storageKey": null
                         },
@@ -226,7 +206,9 @@ return {
                           "kind": "LinkedField",
                           "name": "promptVersionTag",
                           "plural": false,
-                          "selections": (v5/*: any*/),
+                          "selections": [
+                            (v3/*: any*/)
+                          ],
                           "storageKey": null
                         }
                       ],

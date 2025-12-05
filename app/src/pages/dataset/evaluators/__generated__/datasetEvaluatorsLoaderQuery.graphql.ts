@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9deee05a6097f5fc70254ddf238027d0>>
+ * @generated SignedSource<<d199d9c05523a0fd296cc5479b8218b7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -81,11 +81,7 @@ v7 = {
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
-},
-v8 = [
-  (v2/*: any*/),
-  (v5/*: any*/)
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -221,25 +217,9 @@ return {
                                 "kind": "LinkedField",
                                 "name": "prompt",
                                 "plural": false,
-                                "selections": (v8/*: any*/),
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "PromptVersion",
-                                "kind": "LinkedField",
-                                "name": "promptVersion",
-                                "plural": false,
                                 "selections": [
                                   (v2/*: any*/),
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "isLatest",
-                                    "storageKey": null
-                                  }
+                                  (v5/*: any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -250,7 +230,10 @@ return {
                                 "kind": "LinkedField",
                                 "name": "promptVersionTag",
                                 "plural": false,
-                                "selections": (v8/*: any*/),
+                                "selections": [
+                                  (v5/*: any*/),
+                                  (v2/*: any*/)
+                                ],
                                 "storageKey": null
                               }
                             ],
@@ -346,12 +329,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8850f974b189342c4e5f9f52d33336b9",
+    "cacheID": "e50e7aff0138ee83b2fadb151b455c38",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...EvaluatorConfigDialog_dataset\n      ...DatasetEvaluatorsTable_evaluators_2m4mqp\n    }\n  }\n  ...AddEvaluatorMenu_query_2m4mqp\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_query_2m4mqp on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      ...EvaluatorConfigDialog_dataset\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_2m4mqp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_2m4mqp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n\nfragment EvaluatorsTable_row_2m4mqp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $id)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...EvaluatorConfigDialog_dataset\n      ...DatasetEvaluatorsTable_evaluators_2m4mqp\n    }\n  }\n  ...AddEvaluatorMenu_query_2m4mqp\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_query_2m4mqp on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      ...EvaluatorConfigDialog_dataset\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_2m4mqp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_2m4mqp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n\nfragment EvaluatorsTable_row_2m4mqp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $id)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();

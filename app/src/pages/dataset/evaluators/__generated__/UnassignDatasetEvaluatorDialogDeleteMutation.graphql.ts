@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<27a87a69f3f3b56f4a0062888509fec2>>
+ * @generated SignedSource<<41605c30641b11a3afb11a08787430bd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -106,8 +106,8 @@ v10 = {
   "storageKey": null
 },
 v11 = [
-  (v8/*: any*/),
-  (v10/*: any*/)
+  (v10/*: any*/),
+  (v8/*: any*/)
 ];
 return {
   "fragment": {
@@ -269,10 +269,7 @@ return {
                                         "kind": "LinkedField",
                                         "name": "outputConfig",
                                         "plural": false,
-                                        "selections": [
-                                          (v10/*: any*/),
-                                          (v8/*: any*/)
-                                        ],
+                                        "selections": (v11/*: any*/),
                                         "storageKey": null
                                       }
                                     ],
@@ -342,25 +339,9 @@ return {
                                         "kind": "LinkedField",
                                         "name": "prompt",
                                         "plural": false,
-                                        "selections": (v11/*: any*/),
-                                        "storageKey": null
-                                      },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "concreteType": "PromptVersion",
-                                        "kind": "LinkedField",
-                                        "name": "promptVersion",
-                                        "plural": false,
                                         "selections": [
                                           (v8/*: any*/),
-                                          {
-                                            "alias": null,
-                                            "args": null,
-                                            "kind": "ScalarField",
-                                            "name": "isLatest",
-                                            "storageKey": null
-                                          }
+                                          (v10/*: any*/)
                                         ],
                                         "storageKey": null
                                       },
@@ -476,12 +457,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5d8efa848b235f29bd7fb3ccb3bae0bc",
+    "cacheID": "2eb991cb6672e56157e4fdd5683321c5",
     "id": null,
     "metadata": {},
     "name": "UnassignDatasetEvaluatorDialogDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation UnassignDatasetEvaluatorDialogDeleteMutation(\n  $input: DeleteEvaluatorsInput!\n  $datasetId: ID!\n) {\n  deleteEvaluators(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...PlaygroundDatasetSection_evaluators_1wYocp\n        ...DatasetEvaluatorsTable_evaluators_1wYocp\n        id\n      }\n    }\n    evaluatorIds\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation UnassignDatasetEvaluatorDialogDeleteMutation(\n  $input: DeleteEvaluatorsInput!\n  $datasetId: ID!\n) {\n  deleteEvaluators(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...PlaygroundDatasetSection_evaluators_1wYocp\n        ...DatasetEvaluatorsTable_evaluators_1wYocp\n        id\n      }\n    }\n    evaluatorIds\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluators_1wYocp on Dataset {\n  evaluators(first: 100) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        datasetInputMapping(datasetId: $datasetId) {\n          literalMapping\n          pathMapping\n        }\n        ... on LLMEvaluator {\n          outputConfig {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

@@ -404,8 +404,7 @@ export const PromptMenu = <T extends object>({
  * Renders a label for a prompt version. If the version is the latest, it just shows "latest" as a tag.
  * Otherwise, it shows the ID truncated to 6 characters.
  */
-// TODO: move this to shared location
-export function PromptVersionLabel({
+function PromptVersionLabel({
   id,
   isLatest,
 }: {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f34b9cca8219bef8127623c19dc481b9>>
+ * @generated SignedSource<<686aec11a16f045a58d016912806b3ab>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -128,11 +128,7 @@ v15 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-},
-v16 = [
-  (v13/*: any*/),
-  (v15/*: any*/)
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -277,25 +273,9 @@ return {
                                 "kind": "LinkedField",
                                 "name": "prompt",
                                 "plural": false,
-                                "selections": (v16/*: any*/),
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "PromptVersion",
-                                "kind": "LinkedField",
-                                "name": "promptVersion",
-                                "plural": false,
                                 "selections": [
                                   (v13/*: any*/),
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "isLatest",
-                                    "storageKey": null
-                                  }
+                                  (v15/*: any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -306,7 +286,10 @@ return {
                                 "kind": "LinkedField",
                                 "name": "promptVersionTag",
                                 "plural": false,
-                                "selections": (v16/*: any*/),
+                                "selections": [
+                                  (v15/*: any*/),
+                                  (v13/*: any*/)
+                                ],
                                 "storageKey": null
                               }
                             ],
@@ -388,12 +371,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "85396f5b414d2db856d9afea636c2daa",
+    "cacheID": "f3e3143b916cb8b3d001c190554e046c",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $datasetId: ID = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_385SQm\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_385SQm on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      id\n      isLatest\n    }\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $datasetId: ID = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_385SQm\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_385SQm on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();
