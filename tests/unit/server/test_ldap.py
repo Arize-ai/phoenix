@@ -16,13 +16,42 @@ from pytest import LogCaptureFixture
 
 from phoenix.config import LDAPConfig
 from phoenix.server.ldap import (
+    LDAP_CLIENT_ID_MARKER,
     LDAPAuthenticator,
+    LDAPUserInfo,
     _get_attribute,
     _get_unique_id,
     _is_member_of,
     _validate_phoenix_role,
     canonicalize_dn,
+    is_ldap_user,
 )
+
+
+class TestIsLdapUser:
+    """Test is_ldap_user utility function."""
+
+    def test_ldap_user_detected(self) -> None:
+        """Test LDAP user marker is correctly detected."""
+        ldap_client_id = f"{LDAP_CLIENT_ID_MARKER}:some-unique-id"
+        assert is_ldap_user(ldap_client_id) is True
+
+    def test_oauth_user_not_detected(self) -> None:
+        """Test OAuth users are not detected as LDAP."""
+        assert is_ldap_user("google-oauth2|123456") is False
+        assert is_ldap_user("auth0|user123") is False
+
+    def test_none_returns_false(self) -> None:
+        """Test None input returns False."""
+        assert is_ldap_user(None) is False
+
+    def test_empty_string_returns_false(self) -> None:
+        """Test empty string returns False."""
+        assert is_ldap_user("") is False
+
+    def test_marker_alone_detected(self) -> None:
+        """Test marker without suffix is still detected."""
+        assert is_ldap_user(LDAP_CLIENT_ID_MARKER) is True
 
 
 class TestLDAPSecurityValidation:
@@ -75,6 +104,510 @@ class TestLDAPSecurityValidation:
         # Type ignore since we're testing runtime behavior
         result = await authenticator.authenticate("admin", None)  # type: ignore
         assert result is None
+
+
+class TestAuthenticationFlow:
+    """Test complete authentication flow scenarios."""
+
+    @pytest.fixture
+    def config(self) -> LDAPConfig:
+        """LDAP configuration for authentication tests."""
+        return LDAPConfig(
+            host="ldap.example.com",
+            port=389,
+            tls_mode="none",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            attr_display_name="displayName",
+            attr_member_of="memberOf",
+            group_role_mappings=(
+                {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
+                {"group_dn": "*", "role": "VIEWER"},
+            ),
+        )
+
+    @pytest.fixture
+    def authenticator(self, config: LDAPConfig) -> LDAPAuthenticator:
+        """Create authenticator instance."""
+        return LDAPAuthenticator(config)
+
+    async def test_successful_authentication_returns_user_info(
+        self, authenticator: LDAPAuthenticator
+    ) -> None:
+        """Happy path: successful auth returns complete LDAPUserInfo."""
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            # Mock user search result
+            mock_entry = MagicMock()
+            mock_entry.entry_dn = "uid=jdoe,ou=users,dc=example,dc=com"
+
+            # Mock email attribute
+            mock_email = MagicMock()
+            mock_email.values = ["jdoe@example.com"]
+            mock_entry.mail = mock_email
+
+            # Mock display name attribute
+            mock_display_name = MagicMock()
+            mock_display_name.values = ["John Doe"]
+            mock_entry.displayName = mock_display_name
+
+            # Mock memberOf attribute
+            mock_member_of = MagicMock()
+            mock_member_of.values = ["cn=admins,ou=groups,dc=example,dc=com"]
+            mock_entry.memberOf = mock_member_of
+
+            mock_conn.entries = [mock_entry]
+
+            with patch.object(authenticator, "_verify_user_password", return_value=True):
+                result = await authenticator.authenticate("jdoe", "validpassword")
+
+        assert result is not None
+        assert isinstance(result, LDAPUserInfo)
+        assert result.email == "jdoe@example.com"
+        assert result.display_name == "John Doe"
+        assert result.user_dn == "uid=jdoe,ou=users,dc=example,dc=com"
+        assert result.ldap_username == "jdoe"
+        assert result.role == "ADMIN"
+        assert "cn=admins,ou=groups,dc=example,dc=com" in result.groups
+
+    async def test_ambiguous_search_rejected(
+        self, authenticator: LDAPAuthenticator, caplog: LogCaptureFixture
+    ) -> None:
+        """SECURITY: Multiple matching users must be rejected."""
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            # Mock search returning multiple users (ambiguous result)
+            mock_entry1 = MagicMock()
+            mock_entry1.entry_dn = "uid=jdoe,ou=employees,dc=example,dc=com"
+            mock_entry2 = MagicMock()
+            mock_entry2.entry_dn = "uid=jdoe,ou=contractors,dc=example,dc=com"
+            mock_conn.entries = [mock_entry1, mock_entry2]
+
+            with patch.object(authenticator, "_dummy_bind_for_timing"):
+                result = await authenticator.authenticate("jdoe", "password")
+
+        assert result is None
+        assert "Ambiguous LDAP search" in caplog.text
+        assert "found 2 matching entries" in caplog.text
+
+    async def test_missing_email_attribute_rejected(
+        self, authenticator: LDAPAuthenticator, caplog: LogCaptureFixture
+    ) -> None:
+        """User without required email attribute must be rejected."""
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            # Mock user entry without email attribute
+            mock_entry = MagicMock()
+            mock_entry.entry_dn = "uid=jdoe,ou=users,dc=example,dc=com"
+            # Simulate missing email attribute
+            mock_email = MagicMock()
+            mock_email.values = []  # Empty = no email
+            mock_entry.mail = mock_email
+
+            mock_conn.entries = [mock_entry]
+
+            with patch.object(authenticator, "_verify_user_password", return_value=True):
+                result = await authenticator.authenticate("jdoe", "validpassword")
+
+        assert result is None
+        assert "missing required email attribute" in caplog.text
+
+    async def test_missing_unique_id_when_configured_rejected(
+        self, caplog: LogCaptureFixture
+    ) -> None:
+        """User without configured unique_id attribute must be rejected."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            port=389,
+            tls_mode="none",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            attr_display_name="displayName",
+            attr_member_of="memberOf",
+            attr_unique_id="objectGUID",  # Configured but will be missing
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            # Mock user entry with email but missing objectGUID
+            mock_entry = MagicMock()
+            mock_entry.entry_dn = "uid=jdoe,ou=users,dc=example,dc=com"
+
+            mock_email = MagicMock()
+            mock_email.values = ["jdoe@example.com"]
+            mock_entry.mail = mock_email
+
+            mock_display_name = MagicMock()
+            mock_display_name.values = ["John Doe"]
+            mock_entry.displayName = mock_display_name
+
+            mock_member_of = MagicMock()
+            mock_member_of.values = []
+            mock_entry.memberOf = mock_member_of
+
+            # objectGUID attribute missing (spec=[] means no attributes)
+            mock_entry.objectGUID = MagicMock(spec=[])
+
+            mock_conn.entries = [mock_entry]
+
+            with patch.object(authenticator, "_verify_user_password", return_value=True):
+                result = await authenticator.authenticate("jdoe", "validpassword")
+
+        assert result is None
+        assert "missing configured unique_id attribute" in caplog.text
+        assert "objectGUID" in caplog.text
+
+    async def test_no_matching_role_rejected(self) -> None:
+        """User with no matching group-role mapping must be rejected."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            port=389,
+            tls_mode="none",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            attr_display_name="displayName",
+            attr_member_of="memberOf",
+            # Only admins allowed - no wildcard fallback
+            group_role_mappings=(
+                {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
+            ),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            mock_entry = MagicMock()
+            mock_entry.entry_dn = "uid=jdoe,ou=users,dc=example,dc=com"
+
+            mock_email = MagicMock()
+            mock_email.values = ["jdoe@example.com"]
+            mock_entry.mail = mock_email
+
+            mock_display_name = MagicMock()
+            mock_display_name.values = ["John Doe"]
+            mock_entry.displayName = mock_display_name
+
+            # User is only in developers group, not admins
+            mock_member_of = MagicMock()
+            mock_member_of.values = ["cn=developers,ou=groups,dc=example,dc=com"]
+            mock_entry.memberOf = mock_member_of
+
+            mock_conn.entries = [mock_entry]
+
+            with patch.object(authenticator, "_verify_user_password", return_value=True):
+                result = await authenticator.authenticate("jdoe", "validpassword")
+
+        # User authenticated but has no role mapping → rejected
+        assert result is None
+
+    async def test_password_verification_failure_rejected(
+        self, authenticator: LDAPAuthenticator
+    ) -> None:
+        """Wrong password must be rejected."""
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            mock_entry = MagicMock()
+            mock_entry.entry_dn = "uid=jdoe,ou=users,dc=example,dc=com"
+            mock_conn.entries = [mock_entry]
+
+            # Password verification fails
+            with patch.object(authenticator, "_verify_user_password", return_value=False):
+                result = await authenticator.authenticate("jdoe", "wrongpassword")
+
+        assert result is None
+
+    async def test_user_not_found_rejected(self, authenticator: LDAPAuthenticator) -> None:
+        """Non-existent user must be rejected."""
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            # No users found
+            mock_conn.entries = []
+
+            with patch.object(authenticator, "_dummy_bind_for_timing") as mock_dummy:
+                result = await authenticator.authenticate("nonexistent", "password")
+                # Verify timing attack mitigation was performed
+                mock_dummy.assert_called_once()
+
+        assert result is None
+
+    async def test_successful_authentication_with_unique_id(self) -> None:
+        """Successful auth with unique_id configured returns complete LDAPUserInfo."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            port=389,
+            tls_mode="none",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            attr_display_name="displayName",
+            attr_member_of="memberOf",
+            attr_unique_id="entryUUID",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            mock_entry = MagicMock()
+            mock_entry.entry_dn = "uid=jdoe,ou=users,dc=example,dc=com"
+
+            mock_email = MagicMock()
+            mock_email.values = ["jdoe@example.com"]
+            mock_entry.mail = mock_email
+
+            mock_display_name = MagicMock()
+            mock_display_name.values = ["John Doe"]
+            mock_entry.displayName = mock_display_name
+
+            mock_member_of = MagicMock()
+            mock_member_of.values = []
+            mock_entry.memberOf = mock_member_of
+
+            # Mock entryUUID attribute (OpenLDAP style)
+            mock_uuid = MagicMock()
+            mock_uuid.raw_values = [b"550e8400-e29b-41d4-a716-446655440000"]
+            mock_entry.entryUUID = mock_uuid
+
+            mock_conn.entries = [mock_entry]
+
+            with patch.object(authenticator, "_verify_user_password", return_value=True):
+                result = await authenticator.authenticate("jdoe", "validpassword")
+
+        assert result is not None
+        assert result.unique_id == "550e8400-e29b-41d4-a716-446655440000"
+
+    async def test_display_name_defaults_to_email_prefix(
+        self, authenticator: LDAPAuthenticator
+    ) -> None:
+        """Missing display name should default to email prefix."""
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            mock_entry = MagicMock()
+            mock_entry.entry_dn = "uid=jdoe,ou=users,dc=example,dc=com"
+
+            mock_email = MagicMock()
+            mock_email.values = ["john.doe@example.com"]
+            mock_entry.mail = mock_email
+
+            # Display name missing
+            mock_display_name = MagicMock()
+            mock_display_name.values = []
+            mock_entry.displayName = mock_display_name
+
+            mock_member_of = MagicMock()
+            mock_member_of.values = []
+            mock_entry.memberOf = mock_member_of
+
+            mock_conn.entries = [mock_entry]
+
+            with patch.object(authenticator, "_verify_user_password", return_value=True):
+                result = await authenticator.authenticate("jdoe", "validpassword")
+
+        assert result is not None
+        assert result.display_name == "john.doe"  # Prefix before @
+
+
+class TestTimingAttackMitigation:
+    """Test timing attack prevention for user enumeration."""
+
+    @pytest.fixture
+    def config(self) -> LDAPConfig:
+        """LDAP configuration for timing tests."""
+        return LDAPConfig(
+            host="ldap.example.com",
+            port=389,
+            tls_mode="none",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+
+    @pytest.fixture
+    def authenticator(self, config: LDAPConfig) -> LDAPAuthenticator:
+        """Create authenticator instance."""
+        return LDAPAuthenticator(config)
+
+    def test_dummy_bind_uses_randomized_dn(self, authenticator: LDAPAuthenticator) -> None:
+        """Dummy bind should use randomized DN to prevent caching."""
+        with patch.object(authenticator, "_verify_user_password") as mock_verify:
+            mock_verify.return_value = False
+
+            # Call dummy bind twice
+            authenticator._dummy_bind_for_timing(authenticator.servers[0], "password1")
+            authenticator._dummy_bind_for_timing(authenticator.servers[0], "password2")
+
+            # Both calls should use different DNs (randomized)
+            assert mock_verify.call_count == 2
+            call1_dn = mock_verify.call_args_list[0][0][1]
+            call2_dn = mock_verify.call_args_list[1][0][1]
+            assert call1_dn != call2_dn
+            assert "dummy-" in call1_dn
+            assert "dummy-" in call2_dn
+
+    def test_dummy_bind_swallows_exceptions(self, authenticator: LDAPAuthenticator) -> None:
+        """Dummy bind should not raise exceptions (timing only, result ignored)."""
+        with patch.object(authenticator, "_verify_user_password") as mock_verify:
+            mock_verify.side_effect = LDAPException("Connection failed")
+
+            # Should not raise - exceptions are swallowed
+            authenticator._dummy_bind_for_timing(authenticator.servers[0], "password")
+
+            mock_verify.assert_called_once()
+
+
+class TestMultipleSearchBases:
+    """Test user search across multiple base DNs."""
+
+    async def test_user_found_in_second_search_base(self) -> None:
+        """User in second search base should be found after first base returns empty."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            port=389,
+            tls_mode="none",
+            user_search_base_dns=(
+                "ou=employees,dc=example,dc=com",
+                "ou=contractors,dc=example,dc=com",
+            ),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            attr_display_name="displayName",
+            attr_member_of="memberOf",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            # Track search calls to verify both bases are searched
+            search_call_count = 0
+
+            def search_side_effect(**kwargs):
+                nonlocal search_call_count
+                search_call_count += 1
+                if "ou=employees" in kwargs.get("search_base", ""):
+                    # First base: no results
+                    mock_conn.entries = []
+                else:
+                    # Second base: user found
+                    mock_entry = MagicMock()
+                    mock_entry.entry_dn = "uid=contractor1,ou=contractors,dc=example,dc=com"
+
+                    mock_email = MagicMock()
+                    mock_email.values = ["contractor1@example.com"]
+                    mock_entry.mail = mock_email
+
+                    mock_display_name = MagicMock()
+                    mock_display_name.values = ["Contractor One"]
+                    mock_entry.displayName = mock_display_name
+
+                    mock_member_of = MagicMock()
+                    mock_member_of.values = []
+                    mock_entry.memberOf = mock_member_of
+
+                    mock_conn.entries = [mock_entry]
+
+            mock_conn.search.side_effect = search_side_effect
+
+            with patch.object(authenticator, "_verify_user_password", return_value=True):
+                result = await authenticator.authenticate("contractor1", "validpassword")
+
+        # Both search bases should have been searched
+        assert search_call_count == 2
+        assert result is not None
+        assert result.email == "contractor1@example.com"
+        assert "ou=contractors" in result.user_dn
+
+    async def test_user_found_in_first_search_base_stops_search(self) -> None:
+        """User found in first search base should not search remaining bases."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            port=389,
+            tls_mode="none",
+            user_search_base_dns=(
+                "ou=employees,dc=example,dc=com",
+                "ou=contractors,dc=example,dc=com",
+            ),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            attr_display_name="displayName",
+            attr_member_of="memberOf",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        with patch.object(authenticator, "_establish_connection") as mock_establish:
+            mock_conn = MagicMock()
+            mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
+            mock_establish.return_value.__exit__ = Mock(return_value=None)
+
+            search_call_count = 0
+
+            def search_side_effect(**kwargs):
+                nonlocal search_call_count
+                search_call_count += 1
+                # First base: user found
+                mock_entry = MagicMock()
+                mock_entry.entry_dn = "uid=employee1,ou=employees,dc=example,dc=com"
+
+                mock_email = MagicMock()
+                mock_email.values = ["employee1@example.com"]
+                mock_entry.mail = mock_email
+
+                mock_display_name = MagicMock()
+                mock_display_name.values = ["Employee One"]
+                mock_entry.displayName = mock_display_name
+
+                mock_member_of = MagicMock()
+                mock_member_of.values = []
+                mock_entry.memberOf = mock_member_of
+
+                mock_conn.entries = [mock_entry]
+
+            mock_conn.search.side_effect = search_side_effect
+
+            with patch.object(authenticator, "_verify_user_password", return_value=True):
+                result = await authenticator.authenticate("employee1", "validpassword")
+
+        # Only first search base should have been searched
+        assert search_call_count == 1
+        assert result is not None
+        assert "ou=employees" in result.user_dn
 
 
 class TestRoleMapping:
@@ -273,10 +806,18 @@ class TestAttributeExtraction:
 
     def test_missing_attribute_returns_none(self) -> None:
         """Test missing attribute returns None (not exception)."""
-        # Create entry with only specific attributes (not MagicMock which auto-generates)
-        entry = type("Entry", (), {"mail": None})()
+        # Create minimal entry without the requested attribute
+        # Using type() instead of MagicMock because MagicMock auto-generates attributes
+        entry = type("Entry", (), {})()
 
         result = _get_attribute(entry, "nonexistent")
+        assert result is None
+
+    def test_none_attribute_returns_none(self) -> None:
+        """Test attribute set to None returns None."""
+        entry = type("Entry", (), {"mail": None})()
+
+        result = _get_attribute(entry, "mail")
         assert result is None
 
     def test_empty_attribute_returns_none(self) -> None:

@@ -33,6 +33,34 @@ Advanced TLS Configuration:
         For mutual TLS (mTLS) authentication where the LDAP server
         requires client certificate validation.
 
+Security Considerations:
+    This module implements multiple layers of defense against LDAP-specific attacks:
+
+    - Anonymous Bind Prevention (RFC 4513 §5.1.2):
+        Empty passwords are rejected before any LDAP operation. Many LDAP servers
+        treat empty-password binds as "unauthenticated" (anonymous), which would
+        allow attackers to bypass authentication entirely.
+
+    - LDAP Injection Prevention (RFC 4515):
+        All user input is escaped before insertion into LDAP filters using
+        escape_filter_chars(). This prevents filter manipulation attacks like
+        username="*" or "admin)(uid=*".
+
+    - Referral Following Disabled:
+        ldap3 defaults to auto_referrals=True, which follows LDAP referrals to
+        ANY server and sends bind credentials automatically. An attacker who can
+        inject a referral response could steal service account credentials.
+        Phoenix disables this (auto_referrals=False) and relies on explicit
+        multi-server configuration for high availability instead.
+
+    - Timing Attack Mitigation:
+        When a user is not found, a dummy bind is performed to equalize response
+        times with the "wrong password" case, preventing username enumeration.
+
+    - Exception Sanitization:
+        LDAP exception messages may contain sensitive information (server IPs,
+        DNs, configuration details). Only the exception type is logged.
+
 Implementation Notes:
     The ldap3 library requires explicit handling of STARTTLS via:
         - AUTO_BIND_TLS_BEFORE_BIND constant for automatic bind flows
@@ -53,6 +81,21 @@ Thread Safety Note:
     The library has no native asyncio support—all strategies perform blocking socket I/O.
     We therefore run ldap3 in a thread pool via anyio.to_thread.run_sync() to avoid
     blocking the FastAPI event loop (see authenticate() docstring for details).
+
+Known Limitations:
+    - No connection pooling: Each authentication creates fresh connections.
+      For very high-volume deployments (>100 auth/sec), consider adding ldap3
+      connection pooling or an external LDAP proxy (e.g., HAProxy).
+
+    - No pagination for group searches: POSIX mode group searches may be
+      truncated if the directory contains >1000 matching groups per search base.
+      Most deployments won't hit this limit.
+
+    - No nested group resolution: Active Directory nested groups (group-in-group)
+      require recursive memberOf queries or LDAP_MATCHING_RULE_IN_CHAIN (OID
+      1.2.840.113556.1.4.1941). Currently only direct group memberships are
+      resolved. Configure flattened groups or use AD's tokenGroups attribute
+      if nested resolution is required.
 
 See Also:
     _create_servers(): Server-level TLS configuration (use_ssl, tls)
@@ -158,19 +201,49 @@ def canonicalize_dn(dn: str) -> str:
     return ",".join(canonical_parts)
 
 
-# Unicode marker for identifying LDAP users in oauth2_client_id column
-# U+E000 from Private Use Area - guaranteed never to be assigned by Unicode Standard
+# Unicode marker for identifying LDAP users in oauth2_client_id column.
+# U+E000 from Private Use Area - guaranteed never to be assigned by Unicode Standard.
+#
+# Design Context:
+#   Phoenix's user table was originally designed for OAuth2 providers, using
+#   oauth2_client_id to identify the authentication source (e.g., "google",
+#   "github"). LDAP users need a distinct marker to differentiate them from
+#   OAuth users without requiring a database schema migration.
+#
+# The "(stopgap)" Suffix:
+#   Indicates this is a temporary solution. A future schema change should add
+#   a dedicated identity_provider column (enum: "local", "ldap", "oauth2", etc.)
+#   with oauth2_client_id nullable only for OAuth users. This marker enables
+#   LDAP support without blocking on that migration.
+#
+# Why U+E000?
+#   Private Use Area characters cannot appear in legitimate OAuth client IDs,
+#   ensuring no collision with real OAuth providers. The marker is also
+#   unlikely to be accidentally typed or injected.
 LDAP_CLIENT_ID_MARKER: Final[str] = "\ue000LDAP(stopgap)"
 
 
 def is_ldap_user(oauth2_client_id: str | None) -> bool:
     """Check if an oauth2_client_id indicates an LDAP user.
 
+    This function checks for the LDAP_CLIENT_ID_MARKER prefix to distinguish
+    LDAP-authenticated users from OAuth2-authenticated users. Used throughout
+    the codebase to apply LDAP-specific logic (e.g., re-authentication flows,
+    password change handling).
+
     Args:
         oauth2_client_id: The OAuth2 client ID to check (can be None)
 
     Returns:
         True if the client ID indicates an LDAP user, False otherwise
+
+    Example:
+        >>> is_ldap_user("\\ue000LDAP(stopgap):user-unique-id")
+        True
+        >>> is_ldap_user("google-oauth2|12345")
+        False
+        >>> is_ldap_user(None)
+        False
     """
     return bool(oauth2_client_id and oauth2_client_id.startswith(LDAP_CLIENT_ID_MARKER))
 
@@ -447,16 +520,33 @@ class LDAPAuthenticator:
             Mitigation: anyio.to_thread.run_sync() runs LDAP ops in background threads,
             keeping the main event loop responsive for other requests.
 
-            Timeouts (Defense-in-Depth):
-            - Connection establishment: 10 seconds (Server connect_timeout)
-              Rationale: Network unreachable or firewall block should fail fast
-            - LDAP operations: 30 seconds per operation (Connection receive_timeout)
-              Rationale: Bind/search should complete quickly; slow response indicates
-              server overload or network issues. Prevents thread from hanging indefinitely.
-            - HTTP request timeout: 60 seconds (anyio.fail_after - returns 500 to client,
-              but thread continues until socket timeout)
-              Rationale: Prevents client from hanging, but cannot stop thread itself
-              (Python threads running native C code cannot be cancelled)
+        Timeout Architecture (Defense-in-Depth):
+            Multiple timeout layers ensure no single failure can hang the system:
+
+            ┌─────────────────────────────────────────────────────────────┐
+            │ HTTP Request: 60s (anyio.fail_after)                        │
+            │   Returns 500 to client if exceeded; thread continues       │
+            │  ┌─────────────────────────────────────────────────────────┐│
+            │  │ Thread Pool Task (no direct timeout)                    ││
+            │  │   Runs until LDAP operation completes or socket times out│
+            │  │  ┌─────────────────────────────────────────────────────┐││
+            │  │  │ LDAP Operation: 30s (receive_timeout)               │││
+            │  │  │   Bind, search, and other LDAP protocol operations  │││
+            │  │  │  ┌─────────────────────────────────────────────────┐│││
+            │  │  │  │ TCP Connect: 10s (connect_timeout)              ││││
+            │  │  │  │   Initial socket connection to LDAP server      ││││
+            │  │  │  └─────────────────────────────────────────────────┘│││
+            │  │  └─────────────────────────────────────────────────────┘││
+            │  └─────────────────────────────────────────────────────────┘│
+            └─────────────────────────────────────────────────────────────┘
+
+            Rationale for each layer:
+            - TCP Connect (10s): Network unreachable or firewall should fail fast
+            - LDAP Operation (30s): Bind/search should complete quickly; slow response
+              indicates server overload. This is the actual timeout that stops the thread.
+            - HTTP Request (60s): Prevents client from hanging indefinitely. Note that
+              Python threads running native C code cannot be cancelled, so this only
+              returns an error to the client—the thread continues until socket timeout.
 
         Security:
             - Empty username/password rejected (prevents anonymous bind bypass)

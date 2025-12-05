@@ -98,6 +98,7 @@ All appendices have been extracted to separate files. See [ldap-authentication/R
 - [Protocol Compliance](./ldap-authentication/protocol-compliance.md) - STARTTLS security, group DN matching, Docker testing
 - [Security Deep-Dive](./ldap-authentication/security.md) - Threat model, LDAP injection prevention
 - [Code Examples](./ldap-authentication/code-examples.md) - LDAPConfig, LDAPAuthenticator, API endpoints
+- [Future Improvements](./ldap-authentication/future-improvements.md) - Post-MVP enhancements (password policy, metrics, nested groups)
 
 ---
 
@@ -789,6 +790,9 @@ See **[ldap-authentication/README.md](./ldap-authentication/README.md)** for the
 **Research & Comparison**:
 - [Grafana Comparison](./ldap-authentication/grafana-comparison.md) - Source code research, compatibility findings
 - [Background Sync (Future)](./ldap-authentication/background-sync-future.md) - Post-MVP enterprise feature design
+
+**Future Roadmap**:
+- [Future Improvements](./ldap-authentication/future-improvements.md) - Password policy, metrics, nested groups, retry logic
 
 ---
 

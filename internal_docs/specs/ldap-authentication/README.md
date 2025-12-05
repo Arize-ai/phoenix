@@ -31,3 +31,6 @@ Detailed technical references for the [LDAP Authentication specification](../lda
 **Research**:
 - [Grafana Comparison](./grafana-comparison.md)
 - [Background Sync (Future)](./background-sync-future.md)
+
+**Roadmap**:
+- [Future Improvements](./future-improvements.md) - Post-MVP enhancements (password policy, metrics, retry logic, nested groups)
