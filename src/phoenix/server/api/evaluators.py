@@ -47,6 +47,34 @@ class EvaluationResult(TypedDict):
     end_time: datetime
 
 
+class LLMEvaluator:
+    def __init__(
+        self, llm_evaluator_orm: models.LLMEvaluator, prompt_version_orm: models.PromptVersion
+    ) -> None:
+        self._llm_evaluator_orm = llm_evaluator_orm
+        self._prompt_version_orm = prompt_version_orm
+
+    def name(self) -> str:
+        return self._llm_evaluator_orm.name.root
+
+    def description(self) -> Optional[str]:
+        return self._llm_evaluator_orm.description
+
+    def metadata(self) -> dict[str, Any]:
+        return self._llm_evaluator_orm.metadata_
+
+    def input_schema(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMappingInput,
+    ) -> EvaluationResult:
+        raise NotImplementedError
+
+
 class BuiltInEvaluator(ABC):
     name: str
     description: Optional[str] = None
