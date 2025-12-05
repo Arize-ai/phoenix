@@ -5,7 +5,7 @@ import { Flex, Heading, Text } from "@phoenix/components";
 import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
 import { DatasetExampleSelect } from "@phoenix/components/dataset/DatasetExampleSelect";
 import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
-import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
+import { EvaluatorParams } from "@phoenix/types";
 
 type EvaluatorExampleDatasetProps = {
   selectedDatasetId: string | null;
@@ -16,7 +16,7 @@ type EvaluatorExampleDatasetProps = {
   onSelectExampleId: (exampleId: string | null) => void;
   datasetSelectIsDisabled?: boolean;
   onEvaluatorInputObjectChange: (
-    evaluatorInputObject: EvaluatorInput | null
+    evaluatorInputObject: EvaluatorParams | null
   ) => void;
 };
 
