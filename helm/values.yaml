@@ -339,6 +339,9 @@ auth:
   # -- Duration in minutes before refresh tokens expire (PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES)
   refreshTokenExpiryMinutes: 43200
 
+  # -- Create Secret Boolean - Should the secret be created. If False and auth is enabled, this must preexist
+  createSecret: true
+
   secret:
     # -- Environment variable name for the main Phoenix secret key used for encryption
     - key: "PHOENIX_SECRET"

@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 4.0.15](https://img.shields.io/badge/Version-4.0.15-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.17.0](https://img.shields.io/badge/AppVersion-12.17.0-informational?style=flat-square)
+![Version: 4.0.17](https://img.shields.io/badge/Version-4.0.17-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.19.0](https://img.shields.io/badge/AppVersion-12.19.0-informational?style=flat-square)
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For instructions on how to deploy this Helm chart, see the [self-hosting docs](https://arize.com/docs/phoenix/self-hosting).
   - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
@@ -37,6 +37,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.admins | string | `""` | Semicolon-separated list of username and email pairs to create as admin users on startup (PHOENIX_ADMINS) Format: "username=email;username2=email2" (e.g., "John Doe=john@example.com;Jane Doe=jane@example.com") These users will be created with random passwords that must be reset on first login |
 | auth.allowedOrigins | list | `[]` | List of allowed CORS origins for cross-origin requests to the Phoenix API (PHOENIX_ALLOWED_ORIGINS) |
 | auth.cookiesPath | string | `"/"` | Cookie path for authentication cookies (PHOENIX_COOKIES_PATH) Set this when Phoenix is hosted under a sub-path |
+| auth.createSecret | bool | `true` | Create Secret Boolean - Should the secret be created. If False and auth is enabled, this must preexist |
 | auth.csrfTrustedOrigins | list | `[]` | List of trusted origins for CSRF protection to prevent cross-site request forgery attacks (PHOENIX_CSRF_TRUSTED_ORIGINS) |
 | auth.defaultAdminPassword | string | `"admin"` | Default password for the admin user on initial setup (PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) |
 | auth.disableBasicAuth | bool | `false` | Disable password-based authentication (PHOENIX_DISABLE_BASIC_AUTH) When true, users can only authenticate via OAuth2/OIDC. Useful for SSO-only deployments. |
@@ -97,7 +98,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-12.17.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-12.19.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
