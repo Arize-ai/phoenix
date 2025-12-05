@@ -3,7 +3,7 @@ import logging
 import zlib
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
@@ -13,6 +13,8 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
+from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
     PromptTemplateFormat,
@@ -20,16 +22,15 @@ from phoenix.server.api.helpers.prompts.models import (
     denormalize_tools,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
+from phoenix.server.api.types.node import from_global_id
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
     NoOpFormatter,
     TemplateFormatter,
 )
-
-if TYPE_CHECKING:
-    from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
-    from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 
 logger = logging.getLogger(__name__)
 
@@ -68,12 +69,6 @@ class LLMEvaluator:
 
     @property
     def input_schema(self) -> dict[str, Any]:
-        """
-        Extract the input schema (JSON Schema) from the prompt version's template.
-
-        This parses the template messages to find all template variables (e.g., {{input}}, {output})
-        and returns a JSON Schema with those variables as required string properties.
-        """
         prompt_version = self._prompt_version_orm
         template = prompt_version.template
         if not isinstance(template, PromptChatTemplate):
@@ -106,18 +101,6 @@ class LLMEvaluator:
         input_mapping: EvaluatorInputMappingInput,
         llm_client: "PlaygroundStreamingClient",
     ) -> EvaluationResult:
-        """
-        Execute the LLM evaluator and return the result.
-
-        This method:
-        1. Applies input mapping to extract template variables from context
-        2. Formats the prompt messages with template variables
-        3. Makes the LLM call with tools using the provided client
-        4. Parses the tool call response to extract label/score
-        5. Returns an EvaluationResult
-        """
-        from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
-
         prompt_version = self._prompt_version_orm
         evaluator = self._llm_evaluator_orm
 
@@ -264,19 +247,6 @@ async def get_llm_evaluators(
     evaluator_ids: list[GlobalID],
     session: AsyncSession,
 ) -> list[LLMEvaluator]:
-    """
-    Fetch LLM evaluators and their prompt versions, returning LLMEvaluator instances.
-
-    Args:
-        evaluator_ids: List of evaluator global IDs
-        session: Database session
-
-    Returns:
-        List of LLMEvaluator instances
-    """
-    from phoenix.server.api.exceptions import NotFound
-    from phoenix.server.api.types.node import from_global_id
-
     if not evaluator_ids:
         return []
 
@@ -337,9 +307,6 @@ async def get_llm_evaluators(
 
 
 def _prompt_role_to_chat_role(role: str) -> "ChatCompletionMessageRole":
-    """Convert a prompt role string to a ChatCompletionMessageRole enum."""
-    from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
-
     role_lower = role.lower()
     if role_lower in ("user",):
         return ChatCompletionMessageRole.USER
@@ -354,7 +321,6 @@ def _prompt_role_to_chat_role(role: str) -> "ChatCompletionMessageRole":
 
 
 def _quote(value: Any) -> str:
-    """Quote a value for error messages."""
     return f'"{value}"'
 
 
