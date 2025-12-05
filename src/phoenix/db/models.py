@@ -1602,7 +1602,7 @@ def LDAPUser(
     *,
     email: str,
     username: str,
-    ldap_dn: str | None = None,
+    unique_id: str | None = None,
     user_role_id: int | None = None,
 ) -> OAuth2User:
     """Factory function to create an LDAP user stored as OAuth2User.
@@ -1615,7 +1615,7 @@ def LDAPUser(
     Args:
         email: User's email address
         username: User's display name
-        ldap_dn: User's LDAP Distinguished Name (stored in oauth2_user_id)
+        unique_id: User's LDAP unique ID (stored in oauth2_user_id)
         user_role_id: Phoenix role ID (ADMIN, MEMBER, VIEWER)
 
     Returns:
@@ -1627,7 +1627,7 @@ def LDAPUser(
         email=email,
         username=username,
         oauth2_client_id=LDAP_CLIENT_ID_MARKER,
-        oauth2_user_id=ldap_dn,
+        oauth2_user_id=unique_id,
         user_role_id=user_role_id,
     )
 

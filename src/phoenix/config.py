@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -1588,11 +1589,6 @@ class LDAPConfig:
             ValueError: If configuration is invalid
             json.JSONDecodeError: If GROUP_ROLE_MAPPINGS is not valid JSON
         """
-        import json
-        import logging
-
-        logger = logging.getLogger(__name__)
-
         host = getenv(ENV_PHOENIX_LDAP_HOST)
         if not host:
             return None
@@ -1638,6 +1634,16 @@ class LDAPConfig:
                     f"role must be one of {VALID_ROLES} (case-insensitive). "
                     f"Got: '{mapping['role']}'"
                 )
+
+        # Require at least one role mapping to prevent silent authentication failures
+        # Without mappings, all LDAP users would be denied access with only a debug log,
+        # which is confusing for operators. Fail fast at startup with clear guidance.
+        if not group_role_mappings_list:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS} must contain at least one mapping. "
+                f'Example: \'[{{"group_dn": "*", "role": "MEMBER"}}]\' '
+                f"(wildcard '*' grants MEMBER role to all authenticated LDAP users)"
+            )
 
         # Validate TLS mode
         tls_mode_str = getenv(ENV_PHOENIX_LDAP_TLS_MODE, "starttls").lower()
@@ -1709,8 +1715,6 @@ class LDAPConfig:
             )
 
         # Validate file paths exist
-        import os
-
         for env_var, file_path in [
             (ENV_PHOENIX_LDAP_TLS_CA_CERT_FILE, tls_ca_cert_file),
             (ENV_PHOENIX_LDAP_TLS_CLIENT_CERT_FILE, tls_client_cert_file),
@@ -1723,6 +1727,14 @@ class LDAPConfig:
         attr_email = getenv(ENV_PHOENIX_LDAP_ATTR_EMAIL, "mail")
         attr_display_name = getenv(ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, "displayName")
         attr_unique_id = getenv(ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID)
+
+        # Validate required attribute is not empty
+        # (getenv returns "" if explicitly set to empty string, not the default)
+        if not attr_email:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} cannot be empty. "
+                f"This attribute is required to identify users. Default: 'mail'"
+            )
 
         # Validate attribute names don't contain spaces
         # LDAP attribute names (e.g., objectGUID, entryUUID, mail) never contain spaces.

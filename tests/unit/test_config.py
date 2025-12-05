@@ -1552,7 +1552,7 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE": "ou=people,dc=example,dc=com",
-                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
                     "PHOENIX_LDAP_TLS_MODE": "invalid",
                 },
                 "must be 'starttls' or 'ldaps'",
@@ -1562,7 +1562,7 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE": "ou=people,dc=example,dc=com",
-                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
                     "PHOENIX_LDAP_ATTR_MEMBER_OF": "",
                 },
                 "must be set (for Active Directory) OR both",
@@ -1571,7 +1571,7 @@ class TestLDAPConfigFromEnv:
             pytest.param(
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
-                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
                 },
                 "must be set",
                 id="missing_user_search_base",
@@ -1580,7 +1580,7 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE": "ou=people,dc=example,dc=com",
-                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
                     "PHOENIX_LDAP_TLS_CLIENT_CERT_FILE": "/path/to/cert.pem",
                 },
                 "requires PHOENIX_LDAP_TLS_CLIENT_KEY_FILE",
@@ -1590,7 +1590,7 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE": "ou=people,dc=example,dc=com",
-                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
                     "PHOENIX_LDAP_TLS_CLIENT_KEY_FILE": "/path/to/key.pem",
                 },
                 "requires PHOENIX_LDAP_TLS_CLIENT_CERT_FILE",
@@ -1600,7 +1600,7 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE": "ou=people,dc=example,dc=com",
-                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
                     "PHOENIX_LDAP_ATTR_UNIQUE_ID": "object GUID",
                 },
                 "LDAP attribute names do not contain spaces",
@@ -1610,11 +1610,30 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE": "ou=people,dc=example,dc=com",
-                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
                     "PHOENIX_LDAP_ATTR_EMAIL": "e mail",
                 },
                 "LDAP attribute names do not contain spaces",
                 id="attr_email_with_spaces",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE": "ou=people,dc=example,dc=com",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "",
+                },
+                "cannot be empty",
+                id="attr_email_empty",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE": "ou=people,dc=example,dc=com",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                },
+                "must contain at least one mapping",
+                id="empty_group_role_mappings",
             ),
         ],
     )
@@ -1814,7 +1833,9 @@ class TestLDAPConfigFromEnv:
 
         monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
         monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE", "ou=people,dc=example,dc=com")
-        monkeypatch.setenv("PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", "[]")
+        monkeypatch.setenv(
+            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", '[{"group_dn": "*", "role": "MEMBER"}]'
+        )
         monkeypatch.setenv("PHOENIX_LDAP_TLS_CA_CERT_FILE", str(ca_cert_file))
 
         from phoenix.config import LDAPConfig
@@ -1837,7 +1858,9 @@ class TestLDAPConfigFromEnv:
 
         monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
         monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE", "ou=people,dc=example,dc=com")
-        monkeypatch.setenv("PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", "[]")
+        monkeypatch.setenv(
+            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", '[{"group_dn": "*", "role": "MEMBER"}]'
+        )
         monkeypatch.setenv("PHOENIX_LDAP_TLS_CLIENT_CERT_FILE", str(client_cert_file))
         monkeypatch.setenv("PHOENIX_LDAP_TLS_CLIENT_KEY_FILE", str(client_key_file))
 

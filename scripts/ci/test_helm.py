@@ -2388,7 +2388,9 @@ def get_test_suite() -> list[TestCase]:
             all_of(
                 LDAPValidators.ldap_enabled(),
                 ConfigMapValidators.configmap_has_key("PHOENIX_LDAP_HOST", "ldap.corp.com"),
-                ConfigMapValidators.configmap_has_key("PHOENIX_LDAP_USER_SEARCH_BASE", "OU=Users,DC=corp,DC=com"),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_LDAP_USER_SEARCH_BASE", "OU=Users,DC=corp,DC=com"
+                ),
             ),
         ),
         TestCase(
@@ -2409,7 +2411,9 @@ def get_test_suite() -> list[TestCase]:
             '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com" --set-string "auth.ldap.bindDn=CN=svc-phoenix\\,OU=Service Accounts\\,DC=corp\\,DC=com" --set auth.ldap.bindPassword=secret123',
             all_of(
                 LDAPValidators.ldap_enabled(),
-                LDAPValidators.ldap_bind_config("CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com"),
+                LDAPValidators.ldap_bind_config(
+                    "CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com"
+                ),
                 LDAPValidators.ldap_bind_password_in_secret(),
             ),
         ),
@@ -2449,10 +2453,12 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP with group role mappings",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com" --set-string "auth.ldap.groupRoleMappings=[{\\\"group_dn\\\":\\\"CN=Admins\\,DC=corp\\,DC=com\\\"\\,\\\"role\\\":\\\"ADMIN\\\"}]"',
+            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com" --set-string "auth.ldap.groupRoleMappings=[{\\"group_dn\\":\\"CN=Admins\\,DC=corp\\,DC=com\\"\\,\\"role\\":\\"ADMIN\\"}]"',
             all_of(
                 LDAPValidators.ldap_enabled(),
-                LDAPValidators.ldap_group_role_mappings('[{"group_dn":"CN=Admins,DC=corp,DC=com","role":"ADMIN"}]'),
+                LDAPValidators.ldap_group_role_mappings(
+                    '[{"group_dn":"CN=Admins,DC=corp,DC=com","role":"ADMIN"}]'
+                ),
             ),
         ),
         TestCase(
@@ -2510,7 +2516,9 @@ def get_test_suite() -> list[TestCase]:
             '--set auth.ldap.enabled=true --set-string "auth.ldap.host=dc1.corp.com\\,dc2.corp.com\\,dc3.corp.com" --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com"',
             all_of(
                 LDAPValidators.ldap_enabled(),
-                ConfigMapValidators.configmap_has_key("PHOENIX_LDAP_HOST", "dc1.corp.com,dc2.corp.com,dc3.corp.com"),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_LDAP_HOST", "dc1.corp.com,dc2.corp.com,dc3.corp.com"
+                ),
             ),
         ),
         # Ingress

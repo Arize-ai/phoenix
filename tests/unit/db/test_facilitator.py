@@ -13,6 +13,7 @@ from phoenix.config import (
     ENV_PHOENIX_DISABLE_BASIC_AUTH,
     ENV_PHOENIX_LDAP_BIND_DN,
     ENV_PHOENIX_LDAP_BIND_PASSWORD,
+    ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS,
     ENV_PHOENIX_LDAP_HOST,
     ENV_PHOENIX_LDAP_PORT,
     ENV_PHOENIX_LDAP_USER_SEARCH_BASE,
@@ -157,6 +158,9 @@ class TestEnsureStartupAdmins:
         monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_PASSWORD, "secret")
         monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE, "ou=users,dc=example,dc=com")
         monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(uid=%s)")
+        monkeypatch.setenv(
+            ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, '[{"group_dn": "*", "role": "MEMBER"}]'
+        )
 
         # Initialize enums and create admin
         await _ensure_enums(db)
@@ -197,6 +201,9 @@ class TestEnsureStartupAdmins:
         monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_PASSWORD, "secret")
         monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE, "ou=users,dc=example,dc=com")
         monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(uid=%s)")
+        monkeypatch.setenv(
+            ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, '[{"group_dn": "*", "role": "MEMBER"}]'
+        )
 
         # Initialize enums and create admin
         await _ensure_enums(db)

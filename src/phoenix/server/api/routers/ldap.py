@@ -1,6 +1,6 @@
 import logging
 import secrets
-from typing import Optional, cast
+from typing import cast
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
@@ -49,7 +49,7 @@ async def get_or_create_ldap_user(
 
     # Step 1: Look up user
     # Strategy depends on whether unique_id is configured
-    user: Optional[models.User] = None
+    user: models.User | None = None
 
     if unique_id:
         # Enterprise mode: lookup by unique_id first
@@ -82,10 +82,19 @@ async def get_or_create_ldap_user(
                     # We cannot create a new user because email is unique in the database.
                     # This requires admin intervention to resolve (e.g., delete/rename the
                     # old account, or update the old account's unique_id).
+                    #
+                    # SECURITY: Use generic error message to prevent information disclosure.
+                    # Revealing "account conflict" would confirm the email exists and leak
+                    # information about unique_id mismatch. Log the real reason for admins.
+                    # NOTE: Don't log email (PII) - unique_ids are sufficient for diagnosis.
+                    logger.error(
+                        f"LDAP account conflict: user_id={user.id} has different unique_id. "
+                        f"DB: {user.oauth2_user_id}, LDAP: {unique_id}. "
+                        f"Admin must resolve (delete old account or update unique_id)."
+                    )
                     raise HTTPException(
-                        status_code=403,
-                        detail="Account conflict: this email is associated with a different "
-                        "LDAP account. Contact your administrator.",
+                        status_code=401,
+                        detail="Invalid username and/or password",
                     )
                 else:
                     # Same unique_id (case-insensitive match) - normalize case in DB
@@ -128,7 +137,7 @@ async def get_or_create_ldap_user(
 
     # Security: Check if email already exists with different auth method
     existing_user = await session.scalar(
-        select(models.User).where(func.lower(models.User.email) == email)
+        select(models.User).where(func.lower(models.User.email) == email.lower())
     )
     if existing_user and not is_ldap_user(existing_user.oauth2_client_id):
         logger.error(
@@ -162,7 +171,7 @@ async def get_or_create_ldap_user(
     return user
 
 
-async def _lookup_by_unique_id(session: AsyncSession, unique_id: str) -> Optional[models.User]:
+async def _lookup_by_unique_id(session: AsyncSession, unique_id: str) -> models.User | None:
     """Look up LDAP user by immutable unique ID (objectGUID, entryUUID, etc.).
 
     Uses case-insensitive comparison because:
@@ -173,7 +182,7 @@ async def _lookup_by_unique_id(session: AsyncSession, unique_id: str) -> Optiona
     This ensures users aren't locked out due to case differences.
     """
     return cast(
-        Optional[models.User],
+        models.User | None,
         await session.scalar(
             select(models.User)
             .where(models.User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
@@ -183,14 +192,18 @@ async def _lookup_by_unique_id(session: AsyncSession, unique_id: str) -> Optiona
     )
 
 
-async def _lookup_by_email(session: AsyncSession, email: str) -> Optional[models.User]:
-    """Look up LDAP user by email (case-insensitive fallback)."""
+async def _lookup_by_email(session: AsyncSession, email: str) -> models.User | None:
+    """Look up LDAP user by email (case-insensitive).
+
+    Note: Both sides of the comparison are lowercased to ensure consistent
+    matching regardless of what sanitize_email() does to the input.
+    """
     return cast(
-        Optional[models.User],
+        models.User | None,
         await session.scalar(
             select(models.User)
             .where(models.User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
-            .where(func.lower(models.User.email) == email)
+            .where(func.lower(models.User.email) == email.lower())
             .options(joinedload(models.User.role))
         ),
     )

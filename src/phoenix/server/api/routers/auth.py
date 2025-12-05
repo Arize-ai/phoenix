@@ -57,24 +57,55 @@ rate_limiter = ServerRateLimiter(
     partition_seconds=60,
     active_partitions=2,
 )
-login_rate_limiter = fastapi_ip_rate_limiter(
-    rate_limiter,
-    paths=[
+
+
+def create_auth_router(ldap_enabled: bool = False) -> APIRouter:
+    """Create auth router with all authentication endpoints.
+
+    Creates a fresh router instance each time to avoid global state issues
+    (e.g., route accumulation in tests).
+
+    Security: Only registers the /ldap/login endpoint when LDAP is actually configured.
+    This prevents information disclosure and reduces attack surface.
+
+    Args:
+        ldap_enabled: Whether LDAP authentication is configured
+
+    Returns:
+        APIRouter: Authentication router with all endpoints registered
+    """
+    # Build rate limiter paths based on configuration
+    rate_limited_paths = [
         "/auth/login",
-        "/auth/ldap/login",
         "/auth/logout",
         "/auth/refresh",
         "/auth/password-reset-email",
         "/auth/password-reset",
-    ],
-)
+    ]
+    if ldap_enabled:
+        rate_limited_paths.append("/auth/ldap/login")
 
-auth_dependencies = [Depends(login_rate_limiter)] if not get_env_disable_rate_limit() else []
-router = APIRouter(prefix="/auth", include_in_schema=False, dependencies=auth_dependencies)
+    login_rate_limiter = fastapi_ip_rate_limiter(rate_limiter, paths=rate_limited_paths)
+    auth_dependencies = [Depends(login_rate_limiter)] if not get_env_disable_rate_limit() else []
+
+    router = APIRouter(prefix="/auth", include_in_schema=False, dependencies=auth_dependencies)
+
+    # Register all authentication endpoints
+    router.add_api_route("/login", _login, methods=["POST"])
+    router.add_api_route("/logout", _logout, methods=["GET"])
+    router.add_api_route("/refresh", _refresh_tokens, methods=["POST"])
+    router.add_api_route("/password-reset-email", _initiate_password_reset, methods=["POST"])
+    router.add_api_route("/password-reset", _reset_password, methods=["POST"])
+
+    # Conditionally add LDAP endpoint only if configured
+    if ldap_enabled:
+        router.add_api_route("/ldap/login", _ldap_login, methods=["POST"])
+
+    return router
 
 
-@router.post("/login")
-async def login(request: Request) -> Response:
+async def _login(request: Request) -> Response:
+    """Authenticate user via email/password and return access/refresh tokens."""
     if get_env_disable_basic_auth():
         raise HTTPException(status_code=403)
     data = await request.json()
@@ -110,10 +141,8 @@ async def login(request: Request) -> Response:
     return await _create_auth_response(request, user)
 
 
-@router.get("/logout")
-async def logout(
-    request: Request,
-) -> Response:
+async def _logout(request: Request) -> Response:
+    """Log out user by revoking tokens and clearing cookies."""
     token_store: TokenStore = request.app.state.get_token_store()
     user_id = None
     if isinstance(user := request.user, PhoenixUser):
@@ -138,8 +167,8 @@ async def logout(
     return response
 
 
-@router.post("/refresh")
-async def refresh_tokens(request: Request) -> Response:
+async def _refresh_tokens(request: Request) -> Response:
+    """Refresh access and refresh tokens."""
     if (refresh_token := request.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)) is None:
         raise HTTPException(status_code=401, detail="Missing refresh token")
     token_store: TokenStore = request.app.state.get_token_store()
@@ -176,8 +205,8 @@ async def refresh_tokens(request: Request) -> Response:
     return await _create_auth_response(request, user)
 
 
-@router.post("/password-reset-email")
-async def initiate_password_reset(request: Request) -> Response:
+async def _initiate_password_reset(request: Request) -> Response:
+    """Send password reset email to user."""
     if get_env_disable_basic_auth():
         raise HTTPException(status_code=403)
     data = await request.json()
@@ -220,8 +249,8 @@ async def initiate_password_reset(request: Request) -> Response:
     return Response(status_code=204)
 
 
-@router.post("/password-reset")
-async def reset_password(request: Request) -> Response:
+async def _reset_password(request: Request) -> Response:
+    """Reset user password using a valid reset token."""
     if get_env_disable_basic_auth():
         raise HTTPException(status_code=403)
     data = await request.json()
@@ -256,6 +285,37 @@ async def reset_password(request: Request) -> Response:
     await token_store.revoke(token_id)
     await token_store.log_out(UserId(user.id))
     return response
+
+
+async def _ldap_login(request: Request) -> Response:
+    """Authenticate user via LDAP and return access/refresh tokens."""
+    # Use cached authenticator instance to avoid re-parsing TLS config on every request
+    authenticator: LDAPAuthenticator | None = getattr(request.app.state, "ldap_authenticator", None)
+
+    if not authenticator:
+        raise HTTPException(
+            status_code=503, detail="LDAP authentication is not configured on this server"
+        )
+
+    data = await request.json()
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        raise HTTPException(status_code=401, detail="Username and password required")
+
+    # Authenticate against LDAP (reused authenticator, already parsed TLS config)
+    user_info = await authenticator.authenticate(username, password)
+
+    if not user_info:
+        # Generic error message to prevent username enumeration
+        raise HTTPException(status_code=401, detail="Invalid username and/or password")
+
+    # Get or create user in Phoenix database
+    async with request.app.state.db() as session:
+        user = await get_or_create_ldap_user(session, user_info, authenticator.config)
+
+    return await _create_auth_response(request, user)
 
 
 async def _create_auth_response(request: Request, user: models.User) -> Response:
@@ -300,54 +360,3 @@ INVALID_TOKEN = HTTPException(
     status_code=401,
     detail="Invalid token",
 )
-
-
-def create_auth_router(ldap_enabled: bool = False) -> APIRouter:
-    """Create auth router with conditional LDAP endpoint registration.
-
-    Security: Only registers the /ldap/login endpoint when LDAP is actually configured.
-    This prevents information disclosure and reduces attack surface.
-
-    Args:
-        ldap_enabled: Whether LDAP authentication is configured
-
-    Returns:
-        APIRouter: Authentication router (with or without LDAP endpoint)
-    """
-    # router already has all non-LDAP endpoints registered via decorators
-    # Conditionally add LDAP endpoint only if configured
-    if ldap_enabled:
-        router.add_api_route("/ldap/login", ldap_login, methods=["POST"])
-
-    return router
-
-
-async def ldap_login(request: Request) -> Response:
-    """Authenticate user via LDAP and return access/refresh tokens."""
-    # Use cached authenticator instance to avoid re-parsing TLS config on every request
-    authenticator: LDAPAuthenticator | None = getattr(request.app.state, "ldap_authenticator", None)
-
-    if not authenticator:
-        raise HTTPException(
-            status_code=503, detail="LDAP authentication is not configured on this server"
-        )
-
-    data = await request.json()
-    username = data.get("username")
-    password = data.get("password")
-
-    if not username or not password:
-        raise HTTPException(status_code=401, detail="Username and password required")
-
-    # Authenticate against LDAP (reused authenticator, already parsed TLS config)
-    user_info = await authenticator.authenticate(username, password)
-
-    if not user_info:
-        # Generic error message to prevent username enumeration
-        raise HTTPException(status_code=401, detail="Invalid username and/or password")
-
-    # Get or create user in Phoenix database
-    async with request.app.state.db() as session:
-        user = await get_or_create_ldap_user(session, user_info, authenticator.config)
-
-    return await _create_auth_response(request, user)

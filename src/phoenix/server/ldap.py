@@ -348,6 +348,27 @@ class LDAPAuthenticator:
             auto_bind_mode = AUTO_BIND_NO_TLS
 
         if self.config.bind_dn and self.config.bind_password:
+            # Service account bind using ldap3's auto_bind feature.
+            #
+            # Socket Cleanup Note (ldap3 library behavior):
+            #   ldap3's auto_bind has inconsistent socket cleanup on failure:
+            #   - LDAPS mode: _cleanup_socket() called on TLS wrap failure (base.py:292)
+            #   - STARTTLS mode: NO cleanup if wrap_socket raises in _start_tls (tls.py:287-291)
+            #   - bind() failure: NO cleanup, exception propagates up
+            #   - start_tls() returns False: unbind() IS called (connection.py:424)
+            #
+            #   If the constructor raises (during _do_auto_bind), the socket may leak until
+            #   Python's GC collects the Connection object. This is acceptable because:
+            #   1. GC will eventually close the socket (Connection has no __del__, but socket does)
+            #   2. This only affects service account bind during TLS/bind failures (rare)
+            #   3. Phoenix has timeouts (10s connect, 30s operations) preventing hangs
+            #   4. Rate limiting prevents attackers from rapidly triggering many leaks
+            #
+            #   The anonymous bind path below has explicit cleanup because we control the
+            #   sequencing. For service account binds, we rely on ldap3's auto_bind which
+            #   handles the common success case correctly.
+            #
+            #   See: https://github.com/cannatag/ldap3 for upstream library
             return Connection(
                 server,
                 user=self.config.bind_dn,
