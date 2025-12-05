@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72701039989ac8498bbd757338d8e1f6>>
+ * @generated SignedSource<<80b7d15f7c4e422a1e802e9aa37f4368>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -151,6 +151,44 @@ v8 = {
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
+},
+v9 = [
+  (v3/*: any*/),
+  (v4/*: any*/)
+],
+v10 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Prompt",
+      "kind": "LinkedField",
+      "name": "prompt",
+      "plural": false,
+      "selections": (v9/*: any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "pinnedPromptVersionId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "PromptVersionTag",
+      "kind": "LinkedField",
+      "name": "promptVersionTag",
+      "plural": false,
+      "selections": (v9/*: any*/),
+      "storageKey": null
+    }
+  ],
+  "type": "LLMEvaluator",
+  "abstractKey": null
 };
 return {
   "fragment": {
@@ -205,7 +243,8 @@ return {
                         "kind": "ScalarField",
                         "name": "isAssignedToDataset",
                         "storageKey": null
-                      }
+                      },
+                      (v10/*: any*/)
                     ],
                     "type": "Evaluator",
                     "abstractKey": "__isEvaluator"
@@ -270,7 +309,8 @@ return {
                     "kind": "ScalarField",
                     "name": "isAssignedToDataset",
                     "storageKey": null
-                  }
+                  },
+                  (v10/*: any*/)
                 ],
                 "type": "Evaluator",
                 "abstractKey": "__isEvaluator"
@@ -305,12 +345,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "312cd6aa960ab7bc1ed044658a243f5f",
+    "cacheID": "34ba21f94ab6fc40f420a4103d9a2f73",
     "id": null,
     "metadata": {},
     "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n"
+    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateLLMEvaluatorInput!\n) {\n  createLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    pinnedPromptVersionId\n    promptVersionTag {\n      id\n      name\n    }\n  }\n}\n"
   }
 };
 })();
