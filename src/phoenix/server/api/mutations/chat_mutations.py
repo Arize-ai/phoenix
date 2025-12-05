@@ -33,11 +33,7 @@ from phoenix.db.helpers import (
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import (
-    get_evaluators,
-    get_prompt_versions_for_evaluators,
-    run_evaluator,
-)
+from phoenix.server.api.evaluators import get_llm_evaluators
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
@@ -72,7 +68,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
@@ -505,30 +501,15 @@ class ChatCompletionMutationMixin:
 
         evaluations: list[ExperimentRunAnnotation] = []
         if input.evaluators:
-            # Fetch LLM evaluators and their prompt versions
-            evaluators_list = await get_evaluators(input.evaluators, info.context.db)
-            llm_evaluators = {e.id: e for e in evaluators_list}
-            prompt_versions = await get_prompt_versions_for_evaluators(
-                evaluators_list, info.context.db
-            )
-
-            # Build context for evaluators from span attributes
+            llm_evaluators = await get_llm_evaluators(input.evaluators, info.context.db)
             context_dict: dict[str, str] = {
                 "input": json.dumps(get_attribute_value(span.attributes, LLM_INPUT_MESSAGES)),
                 "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),
             }
-
-            for evaluator_input in input.evaluators:
-                _, db_id = from_global_id(evaluator_input.id)
-                llm_evaluator = llm_evaluators.get(db_id)
-                prompt_version = prompt_versions.get(db_id)
-                if llm_evaluator is None or prompt_version is None:
-                    continue
-                result = await run_evaluator(
-                    evaluator=llm_evaluator,
-                    prompt_version=prompt_version,
+            for input_mapping, llm_evaluator in llm_evaluators:
+                result = await llm_evaluator.evaluate(
                     context=context_dict,
-                    input_mapping=evaluator_input.input_mapping,
+                    input_mapping=input_mapping,
                     llm_client=llm_client,
                 )
                 annotation = ExperimentRunAnnotation.from_dict(

@@ -339,19 +339,21 @@ async def get_prompt_versions_for_evaluators(
 async def get_llm_evaluators(
     evaluator_inputs: list["PlaygroundEvaluatorInput"],
     db: "DbSessionFactory",
-) -> list[LLMEvaluator]:
+) -> list[tuple[EvaluatorInputMappingInput, LLMEvaluator]]:
     """
-    Fetch LLM evaluators and their prompt versions, returning LLMEvaluator instances.
+    Fetch LLM evaluators and their prompt versions, returning tuples of input mapping and
+    LLMEvaluator instances.
 
     This combines the functionality of get_evaluators and get_prompt_versions_for_evaluators
-    into a single helper that returns ready-to-use LLMEvaluator objects.
+    into a single helper that returns ready-to-use LLMEvaluator objects paired with their
+    input mappings.
 
     Args:
-        evaluator_inputs: List of evaluator inputs containing global IDs
+        evaluator_inputs: List of evaluator inputs containing global IDs and input mappings
         db: Database session factory
 
     Returns:
-        List of LLMEvaluator instances with their associated prompt versions
+        List of (input_mapping, LLMEvaluator) tuples
     """
     from phoenix.server.api.exceptions import NotFound
     from phoenix.server.api.types.node import from_global_id
@@ -359,19 +361,21 @@ async def get_llm_evaluators(
     if not evaluator_inputs:
         return []
 
-    # Extract evaluator row IDs from global IDs
+    # Extract evaluator row IDs and input mappings from global IDs
     evaluator_rowids: set[int] = set()
+    input_mappings: dict[int, EvaluatorInputMappingInput] = {}
     for evaluator_input in evaluator_inputs:
         type_name, db_id = from_global_id(evaluator_input.id)
         if type_name != "LLMEvaluator":
             logger.info(f"Skipping non-LLM evaluator: {evaluator_input.id}")
             continue
         evaluator_rowids.add(db_id)
+        input_mappings[db_id] = evaluator_input.input_mapping
 
     if not evaluator_rowids:
         return []
 
-    result: list[LLMEvaluator] = []
+    result: list[tuple[EvaluatorInputMappingInput, LLMEvaluator]] = []
     async with db() as session:
         # Fetch all LLM evaluators
         evaluators: list[models.LLMEvaluator] = list(
@@ -413,7 +417,8 @@ async def get_llm_evaluators(
             if prompt_version is None:
                 raise NotFound(f"Prompt version not found for evaluator {evaluator.id}")
 
-            result.append(LLMEvaluator(evaluator, prompt_version))
+            input_mapping = input_mappings[evaluator.id]
+            result.append((input_mapping, LLMEvaluator(evaluator, prompt_version)))
 
     return result
 

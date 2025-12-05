@@ -61,7 +61,10 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
+    EvaluatorInputMappingInput,
+    PlaygroundEvaluatorInput,
+)
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
@@ -117,7 +120,7 @@ async def _stream_single_chat_completion(
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
     info: Info[Context, None],
-    llm_evaluators: list[LLMEvaluator],
+    llm_evaluators: list[tuple[EvaluatorInputMappingInput, LLMEvaluator]],
 ) -> ChatStream:
     messages = [
         (
@@ -196,10 +199,10 @@ async def _stream_single_chat_completion(
                         dataset_example_id=None,
                         repetition_number=None,
                     )
-            for llm_evaluator in llm_evaluators:
+            for input_mapping, llm_evaluator in llm_evaluators:
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
-                    input_mapping=evaluator.input_mapping,
+                    input_mapping=input_mapping,
                     llm_client=llm_client,
                 )
                 annotation = ExperimentRunAnnotation.from_dict(
@@ -629,10 +632,10 @@ class Subscription:
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
-                        for llm_evaluator in llm_evaluators:
+                        for input_mapping, llm_evaluator in llm_evaluators:
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
-                                input_mapping=evaluator.input_mapping,
+                                input_mapping=input_mapping,
                                 llm_client=llm_client,
                             )
                             annotation_model = evaluation_result_to_model(
