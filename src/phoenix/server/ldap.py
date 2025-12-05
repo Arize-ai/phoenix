@@ -355,6 +355,11 @@ class LDAPAuthenticator:
                 auto_bind=auto_bind_mode,
                 raise_exceptions=True,
                 receive_timeout=30,  # Timeout for LDAP operations (bind, search)
+                # SECURITY: Disable referral following to prevent credential leakage.
+                # ldap3 defaults to following referrals to ANY server and sending credentials.
+                # An attacker-controlled referral could steal service account credentials.
+                # Phoenix already has multi-server failover, so referrals are unnecessary.
+                auto_referrals=False,
             )
 
         # Anonymous bind case - must manually sequence open/start_tls before bind
@@ -378,6 +383,8 @@ class LDAPAuthenticator:
             auto_bind=AUTO_BIND_DEFAULT,
             raise_exceptions=True,
             receive_timeout=30,
+            # SECURITY: Disable referral following (see service account connection above)
+            auto_referrals=False,
         )
         try:
             conn.open()
@@ -727,6 +734,8 @@ class LDAPAuthenticator:
             auto_bind=False,
             raise_exceptions=True,
             receive_timeout=30,  # Timeout for bind operation
+            # SECURITY: Disable referral following to prevent credential leakage
+            auto_referrals=False,
         )
         try:
             user_conn.open()
@@ -847,7 +856,7 @@ def _get_attribute(entry: Any, attr_name: str, multiple: bool = False) -> Option
     # getattr with default handles LDAPCursorAttributeError (inherits from AttributeError)
     # if not attr: handles both None (missing) and empty attribute (len(values) == 0)
     attr = getattr(entry, attr_name, None)
-    if not attr:
+    if attr is None:
         return None
 
     values = attr.values if hasattr(attr, "values") else []
@@ -871,6 +880,17 @@ def _get_unique_id(entry: Any, attr_name: str) -> Optional[str]:
     This method handles both binary and string formats, returning a
     standard UUID string representation for consistency.
 
+    IMPORTANT - Database Compatibility:
+        The returned string is used as a database key for user lookup.
+        To ensure consistent matching:
+        - Output is always lowercase (UUIDs are case-insensitive per RFC 4122)
+        - Whitespace is stripped
+        - Empty values return None
+
+        If an existing database entry has different casing (e.g., uppercase
+        from an older version), the user will be found via email fallback
+        and their unique_id will be updated on next login.
+
     Active Directory objectGUID Binary Format (MS-DTYP §2.3.4):
         Microsoft's GUID structure uses mixed-endian byte ordering:
 
@@ -893,12 +913,13 @@ def _get_unique_id(entry: Any, attr_name: str) -> Optional[str]:
         attr_name: Attribute name (e.g., "objectGUID", "entryUUID")
 
     Returns:
-        String representation of the unique ID (UUID format), or None if not present
+        String representation of the unique ID (lowercase UUID format),
+        or None if not present or empty
     """  # noqa: E501
     # getattr with default handles LDAPCursorAttributeError (inherits from AttributeError)
     # if not attr: handles both None (missing) and empty attribute (len(values) == 0)
     attr = getattr(entry, attr_name, None)
-    if not attr:
+    if attr is None:
         return None
 
     # Get raw value - could be bytes (objectGUID) or str (entryUUID)
@@ -913,19 +934,39 @@ def _get_unique_id(entry: Any, attr_name: str) -> Optional[str]:
     # ldap3 always returns bytes, but we accept bytearray/memoryview for defensive coding
     if isinstance(raw_value, (bytes, bytearray, memoryview)):
         raw_bytes = bytes(raw_value)  # Normalize to bytes for uuid.UUID
+
+        # Empty bytes should return None, not empty string
+        if len(raw_bytes) == 0:
+            return None
+
         if len(raw_bytes) == 16:
             import uuid
 
             # MS-DTYP §2.3.4: GUID uses mixed-endian format
             # Data1/Data2/Data3 are little-endian, Data4 is big-endian
             # Python's bytes_le parameter handles this correctly
+            # Note: uuid.UUID always returns lowercase
             return str(uuid.UUID(bytes_le=raw_bytes))
         else:
-            # Unknown binary format - hex encode for safety
-            return raw_bytes.hex()
+            # Non-16-byte value: likely a string UUID (e.g., OpenLDAP entryUUID)
+            # OpenLDAP stores entryUUID as string "550e8400-e29b-41d4-a716-446655440000"
+            # which comes as bytes b"550e8400-..." (36 bytes) - decode as UTF-8
+            try:
+                decoded = raw_bytes.decode("utf-8").strip()
+                # Return None for empty strings after stripping
+                if not decoded:
+                    return None
+                # Normalize to lowercase for consistent DB lookups
+                # (UUIDs are case-insensitive per RFC 4122 §3)
+                return decoded.lower()
+            except UnicodeDecodeError:
+                # Truly binary format we don't recognize - hex encode for safety
+                # Hex is already lowercase
+                return raw_bytes.hex()
 
-    # String value (entryUUID, nsUniqueId, etc.)
-    return str(raw_value)
+    # String value (shouldn't happen with ldap3, but handle for safety)
+    result = str(raw_value).strip()
+    return result.lower() if result else None
 
 
 def _validate_phoenix_role(role: str) -> str:

@@ -84,8 +84,8 @@ user = User(
 When `PHOENIX_LDAP_ATTR_UNIQUE_ID` is set (e.g., `objectGUID`, `entryUUID`):
 
 ```
-oauth2_user_id = <immutable unique ID from LDAP>
-Lookup: By oauth2_user_id, fallback to email for migration
+oauth2_user_id = <immutable unique ID from LDAP, lowercase normalized>
+Lookup: By oauth2_user_id (case-insensitive), fallback to email for migration
 ```
 
 **Configuration:**
@@ -109,18 +109,19 @@ PHOENIX_LDAP_ATTR_UNIQUE_ID=nsUniqueId
 | Email changes in LDAP | ✅ User found by unique_id, email updated |
 | Domain consolidation | ✅ User found by unique_id |
 | Migration from simple mode | ✅ Existing users matched by email, unique_id populated |
+| Email recycled to new employee | ❌ 403 rejected (admin must resolve conflict) |
 
 **Implementation:**
 
 ```python
-# Enterprise mode: lookup by unique_id first
+# Enterprise mode: lookup by unique_id first (case-insensitive)
 user = await session.scalar(
     select(User)
     .where(User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
-    .where(User.oauth2_user_id == unique_id)
+    .where(func.lower(User.oauth2_user_id) == unique_id.lower())
 )
 
-# Fallback: email lookup (handles migration)
+# Fallback: email lookup (handles migration from simple mode)
 if not user:
     user = await session.scalar(
         select(User)
@@ -128,13 +129,18 @@ if not user:
         .where(func.lower(User.email) == email.lower())
     )
     if user:
-        user.oauth2_user_id = unique_id  # Migrate to unique_id
+        # SECURITY: Only migrate if user has no existing unique_id
+        # This prevents email recycling attacks (see Security section)
+        if user.oauth2_user_id is None:
+            user.oauth2_user_id = unique_id  # Migrate to unique_id
+        elif user.oauth2_user_id.lower() != unique_id.lower():
+            raise HTTPException(403, "Account conflict")  # Admin must resolve
 
 # New user creation
 user = User(
     email=email,
     oauth2_client_id=LDAP_CLIENT_ID_MARKER,
-    oauth2_user_id=unique_id,  # Immutable identifier
+    oauth2_user_id=unique_id,  # Immutable identifier (lowercase)
     ...
 )
 ```
@@ -143,29 +149,78 @@ user = User(
 
 ### Active Directory: objectGUID
 
-- **Type**: Binary (16 bytes, little-endian)
+- **Type**: Binary (16 bytes, mixed-endian per MS-DTYP §2.3.4)
 - **Immutability**: Never changes, survives all operations
 - **Availability**: All AD user objects
-- **Phoenix handling**: Converted to UUID string format
+- **Phoenix handling**: Converted to lowercase UUID string
 
 ```python
-# AD stores GUID in mixed-endian format
+# AD stores GUID in mixed-endian format (MS-DTYP §2.3.4):
+# - Data1 (4 bytes): little-endian
+# - Data2 (2 bytes): little-endian
+# - Data3 (2 bytes): little-endian
+# - Data4 (8 bytes): big-endian
 import uuid
 unique_id = str(uuid.UUID(bytes_le=raw_bytes))  # e.g., "550e8400-e29b-41d4-a716-446655440000"
 ```
 
 ### OpenLDAP: entryUUID (RFC 4530)
 
-- **Type**: String (UUID format)
+- **Type**: String (UUID format, 36 bytes as UTF-8)
 - **Immutability**: Never changes
 - **Availability**: Requires `entryUUID` operational attribute
-- **Phoenix handling**: Used directly as string
+- **Phoenix handling**: Decoded from bytes, normalized to lowercase
+- **Note**: ldap3 returns as bytes even for string attributes (`b"550e8400-..."`)
 
 ### 389 Directory Server: nsUniqueId
 
-- **Type**: String
+- **Type**: String (UUID format)
 - **Immutability**: Never changes
-- **Phoenix handling**: Used directly as string
+- **Phoenix handling**: Normalized to lowercase
+
+### Case Normalization
+
+All unique IDs are normalized to **lowercase** for consistent database lookups:
+
+- UUIDs are case-insensitive per RFC 4122/9562
+- Prevents duplicate accounts from case variations
+- Database lookups are case-insensitive (`func.lower()`)
+- Existing entries with different casing are updated on next login
+
+## Security: Email Recycling Attack Prevention
+
+In enterprise mode, the email fallback logic must prevent **email recycling attacks**:
+
+**Attack Scenario (without protection):**
+1. User A leaves company (DB: `email=john@corp.com`, `oauth2_user_id=UUID-A`)
+2. User B joins with recycled email (LDAP: `email=john@corp.com`, `unique_id=UUID-B`)
+3. User B logs in:
+   - unique_id lookup: `UUID-B` not found
+   - email lookup: finds User A!
+   - **Without protection**: Updates User A's `oauth2_user_id` to `UUID-B`
+   - User B now has access to User A's data! 🚨
+
+**Protection implemented:**
+```python
+if user.oauth2_user_id is None:
+    user.oauth2_user_id = unique_id  # Safe migration from simple mode
+elif user.oauth2_user_id.lower() != unique_id.lower():
+    raise HTTPException(status_code=403, ...)  # Reject - admin must resolve
+```
+
+**Protected behavior:**
+| Email lookup finds | `oauth2_user_id` | Action |
+|--------------------|------------------|--------|
+| User | `NULL` | ✅ Migrate: set `oauth2_user_id` |
+| User | Same UUID (any case) | ✅ Login OK (normalize case if needed) |
+| User | Different UUID | ❌ **403 Rejected** (admin must resolve) |
+
+**Why rejection instead of new account?**
+- Email is unique in the database (`CREATE UNIQUE INDEX ix_users_email`)
+- Cannot create a new user with the same email
+- Admin must resolve: delete old account, update old account's unique_id, or change email
+
+**Result:** Email recycling is explicitly rejected, preventing both account hijacking and confusing database errors.
 
 ## Switching from Simple to Enterprise Mode
 
@@ -233,9 +288,15 @@ Enterprise IAM systems use `objectGUID`/`entryUUID` as the primary identifier.
 | **No DN storage for lookup** | DNs change too frequently |
 | **No email in oauth2_user_id** | Avoid redundant storage |
 | **Fallback to email in enterprise mode** | Graceful migration from simple mode |
+| **Lowercase normalization** | UUIDs are case-insensitive (RFC 4122), prevents mismatches |
+| **Case-insensitive DB lookup** | Handles legacy data with different casing |
+| **Email recycling protection** | Prevents account hijacking via recycled emails |
 
 ## References
 
+- [RFC 4122 - UUID URN Namespace](https://www.rfc-editor.org/rfc/rfc4122.html) (UUIDs are case-insensitive)
+- [RFC 9562 - UUID Version 7](https://www.rfc-editor.org/rfc/rfc9562.html) (Updated UUID spec, maintains case-insensitivity)
 - [RFC 4530 - entryUUID operational attribute](https://www.rfc-editor.org/rfc/rfc4530.html)
+- [MS-DTYP §2.3.4 - GUID Structure](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/001eec5a-7f8b-4293-9e21-ca349392db40) (Mixed-endian format)
 - [MS-ADTS - objectGUID attribute](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/)
 - [Okta LDAP Agent - User Matching](https://help.okta.com/en/prod/Content/Topics/Directory/LDAP-agent-overview.htm)

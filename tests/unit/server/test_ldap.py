@@ -323,16 +323,66 @@ class TestUniqueIdExtraction:
         result = _get_unique_id(entry, "objectGUID")
         assert result is None
 
-    def test_string_uuid_passthrough(self) -> None:
-        """Test OpenLDAP entryUUID (string format) is returned as-is."""
+    def test_string_uuid_as_bytes(self) -> None:
+        """Test OpenLDAP entryUUID (string format stored as bytes).
+
+        OpenLDAP stores entryUUID as a string like "550e8400-e29b-41d4-a716-446655440000".
+        ldap3 returns this as bytes: b"550e8400-e29b-41d4-a716-446655440000" (36 bytes).
+        This should be decoded as UTF-8, not treated as binary.
+        """
         entry = MagicMock()
         mock_attr = MagicMock()
-        # entryUUID is stored as a string in OpenLDAP
-        mock_attr.raw_values = ["550e8400-e29b-41d4-a716-446655440000"]
+        # ldap3 always returns bytes - even for string UUIDs
+        mock_attr.raw_values = [b"550e8400-e29b-41d4-a716-446655440000"]
         entry.entryUUID = mock_attr
 
         result = _get_unique_id(entry, "entryUUID")
         assert result == "550e8400-e29b-41d4-a716-446655440000"
+
+    def test_uppercase_uuid_normalized_to_lowercase(self) -> None:
+        """Test uppercase entryUUID is normalized to lowercase.
+
+        UUIDs are case-insensitive per RFC 4122. We normalize to lowercase
+        to ensure consistent database lookups. Existing DB entries with
+        different casing will be updated via email fallback on next login.
+        """
+        entry = MagicMock()
+        mock_attr = MagicMock()
+        mock_attr.raw_values = [b"550E8400-E29B-41D4-A716-446655440000"]
+        entry.entryUUID = mock_attr
+
+        result = _get_unique_id(entry, "entryUUID")
+        assert result == "550e8400-e29b-41d4-a716-446655440000"
+
+    def test_whitespace_stripped_from_uuid(self) -> None:
+        """Test whitespace is stripped from string UUIDs."""
+        entry = MagicMock()
+        mock_attr = MagicMock()
+        mock_attr.raw_values = [b"  550e8400-e29b-41d4-a716-446655440000  "]
+        entry.entryUUID = mock_attr
+
+        result = _get_unique_id(entry, "entryUUID")
+        assert result == "550e8400-e29b-41d4-a716-446655440000"
+
+    def test_empty_bytes_returns_none(self) -> None:
+        """Test empty bytes returns None, not empty string."""
+        entry = MagicMock()
+        mock_attr = MagicMock()
+        mock_attr.raw_values = [b""]
+        entry.entryUUID = mock_attr
+
+        result = _get_unique_id(entry, "entryUUID")
+        assert result is None
+
+    def test_whitespace_only_returns_none(self) -> None:
+        """Test whitespace-only value returns None after stripping."""
+        entry = MagicMock()
+        mock_attr = MagicMock()
+        mock_attr.raw_values = [b"   "]
+        entry.entryUUID = mock_attr
+
+        result = _get_unique_id(entry, "entryUUID")
+        assert result is None
 
     def test_binary_objectguid_conversion(self) -> None:
         """Test AD objectGUID binary to UUID string conversion (MS-DTYP §2.3.4).
@@ -411,16 +461,20 @@ class TestUniqueIdExtraction:
         result = _get_unique_id(entry, "objectGUID")
         assert result == "2212e4c7-051e-4d0c-9a5b-12770a9bb7ab"
 
-    def test_binary_non_16_bytes_hex_encoded(self) -> None:
-        """Test unknown binary format falls back to hex encoding."""
+    def test_binary_non_utf8_hex_encoded(self) -> None:
+        """Test non-UTF-8 binary format falls back to hex encoding.
+
+        If the value is not 16 bytes (binary UUID) and not valid UTF-8 (string UUID),
+        it's hex-encoded as a safe fallback.
+        """
         entry = MagicMock()
         mock_attr = MagicMock()
-        # Non-16-byte binary value
-        mock_attr.raw_values = [b"\x01\x02\x03\x04\x05"]
+        # Invalid UTF-8 byte sequence (0x80-0xBF are continuation bytes, invalid as start)
+        mock_attr.raw_values = [b"\x80\x81\x82\x83\x84"]
         entry.customId = mock_attr
 
         result = _get_unique_id(entry, "customId")
-        assert result == "0102030405"
+        assert result == "8081828384"
 
     def test_attribute_without_raw_values(self) -> None:
         """Test attribute object without raw_values property returns None."""

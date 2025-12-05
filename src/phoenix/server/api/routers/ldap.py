@@ -59,8 +59,38 @@ async def get_or_create_ldap_user(
         if not user:
             user = await _lookup_by_email(session, email)
             if user:
-                user.oauth2_user_id = unique_id
-                logger.info(f"LDAP user migrated to unique_id (user_id: {user.id})")
+                # SECURITY: Only migrate if user has no existing unique_id.
+                # This prevents an email recycling attack where a new user with
+                # a recycled email address could hijack an old user's account.
+                #
+                # Scenario without this check:
+                #   1. User A leaves company (DB: email=john@corp.com, uuid=UUID-A)
+                #   2. User B joins with recycled email (LDAP: email=john@corp.com, uuid=UUID-B)
+                #   3. User B logs in, email lookup finds User A, UUID-B overwrites UUID-A
+                #   4. User B now has access to User A's data!
+                #
+                # With this check:
+                #   - User A already has uuid=UUID-A, so no migration happens
+                #   - User B is rejected (403) - admin must resolve the conflict
+                #   - Note: We can't create a new user because email is unique in DB
+                if user.oauth2_user_id is None:
+                    user.oauth2_user_id = unique_id
+                elif user.oauth2_user_id.lower() != unique_id.lower():
+                    # Email matches but unique_id differs - this is a DIFFERENT person
+                    # (e.g., email recycled to new employee).
+                    #
+                    # We cannot create a new user because email is unique in the database.
+                    # This requires admin intervention to resolve (e.g., delete/rename the
+                    # old account, or update the old account's unique_id).
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Account conflict: this email is associated with a different "
+                        "LDAP account. Contact your administrator.",
+                    )
+                else:
+                    # Same unique_id (case-insensitive match) - normalize case in DB
+                    if user.oauth2_user_id != unique_id:
+                        user.oauth2_user_id = unique_id
     else:
         # Simple mode: lookup by email only (oauth2_user_id is NULL)
         user = await _lookup_by_email(session, email)
@@ -133,13 +163,21 @@ async def get_or_create_ldap_user(
 
 
 async def _lookup_by_unique_id(session: AsyncSession, unique_id: str) -> Optional[models.User]:
-    """Look up LDAP user by immutable unique ID (objectGUID, entryUUID, etc.)."""
+    """Look up LDAP user by immutable unique ID (objectGUID, entryUUID, etc.).
+
+    Uses case-insensitive comparison because:
+    - UUIDs are case-insensitive per RFC 4122
+    - Older versions may have stored uppercase UUIDs
+    - Current code normalizes to lowercase
+
+    This ensures users aren't locked out due to case differences.
+    """
     return cast(
         Optional[models.User],
         await session.scalar(
             select(models.User)
             .where(models.User.oauth2_client_id == LDAP_CLIENT_ID_MARKER)
-            .where(models.User.oauth2_user_id == unique_id)
+            .where(func.lower(models.User.oauth2_user_id) == unique_id.lower())
             .options(joinedload(models.User.role))
         ),
     )
