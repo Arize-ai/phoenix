@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<271e3c57c4ef6f2f9e96070d414ddf75>>
+ * @generated SignedSource<<6cac14a549d1b86e10952ceb3aa6becd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,6 @@ export type EvaluatorSort = {
 };
 export type GlobalEvaluatorsTableEvaluatorsQuery$variables = {
   after?: string | null;
-  datasetId?: string | null;
   filter?: EvaluatorFilter | null;
   first?: number | null;
   sort?: EvaluatorSort | null;
@@ -46,11 +45,6 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "datasetId"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
     "name": "filter"
   },
   {
@@ -64,36 +58,27 @@ var v0 = [
     "name": "sort"
   }
 ],
-v1 = {
-  "kind": "Variable",
-  "name": "after",
-  "variableName": "after"
-},
-v2 = {
-  "kind": "Variable",
-  "name": "datasetId",
-  "variableName": "datasetId"
-},
-v3 = {
-  "kind": "Variable",
-  "name": "filter",
-  "variableName": "filter"
-},
-v4 = {
-  "kind": "Variable",
-  "name": "first",
-  "variableName": "first"
-},
-v5 = {
-  "kind": "Variable",
-  "name": "sort",
-  "variableName": "sort"
-},
-v6 = [
-  (v1/*: any*/),
-  (v3/*: any*/),
-  (v4/*: any*/),
-  (v5/*: any*/)
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "first"
+  },
+  {
+    "kind": "Variable",
+    "name": "sort",
+    "variableName": "sort"
+  }
 ];
 return {
   "fragment": {
@@ -103,13 +88,7 @@ return {
     "name": "GlobalEvaluatorsTableEvaluatorsQuery",
     "selections": [
       {
-        "args": [
-          (v1/*: any*/),
-          (v2/*: any*/),
-          (v3/*: any*/),
-          (v4/*: any*/),
-          (v5/*: any*/)
-        ],
+        "args": (v1/*: any*/),
         "kind": "FragmentSpread",
         "name": "GlobalEvaluatorsTable_evaluators"
       }
@@ -125,7 +104,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v6/*: any*/),
+        "args": (v1/*: any*/),
         "concreteType": "EvaluatorConnection",
         "kind": "LinkedField",
         "name": "evaluators",
@@ -199,15 +178,6 @@ return {
                     "kind": "ScalarField",
                     "name": "updatedAt",
                     "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": [
-                      (v2/*: any*/)
-                    ],
-                    "kind": "ScalarField",
-                    "name": "isAssignedToDataset",
-                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -264,7 +234,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v6/*: any*/),
+        "args": (v1/*: any*/),
         "filters": [
           "sort",
           "filter"
@@ -277,16 +247,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "279b8eb824e6d26efc203e16e7835689",
+    "cacheID": "e8bc69cbc11f62be847212dcebe2ca77",
     "id": null,
     "metadata": {},
     "name": "GlobalEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $datasetId: ID = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_385SQm\n}\n\nfragment EvaluatorsTable_row_1wYocp on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset(datasetId: $datasetId)\n}\n\nfragment GlobalEvaluatorsTable_evaluators_385SQm on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row_1wYocp\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fba3b7f761e675407bca6de2fc0ec25a";
+(node as any).hash = "ed29a29e1ac93825119bff4ac197a1f2";
 
 export default node;

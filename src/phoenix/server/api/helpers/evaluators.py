@@ -48,15 +48,12 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     if not isinstance(prompt_tool, PromptToolFunction):
         assert_never(prompt_tool)
     prompt_tool_function_definition = prompt_tool.function
-    evaluator_name = evaluator.name.root
     evaluator_description = evaluator.description
     prompt_tool_function_definition_description = (
         prompt_tool_function_definition.description
         if isinstance(prompt_tool_function_definition.description, str)
         else None
     )
-    if evaluator_name != prompt_tool_function_definition.name:
-        raise ValueError(_LLMEvaluatorPromptErrorMessage.EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME)
     if (
         # if the evaluator description is not None, it must match the function description
         # the function may have an empty string as its description, as required by the Anthropic API

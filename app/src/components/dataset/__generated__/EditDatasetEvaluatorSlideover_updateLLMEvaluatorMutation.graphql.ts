@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dd11e66f732f90054bcac17e8894dbb7>>
+ * @generated SignedSource<<ed1e1d1f19f1190480354d999320d6c7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,10 +13,13 @@ import { FragmentRefs } from "relay-runtime";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
-export type UpdateLLMEvaluatorInput = {
+export type UpdateDatasetLLMEvaluatorInput = {
+  datasetId: string;
   description?: string | null;
   evaluatorId: string;
+  inputMapping?: EvaluatorInputMappingInput | null;
   name: string;
+  originalDisplayName: string;
   outputConfig: CategoricalAnnotationConfigInput;
   promptVersion: ChatPromptVersionInput;
 };
@@ -74,16 +77,20 @@ export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
 };
+export type EvaluatorInputMappingInput = {
+  literalMapping?: any;
+  pathMapping?: any;
+};
 export type EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;
-  input: UpdateLLMEvaluatorInput;
+  input: UpdateDatasetLLMEvaluatorInput;
 };
 export type EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation$data = {
-  readonly updateLlmEvaluator: {
+  readonly updateDatasetLlmEvaluator: {
     readonly evaluator: {
       readonly id: string;
       readonly name: string;
-      readonly " $fragmentSpreads": FragmentRefs<"EditEvaluatorSlideover_evaluator" | "EvaluatorsTable_row">;
+      readonly " $fragmentSpreads": FragmentRefs<"EditDatasetEvaluatorSlideover_evaluator" | "EvaluatorsTable_row">;
     };
   };
 };
@@ -188,15 +195,15 @@ return {
       {
         "alias": null,
         "args": (v2/*: any*/),
-        "concreteType": "LLMEvaluatorMutationPayload",
+        "concreteType": "DatasetLLMEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "updateLlmEvaluator",
+        "name": "updateDatasetLlmEvaluator",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "LLMEvaluator",
+            "concreteType": "DatasetLLMEvaluator",
             "kind": "LinkedField",
             "name": "evaluator",
             "plural": false,
@@ -215,38 +222,19 @@ return {
                       (v5/*: any*/),
                       (v6/*: any*/),
                       (v7/*: any*/),
-                      (v8/*: any*/),
-                      {
-                        "alias": null,
-                        "args": [
-                          {
-                            "kind": "Variable",
-                            "name": "datasetId",
-                            "variableName": "datasetId"
-                          }
-                        ],
-                        "kind": "ScalarField",
-                        "name": "isAssignedToDataset",
-                        "storageKey": null
-                      }
+                      (v8/*: any*/)
                     ],
                     "type": "Evaluator",
                     "abstractKey": "__isEvaluator"
                   }
                 ],
                 "args": null,
-                "argumentDefinitions": [
-                  {
-                    "defaultValue": null,
-                    "kind": "LocalArgument",
-                    "name": "datasetId"
-                  }
-                ]
+                "argumentDefinitions": []
               },
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "EditEvaluatorSlideover_evaluator"
+                "name": "EditDatasetEvaluatorSlideover_evaluator"
               }
             ],
             "storageKey": null
@@ -270,15 +258,15 @@ return {
       {
         "alias": null,
         "args": (v2/*: any*/),
-        "concreteType": "LLMEvaluatorMutationPayload",
+        "concreteType": "DatasetLLMEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "updateLlmEvaluator",
+        "name": "updateDatasetLlmEvaluator",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "LLMEvaluator",
+            "concreteType": "DatasetLLMEvaluator",
             "kind": "LinkedField",
             "name": "evaluator",
             "plural": false,
@@ -293,15 +281,33 @@ return {
                   (v7/*: any*/),
                   (v8/*: any*/),
                   {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "isAssignedToDataset",
-                    "storageKey": null
-                  },
-                  {
                     "kind": "InlineFragment",
                     "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "EvaluatorInputMapping",
+                        "kind": "LinkedField",
+                        "name": "datasetInputMapping",
+                        "plural": false,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "literalMapping",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "pathMapping",
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      },
                       {
                         "alias": null,
                         "args": null,
@@ -566,7 +572,7 @@ return {
                         "storageKey": null
                       }
                     ],
-                    "type": "LLMEvaluator",
+                    "type": "DatasetLLMEvaluator",
                     "abstractKey": null
                   }
                 ],
@@ -603,16 +609,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9e64d8cda11b55ff4e0a8f3a3eb3e36e",
+    "cacheID": "4e67556c87992b3a3b8be1232333c085",
     "id": null,
     "metadata": {},
     "name": "EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateLLMEvaluatorInput!\n) {\n  updateLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n      ...EditEvaluatorSlideover_evaluator\n    }\n  }\n}\n\nfragment EditEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  isAssignedToDataset\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "mutation EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateDatasetLLMEvaluatorInput!\n) {\n  updateDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...EvaluatorsTable_row\n      ...EditDatasetEvaluatorSlideover_evaluator\n    }\n  }\n}\n\nfragment EditDatasetEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on DatasetLLMEvaluator {\n    datasetInputMapping {\n      literalMapping\n      pathMapping\n    }\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "23c058bb758d4ae90990e209fc8103a7";
+(node as any).hash = "d2406d5ee341f014f8d439f1a7bf4137";
 
 export default node;

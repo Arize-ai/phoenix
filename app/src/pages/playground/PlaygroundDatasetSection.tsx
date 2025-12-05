@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   Flex,
@@ -13,9 +13,6 @@ import {
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
-import { PlaygroundDatasetSection_evaluators$key } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluators.graphql";
-import { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
-import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { Mutable } from "@phoenix/typeUtils";
 
@@ -42,8 +39,24 @@ export function PlaygroundDatasetSection({
       query PlaygroundDatasetSectionQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
-            ...PlaygroundDatasetSection_evaluators
-              @arguments(datasetId: $datasetId)
+            evaluators(first: 100) {
+              edges {
+                node {
+                  id
+                  name
+                  kind
+                  datasetInputMapping {
+                    literalMapping
+                    pathMapping
+                  }
+                  ... on LLMEvaluator {
+                    outputConfig {
+                      name
+                    }
+                  }
+                }
+              }
+            }
           }
           ...EvaluatorConfigDialog_dataset
         }
@@ -54,42 +67,18 @@ export function PlaygroundDatasetSection({
     }
   );
 
-  const evaluatorsData = useFragment<PlaygroundDatasetSection_evaluators$key>(
-    graphql`
-      fragment PlaygroundDatasetSection_evaluators on Dataset
-      @argumentDefinitions(datasetId: { type: "ID!" }) {
-        evaluators(first: 100) {
-          edges {
-            evaluator: node {
-              id
-              name
-              datasetInputMapping(datasetId: $datasetId) {
-                literalMapping
-                pathMapping
-              }
-              ... on LLMEvaluator {
-                outputConfig {
-                  name
-                }
-              }
-            }
-          }
-        }
-      }
-    `,
-    data.dataset
-  );
-
   const evaluators = useMemo(
     () =>
-      evaluatorsData.evaluators?.edges?.map((edge) => ({
-        ...edge.evaluator,
-        annotationName: edge.evaluator.outputConfig?.name,
+      data.dataset.evaluators?.edges?.map((edge) => ({
+        ...edge.node,
+        isAssignedToDataset: true,
+        annotationName: edge.node?.outputConfig?.name,
       })) ?? [],
-    [evaluatorsData]
+    [data.dataset.evaluators]
   );
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
-    () => evaluators.map((evaluator) => evaluator.id) ?? []
+    () =>
+      data.dataset.evaluators?.edges.map((evaluator) => evaluator.node.id) ?? []
   );
   const selectedEvaluatorWithInputMapping = useMemo(() => {
     return evaluators
@@ -173,6 +162,7 @@ export function PlaygroundDatasetSection({
                 evaluators={evaluators}
                 selectedIds={selectedEvaluatorIds}
                 onSelectionChange={setSelectedEvaluatorIds}
+                datasetId={datasetId}
               />
               {experimentIds.length > 0 && (
                 <LinkButton

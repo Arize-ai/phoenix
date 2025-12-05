@@ -206,18 +206,6 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
-    def test_evaluator_and_function_name_mismatch_raises(
-        self,
-        llm_evaluator: models.LLMEvaluator,
-        prompt_version: models.PromptVersion,
-    ) -> None:
-        llm_evaluator.name = Identifier("different_name")
-        with pytest.raises(
-            ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME,
-        ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
-
     def test_function_parameters_type_not_object_raises(
         self,
         llm_evaluator: models.LLMEvaluator,

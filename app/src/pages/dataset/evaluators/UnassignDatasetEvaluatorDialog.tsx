@@ -32,6 +32,7 @@ export type UnassignDatasetEvaluatorDialogProps = {
   datasetId: string;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  updateConnectionIds?: string[];
 };
 
 export function UnassignDatasetEvaluatorDialog({
@@ -40,6 +41,7 @@ export function UnassignDatasetEvaluatorDialog({
   datasetId,
   isOpen,
   onOpenChange,
+  updateConnectionIds,
 }: UnassignDatasetEvaluatorDialogProps) {
   const [deleteFromGlobalEvaluators, setDeleteFromGlobalEvaluators] =
     useState(false);
@@ -69,14 +71,11 @@ export function UnassignDatasetEvaluatorDialog({
         unassignEvaluatorFromDataset(input: $input) {
           query {
             dataset: node(id: $datasetId) {
-              ...PlaygroundDatasetSection_evaluators
-                @arguments(datasetId: $datasetId)
               ...DatasetEvaluatorsTable_evaluators
-                @arguments(datasetId: $datasetId)
             }
           }
           evaluator @deleteEdge(connections: $connectionIds) {
-            ...EvaluatorsTable_row @arguments(datasetId: $datasetId)
+            ...EvaluatorsTable_row
           }
         }
       }
@@ -92,10 +91,7 @@ export function UnassignDatasetEvaluatorDialog({
         deleteEvaluators(input: $input) {
           query {
             dataset: node(id: $datasetId) {
-              ...PlaygroundDatasetSection_evaluators
-                @arguments(datasetId: $datasetId)
               ...DatasetEvaluatorsTable_evaluators
-                @arguments(datasetId: $datasetId)
             }
           }
           evaluatorIds @deleteEdge(connections: $connectionIds)
@@ -111,8 +107,12 @@ export function UnassignDatasetEvaluatorDialog({
           input: {
             datasetId,
             evaluatorId,
+            displayName: evaluatorName,
           },
-          connectionIds: [datasetEvaluatorsTableConnection],
+          connectionIds: [
+            datasetEvaluatorsTableConnection,
+            ...(updateConnectionIds ?? []),
+          ],
           datasetId,
         },
         onCompleted: () => {
@@ -136,9 +136,11 @@ export function UnassignDatasetEvaluatorDialog({
     unassignEvaluatorFromDataset,
     datasetId,
     evaluatorId,
+    evaluatorName,
     datasetEvaluatorsTableConnection,
     notifySuccess,
     onOpenChange,
+    updateConnectionIds,
   ]);
 
   const handleDeleteEvaluator = useCallback(() => {

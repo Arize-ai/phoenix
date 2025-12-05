@@ -20,7 +20,7 @@ import {
   SearchIcon,
   Text,
 } from "@phoenix/components";
-import { EditEvaluatorSlideover } from "@phoenix/components/evaluators/EditEvaluatorSlideover";
+import { EditDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditDatasetEvaluatorSlideover";
 import {
   EvaluatorItem,
   EvaluatorSelectMenuItem,
@@ -28,6 +28,7 @@ import {
 import { isStringArray } from "@phoenix/typeUtils";
 
 type PlaygroundEvaluatorSelectProps = {
+  datasetId: string;
   evaluators: EvaluatorItem[];
   selectedIds?: string[];
   onSelectionChange: (keys: string[]) => void;
@@ -36,16 +37,23 @@ type PlaygroundEvaluatorSelectProps = {
 export function PlaygroundEvaluatorSelect(
   props: PlaygroundEvaluatorSelectProps
 ) {
-  const { evaluators, selectedIds, onSelectionChange } = props;
+  const { evaluators, selectedIds, onSelectionChange, datasetId } = props;
   const { contains } = useFilter({ sensitivity: "base" });
 
-  const [editingEvaluatorId, setEditingEvaluatorId] = useState<string | null>(
-    null
-  );
+  const [editingEvaluator, setEditingEvaluator] = useState<{
+    evaluatorId: string;
+    displayName: string;
+  } | null>(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
-  const onEdit = (evaluatorId: string) => {
-    setEditingEvaluatorId(evaluatorId);
+  const onEdit = ({
+    evaluatorId,
+    displayName,
+  }: {
+    evaluatorId: string;
+    displayName: string;
+  }) => {
+    setEditingEvaluator({ evaluatorId, displayName });
     setIsPopoverOpen(false);
   };
 
@@ -92,7 +100,12 @@ export function PlaygroundEvaluatorSelect(
                     key={evaluator.id}
                     evaluator={evaluator}
                     isSelected={selectedIds?.includes(evaluator.id) ?? false}
-                    onEdit={() => onEdit(evaluator.id)}
+                    onEdit={() =>
+                      onEdit({
+                        evaluatorId: evaluator.id,
+                        displayName: evaluator.name,
+                      })
+                    }
                   />
                 ))}
               </GridListSection>
@@ -100,12 +113,14 @@ export function PlaygroundEvaluatorSelect(
           </Autocomplete>
         </MenuContainer>
       </DialogTrigger>
-      <EditEvaluatorSlideover
-        evaluatorId={editingEvaluatorId ?? ""}
-        isOpen={!!editingEvaluatorId}
+      <EditDatasetEvaluatorSlideover
+        evaluatorId={editingEvaluator?.evaluatorId}
+        datasetId={datasetId}
+        displayName={editingEvaluator?.displayName}
+        isOpen={!!editingEvaluator}
         onOpenChange={(open) => {
           if (!open) {
-            setEditingEvaluatorId(null);
+            setEditingEvaluator(null);
           }
         }}
       />

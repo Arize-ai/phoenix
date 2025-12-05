@@ -63,6 +63,10 @@ def get_builtin_evaluators() -> list[tuple[int, type[BuiltInEvaluator]]]:
     return [(_generate_builtin_evaluator_id(cls.name), cls) for cls in _BUILTIN_EVALUATORS.values()]
 
 
+def get_builtin_evaluator_ids() -> list[int]:
+    return list(_BUILTIN_EVALUATORS_BY_ID.keys())
+
+
 def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvaluator]]:
     return _BUILTIN_EVALUATORS_BY_ID.get(evaluator_id)
 

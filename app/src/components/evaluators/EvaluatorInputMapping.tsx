@@ -5,7 +5,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Control, Controller } from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
@@ -27,7 +27,6 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
 
 type EvaluatorInputMappingProps = {
-  control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
   evaluatorInput: EvaluatorInput | null;
   exampleId?: string;
   variables: string[];
@@ -35,7 +34,6 @@ type EvaluatorInputMappingProps = {
 
 export const EvaluatorInputMapping = ({
   evaluatorInput,
-  control,
   variables,
 }: EvaluatorInputMappingProps) => {
   return (
@@ -43,7 +41,6 @@ export const EvaluatorInputMapping = ({
       <Suspense fallback={<Loading />}>
         <EvaluatorInputMappingControls
           evaluatorInput={evaluatorInput}
-          control={control}
           variables={variables}
         />
       </Suspense>
@@ -70,14 +67,13 @@ type ExampleKeyItem = {
 };
 
 const EvaluatorInputMappingControls = ({
-  control,
   evaluatorInput,
   variables,
 }: {
   evaluatorInput: EvaluatorInput | null;
-  control: Control<EvaluatorFormValues, unknown, EvaluatorFormValues>;
   variables: string[];
 }) => {
+  const { control, getValues } = useFormContext<EvaluatorFormValues>();
   const allExampleKeys: ExampleKeyItem[] = useMemo(() => {
     const flat = flattenObject({
       obj: evaluatorInput ?? EMPTY_EVALUATOR_INPUT,
@@ -90,7 +86,9 @@ const EvaluatorInputMappingControls = ({
       })),
     ];
   }, [evaluatorInput]);
-  const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const [inputValues, setInputValues] = useState<Record<string, string>>(() =>
+    getValues("inputMapping.pathMapping")
+  );
   const setInputValue = useCallback((key: string, value: string) => {
     setInputValues((prev) => ({ ...prev, [key]: value }));
   }, []);
@@ -112,7 +110,7 @@ const EvaluatorInputMappingControls = ({
           `}
         >
           <Controller
-            name={`inputMapping.${variable}`}
+            name={`inputMapping.pathMapping.${variable}`}
             control={control}
             render={({ field }) => (
               <ComboBox
