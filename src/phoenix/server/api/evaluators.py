@@ -64,15 +64,149 @@ class LLMEvaluator:
         return self._llm_evaluator_orm.metadata_
 
     def input_schema(self) -> dict[str, Any]:
-        raise NotImplementedError
+        """
+        Extract the input schema (JSON Schema) from the prompt version's template.
 
-    def evaluate(
+        This parses the template messages to find all template variables (e.g., {{input}}, {output})
+        and returns a JSON Schema with those variables as required string properties.
+        """
+        prompt_version = self._prompt_version_orm
+        template = prompt_version.template
+        if not isinstance(template, PromptChatTemplate):
+            raise ValueError("Only PromptChatTemplate is currently supported for LLM evaluators")
+
+        formatter = _get_template_formatter(prompt_version.template_format)
+        variables: set[str] = set()
+
+        for msg in template.messages:
+            if isinstance(msg.content, str):
+                variables.update(formatter.parse(msg.content))
+            elif isinstance(msg.content, list):
+                for part in msg.content:
+                    if isinstance(part, TextContentPart):
+                        variables.update(formatter.parse(part.text))
+            else:
+                assert_never(msg.content)
+
+        properties = {var: {"type": "string"} for var in variables}
+        return {
+            "type": "object",
+            "properties": properties,
+            "required": list(variables),
+        }
+
+    async def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        llm_client: "PlaygroundStreamingClient",
     ) -> EvaluationResult:
-        raise NotImplementedError
+        """
+        Execute the LLM evaluator and return the result.
+
+        This method:
+        1. Applies input mapping to extract template variables from context
+        2. Formats the prompt messages with template variables
+        3. Makes the LLM call with tools using the provided client
+        4. Parses the tool call response to extract label/score
+        5. Returns an EvaluationResult
+        """
+        from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
+
+        prompt_version = self._prompt_version_orm
+        evaluator = self._llm_evaluator_orm
+
+        tools_obj = prompt_version.tools
+        assert tools_obj is not None
+        template = prompt_version.template
+        assert isinstance(template, PromptChatTemplate)
+
+        template_variables = apply_input_mapping(
+            input_schema=self.input_schema(),
+            input_mapping=input_mapping,
+            context=context,
+        )
+        template_formatter = _get_template_formatter(prompt_version.template_format)
+
+        messages: list[
+            tuple["ChatCompletionMessageRole", str, Optional[str], Optional[list[str]]]
+        ] = []
+        for msg in template.messages:
+            role = _prompt_role_to_chat_role(msg.role)
+            if isinstance(msg.content, str):
+                formatted_content = template_formatter.format(msg.content, **template_variables)
+            else:
+                text_parts = []
+                for part in msg.content:
+                    if isinstance(part, TextContentPart):
+                        formatted_text = template_formatter.format(part.text, **template_variables)
+                        text_parts.append(formatted_text)
+                formatted_content = "".join(text_parts)
+            messages.append((role, formatted_content, None, None))
+
+        # Convert PromptTools to provider-specific format for the LLM client
+        tool_definitions, _ = denormalize_tools(tools_obj, prompt_version.model_provider)
+
+        # Make the LLM call - collect all chunks
+        tool_calls: dict[str, dict[str, str]] = {}  # id -> {name, arguments}
+        start_time = datetime.now(timezone.utc)
+        error_message: Optional[str] = None
+        try:
+            async for chunk in llm_client.chat_completion_create(
+                messages=messages,
+                tools=tool_definitions,
+            ):
+                if isinstance(chunk, ToolCallChunk):
+                    if chunk.id not in tool_calls:
+                        tool_calls[chunk.id] = {
+                            "name": chunk.function.name,
+                            "arguments": chunk.function.arguments,
+                        }
+                    else:
+                        tool_calls[chunk.id]["arguments"] += chunk.function.arguments
+        except Exception as e:
+            error_message = str(e)
+        end_time = datetime.now(timezone.utc)
+
+        # Handle error case
+        if error_message or not tool_calls:
+            return EvaluationResult(
+                name=evaluator.annotation_name,
+                annotator_kind="LLM",
+                label=None,
+                score=None,
+                explanation=None,
+                metadata={},
+                error=error_message or "No tool calls received",
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+        # Find score and label from tool call
+        tool_call = next(iter(tool_calls.values()))
+        args = json.loads(tool_call["arguments"])
+        assert len(args) == 1
+        label = next(iter(args.values()))
+        output_config = evaluator.output_config
+        scores_by_label = {
+            config_value.label: config_value.score for config_value in output_config.values
+        }
+        score = scores_by_label.get(label)
+
+        return EvaluationResult(
+            name=evaluator.annotation_name,
+            annotator_kind="LLM",
+            label=label,
+            score=score,
+            explanation=None,
+            metadata={},
+            error=None,
+            trace_id=None,
+            start_time=start_time,
+            end_time=end_time,
+        )
 
 
 class BuiltInEvaluator(ABC):
@@ -198,6 +332,88 @@ async def get_prompt_versions_for_evaluators(
             if prompt_version is None:
                 raise NotFound(f"Prompt version not found for evaluator {evaluator.id}")
             result[evaluator.id] = prompt_version
+
+    return result
+
+
+async def get_llm_evaluators(
+    evaluator_inputs: list["PlaygroundEvaluatorInput"],
+    db: "DbSessionFactory",
+) -> list[LLMEvaluator]:
+    """
+    Fetch LLM evaluators and their prompt versions, returning LLMEvaluator instances.
+
+    This combines the functionality of get_evaluators and get_prompt_versions_for_evaluators
+    into a single helper that returns ready-to-use LLMEvaluator objects.
+
+    Args:
+        evaluator_inputs: List of evaluator inputs containing global IDs
+        db: Database session factory
+
+    Returns:
+        List of LLMEvaluator instances with their associated prompt versions
+    """
+    from phoenix.server.api.exceptions import NotFound
+    from phoenix.server.api.types.node import from_global_id
+
+    if not evaluator_inputs:
+        return []
+
+    # Extract evaluator row IDs from global IDs
+    evaluator_rowids: set[int] = set()
+    for evaluator_input in evaluator_inputs:
+        type_name, db_id = from_global_id(evaluator_input.id)
+        if type_name != "LLMEvaluator":
+            logger.info(f"Skipping non-LLM evaluator: {evaluator_input.id}")
+            continue
+        evaluator_rowids.add(db_id)
+
+    if not evaluator_rowids:
+        return []
+
+    result: list[LLMEvaluator] = []
+    async with db() as session:
+        # Fetch all LLM evaluators
+        evaluators: list[models.LLMEvaluator] = list(
+            await session.scalars(
+                select(models.LLMEvaluator).where(models.LLMEvaluator.id.in_(evaluator_rowids))
+            )
+        )
+
+        if len(evaluators) < len(evaluator_rowids):
+            missing_rowids = evaluator_rowids - set(evaluator.id for evaluator in evaluators)
+            raise NotFound(
+                f"Could not find all LLM evaluators with IDs "
+                f"{', '.join(map(_quote, missing_rowids))}"
+            )
+
+        # Fetch prompt versions and create LLMEvaluator instances
+        for evaluator in evaluators:
+            prompt_id = evaluator.prompt_id
+            prompt_version_tag_id = evaluator.prompt_version_tag_id
+
+            if prompt_version_tag_id is not None:
+                # Get the tagged version
+                stmt = (
+                    select(models.PromptVersion)
+                    .join(models.PromptVersionTag)
+                    .where(models.PromptVersionTag.prompt_id == prompt_id)
+                    .where(models.PromptVersionTag.id == prompt_version_tag_id)
+                )
+            else:
+                # Get the latest version
+                stmt = (
+                    select(models.PromptVersion)
+                    .where(models.PromptVersion.prompt_id == prompt_id)
+                    .order_by(models.PromptVersion.id.desc())
+                    .limit(1)
+                )
+
+            prompt_version = await session.scalar(stmt)
+            if prompt_version is None:
+                raise NotFound(f"Prompt version not found for evaluator {evaluator.id}")
+
+            result.append(LLMEvaluator(evaluator, prompt_version))
 
     return result
 
