@@ -3,8 +3,6 @@ import { graphql, readInlineData } from "relay-runtime";
 import { CreateLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import { UpdateLLMEvaluatorInput } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
-import { InputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
-import { ChoiceConfig } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { fromOpenAIToolDefinition } from "@phoenix/schemas";
@@ -13,6 +11,10 @@ import {
   CategoricalChoiceToolTypeSchema,
 } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
+import {
+  ClassificationEvaluatorAnnotationConfig,
+  EvaluatorInputMapping,
+} from "@phoenix/types";
 
 /**
  * Create a payload for the createLLMEvaluator or updateLLMEvaluator mutations.
@@ -46,11 +48,11 @@ export const createLLMEvaluatorPayload = ({
   /**
    * The choice config of the evaluator.
    */
-  choiceConfig: ChoiceConfig;
+  choiceConfig: ClassificationEvaluatorAnnotationConfig;
   /**
    * The input mapping of the evaluator.
    */
-  inputMapping?: InputMapping;
+  inputMapping?: EvaluatorInputMapping;
   /**
    * The dataset ID to assign the evaluator to.
    */
