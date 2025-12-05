@@ -347,7 +347,7 @@ class TestAssignUnassignEvaluatorMutations:
             id
             name
             kind
-            ... on LLMEvaluator { prompt { id } }
+            ... on DatasetLLMEvaluator { prompt { id } }
           }
           query { __typename }
         }
