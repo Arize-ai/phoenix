@@ -1,15 +1,17 @@
 # Docker Compose override for LDAP testing
 #
-# Tests five LDAP connection modes:
+# Tests six LDAP connection modes:
 #   1. LDAPS (port 636, TLS from start) - phoenix → ldap
 #   2. STARTTLS (port 389 → TLS upgrade) - phoenix-starttls → ldap-mitm-proxy → ldap
 #   3. Anonymous LDAPS (no service account) - phoenix-anonymous-ldaps → ldap-anonymous
 #   4. Anonymous STARTTLS (no service account) - phoenix-anonymous-starttls → ldap-anonymous-mitm-proxy → ldap-anonymous
 #   5. Grafana STARTTLS (comparison) - grafana-ldap → ldap-mitm-proxy → ldap
+#   6. POSIX mode (GROUP_SEARCH_FILTER) - phoenix-posix → ldap-posix
 #
-# Two LDAP servers are used:
+# Three LDAP servers are used:
 #   - ldap: Standard osixia/openldap with restrictive ACLs (requires bind credentials)
 #   - ldap-anonymous: Same image but with ACLs modified to allow anonymous read access
+#   - ldap-posix: OpenLDAP with POSIX groups (memberUid) WITHOUT memberOf overlay
 #
 # Two MITM proxies are used:
 #   - ldap-mitm-proxy: Routes to ldap server (for service account modes)
@@ -323,6 +325,126 @@ services:
     labels:
       - "phoenix.auth.mode=ldap-anonymous-starttls"
 
+  # ===========================================================================
+  # POSIX Mode Testing (GROUP_SEARCH_FILTER with memberUid)
+  # ===========================================================================
+  # This tests the POSIX/RFC 2307 group schema where:
+  #   - Groups use objectClass=posixGroup
+  #   - Membership is via memberUid attribute (contains username, NOT DN)
+  #   - Users do NOT have memberOf attribute
+  #
+  # Configuration uses PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR=uid to tell
+  # Phoenix to substitute the user's uid attribute (e.g., "admin") into the
+  # group filter.
+  # ===========================================================================
+
+  # Separate LDAP server for POSIX groups testing
+  # This server does NOT have the memberOf overlay enabled
+  ldap-posix:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-posix-server
+    hostname: ldap-posix.example.com
+    environment:
+      - LDAP_ORGANISATION=Example Corp POSIX
+      - LDAP_DOMAIN=example.com
+      - LDAP_ADMIN_PASSWORD=admin_password
+      - LDAP_CONFIG_PASSWORD=config_password
+      - LDAP_READONLY_USER=true
+      - LDAP_READONLY_USER_USERNAME=readonly
+      - LDAP_READONLY_USER_PASSWORD=readonly_password
+      # Disable TLS for simplicity in POSIX testing
+      - LDAP_TLS=false
+      - LDAP_LOG_LEVEL=256
+      # IMPORTANT: Disable memberOf overlay to test pure POSIX mode
+      - LDAP_REMOVE_CONFIG_AFTER_SETUP=false
+    volumes:
+      - ldap-posix-data:/var/lib/ldap
+      - ldap-posix-config:/etc/ldap/slapd.d
+    command: --copy-service --loglevel debug
+
+  # Seed data for POSIX groups and disable memberOf overlay
+  ldap-posix-seed:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-posix-seed
+    depends_on:
+      - ldap-posix
+    volumes:
+      - ./ldap-posix-seed.ldif:/seed.ldif:ro
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        echo 'Waiting for LDAP POSIX server to be ready...';
+        sleep 5;
+
+        echo 'Disabling memberOf overlay to test pure POSIX mode...';
+        # The osixia/openldap image has memberOf enabled by default
+        # We need to disable it for pure POSIX testing
+        ldapmodify -x -H ldap://ldap-posix:389 -D 'cn=admin,cn=config' -w config_password <<'EOFMOD' || echo 'memberOf overlay may already be disabled';
+        dn: olcOverlay={0}memberof,olcDatabase={1}mdb,cn=config
+        changetype: delete
+        EOFMOD
+
+        echo 'Loading POSIX seed data...';
+        ldapadd -x -H ldap://ldap-posix:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed.ldif || true;
+
+        echo 'Verifying POSIX groups created...';
+        ldapsearch -x -H ldap://ldap-posix:389 -D 'cn=readonly,dc=example,dc=com' -w readonly_password \
+          -b 'ou=posix-groups,dc=example,dc=com' '(objectClass=posixGroup)' cn memberUid | head -30;
+
+        echo 'Verifying users do NOT have memberOf attribute...';
+        ldapsearch -x -H ldap://ldap-posix:389 -D 'cn=readonly,dc=example,dc=com' -w readonly_password \
+          -b 'ou=users,dc=example,dc=com' '(uid=admin)' uid mail memberOf | head -20;
+
+        echo 'LDAP POSIX server ready';
+        tail -f /dev/null
+
+  # Phoenix with POSIX mode (GROUP_SEARCH_FILTER)
+  # This uses group search instead of memberOf attribute
+  # EXPECTED: This will FAIL because Phoenix passes DN instead of uid to memberUid filter
+  phoenix-posix:
+    profiles: ["ldap-test"]
+    container_name: ${PROJECT_NAME:-devops}-phoenix-posix
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    environment:
+      # Enable LDAP authentication
+      - PHOENIX_ENABLE_AUTH=true
+      - PHOENIX_DISABLE_BASIC_AUTH=false
+      - PHOENIX_DISABLE_RATE_LIMIT=true
+      - PHOENIX_SECRET=dev-secret-for-posix-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-posix-testing-only-12345678
+      # LDAP Configuration for POSIX mode
+      - PHOENIX_LDAP_HOST=ldap-posix
+      - PHOENIX_LDAP_PORT=389
+      - PHOENIX_LDAP_TLS_MODE=none
+      - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
+      - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
+      - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
+      - PHOENIX_LDAP_ATTR_EMAIL=mail
+      - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
+      # POSIX MODE: Use GROUP_SEARCH_FILTER instead of memberOf attribute
+      # This enables the code path where Phoenix searches for groups
+      - PHOENIX_LDAP_ATTR_MEMBER_OF=
+      - PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS=["ou=posix-groups,dc=example,dc=com"]
+      - PHOENIX_LDAP_GROUP_SEARCH_FILTER=(&(objectClass=posixGroup)(memberUid=%s))
+      # CRITICAL: memberUid contains username (e.g., "admin"), not DN
+      # This setting tells Phoenix to use the "uid" attribute value for %s substitution
+      - PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR=uid
+      - PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=posix-groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=posix-groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"cn=viewers,ou=posix-groups,dc=example,dc=com","role":"VIEWER"},{"group_dn":"*","role":"VIEWER"}]
+      - PHOENIX_LDAP_ALLOW_SIGN_UP=true
+      # In-memory SQLite
+      - "PHOENIX_SQL_DATABASE_URL=sqlite:///:memory:"
+    depends_on:
+      - ldap-posix
+      - ldap-posix-seed
+    labels:
+      - "phoenix.auth.mode=ldap-posix"
+
   # Grafana LDAP (for comparison with Phoenix)
   grafana-ldap:
     profiles: ["ldap-test"]
@@ -355,6 +477,7 @@ services:
       - phoenix
       - phoenix-anonymous-ldaps
       - phoenix-anonymous-starttls
+      - phoenix-posix
       - grafana-ldap
     environment:
       # Use main Phoenix endpoint for integration tests (direct connection, no MITM proxy)
@@ -363,6 +486,8 @@ services:
       - PHOENIX_LDAPS_URL=http://phoenix:6006
       - PHOENIX_ANONYMOUS_LDAPS_URL=http://phoenix-anonymous-ldaps:6006
       - PHOENIX_ANONYMOUS_STARTTLS_URL=http://phoenix-anonymous-starttls:6006
+      # POSIX mode testing (GROUP_SEARCH_FILTER with memberUid)
+      - PHOENIX_POSIX_URL=http://phoenix-posix:6006
       - GRAFANA_URL=http://grafana-ldap:3000
       - LDAP_HOST=ldap
       - LDAP_PORT=389
@@ -387,7 +512,7 @@ services:
         echo 'Attempt '$$i'/30: LDAP data not ready, waiting...';
         sleep 3;
       done;
-      echo '🧪 Running LDAP integration tests...';
+      echo '🧪 Running LDAP integration tests (includes POSIX mode)...';
       echo '';
       python3 /test_ldap_integration.py;
       EXIT_CODE=$$?;
@@ -416,4 +541,6 @@ volumes:
   ldap-test-config:
   ldap-anonymous-data:
   ldap-anonymous-config:
+  ldap-posix-data:
+  ldap-posix-config:
 

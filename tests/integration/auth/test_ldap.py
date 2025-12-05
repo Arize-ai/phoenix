@@ -750,8 +750,8 @@ class TestLDAPConfiguration:
 class TestLDAPPosixGroupSearch:
     """Test LDAP POSIX group search (OpenLDAP style).
 
-    POSIX groups store member DNs in a 'member' attribute, requiring Phoenix
-    to search for groups containing the user's DN.
+    POSIX groups (RFC 2307) use memberUid containing usernames, requiring Phoenix
+    to search for groups containing the user's username (not DN).
     """
 
     def test_posix_role_from_group_search(
@@ -761,7 +761,6 @@ class TestLDAPPosixGroupSearch:
         suffix = token_hex(4)
         username = f"posix_{suffix}"
         email = f"posix_{suffix}@example.com"
-        user_dn = f"uid={username},ou=users,dc=example,dc=com"
 
         # User without memberOf
         _ldap_server.add_user(
@@ -771,8 +770,8 @@ class TestLDAPPosixGroupSearch:
             display_name="POSIX",
             groups=[],
         )
-        # Add to admins group via POSIX-style membership
-        _ldap_server.add_group(cn="admins", members=[user_dn])
+        # Add to admins group via POSIX-style membership (username, not DN)
+        _ldap_server.add_group(cn="admins", members=[username])
 
         status, _, _ = _ldap_login(_app_ldap_posix, username, _DEFAULT_PASSWORD)
         assert status == 204
@@ -805,10 +804,14 @@ class TestLDAPPosixGroupSearch:
         assert user.role == UserRoleInput.VIEWER  # Wildcard
         _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
 
-    def test_posix_dn_case_insensitive(
+    def test_posix_username_case_insensitive(
         self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test DN matching in group search is case-insensitive per RFC 4514."""
+        """Test username matching in POSIX group search is case-insensitive.
+
+        POSIX groups (RFC 2307) use memberUid with usernames, not full DNs.
+        Username comparison should be case-insensitive.
+        """
         suffix = token_hex(4)
         username = f"posix_case_{suffix}"
         email = f"posix_case_{suffix}@example.com"
@@ -820,10 +823,8 @@ class TestLDAPPosixGroupSearch:
             display_name="Case",
             groups=[],
         )
-        # Group has UPPERCASE DN but user's actual DN is lowercase
-        _ldap_server.add_group(
-            cn="admins", members=[f"UID={username.upper()},OU=USERS,DC=EXAMPLE,DC=COM"]
-        )
+        # POSIX group has UPPERCASE username, user has lowercase username
+        _ldap_server.add_group(cn="admins", members=[username.upper()])
 
         status, _, _ = _ldap_login(_app_ldap_posix, username, _DEFAULT_PASSWORD)
         assert status == 204

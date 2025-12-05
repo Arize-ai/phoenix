@@ -752,10 +752,12 @@ class TestRoleValidation:
         assert _validate_phoenix_role("Admin") == "ADMIN"
         assert _validate_phoenix_role("MeMbEr") == "MEMBER"
 
-    def test_invalid_role_defaults_to_member(self) -> None:
-        """Test invalid roles default to MEMBER (fail-safe)."""
-        assert _validate_phoenix_role("SUPERUSER") == "MEMBER"
-        assert _validate_phoenix_role("ROOT") == "MEMBER"
+    def test_invalid_role_raises_error(self) -> None:
+        """Test invalid roles raise ValueError (fail hard to surface bugs)."""
+        with pytest.raises(ValueError, match="Invalid role"):
+            _validate_phoenix_role("SUPERUSER")
+        with pytest.raises(ValueError, match="Invalid role"):
+            _validate_phoenix_role("ROOT")
 
 
 class TestExceptionSanitization:

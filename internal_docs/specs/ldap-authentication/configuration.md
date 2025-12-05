@@ -22,6 +22,7 @@
 | `PHOENIX_LDAP_ATTR_MEMBER_OF` | Optional | `memberOf` | string | Group membership attribute (used when `GROUP_SEARCH_FILTER` not set) |
 | `PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS` | Conditional | - | JSON array | Required when `GROUP_SEARCH_FILTER` is set |
 | `PHOENIX_LDAP_GROUP_SEARCH_FILTER` | Optional | - | string | When set, enables POSIX mode (ignores `ATTR_MEMBER_OF`) |
+| `PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR` | Optional | - | string | Attribute to substitute in GROUP_SEARCH_FILTER (default: login username) |
 | `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS` | ✅ **Required** | `[]` | JSON array | **Grafana-compatible format** |
 | `PHOENIX_LDAP_ALLOW_SIGN_UP` | Optional | `true` | boolean | Auto-create users on first login |
 | `PHOENIX_LDAP_ATTR_UNIQUE_ID` | Optional | - | string | Immutable ID (only if expecting email changes) |
@@ -62,7 +63,8 @@ This table maps Phoenix's environment variables to Grafana's TOML configuration 
 | **Unique ID** | `PHOENIX_LDAP_ATTR_UNIQUE_ID="objectGUID"` | Not supported | Phoenix: Optional immutable identifier for email change resilience |
 | **Group Membership** | `PHOENIX_LDAP_ATTR_MEMBER_OF="memberOf"` | `member_of = "memberOf"` | Active Directory attribute |
 | **Group Search Base** | `PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS='["ou=groups,..."]'` | `group_search_base_dns = ["ou=groups,dc=..."]` | Both: JSON/TOML array of DNs |
-| **Group Search Filter** | `PHOENIX_LDAP_GROUP_SEARCH_FILTER="(member=%s)"` | `group_search_filter = "(member=%s)"` | Identical: `%s` = user DN |
+| **Group Search Filter** | `PHOENIX_LDAP_GROUP_SEARCH_FILTER="(member=%s)"` | `group_search_filter = "(member=%s)"` | Identical: `%s` = substituted value |
+| **Group Filter User Attr** | `PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR="uid"` | `group_search_filter_user_attribute = "uid"` | Attribute value to substitute for `%s` in GROUP_SEARCH_FILTER. When not set, uses login username. |
 | **Group→Role Mapping** | `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[`<br>`  {"group_dn": "cn=admins,...", "role": "ADMIN"}`<br>`]'` | `[[servers.group_mappings]]`<br>`group_dn = "cn=admins,..."`<br>`org_role = "Admin"` | Phoenix: JSON with `role` (no org)<br>Grafana: TOML with `org_role` |
 | **Allow Sign-Up** | `PHOENIX_LDAP_ALLOW_SIGN_UP="true"` | `[auth.ldap]`<br>`allow_sign_up = true` | Both default to `true` |
 | **Timeout** | Not exposed (uses ldap3 defaults) | `timeout = 10` | Grafana: Configurable in seconds |
@@ -102,7 +104,7 @@ This table maps Phoenix's environment variables to Grafana's TOML configuration 
 | `PHOENIX_LDAP_TLS_MODE=starttls` (unquoted) | `PHOENIX_LDAP_TLS_MODE="starttls"` (quoted) | Shell may require quotes for strings |
 | `PHOENIX_LDAP_PORT="389"` (string) | `PHOENIX_LDAP_PORT=389` (int) | Port should be unquoted integer |
 | Multiple `PHOENIX_LDAP_HOST` lines | `PHOENIX_LDAP_HOST="dc1.com,dc2.com"` | Use comma-separated, not multiple vars |
-| `%s` in `GROUP_SEARCH_FILTER` for username | `%s` in `USER_SEARCH_FILTER` | User filter uses username, group filter uses user DN |
+| `%s` in `GROUP_SEARCH_FILTER` for username | `%s` in `USER_SEARCH_FILTER` | User filter uses username; group filter uses login username by default (or attribute from GROUP_SEARCH_FILTER_USER_ATTR) |
 
 **Validation Checklist** (implemented in code):
 1. ✅ `PHOENIX_LDAP_HOST` is not empty (config.py:1423)
@@ -211,9 +213,27 @@ PHOENIX_LDAP_ATTR_MEMBER_OF="memberOf"
 #   - '["OU=Groups,DC=corp,DC=com", "OU=Teams,DC=corp,DC=com"]'
 PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS='["OU=Groups,DC=corp,DC=com"]'
 
-# Group search filter (use %s as placeholder for user DN)
+# Group search filter (use %s as placeholder for substituted value)
 # Example: "(&(objectClass=group)(member=%s))"
 PHOENIX_LDAP_GROUP_SEARCH_FILTER="(&(objectClass=group)(member=%s))"
+
+# Attribute from user entry to substitute for %s in GROUP_SEARCH_FILTER
+# When set: Reads the specified attribute from the user's LDAP entry
+# When not set (default): Uses the login username directly
+#
+# Common values:
+#   - "uid": For POSIX groups using memberUid (contains uid attribute value)
+#   - "dn" or "distinguishedName": For groups using member with full DNs (AD)
+#   - Not set: Uses login username (works for most POSIX setups)
+#
+# Example POSIX (memberUid contains usernames):
+#   PHOENIX_LDAP_GROUP_SEARCH_FILTER="(&(objectClass=posixGroup)(memberUid=%s))"
+#   # GROUP_SEARCH_FILTER_USER_ATTR not set - uses login username
+#
+# Example AD (member contains full DNs):
+#   PHOENIX_LDAP_GROUP_SEARCH_FILTER="(member:1.2.840.113556.1.4.1941:=%s)"
+#   PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR="dn"
+# PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR="uid"
 
 # ==============================================================================
 # Group to Role Mappings (Grafana-Compatible Format)

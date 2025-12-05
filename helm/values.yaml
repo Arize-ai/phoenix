@@ -455,11 +455,22 @@ auth:
     # Multiple: ["ou=groups,dc=corp,dc=com", "ou=teams,dc=corp,dc=com"]
     groupSearchBaseDns: []
 
-    # -- LDAP filter for finding groups. Use %s as placeholder for user DN.
-    # When set, enables POSIX group search mode (ignores attrMemberOf).
-    # When not set, uses attrMemberOf attribute from user entry (AD mode).
-    # Example: "(&(objectClass=posixGroup)(memberUid=%s))"
+    # -- LDAP filter for finding groups. Use %s as placeholder for user identifier.
+    # Two modes:
+    #   - AD Mode (not set, recommended for Active Directory): Reads memberOf from user entry
+    #   - Search Mode (set): Searches for groups containing the user
+    # Example for POSIX: "(&(objectClass=posixGroup)(memberUid=%s))"
     groupSearchFilter: ""
+
+    # -- LDAP attribute from the user entry to substitute for %s in groupSearchFilter.
+    # When set: Reads the specified attribute from the user's LDAP entry
+    # When not set (default): Uses the login username directly
+    # Understanding group types:
+    #   - POSIX (memberUid): Contains usernames like "jdoe" → use default or "uid"
+    #   - groupOfNames (member): Contains full DNs → use "distinguishedName" (AD only)
+    # Note: OpenLDAP does not expose DN as an attribute. For groupOfNames with
+    # OpenLDAP, use memberOf overlay instead (AD mode).
+    groupSearchFilterUserAttr: ""
 
     # Role mappings
     # -- JSON array mapping LDAP groups to Phoenix roles.

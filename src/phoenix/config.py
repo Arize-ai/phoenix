@@ -414,10 +414,88 @@ Multiple: '["ou=groups,dc=corp,dc=com", "ou=teams,dc=corp,dc=com"]'
 """
 ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER = "PHOENIX_LDAP_GROUP_SEARCH_FILTER"
 """
-LDAP filter for finding groups. Use %s as placeholder for user DN.
-When set, enables POSIX group search mode (ignores ATTR_MEMBER_OF).
-When not set, uses ATTR_MEMBER_OF attribute from user entry (Active Directory mode).
-Example: "(&(objectClass=posixGroup)(memberUid=%s))"
+LDAP filter for finding groups containing a user. Use %s as placeholder for user identifier.
+
+Two Group Resolution Modes
+--------------------------
+This setting determines how group membership is resolved:
+
+1. AD Mode (this setting NOT set - RECOMMENDED for Active Directory):
+   Reads the memberOf attribute directly from the user entry.
+   Active Directory automatically populates this attribute.
+   Configure PHOENIX_LDAP_ATTR_MEMBER_OF if the attribute name differs.
+
+2. Search Mode (this setting IS set):
+   Searches for groups that contain the user in PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS.
+   Required for POSIX groups (posixGroup) or when memberOf is unavailable.
+
+Placeholder Substitution
+------------------------
+The %s placeholder is replaced with a user identifier. What value is used depends on
+PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR:
+- If not set (default): Uses the login username directly
+- If set: Uses that attribute's value from the user's LDAP entry
+
+See PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR for detailed examples of:
+- POSIX groups (memberUid contains usernames)
+- groupOfNames (member contains full DNs)
+
+Example POSIX configuration:
+  PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS=["ou=groups,dc=example,dc=com"]
+  PHOENIX_LDAP_GROUP_SEARCH_FILTER=(&(objectClass=posixGroup)(memberUid=%s))
+  # PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR not needed - uses login username
+"""
+ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR = "PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR"
+"""
+LDAP attribute from the user entry to substitute for %s in GROUP_SEARCH_FILTER.
+
+When set, reads the specified attribute from the user's LDAP entry and uses its value.
+When not set (default), uses the login username directly.
+
+Understanding Group Membership Attributes
+-----------------------------------------
+Different LDAP group types store membership differently:
+
+1. POSIX groups (posixGroup objectClass):
+   - Use "memberUid" attribute which contains **usernames** (e.g., "jdoe")
+   - Filter: (&(objectClass=posixGroup)(memberUid=%s))
+   - Use: PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR not set (uses login username)
+         or set to "uid" if login username differs from uid attribute
+
+2. groupOfNames/groupOfUniqueNames (RFC 4519):
+   - Use "member"/"uniqueMember" which contains **full DNs**
+     (e.g., "uid=jdoe,ou=users,dc=example,dc=com")
+   - Filter: (&(objectClass=groupOfNames)(member=%s))
+   - Use: PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR=distinguishedName (AD only)
+   - Note: OpenLDAP does not expose DN as an attribute. For groupOfNames with
+     OpenLDAP, consider using memberOf overlay instead (AD mode).
+
+3. Active Directory groups:
+   - RECOMMENDED: Use AD mode (memberOf attribute) instead of group search.
+     AD automatically populates memberOf on user entries.
+     Simply leave PHOENIX_LDAP_GROUP_SEARCH_FILTER unset.
+   - If you must use group search: AD returns "distinguishedName" as an attribute,
+     so PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR=distinguishedName works.
+
+Common values:
+- Not set (default): Uses the login username directly
+- "uid": Explicitly use uid attribute (same as default for most setups)
+- "distinguishedName": Full DN (Active Directory only)
+- "sAMAccountName": Windows login name (Active Directory)
+
+Example configurations:
+
+  POSIX groups with OpenLDAP (memberUid contains usernames):
+    PHOENIX_LDAP_GROUP_SEARCH_FILTER=(&(objectClass=posixGroup)(memberUid=%s))
+    # No PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR needed - uses login username
+
+  POSIX groups when login differs from uid:
+    PHOENIX_LDAP_GROUP_SEARCH_FILTER=(&(objectClass=posixGroup)(memberUid=%s))
+    PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR=uid
+
+  Active Directory with group search (not recommended - use memberOf instead):
+    PHOENIX_LDAP_GROUP_SEARCH_FILTER=(member:1.2.840.113556.1.4.1941:=%s)
+    PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR=distinguishedName
 """
 ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS = "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS"
 """
@@ -1512,10 +1590,14 @@ class LDAPConfig:
             - Typical values: "memberOf" (AD/OpenLDAP)
 
     Group Search (for POSIX/OpenLDAP without memberOf overlay):
-        group_search_filter: Filter template with %s placeholder for user DN
+        group_search_filter: Filter template with %s placeholder
             - When SET: Enables POSIX mode, ignores attr_member_of
             - When NOT SET: Uses attr_member_of from user entry (AD mode)
             Example: "(&(objectClass=posixGroup)(memberUid=%s))"
+        group_search_filter_user_attr: User attribute to substitute for %s
+            - When SET: Uses the attribute value (e.g., "uid" → "admin")
+            - When NOT SET: Uses the user's full DN (legacy behavior)
+            Required for POSIX memberUid filters since memberUid stores usernames, not DNs.
         group_search_base_dns: List of base DNs for group searches
             - Required when group_search_filter is set
             Example: ["ou=groups,dc=example,dc=com"]
@@ -1573,6 +1655,7 @@ class LDAPConfig:
         PHOENIX_LDAP_ATTR_EMAIL=mail
         PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS=["ou=groups,dc=example,dc=com"]
         PHOENIX_LDAP_GROUP_SEARCH_FILTER=(&(objectClass=posixGroup)(memberUid=%s))
+        PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR=uid
 
     References
     ----------
@@ -1592,27 +1675,28 @@ class LDAPConfig:
     tls_verify: bool = True
 
     # Advanced TLS configuration (optional, for enterprise deployments)
-    tls_ca_cert_file: Optional[str] = None
-    tls_client_cert_file: Optional[str] = None
-    tls_client_key_file: Optional[str] = None
+    tls_ca_cert_file: str | None = None
+    tls_client_cert_file: str | None = None
+    tls_client_key_file: str | None = None
 
     # Bind credentials (service account, RFC 4513 §5.1.2)
-    bind_dn: Optional[str] = None
-    bind_password: Optional[str] = None
+    bind_dn: str | None = None
+    bind_password: str | None = None
 
     # User search (RFC 4511 §4.5.1)
     user_search_base_dns: tuple[str, ...] = ()
     user_search_filter: str = "(&(objectClass=user)(sAMAccountName=%s))"
 
-    # Attribute mapping (RFC RFC 2798 §9.1.3, §2.3)
+    # Attribute mapping (RFC 2798 §9.1.3, §2.3)
     attr_email: str = "mail"  # REQUIRED: Must be present in LDAP or login fails
     attr_display_name: str = "displayName"
     attr_member_of: str = "memberOf"  # Used when group_search_filter is not set
-    attr_unique_id: Optional[str] = None  # Optional: objectGUID (AD), entryUUID (OpenLDAP)
+    attr_unique_id: str | None = None  # Optional: objectGUID (AD), entryUUID (OpenLDAP)
 
     # Group search (for POSIX/OpenLDAP without memberOf)
     group_search_base_dns: tuple[str, ...] = ()
-    group_search_filter: Optional[str] = None
+    group_search_filter: str | None = None
+    group_search_filter_user_attr: str | None = None  # e.g., "uid" for POSIX memberUid
 
     # Group to role mappings
     group_role_mappings: tuple[LDAPGroupRoleMapping, ...] = ()
@@ -1717,6 +1801,7 @@ class LDAPConfig:
         attr_member_of = getenv(ENV_PHOENIX_LDAP_ATTR_MEMBER_OF, "memberOf")
         group_search_base_dns_json = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS, "")
         group_search_filter = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER)
+        group_search_filter_user_attr = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR)
 
         group_search_base_dns_list: list[str] = []
         if group_search_base_dns_json:
@@ -1745,6 +1830,24 @@ class LDAPConfig:
                 f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER} is set but "
                 f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS} is missing. "
                 f"Both are required for POSIX group search."
+            )
+
+        # Validate group_search_filter_user_attr: only valid when group_search_filter is set
+        if group_search_filter_user_attr and not group_search_filter:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR} is set but "
+                f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER} is not. "
+                f"The user attribute setting only applies to group search filter mode."
+            )
+
+        # Validate attribute name format (no spaces)
+        if group_search_filter_user_attr and " " in group_search_filter_user_attr:
+            suggestion = group_search_filter_user_attr.replace(" ", "")
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR}="
+                f"'{group_search_filter_user_attr}' contains spaces. "
+                f"LDAP attribute names do not contain spaces. "
+                f"Did you mean '{suggestion}'?"
             )
 
         # Security warnings (log, don't fail)
@@ -1856,6 +1959,21 @@ class LDAPConfig:
                     f"Did you mean '{suggestion}'?"
                 )
 
+        # Parse and validate search filters
+        user_search_filter = getenv(
+            ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(&(objectClass=user)(sAMAccountName=%s))"
+        )
+        if "%s" not in user_search_filter:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_USER_SEARCH_FILTER} must contain '%s' placeholder "
+                f"for username. Got: '{user_search_filter}'"
+            )
+        if group_search_filter and "%s" not in group_search_filter:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER} must contain '%s' placeholder. "
+                f"Got: '{group_search_filter}'"
+            )
+
         return cls(
             hosts=hosts,
             port=port,
@@ -1867,15 +1985,14 @@ class LDAPConfig:
             bind_dn=getenv(ENV_PHOENIX_LDAP_BIND_DN),
             bind_password=getenv(ENV_PHOENIX_LDAP_BIND_PASSWORD),
             user_search_base_dns=tuple(user_search_base_dns_list),
-            user_search_filter=getenv(
-                ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(&(objectClass=user)(sAMAccountName=%s))"
-            ),
+            user_search_filter=user_search_filter,
             attr_email=attr_email,
             attr_display_name=attr_display_name,
             attr_member_of=attr_member_of,
             attr_unique_id=attr_unique_id,
             group_search_base_dns=tuple(group_search_base_dns_list),
             group_search_filter=group_search_filter,
+            group_search_filter_user_attr=group_search_filter_user_attr,
             group_role_mappings=tuple(group_role_mappings_list),
             allow_sign_up=allow_sign_up,
         )

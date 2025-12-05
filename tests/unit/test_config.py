@@ -1636,6 +1636,27 @@ class TestLDAPConfigFromEnv:
                 "must contain at least one mapping",
                 id="empty_group_role_mappings",
             ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_USER_SEARCH_FILTER": "(&(objectClass=user)(sAMAccountName=admin))",
+                },
+                "must contain '%s' placeholder for username",
+                id="user_search_filter_missing_placeholder",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS": '["ou=groups,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(&(objectClass=posixGroup)(memberUid=admin))",
+                },
+                "must contain '%s' placeholder",
+                id="group_search_filter_missing_placeholder",
+            ),
         ],
     )
     def test_invalid_inputs(

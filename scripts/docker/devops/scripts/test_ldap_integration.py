@@ -12,6 +12,7 @@ Tests all edge cases discovered through OpenLDAP source code study:
 - Unicode support (internationalization)
 - PII protection in logs
 - Anonymous bind mode (AUTO_BIND_DEFAULT flow)
+- POSIX mode (GROUP_SEARCH_FILTER with memberUid)
 
 Anonymous Bind Testing:
   When PHOENIX_ANONYMOUS_LDAPS_URL and PHOENIX_ANONYMOUS_STARTTLS_URL are set,
@@ -20,6 +21,11 @@ Anonymous Bind Testing:
   - ldap3's AUTO_BIND_DEFAULT properly defers bind() to context manager
   - OpenLDAP ACLs allow anonymous searches (requires configuration)
   - User authentication still works without a privileged service account
+
+POSIX Mode Testing:
+  When PHOENIX_POSIX_URL is set, tests the GROUP_SEARCH_FILTER code path
+  for LDAP servers using POSIX/RFC 2307 group schema (posixGroup with memberUid).
+  This validates group membership lookup via search instead of memberOf attribute.
 
 Exit codes:
   0 = All tests passed
@@ -570,6 +576,73 @@ class AnonymousLDAPTester(BaseLDAPTester):
         ]
 
 
+class POSIXModeLDAPTester(BaseLDAPTester):
+    """Test suite for POSIX mode (GROUP_SEARCH_FILTER with memberUid).
+
+    POSIX/RFC 2307 group schema uses:
+    - objectClass: posixGroup
+    - memberUid attribute containing usernames (e.g., "admin"), NOT DNs
+
+    This differs from Active Directory style where:
+    - Groups use "member" attribute containing full DNs
+    - Users have "memberOf" attribute populated by overlay
+
+    The GROUP_SEARCH_FILTER setting enables searching for groups
+    instead of reading the memberOf attribute from user entries.
+    """
+
+    def test_admin_login_posix(self) -> TestResult:
+        """Admin user login in POSIX mode."""
+        return self._assert_login_success("Admin Login (POSIX Mode)", "admin", "password123")
+
+    def test_member_login_posix(self) -> TestResult:
+        """Member user login in POSIX mode."""
+        return self._assert_login_success("Member Login (POSIX Mode)", "alice", "password123")
+
+    def test_viewer_login_posix(self) -> TestResult:
+        """Viewer user login in POSIX mode."""
+        return self._assert_login_success("Viewer Login (POSIX Mode)", "charlie", "password123")
+
+    def test_invalid_password_posix(self) -> TestResult:
+        """Invalid password rejection in POSIX mode."""
+        return self._assert_login_rejected(
+            "Invalid Password (POSIX Mode)", "admin", "wrongpassword"
+        )
+
+    def test_multigroup_login_posix(self) -> TestResult:
+        """User in multiple POSIX groups (role precedence)."""
+        return self._assert_login_success(
+            "Multi-Group Login (POSIX Mode)", "multigroup", "password123"
+        )
+
+    def test_nogroups_wildcard_posix(self) -> TestResult:
+        """User with no POSIX groups falls back to wildcard role."""
+        status, headers = self._login("nogroups", "password123")
+        name = "No Groups Wildcard (POSIX Mode)"
+        if status == HTTP_NO_CONTENT and self._has_auth_token(headers):
+            return TestResult(
+                name=name,
+                passed=True,
+                message="✓ User with no groups authenticated (wildcard fallback)",
+            )
+        return TestResult(
+            name=name,
+            passed=False,
+            message=f"✗ Expected {HTTP_NO_CONTENT} with token, got {status}",
+        )
+
+    def get_test_methods(self) -> list[Callable[[], TestResult]]:
+        """Return test methods for POSIX mode validation."""
+        return [
+            self.test_admin_login_posix,
+            self.test_member_login_posix,
+            self.test_viewer_login_posix,
+            self.test_invalid_password_posix,
+            self.test_multigroup_login_posix,
+            self.test_nogroups_wildcard_posix,
+        ]
+
+
 class TestRunner:
     """Orchestrates test execution with formatted output."""
 
@@ -745,12 +818,53 @@ class TestRunner:
             print("   - The AUTO_BIND_DEFAULT flow in ldap.py is broken")
             print("   - Network/connection issues with the LDAP server")
 
+    def run_posix_suite(self, posix_url: str) -> bool:
+        """Run POSIX mode tests (GROUP_SEARCH_FILTER with memberUid)."""
+        print()
+        print("=" * 80)
+        print("🐧 Phoenix POSIX Mode Tests (GROUP_SEARCH_FILTER)")
+        print("=" * 80)
+        print()
+        print("Testing LDAP authentication with POSIX/RFC 2307 group schema.")
+        print("Groups use posixGroup objectClass with memberUid attribute.")
+        print("This validates GROUP_SEARCH_FILTER code path instead of memberOf.")
+        print()
+
+        if not self.wait_for_service(posix_url, "Phoenix POSIX"):
+            return False
+
+        tester = POSIXModeLDAPTester(posix_url)
+        result = self.run_suite(tester, verbose=False)
+        self._print_compact_results(result, "POSIX Mode")
+        print()
+        self._print_posix_summary(result.all_passed)
+
+        if not result.all_passed:
+            self._all_passed = False
+
+        return result.all_passed
+
+    def _print_posix_summary(self, all_passed: bool) -> None:
+        """Print summary for POSIX mode tests."""
+        if all_passed:
+            print("✅ POSIX mode working correctly!")
+            print("   - GROUP_SEARCH_FILTER code path works ✓")
+            print("   - posixGroup with memberUid supported ✓")
+            print("   - Role mapping from group search works ✓")
+        else:
+            print("❌ Some POSIX mode tests failed!")
+            print("   This may indicate:")
+            print("   - GROUP_SEARCH_FILTER configuration issue")
+            print("   - Group search base DN mismatch")
+            print("   - memberUid filter value format issue")
+
 
 def main() -> int:
     """Main entry point."""
     phoenix_url = os.environ.get("PHOENIX_URL", "http://localhost:18273")
     phoenix_anonymous_ldaps_url = os.environ.get("PHOENIX_ANONYMOUS_LDAPS_URL", "")
     phoenix_anonymous_starttls_url = os.environ.get("PHOENIX_ANONYMOUS_STARTTLS_URL", "")
+    phoenix_posix_url = os.environ.get("PHOENIX_POSIX_URL", "")
 
     runner = TestRunner()
     success = runner.run_full_suite(phoenix_url)
@@ -762,6 +876,11 @@ def main() -> int:
             phoenix_anonymous_starttls_url,
         )
         success = success and anonymous_success
+
+    # If POSIX mode URL is configured, test GROUP_SEARCH_FILTER code path
+    if phoenix_posix_url:
+        posix_success = runner.run_posix_suite(phoenix_posix_url)
+        success = success and posix_success
 
     return 0 if success else 1
 

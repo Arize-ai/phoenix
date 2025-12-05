@@ -111,7 +111,39 @@ Complete field-by-field comparison between Grafana's `ServerConfig` struct and P
 |---------|---------|--------|
 | `GroupSearchBaseDNs []string` | `PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS` (JSON array) | ✅ **Match** |
 | `GroupSearchFilter string` | `PHOENIX_LDAP_GROUP_SEARCH_FILTER` | ✅ Match |
-| `GroupSearchFilterUserAttribute string` | ❌ Not implemented | ⚠️ Low priority |
+| `GroupSearchFilterUserAttribute string` | `PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR` | ✅ **Match** |
+
+#### Group Search Filter User Attribute Behavior
+
+Both Grafana and Phoenix support `group_search_filter_user_attribute` (Grafana) / `GROUP_SEARCH_FILTER_USER_ATTR` (Phoenix) with identical behavior:
+
+**Grafana** (`ldap.go` line 598-605):
+```go
+if config.GroupSearchFilterUserAttribute == "" {
+    filterReplace = getAttribute(config.Attr.Username, entry)
+} else {
+    filterReplace = getAttribute(
+        config.GroupSearchFilterUserAttribute,
+        entry,
+    )
+}
+```
+
+**Phoenix** (`ldap.py`):
+```python
+if self.config.group_search_filter_user_attr:
+    filter_value = _get_attribute(user_entry, self.config.group_search_filter_user_attr)
+else:
+    filter_value = username  # Uses login username
+```
+
+**Common values:**
+- `"uid"`: For POSIX groups using `memberUid` (contains uid attribute value)
+- `"dn"` or `"distinguishedName"`: For groups using `member` with full DNs (Active Directory)
+- Not set (default): Uses the login username (works for most POSIX setups)
+
+**Grafana documentation reference:**
+- https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/ldap/
 
 ### Group Role Mappings
 
@@ -139,7 +171,6 @@ These Grafana features are not implemented in Phoenix. They can be added later i
 | `MinTLSVersion` | Force TLS 1.2+ | Enterprise security compliance |
 | `TLSCiphers` | Restrict cipher suites | Enterprise security compliance |
 | `Timeout` | Connection timeout (seconds) | Network reliability |
-| `GroupSearchFilterUserAttribute` | Custom DN attribute for group filter | Edge case LDAP schemas |
 
 ### Phoenix Extras (Not in Grafana)
 

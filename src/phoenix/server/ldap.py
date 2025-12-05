@@ -673,7 +673,7 @@ class LDAPAuthenticator:
 
                     # Step 6: Get user's group memberships
                     # Reuses the existing service/anonymous connection
-                    groups = self._get_user_groups(conn, user_entry, user_dn)
+                    groups = self._get_user_groups(conn, user_entry, username)
 
                     # Step 7: Map groups to Phoenix role
                     role = self.map_groups_to_role(groups)
@@ -868,20 +868,38 @@ class LDAPAuthenticator:
             # unbind() safely closes socket regardless of bind state.
             user_conn.unbind()  # type: ignore[no-untyped-call]
 
-    def _get_user_groups(self, conn: Connection, user_entry: Any, user_dn: str) -> list[str]:
+    def _get_user_groups(self, conn: Connection, user_entry: Any, username: str) -> list[str]:
         """Get user's group memberships.
 
-        Mode is determined by group_search_filter:
-        - If group_search_filter is NOT set: Read memberOf attribute (AD mode)
-        - If group_search_filter IS set: Search for groups (POSIX mode)
+        Two modes are supported, determined by group_search_filter presence:
+
+        AD Mode (group_search_filter NOT set):
+            Reads the memberOf attribute directly from the user entry.
+            This is the recommended approach for Active Directory, which
+            automatically populates memberOf with the user's group DNs.
+
+        Search Mode (group_search_filter IS set):
+            Searches for groups that contain the user. Used for POSIX groups
+            (posixGroup) or when memberOf is not available.
+
+            The %s placeholder in the filter is replaced with:
+            - If group_search_filter_user_attr is set: That attribute's value
+              from the user entry (e.g., uid="jdoe" or distinguishedName="...")
+            - If not set: The login username directly
+
+            Common patterns:
+            - POSIX (memberUid=%s): memberUid contains usernames like "jdoe"
+              → Use username directly (default) or group_search_filter_user_attr=uid
+            - groupOfNames (member=%s): member contains full DNs
+              → Requires group_search_filter_user_attr=distinguishedName (AD only)
 
         Args:
             conn: Active LDAP connection (with service account if configured)
             user_entry: User entry from search
-            user_dn: User's distinguished name
+            username: User's login username (used as default filter value)
 
         Returns:
-            List of group DNs
+            List of group DNs (Distinguished Names)
         """
         # Mode determined by group_search_filter presence
         if not self.config.group_search_filter:
@@ -896,13 +914,33 @@ class LDAPAuthenticator:
         group_search_filter = self.config.group_search_filter  # Guaranteed non-None here
         assert group_search_filter is not None  # For type checker
         if self.config.group_search_base_dns:
-            # SECURITY: Escape user DN for LDAP filter (RFC 4515)
-            # Threat: DNs can contain special chars like parentheses, asterisks, backslashes
-            # (e.g., "cn=user(contractor)*,ou=users"). If inserted into filter unescaped,
+            # Determine what value to substitute for %s in the filter
+            # - If group_search_filter_user_attr is set: Use that attribute's value
+            #   (e.g., "uid" -> "admin")
+            # - If not set: Use the username
+            #
+            # POSIX memberUid contains usernames ("admin"), not full DNs.
+            if self.config.group_search_filter_user_attr:
+                # Get the specified attribute value from the user entry
+                filter_value = _get_attribute(user_entry, self.config.group_search_filter_user_attr)
+                if not filter_value:
+                    # Attribute not found on user - can't search for groups
+                    attr = self.config.group_search_filter_user_attr
+                    logger.warning(
+                        f"User entry missing attribute '{attr}' required for group search filter"
+                    )
+                    return []
+            else:
+                # use the username
+                filter_value = username
+
+            # SECURITY: Escape value for LDAP filter (RFC 4515)
+            # Threat: Values can contain special chars like parentheses, asterisks, backslashes
+            # (e.g., "user(contractor)*"). If inserted into filter unescaped,
             # these could break filter syntax or allow injection. Always escape before
-            # string substitution, even though DN comes from trusted LDAP server.
-            escaped_dn = escape_filter_chars(user_dn)
-            group_filter = group_search_filter.replace("%s", escaped_dn)
+            # string substitution, even though value comes from trusted LDAP server.
+            escaped_value = escape_filter_chars(filter_value)
+            group_filter = group_search_filter.replace("%s", escaped_value)
 
             # Search each group base DN and collect groups from all
             for group_search_base in self.config.group_search_base_dns:
@@ -1151,14 +1189,20 @@ def _validate_phoenix_role(role: str) -> str:
 
     Returns:
         Normalized Phoenix role name (uppercase)
+
+    Raises:
+        ValueError: If role is not valid (should never happen - roles are validated at startup)
     """
     normalized = role.upper()
     valid_roles = {"ADMIN", "MEMBER", "VIEWER"}
     if normalized in valid_roles:
         return normalized
-    # Default to MEMBER if invalid
-    logger.warning(f"Invalid role '{role}' in group mapping, defaulting to MEMBER")
-    return "MEMBER"
+    # Should never reach here - roles are validated in LDAPConfig.from_env()
+    # Fail hard to surface bugs immediately rather than silently granting access
+    raise ValueError(
+        f"Invalid role '{role}' in group mapping. "
+        f"This indicates a bug - roles should be validated at config load time."
+    )
 
 
 def _is_member_of(canonical_user_groups: set[str], target_group: str) -> bool:

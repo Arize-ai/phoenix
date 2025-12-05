@@ -101,6 +101,9 @@ data:
   {{- if .Values.auth.ldap.groupSearchFilter }}
   PHOENIX_LDAP_GROUP_SEARCH_FILTER: {{ .Values.auth.ldap.groupSearchFilter | quote }}
   {{- end }}
+  {{- if .Values.auth.ldap.groupSearchFilterUserAttr }}
+  PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR: {{ .Values.auth.ldap.groupSearchFilterUserAttr | quote }}
+  {{- end }}
   PHOENIX_LDAP_GROUP_ROLE_MAPPINGS: {{ .Values.auth.ldap.groupRoleMappings | quote }}
   PHOENIX_LDAP_ALLOW_SIGN_UP: {{ .Values.auth.ldap.allowSignUp | quote }}
   {{- end }}
