@@ -270,7 +270,6 @@ async def run_evaluator(
 
 
 def _prompt_role_to_chat_role(role: str) -> ChatCompletionMessageRole:
-    """Convert a prompt role string to ChatCompletionMessageRole."""
     role_lower = role.lower()
     if role_lower in ("user",):
         return ChatCompletionMessageRole.USER
