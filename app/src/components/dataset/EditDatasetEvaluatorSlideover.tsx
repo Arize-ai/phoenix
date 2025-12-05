@@ -1,5 +1,6 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { ModalOverlayProps } from "react-aria-components";
+import { FormProvider } from "react-hook-form";
 import {
   graphql,
   useFragment,
@@ -8,45 +9,54 @@ import {
 } from "react-relay";
 import invariant from "tiny-invariant";
 
-import { CreateLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import { EditDatasetEvaluatorSlideover_evaluator$key } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_evaluator.graphql";
 import { EditDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import { Dialog } from "@phoenix/components/dialog";
-import { UpdateLLMEvaluatorInput } from "@phoenix/components/evaluators/__generated__/EditEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import { EditEvaluatorDialogContent } from "@phoenix/components/evaluators/EditEvaluatorDialogContent";
 import {
-  EvaluatorFormProvider,
   EvaluatorFormValues,
   useEvaluatorForm,
 } from "@phoenix/components/evaluators/EvaluatorForm";
+import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { updateLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
 import { Loading } from "@phoenix/components/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/overlay/Modal";
-import { useNotifyError } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
+import {
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
 import { Mutable } from "@phoenix/typeUtils";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+
+type EditDatasetEvaluatorSlideoverProps = {
+  evaluatorId?: string;
+  datasetId: string;
+  displayName?: string;
+  updateConnectionIds?: string[];
+} & ModalOverlayProps;
 
 export const EditDatasetEvaluatorSlideover = ({
   evaluatorId,
   datasetId,
   updateConnectionIds,
+  displayName,
   ...props
-}: {
-  evaluatorId: string;
-  datasetId: string;
-  updateConnectionIds?: string[];
-} & ModalOverlayProps) => {
+}: EditDatasetEvaluatorSlideoverProps) => {
   return (
     <ModalOverlay {...props}>
       <Modal variant="slideover" size="fullscreen">
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>
-              {evaluatorId && datasetId && (
-                <EditEvaluatorDialog
+              {!!evaluatorId && !!displayName && (
+                <EditEvaluatorPlaygroundProvider
                   evaluatorId={evaluatorId}
-                  onClose={close}
                   datasetId={datasetId}
+                  displayName={displayName}
                   updateConnectionIds={updateConnectionIds}
+                  onClose={close}
                 />
               )}
             </Suspense>
@@ -57,46 +67,90 @@ export const EditDatasetEvaluatorSlideover = ({
   );
 };
 
+const EditEvaluatorPlaygroundProvider = (
+  props: Omit<EditEvaluatorDialogProps, "queryRef">
+) => {
+  const { evaluatorId, datasetId, displayName } = props;
+  const datasetEvaluatorQuery =
+    useLazyLoadQuery<EditDatasetEvaluatorSlideover_evaluatorQuery>(
+      graphql`
+        query EditDatasetEvaluatorSlideover_evaluatorQuery(
+          $datasetId: ID!
+          $evaluatorId: ID!
+          $displayName: Identifier!
+        ) {
+          dataset: node(id: $datasetId) {
+            ... on Dataset {
+              evaluator(evaluatorId: $evaluatorId, displayName: $displayName) {
+                ... on Evaluator {
+                  ... on DatasetLLMEvaluator {
+                    prompt {
+                      id
+                      name
+                    }
+                    promptVersion {
+                      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
+                    }
+                  }
+                  ...EditDatasetEvaluatorSlideover_evaluator
+                }
+              }
+            }
+          }
+        }
+      `,
+      { evaluatorId, datasetId, displayName }
+    );
+  const datasetEvaluator = datasetEvaluatorQuery.dataset.evaluator;
+  invariant(datasetEvaluator != null, "datasetEvaluator is required");
+  return (
+    <EvaluatorPlaygroundProvider
+      promptId={datasetEvaluator.prompt?.id}
+      promptName={datasetEvaluator.prompt?.name}
+      promptVersionRef={datasetEvaluator.promptVersion}
+    >
+      <EditEvaluatorDialog queryRef={datasetEvaluator} {...props} />
+    </EvaluatorPlaygroundProvider>
+  );
+};
+
+type EditEvaluatorDialogProps = {
+  evaluatorId: string;
+  onClose: () => void;
+  datasetId: string;
+  updateConnectionIds?: string[];
+  displayName: string;
+  queryRef: EditDatasetEvaluatorSlideover_evaluator$key;
+};
+
 const EditEvaluatorDialog = ({
   evaluatorId,
   onClose,
   datasetId,
   updateConnectionIds,
-}: {
-  evaluatorId: string;
-  onClose: () => void;
-  datasetId: string;
-  updateConnectionIds?: string[];
-}) => {
-  const closedRef = useRef(false);
-  const notifyError = useNotifyError();
-  const query = useLazyLoadQuery<EditDatasetEvaluatorSlideover_evaluatorQuery>(
-    graphql`
-      query EditDatasetEvaluatorSlideover_evaluatorQuery(
-        $evaluatorId: ID!
-        $datasetId: ID!
-      ) {
-        evaluator: node(id: $evaluatorId) {
-          ... on Evaluator {
-            ...EditDatasetEvaluatorSlideover_evaluator
-              @arguments(datasetId: $datasetId)
-          }
-        }
-      }
-    `,
-    { evaluatorId, datasetId }
-  );
+  displayName,
+  queryRef,
+}: EditEvaluatorDialogProps) => {
+  const notifySuccess = useNotifySuccess();
+  const [error, setError] = useState<string | undefined>(undefined);
+  const playgroundStore = usePlaygroundStore();
+  const instances = usePlaygroundContext((state) => state.instances);
+  const instanceId = useMemo(() => instances[0].id, [instances]);
+  invariant(instanceId != null, "instanceId is required");
+
   const evaluatorFragment =
     useFragment<EditDatasetEvaluatorSlideover_evaluator$key>(
       graphql`
-        fragment EditDatasetEvaluatorSlideover_evaluator on Evaluator
-        @argumentDefinitions(datasetId: { type: "ID!" }) {
+        fragment EditDatasetEvaluatorSlideover_evaluator on Evaluator {
           id
           name
           description
           kind
-          isAssignedToDataset(datasetId: $datasetId)
-          ... on LLMEvaluator {
+          ... on DatasetLLMEvaluator {
+            datasetInputMapping {
+              literalMapping
+              pathMapping
+            }
             prompt {
               id
               name
@@ -115,29 +169,18 @@ const EditEvaluatorDialog = ({
           }
         }
       `,
-      query.evaluator
+      queryRef
     );
   const evaluator = evaluatorFragment as Mutable<typeof evaluatorFragment>;
   invariant(evaluator, "evaluator is required");
-  useEffect(() => {
-    if (!evaluator.isAssignedToDataset && !closedRef.current) {
-      onClose();
-      notifyError({
-        title: "Evaluator not assigned to dataset",
-        message:
-          "This evaluator is not assigned to this dataset. Please refresh the page and try again.",
-      });
-      closedRef.current = true;
-    }
-  }, [evaluator.isAssignedToDataset, onClose, notifyError]);
   const [updateLlmEvaluator, isUpdating] =
     useMutation<EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation>(
       graphql`
         mutation EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(
-          $input: UpdateLLMEvaluatorInput!
+          $input: UpdateDatasetLLMEvaluatorInput!
           $connectionIds: [ID!]!
         ) {
-          updateLlmEvaluator(input: $input) {
+          updateDatasetLlmEvaluator(input: $input) {
             evaluator
               @appendNode(
                 connections: $connectionIds
@@ -146,37 +189,12 @@ const EditEvaluatorDialog = ({
               id
               name
               ...EvaluatorsTable_row
-              ...EditEvaluatorSlideover_evaluator
+              ...EditDatasetEvaluatorSlideover_evaluator
             }
           }
         }
       `
     );
-  const onSubmit = useCallback(
-    (args: {
-      input: UpdateLLMEvaluatorInput | CreateLLMEvaluatorInput;
-      onCompleted: ({ name }: { name: string }) => void;
-      onError: (error: Error) => void;
-    }) => {
-      invariant(
-        "evaluatorId" in args.input,
-        "evaluatorId is required when updating an evaluator. "
-      );
-      updateLlmEvaluator({
-        variables: {
-          input: args.input,
-          connectionIds: updateConnectionIds ?? [],
-        },
-        onCompleted: (response) => {
-          args.onCompleted({
-            name: response.updateLlmEvaluator.evaluator.name,
-          });
-        },
-        onError: args.onError,
-      });
-    },
-    [updateLlmEvaluator, updateConnectionIds]
-  );
   const defaultValues: EvaluatorFormValues = useMemo(() => {
     return {
       evaluator: {
@@ -200,27 +218,70 @@ const EditEvaluatorDialog = ({
         id: datasetId,
         assignEvaluatorToDataset: true,
       },
-      inputMapping: {
-        // TODO: populate input mapping from evaluator
+      inputMapping: evaluator.datasetInputMapping ?? {
+        literalMapping: {},
+        pathMapping: {},
       },
     };
   }, [evaluator, datasetId]);
   const form = useEvaluatorForm(defaultValues);
+  const onSubmit = useCallback(() => {
+    const {
+      evaluator: { name, description },
+      dataset,
+      choiceConfig,
+      inputMapping,
+    } = form.getValues();
+    invariant(dataset, "dataset is required");
+    const input = updateLLMEvaluatorPayload({
+      playgroundStore,
+      instanceId,
+      name,
+      description,
+      choiceConfig,
+      datasetId: dataset.id,
+      originalDisplayName: displayName,
+      evaluatorId,
+      inputMapping,
+    });
+    updateLlmEvaluator({
+      variables: {
+        input,
+        connectionIds: updateConnectionIds ?? [],
+      },
+      onCompleted: () => {
+        onClose();
+        notifySuccess({
+          title: "Evaluator updated",
+        });
+      },
+      onError: (error) => {
+        const errorMessages = getErrorMessagesFromRelayMutationError(error);
+        setError(errorMessages?.join("\n") ?? undefined);
+      },
+    });
+  }, [
+    form,
+    playgroundStore,
+    instanceId,
+    displayName,
+    evaluatorId,
+    updateLlmEvaluator,
+    updateConnectionIds,
+    onClose,
+    notifySuccess,
+  ]);
 
   return (
-    <EvaluatorFormProvider
-      form={form}
-      promptId={evaluator.prompt?.id}
-      promptName={evaluator.prompt?.name}
-      promptVersionRef={evaluator.promptVersion}
-    >
+    <FormProvider {...form}>
       <EditEvaluatorDialogContent
         evaluatorId={evaluatorId}
         onClose={onClose}
         onSubmit={onSubmit}
         isSubmitting={isUpdating}
         mode="update"
+        error={error}
       />
-    </EvaluatorFormProvider>
+    </FormProvider>
   );
 };
