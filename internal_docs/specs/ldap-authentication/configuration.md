@@ -19,9 +19,9 @@
 | `PHOENIX_LDAP_USER_SEARCH_FILTER` | Optional | `(&(objectClass=user)(sAMAccountName=%s))` | string | `%s` = username placeholder |
 | `PHOENIX_LDAP_ATTR_EMAIL` | Optional | `mail` | string | Email attribute name |
 | `PHOENIX_LDAP_ATTR_DISPLAY_NAME` | Optional | `displayName` | string | Display name attribute |
-| `PHOENIX_LDAP_ATTR_MEMBER_OF` | Optional | `memberOf` | string | Group membership attribute (AD) |
-| `PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS` | Optional | - | JSON array | For POSIX groups (if no `memberOf`) |
-| `PHOENIX_LDAP_GROUP_SEARCH_FILTER` | Optional | - | string | `%s` = user DN placeholder |
+| `PHOENIX_LDAP_ATTR_MEMBER_OF` | Optional | `memberOf` | string | Group membership attribute (used when `GROUP_SEARCH_FILTER` not set) |
+| `PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS` | Conditional | - | JSON array | Required when `GROUP_SEARCH_FILTER` is set |
+| `PHOENIX_LDAP_GROUP_SEARCH_FILTER` | Optional | - | string | When set, enables POSIX mode (ignores `ATTR_MEMBER_OF`) |
 | `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS` | ✅ **Required** | `[]` | JSON array | **Grafana-compatible format** |
 | `PHOENIX_LDAP_ALLOW_SIGN_UP` | Optional | `true` | boolean | Auto-create users on first login |
 | `PHOENIX_LDAP_ATTR_UNIQUE_ID` | Optional | - | string | Immutable ID (only if expecting email changes) |
@@ -109,7 +109,7 @@ This table maps Phoenix's environment variables to Grafana's TOML configuration 
 2. ✅ `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS` is valid JSON array (config.py:1433-1442)
 3. ✅ Each mapping has `group_dn` and `role` fields (config.py:1457-1476)
 4. ✅ `role` values are `"ADMIN"`, `"MEMBER"`, or `"VIEWER"` (case-insensitive) (config.py:1449)
-5. ✅ If `PHOENIX_LDAP_ATTR_MEMBER_OF` is empty, `GROUP_SEARCH_BASE_DNS` and `GROUP_SEARCH_FILTER` must be set
+5. ✅ If `GROUP_SEARCH_FILTER` is set, `GROUP_SEARCH_BASE_DNS` must also be set
 6. ✅ `TLS_MODE` is either `"starttls"` or `"ldaps"` (config.py:1484-1488)
 7. ⚠️ **Security**: Warn if `TLS_MODE=none` or `TLS_VERIFY=false` in production (config.py)
 
@@ -307,7 +307,7 @@ PHOENIX_LDAP_USER_SEARCH_BASE_DNS='["ou=people,dc=example,dc=com"]'
 PHOENIX_LDAP_USER_SEARCH_FILTER="(&(objectClass=inetOrgPerson)(uid=%s))"
 PHOENIX_LDAP_ATTR_EMAIL="mail"
 PHOENIX_LDAP_ATTR_DISPLAY_NAME="cn"
-PHOENIX_LDAP_ATTR_MEMBER_OF=""  # POSIX groups don't use memberOf
+# Note: When GROUP_SEARCH_FILTER is set, POSIX mode is enabled automatically
 # Optional: Only set if you expect user emails to change
 # PHOENIX_LDAP_ATTR_UNIQUE_ID="entryUUID"
 PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS='["ou=groups,dc=example,dc=com"]'

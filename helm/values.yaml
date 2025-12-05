@@ -439,8 +439,9 @@ auth:
     # -- LDAP attribute containing user's display name.
     attrDisplayName: "displayName"
 
-    # -- LDAP attribute containing group memberships (for Active Directory).
-    # Leave empty for POSIX groups (requires groupSearchBaseDns and groupSearchFilter).
+    # -- LDAP attribute containing group memberships (default: "memberOf").
+    # Used when groupSearchFilter is not set (Active Directory mode).
+    # Typical values: "memberOf" (AD, OpenLDAP with memberOf overlay)
     attrMemberOf: "memberOf"
 
     # -- LDAP attribute containing an immutable unique identifier (optional).
@@ -448,14 +449,15 @@ auth:
     # Active Directory: "objectGUID", OpenLDAP: "entryUUID", 389 DS: "nsUniqueId"
     attrUniqueId: ""
 
-    # Group search settings (for POSIX/OpenLDAP without memberOf)
-    # -- List of base DNs for group searches. Required if attrMemberOf is empty.
+    # Group search settings (for POSIX/OpenLDAP without memberOf overlay)
+    # -- List of base DNs for group searches. Required when groupSearchFilter is set.
     # Example: ["ou=groups,dc=example,dc=com"]
     # Multiple: ["ou=groups,dc=corp,dc=com", "ou=teams,dc=corp,dc=com"]
     groupSearchBaseDns: []
 
-    # -- LDAP filter for finding groups. Use %s as placeholder for username.
-    # Required if attrMemberOf is empty.
+    # -- LDAP filter for finding groups. Use %s as placeholder for user DN.
+    # When set, enables POSIX group search mode (ignores attrMemberOf).
+    # When not set, uses attrMemberOf attribute from user entry (AD mode).
     # Example: "(&(objectClass=posixGroup)(memberUid=%s))"
     groupSearchFilter: ""
 

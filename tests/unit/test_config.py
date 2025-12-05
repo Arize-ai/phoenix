@@ -1563,10 +1563,11 @@ class TestLDAPConfigFromEnv:
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
                     "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
-                    "PHOENIX_LDAP_ATTR_MEMBER_OF": "",
+                    "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(&(objectClass=posixGroup)(memberUid=%s))",
+                    # Missing PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS
                 },
-                "must be set (for Active Directory) OR both",
-                id="missing_group_search_config",
+                "GROUP_SEARCH_FILTER is set but",
+                id="group_search_filter_without_base_dns",
             ),
             pytest.param(
                 {

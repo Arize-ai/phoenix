@@ -647,7 +647,7 @@ class LDAPAuthenticator:
         if self.config.attr_unique_id:
             attributes.append(self.config.attr_unique_id)
 
-        # Search each base DN in order (like Grafana's search_base_dns)
+        # Search each base DN in order
         for search_base in self.config.user_search_base_dns:
             conn.search(
                 search_base=search_base,
@@ -783,9 +783,9 @@ class LDAPAuthenticator:
     def _get_user_groups(self, conn: Connection, user_entry: Any, user_dn: str) -> list[str]:
         """Get user's group memberships.
 
-        Supports two methods:
-        1. Active Directory: Read memberOf attribute directly
-        2. POSIX/OpenLDAP: Search for groups that contain the user
+        Mode is determined by group_search_filter:
+        - If group_search_filter is NOT set: Read memberOf attribute (AD mode)
+        - If group_search_filter IS set: Search for groups (POSIX mode)
 
         Args:
             conn: Active LDAP connection (with service account if configured)
@@ -795,25 +795,26 @@ class LDAPAuthenticator:
         Returns:
             List of group DNs
         """
-        groups: list[str] = []
-
-        # Method 1: Active Directory memberOf attribute
-        if self.config.attr_member_of:
+        # Mode determined by group_search_filter presence
+        if not self.config.group_search_filter:
+            # AD mode: Read memberOf attribute from user entry
             member_of = _get_attribute(user_entry, self.config.attr_member_of, multiple=True)
-            if member_of:
-                groups.extend(member_of)
+            return member_of if member_of else []
 
-        # Method 2: POSIX group search (search each base DN, collect groups from all)
-        if self.config.group_search_base_dns and self.config.group_search_filter:
+        # POSIX mode: Search for groups containing this user
+        groups: list[str] = []
+        group_search_filter = self.config.group_search_filter  # Guaranteed non-None here
+        assert group_search_filter is not None  # For type checker
+        if self.config.group_search_base_dns:
             # SECURITY: Escape user DN for LDAP filter (RFC 4515)
             # Threat: DNs can contain special chars like parentheses, asterisks, backslashes
             # (e.g., "cn=user(contractor)*,ou=users"). If inserted into filter unescaped,
             # these could break filter syntax or allow injection. Always escape before
             # string substitution, even though DN comes from trusted LDAP server.
             escaped_dn = escape_filter_chars(user_dn)
-            group_filter = self.config.group_search_filter.replace("%s", escaped_dn)
+            group_filter = group_search_filter.replace("%s", escaped_dn)
 
-            # Search each group base DN and collect groups from all (like Grafana)
+            # Search each group base DN and collect groups from all
             for group_search_base in self.config.group_search_base_dns:
                 try:
                     conn.search(
@@ -839,17 +840,59 @@ class LDAPAuthenticator:
     def map_groups_to_role(self, group_dns: list[str]) -> str | None:
         """Map LDAP group DNs to Phoenix role.
 
-        Mapping behavior:
-        - Iterates through mappings in order (first match wins)
-        - Supports wildcard "*" to match all users
-        - Case-insensitive DN matching per RFC 4514
-        - DN normalization via canonicalize_dn to handle spacing/order/escape differences
+        Mapping Behavior:
+            - Iterates through mappings in configuration order (first match wins)
+            - Supports wildcard "*" to match all users
+            - Case-insensitive DN matching per RFC 4514
+            - DN normalization via canonicalize_dn to handle spacing/order/escape differences
+
+        Design Decision - First Match Wins vs. Highest Role Wins:
+            This implementation uses "first match wins" (configuration order determines
+            priority) rather than "highest role wins" (role hierarchy determines priority).
+            This matches Grafana's LDAP behavior and is the common pattern in authorization
+            systems (firewall rules, nginx routing, ACLs).
+
+            Rationale:
+            1. Explicit administrator control: Config order gives admins full control over
+               precedence. Role-level priority locks you into a fixed hierarchy (ADMIN >
+               MEMBER > VIEWER), but organizations may have complex access rules that don't
+               map cleanly to role hierarchy.
+
+            2. Simplicity and predictability: Easy to reason about ("whatever comes first
+               in config wins") and easy to debug (just look at config order). No hidden
+               logic comparing role levels.
+
+            3. Industry convention: Matches behavior in firewalls (iptables), web servers
+               (nginx location blocks), and access control lists. Administrators familiar
+               with these systems expect "first match wins."
+
+            4. No role hierarchy maintenance: Role-level priority requires defining and
+               maintaining a hierarchy. What if custom roles are added later? First-match
+               avoids this complexity entirely.
+
+            Trade-off:
+                Misconfigured ordering can accidentally give users lower access than
+                intended. This is considered acceptable because it's explicit and
+                auditable in the configuration.
+
+            Configuration Best Practice:
+                Order mappings from highest privilege to lowest:
+                    [
+                        {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
+                        {"group_dn": "cn=developers,ou=groups,dc=example,dc=com", "role": "MEMBER"},
+                        {"group_dn": "*", "role": "VIEWER"}  # Catch-all fallback
+                    ]
 
         Args:
             group_dns: List of LDAP group DNs the user is a member of
 
         Returns:
             Phoenix role name (ADMIN, MEMBER, VIEWER) or None if no match
+
+        See Also:
+            Grafana's equivalent implementation:
+            https://github.com/grafana/grafana/blob/main/pkg/services/ldap/ldap.go
+            (buildGrafanaUser function, "only use the first match for each org" comment)
         """
         # Normalize user group DNs once to avoid repeated canonicalization
         canonical_user_groups = {canonicalize_dn(dn) for dn in group_dns}

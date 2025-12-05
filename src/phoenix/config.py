@@ -401,19 +401,22 @@ https://www.rfc-editor.org/rfc/rfc2798.html#section-2.3
 """
 ENV_PHOENIX_LDAP_ATTR_MEMBER_OF = "PHOENIX_LDAP_ATTR_MEMBER_OF"
 """
-LDAP attribute containing group memberships (Active Directory). Defaults to "memberOf".
-Leave empty for POSIX groups (requires GROUP_SEARCH_BASE_DNS and GROUP_SEARCH_FILTER).
+LDAP attribute containing group memberships. Defaults to "memberOf".
+Used for Active Directory and OpenLDAP with memberOf overlay.
+This attribute is only used when GROUP_SEARCH_FILTER is not set.
 """
 ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS = "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS"
 """
-JSON array of base DNs for group searches (for POSIX/OpenLDAP). Required if ATTR_MEMBER_OF is empty.
+JSON array of base DNs for group searches (for POSIX/OpenLDAP).
+Required when using GROUP_SEARCH_FILTER.
 Example: '["ou=groups,dc=example,dc=com"]'
 Multiple: '["ou=groups,dc=corp,dc=com", "ou=teams,dc=corp,dc=com"]'
 """
 ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER = "PHOENIX_LDAP_GROUP_SEARCH_FILTER"
 """
-LDAP filter for finding groups. Use %s as placeholder for username.
-Required if ATTR_MEMBER_OF is empty.
+LDAP filter for finding groups. Use %s as placeholder for user DN.
+When set, enables POSIX group search mode (ignores ATTR_MEMBER_OF).
+When not set, uses ATTR_MEMBER_OF attribute from user entry (Active Directory mode).
 Example: "(&(objectClass=posixGroup)(memberUid=%s))"
 """
 ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS = "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS"
@@ -422,6 +425,7 @@ JSON array mapping LDAP groups to Phoenix roles.
 Example: '[{"group_dn": "CN=Phoenix Admins,OU=Groups,DC=corp,DC=com", "role": "ADMIN"}]'
 Supported role values: "ADMIN", "MEMBER", "VIEWER" (case-insensitive).
 Special group_dn value "*" matches all users (wildcard).
+Order matters: first matching group_dn in the array determines the role.
 """
 ENV_PHOENIX_LDAP_ALLOW_SIGN_UP = "PHOENIX_LDAP_ALLOW_SIGN_UP"
 """
@@ -1504,14 +1508,17 @@ class LDAPConfig:
         attr_display_name: Display name attribute (default: "displayName")
             - Fallback: Uses email prefix if missing
         attr_member_of: Group membership attribute (default: "memberOf")
-            - AD/OpenLDAP: Typically "memberOf"
-            - POSIX: Use group_search instead
+            - Used when group_search_filter is NOT set
+            - Typical values: "memberOf" (AD/OpenLDAP)
 
-    Group Search (for POSIX/OpenLDAP without memberOf):
-        group_search_base_dns: List of base DNs for group searches (searched in order)
-            Example: ["ou=groups,dc=example,dc=com"]
-        group_search_filter: Filter template with %s placeholder (optional)
+    Group Search (for POSIX/OpenLDAP without memberOf overlay):
+        group_search_filter: Filter template with %s placeholder for user DN
+            - When SET: Enables POSIX mode, ignores attr_member_of
+            - When NOT SET: Uses attr_member_of from user entry (AD mode)
             Example: "(&(objectClass=posixGroup)(memberUid=%s))"
+        group_search_base_dns: List of base DNs for group searches
+            - Required when group_search_filter is set
+            Example: ["ou=groups,dc=example,dc=com"]
 
     Group to Role Mappings:
         group_role_mappings: Tuple of dicts mapping LDAP groups to Phoenix roles
@@ -1519,8 +1526,28 @@ class LDAPConfig:
             Supports wildcard: {"group_dn": "*", "role": "VIEWER"}
             Note: Phoenix uses "role" (not "org_role") since it has no organization concept
 
+            IMPORTANT - First Match Wins:
+                Mappings are evaluated in configuration order; the FIRST matching group
+                determines the user's role. This is NOT "highest role wins" - if a user
+                belongs to multiple groups, configuration order (not role hierarchy)
+                determines which role they receive.
+
+                This design matches Grafana's LDAP behavior and common authorization
+                patterns (firewall rules, nginx routing, ACLs). It gives administrators
+                explicit control over precedence.
+
+                Best practice: Order mappings from highest privilege to lowest:
+                    [
+                        {"group_dn": "cn=admins,...", "role": "ADMIN"},
+                        {"group_dn": "cn=developers,...", "role": "MEMBER"},
+                        {"group_dn": "*", "role": "VIEWER"}
+                    ]
+
+                With this ordering, a user in both "admins" and "developers" groups
+                receives ADMIN (first match). Reversing the order would give MEMBER.
+
     Sign-Up Control:
-        allow_sign_up: Auto-create users on first login (default: True, matches Grafana)
+        allow_sign_up: Auto-create users on first login (default: True)
             True:  New users auto-created on first successful LDAP login
             False: Admins must pre-create users via GraphQL createUser(auth_method: LDAP)
 
@@ -1580,14 +1607,14 @@ class LDAPConfig:
     # Attribute mapping (RFC RFC 2798 §9.1.3, §2.3)
     attr_email: str = "mail"  # REQUIRED: Must be present in LDAP or login fails
     attr_display_name: str = "displayName"
-    attr_member_of: str = "memberOf"
+    attr_member_of: str = "memberOf"  # Used when group_search_filter is not set
     attr_unique_id: Optional[str] = None  # Optional: objectGUID (AD), entryUUID (OpenLDAP)
 
     # Group search (for POSIX/OpenLDAP without memberOf)
     group_search_base_dns: tuple[str, ...] = ()
     group_search_filter: Optional[str] = None
 
-    # Group to role mappings (Grafana-compatible format)
+    # Group to role mappings
     group_role_mappings: tuple[LDAPGroupRoleMapping, ...] = ()
 
     # Sign-up control
@@ -1608,7 +1635,7 @@ class LDAPConfig:
         if not host:
             return None
 
-        # Parse and validate group role mappings (Grafana-compatible format)
+        # Parse and validate group role mappings
         mappings_json = getenv(ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, "[]")
         try:
             group_role_mappings_list = json.loads(mappings_json)
@@ -1695,12 +1722,12 @@ class LDAPConfig:
                         "must be a non-empty string"
                     )
 
-        # Validate group search configuration: either memberOf attribute or group search required
-        if not attr_member_of and not (group_search_base_dns_list and group_search_filter):
+        # Validate group search configuration: if filter is set, base DNs are required
+        if group_search_filter and not group_search_base_dns_list:
             raise ValueError(
-                f"Either {ENV_PHOENIX_LDAP_ATTR_MEMBER_OF} must be set (for Active Directory) "
-                f"OR both {ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS} and "
-                f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER} must be set (for POSIX groups)"
+                f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER} is set but "
+                f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS} is missing. "
+                f"Both are required for POSIX group search."
             )
 
         # Security warnings (log, don't fail)

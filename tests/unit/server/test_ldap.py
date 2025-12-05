@@ -124,6 +124,25 @@ class TestRoleMapping:
         role = authenticator.map_groups_to_role(groups)
         assert role == "ADMIN"
 
+    def test_config_order_determines_role(self) -> None:
+        """Test that config order (not user group order) determines role."""
+        # Config has MEMBER before ADMIN
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_role_mappings=(
+                {"group_dn": "cn=members,ou=groups,dc=example,dc=com", "role": "MEMBER"},
+                {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
+            ),
+        )
+        authenticator = LDAPAuthenticator(config)
+        # User is in both groups - MEMBER wins because it's first in config
+        groups = ["cn=admins,ou=groups,dc=example,dc=com", "cn=members,ou=groups,dc=example,dc=com"]
+        role = authenticator.map_groups_to_role(groups)
+        assert role == "MEMBER"
+
     def test_case_insensitive_matching(self, authenticator: LDAPAuthenticator) -> None:
         """Test DN matching is case-insensitive per RFC 4514."""
         groups = ["CN=ADMINS,OU=GROUPS,DC=EXAMPLE,DC=COM"]  # Uppercase
@@ -525,6 +544,280 @@ class TestGroupMembershipCheck:
             _is_member_of(user_groups, "cn = admins , ou = groups , dc = example , dc = com")
             is True
         )
+
+
+class TestGetUserGroups:
+    """Test _get_user_groups method for AD and POSIX modes."""
+
+    def test_ad_mode_returns_member_of_attribute(self) -> None:
+        """AD mode: returns groups from memberOf attribute."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            attr_member_of="memberOf",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+            # No group_search_filter = AD mode
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        # Mock user entry with memberOf attribute
+        user_entry = MagicMock()
+        user_entry.memberOf.values = [
+            "cn=admins,ou=groups,dc=example,dc=com",
+            "cn=developers,ou=groups,dc=example,dc=com",
+        ]
+
+        conn = MagicMock()
+        groups = authenticator._get_user_groups(
+            conn, user_entry, "uid=test,ou=users,dc=example,dc=com"
+        )
+
+        assert groups == [
+            "cn=admins,ou=groups,dc=example,dc=com",
+            "cn=developers,ou=groups,dc=example,dc=com",
+        ]
+        # AD mode should not search
+        conn.search.assert_not_called()
+
+    def test_ad_mode_empty_member_of(self) -> None:
+        """AD mode: returns empty list when memberOf is empty."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        user_entry = MagicMock()
+        user_entry.memberOf.values = []
+
+        conn = MagicMock()
+        groups = authenticator._get_user_groups(
+            conn, user_entry, "uid=test,ou=users,dc=example,dc=com"
+        )
+
+        assert groups == []
+
+    def test_ad_mode_missing_member_of(self) -> None:
+        """AD mode: returns empty list when memberOf attribute is missing."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        # User entry without memberOf attribute
+        user_entry = MagicMock(spec=[])  # No attributes
+
+        conn = MagicMock()
+        groups = authenticator._get_user_groups(
+            conn, user_entry, "uid=test,ou=users,dc=example,dc=com"
+        )
+
+        assert groups == []
+
+    def test_posix_mode_searches_for_groups(self) -> None:
+        """POSIX mode: searches group base DNs for membership."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_search_base_dns=("ou=groups,dc=example,dc=com",),
+            group_search_filter="(&(objectClass=posixGroup)(memberUid=%s))",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        # Mock connection with search results
+        conn = MagicMock()
+        group_entry = MagicMock()
+        group_entry.entry_dn = "cn=developers,ou=groups,dc=example,dc=com"
+        conn.entries = [group_entry]
+
+        user_entry = MagicMock()
+        groups = authenticator._get_user_groups(
+            conn, user_entry, "uid=test,ou=users,dc=example,dc=com"
+        )
+
+        assert groups == ["cn=developers,ou=groups,dc=example,dc=com"]
+        conn.search.assert_called_once()
+
+    def test_posix_mode_no_groups_found(self) -> None:
+        """POSIX mode: returns empty list when no groups found."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_search_base_dns=("ou=groups,dc=example,dc=com",),
+            group_search_filter="(&(objectClass=posixGroup)(memberUid=%s))",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        conn = MagicMock()
+        conn.entries = []
+
+        user_entry = MagicMock()
+        groups = authenticator._get_user_groups(
+            conn, user_entry, "uid=test,ou=users,dc=example,dc=com"
+        )
+
+        assert groups == []
+
+    def test_posix_mode_search_error_logged(self, caplog: LogCaptureFixture) -> None:
+        """POSIX mode: logs warning on search error, returns empty list."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_search_base_dns=("ou=groups,dc=example,dc=com",),
+            group_search_filter="(&(objectClass=posixGroup)(memberUid=%s))",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        conn = MagicMock()
+        conn.search.side_effect = LDAPException("Connection error")
+
+        user_entry = MagicMock()
+        groups = authenticator._get_user_groups(
+            conn, user_entry, "uid=test,ou=users,dc=example,dc=com"
+        )
+
+        assert groups == []
+        assert "LDAP group search failed" in caplog.text
+
+    def test_posix_mode_aggregates_from_multiple_bases(self) -> None:
+        """POSIX mode: aggregates groups from multiple search bases."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_search_base_dns=(
+                "ou=engineering,dc=example,dc=com",
+                "ou=projects,dc=example,dc=com",
+            ),
+            group_search_filter="(&(objectClass=posixGroup)(memberUid=%s))",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        conn = MagicMock()
+        # Simulate different groups returned per search base
+        group1 = MagicMock()
+        group1.entry_dn = "cn=developers,ou=engineering,dc=example,dc=com"
+        group2 = MagicMock()
+        group2.entry_dn = "cn=phoenix,ou=projects,dc=example,dc=com"
+
+        call_count = 0
+
+        def search_side_effect(**kwargs):
+            nonlocal call_count
+            if call_count == 0:
+                conn.entries = [group1]
+            else:
+                conn.entries = [group2]
+            call_count += 1
+
+        conn.search.side_effect = search_side_effect
+
+        user_entry = MagicMock()
+        groups = authenticator._get_user_groups(
+            conn, user_entry, "uid=test,ou=users,dc=example,dc=com"
+        )
+
+        assert conn.search.call_count == 2
+        assert len(groups) == 2
+        assert "cn=developers,ou=engineering,dc=example,dc=com" in groups
+        assert "cn=phoenix,ou=projects,dc=example,dc=com" in groups
+
+    def test_posix_mode_partial_failure_returns_successful_results(
+        self, caplog: LogCaptureFixture
+    ) -> None:
+        """POSIX mode: returns groups from successful searches even if some bases fail."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_search_base_dns=(
+                "ou=unreachable,dc=example,dc=com",
+                "ou=groups,dc=example,dc=com",
+            ),
+            group_search_filter="(&(objectClass=posixGroup)(memberUid=%s))",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        conn = MagicMock()
+        group_entry = MagicMock()
+        group_entry.entry_dn = "cn=developers,ou=groups,dc=example,dc=com"
+
+        call_count = 0
+
+        def search_side_effect(**kwargs):
+            nonlocal call_count
+            if call_count == 0:
+                call_count += 1
+                raise LDAPException("Connection to unreachable base failed")
+            conn.entries = [group_entry]
+            call_count += 1
+
+        conn.search.side_effect = search_side_effect
+
+        user_entry = MagicMock()
+        groups = authenticator._get_user_groups(
+            conn, user_entry, "uid=test,ou=users,dc=example,dc=com"
+        )
+
+        # Should return groups from the successful search
+        assert groups == ["cn=developers,ou=groups,dc=example,dc=com"]
+        assert conn.search.call_count == 2
+        assert "LDAP group search failed" in caplog.text
+
+    def test_posix_mode_escapes_user_dn_in_filter(self) -> None:
+        """SECURITY: User DN with special chars is escaped in group search filter."""
+        config = LDAPConfig(
+            host="ldap.example.com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
+            user_search_filter="(uid=%s)",
+            attr_email="mail",
+            group_search_base_dns=("ou=groups,dc=example,dc=com",),
+            group_search_filter="(&(objectClass=posixGroup)(member=%s))",
+            group_role_mappings=({"group_dn": "*", "role": "VIEWER"},),
+        )
+        authenticator = LDAPAuthenticator(config)
+
+        conn = MagicMock()
+        conn.entries = []
+
+        user_entry = MagicMock()
+        # DN with LDAP filter special characters that could cause injection
+        malicious_dn = "cn=user(admin)*,ou=users,dc=example,dc=com"
+        authenticator._get_user_groups(conn, user_entry, malicious_dn)
+
+        # Verify search was called with escaped DN
+        conn.search.assert_called_once()
+        call_kwargs = conn.search.call_args[1]
+        search_filter = call_kwargs["search_filter"]
+
+        # Parentheses and asterisk should be escaped per RFC 4515
+        assert "\\28" in search_filter  # ( escaped
+        assert "\\29" in search_filter  # ) escaped
+        assert "\\2a" in search_filter  # * escaped
+        # Original unescaped chars should NOT appear in filter context
+        assert "(admin)" not in search_filter
 
 
 class TestTLSConfiguration:

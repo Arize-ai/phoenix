@@ -106,11 +106,12 @@ class LDAPConfig:
         
         group_search_base_dns = json.loads(group_search_base_dns_json) if group_search_base_dns_json else []
         
-        if not attr_member_of and not (group_search_base_dns and group_search_filter):
+        # If group_search_filter is set, base_dns is required
+        if group_search_filter and not group_search_base_dns:
             raise ValueError(
-                "Either PHOENIX_LDAP_ATTR_MEMBER_OF must be set (for Active Directory) "
-                "OR both PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS and PHOENIX_LDAP_GROUP_SEARCH_FILTER "
-                "must be set (for POSIX groups)"
+                "PHOENIX_LDAP_GROUP_SEARCH_FILTER is set but "
+                "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS is missing. "
+                "Both are required for POSIX group search."
             )
         
         # Security warnings (log, don't fail)
