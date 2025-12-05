@@ -13,6 +13,9 @@ from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
 from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.helpers.evaluators import (
+    validate_consistent_llm_evaluator_and_prompt_version,
+)
 from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
@@ -49,6 +52,7 @@ class LLMEvaluator:
     def __init__(
         self, llm_evaluator_orm: models.LLMEvaluator, prompt_version_orm: models.PromptVersion
     ) -> None:
+        validate_consistent_llm_evaluator_and_prompt_version(prompt_version_orm, llm_evaluator_orm)
         self._llm_evaluator_orm = llm_evaluator_orm
         self._prompt_version_orm = prompt_version_orm
 
@@ -72,9 +76,7 @@ class LLMEvaluator:
     def input_schema(self) -> dict[str, Any]:
         prompt_version = self._prompt_version_orm
         template = prompt_version.template
-        if not isinstance(template, PromptChatTemplate):
-            raise ValueError("Only PromptChatTemplate is currently supported for LLM evaluators")
-
+        assert isinstance(template, PromptChatTemplate)
         formatter = _get_template_formatter(prompt_version.template_format)
         variables: set[str] = set()
 
@@ -100,7 +102,7 @@ class LLMEvaluator:
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
-        llm_client: "PlaygroundStreamingClient",
+        llm_client: PlaygroundStreamingClient,
     ) -> EvaluationResult:
         prompt_version = self._prompt_version_orm
         evaluator = self._llm_evaluator_orm
