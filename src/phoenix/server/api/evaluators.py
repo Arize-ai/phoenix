@@ -19,6 +19,7 @@ from phoenix.server.api.helpers.evaluators import (
 from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
+    RoleConversion,
     TextContentPart,
     denormalize_tools,
 )
@@ -121,7 +122,7 @@ class LLMEvaluator:
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
         ] = []
         for msg in template.messages:
-            role = _prompt_role_to_chat_role(msg.role)
+            role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
             if isinstance(msg.content, str):
                 formatted_content = template_formatter.format(msg.content, **template_variables)
             else:
@@ -302,20 +303,6 @@ async def get_llm_evaluators(
         llm_evaluators.append(LLMEvaluator(llm_evaluator_orm, prompt_version))
 
     return llm_evaluators
-
-
-def _prompt_role_to_chat_role(role: str) -> "ChatCompletionMessageRole":
-    role_lower = role.lower()
-    if role_lower in ("user",):
-        return ChatCompletionMessageRole.USER
-    if role_lower in ("system", "developer"):
-        return ChatCompletionMessageRole.SYSTEM
-    if role_lower in ("ai", "assistant", "model"):
-        return ChatCompletionMessageRole.AI
-    if role_lower in ("tool",):
-        return ChatCompletionMessageRole.TOOL
-    # Default to user
-    return ChatCompletionMessageRole.USER
 
 
 def _quote(value: Any) -> str:
