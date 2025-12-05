@@ -422,9 +422,10 @@ auth:
     bindPassword: ""
 
     # User search settings
-    # -- Base DN for user searches (required when enabled). Comma-separated for multiple bases.
-    # Example: "OU=Users,DC=corp,DC=com"
-    userSearchBase: ""
+    # -- List of base DNs for user searches (required when enabled). Searched in order.
+    # Example: ["OU=Users,DC=corp,DC=com"]
+    # Multiple: ["OU=Employees,DC=corp,DC=com", "OU=Contractors,DC=corp,DC=com"]
+    userSearchBaseDns: []
 
     # -- LDAP filter for finding users. Use %s as placeholder for username.
     # Default for Active Directory: "(&(objectClass=user)(sAMAccountName=%s))"
@@ -439,7 +440,7 @@ auth:
     attrDisplayName: "displayName"
 
     # -- LDAP attribute containing group memberships (for Active Directory).
-    # Leave empty for POSIX groups (requires groupSearchBase and groupSearchFilter).
+    # Leave empty for POSIX groups (requires groupSearchBaseDns and groupSearchFilter).
     attrMemberOf: "memberOf"
 
     # -- LDAP attribute containing an immutable unique identifier (optional).
@@ -448,9 +449,10 @@ auth:
     attrUniqueId: ""
 
     # Group search settings (for POSIX/OpenLDAP without memberOf)
-    # -- Base DN for group searches. Required if attrMemberOf is empty.
-    # Example: "ou=groups,dc=example,dc=com"
-    groupSearchBase: ""
+    # -- List of base DNs for group searches. Required if attrMemberOf is empty.
+    # Example: ["ou=groups,dc=example,dc=com"]
+    # Multiple: ["ou=groups,dc=corp,dc=com", "ou=teams,dc=corp,dc=com"]
+    groupSearchBaseDns: []
 
     # -- LDAP filter for finding groups. Use %s as placeholder for username.
     # Required if attrMemberOf is empty.

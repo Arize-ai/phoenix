@@ -81,7 +81,7 @@ services:
       - PHOENIX_LDAP_USE_TLS=false
       - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
       - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
-      - PHOENIX_LDAP_USER_SEARCH_BASE=ou=users,dc=example,dc=com
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
       - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
       - PHOENIX_LDAP_ATTR_EMAIL=mail
       - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName

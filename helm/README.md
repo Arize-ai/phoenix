@@ -45,13 +45,13 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.ldap.allowSignUp | bool | `true` | Allow automatic user creation on first LDAP login. Set to false to require pre-provisioned users. |
 | auth.ldap.attrDisplayName | string | `"displayName"` | LDAP attribute containing user's display name. |
 | auth.ldap.attrEmail | string | `"mail"` | LDAP attribute containing user's email address. Must be present in LDAP or login fails. |
-| auth.ldap.attrMemberOf | string | `"memberOf"` | LDAP attribute containing group memberships (for Active Directory). Leave empty for POSIX groups (requires groupSearchBase and groupSearchFilter). |
+| auth.ldap.attrMemberOf | string | `"memberOf"` | LDAP attribute containing group memberships (for Active Directory). Leave empty for POSIX groups (requires groupSearchBaseDns and groupSearchFilter). |
 | auth.ldap.attrUniqueId | string | `""` | LDAP attribute containing an immutable unique identifier (optional). Only configure if you expect user emails to change. Active Directory: "objectGUID", OpenLDAP: "entryUUID", 389 DS: "nsUniqueId" |
 | auth.ldap.bindDn | string | `""` | Service account DN for binding to LDAP server. Example: "CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com" |
 | auth.ldap.bindPassword | string | `""` | Service account password for binding to LDAP server. Can be set directly here or via auth.secret with key PHOENIX_LDAP_BIND_PASSWORD |
 | auth.ldap.enabled | bool | `false` | Enable LDAP authentication |
 | auth.ldap.groupRoleMappings | string | `"[]"` | JSON array mapping LDAP groups to Phoenix roles. Format: [{"group_dn": "CN=Phoenix Admins,OU=Groups,DC=corp,DC=com", "role": "ADMIN"}] Supported roles: "ADMIN", "MEMBER", "VIEWER" (case-insensitive) Special group_dn value "*" matches all users (wildcard for default role) |
-| auth.ldap.groupSearchBase | string | `""` | Base DN for group searches. Required if attrMemberOf is empty. Example: "ou=groups,dc=example,dc=com" |
+| auth.ldap.groupSearchBaseDns | list | `[]` | List of base DNs for group searches. Required if attrMemberOf is empty. Example: `["ou=groups,dc=example,dc=com"]` |
 | auth.ldap.groupSearchFilter | string | `""` | LDAP filter for finding groups. Use %s as placeholder for username. Required if attrMemberOf is empty. Example: "(&(objectClass=posixGroup)(memberUid=%s))" |
 | auth.ldap.host | string | `""` | LDAP server hostname (required when enabled). Comma-separated for multiple servers with failover. Examples: "ldap.corp.com" or "dc1.corp.com,dc2.corp.com,dc3.corp.com" |
 | auth.ldap.port | string | `""` | LDAP server port. Defaults to 389 for StartTLS, 636 for LDAPS. |
@@ -61,7 +61,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.ldap.tlsMode | string | `"starttls"` | TLS connection mode: "starttls" (upgrade from plaintext on port 389) or "ldaps" (TLS from start on port 636) |
 | auth.ldap.tlsVerify | bool | `true` | Verify TLS certificates. Should always be true in production. |
 | auth.ldap.useTls | bool | `true` | Use TLS for LDAP connections. Should always be true in production. |
-| auth.ldap.userSearchBase | string | `""` | Base DN for user searches (required when enabled). Comma-separated for multiple bases. Example: "OU=Users,DC=corp,DC=com" |
+| auth.ldap.userSearchBaseDns | list | `[]` | List of base DNs for user searches (required when enabled). Example: `["OU=Users,DC=corp,DC=com"]` |
 | auth.ldap.userSearchFilter | string | `"(&(objectClass=user)(sAMAccountName=%s))"` | LDAP filter for finding users. Use %s as placeholder for username. Default for Active Directory: "(&(objectClass=user)(sAMAccountName=%s))" OpenLDAP example: "(&(objectClass=inetOrgPerson)(uid=%s))" |
 | auth.name | string | `"phoenix-secret"` | Name of the Kubernetes secret containing authentication credentials |
 | auth.oauth2.enabled | bool | `false` | Enable OAuth2/OIDC authentication |

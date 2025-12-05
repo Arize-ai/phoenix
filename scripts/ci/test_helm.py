@@ -927,8 +927,9 @@ class LDAPValidators:
         return validator
 
     @staticmethod
-    def ldap_user_search(search_base: str, search_filter: str) -> Validator:
+    def ldap_user_search(search_base_dns: list[str], search_filter: str) -> Validator:
         """Validate LDAP user search configuration."""
+        import json
 
         def validator(resources: list[dict[str, Any]]) -> bool:
             config_map = find_resource(resources, "ConfigMap", "configmap")
@@ -937,7 +938,7 @@ class LDAPValidators:
 
             data = config_map.get("data", {})
             return (
-                data.get("PHOENIX_LDAP_USER_SEARCH_BASE") == search_base
+                data.get("PHOENIX_LDAP_USER_SEARCH_BASE_DNS") == json.dumps(search_base_dns)
                 and data.get("PHOENIX_LDAP_USER_SEARCH_FILTER") == search_filter
             )
 
@@ -975,8 +976,9 @@ class LDAPValidators:
         return validator
 
     @staticmethod
-    def ldap_group_search(search_base: str, search_filter: str) -> Validator:
+    def ldap_group_search(search_base_dns: list[str], search_filter: str) -> Validator:
         """Validate LDAP group search configuration (for POSIX groups)."""
+        import json
 
         def validator(resources: list[dict[str, Any]]) -> bool:
             config_map = find_resource(resources, "ConfigMap", "configmap")
@@ -985,7 +987,7 @@ class LDAPValidators:
 
             data = config_map.get("data", {})
             return (
-                data.get("PHOENIX_LDAP_GROUP_SEARCH_BASE") == search_base
+                data.get("PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS") == json.dumps(search_base_dns)
                 and data.get("PHOENIX_LDAP_GROUP_SEARCH_FILTER") == search_filter
             )
 
@@ -1051,7 +1053,7 @@ class LDAPValidators:
     @staticmethod
     def ldap_comprehensive(
         host: str,
-        user_search_base: str,
+        user_search_base_dns: list[str],
         user_search_filter: str = "(&(objectClass=user)(sAMAccountName=%s))",
         port: Optional[str] = None,
         use_tls: bool = True,
@@ -1063,6 +1065,7 @@ class LDAPValidators:
         allow_sign_up: bool = True,
     ) -> Validator:
         """Comprehensive validator for LDAP configuration."""
+        import json
 
         def validator(resources: list[dict[str, Any]]) -> bool:
             config_map = find_resource(resources, "ConfigMap", "configmap")
@@ -1074,7 +1077,7 @@ class LDAPValidators:
             # Required fields
             if data.get("PHOENIX_LDAP_HOST") != host:
                 return False
-            if data.get("PHOENIX_LDAP_USER_SEARCH_BASE") != user_search_base:
+            if data.get("PHOENIX_LDAP_USER_SEARCH_BASE_DNS") != json.dumps(user_search_base_dns):
                 return False
             if data.get("PHOENIX_LDAP_USER_SEARCH_FILTER") != user_search_filter:
                 return False
@@ -2384,18 +2387,18 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP basic configuration (Active Directory)",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com"',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]'""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 ConfigMapValidators.configmap_has_key("PHOENIX_LDAP_HOST", "ldap.corp.com"),
                 ConfigMapValidators.configmap_has_key(
-                    "PHOENIX_LDAP_USER_SEARCH_BASE", "OU=Users,DC=corp,DC=com"
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["OU=Users,DC=corp,DC=com"]'
                 ),
             ),
         ),
         TestCase(
             "LDAP with LDAPS (port 636)",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set auth.ldap.port=636 --set auth.ldap.tlsMode=ldaps --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com"',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set auth.ldap.port=636 --set auth.ldap.tlsMode=ldaps --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]'""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_server_config(
@@ -2408,7 +2411,7 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP with bind credentials",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com" --set-string "auth.ldap.bindDn=CN=svc-phoenix\\,OU=Service Accounts\\,DC=corp\\,DC=com" --set auth.ldap.bindPassword=secret123',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set-string "auth.ldap.bindDn=CN=svc-phoenix\\,OU=Service Accounts\\,DC=corp\\,DC=com" --set auth.ldap.bindPassword=secret123""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_bind_config(
@@ -2419,18 +2422,18 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP with custom user search filter (OpenLDAP)",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-string "auth.ldap.userSearchBase=ou=users\\,dc=example\\,dc=com" --set-string "auth.ldap.userSearchFilter=(&(objectClass=inetOrgPerson)(uid=%s))"',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set-string "auth.ldap.userSearchFilter=(&(objectClass=inetOrgPerson)(uid=%s))\"""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_user_search(
-                    "ou=users,dc=example,dc=com",
+                    ["ou=users,dc=example,dc=com"],
                     "(&(objectClass=inetOrgPerson)(uid=%s))",
                 ),
             ),
         ),
         TestCase(
             "LDAP with custom attribute mapping",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com" --set auth.ldap.attrEmail=userPrincipalName --set auth.ldap.attrDisplayName=cn --set auth.ldap.attrUniqueId=objectGUID',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.attrEmail=userPrincipalName --set auth.ldap.attrDisplayName=cn --set auth.ldap.attrUniqueId=objectGUID""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_attribute_mapping(
@@ -2442,18 +2445,18 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP with POSIX group search (OpenLDAP)",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-string "auth.ldap.userSearchBase=ou=users\\,dc=example\\,dc=com" --set auth.ldap.attrMemberOf= --set-string "auth.ldap.groupSearchBase=ou=groups\\,dc=example\\,dc=com" --set-string "auth.ldap.groupSearchFilter=(&(objectClass=posixGroup)(memberUid=%s))"',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrMemberOf= --set-json 'auth.ldap.groupSearchBaseDns=["ou=groups,dc=example,dc=com"]' --set-string "auth.ldap.groupSearchFilter=(&(objectClass=posixGroup)(memberUid=%s))\"""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_group_search(
-                    "ou=groups,dc=example,dc=com",
+                    ["ou=groups,dc=example,dc=com"],
                     "(&(objectClass=posixGroup)(memberUid=%s))",
                 ),
             ),
         ),
         TestCase(
             "LDAP with group role mappings",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com" --set-string "auth.ldap.groupRoleMappings=[{\\"group_dn\\":\\"CN=Admins\\,DC=corp\\,DC=com\\"\\,\\"role\\":\\"ADMIN\\"}]"',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set-string "auth.ldap.groupRoleMappings=[{\\"group_dn\\":\\"CN=Admins\\,DC=corp\\,DC=com\\"\\,\\"role\\":\\"ADMIN\\"}]\"""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_group_role_mappings(
@@ -2463,7 +2466,7 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP with sign-up disabled",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com" --set auth.ldap.allowSignUp=false',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.allowSignUp=false""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_allow_sign_up(False),
@@ -2471,7 +2474,7 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP with custom CA certificate",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com" --set auth.ldap.tlsCaCertFile=/etc/ssl/certs/internal-ca.pem',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.tlsCaCertFile=/etc/ssl/certs/internal-ca.pem""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_tls_files(ca_cert_file="/etc/ssl/certs/internal-ca.pem"),
@@ -2479,7 +2482,7 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP with mutual TLS (client certificates)",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com" --set auth.ldap.tlsClientCertFile=/etc/ssl/certs/client.crt --set auth.ldap.tlsClientKeyFile=/etc/ssl/private/client.key',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.tlsClientCertFile=/etc/ssl/certs/client.crt --set auth.ldap.tlsClientKeyFile=/etc/ssl/private/client.key""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_tls_files(
@@ -2490,10 +2493,10 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP comprehensive configuration",
-            '--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set auth.ldap.port=636 --set auth.ldap.tlsMode=ldaps --set-string "auth.ldap.bindDn=CN=svc-phoenix\\,OU=Service Accounts\\,DC=corp\\,DC=com" --set auth.ldap.bindPassword=secret --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com" --set auth.ldap.attrEmail=mail --set auth.ldap.attrDisplayName=displayName --set auth.ldap.allowSignUp=false',
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set auth.ldap.port=636 --set auth.ldap.tlsMode=ldaps --set-string "auth.ldap.bindDn=CN=svc-phoenix\\,OU=Service Accounts\\,DC=corp\\,DC=com" --set auth.ldap.bindPassword=secret --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.attrEmail=mail --set auth.ldap.attrDisplayName=displayName --set auth.ldap.allowSignUp=false""",
             LDAPValidators.ldap_comprehensive(
                 host="ldap.corp.com",
-                user_search_base="OU=Users,DC=corp,DC=com",
+                user_search_base_dns=["OU=Users,DC=corp,DC=com"],
                 port="636",
                 tls_mode="ldaps",
                 bind_dn="CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com",
@@ -2505,7 +2508,7 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP with basic auth disabled (LDAP-only)",
-            '--set auth.enableAuth=true --set auth.disableBasicAuth=true --set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com"',
+            """--set auth.enableAuth=true --set auth.disableBasicAuth=true --set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]'""",
             all_of(
                 ConfigMapValidators.configmap_has_key("PHOENIX_DISABLE_BASIC_AUTH", "true"),
                 LDAPValidators.ldap_enabled(),
@@ -2513,7 +2516,7 @@ def get_test_suite() -> list[TestCase]:
         ),
         TestCase(
             "LDAP with multiple server hosts (failover)",
-            '--set auth.ldap.enabled=true --set-string "auth.ldap.host=dc1.corp.com\\,dc2.corp.com\\,dc3.corp.com" --set-string "auth.ldap.userSearchBase=OU=Users\\,DC=corp\\,DC=com"',
+            """--set auth.ldap.enabled=true --set-string "auth.ldap.host=dc1.corp.com\\,dc2.corp.com\\,dc3.corp.com" --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]'""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 ConfigMapValidators.configmap_has_key(

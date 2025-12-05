@@ -336,8 +336,9 @@ PHOENIX_LDAP_ATTR_MEMBER_OF="memberOf"
 ```bash
 PHOENIX_LDAP_HOST="ldap.example.com"
 PHOENIX_LDAP_PORT=389
+PHOENIX_LDAP_USER_SEARCH_BASE_DNS='["ou=people,dc=example,dc=com"]'
 PHOENIX_LDAP_USER_SEARCH_FILTER="(&(objectClass=inetOrgPerson)(uid=%s))"
-PHOENIX_LDAP_GROUP_SEARCH_BASE="ou=groups,dc=example,dc=com"
+PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS='["ou=groups,dc=example,dc=com"]'
 PHOENIX_LDAP_GROUP_SEARCH_FILTER="(memberUid=%s)"
 ```
 

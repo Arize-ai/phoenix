@@ -102,13 +102,15 @@ class LDAPConfig:
         
         # Validate group search configuration
         attr_member_of = os.getenv("PHOENIX_LDAP_ATTR_MEMBER_OF", "memberOf")
-        group_search_base = os.getenv("PHOENIX_LDAP_GROUP_SEARCH_BASE")
+        group_search_base_dns_json = os.getenv("PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS", "")
         group_search_filter = os.getenv("PHOENIX_LDAP_GROUP_SEARCH_FILTER")
         
-        if not attr_member_of and not (group_search_base and group_search_filter):
+        group_search_base_dns = json.loads(group_search_base_dns_json) if group_search_base_dns_json else []
+        
+        if not attr_member_of and not (group_search_base_dns and group_search_filter):
             raise ValueError(
                 "Either PHOENIX_LDAP_ATTR_MEMBER_OF must be set (for Active Directory) "
-                "OR both PHOENIX_LDAP_GROUP_SEARCH_BASE and PHOENIX_LDAP_GROUP_SEARCH_FILTER "
+                "OR both PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS and PHOENIX_LDAP_GROUP_SEARCH_FILTER "
                 "must be set (for POSIX groups)"
             )
         
@@ -126,6 +128,10 @@ class LDAPConfig:
                 "This is insecure for production (vulnerable to MITM attacks)."
             )
         
+        # Parse user search base DNs (JSON array)
+        user_search_base_dns_json = os.getenv("PHOENIX_LDAP_USER_SEARCH_BASE_DNS", "")
+        user_search_base_dns = json.loads(user_search_base_dns_json) if user_search_base_dns_json else []
+        
         return cls(
             host=host,
             port=int(os.getenv("PHOENIX_LDAP_PORT", "389")),
@@ -134,7 +140,7 @@ class LDAPConfig:
             tls_verify=tls_verify,
             bind_dn=os.getenv("PHOENIX_LDAP_BIND_DN"),
             bind_password=os.getenv("PHOENIX_LDAP_BIND_PASSWORD"),
-            user_search_base=os.getenv("PHOENIX_LDAP_USER_SEARCH_BASE", ""),
+            user_search_base_dns=tuple(user_search_base_dns),
             user_search_filter=os.getenv(
                 "PHOENIX_LDAP_USER_SEARCH_FILTER",
                 "(&(objectClass=user)(sAMAccountName=%s))"
@@ -142,7 +148,7 @@ class LDAPConfig:
             attr_email=os.getenv("PHOENIX_LDAP_ATTR_EMAIL", "mail"),
             attr_display_name=os.getenv("PHOENIX_LDAP_ATTR_DISPLAY_NAME", "displayName"),
             attr_member_of=attr_member_of,
-            group_search_base=group_search_base,
+            group_search_base_dns=tuple(group_search_base_dns),
             group_search_filter=group_search_filter,
             group_role_mappings=group_role_mappings,
         )

@@ -36,7 +36,7 @@ class TestLDAPSecurityValidation:
             port=389,
             use_tls=False,
             tls_mode="starttls",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             attr_display_name="displayName",
@@ -86,7 +86,7 @@ class TestRoleMapping:
         """Create authenticator with role mappings."""
         config = LDAPConfig(
             host="ldap.example.com",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             group_role_mappings=(
@@ -135,7 +135,7 @@ class TestRoleMapping:
         """Group matching should handle spacing/order differences via canonicalization."""
         config = LDAPConfig(
             host="ldap.example.com",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             group_role_mappings=(
@@ -156,7 +156,7 @@ class TestRoleMapping:
         """Test user with no matching groups is denied when no wildcard."""
         config = LDAPConfig(
             host="ldap.example.com",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             group_role_mappings=(
@@ -215,7 +215,7 @@ class TestExceptionSanitization:
         """Create test config."""
         return LDAPConfig(
             host="ldap.example.com",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             group_role_mappings=(),
@@ -538,7 +538,7 @@ class TestTLSConfiguration:
             port=636,
             use_tls=True,
             tls_mode="ldaps",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             group_role_mappings=(),
@@ -556,7 +556,7 @@ class TestTLSConfiguration:
             port=389,
             use_tls=True,
             tls_mode="starttls",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             group_role_mappings=(),
@@ -574,7 +574,7 @@ class TestTLSConfiguration:
             port=389,
             use_tls=False,
             tls_mode="starttls",  # Irrelevant when use_tls=False
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             group_role_mappings=(),
@@ -594,7 +594,7 @@ class TestMultiServerFailover:
         """Test multiple servers are created from comma-separated hosts."""
         config = LDAPConfig(
             host="ldap1.example.com,ldap2.example.com,ldap3.example.com",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             group_role_mappings=(),
@@ -610,7 +610,7 @@ class TestMultiServerFailover:
         """Test whitespace is stripped from host entries."""
         config = LDAPConfig(
             host="ldap1.example.com , ldap2.example.com  ,  ldap3.example.com",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             group_role_mappings=(),
@@ -793,7 +793,7 @@ class TestSocketLeakPrevention:
             port=389,
             use_tls=True,
             tls_mode="starttls",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             attr_display_name="displayName",
@@ -881,7 +881,7 @@ class TestSocketLeakPrevention:
             port=389,
             use_tls=True,
             tls_mode="starttls",
-            user_search_base="ou=users,dc=example,dc=com",
+            user_search_base_dns=("ou=users,dc=example,dc=com",),
             user_search_filter="(uid=%s)",
             attr_email="mail",
             attr_display_name="displayName",

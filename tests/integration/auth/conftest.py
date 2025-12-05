@@ -278,7 +278,7 @@ def _env_ldap(_ldap_server: _LDAPServer) -> dict[str, str]:
         "PHOENIX_LDAP_USE_TLS": "false",  # Disable TLS for mock testing
         "PHOENIX_LDAP_BIND_DN": _ldap_server.bind_dn,
         "PHOENIX_LDAP_BIND_PASSWORD": _ldap_server.bind_password,
-        "PHOENIX_LDAP_USER_SEARCH_BASE": _ldap_server.user_search_base,
+        "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": f'["{_ldap_server.user_search_base}"]',
         "PHOENIX_LDAP_USER_SEARCH_FILTER": "(uid=%s)",
         "PHOENIX_LDAP_ATTR_EMAIL": "mail",
         "PHOENIX_LDAP_ATTR_DISPLAY_NAME": "displayName",
@@ -326,7 +326,7 @@ def _env_ldap_posix(_ldap_server: _LDAPServer) -> dict[str, str]:
 
     Key differences from _env_ldap:
     - No ATTR_MEMBER_OF (relies on group search)
-    - Adds GROUP_SEARCH_BASE and GROUP_SEARCH_FILTER
+    - Adds GROUP_SEARCH_BASE_DNS and GROUP_SEARCH_FILTER
     - Tests DN escaping for LDAP injection prevention
     """
     return {
@@ -335,12 +335,12 @@ def _env_ldap_posix(_ldap_server: _LDAPServer) -> dict[str, str]:
         "PHOENIX_LDAP_USE_TLS": "false",  # Disable TLS for mock testing
         "PHOENIX_LDAP_BIND_DN": _ldap_server.bind_dn,
         "PHOENIX_LDAP_BIND_PASSWORD": _ldap_server.bind_password,
-        "PHOENIX_LDAP_USER_SEARCH_BASE": _ldap_server.user_search_base,
+        "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": f'["{_ldap_server.user_search_base}"]',
         "PHOENIX_LDAP_USER_SEARCH_FILTER": "(uid=%s)",
         "PHOENIX_LDAP_ATTR_EMAIL": "mail",
         "PHOENIX_LDAP_ATTR_DISPLAY_NAME": "displayName",
         "PHOENIX_LDAP_ATTR_MEMBER_OF": "",
-        "PHOENIX_LDAP_GROUP_SEARCH_BASE": _ldap_server.group_search_base,
+        "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS": f'["{_ldap_server.group_search_base}"]',
         "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(member=%s)",  # %s replaced with user DN
         "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
             '[{"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"}, '

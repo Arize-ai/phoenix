@@ -188,7 +188,7 @@ services:
       - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
       - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
       - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
-      - PHOENIX_LDAP_USER_SEARCH_BASE=ou=users,dc=example,dc=com
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
       - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
       - PHOENIX_LDAP_ATTR_EMAIL=mail
       - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
@@ -230,7 +230,7 @@ services:
       - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
       - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
       - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
-      - PHOENIX_LDAP_USER_SEARCH_BASE=ou=users,dc=example,dc=com
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
       - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
       - PHOENIX_LDAP_ATTR_EMAIL=mail
       - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
@@ -270,7 +270,7 @@ services:
       - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
       # NO PHOENIX_LDAP_BIND_DN - anonymous bind
       # NO PHOENIX_LDAP_BIND_PASSWORD - anonymous bind
-      - PHOENIX_LDAP_USER_SEARCH_BASE=ou=users,dc=example,dc=com
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
       - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
       - PHOENIX_LDAP_ATTR_EMAIL=mail
       - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
@@ -311,7 +311,7 @@ services:
       - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
       # NO PHOENIX_LDAP_BIND_DN - anonymous bind
       # NO PHOENIX_LDAP_BIND_PASSWORD - anonymous bind
-      - PHOENIX_LDAP_USER_SEARCH_BASE=ou=users,dc=example,dc=com
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
       - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
       - PHOENIX_LDAP_ATTR_EMAIL=mail
       - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName

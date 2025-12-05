@@ -86,7 +86,7 @@ data:
   {{- if .Values.auth.ldap.bindDn }}
   PHOENIX_LDAP_BIND_DN: {{ .Values.auth.ldap.bindDn | quote }}
   {{- end }}
-  PHOENIX_LDAP_USER_SEARCH_BASE: {{ .Values.auth.ldap.userSearchBase | quote }}
+  PHOENIX_LDAP_USER_SEARCH_BASE_DNS: {{ .Values.auth.ldap.userSearchBaseDns | toJson | quote }}
   PHOENIX_LDAP_USER_SEARCH_FILTER: {{ .Values.auth.ldap.userSearchFilter | quote }}
   PHOENIX_LDAP_ATTR_EMAIL: {{ .Values.auth.ldap.attrEmail | quote }}
   PHOENIX_LDAP_ATTR_DISPLAY_NAME: {{ .Values.auth.ldap.attrDisplayName | quote }}
@@ -96,8 +96,8 @@ data:
   {{- if .Values.auth.ldap.attrUniqueId }}
   PHOENIX_LDAP_ATTR_UNIQUE_ID: {{ .Values.auth.ldap.attrUniqueId | quote }}
   {{- end }}
-  {{- if .Values.auth.ldap.groupSearchBase }}
-  PHOENIX_LDAP_GROUP_SEARCH_BASE: {{ .Values.auth.ldap.groupSearchBase | quote }}
+  {{- if .Values.auth.ldap.groupSearchBaseDns }}
+  PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS: {{ .Values.auth.ldap.groupSearchBaseDns | toJson | quote }}
   {{- end }}
   {{- if .Values.auth.ldap.groupSearchFilter }}
   PHOENIX_LDAP_GROUP_SEARCH_FILTER: {{ .Values.auth.ldap.groupSearchFilter | quote }}

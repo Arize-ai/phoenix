@@ -506,6 +506,22 @@ export PHOENIX_LDAP_HOST="dc1.corp.com,dc2.corp.com,dc3.corp.com"
 
 Phoenix will try each server in order until a successful connection is established.
 
+{% hint style="warning" %}
+**Multi-server failover behavior:**
+
+Phoenix assumes all configured servers are **replicas with identical user sets**. Failover only occurs on connection errors:
+
+| Condition | Behavior |
+|-----------|----------|
+| Server unreachable / timeout | ✅ Tries next server |
+| User not found | ❌ Returns immediately (no failover) |
+| Invalid password | ❌ Returns immediately (no failover) |
+
+**Not supported:** Multi-domain or multi-forest Active Directory configurations where different users exist on different servers. In these environments, users can only authenticate against the first reachable server that contains their account.
+
+This design provides faster authentication, better security (no probing of multiple servers), and avoids masking infrastructure issues like replication lag.
+{% endhint %}
+
 ### LDAP with Custom CA Certificate
 
 When your LDAP server uses a certificate signed by an internal CA:

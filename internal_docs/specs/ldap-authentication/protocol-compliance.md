@@ -205,13 +205,13 @@ PHOENIX_LDAP_USER_SEARCH_FILTER="(objectClass=person)"  # Too broad, returns all
 Narrow search scope to reduce ambiguity:
 
 ```bash
-PHOENIX_LDAP_USER_SEARCH_BASE="ou=employees,dc=example,dc=com"  # Specific OU
+PHOENIX_LDAP_USER_SEARCH_BASE_DNS='["ou=employees,dc=example,dc=com"]'  # Specific OU
 ```
 
 vs.
 
 ```bash
-PHOENIX_LDAP_USER_SEARCH_BASE="dc=example,dc=com"  # Entire directory
+PHOENIX_LDAP_USER_SEARCH_BASE_DNS='["dc=example,dc=com"]'  # Entire directory
 ```
 
 ---

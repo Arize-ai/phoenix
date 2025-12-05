@@ -16,12 +16,12 @@
 | `PHOENIX_LDAP_TLS_CLIENT_KEY_FILE` | Optional | - | path | Client private key (PEM) for mutual TLS |
 | `PHOENIX_LDAP_BIND_DN` | Optional | - | string | Service account (required for search-and-bind) |
 | `PHOENIX_LDAP_BIND_PASSWORD` | Optional | - | string | Service account password |
-| `PHOENIX_LDAP_USER_SEARCH_BASE` | ✅ **Required** | - | string | Comma-separated DNs |
+| `PHOENIX_LDAP_USER_SEARCH_BASE_DNS` | ✅ **Required** | - | JSON array | `'["ou=users,dc=example,dc=com"]'` |
 | `PHOENIX_LDAP_USER_SEARCH_FILTER` | Optional | `(&(objectClass=user)(sAMAccountName=%s))` | string | `%s` = username placeholder |
 | `PHOENIX_LDAP_ATTR_EMAIL` | Optional | `mail` | string | Email attribute name |
 | `PHOENIX_LDAP_ATTR_DISPLAY_NAME` | Optional | `displayName` | string | Display name attribute |
 | `PHOENIX_LDAP_ATTR_MEMBER_OF` | Optional | `memberOf` | string | Group membership attribute (AD) |
-| `PHOENIX_LDAP_GROUP_SEARCH_BASE` | Optional | - | string | For POSIX groups (if no `memberOf`) |
+| `PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS` | Optional | - | JSON array | For POSIX groups (if no `memberOf`) |
 | `PHOENIX_LDAP_GROUP_SEARCH_FILTER` | Optional | - | string | `%s` = user DN placeholder |
 | `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS` | ✅ **Required** | `[]` | JSON array | **Grafana-compatible format** |
 | `PHOENIX_LDAP_ALLOW_SIGN_UP` | Optional | `true` | boolean | Auto-create users on first login |
@@ -56,13 +56,13 @@ This table maps Phoenix's environment variables to Grafana's TOML configuration 
 | **Client Cert (mTLS)** | `PHOENIX_LDAP_TLS_CLIENT_CERT_FILE="/path/to/client.crt"`<br>`PHOENIX_LDAP_TLS_CLIENT_KEY_FILE="/path/to/client.key"` | `client_cert = "/path/to/client.crt"`<br>`client_key = "/path/to/client.key"` | Identical semantics for mutual TLS |
 | **Bind DN** | `PHOENIX_LDAP_BIND_DN="cn=admin,..."` | `bind_dn = "cn=admin,..."` | Identical semantics |
 | **Bind Password** | `PHOENIX_LDAP_BIND_PASSWORD="secret"` | `bind_password = "secret"`<br>or `bind_password = '${ENV_VAR}'` | Phoenix: Direct env var<br>Grafana: TOML value or interpolation |
-| **User Search Base** | `PHOENIX_LDAP_USER_SEARCH_BASE="ou=users,..."` | `search_base_dns = ["ou=users,dc=..."]` | Phoenix: Comma-separated string<br>Grafana: TOML array |
+| **User Search Base** | `PHOENIX_LDAP_USER_SEARCH_BASE_DNS='["ou=users,..."]'` | `search_base_dns = ["ou=users,dc=..."]` | Both: JSON/TOML array of DNs |
 | **User Search Filter** | `PHOENIX_LDAP_USER_SEARCH_FILTER="(uid=%s)"` | `search_filter = "(uid=%s)"` | Identical: `%s` = username |
 | **Email Attribute** | `PHOENIX_LDAP_ATTR_EMAIL="mail"` | `[servers.attributes]`<br>`email = "mail"` | Phoenix: Direct env var<br>Grafana: Nested TOML section |
 | **Name Attribute** | `PHOENIX_LDAP_ATTR_DISPLAY_NAME="displayName"` | `name = "displayName"` | Both map display name |
 | **Unique ID** | `PHOENIX_LDAP_ATTR_UNIQUE_ID="objectGUID"` | Not supported | Phoenix: Optional immutable identifier for email change resilience |
 | **Group Membership** | `PHOENIX_LDAP_ATTR_MEMBER_OF="memberOf"` | `member_of = "memberOf"` | Active Directory attribute |
-| **Group Search Base** | `PHOENIX_LDAP_GROUP_SEARCH_BASE="ou=groups,..."` | `group_search_base_dns = ["ou=groups,dc=..."]` | For POSIX groups without memberOf |
+| **Group Search Base** | `PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS='["ou=groups,..."]'` | `group_search_base_dns = ["ou=groups,dc=..."]` | Both: JSON/TOML array of DNs |
 | **Group Search Filter** | `PHOENIX_LDAP_GROUP_SEARCH_FILTER="(member=%s)"` | `group_search_filter = "(member=%s)"` | Identical: `%s` = user DN |
 | **Group→Role Mapping** | `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[`<br>`  {"group_dn": "cn=admins,...", "role": "ADMIN"}`<br>`]'` | `[[servers.group_mappings]]`<br>`group_dn = "cn=admins,..."`<br>`org_role = "Admin"` | Phoenix: JSON with `role` (no org)<br>Grafana: TOML with `org_role` |
 | **Allow Sign-Up** | `PHOENIX_LDAP_ALLOW_SIGN_UP="true"` | `[auth.ldap]`<br>`allow_sign_up = true` | Both default to `true` |
@@ -110,7 +110,7 @@ This table maps Phoenix's environment variables to Grafana's TOML configuration 
 2. ✅ `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS` is valid JSON array (config.py:1433-1442)
 3. ✅ Each mapping has `group_dn` and `role` fields (config.py:1457-1476)
 4. ✅ `role` values are `"ADMIN"`, `"MEMBER"`, or `"VIEWER"` (case-insensitive) (config.py:1449)
-5. ✅ If `PHOENIX_LDAP_ATTR_MEMBER_OF` is empty, `GROUP_SEARCH_BASE` and `GROUP_SEARCH_FILTER` must be set (config.py:1493-1501)
+5. ✅ If `PHOENIX_LDAP_ATTR_MEMBER_OF` is empty, `GROUP_SEARCH_BASE_DNS` and `GROUP_SEARCH_FILTER` must be set
 6. ✅ `TLS_MODE` is either `"starttls"` or `"ldaps"` (config.py:1484-1488)
 7. ⚠️ **Security**: Warn if `USE_TLS=false` or `TLS_VERIFY=false` in production (config.py:1504-1518)
 
@@ -162,11 +162,11 @@ PHOENIX_LDAP_BIND_PASSWORD="service-account-password-here"
 # User Search Configuration
 # ==============================================================================
 
-# Base DN for user searches (comma-separated for multiple)
+# JSON array of base DNs for user searches (searched in order until user found)
 # Examples:
-#   - "OU=Users,DC=corp,DC=com"
-#   - "OU=Employees,DC=corp,DC=com,OU=Contractors,DC=corp,DC=com"
-PHOENIX_LDAP_USER_SEARCH_BASE="OU=Users,DC=corp,DC=com"
+#   - '["OU=Users,DC=corp,DC=com"]'
+#   - '["OU=Employees,DC=corp,DC=com", "OU=Contractors,DC=corp,DC=com"]'
+PHOENIX_LDAP_USER_SEARCH_BASE_DNS='["OU=Users,DC=corp,DC=com"]'
 
 # User search filter (use %s as placeholder for username)
 # Examples:
@@ -206,9 +206,11 @@ PHOENIX_LDAP_ATTR_MEMBER_OF="memberOf"
 # Group Search (for POSIX/OpenLDAP without memberOf)
 # ==============================================================================
 
-# Base DN for group searches (comma-separated for multiple)
-# Example: "OU=Groups,DC=corp,DC=com"
-PHOENIX_LDAP_GROUP_SEARCH_BASE="OU=Groups,DC=corp,DC=com"
+# JSON array of base DNs for group searches (groups collected from all bases)
+# Examples:
+#   - '["OU=Groups,DC=corp,DC=com"]'
+#   - '["OU=Groups,DC=corp,DC=com", "OU=Teams,DC=corp,DC=com"]'
+PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS='["OU=Groups,DC=corp,DC=com"]'
 
 # Group search filter (use %s as placeholder for user DN)
 # Example: "(&(objectClass=group)(member=%s))"
@@ -283,7 +285,7 @@ PHOENIX_LDAP_USE_TLS="true"
 PHOENIX_LDAP_TLS_MODE="starttls"
 PHOENIX_LDAP_BIND_DN="CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com"
 PHOENIX_LDAP_BIND_PASSWORD="password"
-PHOENIX_LDAP_USER_SEARCH_BASE="OU=Users,DC=corp,DC=com"
+PHOENIX_LDAP_USER_SEARCH_BASE_DNS='["OU=Users,DC=corp,DC=com"]'
 PHOENIX_LDAP_USER_SEARCH_FILTER="(&(objectClass=user)(sAMAccountName=%s))"
 PHOENIX_LDAP_ATTR_EMAIL="mail"
 PHOENIX_LDAP_ATTR_DISPLAY_NAME="displayName"
@@ -303,14 +305,14 @@ PHOENIX_LDAP_PORT=389
 PHOENIX_LDAP_USE_TLS="true"
 PHOENIX_LDAP_BIND_DN="cn=readonly,dc=example,dc=com"
 PHOENIX_LDAP_BIND_PASSWORD="password"
-PHOENIX_LDAP_USER_SEARCH_BASE="ou=people,dc=example,dc=com"
+PHOENIX_LDAP_USER_SEARCH_BASE_DNS='["ou=people,dc=example,dc=com"]'
 PHOENIX_LDAP_USER_SEARCH_FILTER="(&(objectClass=inetOrgPerson)(uid=%s))"
 PHOENIX_LDAP_ATTR_EMAIL="mail"
 PHOENIX_LDAP_ATTR_DISPLAY_NAME="cn"
 PHOENIX_LDAP_ATTR_MEMBER_OF=""  # POSIX groups don't use memberOf
 # Optional: Only set if you expect user emails to change
 # PHOENIX_LDAP_ATTR_UNIQUE_ID="entryUUID"
-PHOENIX_LDAP_GROUP_SEARCH_BASE="ou=groups,dc=example,dc=com"
+PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS='["ou=groups,dc=example,dc=com"]'
 PHOENIX_LDAP_GROUP_SEARCH_FILTER="(&(objectClass=posixGroup)(memberUid=%s))"
 PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[
   {"group_dn": "cn=phoenix-admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},

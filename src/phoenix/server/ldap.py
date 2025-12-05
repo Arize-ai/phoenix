@@ -625,7 +625,11 @@ class LDAPAuthenticator:
         return None
 
     def _search_user(self, conn: Connection, escaped_username: str) -> Any | None:
-        """Search for user in LDAP directory.
+        """Search for user in LDAP directory across all configured search bases.
+
+        Searches each base DN in order until a user is found. This allows organizations
+        with users in multiple OUs (e.g., employees and contractors) to authenticate
+        against a single LDAP configuration.
 
         Args:
             conn: Active LDAP connection
@@ -645,35 +649,39 @@ class LDAPAuthenticator:
         if self.config.attr_unique_id:
             attributes.append(self.config.attr_unique_id)
 
-        # Use the search base as-is (it's a DN that contains commas)
-        conn.search(
-            search_base=self.config.user_search_base,
-            search_filter=user_filter,
-            search_scope=SUBTREE,
-            attributes=attributes,
-        )
-
-        # Handle search results
-        if len(conn.entries) == 0:
-            logger.info("LDAP user search returned no results")
-            return None
-        elif len(conn.entries) > 1:
-            # SECURITY: Reject ambiguous results to prevent non-deterministic authentication
-            # Attack scenario: Username "jsmith" exists in both ou=contractors,dc=corp and
-            # ou=employees,dc=corp. Blindly taking first result means authentication outcome
-            # depends on LDAP server's arbitrary ordering (could change between queries).
-            # This allows an attacker to exploit timing or replica inconsistencies.
-            # Proper fix: Use more specific user_search_base or filter to ensure uniqueness.
-            logger.error(
-                f"Ambiguous LDAP search: found {len(conn.entries)} matching entries. "
-                f"Rejecting authentication for safety. "
-                f"Fix: Use more specific user_search_filter or user_search_base to "
-                f"ensure unique results."
+        # Search each base DN in order (like Grafana's search_base_dns)
+        for search_base in self.config.user_search_base_dns:
+            conn.search(
+                search_base=search_base,
+                search_filter=user_filter,
+                search_scope=SUBTREE,
+                attributes=attributes,
             )
-            return None
 
-        # Exactly one match - success
-        return conn.entries[0]
+            if len(conn.entries) == 0:
+                # Not found in this base, try next
+                logger.debug(f"User not found in search base: {search_base}")
+                continue
+            elif len(conn.entries) > 1:
+                # SECURITY: Reject ambiguous results to prevent non-deterministic authentication
+                # Attack scenario: Username "jsmith" exists in both ou=contractors,dc=corp and
+                # ou=employees,dc=corp. Blindly taking first result means authentication outcome
+                # depends on LDAP server's arbitrary ordering (could change between queries).
+                # This allows an attacker to exploit timing or replica inconsistencies.
+                logger.error(
+                    f"Ambiguous LDAP search: found {len(conn.entries)} matching entries "
+                    f"in search base '{search_base}'. Rejecting authentication for safety. "
+                    f"Fix: Use more specific user_search_filter to ensure unique results."
+                )
+                return None
+            else:
+                # Exactly one match - success
+                logger.debug(f"User found in search base: {search_base}")
+                return conn.entries[0]
+
+        # Not found in any search base
+        logger.info("LDAP user search returned no results in any configured search base")
+        return None
 
     def _dummy_bind_for_timing(self, server: Server, password: str) -> None:
         """Perform a dummy bind to equalize response timing when user is not found.
@@ -797,8 +805,8 @@ class LDAPAuthenticator:
             if member_of:
                 groups.extend(member_of)
 
-        # Method 2: POSIX group search
-        if self.config.group_search_base and self.config.group_search_filter:
+        # Method 2: POSIX group search (search each base DN, collect groups from all)
+        if self.config.group_search_base_dns and self.config.group_search_filter:
             # SECURITY: Escape user DN for LDAP filter (RFC 4515)
             # Threat: DNs can contain special chars like parentheses, asterisks, backslashes
             # (e.g., "cn=user(contractor)*,ou=users"). If inserted into filter unescaped,
@@ -807,18 +815,26 @@ class LDAPAuthenticator:
             escaped_dn = escape_filter_chars(user_dn)
             group_filter = self.config.group_search_filter.replace("%s", escaped_dn)
 
-            try:
-                conn.search(
-                    search_base=self.config.group_search_base,
-                    search_filter=group_filter,
-                    search_scope=SUBTREE,
-                    attributes=["cn"],
-                )
-                for group_entry in conn.entries:
-                    groups.append(group_entry.entry_dn)
-            except LDAPException as e:
-                # SECURITY: Don't leak internal LDAP server error details
-                logger.warning(f"LDAP group search failed. Error type: {type(e).__name__}")
+            # Search each group base DN and collect groups from all (like Grafana)
+            for group_search_base in self.config.group_search_base_dns:
+                try:
+                    conn.search(
+                        search_base=group_search_base,
+                        search_filter=group_filter,
+                        search_scope=SUBTREE,
+                        attributes=["cn"],
+                    )
+                    for group_entry in conn.entries:
+                        groups.append(group_entry.entry_dn)
+                    logger.debug(
+                        f"Found {len(conn.entries)} groups in search base: {group_search_base}"
+                    )
+                except LDAPException as e:
+                    # SECURITY: Don't leak internal LDAP server error details
+                    logger.warning(
+                        f"LDAP group search failed for base '{group_search_base}'. "
+                        f"Error type: {type(e).__name__}"
+                    )
 
         return groups
 

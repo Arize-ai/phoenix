@@ -16,7 +16,7 @@ from phoenix.config import (
     ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS,
     ENV_PHOENIX_LDAP_HOST,
     ENV_PHOENIX_LDAP_PORT,
-    ENV_PHOENIX_LDAP_USER_SEARCH_BASE,
+    ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS,
     ENV_PHOENIX_LDAP_USER_SEARCH_FILTER,
 )
 from phoenix.db import models
@@ -156,7 +156,7 @@ class TestEnsureStartupAdmins:
         monkeypatch.setenv(ENV_PHOENIX_LDAP_PORT, "389")
         monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_DN, "cn=admin,dc=example,dc=com")
         monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_PASSWORD, "secret")
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE, "ou=users,dc=example,dc=com")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS, '["ou=users,dc=example,dc=com"]')
         monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(uid=%s)")
         monkeypatch.setenv(
             ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, '[{"group_dn": "*", "role": "MEMBER"}]'
@@ -199,7 +199,7 @@ class TestEnsureStartupAdmins:
         monkeypatch.setenv(ENV_PHOENIX_LDAP_PORT, "389")
         monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_DN, "cn=admin,dc=example,dc=com")
         monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_PASSWORD, "secret")
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE, "ou=users,dc=example,dc=com")
+        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS, '["ou=users,dc=example,dc=com"]')
         monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(uid=%s)")
         monkeypatch.setenv(
             ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, '[{"group_dn": "*", "role": "MEMBER"}]'

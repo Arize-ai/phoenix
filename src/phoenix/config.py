@@ -299,6 +299,15 @@ ENV_PHOENIX_LDAP_HOST = "PHOENIX_LDAP_HOST"
 """
 LDAP server hosts (comma-separated for multiple servers with failover).
 Example: "ldap.corp.com" or "dc1.corp.com,dc2.corp.com,dc3.corp.com"
+
+Multi-server failover behavior:
+  - Connection errors (server unreachable, timeout): Automatically tries the next server
+  - User not found: Returns immediately (no failover to other servers)
+  - Invalid password: Returns immediately (no failover to other servers)
+
+This assumes all servers are replicas with identical user sets (the common HA pattern).
+Multi-domain/forest configurations where different users exist on different servers
+are NOT supported.
 """
 ENV_PHOENIX_LDAP_PORT = "PHOENIX_LDAP_PORT"
 """
@@ -344,10 +353,11 @@ ENV_PHOENIX_LDAP_BIND_PASSWORD = "PHOENIX_LDAP_BIND_PASSWORD"
 """
 Service account password for binding to LDAP server.
 """
-ENV_PHOENIX_LDAP_USER_SEARCH_BASE = "PHOENIX_LDAP_USER_SEARCH_BASE"
+ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS = "PHOENIX_LDAP_USER_SEARCH_BASE_DNS"
 """
-Base DN for user searches (comma-separated for multiple).
-Example: "OU=Users,DC=corp,DC=com"
+JSON array of base DNs for user searches. Searches are performed in order until a user is found.
+Example: '["OU=Users,DC=corp,DC=com"]'
+Multiple: '["OU=Employees,DC=corp,DC=com", "OU=Contractors,DC=corp,DC=com"]'
 """
 ENV_PHOENIX_LDAP_USER_SEARCH_FILTER = "PHOENIX_LDAP_USER_SEARCH_FILTER"
 """
@@ -392,12 +402,13 @@ https://www.rfc-editor.org/rfc/rfc2798.html#section-2.3
 ENV_PHOENIX_LDAP_ATTR_MEMBER_OF = "PHOENIX_LDAP_ATTR_MEMBER_OF"
 """
 LDAP attribute containing group memberships (Active Directory). Defaults to "memberOf".
-Leave empty for POSIX groups (requires GROUP_SEARCH_BASE and GROUP_SEARCH_FILTER).
+Leave empty for POSIX groups (requires GROUP_SEARCH_BASE_DNS and GROUP_SEARCH_FILTER).
 """
-ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE = "PHOENIX_LDAP_GROUP_SEARCH_BASE"
+ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS = "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS"
 """
-Base DN for group searches (for POSIX/OpenLDAP). Required if ATTR_MEMBER_OF is empty.
-Example: "ou=groups,dc=example,dc=com"
+JSON array of base DNs for group searches (for POSIX/OpenLDAP). Required if ATTR_MEMBER_OF is empty.
+Example: '["ou=groups,dc=example,dc=com"]'
+Multiple: '["ou=groups,dc=corp,dc=com", "ou=teams,dc=corp,dc=com"]'
 """
 ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER = "PHOENIX_LDAP_GROUP_SEARCH_FILTER"
 """
@@ -1475,7 +1486,9 @@ class LDAPConfig:
         bind_password: Service account password (optional for anonymous bind)
 
     User Search (RFC 4511 §4.5.1):
-        user_search_base: Base DN for user searches (e.g., "ou=users,dc=example,dc=com")
+        user_search_base_dns: List of base DNs for user searches (searched in order)
+            Example: ["ou=users,dc=example,dc=com"]
+            Multiple: ["ou=employees,dc=corp,dc=com", "ou=contractors,dc=corp,dc=com"]
         user_search_filter: Filter template with %s placeholder (RFC 4515)
             Default: "(&(objectClass=user)(sAMAccountName=%s))" (Active Directory)
             Examples:
@@ -1493,7 +1506,8 @@ class LDAPConfig:
             - POSIX: Use group_search instead
 
     Group Search (for POSIX/OpenLDAP without memberOf):
-        group_search_base: Base DN for group searches (optional)
+        group_search_base_dns: List of base DNs for group searches (searched in order)
+            Example: ["ou=groups,dc=example,dc=com"]
         group_search_filter: Filter template with %s placeholder (optional)
             Example: "(&(objectClass=posixGroup)(memberUid=%s))"
 
@@ -1517,7 +1531,7 @@ class LDAPConfig:
         PHOENIX_LDAP_TLS_MODE=starttls
         PHOENIX_LDAP_BIND_DN=cn=service,ou=accounts,dc=corp,dc=example,dc=com
         PHOENIX_LDAP_BIND_PASSWORD=secret
-        PHOENIX_LDAP_USER_SEARCH_BASE=ou=users,dc=corp,dc=example,dc=com
+        PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=corp,dc=example,dc=com"]
         PHOENIX_LDAP_USER_SEARCH_FILTER=(&(objectClass=user)(sAMAccountName=%s))
         PHOENIX_LDAP_ATTR_EMAIL=mail
         PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
@@ -1526,9 +1540,10 @@ class LDAPConfig:
 
     OpenLDAP with POSIX groups:
         PHOENIX_LDAP_HOST=ldap.example.com
+        PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
         PHOENIX_LDAP_USER_SEARCH_FILTER=(&(objectClass=inetOrgPerson)(uid=%s))
         PHOENIX_LDAP_ATTR_EMAIL=mail
-        PHOENIX_LDAP_GROUP_SEARCH_BASE=ou=groups,dc=example,dc=com
+        PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS=["ou=groups,dc=example,dc=com"]
         PHOENIX_LDAP_GROUP_SEARCH_FILTER=(&(objectClass=posixGroup)(memberUid=%s))
 
     References
@@ -1559,7 +1574,7 @@ class LDAPConfig:
     bind_password: Optional[str] = None
 
     # User search (RFC 4511 §4.5.1)
-    user_search_base: str = ""
+    user_search_base_dns: tuple[str, ...] = ()
     user_search_filter: str = "(&(objectClass=user)(sAMAccountName=%s))"
 
     # Attribute mapping (RFC RFC 2798 §9.1.3, §2.3)
@@ -1569,7 +1584,7 @@ class LDAPConfig:
     attr_unique_id: Optional[str] = None  # Optional: objectGUID (AD), entryUUID (OpenLDAP)
 
     # Group search (for POSIX/OpenLDAP without memberOf)
-    group_search_base: Optional[str] = None
+    group_search_base_dns: tuple[str, ...] = ()
     group_search_filter: Optional[str] = None
 
     # Group to role mappings (Grafana-compatible format)
@@ -1653,15 +1668,37 @@ class LDAPConfig:
             )
         tls_mode = cast(Literal["starttls", "ldaps"], tls_mode_str)
 
-        # Validate group search configuration
+        # Parse and validate group_search_base_dns (JSON array of base DNs, optional)
         attr_member_of = getenv(ENV_PHOENIX_LDAP_ATTR_MEMBER_OF, "memberOf")
-        group_search_base = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE)
+        group_search_base_dns_json = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS, "")
         group_search_filter = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER)
 
-        if not attr_member_of and not (group_search_base and group_search_filter):
+        group_search_base_dns_list: list[str] = []
+        if group_search_base_dns_json:
+            try:
+                group_search_base_dns_list = json.loads(group_search_base_dns_json)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS} is not valid JSON: {e}. "
+                    "Expected format: '[\"ou=groups,dc=example,dc=com\"]'"
+                )
+            if not isinstance(group_search_base_dns_list, list):
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS} must be a JSON array. "
+                    "Expected format: '[\"ou=groups,dc=example,dc=com\"]'"
+                )
+            for idx, base_dn in enumerate(group_search_base_dns_list):
+                if not isinstance(base_dn, str) or not base_dn.strip():
+                    raise ValueError(
+                        f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS}[{idx}] "
+                        "must be a non-empty string"
+                    )
+
+        # Validate group search configuration: either memberOf attribute or group search required
+        if not attr_member_of and not (group_search_base_dns_list and group_search_filter):
             raise ValueError(
                 f"Either {ENV_PHOENIX_LDAP_ATTR_MEMBER_OF} must be set (for Active Directory) "
-                f"OR both {ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE} and "
+                f"OR both {ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS} and "
                 f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER} must be set (for POSIX groups)"
             )
 
@@ -1679,13 +1716,36 @@ class LDAPConfig:
                 "This is insecure for production (vulnerable to MITM attacks)."
             )
 
-        # Validate user_search_base is set
-        user_search_base = getenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE, "")
-        if not user_search_base:
+        # Parse and validate user_search_base_dns (JSON array of base DNs)
+        user_search_base_dns_json = getenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS, "")
+        if not user_search_base_dns_json:
             raise ValueError(
-                f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE} must be set. "
-                "Example: 'OU=Users,DC=corp,DC=com'"
+                f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS} must be set. "
+                "Example: '[\"OU=Users,DC=corp,DC=com\"]'"
             )
+        user_search_base_dns_list: list[str] = []
+        try:
+            user_search_base_dns_list = json.loads(user_search_base_dns_json)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS} is not valid JSON: {e}. "
+                "Expected format: '[\"OU=Users,DC=corp,DC=com\"]'"
+            )
+        if not isinstance(user_search_base_dns_list, list):
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS} must be a JSON array. "
+                "Expected format: '[\"OU=Users,DC=corp,DC=com\"]'"
+            )
+        if not user_search_base_dns_list:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS} must contain at least one base DN. "
+                "Example: '[\"OU=Users,DC=corp,DC=com\"]'"
+            )
+        for idx, base_dn in enumerate(user_search_base_dns_list):
+            if not isinstance(base_dn, str) or not base_dn.strip():
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS}[{idx}] must be a non-empty string"
+                )
 
         # Parse allow_sign_up
         allow_sign_up_str = getenv(ENV_PHOENIX_LDAP_ALLOW_SIGN_UP, "true")
@@ -1764,7 +1824,7 @@ class LDAPConfig:
             tls_client_key_file=tls_client_key_file,
             bind_dn=getenv(ENV_PHOENIX_LDAP_BIND_DN),
             bind_password=getenv(ENV_PHOENIX_LDAP_BIND_PASSWORD),
-            user_search_base=user_search_base,
+            user_search_base_dns=tuple(user_search_base_dns_list),
             user_search_filter=getenv(
                 ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(&(objectClass=user)(sAMAccountName=%s))"
             ),
@@ -1772,7 +1832,7 @@ class LDAPConfig:
             attr_display_name=attr_display_name,
             attr_member_of=attr_member_of,
             attr_unique_id=attr_unique_id,
-            group_search_base=group_search_base,
+            group_search_base_dns=tuple(group_search_base_dns_list),
             group_search_filter=group_search_filter,
             group_role_mappings=tuple(group_role_mappings_list),
             allow_sign_up=allow_sign_up,
