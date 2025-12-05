@@ -25,13 +25,13 @@ class DatasetsEvaluatorsDataLoader(DataLoader[Key, Result]):
         async with self._db() as session:
             conditions = []
             for dataset_id, evaluator_id, name in keys:
-                name = IdentifierModel.model_validate(name)
+                name_model = IdentifierModel.model_validate(name)
                 if evaluator_id < 0:
                     conditions.append(
                         and_(
                             models.DatasetsEvaluators.dataset_id == dataset_id,
                             models.DatasetsEvaluators.builtin_evaluator_id == evaluator_id,
-                            models.DatasetsEvaluators.display_name == name,
+                            models.DatasetsEvaluators.display_name == name_model,
                         )
                     )
                 else:
@@ -39,22 +39,22 @@ class DatasetsEvaluatorsDataLoader(DataLoader[Key, Result]):
                         and_(
                             models.DatasetsEvaluators.dataset_id == dataset_id,
                             models.DatasetsEvaluators.evaluator_id == evaluator_id,
-                            models.DatasetsEvaluators.display_name == name,
+                            models.DatasetsEvaluators.display_name == name_model,
                         )
                     )
             if conditions:
                 for junction in await session.scalars(
                     select(models.DatasetsEvaluators).where(or_(*conditions))
                 ):
-                    dataset_id = junction.dataset_id
-                    evaluator_id = junction.evaluator_id
-                    builtin_evaluator_id = junction.builtin_evaluator_id
-                    name = junction.display_name.root
-                    if evaluator_id is not None:
-                        key = (dataset_id, evaluator_id, name)
+                    junction_dataset_id = junction.dataset_id
+                    junction_evaluator_id = junction.evaluator_id
+                    junction_builtin_evaluator_id = junction.builtin_evaluator_id
+                    junction_name = junction.display_name.root
+                    if junction_evaluator_id is not None:
+                        key = (junction_dataset_id, junction_evaluator_id, junction_name)
                         datasets_evaluators_by_key[key] = junction
-                    elif builtin_evaluator_id is not None:
-                        key = (dataset_id, builtin_evaluator_id, name)
+                    elif junction_builtin_evaluator_id is not None:
+                        key = (junction_dataset_id, junction_builtin_evaluator_id, junction_name)
                         datasets_evaluators_by_key[key] = junction
 
             return [datasets_evaluators_by_key.get(key) for key in keys]
