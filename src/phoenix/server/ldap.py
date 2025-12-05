@@ -197,7 +197,8 @@ def canonicalize_dn(dn: str) -> str:
     except LDAPInvalidDnError:
         # Graceful degradation: if parse fails, use simple lowercase
         # Prevents authentication failure for malformed DNs
-        logger.warning(f"Failed to parse DN for canonicalization, using simple lowercase: {dn}")
+        # Note: Don't log the DN - it may contain sensitive information
+        logger.warning("Failed to parse DN for canonicalization, using simple lowercase")
         return dn.lower()
 
     # Build canonical DN
