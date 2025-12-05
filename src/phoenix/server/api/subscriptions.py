@@ -61,10 +61,7 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
-    EvaluatorInputMappingInput,
-    PlaygroundEvaluatorInput,
-)
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
@@ -120,7 +117,7 @@ async def _stream_single_chat_completion(
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
     info: Info[Context, None],
-    llm_evaluators: list[tuple[EvaluatorInputMappingInput, LLMEvaluator]],
+    llm_evaluators: list[LLMEvaluator],
 ) -> ChatStream:
     messages = [
         (
@@ -199,7 +196,11 @@ async def _stream_single_chat_completion(
                         dataset_example_id=None,
                         repetition_number=None,
                     )
-            for input_mapping, llm_evaluator in llm_evaluators:
+            input_mappings_by_evaluator_id = {
+                from_global_id(e.id)[1]: e.input_mapping for e in input.evaluators
+            }
+            for llm_evaluator in llm_evaluators:
+                input_mapping = input_mappings_by_evaluator_id[llm_evaluator._llm_evaluator_orm.id]
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=input_mapping,
@@ -280,7 +281,10 @@ class Subscription:
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         async with info.context.db() as session:
-            llm_evaluators = await get_llm_evaluators(input.evaluators or [], session)
+            llm_evaluators = await get_llm_evaluators(
+                evaluator_ids=[evaluator.id for evaluator in input.evaluators],
+                session=session,
+            )
             if (
                 playground_project_id := await session.scalar(
                     select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
@@ -403,7 +407,10 @@ class Subscription:
             else None
         )
         async with info.context.db() as session:
-            llm_evaluators = await get_llm_evaluators(input.evaluators, session)
+            llm_evaluators = await get_llm_evaluators(
+                evaluator_ids=[evaluator.id for evaluator in input.evaluators],
+                session=session,
+            )
             if (
                 await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
             ) is None:
@@ -630,7 +637,14 @@ class Subscription:
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
-                        for input_mapping, llm_evaluator in llm_evaluators:
+                        input_mappings_by_evaluator_id = {
+                            from_global_id(evaluator.id)[1]: evaluator.input_mapping
+                            for evaluator in input.evaluators
+                        }
+                        for llm_evaluator in llm_evaluators:
+                            input_mapping = input_mappings_by_evaluator_id[
+                                llm_evaluator._llm_evaluator_orm.id
+                            ]
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
                                 input_mapping=input_mapping,

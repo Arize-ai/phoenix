@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
 from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
@@ -26,10 +28,7 @@ from phoenix.utilities.template_formatters import (
 )
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
     from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
-    from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
     from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 
 logger = logging.getLogger(__name__)
@@ -262,45 +261,36 @@ def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvalu
 
 
 async def get_llm_evaluators(
-    evaluator_inputs: list["PlaygroundEvaluatorInput"],
-    session: "AsyncSession",
-) -> list[tuple[EvaluatorInputMappingInput, LLMEvaluator]]:
+    evaluator_ids: list[GlobalID],
+    session: AsyncSession,
+) -> list[LLMEvaluator]:
     """
-    Fetch LLM evaluators and their prompt versions, returning tuples of input mapping and
-    LLMEvaluator instances.
-
-    This combines the functionality of get_evaluators and get_prompt_versions_for_evaluators
-    into a single helper that returns ready-to-use LLMEvaluator objects paired with their
-    input mappings.
+    Fetch LLM evaluators and their prompt versions, returning LLMEvaluator instances.
 
     Args:
-        evaluator_inputs: List of evaluator inputs containing global IDs and input mappings
+        evaluator_ids: List of evaluator global IDs
         session: Database session
 
     Returns:
-        List of (input_mapping, LLMEvaluator) tuples
+        List of LLMEvaluator instances
     """
     from phoenix.server.api.exceptions import NotFound
     from phoenix.server.api.types.node import from_global_id
 
-    if not evaluator_inputs:
+    if not evaluator_ids:
         return []
 
-    # Extract evaluator row IDs and input mappings from global IDs
-    evaluator_rowids: set[int] = set()
-    input_mappings: dict[int, EvaluatorInputMappingInput] = {}
-    for evaluator_input in evaluator_inputs:
-        type_name, db_id = from_global_id(evaluator_input.id)
-        if type_name != "LLMEvaluator":
-            logger.info(f"Skipping non-LLM evaluator: {evaluator_input.id}")
-            continue
-        evaluator_rowids.add(db_id)
-        input_mappings[db_id] = evaluator_input.input_mapping
+    # Decode global IDs and filter to LLM evaluators only
+    evaluator_rowids: list[int] = []
+    for evaluator_id in evaluator_ids:
+        type_name, db_id = from_global_id(evaluator_id)
+        if type_name == "LLMEvaluator":
+            evaluator_rowids.append(db_id)
 
     if not evaluator_rowids:
         return []
 
-    result: list[tuple[EvaluatorInputMappingInput, LLMEvaluator]] = []
+    result: list[LLMEvaluator] = []
 
     # Fetch all LLM evaluators
     evaluators: list[models.LLMEvaluator] = list(
@@ -310,7 +300,7 @@ async def get_llm_evaluators(
     )
 
     if len(evaluators) < len(evaluator_rowids):
-        missing_rowids = evaluator_rowids - set(evaluator.id for evaluator in evaluators)
+        missing_rowids = set(evaluator_rowids) - set(evaluator.id for evaluator in evaluators)
         raise NotFound(
             f"Could not find all LLM evaluators with IDs {', '.join(map(_quote, missing_rowids))}"
         )
@@ -341,8 +331,7 @@ async def get_llm_evaluators(
         if prompt_version is None:
             raise NotFound(f"Prompt version not found for evaluator {evaluator.id}")
 
-        input_mapping = input_mappings[evaluator.id]
-        result.append((input_mapping, LLMEvaluator(evaluator, prompt_version)))
+        result.append(LLMEvaluator(evaluator, prompt_version))
 
     return result
 

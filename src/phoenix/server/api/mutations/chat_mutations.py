@@ -68,7 +68,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
@@ -441,7 +441,10 @@ class ChatCompletionMutationMixin:
         trace_id = _generate_trace_id()
         span_id = _generate_span_id()
         async with info.context.db() as session:
-            llm_evaluators = await get_llm_evaluators(input.evaluators, session)
+            llm_evaluators = await get_llm_evaluators(
+                evaluator_ids=[evaluator.id for evaluator in input.evaluators],
+                session=session,
+            )
             # Get or create the project ID
             if (
                 project_id := await session.scalar(
@@ -506,7 +509,12 @@ class ChatCompletionMutationMixin:
                 "input": json.dumps(get_attribute_value(span.attributes, LLM_INPUT_MESSAGES)),
                 "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),
             }
-            for input_mapping, llm_evaluator in llm_evaluators:
+            input_mappings_by_evaluator_id = {
+                from_global_id(evaluator.id)[1]: evaluator.input_mapping
+                for evaluator in input.evaluators
+            }
+            for llm_evaluator in llm_evaluators:
+                input_mapping = input_mappings_by_evaluator_id[llm_evaluator._llm_evaluator_orm.id]
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=input_mapping,
