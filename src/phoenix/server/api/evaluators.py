@@ -255,60 +255,59 @@ async def get_llm_evaluators(
     if not evaluator_ids:
         return []
 
-    # Decode global IDs and filter to LLM evaluators only
-    evaluator_rowids: list[int] = []
+    llm_evaluator_db_to_node_id: dict[int, GlobalID] = {}
     for evaluator_id in evaluator_ids:
         type_name, db_id = from_global_id(evaluator_id)
         if type_name == "LLMEvaluator":
-            evaluator_rowids.append(db_id)
+            llm_evaluator_db_to_node_id[db_id] = evaluator_id
 
-    if not evaluator_rowids:
+    if not llm_evaluator_db_to_node_id:
         return []
 
-    result: list[LLMEvaluator] = []
-
-    # Fetch all LLM evaluators
-    evaluators: list[models.LLMEvaluator] = list(
+    llm_evaluator_orms: list[models.LLMEvaluator] = list(
         await session.scalars(
-            select(models.LLMEvaluator).where(models.LLMEvaluator.id.in_(evaluator_rowids))
+            select(models.LLMEvaluator).where(
+                models.LLMEvaluator.id.in_(llm_evaluator_db_to_node_id.keys())
+            )
         )
     )
 
-    if len(evaluators) < len(evaluator_rowids):
-        missing_rowids = set(evaluator_rowids) - set(evaluator.id for evaluator in evaluators)
+    if len(llm_evaluator_orms) < len(llm_evaluator_db_to_node_id):
+        missing_db_ids = set(llm_evaluator_db_to_node_id.keys()) - set(
+            evaluator.id for evaluator in llm_evaluator_orms
+        )
+        missing_node_ids = [llm_evaluator_db_to_node_id[db_id] for db_id in missing_db_ids]
         raise NotFound(
-            f"Could not find all LLM evaluators with IDs {', '.join(map(_quote, missing_rowids))}"
+            f"Could not find all LLM evaluators with IDs {', '.join(map(_quote, missing_node_ids))}"
         )
 
-    # Fetch prompt versions and create LLMEvaluator instances
-    for evaluator in evaluators:
-        prompt_id = evaluator.prompt_id
-        prompt_version_tag_id = evaluator.prompt_version_tag_id
-
+    llm_evaluators: list[LLMEvaluator] = []
+    for llm_evaluator_orm in llm_evaluator_orms:
+        prompt_id = llm_evaluator_orm.prompt_id
+        prompt_version_tag_id = llm_evaluator_orm.prompt_version_tag_id
         if prompt_version_tag_id is not None:
             # Get the tagged version
-            stmt = (
+            prompt_version_query = (
                 select(models.PromptVersion)
                 .join(models.PromptVersionTag)
-                .where(models.PromptVersionTag.prompt_id == prompt_id)
                 .where(models.PromptVersionTag.id == prompt_version_tag_id)
             )
         else:
             # Get the latest version
-            stmt = (
+            prompt_version_query = (
                 select(models.PromptVersion)
                 .where(models.PromptVersion.prompt_id == prompt_id)
                 .order_by(models.PromptVersion.id.desc())
                 .limit(1)
             )
-
-        prompt_version = await session.scalar(stmt)
+        prompt_version = await session.scalar(prompt_version_query)
         if prompt_version is None:
-            raise NotFound(f"Prompt version not found for evaluator {evaluator.id}")
+            llm_evaluator_node_id = llm_evaluator_db_to_node_id[llm_evaluator_orm.id]
+            raise NotFound(f"Prompt version not found for evaluator '{llm_evaluator_node_id}'")
 
-        result.append(LLMEvaluator(evaluator, prompt_version))
+        llm_evaluators.append(LLMEvaluator(llm_evaluator_orm, prompt_version))
 
-    return result
+    return llm_evaluators
 
 
 def _prompt_role_to_chat_role(role: str) -> "ChatCompletionMessageRole":
