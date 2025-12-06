@@ -4,6 +4,10 @@ from collections.abc import Iterable
 from string import Formatter
 from typing import Any
 
+from typing_extensions import assert_never
+
+from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+
 
 class TemplateFormatter(ABC):
     @abstractmethod
@@ -97,3 +101,13 @@ class TemplateFormatterError(Exception):
     """
 
     pass
+
+
+def get_template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
+    if template_format is PromptTemplateFormat.MUSTACHE:
+        return MustacheTemplateFormatter()
+    if template_format is PromptTemplateFormat.F_STRING:
+        return FStringTemplateFormatter()
+    if template_format is PromptTemplateFormat.NONE:
+        return NoOpFormatter()
+    assert_never(template_format)

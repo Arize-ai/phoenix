@@ -1,6 +1,6 @@
 import asyncio
+import json
 import logging
-import random
 from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain, islice
@@ -33,7 +33,8 @@ from phoenix.db.helpers import (
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.evaluators import get_llm_evaluators
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -67,11 +68,11 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
-from phoenix.trace.attributes import unflatten
+from phoenix.trace.attributes import get_attribute_value, unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
 
@@ -272,26 +273,6 @@ class ChatCompletionMutationMixin:
             session.add_all(experiment_runs)
             await session.flush()
 
-        evaluations: list[ExperimentRunAnnotation] = []
-        if input.evaluators:
-            async with info.context.db() as session:
-                for ii, evaluator in enumerate(input.evaluators):
-                    _, db_id = from_global_id(evaluator.id)
-                    evaluator_record = await session.get(models.Evaluator, db_id)
-                    if evaluator_record is None:
-                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
-                    evaluator_name = evaluator_record.name.root
-                    dummy_annotation = ExperimentRunAnnotation.from_dict(
-                        {
-                            "name": evaluator_name,
-                            "label": f"dummy {ii}",
-                            "score": random.random(),
-                            "explanation": "dummy evaluation",
-                            "metadata": {},
-                        }
-                    )
-                    evaluations.append(dummy_annotation)
-
         for (revision, repetition_number), experiment_run, result in zip(
             unbatched_items, experiment_runs, results
         ):
@@ -309,7 +290,7 @@ class ChatCompletionMutationMixin:
                     tool_calls=[],
                     span=None,
                     error_message=str(result),
-                    evaluations=evaluations,
+                    evaluations=[],
                 )
                 if isinstance(result, BaseException)
                 else result[0],
@@ -460,6 +441,11 @@ class ChatCompletionMutationMixin:
         trace_id = _generate_trace_id()
         span_id = _generate_span_id()
         async with info.context.db() as session:
+            llm_evaluators = await get_llm_evaluators(
+                evaluator_ids=[evaluator.id for evaluator in input.evaluators],
+                session=session,
+                llm_client=llm_client,
+            )
             # Get or create the project ID
             if (
                 project_id := await session.scalar(
@@ -520,23 +506,29 @@ class ChatCompletionMutationMixin:
 
         evaluations: list[ExperimentRunAnnotation] = []
         if input.evaluators:
-            async with info.context.db() as session:
-                for ii, evaluator in enumerate(input.evaluators):
-                    _, db_id = from_global_id(evaluator.id)
-                    evaluator_record = await session.get(models.Evaluator, db_id)
-                    if evaluator_record is None:
-                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
-                    evaluator_name = evaluator_record.name.root
-                    dummy_annotation = ExperimentRunAnnotation.from_dict(
-                        {
-                            "name": evaluator_name,
-                            "label": f"dummy {ii}",
-                            "score": random.random(),
-                            "explanation": "dummy evaluation",
-                            "metadata": {},
-                        }
-                    )
-                    evaluations.append(dummy_annotation)
+            context_dict: dict[str, str] = {
+                "input": json.dumps(get_attribute_value(span.attributes, LLM_INPUT_MESSAGES)),
+                "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),
+            }
+            input_mappings_by_evaluator_id = {
+                evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+            }
+            for llm_evaluator in llm_evaluators:
+                input_mapping = input_mappings_by_evaluator_id[llm_evaluator.id]
+                result = await llm_evaluator.evaluate(
+                    context=context_dict,
+                    input_mapping=input_mapping,
+                )
+                annotation = ExperimentRunAnnotation.from_dict(
+                    {
+                        "name": result["name"],
+                        "label": result["label"],
+                        "score": result["score"],
+                        "explanation": result["explanation"],
+                        "metadata": result["metadata"],
+                    }
+                )
+                evaluations.append(annotation)
 
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
 
