@@ -28,7 +28,7 @@ export const buttonCSS = css`
   }
   &[disabled] {
     cursor: default;
-    opacity: var(--ac-opacity-disabled);
+    opacity: var(--ac-global-opacity-disabled);
   }
   &[data-size="S"] {
     height: var(--ac-global-button-height-s);

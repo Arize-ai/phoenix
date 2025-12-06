@@ -95,6 +95,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   onLoadNext: () => void;
   isLoadingNext: boolean;
 }) => {
+  "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { traceId } = useParams();

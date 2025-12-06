@@ -32,6 +32,7 @@ export function ExperimentAnnotationButton({
           flex: 1 1 auto;
           border-radius: var(--ac-global-rounding-small);
           width: 100%;
+          min-width: 0;
           &:hover {
             background-color: var(--ac-global-color-grey-200);
           }
@@ -39,13 +40,14 @@ export function ExperimentAnnotationButton({
       >
         <Flex
           direction="row"
-          gap="size-100"
+          gap="size-600"
           alignItems="center"
           justifyContent="space-between"
         >
           <AnnotationNameAndValue
             annotation={annotation}
             displayPreference="score"
+            maxWidth="unset"
           />
           {extra}
         </Flex>

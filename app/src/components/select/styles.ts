@@ -9,7 +9,7 @@ export const selectCSS = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-width: 200px;
+    min-width: inherit;
     width: 100%;
 
     &[data-pressed],

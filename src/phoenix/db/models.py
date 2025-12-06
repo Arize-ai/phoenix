@@ -16,8 +16,10 @@ from sqlalchemy import (
     Dialect,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     MetaData,
     Null,
     PrimaryKeyConstraint,
@@ -25,6 +27,7 @@ from sqlalchemy import (
     TypeDecorator,
     UniqueConstraint,
     case,
+    event,
     func,
     insert,
     select,
@@ -45,7 +48,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import coalesce
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
@@ -54,6 +57,7 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
+    CategoricalAnnotationConfig,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -75,6 +79,7 @@ from phoenix.server.api.helpers.prompts.models import (
     is_prompt_invocation_parameters,
     is_prompt_template,
 )
+from phoenix.server.encryption import is_encrypted
 from phoenix.trace.attributes import get_attribute_value
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
@@ -157,6 +162,14 @@ def render_values_w_union(
 
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
+EvaluatorKind: TypeAlias = Literal["LLM", "CODE"]
+GenerativeModelCustomProviderSDK: TypeAlias = Literal[
+    "openai",
+    "azure_openai",
+    "anthropic",
+    "google_genai",
+    "aws_bedrock",
+]
 
 
 class JSONB(JSON):
@@ -1092,6 +1105,9 @@ class Dataset(HasId):
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
         "DatasetsDatasetLabel", back_populates="dataset"
     )
+    datasets_evaluators: Mapped[list["DatasetsEvaluators"]] = relationship(
+        "DatasetsEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
+    )
 
     @hybrid_property
     def example_count(self) -> Optional[int]:
@@ -1816,6 +1832,12 @@ class Prompt(HasId):
         uselist=True,
     )
 
+    llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
+        "LLMEvaluator",
+        back_populates="prompt",
+        uselist=True,
+    )
+
 
 class PromptPromptLabel(HasId):
     __tablename__ = "prompts_prompt_labels"
@@ -1886,6 +1908,25 @@ class PromptVersion(HasId):
         uselist=True,
     )
 
+    def has_identical_content(self, other: Self) -> bool:
+        """
+        Checks if the content of this prompt version is identical to the content of another prompt
+        version, excluding fields such as id, created_at, and user_id that do not include the actual
+        content of the prompt version.
+        """
+        return (
+            self.description == other.description
+            and self.template_type == other.template_type
+            and self.template_format == other.template_format
+            and self.template == other.template
+            and self.invocation_parameters == other.invocation_parameters
+            and self.tools == other.tools
+            and self.response_format == other.response_format
+            and self.model_provider == other.model_provider
+            and self.model_name == other.model_name
+            and self.metadata_ == other.metadata_
+        )
+
 
 class PromptVersionTag(HasId):
     __tablename__ = "prompt_version_tags"
@@ -1911,6 +1952,12 @@ class PromptVersionTag(HasId):
     prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_version_tags")
     prompt_version: Mapped["PromptVersion"] = relationship(
         "PromptVersion", back_populates="prompt_version_tags"
+    )
+
+    llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
+        "LLMEvaluator",
+        back_populates="prompt_version_tag",
+        uselist=True,
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
@@ -2070,3 +2117,221 @@ class SpanCostDetail(HasId):
             "is_prompt",
         ),
     )
+
+
+class Evaluator(HasId):
+    __tablename__ = "evaluators"
+    kind: Mapped[EvaluatorKind] = mapped_column(
+        CheckConstraint("kind IN ('LLM', 'CODE')", name="valid_evaluator_kind"),
+        nullable=False,
+    )
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False, unique=True)
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    user: Mapped[Optional["User"]] = relationship("User")
+    datasets_evaluators: Mapped[list["DatasetsEvaluators"]] = relationship(
+        "DatasetsEvaluators",
+        back_populates="evaluator",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    __mapper_args__ = {
+        "polymorphic_on": "kind",
+        "polymorphic_identity": None,  # Base class is abstract
+    }
+
+    __table_args__ = (UniqueConstraint("kind", "id"),)
+
+
+class LLMEvaluator(Evaluator):
+    __tablename__ = "llm_evaluators"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[Literal["LLM"]] = mapped_column(
+        CheckConstraint("kind = 'LLM'", name="valid_evaluator_kind"),
+        server_default="LLM",
+        nullable=False,
+    )
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    prompt_version_tag_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
+        index=True,
+    )
+    annotation_name: Mapped[str] = mapped_column(String, nullable=False)
+    output_config: Mapped[CategoricalAnnotationConfig] = mapped_column(
+        _AnnotationConfig, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="llm_evaluators")
+    prompt_version_tag: Mapped[Optional["PromptVersionTag"]] = relationship(
+        "PromptVersionTag", back_populates="llm_evaluators"
+    )
+    __mapper_args__ = {
+        "polymorphic_identity": "LLM",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["kind", "id"],
+            ["evaluators.kind", "evaluators.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class CodeEvaluator(Evaluator):
+    __tablename__ = "code_evaluators"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[Literal["CODE"]] = mapped_column(
+        CheckConstraint("kind = 'CODE'", name="valid_evaluator_kind"),
+        server_default="CODE",
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    __mapper_args__ = {
+        "polymorphic_identity": "CODE",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["kind", "id"],
+            ["evaluators.kind", "evaluators.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class DatasetsEvaluators(HasId):
+    __tablename__ = "datasets_evaluators"
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+    )
+    evaluator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    builtin_evaluator_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        nullable=True,
+        index=True,
+    )
+    display_name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    input_mapping: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_evaluators")
+    evaluator: Mapped[Optional["Evaluator"]] = relationship(
+        "Evaluator", back_populates="datasets_evaluators"
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
+            name="evaluator_id_xor_builtin_evaluator_id",
+        ),
+        # Use UniqueConstraints for SQLite ON CONFLICT support
+        UniqueConstraint(
+            "dataset_id",
+            "evaluator_id",
+            "display_name",
+        ),
+        UniqueConstraint(
+            "dataset_id",
+            "builtin_evaluator_id",
+            "display_name",
+        ),
+        # Partial unique indexes to enforce uniqueness on non-NULL values
+        Index(
+            "ix_datasets_evaluators_dataset_evaluator_notnull",
+            "dataset_id",
+            "evaluator_id",
+            "display_name",
+            unique=True,
+            postgresql_where=sa.text("evaluator_id IS NOT NULL"),
+            sqlite_where=sa.text("evaluator_id IS NOT NULL"),
+        ),
+        Index(
+            "ix_datasets_evaluators_dataset_builtin_notnull",
+            "dataset_id",
+            "builtin_evaluator_id",
+            "display_name",
+            unique=True,
+            postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
+            sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),
+        ),
+    )
+
+
+class Secret(Base):
+    __tablename__ = "secrets"
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+
+@event.listens_for(Secret, "before_insert")
+@event.listens_for(Secret, "before_update")
+def validate_secret_config(_: Any, __: Any, target: "Secret") -> None:
+    """Validate that secret value is encrypted before database write.
+
+    Note: This uses a heuristic check (is_encrypted), not cryptographic verification.
+    The check validates structural properties of Fernet tokens (base64 encoding,
+    version byte, minimum length) to catch accidental storage of plaintext data.
+
+    This is a defense-in-depth measure - the application layer should ensure
+    encryption happens correctly, and this check catches programming errors.
+    """
+    if not is_encrypted(target.value):
+        raise ValueError("Value is not encrypted")
+
+
+class GenerativeModelCustomProvider(HasId):
+    __tablename__ = "generative_model_custom_providers"
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    description: Mapped[Optional[str]]
+    provider: Mapped[str] = mapped_column(String, nullable=False)
+    sdk: Mapped[GenerativeModelCustomProviderSDK] = mapped_column(String, nullable=False)
+    config: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+
+@event.listens_for(GenerativeModelCustomProvider, "before_insert")
+@event.listens_for(GenerativeModelCustomProvider, "before_update")
+def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProvider") -> None:
+    """Validate that provider config is encrypted before database write.
+
+    Note: This uses a heuristic check (is_encrypted), not cryptographic verification.
+    The check validates structural properties of Fernet tokens (base64 encoding,
+    version byte, minimum length) to catch accidental storage of plaintext data.
+
+    This is a defense-in-depth measure - the application layer should ensure
+    encryption happens correctly, and this check catches programming errors.
+    """
+    if not is_encrypted(target.config):
+        raise ValueError("Config is not encrypted")

@@ -36,6 +36,7 @@ export const ColorSwatch = forwardRef<HTMLDivElement, ColorSwatchProps>(
             width: var(--color-swatch-size);
             height: var(--color-swatch-size);
             display: inline-block;
+            flex-shrink: 0;
             &[data-shape="square"] {
               border-radius: 2px;
             }

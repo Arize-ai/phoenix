@@ -4,7 +4,7 @@ from typing import Any, Literal, Mapping, Optional, Union
 from pydantic import Field, RootModel, model_validator
 from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_never
 
-from phoenix.db.types.db_models import UNDEFINED, DBBaseModel
+from phoenix.db.types.db_helper_types import UNDEFINED, DBBaseModel
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.aws import AwsToolChoiceConversion

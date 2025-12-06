@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 @strawberry.type
 class PromptVersion(Node):
     id_attr: NodeID[int]
+    prompt_id: strawberry.Private[int]
     user_id: strawberry.Private[Optional[int]]
     description: Optional[str]
     template_type: PromptTemplateType
@@ -105,6 +106,15 @@ class PromptVersion(Node):
             self.cached_sequence_number = seq_num
         return self.cached_sequence_number
 
+    @strawberry.field
+    async def is_latest(self, info: Info[Context, None]) -> bool:
+        latest_version_id = await info.context.data_loaders.latest_prompt_version_ids.load(
+            self.prompt_id
+        )
+        if latest_version_id is None:
+            return False
+        return latest_version_id == self.id_attr
+
 
 def to_gql_prompt_version(
     prompt_version: models.PromptVersion, sequence_number: Optional[int] = None
@@ -135,6 +145,7 @@ def to_gql_prompt_version(
         invocation_parameters["tool_choice"] = tool_choice
     return PromptVersion(
         id_attr=prompt_version.id,
+        prompt_id=prompt_version.prompt_id,
         user_id=prompt_version.user_id,
         description=prompt_version.description,
         template_type=prompt_template_type,

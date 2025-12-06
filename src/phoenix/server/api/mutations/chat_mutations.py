@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain, islice
@@ -32,14 +33,13 @@ from phoenix.db.helpers import (
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundClientCredential,
     PlaygroundStreamingClient,
+    get_playground_client,
     initialize_playground_clients,
 )
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.playground_spans import (
     input_value_and_mime_type,
     llm_input_messages,
@@ -50,7 +50,7 @@ from phoenix.server.api.helpers.playground_spans import (
     prompt_metadata,
 )
 from phoenix.server.api.helpers.playground_users import get_user
-from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -66,19 +66,14 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
-from phoenix.utilities.template_formatters import (
-    FStringTemplateFormatter,
-    MustacheTemplateFormatter,
-    NoOpFormatter,
-    TemplateFormatter,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +101,7 @@ class ChatCompletionRepetition:
     tool_calls: list[ChatCompletionToolCall]
     span: Optional[Span]
     error_message: Optional[str]
+    evaluations: list[ExperimentRunAnnotation] = field(default_factory=list)
 
 
 @strawberry.type
@@ -138,30 +134,7 @@ class ChatCompletionMutationMixin:
         info: Info[Context, None],
         input: ChatCompletionOverDatasetInput,
     ) -> ChatCompletionOverDatasetMutationPayload:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            credentials = None
-            if input.credentials:
-                credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
+        llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         dataset_version_id = (
             from_global_id_with_expected_type(
@@ -240,7 +213,6 @@ class ChatCompletionMutationMixin:
                         llm_client,
                         ChatCompletionInput(
                             model=input.model,
-                            credentials=input.credentials,
                             messages=input.messages,
                             tools=input.tools,
                             invocation_parameters=input.invocation_parameters,
@@ -250,6 +222,7 @@ class ChatCompletionMutationMixin:
                             ),
                             prompt_name=input.prompt_name,
                             repetitions=repetition_number,
+                            evaluators=input.evaluators,
                         ),
                         repetition_number=repetition_number,
                         project_name=project_name,
@@ -299,6 +272,26 @@ class ChatCompletionMutationMixin:
             session.add_all(experiment_runs)
             await session.flush()
 
+        evaluations: list[ExperimentRunAnnotation] = []
+        if input.evaluators:
+            async with info.context.db() as session:
+                for ii, evaluator in enumerate(input.evaluators):
+                    _, db_id = from_global_id(evaluator.id)
+                    evaluator_record = await session.get(models.Evaluator, db_id)
+                    if evaluator_record is None:
+                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
+                    evaluator_name = evaluator_record.name.root
+                    dummy_annotation = ExperimentRunAnnotation.from_dict(
+                        {
+                            "name": evaluator_name,
+                            "label": f"dummy {ii}",
+                            "score": random.random(),
+                            "explanation": "dummy evaluation",
+                            "metadata": {},
+                        }
+                    )
+                    evaluations.append(dummy_annotation)
+
         for (revision, repetition_number), experiment_run, result in zip(
             unbatched_items, experiment_runs, results
         ):
@@ -316,6 +309,7 @@ class ChatCompletionMutationMixin:
                     tool_calls=[],
                     span=None,
                     error_message=str(result),
+                    evaluations=evaluations,
                 )
                 if isinstance(result, BaseException)
                 else result[0],
@@ -328,31 +322,7 @@ class ChatCompletionMutationMixin:
     async def chat_completion(
         cls, info: Info[Context, None], input: ChatCompletionInput
     ) -> ChatCompletionMutationPayload:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            credentials = None
-            if input.credentials:
-                credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
-
+        llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
         batch_size = 3
         for batch in _get_batches(range(1, input.repetitions + 1), batch_size):
@@ -420,10 +390,15 @@ class ChatCompletionMutationMixin:
         text_content = ""
         tool_calls: dict[str, ChatCompletionToolCall] = {}
         events = []
+        if input.model.builtin:
+            model_name = input.model.builtin.name
+        else:
+            assert input.model.custom
+            model_name = input.model.custom.model_name
         attributes.update(
             chain(
                 llm_span_kind(),
-                llm_model_name(input.model.name),
+                llm_model_name(model_name),
                 llm_tools(input.tools or []),
                 llm_input_messages(messages),
                 llm_invocation_parameters(invocation_parameters),
@@ -543,6 +518,26 @@ class ChatCompletionMutationMixin:
 
         gql_span = Span(id=span.id, db_record=span)
 
+        evaluations: list[ExperimentRunAnnotation] = []
+        if input.evaluators:
+            async with info.context.db() as session:
+                for ii, evaluator in enumerate(input.evaluators):
+                    _, db_id = from_global_id(evaluator.id)
+                    evaluator_record = await session.get(models.Evaluator, db_id)
+                    if evaluator_record is None:
+                        raise BadRequest(f"Could not find evaluator with ID '{evaluator.id}'")
+                    evaluator_name = evaluator_record.name.root
+                    dummy_annotation = ExperimentRunAnnotation.from_dict(
+                        {
+                            "name": evaluator_name,
+                            "label": f"dummy {ii}",
+                            "score": random.random(),
+                            "explanation": "dummy evaluation",
+                            "metadata": {},
+                        }
+                    )
+                    evaluations.append(dummy_annotation)
+
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
 
         if status_code is StatusCode.ERROR:
@@ -552,6 +547,7 @@ class ChatCompletionMutationMixin:
                 tool_calls=[],
                 span=gql_span,
                 error_message=status_message,
+                evaluations=evaluations,
             )
         else:
             repetition = ChatCompletionRepetition(
@@ -560,6 +556,7 @@ class ChatCompletionMutationMixin:
                 tool_calls=list(tool_calls.values()),
                 span=gql_span,
                 error_message=None,
+                evaluations=evaluations,
             )
         return repetition, span
 
@@ -571,7 +568,7 @@ def _formatted_messages(
     """
     Formats the messages using the given template options.
     """
-    template_formatter = _template_formatter(template_format=template_options.format)
+    template_formatter = get_template_formatter(template_format=template_options.format)
     (
         roles,
         templates,
@@ -584,19 +581,6 @@ def _formatted_messages(
     )
     formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
     return formatted_messages
-
-
-def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
-    """
-    Instantiates the appropriate template formatter for the template format.
-    """
-    if template_format is PromptTemplateFormat.MUSTACHE:
-        return MustacheTemplateFormatter()
-    if template_format is PromptTemplateFormat.F_STRING:
-        return FStringTemplateFormatter()
-    if template_format is PromptTemplateFormat.NONE:
-        return NoOpFormatter()
-    assert_never(template_format)
 
 
 def _output_value_and_mime_type(

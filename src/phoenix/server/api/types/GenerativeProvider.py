@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Any, ClassVar, Optional, Union
+from types import MappingProxyType
+from typing import Any, ClassVar, Mapping, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues, SpanAttributes
@@ -18,6 +19,32 @@ class GenerativeProviderKey(Enum):
     XAI = "xAI"
     OLLAMA = "Ollama"
     AWS = "AWS Bedrock"
+
+
+GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] = MappingProxyType(
+    {
+        GenerativeProviderKey.OPENAI: OpenInferenceLLMProviderValues.OPENAI.value,
+        GenerativeProviderKey.AZURE_OPENAI: OpenInferenceLLMProviderValues.AZURE.value,
+        GenerativeProviderKey.ANTHROPIC: OpenInferenceLLMProviderValues.ANTHROPIC.value,
+        GenerativeProviderKey.AWS: OpenInferenceLLMProviderValues.AWS.value,
+        GenerativeProviderKey.GOOGLE: OpenInferenceLLMProviderValues.GOOGLE.value,
+        GenerativeProviderKey.OLLAMA: "ollama",
+        GenerativeProviderKey.DEEPSEEK: OpenInferenceLLMProviderValues.DEEPSEEK.value,
+        GenerativeProviderKey.XAI: OpenInferenceLLMProviderValues.XAI.value,
+    }
+)
+
+assert len(GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING) == len(GenerativeProviderKey)
+
+CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY: Mapping[str, GenerativeProviderKey] = MappingProxyType(
+    {
+        "openai": GenerativeProviderKey.OPENAI,
+        "azure_openai": GenerativeProviderKey.AZURE_OPENAI,
+        "anthropic": GenerativeProviderKey.ANTHROPIC,
+        "aws_bedrock": GenerativeProviderKey.AWS,
+        "google_genai": GenerativeProviderKey.GOOGLE,
+    }
+)
 
 
 @strawberry.type

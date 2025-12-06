@@ -52,7 +52,7 @@ import {
   spanAttributesWithInputMessages,
   SpanTool,
   SpanToolCall,
-  tesSpanAnthropicTool,
+  testSpanAnthropicTool,
   testSpanAnthropicToolDefinition,
   testSpanOpenAITool,
   testSpanOpenAIToolJsonSchema,
@@ -436,6 +436,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         tools: [
           {
             id: expect.any(Number),
+            editorType: "json",
             definition: testSpanOpenAIToolJsonSchema,
           },
         ],
@@ -1350,7 +1351,7 @@ describe("getToolsFromAttributes", () => {
   const ProviderToToolTestMap: ProviderToolTestMap = {
     ANTHROPIC: [
       "ANTHROPIC",
-      tesSpanAnthropicTool,
+      testSpanAnthropicTool,
       testSpanAnthropicToolDefinition,
     ],
     OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
@@ -1380,6 +1381,7 @@ describe("getToolsFromAttributes", () => {
         tools: [
           {
             id: expect.any(Number),
+            editorType: "json",
             definition: toolDefinition,
           },
         ],

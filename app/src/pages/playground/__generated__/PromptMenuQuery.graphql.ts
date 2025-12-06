@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c543ace922de305b1b44c56823abad00>>
+ * @generated SignedSource<<ef54f7a10a4ceb9ce6eaba56c2fadba2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,7 @@ export type PromptMenuQuery$data = {
               readonly createdAt: string;
               readonly description: string | null;
               readonly id: string;
+              readonly isLatest: boolean;
               readonly tags: ReadonlyArray<{
                 readonly name: string;
               }>;
@@ -87,7 +88,14 @@ v6 = {
   "name": "description",
   "storageKey": null
 },
-v7 = [
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isLatest",
+  "storageKey": null
+},
+v8 = [
   (v3/*: any*/),
   (v2/*: any*/)
 ];
@@ -162,6 +170,7 @@ return {
                               (v2/*: any*/),
                               (v5/*: any*/),
                               (v6/*: any*/),
+                              (v7/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -234,7 +243,7 @@ return {
                     "kind": "LinkedField",
                     "name": "versionTags",
                     "plural": true,
-                    "selections": (v7/*: any*/),
+                    "selections": (v8/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -264,6 +273,7 @@ return {
                               (v2/*: any*/),
                               (v5/*: any*/),
                               (v6/*: any*/),
+                              (v7/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -271,7 +281,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "tags",
                                 "plural": true,
-                                "selections": (v7/*: any*/),
+                                "selections": (v8/*: any*/),
                                 "storageKey": null
                               }
                             ],
@@ -295,16 +305,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "528cfb72f1c787b0a4c9ce3696523cd0",
+    "cacheID": "d8093a3c4cb80b9b6461decf6f368be1",
     "id": null,
     "metadata": {},
     "name": "PromptMenuQuery",
     "operationKind": "query",
-    "text": "query PromptMenuQuery {\n  prompts(first: 200) {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n        versionTags {\n          name\n          id\n        }\n        promptVersions {\n          versions: edges {\n            version: node {\n              id\n              createdAt\n              description\n              tags {\n                name\n                id\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query PromptMenuQuery {\n  prompts(first: 200) {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n        versionTags {\n          name\n          id\n        }\n        promptVersions {\n          versions: edges {\n            version: node {\n              id\n              createdAt\n              description\n              isLatest\n              tags {\n                name\n                id\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a739bf4cee03ddc8be384fad0ec18af7";
+(node as any).hash = "054ed2e51bbda434d7a88e723ed63865";
 
 export default node;

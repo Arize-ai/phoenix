@@ -148,7 +148,7 @@ class TestChatCompletionSubscription:
                         "content": "Who won the World Cup in 2018? Answer in one word",
                     }
                 ],
-                "model": {"name": "gpt-4", "providerKey": "OPENAI"},
+                "model": {"builtin": {"name": "gpt-4", "providerKey": "OPENAI"}},
                 "invocationParameters": [
                     {"invocationName": "temperature", "valueFloat": 0.1},
                 ],
@@ -283,7 +283,7 @@ class TestChatCompletionSubscription:
                         "content": "Who won the World Cup in 2018? Answer in one word",
                     }
                 ],
-                "model": {"name": "gpt-4", "providerKey": "OPENAI"},
+                "model": {"builtin": {"name": "gpt-4", "providerKey": "OPENAI"}},
                 "invocationParameters": [
                     {"invocationName": "temperature", "valueFloat": 0.1},
                 ],
@@ -424,7 +424,7 @@ class TestChatCompletionSubscription:
                         "content": "How's the weather in San Francisco?",
                     }
                 ],
-                "model": {"name": "gpt-4", "providerKey": "OPENAI"},
+                "model": {"builtin": {"name": "gpt-4", "providerKey": "OPENAI"}},
                 "tools": [get_current_weather_tool_schema],
                 "invocationParameters": [
                     {"invocationName": "tool_choice", "valueJson": "auto"},
@@ -586,7 +586,7 @@ class TestChatCompletionSubscription:
                         "toolCallId": tool_call_id,
                     },
                 ],
-                "model": {"name": "gpt-4", "providerKey": "OPENAI"},
+                "model": {"builtin": {"name": "gpt-4", "providerKey": "OPENAI"}},
                 "repetitions": 1,
             }
         }
@@ -736,7 +736,9 @@ class TestChatCompletionSubscription:
                         "content": "Who won the World Cup in 2018? Answer in one word",
                     }
                 ],
-                "model": {"name": "claude-3-5-sonnet-20240620", "providerKey": "ANTHROPIC"},
+                "model": {
+                    "builtin": {"name": "claude-3-5-sonnet-20240620", "providerKey": "ANTHROPIC"}
+                },
                 "invocationParameters": [
                     {"invocationName": "temperature", "valueFloat": 0.1},
                     {"invocationName": "max_tokens", "valueInt": 1024},
@@ -984,7 +986,7 @@ class TestChatCompletionOverDatasetSubscription:
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
         variables = {
             "input": {
-                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
                 "messages": [
@@ -1367,7 +1369,7 @@ class TestChatCompletionOverDatasetSubscription:
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
         variables = {
             "input": {
-                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
                 "messages": [
@@ -1470,7 +1472,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         variables = {
             "input": {
-                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
                 "messages": [
@@ -1556,7 +1558,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         variables = {
             "input": {
-                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
                 "messages": [
@@ -1630,7 +1632,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         variables = {
             "input": {
-                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
                 "messages": [

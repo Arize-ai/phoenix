@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import {
@@ -10,13 +10,9 @@ import {
   Icons,
   Text,
 } from "@phoenix/components";
-import { JSONEditor } from "@phoenix/components/code";
-import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import {
-  usePlaygroundContext,
-  usePlaygroundStore,
-} from "@phoenix/contexts/PlaygroundContext";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { JSONToolEditor } from "@phoenix/pages/playground/PlaygroundToolType/JSONToolEditor";
 import {
   anthropicToolDefinitionJSONSchema,
   awsToolDefinitionJSONSchema,
@@ -24,16 +20,27 @@ import {
 } from "@phoenix/schemas";
 import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
 import { Tool } from "@phoenix/store";
-import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { getToolName } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
-/**
- * The minimum height for the editor before it is initialized.
- * This is to ensure that the editor is properly initialized when it is rendered outside of the viewport.
- */
-const TOOL_EDITOR_PRE_INIT_HEIGHT = 400;
+export type UpdateToolFn = (definition: Tool["definition"]) => void;
+
+export type BaseToolEditorProps = {
+  playgroundInstanceId: number;
+  tool: Tool;
+  updateTool: UpdateToolFn;
+  toolDefinitionJSONSchema: JSONSchema7 | null;
+};
+
+const ToolEditor = (props: BaseToolEditorProps) => {
+  switch (props.tool.editorType) {
+    // TODO: add support for other tool types
+    case "json":
+    default:
+      return <JSONToolEditor {...props} />;
+  }
+};
 
 /**
  * A tool editor that is used to edit the definition of a tool.
@@ -48,7 +55,6 @@ export function PlaygroundTool({
 }: PlaygroundInstanceProps & {
   toolId: Tool["id"];
 }) {
-  const store = usePlaygroundStore();
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
@@ -58,6 +64,7 @@ export function PlaygroundTool({
     throw new Error(`Playground instance ${playgroundInstanceId} not found`);
   }
 
+  const toolChoice = instance.toolChoice;
   const instanceProvider = instance.model.provider;
   const instanceTools = instance.tools;
   const tool = instanceTools.find((t) => t.id === toolId);
@@ -66,33 +73,14 @@ export function PlaygroundTool({
     throw new Error(`Tool ${toolId} not found`);
   }
 
-  const [initialEditorValue, setInitialEditorValue] = useState(() =>
-    JSON.stringify(tool.definition, null, 2)
-  );
-  const editorValueRef = useRef(initialEditorValue);
+  const toolDefinition = tool.definition;
 
-  // when the instance provider changes, we need to update the editor value
-  // to reflect the new tool definition schema
-  useEffect(() => {
-    const state = store.getState();
-    const instance = state.instances.find((i) => i.id === playgroundInstanceId);
-    if (instance == null) {
-      return;
-    }
-    const tool = instance.tools.find((t) => t.id === toolId);
-    if (tool == null) {
-      return;
-    }
-    const newDefinition = JSON.stringify(tool.definition, null, 2);
-    if (isJSONString({ str: newDefinition, excludeNull: true })) {
-      setInitialEditorValue(newDefinition);
-    }
-  }, [instanceProvider, store, playgroundInstanceId, toolId]);
+  const toolName = useMemo(() => {
+    return getToolName(tool);
+  }, [tool]);
 
-  const onChange = useCallback(
-    (value: string) => {
-      editorValueRef.current = value;
-      const { json: definition } = safelyParseJSON(value);
+  const updateTool = useCallback(
+    (definition: Tool["definition"]) => {
       updateInstance({
         instanceId: playgroundInstanceId,
         patch: {
@@ -111,12 +99,41 @@ export function PlaygroundTool({
     [instanceTools, playgroundInstanceId, tool.id, updateInstance]
   );
 
-  const toolName = useMemo(() => {
-    return getToolName(tool);
-  }, [tool]);
+  const deleteTool = useCallback(() => {
+    const newTools = instanceTools.filter((t) => t.id !== toolId);
+    const deletingToolChoice =
+      typeof toolChoice === "object" &&
+      toolName != null &&
+      findToolChoiceName(toolChoice) === toolName;
+    let newToolChoice = toolChoice;
+    if (newTools.length === 0) {
+      newToolChoice = undefined;
+    } else if (deletingToolChoice) {
+      newToolChoice = "auto";
+    }
+    updateInstance({
+      instanceId: playgroundInstanceId,
+      patch: {
+        tools: newTools,
+        toolChoice: newToolChoice,
+      },
+      dirty: true,
+    });
+  }, [
+    instanceTools,
+    playgroundInstanceId,
+    toolId,
+    toolChoice,
+    toolName,
+    updateInstance,
+  ]);
+
+  const toolDefinitionString = useMemo(() => {
+    return JSON.stringify(toolDefinition, null, 2);
+  }, [toolDefinition]);
 
   const toolDefinitionJSONSchema = useMemo((): JSONSchema7 | null => {
-    switch (instance.model.provider) {
+    switch (instanceProvider) {
       case "OPENAI":
       case "AZURE_OPENAI":
       case "DEEPSEEK":
@@ -130,7 +147,7 @@ export function PlaygroundTool({
       case "GOOGLE":
         return null;
     }
-  }, [instance.model.provider]);
+  }, [instanceProvider]);
 
   return (
     <Card
@@ -145,46 +162,22 @@ export function PlaygroundTool({
       }
       extra={
         <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton text={editorValueRef} />
+          <CopyToClipboardButton text={toolDefinitionString} />
           <Button
             aria-label="Delete tool"
             leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
             size="S"
-            onPress={() => {
-              const newTools = instanceTools.filter((t) => t.id !== tool.id);
-              const deletingToolChoice =
-                typeof instance.toolChoice === "object" &&
-                toolName != null &&
-                findToolChoiceName(instance.toolChoice) === toolName;
-
-              let toolChoice = instance.toolChoice;
-              if (newTools.length === 0) {
-                toolChoice = undefined;
-              } else if (deletingToolChoice) {
-                toolChoice = "auto";
-              }
-              updateInstance({
-                instanceId: playgroundInstanceId,
-                patch: {
-                  tools: newTools,
-                  toolChoice,
-                },
-                dirty: true,
-              });
-            }}
+            onPress={deleteTool}
           />
         </Flex>
       }
     >
-      <LazyEditorWrapper
-        preInitializationMinHeight={TOOL_EDITOR_PRE_INIT_HEIGHT}
-      >
-        <JSONEditor
-          value={initialEditorValue}
-          onChange={onChange}
-          jsonSchema={toolDefinitionJSONSchema}
-        />
-      </LazyEditorWrapper>
+      <ToolEditor
+        playgroundInstanceId={playgroundInstanceId}
+        tool={tool}
+        updateTool={updateTool}
+        toolDefinitionJSONSchema={toolDefinitionJSONSchema}
+      />
     </Card>
   );
 }

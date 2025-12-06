@@ -63,7 +63,12 @@ export const DialogHeader = ({ children, ...props }: DialogHeaderProps) => {
       css={dialogHeaderCSS}
       className={classNames(props.className, "ac-DialogHeader")}
     >
-      <Flex width="100%" justifyContent="space-between" alignItems="center">
+      <Flex
+        width="100%"
+        justifyContent="space-between"
+        alignItems="center"
+        gap="size-200"
+      >
         {children}
       </Flex>
     </div>

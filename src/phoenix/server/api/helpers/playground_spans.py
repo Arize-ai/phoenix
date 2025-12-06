@@ -76,10 +76,15 @@ class streaming_llm_span:
         self._attributes: dict[str, Any] = attributes if attributes is not None else {}
         self._attributes.update(dict(prompt_metadata(input.prompt_name)))
 
+        if input.model.builtin:
+            model_name = input.model.builtin.name
+        else:
+            assert input.model.custom
+            model_name = input.model.custom.model_name
         self._attributes.update(
             chain(
                 llm_span_kind(),
-                llm_model_name(input.model.name),
+                llm_model_name(model_name),
                 llm_tools(input.tools or []),
                 llm_input_messages(messages),
                 llm_invocation_parameters(invocation_parameters),
