@@ -212,9 +212,10 @@ def canonicalize_dn(dn: str) -> str:
 
         # When we hit a comma (or end), we've completed an RDN
         if separator == "," or separator == "":
-            # Sort multi-valued RDN components alphabetically for deterministic output
+            # Sort multi-valued RDN components for deterministic output
             # Example: "email=x+cn=y" and "cn=y+email=x" both become "cn=y+email=x"
-            current_rdn_components.sort(key=lambda x: x[0])
+            # Sorts by (type, value) tuple to handle rare cases of duplicate attribute types
+            current_rdn_components.sort()
 
             # Format the RDN
             rdn_str = "+".join(f"{attr}={value}" for attr, value in current_rdn_components)
