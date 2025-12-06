@@ -456,6 +456,7 @@ def main() -> None:
         scaffolder_config=scaffolder_config,
         email_sender=email_sender,
         oauth2_client_configs=get_env_oauth2_settings(),
+        ldap_config=auth_settings.ldap_config,
         allowed_origins=allowed_origins,
         management_url=management_url,
     )

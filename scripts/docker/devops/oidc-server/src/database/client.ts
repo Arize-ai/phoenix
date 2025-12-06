@@ -3,16 +3,22 @@ import type { User } from "../types/index.js";
 
 export class DatabaseClient {
   private static readonly DEFAULT_USER: User = {
-    id: "default-test-user",
+    id: "3",
     email: "testuser@arize.com",
     name: "Test User",
     role: "admin",
     groups: ["phoenix-admins", "full-access"],
   };
 
+  // Polling intervals
+  private static readonly FAST_POLL_MS = 500; // 500ms when waiting for migrations
+  private static readonly NORMAL_POLL_MS = 5000; // 5 seconds once tables are ready
+
   private client: Client;
   private connected = false;
+  private tablesReady = false;
   private users: User[] = [];
+  private pollingInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.client = new Client({
@@ -39,7 +45,6 @@ export class DatabaseClient {
       console.log(JSON.stringify(dbConnected));
 
       await this.fetchUsers();
-
       this.startPolling();
     } catch (error) {
       const dbConnectionFailed = {
@@ -77,6 +82,20 @@ export class DatabaseClient {
       );
       const queryTime = Date.now() - startTime;
 
+      // Tables are ready if we get here without error
+      const wasWaitingForTables = !this.tablesReady;
+      if (!this.tablesReady) {
+        this.tablesReady = true;
+        const tablesReady = {
+          timestamp: new Date().toISOString(),
+          event: "database_tables_ready",
+          note: "Migrations complete, switching to normal polling interval",
+        };
+        console.log(JSON.stringify(tablesReady));
+        // Switch to normal polling interval
+        this.restartPolling(DatabaseClient.NORMAL_POLL_MS);
+      }
+
       const previousCount = this.users.length;
       const previousEmails = this.users.map((u) => u.email).sort();
 
@@ -97,7 +116,7 @@ export class DatabaseClient {
         previousCount !== this.users.length ||
         JSON.stringify(previousEmails) !== JSON.stringify(currentEmails);
 
-      if (hasChanges) {
+      if (hasChanges || wasWaitingForTables) {
         const added = currentEmails.filter(
           (email) => !previousEmails.includes(email)
         );
@@ -153,31 +172,71 @@ export class DatabaseClient {
         }
       }
     } catch (error) {
-      const dbQueryFailed = {
-        timestamp: new Date().toISOString(),
-        event: "database_query_failed",
-        error: error instanceof Error ? error.message : String(error),
-        connection_status: this.connected,
-        current_user_count: this.users.length,
-        action: "keeping_existing_users",
-      };
-      console.log(JSON.stringify(dbQueryFailed));
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const isTableNotFound = errorMessage.includes("does not exist");
+
+      if (isTableNotFound && !this.tablesReady) {
+        // Tables not ready yet (migrations not complete) - keep fast polling
+        const waitingForMigrations = {
+          timestamp: new Date().toISOString(),
+          event: "waiting_for_migrations",
+          error: errorMessage,
+          poll_interval_ms: DatabaseClient.FAST_POLL_MS,
+          note: "Using default user until migrations complete",
+        };
+        console.log(JSON.stringify(waitingForMigrations));
+      } else {
+        const dbQueryFailed = {
+          timestamp: new Date().toISOString(),
+          event: "database_query_failed",
+          error: errorMessage,
+          connection_status: this.connected,
+          current_user_count: this.users.length,
+          action: "keeping_existing_users",
+        };
+        console.log(JSON.stringify(dbQueryFailed));
+      }
     }
   }
 
   private startPolling(): void {
-    setInterval(async () => {
+    // Start with fast polling if tables aren't ready yet
+    const intervalMs = this.tablesReady
+      ? DatabaseClient.NORMAL_POLL_MS
+      : DatabaseClient.FAST_POLL_MS;
+
+    this.pollingInterval = setInterval(async () => {
       await this.fetchUsers();
-    }, 5000);
+    }, intervalMs);
 
     const pollingStarted = {
       timestamp: new Date().toISOString(),
       event: "user_polling_started",
-      interval_seconds: 5,
-      mode: "debug",
-      next_poll_time: new Date(Date.now() + 5000).toISOString(),
+      interval_ms: intervalMs,
+      tables_ready: this.tablesReady,
+      mode: this.tablesReady ? "normal" : "waiting_for_migrations",
+      next_poll_time: new Date(Date.now() + intervalMs).toISOString(),
     };
     console.log(JSON.stringify(pollingStarted));
+  }
+
+  private restartPolling(intervalMs: number): void {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+
+    this.pollingInterval = setInterval(async () => {
+      await this.fetchUsers();
+    }, intervalMs);
+
+    const pollingRestarted = {
+      timestamp: new Date().toISOString(),
+      event: "polling_interval_changed",
+      new_interval_ms: intervalMs,
+      reason: "tables_now_ready",
+    };
+    console.log(JSON.stringify(pollingRestarted));
   }
 
   private fallbackToNoUsers(): void {
@@ -211,7 +270,7 @@ export class DatabaseClient {
       } else {
         await this.fetchUsers();
       }
-    }, 5000);
+    }, DatabaseClient.FAST_POLL_MS);
   }
 
   private getGroupsForUser(row: any): string[] {
@@ -247,6 +306,9 @@ export class DatabaseClient {
   }
 
   async close(): Promise<void> {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
     if (this.connected) {
       await this.client.end();
       this.connected = false;

@@ -1,0 +1,546 @@
+# Docker Compose override for LDAP testing
+#
+# Tests six LDAP connection modes:
+#   1. LDAPS (port 636, TLS from start) - phoenix → ldap
+#   2. STARTTLS (port 389 → TLS upgrade) - phoenix-starttls → ldap-mitm-proxy → ldap
+#   3. Anonymous LDAPS (no service account) - phoenix-anonymous-ldaps → ldap-anonymous
+#   4. Anonymous STARTTLS (no service account) - phoenix-anonymous-starttls → ldap-anonymous-mitm-proxy → ldap-anonymous
+#   5. Grafana STARTTLS (comparison) - grafana-ldap → ldap-mitm-proxy → ldap
+#   6. POSIX mode (GROUP_SEARCH_FILTER) - phoenix-posix → ldap-posix
+#
+# Three LDAP servers are used:
+#   - ldap: Standard osixia/openldap with restrictive ACLs (requires bind credentials)
+#   - ldap-anonymous: Same image but with ACLs modified to allow anonymous read access
+#   - ldap-posix: OpenLDAP with POSIX groups (memberUid) WITHOUT memberOf overlay
+#
+# Two MITM proxies are used:
+#   - ldap-mitm-proxy: Routes to ldap server (for service account modes)
+#   - ldap-anonymous-mitm-proxy: Routes to ldap-anonymous server (for anonymous modes)
+#
+# The anonymous bind tests validate the AUTO_BIND_DEFAULT flow in ldap.py:
+#   - Connection opened without credentials
+#   - TLS established before bind (for STARTTLS)
+#   - bind() deferred to context manager __enter__
+#   - Requires LDAP server ACLs that allow anonymous read access
+#
+# Run with: docker compose -f docker-compose.yml -f overrides/ldap-test.yml --profile ldap-test up
+
+services:
+  ldap:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-test-server
+    hostname: ldap.example.com
+    environment:
+      - LDAP_ORGANISATION=Example Corp
+      - LDAP_DOMAIN=example.com
+      - LDAP_ADMIN_PASSWORD=admin_password
+      - LDAP_CONFIG_PASSWORD=config_password
+      - LDAP_READONLY_USER=true
+      - LDAP_READONLY_USER_USERNAME=readonly
+      - LDAP_READONLY_USER_PASSWORD=readonly_password
+      # Enable TLS with auto-generated self-signed certificates
+      - LDAP_TLS=true
+      - LDAP_TLS_VERIFY_CLIENT=never  # Don't require client certs
+      - LDAP_LOG_LEVEL=256
+    volumes:
+      - ldap-test-data:/var/lib/ldap
+      - ldap-test-config:/etc/ldap/slapd.d
+    command: --copy-service --loglevel debug
+
+  # MITM Proxy for TLS verification
+  ldap-mitm-proxy:
+    profiles: ["ldap-test"]
+    image: python:3.14-slim
+    container_name: ${PROJECT_NAME:-devops}-ldap-mitm-proxy
+    depends_on:
+      - ldap
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./scripts/ldap_mitm_proxy.py:/ldap_mitm_proxy.py:ro
+    command: >
+      bash -c "
+      echo '🔍 Starting LDAP MITM Proxy for TLS verification...';
+      python3 -u /ldap_mitm_proxy.py --ldap-host ldap --ldap-port 389 --listen-port 3389 --api-host 0.0.0.0 --api-port 8080
+      "
+    labels:
+      - "ldap.mitm.port=3389"
+
+  ldap-admin:
+    profiles: ["ldap-test"]
+    image: osixia/phpldapadmin:0.9.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-test-admin
+    environment:
+      - PHPLDAPADMIN_LDAP_HOSTS=ldap
+      - PHPLDAPADMIN_HTTPS=false
+    depends_on:
+      - ldap
+    labels:
+      - "ldap.admin.url=http://localhost:6443"
+
+  ldap-seed:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-test-seed
+    depends_on:
+      - ldap
+    volumes:
+      - ./ldap-seed.ldif:/seed.ldif:ro
+    entrypoint: /bin/bash
+    command: >
+      -c "
+      echo 'Waiting for LDAP server to be ready...';
+      sleep 5;
+      ldapadd -x -H ldap://ldap:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed.ldif || true;
+      echo 'LDAP seed data loaded';
+      tail -f /dev/null
+      "
+
+  # Separate LDAP server configured for anonymous read access
+  # Used by phoenix-anonymous to test the AUTO_BIND_DEFAULT flow
+  # osixia/openldap defaults deny anonymous access, so we need a separate instance
+  ldap-anonymous:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-anonymous-server
+    hostname: ldap-anonymous.example.com
+    environment:
+      - LDAP_ORGANISATION=Example Corp
+      - LDAP_DOMAIN=example.com
+      - LDAP_ADMIN_PASSWORD=admin_password
+      - LDAP_CONFIG_PASSWORD=config_password
+      # Enable TLS with auto-generated self-signed certificates
+      - LDAP_TLS=true
+      - LDAP_TLS_VERIFY_CLIENT=never
+      - LDAP_LOG_LEVEL=256
+    volumes:
+      - ldap-anonymous-data:/var/lib/ldap
+      - ldap-anonymous-config:/etc/ldap/slapd.d
+    command: --copy-service --loglevel debug
+
+  # Seed data and configure anonymous access ACLs for ldap-anonymous
+  ldap-anonymous-seed:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-anonymous-seed
+    depends_on:
+      - ldap-anonymous
+    volumes:
+      - ./ldap-seed.ldif:/seed.ldif:ro
+      - ./ldap-anonymous-acl.ldif:/acl.ldif:ro
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        echo 'Waiting for LDAP anonymous server to be ready...';
+        sleep 5;
+
+        echo 'Loading seed data...';
+        ldapadd -x -H ldap://ldap-anonymous:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed.ldif || true;
+
+        echo 'Configuring ACLs to allow anonymous read access...';
+        ldapmodify -x -H ldap://ldap-anonymous:389 -D 'cn=admin,cn=config' -w config_password -f /acl.ldif;
+
+        echo 'Anonymous access ACLs configured!';
+        echo 'Testing anonymous search...';
+        ldapsearch -x -H ldap://ldap-anonymous:389 -b 'ou=users,dc=example,dc=com' '(uid=admin)' uid mail | head -20;
+
+        echo 'LDAP anonymous server ready';
+        tail -f /dev/null
+
+  # MITM Proxy for anonymous LDAP server (for STARTTLS TLS verification)
+  ldap-anonymous-mitm-proxy:
+    profiles: ["ldap-test"]
+    image: python:3.14-slim
+    container_name: ${PROJECT_NAME:-devops}-ldap-anonymous-mitm-proxy
+    depends_on:
+      - ldap-anonymous
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./scripts/ldap_mitm_proxy.py:/ldap_mitm_proxy.py:ro
+    command: >
+      bash -c "
+      echo '🔍 Starting LDAP Anonymous MITM Proxy for TLS verification...';
+      python3 -u /ldap_mitm_proxy.py --ldap-host ldap-anonymous --ldap-port 389 --listen-port 3389 --api-host 0.0.0.0 --api-port 8080
+      "
+    labels:
+      - "ldap.anonymous.mitm.port=3389"
+
+  # Test STARTTLS mode (port 389 with upgrade)
+  phoenix-starttls:
+    profiles: ["ldap-test"]
+    container_name: ${PROJECT_NAME:-devops}-phoenix-starttls
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    environment:
+      # Enable LDAP authentication
+      - PHOENIX_ENABLE_AUTH=true
+      - PHOENIX_DISABLE_BASIC_AUTH=false
+      - PHOENIX_DISABLE_RATE_LIMIT=true
+      - PHOENIX_SECRET=dev-secret-for-tls-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-tls-testing-only-12345678
+      # STARTTLS Configuration (via MITM proxy for TLS verification)
+      - PHOENIX_LDAP_HOST=ldap-mitm-proxy
+      - PHOENIX_LDAP_PORT=3389  # Connect through MITM proxy
+      - PHOENIX_LDAP_TLS_MODE=starttls
+      - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
+      - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
+      - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
+      - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
+      - PHOENIX_LDAP_ATTR_EMAIL=mail
+      - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
+      - PHOENIX_LDAP_ATTR_MEMBER_OF=memberOf
+      # Test unique_id mode (entryUUID for OpenLDAP)
+      - PHOENIX_LDAP_ATTR_UNIQUE_ID=entryUUID
+      - PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]
+      - PHOENIX_LDAP_ALLOW_SIGN_UP=true
+      # In-memory SQLite
+      - "PHOENIX_SQL_DATABASE_URL=sqlite:///:memory:"
+    depends_on:
+      - ldap
+      - ldap-seed
+      - ldap-mitm-proxy
+    labels:
+      - "phoenix.auth.mode=ldap-starttls"
+
+  # Phoenix with LDAPS mode (port 636, TLS from start)
+  phoenix:
+    profiles: ["ldap-test"]
+    container_name: ${PROJECT_NAME:-devops}-phoenix
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    environment:
+      # Enable LDAP authentication
+      - PHOENIX_ENABLE_AUTH=true
+      - PHOENIX_DISABLE_BASIC_AUTH=false
+      - PHOENIX_DISABLE_RATE_LIMIT=true
+      - PHOENIX_SECRET=dev-secret-for-tls-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-tls-testing-only-12345678
+      # Disable OAuth from base compose (prevents auto-redirect to OIDC)
+      - PHOENIX_OAUTH2_DEV_AUTO_LOGIN=false
+      # LDAPS Configuration (port 636, TLS from start)
+      - PHOENIX_LDAP_HOST=ldap
+      # PHOENIX_LDAP_PORT omitted - tests port defaulting (should default to 636 for LDAPS)
+      - PHOENIX_LDAP_TLS_MODE=ldaps
+      - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
+      - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
+      - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
+      - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
+      - PHOENIX_LDAP_ATTR_EMAIL=mail
+      - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
+      - PHOENIX_LDAP_ATTR_MEMBER_OF=memberOf
+      - PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]
+      - PHOENIX_LDAP_ALLOW_SIGN_UP=true
+      # In-memory SQLite
+      - "PHOENIX_SQL_DATABASE_URL=sqlite:///:memory:"
+    depends_on:
+      - ldap
+      - ldap-seed
+    labels:
+      - "phoenix.auth.mode=ldap"
+
+  # Phoenix with anonymous bind via LDAPS (no service account, TLS from start)
+  # Tests the AUTO_BIND_DEFAULT flow where bind() is deferred to context manager
+  # Uses ldap-anonymous server which has ACLs configured for anonymous read access
+  phoenix-anonymous-ldaps:
+    profiles: ["ldap-test"]
+    container_name: ${PROJECT_NAME:-devops}-phoenix-anonymous-ldaps
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    environment:
+      # Enable LDAP authentication
+      - PHOENIX_ENABLE_AUTH=true
+      - PHOENIX_DISABLE_BASIC_AUTH=false
+      - PHOENIX_DISABLE_RATE_LIMIT=true
+      - PHOENIX_SECRET=dev-secret-for-anon-ldaps-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-anon-ldaps-only-12345678
+      # Anonymous bind via LDAPS (no BIND_DN or BIND_PASSWORD)
+      # Uses ldap-anonymous which has ACLs configured for anonymous read access
+      - PHOENIX_LDAP_HOST=ldap-anonymous
+      - PHOENIX_LDAP_PORT=636
+      - PHOENIX_LDAP_TLS_MODE=ldaps
+      - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
+      # NO PHOENIX_LDAP_BIND_DN - anonymous bind
+      # NO PHOENIX_LDAP_BIND_PASSWORD - anonymous bind
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
+      - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
+      - PHOENIX_LDAP_ATTR_EMAIL=mail
+      - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
+      - PHOENIX_LDAP_ATTR_MEMBER_OF=memberOf
+      # Test unique_id mode (entryUUID for OpenLDAP)
+      - PHOENIX_LDAP_ATTR_UNIQUE_ID=entryUUID
+      - PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]
+      - PHOENIX_LDAP_ALLOW_SIGN_UP=true
+      # In-memory SQLite
+      - "PHOENIX_SQL_DATABASE_URL=sqlite:///:memory:"
+    depends_on:
+      - ldap-anonymous
+      - ldap-anonymous-seed
+    labels:
+      - "phoenix.auth.mode=ldap-anonymous-ldaps"
+
+  # Phoenix with anonymous bind via STARTTLS (no service account, TLS upgrade)
+  # Tests the AUTO_BIND_DEFAULT flow with STARTTLS via MITM proxy
+  # Uses ldap-anonymous-mitm-proxy which routes to ldap-anonymous server
+  phoenix-anonymous-starttls:
+    profiles: ["ldap-test"]
+    container_name: ${PROJECT_NAME:-devops}-phoenix-anonymous-starttls
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    environment:
+      # Enable LDAP authentication
+      - PHOENIX_ENABLE_AUTH=true
+      - PHOENIX_DISABLE_BASIC_AUTH=false
+      - PHOENIX_DISABLE_RATE_LIMIT=true
+      - PHOENIX_SECRET=dev-secret-for-anon-starttls-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-anon-starttls-only-12345678
+      # Anonymous bind via STARTTLS through MITM proxy (no BIND_DN or BIND_PASSWORD)
+      - PHOENIX_LDAP_HOST=ldap-anonymous-mitm-proxy
+      - PHOENIX_LDAP_PORT=3389  # Connect through MITM proxy
+      - PHOENIX_LDAP_TLS_MODE=starttls
+      - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
+      # NO PHOENIX_LDAP_BIND_DN - anonymous bind
+      # NO PHOENIX_LDAP_BIND_PASSWORD - anonymous bind
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
+      - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
+      - PHOENIX_LDAP_ATTR_EMAIL=mail
+      - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
+      - PHOENIX_LDAP_ATTR_MEMBER_OF=memberOf
+      - PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]
+      - PHOENIX_LDAP_ALLOW_SIGN_UP=true
+      # In-memory SQLite
+      - "PHOENIX_SQL_DATABASE_URL=sqlite:///:memory:"
+    depends_on:
+      - ldap-anonymous
+      - ldap-anonymous-seed
+      - ldap-anonymous-mitm-proxy
+    labels:
+      - "phoenix.auth.mode=ldap-anonymous-starttls"
+
+  # ===========================================================================
+  # POSIX Mode Testing (GROUP_SEARCH_FILTER with memberUid)
+  # ===========================================================================
+  # This tests the POSIX/RFC 2307 group schema where:
+  #   - Groups use objectClass=posixGroup
+  #   - Membership is via memberUid attribute (contains username, NOT DN)
+  #   - Users do NOT have memberOf attribute
+  #
+  # Configuration uses PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR=uid to tell
+  # Phoenix to substitute the user's uid attribute (e.g., "admin") into the
+  # group filter.
+  # ===========================================================================
+
+  # Separate LDAP server for POSIX groups testing
+  # This server does NOT have the memberOf overlay enabled
+  ldap-posix:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-posix-server
+    hostname: ldap-posix.example.com
+    environment:
+      - LDAP_ORGANISATION=Example Corp POSIX
+      - LDAP_DOMAIN=example.com
+      - LDAP_ADMIN_PASSWORD=admin_password
+      - LDAP_CONFIG_PASSWORD=config_password
+      - LDAP_READONLY_USER=true
+      - LDAP_READONLY_USER_USERNAME=readonly
+      - LDAP_READONLY_USER_PASSWORD=readonly_password
+      # Disable TLS for simplicity in POSIX testing
+      - LDAP_TLS=false
+      - LDAP_LOG_LEVEL=256
+      # IMPORTANT: Disable memberOf overlay to test pure POSIX mode
+      - LDAP_REMOVE_CONFIG_AFTER_SETUP=false
+    volumes:
+      - ldap-posix-data:/var/lib/ldap
+      - ldap-posix-config:/etc/ldap/slapd.d
+    command: --copy-service --loglevel debug
+
+  # Seed data for POSIX groups and disable memberOf overlay
+  ldap-posix-seed:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-posix-seed
+    depends_on:
+      - ldap-posix
+    volumes:
+      - ./ldap-posix-seed.ldif:/seed.ldif:ro
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        echo 'Waiting for LDAP POSIX server to be ready...';
+        sleep 5;
+
+        echo 'Disabling memberOf overlay to test pure POSIX mode...';
+        # The osixia/openldap image has memberOf enabled by default
+        # We need to disable it for pure POSIX testing
+        ldapmodify -x -H ldap://ldap-posix:389 -D 'cn=admin,cn=config' -w config_password <<'EOFMOD' || echo 'memberOf overlay may already be disabled';
+        dn: olcOverlay={0}memberof,olcDatabase={1}mdb,cn=config
+        changetype: delete
+        EOFMOD
+
+        echo 'Loading POSIX seed data...';
+        ldapadd -x -H ldap://ldap-posix:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed.ldif || true;
+
+        echo 'Verifying POSIX groups created...';
+        ldapsearch -x -H ldap://ldap-posix:389 -D 'cn=readonly,dc=example,dc=com' -w readonly_password \
+          -b 'ou=posix-groups,dc=example,dc=com' '(objectClass=posixGroup)' cn memberUid | head -30;
+
+        echo 'Verifying users do NOT have memberOf attribute...';
+        ldapsearch -x -H ldap://ldap-posix:389 -D 'cn=readonly,dc=example,dc=com' -w readonly_password \
+          -b 'ou=users,dc=example,dc=com' '(uid=admin)' uid mail memberOf | head -20;
+
+        echo 'LDAP POSIX server ready';
+        tail -f /dev/null
+
+  # Phoenix with POSIX mode (GROUP_SEARCH_FILTER)
+  # This uses group search instead of memberOf attribute
+  # EXPECTED: This will FAIL because Phoenix passes DN instead of uid to memberUid filter
+  phoenix-posix:
+    profiles: ["ldap-test"]
+    container_name: ${PROJECT_NAME:-devops}-phoenix-posix
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    environment:
+      # Enable LDAP authentication
+      - PHOENIX_ENABLE_AUTH=true
+      - PHOENIX_DISABLE_BASIC_AUTH=false
+      - PHOENIX_DISABLE_RATE_LIMIT=true
+      - PHOENIX_SECRET=dev-secret-for-posix-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-posix-testing-only-12345678
+      # LDAP Configuration for POSIX mode
+      - PHOENIX_LDAP_HOST=ldap-posix
+      - PHOENIX_LDAP_PORT=389
+      - PHOENIX_LDAP_TLS_MODE=none
+      - PHOENIX_LDAP_BIND_DN=cn=readonly,dc=example,dc=com
+      - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
+      - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
+      - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
+      - PHOENIX_LDAP_ATTR_EMAIL=mail
+      - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
+      # POSIX MODE: Use GROUP_SEARCH_FILTER instead of memberOf attribute
+      # This enables the code path where Phoenix searches for groups
+      - PHOENIX_LDAP_ATTR_MEMBER_OF=
+      - PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS=["ou=posix-groups,dc=example,dc=com"]
+      - PHOENIX_LDAP_GROUP_SEARCH_FILTER=(&(objectClass=posixGroup)(memberUid=%s))
+      # CRITICAL: memberUid contains username (e.g., "admin"), not DN
+      # This setting tells Phoenix to use the "uid" attribute value for %s substitution
+      - PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR=uid
+      - PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=posix-groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=posix-groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"cn=viewers,ou=posix-groups,dc=example,dc=com","role":"VIEWER"},{"group_dn":"*","role":"VIEWER"}]
+      - PHOENIX_LDAP_ALLOW_SIGN_UP=true
+      # In-memory SQLite
+      - "PHOENIX_SQL_DATABASE_URL=sqlite:///:memory:"
+    depends_on:
+      - ldap-posix
+      - ldap-posix-seed
+    labels:
+      - "phoenix.auth.mode=ldap-posix"
+
+  # Grafana LDAP (for comparison with Phoenix)
+  grafana-ldap:
+    profiles: ["ldap-test"]
+    image: grafana/grafana:latest
+    container_name: ${PROJECT_NAME:-devops}-grafana-ldap
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_LDAP_ENABLED=true
+      - GF_AUTH_LDAP_CONFIG_FILE=/etc/grafana/ldap.toml
+      - GF_AUTH_LDAP_ALLOW_SIGN_UP=true
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_SECURITY_SECRET_KEY=grafana-secret-key-for-testing
+    volumes:
+      - ./ldap-grafana.toml:/etc/grafana/ldap.toml:ro
+    depends_on:
+      - ldap
+      - ldap-seed
+      - ldap-mitm-proxy
+    labels:
+      - "grafana.ldap.enabled=true"
+
+  # Test runner for TLS verification
+  ldap-test:
+    profiles: ["ldap-test"]
+    image: python:3.14-slim
+    container_name: ${PROJECT_NAME:-devops}-ldap-test
+    depends_on:
+      - ldap-seed
+      - phoenix-starttls
+      - phoenix
+      - phoenix-anonymous-ldaps
+      - phoenix-anonymous-starttls
+      - phoenix-posix
+      - grafana-ldap
+    environment:
+      # Use main Phoenix endpoint for integration tests (direct connection, no MITM proxy)
+      - PHOENIX_URL=http://phoenix:6006
+      - PHOENIX_STARTTLS_URL=http://phoenix-starttls:6006
+      - PHOENIX_LDAPS_URL=http://phoenix:6006
+      - PHOENIX_ANONYMOUS_LDAPS_URL=http://phoenix-anonymous-ldaps:6006
+      - PHOENIX_ANONYMOUS_STARTTLS_URL=http://phoenix-anonymous-starttls:6006
+      # POSIX mode testing (GROUP_SEARCH_FILTER with memberUid)
+      - PHOENIX_POSIX_URL=http://phoenix-posix:6006
+      - GRAFANA_URL=http://grafana-ldap:3000
+      - LDAP_HOST=ldap
+      - LDAP_PORT=389
+      - MITM_API_URL=http://ldap-mitm-proxy:8080
+      - MITM_ANONYMOUS_API_URL=http://ldap-anonymous-mitm-proxy:8080
+    volumes:
+      - ./scripts/test_ldap_tls.py:/test_ldap_tls.py:ro
+      - ./scripts/test_ldap_integration.py:/test_ldap_integration.py:ro
+    working_dir: /
+    entrypoint: /bin/bash
+    command: >
+      -c "
+      echo '⏳ Installing dependencies...';
+      apt-get update -qq && apt-get install -y -qq ldap-utils 2>&1 | grep -v 'debconf';
+      pip install --quiet requests ldap3;
+      echo '⏳ Waiting for LDAP seed data to be loaded...';
+      for i in $$(seq 1 30); do
+        if python3 -c \"import requests; r = requests.post('http://phoenix:6006/auth/ldap/login', json={'username': 'admin', 'password': 'password123'}, timeout=5); exit(0 if r.status_code == 204 else 1)\" 2>/dev/null; then
+          echo '✅ LDAP seed data is ready';
+          break;
+        fi;
+        echo 'Attempt '$$i'/30: LDAP data not ready, waiting...';
+        sleep 3;
+      done;
+      echo '🧪 Running LDAP integration tests (includes POSIX mode)...';
+      echo '';
+      python3 /test_ldap_integration.py;
+      EXIT_CODE=$$?;
+      echo '🧪 Running comprehensive LDAP TLS security tests...';
+      echo '';
+      python3 /test_ldap_tls.py;
+      TLS_EXIT_CODE=$$?;
+      echo '';
+      if [ $$EXIT_CODE -eq 0 ]; then
+        echo '✅ All LDAP integration tests passed';
+      else
+        echo '❌ Some LDAP integration tests failed';
+      fi;
+      if [ $$TLS_EXIT_CODE -eq 0 ]; then
+        echo '✅ All TLS security tests passed';
+      else
+        echo '❌ TLS security tests failed - VULNERABILITIES DETECTED';
+      fi;
+      echo '';
+      echo 'Keeping container alive for debugging...';
+      tail -f /dev/null
+      "
+
+volumes:
+  ldap-test-data:
+  ldap-test-config:
+  ldap-anonymous-data:
+  ldap-anonymous-config:
+  ldap-posix-data:
+  ldap-posix-config:
+

@@ -836,6 +836,273 @@ class OAuth2Validators:
         return validator
 
 
+class LDAPValidators:
+    """Validators specific to LDAP authentication configuration."""
+
+    @staticmethod
+    def ldap_enabled() -> Validator:
+        """Validate that LDAP is enabled and host is configured."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return "PHOENIX_LDAP_HOST" in data and data["PHOENIX_LDAP_HOST"] != ""
+
+        return validator
+
+    @staticmethod
+    def ldap_not_enabled() -> Validator:
+        """Validate that LDAP environment variables are not present when disabled."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return "PHOENIX_LDAP_HOST" not in data
+
+        return validator
+
+    @staticmethod
+    def ldap_server_config(
+        host: str,
+        port: Optional[str] = None,
+        tls_mode: str = "starttls",
+        tls_verify: bool = True,
+    ) -> Validator:
+        """Validate LDAP server connection configuration."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+
+            if data.get("PHOENIX_LDAP_HOST") != host:
+                return False
+            if port is not None and data.get("PHOENIX_LDAP_PORT") != port:
+                return False
+            if data.get("PHOENIX_LDAP_TLS_MODE") != tls_mode:
+                return False
+            if data.get("PHOENIX_LDAP_TLS_VERIFY") != str(tls_verify).lower():
+                return False
+
+            return True
+
+        return validator
+
+    @staticmethod
+    def ldap_bind_config(bind_dn: str) -> Validator:
+        """Validate LDAP bind DN configuration."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return data.get("PHOENIX_LDAP_BIND_DN") == bind_dn
+
+        return validator
+
+    @staticmethod
+    def ldap_bind_password_in_secret() -> Validator:
+        """Validate LDAP bind password is stored in Secret."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            secret = find_resource(resources, "Secret", "phoenix-secret")
+            if not secret:
+                return False
+
+            return "PHOENIX_LDAP_BIND_PASSWORD" in secret.get("data", {})
+
+        return validator
+
+    @staticmethod
+    def ldap_user_search(search_base_dns: list[str], search_filter: str) -> Validator:
+        """Validate LDAP user search configuration."""
+        import json
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return (
+                data.get("PHOENIX_LDAP_USER_SEARCH_BASE_DNS") == json.dumps(search_base_dns)
+                and data.get("PHOENIX_LDAP_USER_SEARCH_FILTER") == search_filter
+            )
+
+        return validator
+
+    @staticmethod
+    def ldap_attribute_mapping(
+        attr_email: str = "mail",
+        attr_display_name: str = "displayName",
+        attr_member_of: Optional[str] = "memberOf",
+        attr_unique_id: Optional[str] = None,
+    ) -> Validator:
+        """Validate LDAP attribute mapping configuration."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+
+            if data.get("PHOENIX_LDAP_ATTR_EMAIL") != attr_email:
+                return False
+            if data.get("PHOENIX_LDAP_ATTR_DISPLAY_NAME") != attr_display_name:
+                return False
+            if attr_member_of is not None:
+                if data.get("PHOENIX_LDAP_ATTR_MEMBER_OF") != attr_member_of:
+                    return False
+            if attr_unique_id is not None:
+                if data.get("PHOENIX_LDAP_ATTR_UNIQUE_ID") != attr_unique_id:
+                    return False
+
+            return True
+
+        return validator
+
+    @staticmethod
+    def ldap_group_search(search_base_dns: list[str], search_filter: str) -> Validator:
+        """Validate LDAP group search configuration (for POSIX groups)."""
+        import json
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return (
+                data.get("PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS") == json.dumps(search_base_dns)
+                and data.get("PHOENIX_LDAP_GROUP_SEARCH_FILTER") == search_filter
+            )
+
+        return validator
+
+    @staticmethod
+    def ldap_group_role_mappings(mappings: str) -> Validator:
+        """Validate LDAP group to role mappings."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return data.get("PHOENIX_LDAP_GROUP_ROLE_MAPPINGS") == mappings
+
+        return validator
+
+    @staticmethod
+    def ldap_allow_sign_up(allow: bool) -> Validator:
+        """Validate LDAP allow sign up setting."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return data.get("PHOENIX_LDAP_ALLOW_SIGN_UP") == str(allow).lower()
+
+        return validator
+
+    @staticmethod
+    def ldap_tls_files(
+        ca_cert_file: Optional[str] = None,
+        client_cert_file: Optional[str] = None,
+        client_key_file: Optional[str] = None,
+    ) -> Validator:
+        """Validate LDAP TLS certificate file configuration."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+
+            if ca_cert_file is not None:
+                if data.get("PHOENIX_LDAP_TLS_CA_CERT_FILE") != ca_cert_file:
+                    return False
+            if client_cert_file is not None:
+                if data.get("PHOENIX_LDAP_TLS_CLIENT_CERT_FILE") != client_cert_file:
+                    return False
+            if client_key_file is not None:
+                if data.get("PHOENIX_LDAP_TLS_CLIENT_KEY_FILE") != client_key_file:
+                    return False
+
+            return True
+
+        return validator
+
+    @staticmethod
+    def ldap_comprehensive(
+        host: str,
+        user_search_base_dns: list[str],
+        user_search_filter: str = "(&(objectClass=user)(sAMAccountName=%s))",
+        port: Optional[str] = None,
+        tls_mode: str = "starttls",
+        bind_dn: Optional[str] = None,
+        has_bind_password: bool = False,
+        attr_email: str = "mail",
+        attr_display_name: str = "displayName",
+        allow_sign_up: bool = True,
+    ) -> Validator:
+        """Comprehensive validator for LDAP configuration."""
+        import json
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+
+            # Required fields
+            if data.get("PHOENIX_LDAP_HOST") != host:
+                return False
+            if data.get("PHOENIX_LDAP_USER_SEARCH_BASE_DNS") != json.dumps(user_search_base_dns):
+                return False
+            if data.get("PHOENIX_LDAP_USER_SEARCH_FILTER") != user_search_filter:
+                return False
+
+            # Optional fields
+            if port is not None and data.get("PHOENIX_LDAP_PORT") != port:
+                return False
+            if data.get("PHOENIX_LDAP_TLS_MODE") != tls_mode:
+                return False
+            if bind_dn is not None and data.get("PHOENIX_LDAP_BIND_DN") != bind_dn:
+                return False
+            if data.get("PHOENIX_LDAP_ATTR_EMAIL") != attr_email:
+                return False
+            if data.get("PHOENIX_LDAP_ATTR_DISPLAY_NAME") != attr_display_name:
+                return False
+            if data.get("PHOENIX_LDAP_ALLOW_SIGN_UP") != str(allow_sign_up).lower():
+                return False
+
+            # Check bind password in secret if expected
+            if has_bind_password:
+                secret = find_resource(resources, "Secret", "phoenix-secret")
+                if not secret or "PHOENIX_LDAP_BIND_PASSWORD" not in secret.get("data", {}):
+                    return False
+
+            return True
+
+        return validator
+
+
 class SMTPValidators:
     """Validators specific to SMTP configuration."""
 
@@ -2103,6 +2370,150 @@ def get_test_suite() -> list[TestCase]:
                 ),
                 OAuth2Validators.provider_role_mapping(
                     "okta", "role", "Owner:ADMIN", role_attribute_strict=True
+                ),
+            ),
+        ),
+        # LDAP Authentication
+        TestCase(
+            "LDAP disabled (default)",
+            "",
+            LDAPValidators.ldap_not_enabled(),
+        ),
+        TestCase(
+            "LDAP basic configuration (Active Directory)",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]'""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                ConfigMapValidators.configmap_has_key("PHOENIX_LDAP_HOST", "ldap.corp.com"),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["OU=Users,DC=corp,DC=com"]'
+                ),
+            ),
+        ),
+        TestCase(
+            "LDAP with LDAPS (port 636)",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set auth.ldap.port=636 --set auth.ldap.tlsMode=ldaps --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]'""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_server_config(
+                    host="ldap.corp.com",
+                    port="636",
+                    tls_mode="ldaps",
+                ),
+            ),
+        ),
+        TestCase(
+            "LDAP with bind credentials",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set-string "auth.ldap.bindDn=CN=svc-phoenix\\,OU=Service Accounts\\,DC=corp\\,DC=com" --set auth.ldap.bindPassword=secret123""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_bind_config(
+                    "CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com"
+                ),
+                LDAPValidators.ldap_bind_password_in_secret(),
+            ),
+        ),
+        TestCase(
+            "LDAP with custom user search filter (OpenLDAP)",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set-string "auth.ldap.userSearchFilter=(&(objectClass=inetOrgPerson)(uid=%s))\"""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_user_search(
+                    ["ou=users,dc=example,dc=com"],
+                    "(&(objectClass=inetOrgPerson)(uid=%s))",
+                ),
+            ),
+        ),
+        TestCase(
+            "LDAP with custom attribute mapping",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.attrEmail=userPrincipalName --set auth.ldap.attrDisplayName=cn --set auth.ldap.attrUniqueId=objectGUID""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_attribute_mapping(
+                    attr_email="userPrincipalName",
+                    attr_display_name="cn",
+                    attr_unique_id="objectGUID",
+                ),
+            ),
+        ),
+        TestCase(
+            "LDAP with POSIX group search (OpenLDAP)",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrMemberOf= --set-json 'auth.ldap.groupSearchBaseDns=["ou=groups,dc=example,dc=com"]' --set-string "auth.ldap.groupSearchFilter=(&(objectClass=posixGroup)(memberUid=%s))\"""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_group_search(
+                    ["ou=groups,dc=example,dc=com"],
+                    "(&(objectClass=posixGroup)(memberUid=%s))",
+                ),
+            ),
+        ),
+        TestCase(
+            "LDAP with group role mappings",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set-string "auth.ldap.groupRoleMappings=[{\\"group_dn\\":\\"CN=Admins\\,DC=corp\\,DC=com\\"\\,\\"role\\":\\"ADMIN\\"}]\"""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_group_role_mappings(
+                    '[{"group_dn":"CN=Admins,DC=corp,DC=com","role":"ADMIN"}]'
+                ),
+            ),
+        ),
+        TestCase(
+            "LDAP with sign-up disabled",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.allowSignUp=false""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_allow_sign_up(False),
+            ),
+        ),
+        TestCase(
+            "LDAP with custom CA certificate",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.tlsCaCertFile=/etc/ssl/certs/internal-ca.pem""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_tls_files(ca_cert_file="/etc/ssl/certs/internal-ca.pem"),
+            ),
+        ),
+        TestCase(
+            "LDAP with mutual TLS (client certificates)",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.tlsClientCertFile=/etc/ssl/certs/client.crt --set auth.ldap.tlsClientKeyFile=/etc/ssl/private/client.key""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_tls_files(
+                    client_cert_file="/etc/ssl/certs/client.crt",
+                    client_key_file="/etc/ssl/private/client.key",
+                ),
+            ),
+        ),
+        TestCase(
+            "LDAP comprehensive configuration",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set auth.ldap.port=636 --set auth.ldap.tlsMode=ldaps --set-string "auth.ldap.bindDn=CN=svc-phoenix\\,OU=Service Accounts\\,DC=corp\\,DC=com" --set auth.ldap.bindPassword=secret --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.attrEmail=mail --set auth.ldap.attrDisplayName=displayName --set auth.ldap.allowSignUp=false""",
+            LDAPValidators.ldap_comprehensive(
+                host="ldap.corp.com",
+                user_search_base_dns=["OU=Users,DC=corp,DC=com"],
+                port="636",
+                tls_mode="ldaps",
+                bind_dn="CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com",
+                has_bind_password=True,
+                attr_email="mail",
+                attr_display_name="displayName",
+                allow_sign_up=False,
+            ),
+        ),
+        TestCase(
+            "LDAP with basic auth disabled (LDAP-only)",
+            """--set auth.enableAuth=true --set auth.disableBasicAuth=true --set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]'""",
+            all_of(
+                ConfigMapValidators.configmap_has_key("PHOENIX_DISABLE_BASIC_AUTH", "true"),
+                LDAPValidators.ldap_enabled(),
+            ),
+        ),
+        TestCase(
+            "LDAP with multiple server hosts (failover)",
+            """--set auth.ldap.enabled=true --set-string "auth.ldap.host=dc1.corp.com\\,dc2.corp.com\\,dc3.corp.com" --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]'""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_LDAP_HOST", "dc1.corp.com,dc2.corp.com,dc3.corp.com"
                 ),
             ),
         ),

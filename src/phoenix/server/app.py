@@ -150,7 +150,7 @@ from phoenix.server.api.dataloaders import (
 )
 from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
 from phoenix.server.api.routers import (
-    auth_router,
+    create_auth_router,
     create_embeddings_router,
     create_v1_router,
     oauth2_router,
@@ -197,6 +197,8 @@ from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
+
+    from phoenix.config import LDAPConfig
 
 logger = logging.getLogger(__name__)
 
@@ -258,6 +260,8 @@ class AppConfig(NamedTuple):
     """ Mapping of auth error codes to user-friendly messages """
     oauth2_idps: Sequence[OAuth2Idp]
     basic_auth_disabled: bool = False
+    ldap_enabled: bool = False
+    """ Whether LDAP authentication is configured """
     auto_login_idp_name: Optional[str] = None
     fullstory_org: Optional[str] = None
     """ FullStory organization ID for web analytics tracking """
@@ -326,6 +330,7 @@ class Static(StaticFiles):
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
+                    "ldap_enabled": self._app_config.ldap_enabled,
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
                     "fullstory_org": self._app_config.fullstory_org,
                     "management_url": self._app_config.management_url,
@@ -988,6 +993,7 @@ def create_app(
     scaffolder_config: Optional[ScaffolderConfig] = None,
     email_sender: Optional[EmailSender] = None,
     oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
+    ldap_config: Optional["LDAPConfig"] = None,
     basic_auth_disabled: bool = False,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
@@ -1146,7 +1152,8 @@ def create_app(
     app.include_router(router)
     app.include_router(graphql_router)
     if authentication_enabled:
-        app.include_router(auth_router)
+        # Only register LDAP endpoint if LDAP is configured
+        app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
         app.include_router(oauth2_router)
     app.add_middleware(GZipMiddleware)
     web_manifest_path = SERVER_DIR / "static" / ".vite" / "manifest.json"
@@ -1173,6 +1180,7 @@ def create_app(
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
                     basic_auth_disabled=basic_auth_disabled,
+                    ldap_enabled=ldap_config is not None,
                     auto_login_idp_name=auto_login_idp_name,
                     fullstory_org=Settings.fullstory_org,
                     management_url=management_url,
@@ -1194,6 +1202,11 @@ def create_app(
     app.state.access_token_expiry = access_token_expiry
     app.state.refresh_token_expiry = refresh_token_expiry
     app.state.oauth2_clients = OAuth2Clients.from_configs(oauth2_client_configs or [])
+    # Cache LDAPAuthenticator to avoid re-parsing TLS config on every login
+    if ldap_config:
+        from phoenix.server.ldap import LDAPAuthenticator
+
+        app.state.ldap_authenticator = LDAPAuthenticator(ldap_config)
     app.state.db = db
     app.state.email_sender = email_sender
     app.state.span_cost_calculator = span_cost_calculator

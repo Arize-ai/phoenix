@@ -1,4 +1,5 @@
 -r ci.txt
+-r type-check.txt
 asyncpg
 beautifulsoup4
 faker

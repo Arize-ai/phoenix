@@ -63,6 +63,7 @@ dependencies = [
   "prometheus_client",
   "orjson",
   "jmespath",
+  "ldap3",
 ]
 dynamic = ["version"]
 

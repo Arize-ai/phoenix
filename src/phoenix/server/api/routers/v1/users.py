@@ -36,6 +36,7 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked, require_admin
+from phoenix.server.ldap import is_ldap_user
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,10 @@ class OAuth2UserData(UserData):
     oauth2_user_id: str = UNDEFINED
 
 
+class LDAPUserData(UserData):
+    auth_method: Literal["LDAP"]
+
+
 class DbUser(V1RoutesBaseModel):
     id: str
     created_at: datetime
@@ -73,7 +78,13 @@ class OAuth2User(OAuth2UserData, DbUser):
     profile_picture_url: str = UNDEFINED
 
 
-User: TypeAlias = Annotated[Union[LocalUser, OAuth2User], Field(..., discriminator="auth_method")]
+class LDAPUser(LDAPUserData, DbUser):
+    pass
+
+
+User: TypeAlias = Annotated[
+    Union[LocalUser, OAuth2User, LDAPUser], Field(..., discriminator="auth_method")
+]
 
 
 class GetUsersResponseBody(PaginatedResponseBody[User]):
@@ -85,7 +96,9 @@ class GetUserResponseBody(ResponseBody[User]):
 
 
 class CreateUserRequestBody(V1RoutesBaseModel):
-    user: Annotated[Union[LocalUserData, OAuth2UserData], Field(..., discriminator="auth_method")]
+    user: Annotated[
+        Union[LocalUserData, OAuth2UserData, LDAPUserData], Field(..., discriminator="auth_method")
+    ]
     send_welcome_email: bool = True
 
 
@@ -152,6 +165,19 @@ async def list_users(
                     password_needs_reset=user.reset_password,
                 )
             )
+        elif isinstance(user, models.OAuth2User) and is_ldap_user(user.oauth2_client_id):
+            # Check if this is an LDAP user (identified by special marker)
+            data.append(
+                LDAPUser(
+                    id=str(GlobalID("User", str(user.id))),
+                    username=user.username,
+                    email=user.email,
+                    role=user.role.name,
+                    created_at=user.created_at,
+                    updated_at=user.updated_at,
+                    auth_method="LDAP",
+                )
+            )
         elif isinstance(user, models.OAuth2User):
             oauth2_user = OAuth2User(
                 id=str(GlobalID("User", str(user.id))),
@@ -208,6 +234,14 @@ async def create_user(
             detail="Cannot create users with SYSTEM role",
         )
 
+    # Prevent OAuth2 users from using the LDAP marker or any variation
+    if isinstance(user_data, OAuth2UserData):
+        if is_ldap_user(user_data.oauth2_client_id):
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot create OAuth2 users with reserved LDAP identifier",
+            )
+
     user: models.User
     if isinstance(user_data, LocalUserData):
         password = (user_data.password or secrets.token_hex()).strip()
@@ -231,6 +265,11 @@ async def create_user(
             username=username,
             oauth2_client_id=user_data.oauth2_client_id or None,
             oauth2_user_id=user_data.oauth2_user_id or None,
+        )
+    elif isinstance(user_data, LDAPUserData):
+        user = models.LDAPUser(
+            email=email,
+            username=username,
         )
     else:
         assert_never(user_data)
@@ -280,6 +319,16 @@ async def create_user(
             data.oauth2_user_id = user.oauth2_user_id
         if user.profile_picture_url:
             data.profile_picture_url = user.profile_picture_url
+    elif isinstance(user_data, LDAPUserData):
+        data = LDAPUser(
+            id=id_,
+            email=email,
+            username=username,
+            auth_method="LDAP",
+            role=user_data.role,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        )
     else:
         assert_never(user_data)
     # Send welcome email if requested

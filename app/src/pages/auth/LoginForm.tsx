@@ -84,69 +84,74 @@ export function LoginForm(props: LoginFormProps) {
           <Alert variant="danger">{error}</Alert>{" "}
         </View>
       ) : null}
-      <Form>
-        <Flex direction="column" gap="size-100">
-          <Controller
-            name="email"
-            control={control}
-            render={({ field: { onChange, value, onBlur } }) => (
-              <TextField
-                name="email"
-                isRequired
-                type="email"
-                onChange={onChange}
-                onBlur={onBlur}
-                value={value}
-                autoComplete="email"
-              >
-                <Label>Email</Label>
-                <Input placeholder="your email address" />
-              </TextField>
-            )}
-          />
-          <div
-            css={css`
-              position: relative;
-              a {
-                position: absolute;
-                float: right;
-                right: 0;
-                top: var(--ac-global-dimension-size-50);
-                font-size: 12px;
-              }
-            `}
-          >
+      <Form onSubmit={handleSubmit(onSubmit)}>
+        <Flex direction="column" gap="size-200">
+          <Flex direction="column" gap="size-100">
             <Controller
-              name="password"
+              name="email"
               control={control}
-              render={({ field: { onChange, value } }) => (
+              render={({ field: { onChange, value, onBlur } }) => (
                 <TextField
-                  name="password"
-                  type="password"
+                  name="email"
                   isRequired
+                  type="email"
                   onChange={onChange}
+                  onBlur={onBlur}
                   value={value}
+                  autoComplete="email"
                   onKeyDown={(e) => {
+                    // Prevent form submission on Enter - user likely wants to tab to password
                     if (e.key === "Enter") {
-                      handleSubmit(onSubmit)();
+                      e.preventDefault();
                     }
                   }}
-                  autoComplete="password"
                 >
-                  <Label>Password</Label>
-                  <Input placeholder="your password" />
+                  <Label>Email</Label>
+                  <Input placeholder="your email address" />
                 </TextField>
               )}
             />
-            <Link to="/forgot-password">Forgot your password?</Link>
-          </div>
+            <div
+              css={css`
+                position: relative;
+                .link-container {
+                  position: absolute;
+                  float: right;
+                  right: 0;
+                  top: var(--ac-global-dimension-size-50);
+                  font-size: 12px;
+                }
+              `}
+            >
+              <Controller
+                name="password"
+                control={control}
+                render={({ field: { onChange, value } }) => (
+                  <TextField
+                    name="password"
+                    type="password"
+                    isRequired
+                    onChange={onChange}
+                    value={value}
+                    autoComplete="current-password"
+                  >
+                    <Label>Password</Label>
+                    <Input placeholder="your password" />
+                  </TextField>
+                )}
+              />
+              <Link id="forgot-password-link" to="/forgot-password">
+                Forgot your password?
+              </Link>
+            </div>
+          </Flex>
           <Button
             variant="primary"
+            type="submit"
             isDisabled={isLoading}
             leadingVisual={
               isLoading ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
             }
-            onPress={() => handleSubmit(onSubmit)()}
           >
             {isLoading ? "Logging In" : "Log In"}
           </Button>

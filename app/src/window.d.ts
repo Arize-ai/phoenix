@@ -22,6 +22,7 @@ declare global {
       authenticationEnabled: boolean;
       basicAuthDisabled: boolean;
       oAuth2Idps: OAuth2Idp[];
+      ldapEnabled: boolean;
       managementUrl?: string | null;
       supportEmail?: string | null;
       hasDbThreshold: boolean;

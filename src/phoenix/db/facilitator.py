@@ -26,10 +26,12 @@ from phoenix.auth import (
     compute_password_hash,
 )
 from phoenix.config import (
+    LDAPConfig,
     get_env_admins,
     get_env_default_admin_initial_password,
     get_env_default_retention_policy_days,
     get_env_disable_basic_auth,
+    get_env_oauth2_settings,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
@@ -198,6 +200,20 @@ async def _ensure_admins(
             return
         admin_role_id = await session.scalar(sa.select(models.UserRole.id).filter_by(name="ADMIN"))
         assert admin_role_id is not None, "Admin role not found in database"
+
+        # Determine which auth method to use for admin users
+        # Priority: LOCAL (if enabled) > LDAP (if configured and no OAuth2) > OAuth2
+        # Use try/except to handle invalid configurations gracefully
+        try:
+            ldap_config = LDAPConfig.from_env()
+        except Exception:
+            ldap_config = None
+        try:
+            oauth2_configs = get_env_oauth2_settings()
+        except Exception:
+            oauth2_configs = []
+        use_ldap = disable_basic_auth and ldap_config is not None and not oauth2_configs
+
         user: models.User
         for email, username in admins.items():
             if not disable_basic_auth:
@@ -206,6 +222,11 @@ async def _ensure_admins(
                     username=username,
                     password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
                     password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                )
+            elif use_ldap:
+                user = models.LDAPUser(
+                    email=email,
+                    username=username,
                 )
             else:
                 user = models.OAuth2User(

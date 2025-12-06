@@ -150,6 +150,7 @@ interface ApiKey {
 enum AuthMethod {
   LOCAL
   OAUTH2
+  LDAP
 }
 
 union Bin = NominalBin | IntervalBin | MissingValueBin

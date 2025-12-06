@@ -3,12 +3,7 @@ import time
 from collections import defaultdict
 from collections.abc import Callable, Coroutine
 from functools import partial
-from typing import (
-    Any,
-    Optional,
-    Pattern,  # import from re module when we drop support for 3.8
-    Union,
-)
+from typing import Any, Iterable
 
 from fastapi import HTTPException, Request
 
@@ -129,7 +124,7 @@ class ServerRateLimiter:
     def _fetch_token_bucket(self, key: str, request_time: float) -> TokenBucket:
         current_partition_index = self._current_partition_index(request_time)
         active_indices = self._active_partition_indices(current_partition_index)
-        bucket: Optional[TokenBucket] = None
+        bucket: TokenBucket | None = None
         for ii in active_indices:
             partition = self.cache_partitions[ii]
             if key in partition:
@@ -153,7 +148,7 @@ class ServerRateLimiter:
 
 
 def fastapi_ip_rate_limiter(
-    rate_limiter: ServerRateLimiter, paths: Optional[list[Union[str, Pattern[str]]]] = None
+    rate_limiter: ServerRateLimiter, paths: Iterable[str | re.Pattern[str]] | None = None
 ) -> Callable[[Request], Coroutine[Any, Any, Request]]:
     async def dependency(request: Request) -> Request:
         if paths is None or any(path_match(request.url.path, path) for path in paths):
@@ -182,7 +177,7 @@ def fastapi_route_rate_limiter(
     return dependency
 
 
-def path_match(path: str, match_pattern: Union[str, Pattern[str]]) -> bool:
+def path_match(path: str, match_pattern: str | re.Pattern[str]) -> bool:
     if isinstance(match_pattern, re.Pattern):
         return bool(match_pattern.match(path))
     return path == match_pattern

@@ -31,3 +31,4 @@ types-requests
 types-setuptools
 types-tabulate
 types-tqdm
+types-ldap3

@@ -50,7 +50,10 @@ class CreateUserInput:
     auth_method: Optional[AuthMethod] = AuthMethod.LOCAL
 
     def __post_init__(self) -> None:
-        if self.auth_method is AuthMethod.OAUTH2:
+        if self.auth_method is AuthMethod.LDAP:
+            if self.password:
+                raise BadRequest("Password is not allowed for LDAP authentication")
+        elif self.auth_method is AuthMethod.OAUTH2:
             if self.password:
                 raise BadRequest("Password is not allowed for OAuth2 authentication")
         elif get_env_disable_basic_auth():
@@ -125,7 +128,12 @@ class UserMutationMixin:
         email = sanitize_email(input.email)
 
         user: models.User
-        if input.auth_method is AuthMethod.OAUTH2:
+        if input.auth_method is AuthMethod.LDAP:
+            user = models.LDAPUser(
+                email=email,
+                username=input.username,
+            )
+        elif input.auth_method is AuthMethod.OAUTH2:
             user = models.OAuth2User(
                 email=email,
                 username=input.username,

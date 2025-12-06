@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Any, Optional, get_args
 from unittest.mock import MagicMock
@@ -734,8 +735,8 @@ class TestGetEnvAuthSettings:
                     "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
                     "PHOENIX_DISABLE_BASIC_AUTH": "true",
                 },
-                "OAuth2 is the only supported auth method but "
-                "no OAuth2 client configs are provided",
+                "PHOENIX_DISABLE_BASIC_AUTH is set, but no alternative authentication methods "
+                "are configured",
                 id="basic_auth_disabled_without_oauth2",
             ),
         ],
@@ -760,6 +761,7 @@ class TestGetEnvAuthSettings:
         monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", raising=False)
         monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME", raising=False)
         monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL", raising=False)
+        monkeypatch.delenv("PHOENIX_LDAP_HOST", raising=False)
 
         # Set the test environment variables
         for key, value in env_vars.items():
@@ -1484,3 +1486,404 @@ def test_oauth2_role_names_are_subset_of_user_role_names() -> None:
     assert oauth2_roles == {"ADMIN", "MEMBER", "VIEWER"}, (
         "OAuth2 should only allow ADMIN, MEMBER, VIEWER"
     )
+
+
+class TestLDAPConfigFromEnv:
+    """Test LDAP configuration loading from environment variables."""
+
+    @pytest.mark.parametrize(
+        "env_vars, expected_error_msg",
+        [
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "not-valid-json",
+                },
+                "is not valid JSON",
+                id="invalid_json_mappings",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '{"admin": ["..."]}',
+                },
+                "must be a JSON array",
+                id="mappings_not_array",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '["not-a-dict"]',
+                },
+                "must be an object",
+                id="mapping_not_object",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"role": "ADMIN"}]',
+                },
+                "missing required field 'group_dn'",
+                id="missing_group_dn",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "..."}]',
+                },
+                "missing required field 'role'",
+                id="missing_role",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "...", "role": "invalid_role"}]',
+                },
+                "role must be one of",
+                id="invalid_role_lowercase",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_TLS_MODE": "invalid",
+                },
+                "must be 'none', 'starttls', or 'ldaps'",
+                id="invalid_tls_mode",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(&(objectClass=posixGroup)(memberUid=%s))",
+                    # Missing PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS
+                },
+                "GROUP_SEARCH_FILTER is set but",
+                id="group_search_filter_without_base_dns",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                },
+                "must be set",
+                id="missing_user_search_base_dns",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_TLS_CLIENT_CERT_FILE": "/path/to/cert.pem",
+                },
+                "requires PHOENIX_LDAP_TLS_CLIENT_KEY_FILE",
+                id="client_cert_without_key",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_TLS_CLIENT_KEY_FILE": "/path/to/key.pem",
+                },
+                "requires PHOENIX_LDAP_TLS_CLIENT_CERT_FILE",
+                id="client_key_without_cert",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "object GUID",
+                },
+                "LDAP attribute names do not contain spaces",
+                id="attr_unique_id_with_spaces",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "e mail",
+                },
+                "LDAP attribute names do not contain spaces",
+                id="attr_email_with_spaces",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "",
+                },
+                "cannot be empty",
+                id="attr_email_empty",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                },
+                "must contain at least one mapping",
+                id="empty_group_role_mappings",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_USER_SEARCH_FILTER": "(&(objectClass=user)(sAMAccountName=admin))",
+                },
+                "must contain '%s' placeholder for username",
+                id="user_search_filter_missing_placeholder",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS": '["ou=groups,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(&(objectClass=posixGroup)(memberUid=admin))",
+                },
+                "must contain '%s' placeholder",
+                id="group_search_filter_missing_placeholder",
+            ),
+        ],
+    )
+    def test_invalid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_error_msg: str,
+    ) -> None:
+        """Test that invalid LDAP configuration raises appropriate errors."""
+        # Clear all LDAP environment variables
+        for key in [k for k in os.environ if k.startswith("PHOENIX_LDAP_")]:
+            monkeypatch.delenv(key, raising=False)
+
+        # Set test environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        from phoenix.config import LDAPConfig
+
+        with pytest.raises(ValueError) as exc_info:
+            LDAPConfig.from_env()
+        assert expected_error_msg in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "env_vars, expected_attrs",
+        [
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+                        '[{"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"}]'
+                    ),
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "port": 389,
+                    "tls_mode": "starttls",
+                    "tls_verify": True,
+                    "bind_dn": None,
+                    "bind_password": None,
+                    "user_search_base_dns": ("ou=people,dc=example,dc=com",),
+                    "user_search_filter": "(&(objectClass=user)(sAMAccountName=%s))",
+                    "attr_email": "mail",
+                    "attr_display_name": "displayName",
+                    "attr_member_of": "memberOf",
+                    "group_search_base_dns": (),
+                    "group_search_filter": None,
+                    "group_role_mappings": (
+                        {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
+                    ),
+                },
+                id="minimal_active_directory",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "dc1.example.com,dc2.example.com",
+                    "PHOENIX_LDAP_PORT": "636",
+                    "PHOENIX_LDAP_TLS_MODE": "ldaps",
+                    "PHOENIX_LDAP_TLS_VERIFY": "false",
+                    "PHOENIX_LDAP_BIND_DN": "cn=admin,dc=example,dc=com",
+                    "PHOENIX_LDAP_BIND_PASSWORD": "secret",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=users,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_USER_SEARCH_FILTER": "(&(objectClass=person)(uid=%s))",
+                    "PHOENIX_LDAP_ATTR_EMAIL": "email",
+                    "PHOENIX_LDAP_ATTR_DISPLAY_NAME": "cn",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "VIEWER"}]',
+                },
+                {
+                    "hosts": ("dc1.example.com", "dc2.example.com"),
+                    "port": 636,
+                    "tls_mode": "ldaps",
+                    "tls_verify": False,
+                    "bind_dn": "cn=admin,dc=example,dc=com",
+                    "bind_password": "secret",
+                    "user_search_base_dns": ("ou=users,dc=example,dc=com",),
+                    "user_search_filter": "(&(objectClass=person)(uid=%s))",
+                    "attr_email": "email",
+                    "attr_display_name": "cn",
+                    "attr_member_of": "memberOf",
+                    "group_search_base_dns": (),
+                    "group_search_filter": None,
+                    "group_role_mappings": ({"group_dn": "*", "role": "VIEWER"},),
+                },
+                id="custom_settings_with_multiple_servers",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_ATTR_MEMBER_OF": "",
+                    "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS": '["ou=groups,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(&(objectClass=posixGroup)(memberUid=%s))",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+                        '[{"group_dn": "cn=phoenix-users,ou=groups,dc=example,dc=com", '
+                        '"role": "MEMBER"}]'
+                    ),
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "port": 389,
+                    "tls_mode": "starttls",
+                    "tls_verify": True,
+                    "bind_dn": None,
+                    "bind_password": None,
+                    "user_search_base_dns": ("ou=people,dc=example,dc=com",),
+                    "user_search_filter": "(&(objectClass=user)(sAMAccountName=%s))",
+                    "attr_email": "mail",
+                    "attr_display_name": "displayName",
+                    "attr_member_of": "",
+                    "group_search_base_dns": ("ou=groups,dc=example,dc=com",),
+                    "group_search_filter": "(&(objectClass=posixGroup)(memberUid=%s))",
+                    "group_role_mappings": (
+                        {
+                            "group_dn": "cn=phoenix-users,ou=groups,dc=example,dc=com",
+                            "role": "MEMBER",
+                        },
+                    ),
+                },
+                id="posix_groups",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_TLS_MODE": "starttls",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "VIEWER"}]',
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "port": 389,  # Should default to 389 for STARTTLS
+                    "tls_mode": "starttls",
+                },
+                id="starttls_defaults_to_port_389",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_TLS_MODE": "ldaps",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "VIEWER"}]',
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "port": 636,  # Should default to 636 for LDAPS
+                    "tls_mode": "ldaps",
+                },
+                id="ldaps_defaults_to_port_636",
+            ),
+        ],
+    )
+    def test_valid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_attrs: dict[str, Any],
+    ) -> None:
+        """Test that valid LDAP configuration is loaded correctly."""
+        # Clear all LDAP environment variables
+        for key in [k for k in os.environ if k.startswith("PHOENIX_LDAP_")]:
+            monkeypatch.delenv(key, raising=False)
+
+        # Set test environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        from phoenix.config import LDAPConfig
+
+        config = LDAPConfig.from_env()
+        assert config is not None
+
+        for attr, expected_value in expected_attrs.items():
+            assert getattr(config, attr) == expected_value, (
+                f"Mismatch for attribute '{attr}': "
+                f"expected {expected_value}, got {getattr(config, attr)}"
+            )
+
+    def test_returns_none_when_host_not_set(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that from_env returns None when PHOENIX_LDAP_HOST is not set."""
+        monkeypatch.delenv("PHOENIX_LDAP_HOST", raising=False)
+
+        from phoenix.config import LDAPConfig
+
+        assert LDAPConfig.from_env() is None
+
+    def test_tls_custom_ca_cert(self, monkeypatch: MonkeyPatch, tmp_path: Any) -> None:
+        """Test that custom CA certificate file path is correctly loaded."""
+        # Create a dummy CA cert file
+        ca_cert_file = tmp_path / "ca.pem"
+        ca_cert_file.write_text("-----BEGIN CERTIFICATE-----\nfake cert\n-----END CERTIFICATE-----")
+
+        monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["ou=people,dc=example,dc=com"]')
+        monkeypatch.setenv(
+            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", '[{"group_dn": "*", "role": "MEMBER"}]'
+        )
+        monkeypatch.setenv("PHOENIX_LDAP_TLS_CA_CERT_FILE", str(ca_cert_file))
+
+        from phoenix.config import LDAPConfig
+
+        config = LDAPConfig.from_env()
+        assert config is not None
+        assert config.tls_ca_cert_file == str(ca_cert_file)
+
+    def test_tls_client_cert_and_key(self, monkeypatch: MonkeyPatch, tmp_path: Any) -> None:
+        """Test that client certificate and key paths are correctly loaded."""
+        # Create dummy client cert and key files
+        client_cert_file = tmp_path / "client.crt"
+        client_key_file = tmp_path / "client.key"
+        client_cert_file.write_text(
+            "-----BEGIN CERTIFICATE-----\nfake cert\n-----END CERTIFICATE-----"
+        )
+        client_key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\nfake key\n-----END PRIVATE KEY-----"
+        )
+
+        monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["ou=people,dc=example,dc=com"]')
+        monkeypatch.setenv(
+            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", '[{"group_dn": "*", "role": "MEMBER"}]'
+        )
+        monkeypatch.setenv("PHOENIX_LDAP_TLS_CLIENT_CERT_FILE", str(client_cert_file))
+        monkeypatch.setenv("PHOENIX_LDAP_TLS_CLIENT_KEY_FILE", str(client_key_file))
+
+        from phoenix.config import LDAPConfig
+
+        config = LDAPConfig.from_env()
+        assert config is not None
+        assert config.tls_client_cert_file == str(client_cert_file)
+        assert config.tls_client_key_file == str(client_key_file)

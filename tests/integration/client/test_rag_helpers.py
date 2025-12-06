@@ -1,4 +1,4 @@
-# pyright: reportUnknownArgumentType=false, reportUnknownMemberType=false, reportAssignmentType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownMemberType=false, reportAssignmentType=false, reportCallIssue=false, reportUnknownVariableType=false
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
