@@ -444,6 +444,7 @@ class ChatCompletionMutationMixin:
             llm_evaluators = await get_llm_evaluators(
                 evaluator_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
+                llm_client=llm_client,
             )
             # Get or create the project ID
             if (
@@ -517,7 +518,6 @@ class ChatCompletionMutationMixin:
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=input_mapping,
-                    llm_client=llm_client,
                 )
                 annotation = ExperimentRunAnnotation.from_dict(
                     {

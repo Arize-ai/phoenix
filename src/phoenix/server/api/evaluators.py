@@ -52,11 +52,15 @@ class EvaluationResult(TypedDict):
 
 class LLMEvaluator:
     def __init__(
-        self, llm_evaluator_orm: models.LLMEvaluator, prompt_version_orm: models.PromptVersion
+        self,
+        llm_evaluator_orm: models.LLMEvaluator,
+        prompt_version_orm: models.PromptVersion,
+        llm_client: PlaygroundStreamingClient,
     ) -> None:
         validate_consistent_llm_evaluator_and_prompt_version(prompt_version_orm, llm_evaluator_orm)
         self._llm_evaluator_orm = llm_evaluator_orm
         self._prompt_version_orm = prompt_version_orm
+        self._llm_client = llm_client
 
     @property
     def id(self) -> GlobalID:
@@ -104,7 +108,6 @@ class LLMEvaluator:
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
-        llm_client: PlaygroundStreamingClient,
     ) -> EvaluationResult:
         prompt_version = self._prompt_version_orm
         evaluator = self._llm_evaluator_orm
@@ -142,7 +145,7 @@ class LLMEvaluator:
         error_message: Optional[str] = None
         start_time = datetime.now(timezone.utc)
         try:
-            async for chunk in llm_client.chat_completion_create(
+            async for chunk in self._llm_client.chat_completion_create(
                 messages=messages,
                 tools=denormalized_tools,
             ):
@@ -246,6 +249,7 @@ def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvalu
 async def get_llm_evaluators(
     evaluator_ids: list[GlobalID],
     session: AsyncSession,
+    llm_client: PlaygroundStreamingClient,
 ) -> list[LLMEvaluator]:
     if not evaluator_ids:
         return []
@@ -300,7 +304,7 @@ async def get_llm_evaluators(
             llm_evaluator_node_id = llm_evaluator_db_to_node_id[llm_evaluator_orm.id]
             raise NotFound(f"Prompt version not found for evaluator '{llm_evaluator_node_id}'")
 
-        llm_evaluators.append(LLMEvaluator(llm_evaluator_orm, prompt_version))
+        llm_evaluators.append(LLMEvaluator(llm_evaluator_orm, prompt_version, llm_client))
 
     return llm_evaluators
 

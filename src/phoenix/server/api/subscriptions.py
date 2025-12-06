@@ -61,7 +61,6 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
@@ -97,7 +96,6 @@ GenericType = TypeVar("GenericType")
 logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
-
 
 ChatCompletionMessage: TypeAlias = tuple[
     ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]
@@ -170,7 +168,7 @@ async def _stream_single_chat_completion(
             "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),
         }
         async with info.context.db() as session:
-            for ii, evaluator in enumerate[PlaygroundEvaluatorInput](input.evaluators):
+            for evaluator in input.evaluators:
                 _, db_id = from_global_id(evaluator.id)  # pyright: ignore
                 if _is_builtin_evaluator(db_id):
                     builtin_evaluator = get_builtin_evaluator_by_id(db_id)
@@ -194,7 +192,7 @@ async def _stream_single_chat_completion(
                         ),
                         experiment_run_evaluation=None,
                         dataset_example_id=None,
-                        repetition_number=None,
+                        repetition_number=repetition_number,
                     )
             input_mappings_by_evaluator_id = {
                 evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
@@ -204,7 +202,6 @@ async def _stream_single_chat_completion(
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=input_mapping,
-                    llm_client=llm_client,
                 )
                 annotation = ExperimentRunAnnotation.from_dict(
                     {
@@ -219,7 +216,7 @@ async def _stream_single_chat_completion(
                     experiment_run_evaluation=annotation,
                     span_evaluation=None,
                     dataset_example_id=None,
-                    repetition_number=None,
+                    repetition_number=repetition_number,
                 )
 
 
@@ -284,6 +281,7 @@ class Subscription:
             llm_evaluators = await get_llm_evaluators(
                 evaluator_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
+                llm_client=llm_client,
             )
             if (
                 playground_project_id := await session.scalar(
@@ -410,6 +408,7 @@ class Subscription:
             llm_evaluators = await get_llm_evaluators(
                 evaluator_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
+                llm_client=llm_client,
             )
             if (
                 await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
@@ -611,7 +610,7 @@ class Subscription:
                             "expected": json.dumps(revision.output),
                             "output": json.dumps(run.output),
                         }
-                        for ii, evaluator in enumerate(input.evaluators):
+                        for evaluator in input.evaluators:
                             _, db_id = from_global_id(evaluator.id)  # pyright: ignore
                             if _is_builtin_evaluator(db_id):
                                 builtin_evaluator = get_builtin_evaluator_by_id(db_id)
@@ -645,7 +644,6 @@ class Subscription:
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
                                 input_mapping=input_mapping,
-                                llm_client=llm_client,
                             )
                             annotation_model = evaluation_result_to_model(
                                 result,
