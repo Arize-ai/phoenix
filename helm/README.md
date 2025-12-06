@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 4.0.17](https://img.shields.io/badge/Version-4.0.17-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.19.0](https://img.shields.io/badge/AppVersion-12.19.0-informational?style=flat-square)
+![Version: 4.0.18](https://img.shields.io/badge/Version-4.0.18-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.20.0](https://img.shields.io/badge/AppVersion-12.20.0-informational?style=flat-square)
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For instructions on how to deploy this Helm chart, see the [self-hosting docs](https://arize.com/docs/phoenix/self-hosting).
   - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
@@ -45,23 +45,23 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.ldap.allowSignUp | bool | `true` | Allow automatic user creation on first LDAP login. Set to false to require pre-provisioned users. |
 | auth.ldap.attrDisplayName | string | `"displayName"` | LDAP attribute containing user's display name. |
 | auth.ldap.attrEmail | string | `"mail"` | LDAP attribute containing user's email address. Must be present in LDAP or login fails. |
-| auth.ldap.attrMemberOf | string | `"memberOf"` | LDAP attribute containing group memberships. Used when groupSearchFilter is not set (Active Directory mode). Typical values: "memberOf" (AD, OpenLDAP with memberOf overlay) |
+| auth.ldap.attrMemberOf | string | `"memberOf"` | LDAP attribute containing group memberships (default: "memberOf"). Used when groupSearchFilter is not set (Active Directory mode). Typical values: "memberOf" (AD, OpenLDAP with memberOf overlay) |
 | auth.ldap.attrUniqueId | string | `""` | LDAP attribute containing an immutable unique identifier (optional). Only configure if you expect user emails to change. Active Directory: "objectGUID", OpenLDAP: "entryUUID", 389 DS: "nsUniqueId" |
 | auth.ldap.bindDn | string | `""` | Service account DN for binding to LDAP server. Example: "CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com" |
 | auth.ldap.bindPassword | string | `""` | Service account password for binding to LDAP server. Can be set directly here or via auth.secret with key PHOENIX_LDAP_BIND_PASSWORD |
 | auth.ldap.enabled | bool | `false` | Enable LDAP authentication |
 | auth.ldap.groupRoleMappings | string | `"[]"` | JSON array mapping LDAP groups to Phoenix roles. Format: [{"group_dn": "CN=Phoenix Admins,OU=Groups,DC=corp,DC=com", "role": "ADMIN"}] Supported roles: "ADMIN", "MEMBER", "VIEWER" (case-insensitive) Special group_dn value "*" matches all users (wildcard for default role) |
-| auth.ldap.groupSearchBaseDns | list | `[]` | List of base DNs for group searches. Required when groupSearchFilter is set. Example: `["ou=groups,dc=example,dc=com"]` |
-| auth.ldap.groupSearchFilter | string | `""` | LDAP filter for finding groups. Use %s as placeholder for substituted value. When set, enables POSIX group search mode (ignores attrMemberOf). When not set, uses attrMemberOf attribute from user entry (AD mode). Example: "(&(objectClass=posixGroup)(memberUid=%s))" |
-| auth.ldap.groupSearchFilterUserAttr | string | `""` | LDAP attribute from the user entry to substitute for %s in groupSearchFilter. When set, reads the specified attribute from the user's LDAP entry. When not set (default), uses the login username directly. Common values: "uid" (POSIX), "dn"/"distinguishedName" (AD nested groups). |
+| auth.ldap.groupSearchBaseDns | list | `[]` | List of base DNs for group searches. Required when groupSearchFilter is set. Example: ["ou=groups,dc=example,dc=com"] Multiple: ["ou=groups,dc=corp,dc=com", "ou=teams,dc=corp,dc=com"] |
+| auth.ldap.groupSearchFilter | string | `""` | LDAP filter for finding groups. Use %s as placeholder for user identifier. Two modes:   - AD Mode (not set, recommended for Active Directory): Reads memberOf from user entry   - Search Mode (set): Searches for groups containing the user Example for POSIX: "(&(objectClass=posixGroup)(memberUid=%s))" |
+| auth.ldap.groupSearchFilterUserAttr | string | `""` | LDAP attribute from the user entry to substitute for %s in groupSearchFilter. When set: Reads the specified attribute from the user's LDAP entry When not set (default): Uses the login username directly Understanding group types:   - POSIX (memberUid): Contains usernames like "jdoe" → use default or "uid"   - groupOfNames (member): Contains full DNs → use "distinguishedName" (AD only) Note: OpenLDAP does not expose DN as an attribute. For groupOfNames with OpenLDAP, use memberOf overlay instead (AD mode). |
 | auth.ldap.host | string | `""` | LDAP server hostname (required when enabled). Comma-separated for multiple servers with failover. Examples: "ldap.corp.com" or "dc1.corp.com,dc2.corp.com,dc3.corp.com" |
 | auth.ldap.port | string | `""` | LDAP server port. Defaults to 389 for StartTLS, 636 for LDAPS. |
 | auth.ldap.tlsCaCertFile | string | `""` | Path to custom CA certificate file (PEM format) for TLS verification. Use when LDAP server uses a private/internal CA not in the system trust store. |
 | auth.ldap.tlsClientCertFile | string | `""` | Path to client certificate file (PEM format) for mutual TLS authentication. Requires tlsClientKeyFile to also be set. |
 | auth.ldap.tlsClientKeyFile | string | `""` | Path to client private key file (PEM format) for mutual TLS authentication. Requires tlsClientCertFile to also be set. |
-| auth.ldap.tlsMode | string | `"starttls"` | TLS connection mode: "starttls" (upgrade to TLS on port 389), "ldaps" (TLS from start on port 636), or "none" (no encryption, testing only) |
+| auth.ldap.tlsMode | string | `"starttls"` | TLS connection mode: "starttls", "ldaps", or "none" - starttls: Upgrade from plaintext to TLS on port 389 (recommended) - ldaps: TLS from connection start on port 636 - none: No encryption (testing only, credentials sent in plaintext) |
 | auth.ldap.tlsVerify | bool | `true` | Verify TLS certificates. Should always be true in production. |
-| auth.ldap.userSearchBaseDns | list | `[]` | List of base DNs for user searches (required when enabled). Example: `["OU=Users,DC=corp,DC=com"]` |
+| auth.ldap.userSearchBaseDns | list | `[]` | List of base DNs for user searches (required when enabled). Searched in order. Example: ["OU=Users,DC=corp,DC=com"] Multiple: ["OU=Employees,DC=corp,DC=com", "OU=Contractors,DC=corp,DC=com"] |
 | auth.ldap.userSearchFilter | string | `"(&(objectClass=user)(sAMAccountName=%s))"` | LDAP filter for finding users. Use %s as placeholder for username. Default for Active Directory: "(&(objectClass=user)(sAMAccountName=%s))" OpenLDAP example: "(&(objectClass=inetOrgPerson)(uid=%s))" |
 | auth.name | string | `"phoenix-secret"` | Name of the Kubernetes secret containing authentication credentials |
 | auth.oauth2.enabled | bool | `false` | Enable OAuth2/OIDC authentication |
@@ -119,7 +119,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-12.19.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-12.20.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
