@@ -22,7 +22,7 @@ This tutorial shows how to classify documents as relevant or irrelevant to queri
 
 We will go through key code snippets on this page. To follow the full tutorial, check out the full notebook.
 
-{% embed url="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/evals/evaluate_relevance_classifications.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_relevance_classifications.ipynb" %}
 
 ## Download Benchmark Dataset
 

@@ -11,7 +11,7 @@ This guide will walk you through the process of creating and evaluating agents u
 
 We will walk through the key steps in the documentation below. Check out the full tutorial here:
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/integrations/ragas_agents_cookbook_phoenix.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/ragas_retrieval_evals_tutorial.ipynb" %}
 
 ## Creating the Agent
 
