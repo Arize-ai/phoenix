@@ -1,5 +1,18 @@
 # Changelog
 
+## [12.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.19.0...arize-phoenix-v12.20.0) (2025-12-06)
+
+
+### Features
+
+* existing secret support ([#10472](https://github.com/Arize-ai/phoenix/issues/10472)) ([cd112b8](https://github.com/Arize-ai/phoenix/commit/cd112b88b18986ceaea748d0fd6b276412b9aa0b))
+* Lightweight Directory Access Protocol (LDAP) ([#10420](https://github.com/Arize-ai/phoenix/issues/10420)) ([f6aff97](https://github.com/Arize-ai/phoenix/commit/f6aff97b9a563f3f3f87a9b5b8d969152bb4ba47))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-evals to 2.7.0 ([#10474](https://github.com/Arize-ai/phoenix/issues/10474)) ([339ddc6](https://github.com/Arize-ai/phoenix/commit/339ddc6cb18c88a5c913f052d20f38405d049330))
+
 ## [12.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.18.0...arize-phoenix-v12.19.0) (2025-12-01)
 
 
