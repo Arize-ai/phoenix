@@ -290,7 +290,7 @@ class ChatCompletionMutationMixin:
                     tool_calls=[],
                     span=None,
                     error_message=str(result),
-                    evaluations=[],  # No evaluations for error cases
+                    evaluations=[],
                 )
                 if isinstance(result, BaseException)
                 else result[0],
