@@ -1,8 +1,10 @@
 ---
-description: How to use Pydantic Evals with Phoenix to evaluate AI applications using structured evaluation frameworks
+description: >-
+  How to use Pydantic Evals with Phoenix to evaluate AI applications using
+  structured evaluation frameworks
 ---
 
-# Pydantic Evals
+# Pydantic AI Evals
 
 [Pydantic Evals](https://github.com/pydantic/pydantic-evals) is an evaluation library that provides preset direct evaluations and LLM Judge evaluations. It can be used to run evaluations over dataframes of cases defined with Pydantic models. This guide shows you how to use Pydantic Evals alongside Arize Phoenix to run evaluations on traces captured from your running application.
 
@@ -363,11 +365,11 @@ class ComprehensiveEvaluator(Evaluator[str, str]):
 
 Once you have evaluation results uploaded to Phoenix, you can:
 
-- **View evaluation metrics**: See overall performance across different evaluation criteria
-- **Analyze individual cases**: Drill down into specific examples that passed or failed
-- **Compare evaluators**: Understand how different evaluation methods perform
-- **Track improvements**: Monitor evaluation scores over time as you improve your application
-- **Debug failures**: Identify patterns in failed evaluations to guide improvements
+* **View evaluation metrics**: See overall performance across different evaluation criteria
+* **Analyze individual cases**: Drill down into specific examples that passed or failed
+* **Compare evaluators**: Understand how different evaluation methods perform
+* **Track improvements**: Monitor evaluation scores over time as you improve your application
+* **Debug failures**: Identify patterns in failed evaluations to guide improvements
 
 The Phoenix UI will display your evaluation results with detailed breakdowns, making it easy to understand your AI application's performance and identify areas for improvement.
 
@@ -375,4 +377,4 @@ The Phoenix UI will display your evaluation results with detailed breakdowns, ma
 
 * [Pydantic Evals Documentation](https://github.com/pydantic/pydantic-evals)
 * [Phoenix Evaluation Guide](https://arize.com/docs/phoenix/evaluation)
-* [Pydantic Evals Tutorial Notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/evals/pydantic-evals.ipynb) 
+* [Pydantic Evals Tutorial Notebook](https://github.com/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/pydantic-evals.ipynb)
