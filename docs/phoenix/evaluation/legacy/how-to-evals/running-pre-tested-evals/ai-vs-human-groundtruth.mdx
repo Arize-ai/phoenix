@@ -3,19 +3,23 @@ title: "AI vs human (groundtruth)"
 description: This LLM evaluation is used to compare AI answers to Human answers. Its very useful in RAG system benchmarking to compare the human generated groundtruth.
 ---
 
-<Card horizontal icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_human_vs_ai_classifications.ipynb" >
-    Google Colab
+<Card
+  horizontal
+  icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico"
+  href="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_human_vs_ai_classifications.ipynb"
+>
+  Google Colab
 </Card>
 
 A workflow we see for high quality RAG deployments is generating a golden dataset of questions and a high quality set of answers. These can be in the range of 100-200 but provide a strong check for the AI generated answers. This Eval checks that the human ground truth matches the AI generated answer. Its designed to catch missing data in "half" answers and differences of substance.
 
 ### Example Human vs AI on Arize Docs:
 
-***Question:***
+**_Question:_**
 
 What Evals are supported for LLMs on generative models?
 
-***Human:***
+**_Human:_**
 
 Arize supports a suite of Evals available from the Phoenix Evals library, they include both pre-tested Evals and the ability to configure cusotm Evals. Some of the pre-tested LLM Evals are listed below:
 
@@ -104,5 +108,3 @@ The follow benchmarking data was gathered by comparing various model results to 
 | Precision | 0.90   | 0.92  |
 | Recall    | 0.56   | 0.74  |
 | F1        | 0.69   | 0.82  |
-
-

@@ -28,7 +28,9 @@ and should not contain any text or characters aside from that word.
 ```
 
 <Info>
-We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/docs/phoenix/evals/default_templates.py#L12).
+  We are continually iterating our templates, view the most up-to-date template
+  [on
+  GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/docs/phoenix/evals/default_templates.py#L12).
 </Info>
 
 ## How To Run the RAG Relevance Eval
@@ -59,6 +61,7 @@ relevance_classifications = llm_classify(
     provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 ```
+
 The above runs the RAG relevancy LLM template against the dataframe df.
 
 ## Benchmark Results
@@ -66,7 +69,7 @@ The above runs the RAG relevancy LLM template against the dataframe df.
 This benchmark was obtained using notebook below. It was run using the [WikiQA dataset](https://storage.googleapis.com/arize-phoenix-assets/evals/binary-relevance-classification/wiki_qa-train.jsonl.zip) as a ground truth dataset. Each example in the dataset was evaluating using the `RAG_RELEVANCY_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the WikiQA dataset to generate the confusion matrices below.
 
 <Frame caption="Try it out!">
-<Card title="Google Colab" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_relevance_classifications.ipynb" icon="/images/image-10.png" horizontal >
+<Card title="Google Colab" href="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_relevance_classifications.ipynb" icon="/images/image-10.png" horizontal >
 colab.research.google.com
 </Card>
 
@@ -78,12 +81,12 @@ colab.research.google.com
   <img src="/images/image-11.png" alt="" />
 </Frame>
 
-| RAG Eval | GPT-4o | GPT-4 |
-| :--- | :--- | :--- |
-| Precision | <p style={{color: "green"}}>0.60 </p>| <p style={{color: "green"}}>0.70 </p>|
-| Recall | <p style={{color: "green"}}>0.77 </p>| <p style={{color: "green"}}>0.88 </p>|
-| F1 | <p style={{color: "green"}}>0.67 </p>| <p style={{color: "green"}}>0.78 </p>|
+| RAG Eval  | GPT-4o                                | GPT-4                                 |
+| :-------- | :------------------------------------ | :------------------------------------ |
+| Precision | <p style={{color: "green"}}>0.60 </p> | <p style={{color: "green"}}>0.70 </p> |
+| Recall    | <p style={{color: "green"}}>0.77 </p> | <p style={{color: "green"}}>0.88 </p> |
+| F1        | <p style={{color: "green"}}>0.67 </p> | <p style={{color: "green"}}>0.78 </p> |
 
 | Throughput  | GPT-4   |
-| :--- | :--- |
+| :---------- | :------ |
 | 100 Samples | 113 Sec |

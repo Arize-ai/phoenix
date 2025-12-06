@@ -68,7 +68,12 @@ The above runs the RAG relevancy LLM template against the dataframe df.
 This benchmark was obtained using notebook below. It was run using the [WikiQA dataset](https://storage.googleapis.com/arize-phoenix-assets/evals/binary-relevance-classification/wiki_qa-train.jsonl.zip) as a ground truth dataset. Each example in the dataset was evaluating using the `RAG_RELEVANCY_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the WikiQA dataset to generate the confusion matrices below.
 
 <Frame caption="Try it out!">
-    <Card title="Google Colaboratory" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico" horizontal href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_relevance_classifications.ipynb"/>
+  <Card
+    title="Google Colaboratory"
+    icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico"
+    horizontal
+    href="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_relevance_classifications.ipynb"
+  />
 </Frame>
 
 #### GPT-4 Result
@@ -86,5 +91,3 @@ This benchmark was obtained using notebook below. It was run using the [WikiQA d
 | Throughput  | GPT-4   |
 | ----------- | ------- |
 | 100 Samples | 113 Sec |
-
-

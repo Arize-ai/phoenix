@@ -6,11 +6,11 @@ title: "Q&A On retrieved data"
 
 This Eval evaluates whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
 
-* **question**: This is the question the Q\&A system is running against
+- **question**: This is the question the Q\&A system is running against
 
-* **sampled\_answer**: This is the answer from the Q\&A system.
+- **sampled_answer**: This is the answer from the Q\&A system.
 
-* **context**: This is the context to be used to answer the question, and is what Q\&A Eval must use to check the correct answer
+- **context**: This is the context to be used to answer the question, and is what Q\&A Eval must use to check the correct answer
 
 ## Q\&A Eval Template
 
@@ -71,14 +71,19 @@ The above Eval uses the QA template for Q\&A analysis on retrieved data.
 
 The [benchmarking dataset](https://storage.googleapis.com/arize-phoenix-assets/evals/qa-classification/qa_generated_dataset.jsonl.zip) used was created based on:
 
-* Squad 2: The 2.0 version of the large-scale dataset Stanford Question Answering Dataset (SQuAD 2.0) allows researchers to design AI models for reading comprehension tasks under challenging constraints. [https://web.stanford.edu/class/archive/cs/cs224n/cs224n.1194/reports/default/15785042.pdf](https://www.google.com/url?q=https%3A%2F%2Fweb.stanford.edu%2Fclass%2Farchive%2Fcs%2Fcs224n%2Fcs224n.1194%2Freports%2Fdefault%2F15785042.pdf)
+- Squad 2: The 2.0 version of the large-scale dataset Stanford Question Answering Dataset (SQuAD 2.0) allows researchers to design AI models for reading comprehension tasks under challenging constraints. [https://web.stanford.edu/class/archive/cs/cs224n/cs224n.1194/reports/default/15785042.pdf](https://www.google.com/url?q=https%3A%2F%2Fweb.stanford.edu%2Fclass%2Farchive%2Fcs%2Fcs224n%2Fcs224n.1194%2Freports%2Fdefault%2F15785042.pdf)
 
-* Supplemental Data to Squad 2: In order to check the case of detecting incorrect answers, we created wrong answers based on the context data. The wrong answers are intermixed with right answers.
+- Supplemental Data to Squad 2: In order to check the case of detecting incorrect answers, we created wrong answers based on the context data. The wrong answers are intermixed with right answers.
 
 Each example in the dataset was evaluating using the `QA_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth in the benchmarking dataset.
 
 <Frame caption="Try it out!">
-    <Card title="Google Colaboratory" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico" horizontal href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_QA_classifications.ipynb"/>
+  <Card
+    title="Google Colaboratory"
+    icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico"
+    horizontal
+    href="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_QA_classifications.ipynb"
+  />
 </Frame>
 
 #### GPT-4 Results
@@ -96,5 +101,3 @@ Each example in the dataset was evaluating using the `QA_PROMPT_TEMPLATE` above,
 | Throughput  | GPT-4   |
 | ----------- | ------- |
 | 100 Samples | 124 Sec |
-
-
