@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2173d04f762890b235f558222fb47898>>
+ * @generated SignedSource<<e56c64b8d94fd32c5cf23854fb30cc8c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -31,7 +31,21 @@ import GlobalEvaluatorsTableEvaluatorsQuery_graphql from './GlobalEvaluatorsTabl
 const node: ReaderFragment = (function(){
 var v0 = [
   "evaluators"
-];
+],
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
 return {
   "argumentDefinitions": [
     {
@@ -119,20 +133,8 @@ return {
                   "kind": "InlineDataFragmentSpread",
                   "name": "EvaluatorsTable_row",
                   "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "id",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "name",
-                      "storageKey": null
-                    },
+                    (v1/*: any*/),
+                    (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -160,6 +162,38 @@ return {
                       "kind": "ScalarField",
                       "name": "updatedAt",
                       "storageKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "Prompt",
+                          "kind": "LinkedField",
+                          "name": "prompt",
+                          "plural": false,
+                          "selections": [
+                            (v1/*: any*/),
+                            (v2/*: any*/)
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "PromptVersionTag",
+                          "kind": "LinkedField",
+                          "name": "promptVersionTag",
+                          "plural": false,
+                          "selections": [
+                            (v2/*: any*/)
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "LLMEvaluator",
+                      "abstractKey": null
                     }
                   ],
                   "args": null,

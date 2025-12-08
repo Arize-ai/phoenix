@@ -250,6 +250,19 @@ class EvaluatorMutationMixin:
         try:
             async with info.context.db() as session:
                 session.add(llm_evaluator)
+                await session.flush()
+                tag_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
+                prompt_tag = models.PromptVersionTag(
+                    name=tag_name,
+                    prompt_id=prompt.id,
+                    prompt_version_id=prompt_version.id,
+                )
+                llm_evaluator.prompt_version_tag = prompt_tag
+                # Manually update the updated_at field because updating the description
+                # or other fields solely on the parent record Evaluator does not
+                # trigger an update of the updated_at field on the LLMEvaluator record.
+                llm_evaluator.updated_at = datetime.now(timezone.utc)
+                session.add(llm_evaluator)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
@@ -314,7 +327,10 @@ class EvaluatorMutationMixin:
                 )
                 .join(models.DatasetsEvaluators)
                 .options(
-                    joinedload(models.LLMEvaluator.prompt).joinedload(models.Prompt.prompt_versions)
+                    joinedload(models.LLMEvaluator.prompt).joinedload(
+                        models.Prompt.prompt_versions
+                    ),
+                    joinedload(models.LLMEvaluator.prompt_version_tag),
                 )
             )
             first_result = results.first()
@@ -369,6 +385,12 @@ class EvaluatorMutationMixin:
                 await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict("An evaluator with this name already exists")
+
+            # Update prompt_version_tag to point to the new prompt version if one was created
+            if create_new_prompt_version:
+                if llm_evaluator.prompt_version_tag is not None:
+                    # Update existing tag to point to the new prompt version
+                    llm_evaluator.prompt_version_tag.prompt_version_id = prompt_version.id
 
         return DatasetLLMEvaluatorMutationPayload(
             evaluator=DatasetLLMEvaluator(
