@@ -65,9 +65,7 @@ toxic_classifications = llm_classify(
 
 This benchmark was obtained using notebook below. It was run using the [WikiToxic dataset ](https://huggingface.co/datasets/OxAISH-AL-LLM/wiki_toxic)as a ground truth dataset. Each example in the dataset was evaluating using the `TOXICITY_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the benchmark dataset to generate the confusion matrices below.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_toxicity_classifications.ipynb" %}
-Try it out!
-{% endembed %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_toxicity_classifications.ipynb" %}
 
 #### GPT-4 Results
 

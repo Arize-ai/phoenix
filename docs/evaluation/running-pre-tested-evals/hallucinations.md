@@ -48,7 +48,7 @@ We are continually iterating our templates, view the most up-to-date template [o
 
 ## How To Run the Hallucination Eval
 
-The `HallucinationEvaluator` requires three inputs called `input`, `output`, and `context`. You can use the `.describe()` method on any evaluator to learn more about it, including it's `input_schema` which has information about required inputs.&#x20;
+The `HallucinationEvaluator` requires three inputs called `input`, `output`, and `context`. You can use the `.describe()` method on any evaluator to learn more about it, including it's `input_schema` which has information about required inputs.
 
 ```python
 from phoenix.evals.llm import LLM
@@ -93,7 +93,7 @@ print(scores[0])
 
 This benchmark was obtained using notebook below. It was run using the [HaluEval QA Dataset](https://github.com/RUCAIBox/HaluEval/blob/main/data/qa_data.json) as a ground truth dataset. Each example in the dataset was evaluating using the `HALLUCINATION_PROMPT_TEMPLATE` above, then the resulting labels were compared against the `is_hallucination` label in the HaluEval dataset to generate the confusion matrices below.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_hallucination_classifications.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_hallucination_classifications.ipynb" %}
 
 #### GPT-4 Results
 

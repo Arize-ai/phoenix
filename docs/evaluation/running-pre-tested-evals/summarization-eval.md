@@ -64,9 +64,7 @@ The above shows how to use the summarization Eval template.
 
 This benchmark was obtained using notebook below. It was run using a [Daily Mail CNN summarization dataset](https://storage.googleapis.com/arize-phoenix-assets/evals/summarization-classification/summarization-test.jsonl.zip) as a ground truth dataset. Each example in the dataset was evaluating using the `SUMMARIZATION_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the summarization dataset to generate the confusion matrices below.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_summarization_classifications.ipynb" %}
-Try it out!
-{% endembed %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_summarization_classifications.ipynb" %}
 
 #### GPT-4 Results
 

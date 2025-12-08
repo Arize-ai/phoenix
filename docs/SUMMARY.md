@@ -57,6 +57,11 @@
 
 ## Prompt Engineering
 
+* [Tutorial](prompt-engineering/tutorial/README.md)
+  * [Identify & Edit Prompts](prompt-engineering/tutorial/identify-and-edit-prompts.md)
+  * [Test Prompts at Scale](prompt-engineering/tutorial/test-prompts-at-scale.md)
+  * [Compare Prompt Versions](prompt-engineering/tutorial/compare-prompt-versions.md)
+  * [Optimize Prompts Automatically](prompt-engineering/tutorial/optimize-prompts-automatically.md)
 * [Overview: Prompts](prompt-engineering/overview-prompts.md)
   * [Prompt Management](prompt-engineering/overview-prompts/prompt-management.md)
   * [Prompt Playground](prompt-engineering/overview-prompts/prompt-playground.md)

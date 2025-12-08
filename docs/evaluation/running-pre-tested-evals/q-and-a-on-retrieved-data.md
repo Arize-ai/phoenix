@@ -71,9 +71,7 @@ The [benchmarking dataset](https://storage.googleapis.com/arize-phoenix-assets/e
 
 Each example in the dataset was evaluating using the `QA_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth in the benchmarking dataset.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_QA_classifications.ipynb" %}
-Try it out!
-{% endembed %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_QA_classifications.ipynb" %}
 
 #### GPT-4 Results
 

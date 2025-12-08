@@ -1,0 +1,128 @@
+---
+description: Fix and store bad prompts from your spans
+---
+
+# Identify & Edit Prompts
+
+In this section, we’ll start with the basics: finding the prompt your agent is actually using and improving it. Before we can measure or optimize anything, we need to locate the right prompt, understand how it behaves, and make controlled edits we can track over time.
+
+Part 1 of this walkthrough focuses on using Phoenix to:
+
+1. **Identify prompts that need improvement, from your traces**
+2. **Store prompts in the Prompt Hub for version control**
+3. **Edit and test prompts in the Playground**
+4. **Pull optimized prompts back into your code**
+
+{% hint style="info" %}
+**Follow along with code**: This guide has a companion notebook with runnable code examples. Find it here.
+{% endhint %}
+
+## Step 1: Locate Bad Spans in Traces
+
+By inspecting our traces, we can find where the model made mistakes and pinpoint which prompt and step were responsible. This gives us the starting point for any meaningful improvement.
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/llm_faulty_span.mp4" %}
+
+Imagine you've built a support agent that classifies incoming customer queries, retrieves relevant guidelines, and generates helpful responses. The agent has a multi-step pipeline:
+
+```
+Support Query → Classification → Guideline Retrieval → Response Generation → Response
+```
+
+**You can see our code for our traced support agent in the tutorial notebook. Run the "Build and Trace Support Agent" section.**
+
+Open Phoenix and navigate to your project's traces. Click on a trace to see the full pipeline.
+
+Click on the first `ChatCompletion` span (the classification step) to see:
+
+* The system prompt with the list of categories
+* The user's support query
+* The classification output
+
+Look for misclassifications. In our example span, the query "calendar sync eats my events" was classified as **Technical Bug Report** when it should have been **Integration Help**—syncing calendars more specifically an integration issue. We want our classifier to pick the more fine grained class.
+
+## Step 2: Replay Span and Edit Prompt in Playground
+
+Once we’ve identified a weak spot, the next step is to **test and refine**. The Playground lets us replay the same input, edit the prompt, and see how those edits change the model’s output, without code.
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/replay%20span%2C%20make%20edit.mp4" %}
+
+In the future, we want to avoid picking a more generic class when a more specific one is available. Let's make an edit to our prompt, and see if it fixes the classification. Click **Playground** to replay this span into the Prompt Playground.
+
+In the Playground, you can:
+
+* Edit the prompt template
+* Try different models
+* Adjust parameters (temperature, max tokens)
+* Re-run and compare outputs
+
+### Save Original Prompt to Prompt Hub
+
+Before making changes, it’s important to save a baseline. Storing the original prompt in Prompt Hub ensures every version is tracked and recoverable, so you can compare edits later and avoid losing what worked before.
+
+In the Playground, click **Save Prompt** and give your prompt a name: `support-classifier.`&#x20;
+
+### Edit Prompt and Re-Run Span
+
+Then we'll make 2 changes.
+
+* Let's add the following rule to our prompt:&#x20;
+
+{% code overflow="wrap" %}
+```
+"If a support query is a technical bug but is seen in a sync/integration, classify it as 'Integration Help' rather than 'Technical Bug Report'"
+```
+{% endcode %}
+
+* Let's upgrade our model to GPT-5 to see if a model upgrade helps in classification.
+
+**Voila! The right classification was made this time!**
+
+### Save Edited Prompt as a New Prompt Version (Version 2)
+
+Once you’ve verified the change works, save it as a new version. Versioning lets you track progress over time and roll back if future edits don’t perform as expected.
+
+Click **Save Prompt** and keep the same prompt name, `support-classifier.`&#x20;
+
+**Now, we can see that both versions of our prompt are stored!**
+
+## Step 3: Load Edited Prompt Back Into Your Code
+
+The final step is to edit our actual code to use the new prompt version we just created.&#x20;
+
+{% tabs %}
+{% tab title="Python" %}
+```python
+from phoenix.client import Client
+
+px_client = Client()
+
+# Pull the latest version
+prompt = px_client.prompts.get(prompt_identifier="support-classifier")
+
+#Pull specific version
+prompt = px_client.prompts.get(prompt_version_id="COPY VERSION ID FROM VERSIONS PAGE")
+```
+{% endtab %}
+
+{% tab title="TS" %}
+```typescript
+import { getPrompt } from "@arizeai/phoenix-client/prompts";
+
+// Pull the latest version by name
+const prompt = await getPrompt({ name: "support-classifier" });
+
+// Pull a specific version by ID
+const promptByVersion = await getPrompt({ versionId: "COPIED_PROMPT_VERSION_ID" });
+```
+{% endtab %}
+{% endtabs %}
+
+## Summary
+
+**Congratulations! You’ve improved your agent’s performance.**\
+You identified where your prompt was falling short, replayed that example, and refined it to produce a more accurate classification. By saving both versions in Prompt Hub, you’ve established a reliable, version-controlled workflow for prompt iteration - one you can reuse as your application evolves.
+
+## Next Steps
+
+In [test-prompts-at-scale.md](test-prompts-at-scale.md "mention") , **we’ll take these improvements much further**. Instead of validating one fix, you’ll run your prompt across a full dataset, measure performance, and uncover systematic patterns in where it succeeds or fails. This is where your prompt starts getting _meaningfully_ better - backed by real data, not just intuition.
