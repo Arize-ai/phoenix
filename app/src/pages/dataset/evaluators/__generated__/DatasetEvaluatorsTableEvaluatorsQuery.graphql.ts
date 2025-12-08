@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ee6cd46accc00480c7a202f901a2bb7f>>
+ * @generated SignedSource<<9f09d87c9b6df0f770a760bc7a33aa6d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -113,7 +113,35 @@ v9 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v10 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "Prompt",
+    "kind": "LinkedField",
+    "name": "prompt",
+    "plural": false,
+    "selections": [
+      (v8/*: any*/),
+      (v9/*: any*/)
+    ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PromptVersionTag",
+    "kind": "LinkedField",
+    "name": "promptVersionTag",
+    "plural": false,
+    "selections": [
+      (v9/*: any*/),
+      (v8/*: any*/)
+    ],
+    "storageKey": null
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -233,35 +261,14 @@ return {
                           },
                           {
                             "kind": "InlineFragment",
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "Prompt",
-                                "kind": "LinkedField",
-                                "name": "prompt",
-                                "plural": false,
-                                "selections": [
-                                  (v8/*: any*/),
-                                  (v9/*: any*/)
-                                ],
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "PromptVersionTag",
-                                "kind": "LinkedField",
-                                "name": "promptVersionTag",
-                                "plural": false,
-                                "selections": [
-                                  (v9/*: any*/),
-                                  (v8/*: any*/)
-                                ],
-                                "storageKey": null
-                              }
-                            ],
+                            "selections": (v10/*: any*/),
                             "type": "LLMEvaluator",
+                            "abstractKey": null
+                          },
+                          {
+                            "kind": "InlineFragment",
+                            "selections": (v10/*: any*/),
+                            "type": "DatasetLLMEvaluator",
                             "abstractKey": null
                           }
                         ],
@@ -339,12 +346,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1c8ef354909fdaf9c4d2cb6d51eb50a3",
+    "cacheID": "c6a6445e9c80758314f0219818402093",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n  ... on DatasetLLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();

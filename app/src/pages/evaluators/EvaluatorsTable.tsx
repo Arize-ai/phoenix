@@ -110,6 +110,15 @@ const readRow = (row: EvaluatorsTable_row$key) => {
             name
           }
         }
+        ... on DatasetLLMEvaluator {
+          prompt {
+            id
+            name
+          }
+          promptVersionTag {
+            name
+          }
+        }
       }
     `,
     row
