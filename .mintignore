@@ -14,6 +14,15 @@ kustomize/
 phoenix-integrations/
 requirements/
 schemas/
+.tox/
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.vscode/
+.idea/
+*.code-workspace
 
 # Exclude root-level markdown and other files (keep only docs.json and .mintignore)
 *.md
@@ -21,10 +30,6 @@ schemas/
 *.ts
 *.tsx
 *.js
-*.json
-!/docs.json
-!/.mintignore
-
 *.yml
 *.yaml
 *.toml
@@ -60,15 +65,3 @@ CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 DEVELOPMENT.md
 README.md
-
-# Exclude root-level dotfiles and config files
-.pre-commit-config.yaml
-.readthedocs.yaml
-.editorconfig
-.dockerignore
-.eslintignore
-.prettierignore
-.gitignore
-.release-please-manifest.json
-.nvmrc
-.DS_Store
