@@ -156,16 +156,20 @@ class ContainsEvaluator(BuiltInEvaluator):
     input_schema = {
         "type": "object",
         "properties": {
-            "contains": {
+            "words": {
                 "type": "string",
-                "description": "String to search for in the output",
+                "description": "A comma separated list of words to search for in the output",
             },
-            "output": {
+            "text": {
                 "type": "string",
-                "description": "Output to search for the string in",
+                "description": "The text to search for the words in",
+            },
+            "case_sensitive": {
+                "type": "boolean",
+                "description": "Whether to match the string case sensitive",
             },
         },
-        "required": ["contains", "output"],
+        "required": ["words", "text", "case_sensitive"],
     }
 
     def evaluate(
@@ -175,20 +179,26 @@ class ContainsEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
         inputs = apply_input_mapping(self.input_schema, input_mapping, context)
-        contains = inputs.get("contains", "")
-        output = inputs.get("output", "")
+        words = [word.strip() for word in inputs.get("words", "").split(",")]
+        text = inputs.get("text", "")
+        case_sensitive = inputs.get("case_sensitive", False)
         now = datetime.now(timezone.utc)
-        matched = str(contains).lower() in str(output).lower()
+        matched = False
+        if case_sensitive:
+            matched = any(word in text for word in words)
+        else:
+            matched = any(word.lower() in text.lower() for word in words)
+        explanation = (
+            f"one or more of the words {repr(words)} were {'found' if matched else 'not found'} "
+            "in the output"
+        )
         return EvaluationResult(
             name=self.name,
             annotator_kind="CODE",
             label=None,
             score=1.0 if matched else 0.0,
-            explanation=(
-                f"the string {repr(contains)} was {'found' if matched else 'not found'} "
-                "in the output"
-            ),
-            metadata={"contains": contains},
+            explanation=explanation,
+            metadata={"words": words, "text": text, "case_sensitive": case_sensitive},
             error=None,
             trace_id=None,
             start_time=now,
