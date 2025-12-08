@@ -74,6 +74,9 @@ export function PlaygroundDatasetSection({
     {
       datasetId,
       splitIds: splitIds ?? null,
+    },
+    {
+      fetchPolicy: "store-and-network",
     }
   );
 
