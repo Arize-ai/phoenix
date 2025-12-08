@@ -980,18 +980,15 @@ async def create_span_note(
 
     async with request.app.state.db() as session:
         # Find the span by OpenTelemetry span_id
-        span_result = await session.execute(
+        span_rowid = await session.scalar(
             select(models.Span.id).where(models.Span.span_id == note_data.span_id)
         )
-        span_row = span_result.first()
 
-        if span_row is None:
+        if span_rowid is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"Span with ID {note_data.span_id} not found",
             )
-
-        span_rowid = span_row[0]
 
         # Generate a unique identifier for the note using timestamp
         timestamp = datetime.now(timezone.utc).isoformat()

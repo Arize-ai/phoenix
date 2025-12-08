@@ -7,12 +7,12 @@ import httpx
 import pandas as pd
 import pytest
 from faker import Faker
-from phoenix.client import Client
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
+from phoenix.client import Client
 from phoenix.db import models
 from phoenix.server.api.routers.v1.spans import (
     OtlpAnyValue,

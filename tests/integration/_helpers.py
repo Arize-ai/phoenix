@@ -2242,6 +2242,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
     (422, "POST", "v1/session_annotations"),
     (422, "POST", "v1/span_annotations"),
+    (422, "POST", "v1/span_notes"),
     (422, "POST", "v1/spans"),
     (422, "POST", "v1/trace_annotations"),
     (415, "POST", "v1/traces"),

@@ -467,6 +467,11 @@ class SpanEvent(TypedDict):
     attributes: NotRequired[Mapping[str, Any]]
 
 
+class SpanNoteData(TypedDict):
+    span_id: str
+    note: str
+
+
 class TextContentPart(TypedDict):
     type: Literal["text"]
     text: str
@@ -633,6 +638,14 @@ class CreateExperimentRunResponseBody(TypedDict):
 
 class CreateProjectResponseBody(TypedDict):
     data: Project
+
+
+class CreateSpanNoteRequestBody(TypedDict):
+    data: SpanNoteData
+
+
+class CreateSpanNoteResponseBody(TypedDict):
+    data: InsertedSpanAnnotation
 
 
 class CreateUserRequestBody(TypedDict):
