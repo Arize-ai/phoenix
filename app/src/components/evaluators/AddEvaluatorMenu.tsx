@@ -12,6 +12,7 @@ import { Button, ButtonProps } from "@phoenix/components/button";
 import { CreateDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
+import { EvaluatorConfigDialog } from "@phoenix/components/evaluators/EvaluatorConfigDialog";
 import { Icon, Icons } from "@phoenix/components/icon";
 import {
   Menu,
@@ -21,7 +22,6 @@ import {
   MenuTrigger,
 } from "@phoenix/components/menu";
 import { Modal, ModalOverlay } from "@phoenix/components/overlay";
-import { EvaluatorConfigDialog } from "@phoenix/pages/dataset/evaluators/EvaluatorConfigDialog";
 
 export const AddEvaluatorMenu = ({
   size,
@@ -127,14 +127,12 @@ export const AddEvaluatorMenu = ({
           }
         }}
       >
-        <Modal size="L">
-          {associateEvaluatorDialogOpen && (
-            <EvaluatorConfigDialog
-              evaluatorId={evaluatorIdToAssociate}
-              onClose={onCloseEvaluatorConfigDialog}
-              datasetRef={data.dataset}
-            />
-          )}
+        <Modal size="fullscreen" variant="slideover">
+          <EvaluatorConfigDialog
+            evaluatorId={evaluatorIdToAssociate}
+            onClose={onCloseEvaluatorConfigDialog}
+            datasetRef={data.dataset}
+          />
         </Modal>
       </ModalOverlay>
     </>
