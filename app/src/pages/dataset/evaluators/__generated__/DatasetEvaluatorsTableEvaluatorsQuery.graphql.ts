@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<26cc03387d9e3786ddb49ef25056af3a>>
+ * @generated SignedSource<<cd1494436515df44b748a65b505ab3fd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,23 +10,23 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EvaluatorColumn = "createdAt" | "kind" | "name" | "updatedAt";
-export type EvaluatorFilterColumn = "name";
+export type DatasetEvaluatorColumn = "createdAt" | "display_name" | "kind" | "updatedAt";
+export type DatasetEvaluatorFilterColumn = "display_name";
 export type SortDir = "asc" | "desc";
-export type EvaluatorFilter = {
-  col: EvaluatorFilterColumn;
+export type DatasetEvaluatorFilter = {
+  col: DatasetEvaluatorFilterColumn;
   value: string;
 };
-export type EvaluatorSort = {
-  col: EvaluatorColumn;
+export type DatasetEvaluatorSort = {
+  col: DatasetEvaluatorColumn;
   dir: SortDir;
 };
 export type DatasetEvaluatorsTableEvaluatorsQuery$variables = {
   after?: string | null;
-  filter?: EvaluatorFilter | null;
+  filter?: DatasetEvaluatorFilter | null;
   first?: number | null;
   id: string;
-  sort?: EvaluatorSort | null;
+  sort?: DatasetEvaluatorSort | null;
 };
 export type DatasetEvaluatorsTableEvaluatorsQuery$data = {
   readonly node: {
@@ -105,6 +105,13 @@ v8 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
   "storageKey": null
 };
 return {
@@ -207,13 +214,7 @@ return {
                             "selections": [
                               (v7/*: any*/),
                               (v8/*: any*/),
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "name",
-                                "storageKey": null
-                              },
+                              (v9/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -241,6 +242,39 @@ return {
                                 "kind": "ScalarField",
                                 "name": "updatedAt",
                                 "storageKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "Prompt",
+                                    "kind": "LinkedField",
+                                    "name": "prompt",
+                                    "plural": false,
+                                    "selections": [
+                                      (v8/*: any*/),
+                                      (v9/*: any*/)
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "PromptVersionTag",
+                                    "kind": "LinkedField",
+                                    "name": "promptVersionTag",
+                                    "plural": false,
+                                    "selections": [
+                                      (v9/*: any*/),
+                                      (v8/*: any*/)
+                                    ],
+                                    "storageKey": null
+                                  }
+                                ],
+                                "type": "LLMEvaluator",
+                                "abstractKey": null
                               }
                             ],
                             "storageKey": null
@@ -321,16 +355,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1746e3cc845a1bdb5449652ce48547e7",
+    "cacheID": "a0b70427845e731472f662710bbba253",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n  }\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "101d3691f3a2027b61383e4246774a4a";
+(node as any).hash = "5033ef5c906313a3324a0234a7c19315";
 
 export default node;

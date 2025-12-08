@@ -1,5 +1,4 @@
 import {
-  ReactNode,
   startTransition,
   useCallback,
   useEffect,
@@ -18,26 +17,17 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  Link,
-  Text,
-  Token,
-  View,
-} from "@phoenix/components";
+import { Flex, Icon, Icons, Text, Token, View } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { Truncate } from "@phoenix/components/utility/Truncate";
-import { DatasetEvaluatorActionMenu } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorActionMenu";
 import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
 import {
   EvaluatorFilter,
   EvaluatorSort,
 } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
+import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 
 export const convertEvaluatorSortToTanstackSort = (
   sort: EvaluatorSort | null | undefined
@@ -157,8 +147,6 @@ export const EvaluatorsTable = ({
   loadNext,
   refetch,
   onRowClick,
-  datasetId,
-  updateConnectionIds,
 }: EvaluatorsTableProps) => {
   "use no memo";
   const { sort, setSort, filter } = useEvaluatorsFilterContext();
@@ -218,23 +206,8 @@ export const EvaluatorsTable = ({
         cell: TimestampCell,
       },
     ];
-    if (datasetId) {
-      cols.push({
-        header: "",
-        id: "actions",
-        cell: ({ row }) => (
-          <DatasetEvaluatorActionMenu
-            evaluatorId={row.original.id}
-            evaluatorName={row.original.name}
-            datasetId={datasetId}
-            evaluatorKind={row.original.kind}
-            updateConnectionIds={updateConnectionIds}
-          />
-        ),
-      });
-    }
     return cols;
-  }, [datasetId, updateConnectionIds]);
+  }, []);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -362,68 +335,5 @@ export const EvaluatorsTable = ({
         </tbody>
       </table>
     </div>
-  );
-};
-
-const PromptCell = ({
-  prompt,
-  promptVersionTag,
-}: {
-  prompt?: { id: string; name: string };
-  promptVersionTag?: string;
-}) => {
-  if (!prompt) {
-    return null;
-  }
-  return (
-    <PromptLink
-      promptId={prompt.id}
-      promptName={prompt.name}
-      promptVersionTag={promptVersionTag}
-    />
-  );
-};
-
-const PromptLink = ({
-  promptId,
-  promptName,
-  promptVersionTag,
-}: {
-  promptId: string;
-  promptName: string;
-  promptVersionTag?: string;
-}) => {
-  let to: string;
-  let specifier: ReactNode;
-  // if tag exists, that means the evaluator is pinned to a specific version of the prompt
-  // otherwise, we assume the latest version is pinned
-  if (promptVersionTag) {
-    specifier = (
-      <Token size="S" color="var(--ac-global-color-grey-700)">
-        <Truncate maxWidth="10rem">{promptVersionTag}</Truncate>
-      </Token>
-    );
-    to = `/redirects/prompts/${promptId}/tags/${encodeURIComponent(promptVersionTag)}`;
-  } else {
-    specifier = (
-      <Token size="S" color="var(--ac-global-color-grey-700)">
-        latest
-      </Token>
-    );
-    to = `/prompts/${promptId}`;
-  }
-  return (
-    <Link
-      to={to}
-      css={css`
-        text-decoration: none;
-      `}
-    >
-      <Flex alignItems="center">
-        <Truncate maxWidth="10rem">{promptName}</Truncate>
-        <Text color="text-300">&nbsp;@&nbsp;</Text>
-        {specifier}
-      </Flex>
-    </Link>
   );
 };

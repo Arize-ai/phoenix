@@ -6,15 +6,15 @@ import invariant from "tiny-invariant";
 
 import { Empty } from "@phoenix/components";
 import { DatasetEvaluatorsTable_evaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTable_evaluators.graphql";
+import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
 import { DatasetEvaluatorsTable as BaseDatasetEvaluatorsTable } from "@phoenix/pages/evaluators/DatasetEvaluatorsTable";
-import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 
 const PAGE_SIZE = 100;
 
 export const useDatasetEvaluatorsTable = (
   query: DatasetEvaluatorsTable_evaluators$key
 ) => {
-  const { filter } = useEvaluatorsFilterContext();
+  const { filter } = useDatasetEvaluatorsFilterContext();
   const {
     data,
     hasNext,
@@ -28,8 +28,8 @@ export const useDatasetEvaluatorsTable = (
       @argumentDefinitions(
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 100 }
-        sort: { type: "EvaluatorSort", defaultValue: null }
-        filter: { type: "EvaluatorFilter", defaultValue: null }
+        sort: { type: "DatasetEvaluatorSort", defaultValue: null }
+        filter: { type: "DatasetEvaluatorFilter", defaultValue: null }
       ) {
         evaluators(first: $first, after: $after, sort: $sort, filter: $filter)
           @connection(key: "DatasetEvaluatorsTable_evaluators") {

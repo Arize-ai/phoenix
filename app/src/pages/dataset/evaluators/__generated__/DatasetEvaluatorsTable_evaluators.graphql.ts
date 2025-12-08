@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<080657294b8ab2a63b311c5bd286d5f9>>
+ * @generated SignedSource<<18e4260f7364ec20927af8e5551d9c70>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -38,6 +38,13 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
   "storageKey": null
 };
 return {
@@ -150,13 +157,7 @@ return {
                       "plural": false,
                       "selections": [
                         (v1/*: any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "name",
-                          "storageKey": null
-                        },
+                        (v2/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -184,6 +185,38 @@ return {
                           "kind": "ScalarField",
                           "name": "updatedAt",
                           "storageKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "Prompt",
+                              "kind": "LinkedField",
+                              "name": "prompt",
+                              "plural": false,
+                              "selections": [
+                                (v1/*: any*/),
+                                (v2/*: any*/)
+                              ],
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "PromptVersionTag",
+                              "kind": "LinkedField",
+                              "name": "promptVersionTag",
+                              "plural": false,
+                              "selections": [
+                                (v2/*: any*/)
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "LLMEvaluator",
+                          "abstractKey": null
                         }
                       ],
                       "storageKey": null
@@ -259,6 +292,6 @@ return {
 };
 })();
 
-(node as any).hash = "101d3691f3a2027b61383e4246774a4a";
+(node as any).hash = "5033ef5c906313a3324a0234a7c19315";
 
 export default node;

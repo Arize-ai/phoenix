@@ -28,6 +28,7 @@ import {
   EvaluatorSort,
 } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
+import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 
 export const convertEvaluatorSortToTanstackSort = (
   sort: EvaluatorSort | null | undefined
@@ -94,6 +95,15 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
           description
           createdAt
           updatedAt
+          ... on LLMEvaluator {
+            prompt {
+              id
+              name
+            }
+            promptVersionTag {
+              name
+            }
+          }
         }
       }
     `,
@@ -187,6 +197,17 @@ export const DatasetEvaluatorsTable = ({
         enableSorting: false,
       },
       {
+        header: "prompt",
+        accessorKey: "prompt",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <PromptCell
+            prompt={row.original.evaluator.prompt}
+            promptVersionTag={row.original.evaluator.promptVersionTag?.name}
+          />
+        ),
+      },
+      {
         header: "last updated",
         accessorKey: "updatedAt",
         cell: TimestampCell,
@@ -198,8 +219,8 @@ export const DatasetEvaluatorsTable = ({
         id: "actions",
         cell: ({ row }) => (
           <DatasetEvaluatorActionMenu
-            evaluatorId={row.original.id}
-            evaluatorName={row.original.displayName}
+            datasetEvaluatorId={row.original.id}
+            evaluatorDisplayName={row.original.displayName}
             datasetId={datasetId}
             evaluatorKind={row.original.evaluator.kind}
             updateConnectionIds={updateConnectionIds}

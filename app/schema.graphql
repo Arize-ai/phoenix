@@ -820,8 +820,8 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
-  evaluator(evaluatorId: ID!, displayName: Identifier!): DatasetEvaluator!
-  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): DatasetEvaluatorConnection!
+  evaluator(datasetEvaluatorId: ID!): DatasetEvaluator!
+  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: DatasetEvaluatorSort, filter: DatasetEvaluatorFilter): DatasetEvaluatorConnection!
   lastUpdatedAt: DateTime
 }
 
@@ -857,6 +857,13 @@ type DatasetEvaluator implements Node {
   inputMapping: EvaluatorInputMapping!
 }
 
+enum DatasetEvaluatorColumn {
+  display_name
+  kind
+  createdAt
+  updatedAt
+}
+
 """A connection to a list of items."""
 type DatasetEvaluatorConnection {
   """Pagination data for this connection"""
@@ -875,9 +882,25 @@ type DatasetEvaluatorEdge {
   node: DatasetEvaluator!
 }
 
+"""The filter key and value for dataset evaluator connections"""
+input DatasetEvaluatorFilter {
+  col: DatasetEvaluatorFilterColumn!
+  value: String!
+}
+
+enum DatasetEvaluatorFilterColumn {
+  display_name
+}
+
 type DatasetEvaluatorMutationPayload {
   evaluator: DatasetEvaluator!
   query: Query!
+}
+
+"""The sort key and direction for evaluator connections"""
+input DatasetEvaluatorSort {
+  col: DatasetEvaluatorColumn!
+  dir: SortDir!
 }
 
 type DatasetExample implements Node {

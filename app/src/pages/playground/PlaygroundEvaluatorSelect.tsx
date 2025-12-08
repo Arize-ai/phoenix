@@ -41,19 +41,19 @@ export function PlaygroundEvaluatorSelect(
   const { contains } = useFilter({ sensitivity: "base" });
 
   const [editingEvaluator, setEditingEvaluator] = useState<{
-    evaluatorId: string;
+    datasetEvaluatorId: string;
     displayName: string;
   } | null>(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   const onEdit = ({
-    evaluatorId,
+    datasetEvaluatorId,
     displayName,
   }: {
-    evaluatorId: string;
+    datasetEvaluatorId: string;
     displayName: string;
   }) => {
-    setEditingEvaluator({ evaluatorId, displayName });
+    setEditingEvaluator({ datasetEvaluatorId, displayName });
     setIsPopoverOpen(false);
   };
 
@@ -102,7 +102,7 @@ export function PlaygroundEvaluatorSelect(
                     isSelected={selectedIds?.includes(evaluator.id) ?? false}
                     onEdit={() =>
                       onEdit({
-                        evaluatorId: evaluator.id,
+                        datasetEvaluatorId: evaluator.id,
                         displayName: evaluator.displayName,
                       })
                     }
@@ -114,9 +114,8 @@ export function PlaygroundEvaluatorSelect(
         </MenuContainer>
       </DialogTrigger>
       <EditDatasetEvaluatorSlideover
-        evaluatorId={editingEvaluator?.evaluatorId}
+        datasetEvaluatorId={editingEvaluator?.datasetEvaluatorId}
         datasetId={datasetId}
-        displayName={editingEvaluator?.displayName}
         isOpen={!!editingEvaluator}
         onOpenChange={(open) => {
           if (!open) {
