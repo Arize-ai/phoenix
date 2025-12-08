@@ -14,7 +14,7 @@ Part 1 of this walkthrough focuses on using Phoenix to:
 4. **Pull optimized prompts back into your code**
 
 {% hint style="info" %}
-**Follow along with code**: This guide has a companion notebook with runnable code examples. Find it here.
+**Follow along with code**: This guide has a companion notebook with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/prompts/phoenix_prompt_tutorial.ipynb).
 {% endhint %}
 
 ## Step 1: Locate Bad Spans in Traces
