@@ -22,7 +22,7 @@ pip install arize-phoenix-otel
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 ```bash
 npm install @arizeai/phoenix-otel @arizeai/openinference-core
 ```
@@ -46,7 +46,7 @@ tracer = tracer_provider.get_tracer(__name__)
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 ```typescript
 import { register } from "@arizeai/phoenix-otel";
 
@@ -76,7 +76,7 @@ def my_func(input: str) -> str:
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 ```typescript
 import { traceChain } from "@arizeai/openinference-core";
 
@@ -108,7 +108,7 @@ with tracer.start_as_current_span(
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 ```typescript
 import { withSpan } from "@arizeai/openinference-core";
 import { trace } from "@arizeai/phoenix-otel";
@@ -201,7 +201,7 @@ this_name_should_be_overriden("input")
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 #### Using Wrappers
 
 ```typescript
@@ -301,7 +301,7 @@ decorated_agent("input")
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 #### Using Function Wrappers
 
 ```typescript
@@ -393,7 +393,7 @@ this_tool_name_should_be_overriden("input1", 1)
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 #### Using Function Wrappers
 
 ```typescript
@@ -944,7 +944,7 @@ openai_client.chat.completions.create(
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 #### Function Wrapper
 
 ```typescript
@@ -1116,7 +1116,7 @@ with suppress_tracing():
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 ```typescript
 import { suppressTracing } from "@opentelemetry/core";
 import { withSpan } from "@arizeai/openinference-core";
@@ -1161,7 +1161,7 @@ with using_attributes(session_id="123"):
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 ```typescript
 import { context } from "@opentelemetry/api";
 import { setSession } from "@arizeai/openinference-core";
@@ -1245,7 +1245,7 @@ with tracer.start_as_current_span(
 ```
 </Tab>
 
-<Tab title="TS">
+<Tab title="TypeScript">
 ```typescript
 import { withSpan, getLLMAttributes } from "@arizeai/openinference-core";
 import { trace } from "@arizeai/phoenix-otel";

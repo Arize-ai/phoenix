@@ -1,0 +1,1690 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Phoenix",
+  "colors": {
+    "primary": "#0384C3",
+    "light": "#0384C3",
+    "dark": "#0384C3"
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity"
+    ]
+  },
+  "background": {
+    "decoration": "gradient"
+  },
+  "fonts": {
+    "heading": {
+      "family": "Roboto"
+    },
+    "body": {
+      "family": "Roboto"
+    }
+  },
+  "favicon": "/docs/favicon.png",
+  "navigation": {
+    "languages": [
+      {
+        "language": "en",
+        "tabs": [
+          {
+            "tab": "Documentation",
+            "icon": "book-open",
+            "groups": [
+              {
+                "group": " ",
+                "pages": [
+                  "phoenix",
+                  {
+                    "group": "Get Started",
+                    "pages": [
+                      "phoenix/get-started",
+                      "phoenix/get-started/get-started-tracing",
+                      "phoenix/get-started/get-started-evaluations",
+                      "phoenix/get-started/get-started-datasets-and-experiments",
+                      "phoenix/get-started/get-started-prompt-playground"
+                    ]
+                  },
+                  "phoenix/user-guide",
+                  "phoenix/environments",
+                  "phoenix/phoenix-demo",
+                  "phoenix/end-to-end-features-notebook",
+                  "phoenix/production-guide"
+                ]
+              },
+              {
+                "group": "Tracing",
+                "icon": "swap",
+                "pages": [
+                  {
+                    "group": "Overview: Tracing",
+                    "pages": [
+                      "phoenix/tracing/llm-traces",
+                      "phoenix/tracing/llm-traces/projects",
+                      "phoenix/tracing/llm-traces/sessions",
+                      "phoenix/tracing/llm-traces/how-to-annotate-traces",
+                      "phoenix/tracing/llm-traces/metrics"
+                    ]
+                  },
+                  "phoenix/get-started/get-started-tracing",
+                  {
+                    "group": "How-to: Tracing",
+                    "pages": [
+                      "phoenix/tracing/how-to-tracing",
+                      {
+                        "group": "Setup Tracing",
+                        "pages": [
+                          "phoenix/tracing/how-to-tracing/setup-tracing",
+                          "phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel",
+                          "phoenix/tracing/how-to-tracing/setup-tracing/custom-spans",
+                          "phoenix/tracing/how-to-tracing/setup-tracing/instrument",
+                          "phoenix/tracing/how-to-tracing/setup-tracing/setup-projects",
+                          "phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions"
+                        ]
+                      },
+                      {
+                        "group": "Add Metadata",
+                        "pages": [
+                          "phoenix/tracing/how-to-tracing/add-metadata",
+                          "phoenix/tracing/how-to-tracing/add-metadata/customize-spans",
+                          "phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables"
+                        ]
+                      },
+                      {
+                        "group": "Annotate Traces",
+                        "pages": [
+                          "phoenix/tracing/how-to-tracing/feedback-and-annotations",
+                          "phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui",
+                          "phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback",
+                          "phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-auto-instrumented-spans",
+                          "phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces",
+                          "phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations"
+                        ]
+                      },
+                      {
+                        "group": "Importing & Exporting Traces",
+                        "pages": [
+                          "phoenix/tracing/how-to-tracing/importing-and-exporting-traces",
+                          "phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
+                          "phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans",
+                          "phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans"
+                        ]
+                      },
+                      "phoenix/tracing/how-to-tracing/cost-tracking",
+                      {
+                        "group": "Advanced",
+                        "pages": [
+                          "phoenix/tracing/how-to-tracing/advanced",
+                          "phoenix/tracing/how-to-tracing/advanced/masking-span-attributes",
+                          "phoenix/tracing/how-to-tracing/advanced/suppress-tracing",
+                          "phoenix/tracing/how-to-tracing/advanced/modifying-spans",
+                          "phoenix/tracing/how-to-tracing/advanced/multimodal-tracing"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Concepts: Tracing",
+                    "pages": [
+                      "phoenix/tracing/concepts-tracing/what-are-traces",
+                      "phoenix/tracing/concepts-tracing/how-tracing-works",
+                      "phoenix/tracing/concepts-tracing/annotations-concepts",
+                      "phoenix/tracing/concepts-tracing/faqs-tracing"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Prompt Engineering",
+                "icon": "code",
+                "pages": [
+                  {
+                    "group": "Overview: Prompts",
+                    "pages": [
+                      "phoenix/prompt-engineering/overview-prompts",
+                      "phoenix/prompt-engineering/overview-prompts/prompt-management",
+                      "phoenix/prompt-engineering/overview-prompts/prompt-playground",
+                      "phoenix/prompt-engineering/overview-prompts/span-replay",
+                      "phoenix/prompt-engineering/overview-prompts/prompts-in-code"
+                    ]
+                  },
+                  "phoenix/get-started/get-started-prompt-playground",
+                  {
+                    "group": "How to: Prompts",
+                    "pages": [
+                      "phoenix/prompt-engineering/how-to-prompts",
+                      "phoenix/prompt-engineering/how-to-prompts/configure-ai-providers",
+                      "phoenix/prompt-engineering/how-to-prompts/using-the-playground",
+                      "phoenix/prompt-engineering/how-to-prompts/create-a-prompt",
+                      "phoenix/prompt-engineering/how-to-prompts/test-a-prompt",
+                      "phoenix/prompt-engineering/how-to-prompts/tag-a-prompt",
+                      "phoenix/prompt-engineering/how-to-prompts/using-a-prompt"
+                    ]
+                  },
+                  {
+                    "group": "Concepts: Prompts",
+                    "pages": [
+                      "phoenix/prompt-engineering/concepts-prompts/prompts-concepts",
+                      "phoenix/prompt-engineering/concepts-prompts/context-engineering-basics"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Datasets & Experiments",
+                "icon": "flask",
+                "pages": [
+                  "phoenix/datasets-and-experiments/overview-datasets",
+                  "phoenix/get-started/get-started-datasets-and-experiments",
+                  {
+                    "group": "How-to: Datasets",
+                    "pages": [
+                      "phoenix/datasets-and-experiments/how-to-datasets",
+                      "phoenix/datasets-and-experiments/how-to-datasets/creating-datasets",
+                      "phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets"
+                    ]
+                  },
+                  {
+                    "group": "How-to: Experiments",
+                    "pages": [
+                      "phoenix/datasets-and-experiments/how-to-experiments",
+                      "phoenix/datasets-and-experiments/how-to-experiments/run-experiments",
+                      "phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
+                      "phoenix/datasets-and-experiments/how-to-experiments/repetitions",
+                      "phoenix/datasets-and-experiments/how-to-experiments/splits"
+                    ]
+                  },
+                  "phoenix/datasets-and-experiments/concepts-datasets"
+                ]
+              },
+              {
+                "group": "Evaluation",
+                "icon": "clipboard-check",
+                "pages": [
+                  "phoenix/evaluation/typescript-quickstart",
+                  "phoenix/evaluation/python-quickstart",
+                  {
+                    "group": "Overview: Evals",
+                    "pages": [
+                      "phoenix/evaluation/llm-evals",
+                      "phoenix/evaluation/llm-evals/executors",
+                      "phoenix/evaluation/llm-evals/evaluator-traces"
+                    ]
+                  },
+                  {
+                    "group": "Concepts: Evals",
+                    "pages": [
+                      "phoenix/evaluation/concepts-evals/llm-as-a-judge",
+                      "phoenix/evaluation/concepts-evals/evaluators",
+                      "phoenix/evaluation/concepts-evals/input-mapping"
+                    ]
+                  },
+                  {
+                    "group": "How to: Evals",
+                    "pages": [
+                      "phoenix/evaluation/how-to-evals",
+                      "phoenix/evaluation/how-to-evals/custom-llm-evaluators",
+                      {
+                        "group": "Configuring the LLM",
+                        "pages": [
+                          "phoenix/evaluation/how-to-evals/configuring-the-llm",
+                          "phoenix/evaluation/how-to-evals/configuring-the-llm/prompt-formats",
+                          "phoenix/evaluation/how-to-evals/configuring-the-llm/calling-models-with-litellm"
+                        ]
+                      },
+                      "phoenix/evaluation/how-to-evals/code-evaluators",
+                      "phoenix/evaluation/how-to-evals/batch-evaluations",
+                      "phoenix/evaluation/how-to-evals/using-evals-with-phoenix"
+                    ]
+                  },
+                  {
+                    "group": "Pre-Built Evals",
+                    "pages": [
+                      "phoenix/evaluation/running-pre-tested-evals",
+                      "phoenix/evaluation/running-pre-tested-evals/code-metrics",
+                      "phoenix/evaluation/running-pre-tested-evals/hallucinations",
+                      "phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data",
+                      "phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance",
+                      "phoenix/evaluation/running-pre-tested-evals/summarization-eval",
+                      "phoenix/evaluation/running-pre-tested-evals/code-generation-eval",
+                      "phoenix/evaluation/running-pre-tested-evals/toxicity",
+                      "phoenix/evaluation/running-pre-tested-evals/ai-vs-human-groundtruth",
+                      "phoenix/evaluation/running-pre-tested-evals/reference-link-evals",
+                      "phoenix/evaluation/running-pre-tested-evals/user-frustration",
+                      "phoenix/evaluation/running-pre-tested-evals/sql-generation-eval",
+                      "phoenix/evaluation/running-pre-tested-evals/tool-calling-eval",
+                      "phoenix/evaluation/running-pre-tested-evals/agent-path-convergence",
+                      "phoenix/evaluation/running-pre-tested-evals/agent-planning",
+                      "phoenix/evaluation/running-pre-tested-evals/agent-reflection",
+                      "phoenix/evaluation/running-pre-tested-evals/audio-emotion-detection"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Settings",
+                "icon": "gear-complex",
+                "pages": [
+                  "phoenix/settings/access-control-rbac",
+                  "phoenix/settings/api-keys",
+                  "phoenix/settings/data-retention",
+                  "phoenix/settings/phoenix-to-arize-ax-migration"
+                ]
+              },
+              {
+                "group": "Resources",
+                "icon": "books",
+                "pages": [
+                  {
+                    "group": "Frequently Asked Questions",
+                    "pages": [
+                      "phoenix/resources/frequently-asked-questions",
+                      "phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
+                      "phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint",
+                      "phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud",
+                      "phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version",
+                      "phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
+                      "phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance",
+                      "phoenix/resources/frequently-asked-questions/can-i-use-azure-openai",
+                      "phoenix/resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance",
+                      "phoenix/resources/frequently-asked-questions/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container",
+                      "phoenix/resources/frequently-asked-questions/can-i-run-phoenix-on-sagemaker",
+                      "phoenix/resources/frequently-asked-questions/can-i-persist-data-in-a-notebook",
+                      "phoenix/resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http",
+                      "phoenix/resources/frequently-asked-questions/can-i-use-grpc-for-trace-collection",
+                      "phoenix/resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable",
+                      "phoenix/resources/frequently-asked-questions/braintrust-open-source-alternative-llm-evaluation-platform-comparison",
+                      "phoenix/resources/frequently-asked-questions/langfuse-alternative-arize-phoenix-vs-langfuse-key-differences",
+                      "phoenix/resources/frequently-asked-questions/open-source-langsmith-alternative-arize-phoenix-vs.-langsmith"
+                    ]
+                  },
+                  "phoenix/resources/contribute-to-phoenix",
+                  "phoenix/resources/github",
+                  "phoenix/resources/openinference"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Phoenix Cloud",
+            "icon": "cloud",
+            "groups": [
+              {
+                "group": "Phoenix Cloud",
+                "pages": [
+                  "phoenix/phoenix-cloud"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Cookbooks",
+            "icon": "user-chef",
+            "groups": [
+              {
+                "group": " ",
+                "pages": [
+                  "phoenix/cookbook",
+                  {
+                    "group": "Agent Workflow Patterns",
+                    "pages": [
+                      "phoenix/cookbook/agent-workflow-patterns",
+                      "phoenix/cookbook/agent-workflow-patterns/autogen",
+                      "phoenix/cookbook/agent-workflow-patterns/crewai",
+                      "phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration",
+                      "phoenix/cookbook/agent-workflow-patterns/openai-agents",
+                      "phoenix/cookbook/agent-workflow-patterns/langgraph",
+                      "phoenix/cookbook/agent-workflow-patterns/smolagents"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "AI Engineering Workflows",
+                "icon": "gear",
+                "pages": [
+                  "phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python",
+                  "phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript",
+                  "phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
+                  "phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
+                  "phoenix/cookbook/prompt-engineering/prompt-optimization",
+                  "phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments"
+                ]
+              },
+              {
+                "group": "Tracing",
+                "icon": "swap",
+                "pages": [
+                  "phoenix/cookbook/tracing/agentic-rag-tracing",
+                  "phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
+                  "phoenix/cookbook/tracing/structured-data-extraction",
+                  "phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph",
+                  "phoenix/cookbook/tracing/cookbooks"
+                ]
+              },
+              {
+                "group": "Human-in-the-Loop Workflows (Annotations)",
+                "icon": "user-plus",
+                "pages": [
+                  "phoenix/cookbook/human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development",
+                  "phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
+                  "phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
+                ]
+              },
+              {
+                "group": "Prompt Engineering",
+                "icon": "code",
+                "pages": [
+                  "phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
+                  "phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification",
+                  "phoenix/cookbook/prompt-engineering/few-shot-prompting",
+                  "phoenix/cookbook/prompt-engineering/react-prompting",
+                  "phoenix/cookbook/prompt-engineering/chain-of-thought-prompting",
+                  "phoenix/cookbook/prompt-engineering/prompt-optimization",
+                  "phoenix/cookbook/prompt-engineering/llm-as-a-judge-prompt-optimization"
+                ]
+              },
+              {
+                "group": "Evaluation",
+                "icon": "clipboard-check",
+                "pages": [
+                  "phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
+                  "phoenix/cookbook/evaluation/evaluate-an-agent",
+                  "phoenix/cookbook/evaluation/evaluate-rag",
+                  "phoenix/cookbook/evaluation/code-readability-evaluation",
+                  "phoenix/cookbook/evaluation/relevance-classification-evaluation",
+                  "phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
+                  "phoenix/cookbook/evaluation/cookbooks"
+                ]
+              },
+              {
+                "group": "Datasets & Experiments",
+                "icon": "flask",
+                "pages": [
+                  "phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments",
+                  "phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent",
+                  "phoenix/cookbook/datasets-and-experiments/model-comparison-for-an-email-text-extraction-service",
+                  "phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
+                  "phoenix/cookbook/datasets-and-experiments/summarization",
+                  "phoenix/cookbook/datasets-and-experiments/text2sql",
+                  "phoenix/cookbook/datasets-and-experiments/cookbooks"
+                ]
+              },
+              {
+                "group": "Retrieval & Inferences",
+                "icon": "magnifying-glass",
+                "pages": [
+                  "phoenix/cookbook/retrieval-and-inferences/embeddings-analysis",
+                  "phoenix/cookbook/retrieval-and-inferences/cookbooks"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Integrations",
+            "icon": "handshake",
+            "groups": [
+              {
+                "group": " ",
+                "pages": [
+                  "phoenix/integrations",
+                  "phoenix/integrations/phoenix-mcp-server"
+                ]
+              },
+              {
+                "group": "LLM Providers",
+                "icon": "user-robot",
+                "pages": [
+                  {
+                    "group": "Amazon Bedrock",
+                    "pages": [
+                      "phoenix/integrations/llm-providers/amazon-bedrock",
+                      "phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing",
+                      "phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals",
+                      "phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Anthropic",
+                    "pages": [
+                      "phoenix/integrations/llm-providers/anthropic",
+                      "phoenix/integrations/llm-providers/anthropic/anthropic-tracing",
+                      "phoenix/integrations/llm-providers/anthropic/anthropic-evals"
+                    ]
+                  },
+                  {
+                    "group": "Google",
+                    "pages": [
+                      "phoenix/integrations/llm-providers/google-gen-ai",
+                      "phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing",
+                      "phoenix/integrations/llm-providers/google-gen-ai/gemini-evals",
+                      "phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals"
+                    ]
+                  },
+                  {
+                    "group": "Groq",
+                    "pages": [
+                      "phoenix/integrations/llm-providers/groq",
+                      "phoenix/integrations/llm-providers/groq/groq-tracing"
+                    ]
+                  },
+                  {
+                    "group": "LiteLLM",
+                    "pages": [
+                      "phoenix/integrations/llm-providers/litellm",
+                      "phoenix/integrations/llm-providers/litellm/litellm-tracing",
+                      "phoenix/integrations/llm-providers/litellm/litellm-evals"
+                    ]
+                  },
+                  {
+                    "group": "MistralAI",
+                    "pages": [
+                      "phoenix/integrations/llm-providers/mistralai",
+                      "phoenix/integrations/llm-providers/mistralai/mistralai-tracing",
+                      "phoenix/integrations/llm-providers/mistralai/mistralai-evals"
+                    ]
+                  },
+                  {
+                    "group": "OpenAI",
+                    "pages": [
+                      "phoenix/integrations/llm-providers/openai",
+                      "phoenix/integrations/llm-providers/openai/openai-tracing",
+                      "phoenix/integrations/llm-providers/openai/openai-evals",
+                      "phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing",
+                      "phoenix/integrations/llm-providers/openai/openai-node-js-sdk"
+                    ]
+                  },
+                  {
+                    "group": "OpenRouter",
+                    "pages": [
+                      "phoenix/integrations/llm-providers/openrouter",
+                      "phoenix/integrations/llm-providers/openrouter/openai-tracing"
+                    ]
+                  },
+                  {
+                    "group": "VertexAI",
+                    "pages": [
+                      "phoenix/integrations/llm-providers/vertexai",
+                      "phoenix/integrations/llm-providers/vertexai/vertexai-tracing",
+                      "phoenix/integrations/llm-providers/vertexai/vertexai-evals"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "TypeScript",
+                "icon": "js",
+                "pages": [
+                  {
+                    "group": "BeeAI",
+                    "pages": [
+                      "phoenix/integrations/typescript/beeai",
+                      "phoenix/integrations/typescript/beeai/beeai-tracing-js"
+                    ]
+                  },
+                  {
+                    "group": "Mastra",
+                    "pages": [
+                      "phoenix/integrations/typescript/mastra",
+                      "phoenix/integrations/typescript/mastra/mastra-tracing"
+                    ]
+                  },
+                  {
+                    "group": "LangChain",
+                    "pages": [
+                      "phoenix/integrations/typescript/langchain",
+                      "phoenix/integrations/typescript/langchain/langchain-js"
+                    ]
+                  },
+                  {
+                    "group": "Vercel",
+                    "pages": [
+                      "phoenix/integrations/typescript/vercel",
+                      "phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Java",
+                "icon": "java",
+                "pages": [
+                  {
+                    "group": "LangChain4j",
+                    "pages": [
+                      "phoenix/integrations/java/langchain4j",
+                      "phoenix/integrations/java/langchain4j/langchain4j-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Spring AI",
+                    "pages": [
+                      "phoenix/integrations/java/springai",
+                      "phoenix/integrations/java/springai/springai-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Arconia",
+                    "pages": [
+                      "phoenix/integrations/java/arconia",
+                      "phoenix/integrations/java/arconia/arconia-tracing"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Python",
+                "icon": "python",
+                "pages": [
+                  {
+                    "group": "Agno",
+                    "pages": [
+                      "phoenix/integrations/python/agno",
+                      "phoenix/integrations/python/agno/agno-tracing"
+                    ]
+                  },
+                  {
+                    "group": "AutoGen",
+                    "pages": [
+                      "phoenix/integrations/python/autogen",
+                      "phoenix/integrations/python/autogen/autogen-tracing",
+                      "phoenix/integrations/python/autogen/autogen-agentchat-tracing"
+                    ]
+                  },
+                  {
+                    "group": "BeeAI",
+                    "pages": [
+                      "phoenix/integrations/python/beeai",
+                      "phoenix/integrations/python/beeai/beeai-tracing-python"
+                    ]
+                  },
+                  {
+                    "group": "CrewAI",
+                    "pages": [
+                      "phoenix/integrations/python/crewai",
+                      "phoenix/integrations/python/crewai/crewai-tracing"
+                    ]
+                  },
+                  {
+                    "group": "DSPy",
+                    "pages": [
+                      "phoenix/integrations/python/dspy",
+                      "phoenix/integrations/python/dspy/dspy-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Google ADK",
+                    "pages": [
+                      "phoenix/integrations/python/google-adk",
+                      "phoenix/integrations/python/google-adk/google-adk-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Graphite",
+                    "pages": [
+                      "phoenix/integrations/python/graphite",
+                      "phoenix/integrations/python/graphite/graphite-integration-guide"
+                    ]
+                  },
+                  {
+                    "group": "Guardrails AI",
+                    "pages": [
+                      "phoenix/integrations/python/guardrails-ai",
+                      "phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Haystack",
+                    "pages": [
+                      "phoenix/integrations/python/haystack",
+                      "phoenix/integrations/python/haystack/haystack-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Hugging Face smolagents",
+                    "pages": [
+                      "phoenix/integrations/python/hugging-face-smolagents",
+                      "phoenix/integrations/python/hugging-face-smolagents/smolagents-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Instructor",
+                    "pages": [
+                      "phoenix/integrations/python/instructor",
+                      "phoenix/integrations/python/instructor/instructor-tracing"
+                    ]
+                  },
+                  {
+                    "group": "LlamaIndex",
+                    "pages": [
+                      "phoenix/integrations/python/llamaindex",
+                      "phoenix/integrations/python/llamaindex/llamaindex-tracing",
+                      "phoenix/integrations/python/llamaindex/llamaindex-workflows-tracing"
+                    ]
+                  },
+                  {
+                    "group": "LangChain",
+                    "pages": [
+                      "phoenix/integrations/python/langchain",
+                      "phoenix/integrations/python/langchain/langchain-tracing"
+                    ]
+                  },
+                  {
+                    "group": "LangGraph",
+                    "pages": [
+                      "phoenix/integrations/python/langgraph",
+                      "phoenix/integrations/python/langgraph/langgraph-tracing"
+                    ]
+                  },
+                  "phoenix/integrations/python/mcp-tracing",
+                  {
+                    "group": "Portkey",
+                    "pages": [
+                      "phoenix/integrations/python/portkey",
+                      "phoenix/integrations/python/portkey/portkey-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Pydantic AI",
+                    "pages": [
+                      "phoenix/integrations/python/pydantic",
+                      "phoenix/integrations/python/pydantic/pydantic-tracing",
+                      "phoenix/integrations/python/pydantic/pydantic-evals"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Platform",
+                "icon": "computer",
+                "pages": [
+                  {
+                    "group": "Dify",
+                    "pages": [
+                      "phoenix/integrations/platforms/dify",
+                      "phoenix/integrations/platforms/dify/dify-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Flowise",
+                    "pages": [
+                      "phoenix/integrations/platforms/flowise",
+                      "phoenix/integrations/platforms/flowise/flowise-tracing"
+                    ]
+                  },
+                  {
+                    "group": "LangFlow",
+                    "pages": [
+                      "phoenix/integrations/platforms/langflow",
+                      "phoenix/integrations/platforms/langflow/langflow-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Prompt Flow",
+                    "pages": [
+                      "phoenix/integrations/platforms/prompt-flow",
+                      "phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Evaluation Integrations",
+                "icon": "clipboard-check",
+                "pages": [
+                  "phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals",
+                  "phoenix/integrations/llm-providers/anthropic/anthropic-evals",
+                  "phoenix/integrations/evaluation-integrations/cleanlab",
+                  "phoenix/integrations/llm-providers/google-gen-ai/gemini-evals",
+                  "phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals",
+                  "phoenix/integrations/llm-providers/litellm/litellm-evals",
+                  "phoenix/integrations/llm-providers/mistralai/mistralai-evals",
+                  "phoenix/integrations/llm-providers/openai/openai-evals",
+                  "phoenix/integrations/evaluation-integrations/ragas",
+                  "phoenix/integrations/llm-providers/vertexai/vertexai-evals"
+                ]
+              },
+              {
+                "group": "Vector Databases",
+                "icon": "database",
+                "pages": [
+                  "phoenix/integrations/vector-databases/mongodb",
+                  "phoenix/integrations/vector-databases/pinecone",
+                  "phoenix/integrations/vector-databases/qdrant",
+                  "phoenix/integrations/vector-databases/weaviate",
+                  "phoenix/integrations/vector-databases/zilliz-milvus",
+                  "phoenix/integrations/vector-databases/couchbase"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "SDK & API Reference",
+            "icon": "rectangle-terminal",
+            "groups": [
+              {
+                "group": "Python",
+                "icon": "python",
+                "pages": [
+                  "phoenix/sdk-api-reference",
+                  "phoenix/sdk-api-reference/python/reference",
+                  "phoenix/sdk-api-reference/python/arize-phoenix-client",
+                  "phoenix/sdk-api-reference/python/arize-phoenix-evals",
+                  "phoenix/sdk-api-reference/python/arize-phoenix-otel"
+                ]
+              },
+              {
+                "group": "TypeScript",
+                "icon": "brackets-curly",
+                "pages": [
+                  "phoenix/sdk-api-reference/typescript/overview",
+                  "phoenix/sdk-api-reference/typescript/reference",
+                  "phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
+                  "phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
+                  "phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
+                  "phoenix/sdk-api-reference/typescript/mcp-server"
+                ]
+              },
+              {
+                "group": "Rest API",
+                "icon": "network-wired",
+                "pages": [
+                  "phoenix/sdk-api-reference/rest-api/overview",
+                  {
+                    "group": "API Reference",
+                    "pages": [
+                      {
+                        "group": "Annotation Configs",
+                        "pages": [
+                          "phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/create-an-annotation-configuration",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/get-an-annotation-configuration-by-id-or-name",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/update-an-annotation-configuration",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration"
+                        ]
+                      },
+                      {
+                        "group": "Annotations",
+                        "pages": [
+                          "phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids"
+                        ]
+                      },
+                      {
+                        "group": "Datasets",
+                        "pages": [
+                          "phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-dataset-by-id",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/datasets/delete-dataset-by-id",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-dataset-versions",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-evals-jsonl-file"
+                        ]
+                      },
+                      {
+                        "group": "Experiments",
+                        "pages": [
+                          "phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-experiment-on-a-dataset",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-csv-file",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-runs-for-an-experiment",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-run-for-an-experiment",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-or-update-evaluation-for-an-experiment-run"
+                        ]
+                      },
+                      {
+                        "group": "Traces",
+                        "pages": [
+                          "phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/traces/get-span-trace-or-document-evaluations-from-a-project",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/traces/add-span-trace-or-document-evaluations"
+                        ]
+                      },
+                      {
+                        "group": "Spans",
+                        "pages": [
+                          "phoenix/sdk-api-reference/rest-api/api-reference/spans/search-spans-with-simple-filters-no-dsl",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/spans/create-spans",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier"
+                        ]
+                      },
+                      {
+                        "group": "Prompts",
+                        "pages": [
+                          "phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-all-prompts",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-tag",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-latest-prompt-version",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-version-tags",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/prompts/add-tag-to-prompt-version"
+                        ]
+                      },
+                      {
+                        "group": "Projects",
+                        "pages": [
+                          "phoenix/sdk-api-reference/rest-api/api-reference/projects/list-all-projects",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/projects/create-a-new-project",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/projects/get-project-by-id-or-name",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/projects/update-a-project-by-id-or-name",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/projects/delete-a-project-by-id-or-name"
+                        ]
+                      },
+                      {
+                        "group": "Users",
+                        "pages": [
+                          "phoenix/sdk-api-reference/rest-api/api-reference/users/list-all-users",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/users/create-a-new-user",
+                          "phoenix/sdk-api-reference/rest-api/api-reference/users/delete-a-user-by-id"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "OpenInference SDK",
+                "icon": "puzzle",
+                "pages": [
+                  "phoenix/sdk-api-reference/openinference-sdk/openinference-python",
+                  "phoenix/sdk-api-reference/openinference-sdk/openinference-java",
+                  "phoenix/sdk-api-reference/openinference-sdk/openinference-javascript"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Self-Hosting",
+            "icon": "server",
+            "groups": [
+              {
+                "group": " ",
+                "pages": [
+                  "phoenix/self-hosting",
+                  "phoenix/self-hosting/license",
+                  {
+                    "group": "Configuration",
+                    "pages": [
+                      "phoenix/self-hosting/configuration",
+                      "phoenix/self-hosting/configuration/using-amazon-aurora"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Deployment Options",
+                "icon": "rocket-launch",
+                "pages": [
+                  "phoenix/self-hosting/deployment-options/docker",
+                  "phoenix/self-hosting/deployment-options/kubernetes",
+                  "phoenix/self-hosting/deployment-options/kubernetes-helm",
+                  "phoenix/self-hosting/deployment-options/aws-with-cloudformation",
+                  "phoenix/self-hosting/deployment-options/railway"
+                ]
+              },
+              {
+                "group": "Features",
+                "icon": "layer-group",
+                "pages": [
+                  "phoenix/self-hosting/features/provisioning",
+                  "phoenix/self-hosting/features/authentication",
+                  "phoenix/self-hosting/features/email",
+                  "phoenix/self-hosting/features/management",
+                  "phoenix/settings/data-retention"
+                ]
+              },
+              {
+                "group": "Upgrade",
+                "icon": "angles-up",
+                "pages": [
+                  "phoenix/self-hosting/upgrade/migrations"
+                ]
+              },
+              {
+                "group": "Security",
+                "icon": "user-shield",
+                "pages": [
+                  "phoenix/settings/access-control-rbac"
+                ]
+              },
+              {
+                "group": "Misc",
+                "icon": "boxes-stacked",
+                "pages": [
+                  "phoenix/self-hosting/misc/frequently-asked-questions"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Release Notes",
+            "icon": "gift",
+            "groups": [
+              {
+                "group": " ",
+                "pages": [
+                  "phoenix/release-notes",
+                  {
+                    "group": "11.2025",
+                    "pages": [
+                      "phoenix/release-notes/11-2025/11-29-2025-add-support-for-claude-opus-4-5",
+                      "phoenix/release-notes/11-2025/11-27-2025-show-server-credential-setup-in-playground-api-keys",
+                      "phoenix/release-notes/11-2025/11-25-2025-split-assignments-when-uploading-a-dataset",
+                      "phoenix/release-notes/11-2025/11-23-2025-repetitions-for-manual-playground-invocations",
+                      "phoenix/release-notes/11-2025/11-19-2025-expanded-provider-support-with-openai-5-1-+-gemini-3",
+                      "phoenix/release-notes/11-2025/11-12-2025-updated-anthropic-model-list",
+                      "phoenix/release-notes/11-2025/11-09-2025-openinference-typescript-2-0",
+                      "phoenix/release-notes/11-2025/11-07-2025-timezone-preference",
+                      "phoenix/release-notes/11-2025/11-05-2025-metadata-for-prompts",
+                      "phoenix/release-notes/11-2025/11-03-2025-playground-dataset-label-display",
+                      "phoenix/release-notes/11-2025/11-01-2025-resume-experiments-and-evaluations"
+                    ]
+                  },
+                  {
+                    "group": "10.2025",
+                    "pages": [
+                      "phoenix/release-notes/10-2025/10-30-2025-metadata-support-for-experiment-run-annotations",
+                      "phoenix/release-notes/10-2025/10-28-2025-enable-aws-iam-auth-for-db-configuration",
+                      "phoenix/release-notes/10-2025/10-26-2025-add-split-edit-menu-to-examples",
+                      "phoenix/release-notes/10-2025/10-24-2025-filter-prompts-page-by-label",
+                      "phoenix/release-notes/10-2025/10-20-2025-splits",
+                      "phoenix/release-notes/10-2025/10-18-2025-filter-annotations-in-compare-experiments-slideover",
+                      "phoenix/release-notes/10-2025/10-15-2025-enhanced-filtering-for-examples-table",
+                      "phoenix/release-notes/10-2025/10-13-2025-view-traces-in-compare-experiments",
+                      "phoenix/release-notes/10-2025/10-10-2025-viewer-role",
+                      "phoenix/release-notes/10-2025/10-08-2025-dataset-labels",
+                      "phoenix/release-notes/10-2025/10-06-2025-paginate-compare-experiments",
+                      "phoenix/release-notes/10-2025/10-05-2025-load-prompt-by-tag-into-playground",
+                      "phoenix/release-notes/10-2025/10-03-2025-prompt-version-editing-in-playground"
+                    ]
+                  },
+                  {
+                    "group": "09.2025",
+                    "pages": [
+                      "phoenix/release-notes/09-2025/09-29-2025-day-0-support-for-claude-sonnet-4.5",
+                      "phoenix/release-notes/09-2025/09-27-2025-dataset-splits",
+                      "phoenix/release-notes/09-2025/09-26-2025-session-annotations",
+                      "phoenix/release-notes/09-2025/09-25-2025-repetitions",
+                      "phoenix/release-notes/09-2025/09-24-2025-custom-http-headers-for-requests-in-playground",
+                      "phoenix/release-notes/09-2025/09-23-2025-repetitions-in-experiment-compare-slideover",
+                      "phoenix/release-notes/09-2025/09-22-2025-helm-configurable-image-registry-and-ipv6-support",
+                      "phoenix/release-notes/09-2025/09-17-2025-experiment-compare-details-slideover-in-list-view",
+                      "phoenix/release-notes/09-2025/09-15-2025-prompt-labels",
+                      "phoenix/release-notes/09-2025/09-12-2025-enable-paging-in-experiment-compare-details",
+                      "phoenix/release-notes/09-2025/09-08-2025-experiment-annotation-popover-in-detail-view",
+                      "phoenix/release-notes/09-2025/09-04-2025-experiment-lists-page-frontend-enhancements",
+                      "phoenix/release-notes/09-2025/09-03-2025-add-methods-to-log-document-annotations"
+                    ]
+                  },
+                  {
+                    "group": "08.2025",
+                    "pages": [
+                      "phoenix/release-notes/08-2025/08-28-2025-new-arize-phoenix-client-package",
+                      "phoenix/release-notes/08-2025/08-22-2025-new-trace-timeline-view",
+                      "phoenix/release-notes/08-2025/08-20-2025-new-experiment-and-annotation-quick-filters",
+                      "phoenix/release-notes/08-2025/08-15-2025-enhance-experiment-comparison-views",
+                      "phoenix/release-notes/08-2025/08-14-2025-trace-transfer-for-long-term-storage",
+                      "phoenix/release-notes/08-2025/08-12-2025-ui-design-overhauls",
+                      "phoenix/release-notes/08-2025/08-09-2025-playground-support-for-gpt-5",
+                      "phoenix/release-notes/08-2025/08-07-2025-improved-error-handling-in-prompt-playground",
+                      "phoenix/release-notes/08-2025/08-06-2025-expanded-search-capabilities",
+                      "phoenix/release-notes/08-2025/08-05-2025-claude-opus-4-1-support",
+                      "phoenix/release-notes/08-2025/08-04-2025-manual-project-creation-and-trace-duplication",
+                      "phoenix/release-notes/08-2025/08-03-2025-delete-spans-via-rest-api"
+                    ]
+                  },
+                  {
+                    "group": "07.2025",
+                    "pages": [
+                      "phoenix/release-notes/07-2025/07-29-2025-google-genai-evals",
+                      "phoenix/release-notes/07-2025/07-25-2025-project-dashboards",
+                      "phoenix/release-notes/07-2025/07-25-2025-average-metrics-in-experiment-comparison-table",
+                      "phoenix/release-notes/07-2025/07-21-2025-project-and-trace-management-via-graphql",
+                      "phoenix/release-notes/07-2025/07-18-2025-openinference-java",
+                      "phoenix/release-notes/07-2025/07-13-2025-experiments-module-in-phoenix-client",
+                      "phoenix/release-notes/07-2025/07-09-2025-baseline-for-experiment-comparisons",
+                      "phoenix/release-notes/07-2025/07-07-2025-databse-disk-usage-monitor",
+                      "phoenix/release-notes/07-2025/07-03-2025-cost-summaries-in-trace-headers",
+                      "phoenix/release-notes/07-2025/07-02-2025-cursor-mcp-button"
+                    ]
+                  },
+                  {
+                    "group": "06.2025",
+                    "pages": [
+                      "phoenix/release-notes/06-2025/06-25-2025-cost-tracking",
+                      "phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
+                      "phoenix/release-notes/06-2025/06-25-2025-amazon-bedrock-support-in-playground",
+                      "phoenix/release-notes/06-2025/06-13-2025-session-filtering",
+                      "phoenix/release-notes/06-2025/06-13-2025-enhanced-span-creation-and-logging",
+                      "phoenix/release-notes/06-2025/06-12-2025-dataset-filtering",
+                      "phoenix/release-notes/06-2025/06-06-2025-experiment-progress-graph",
+                      "phoenix/release-notes/06-2025/06-04-2025-ollama-support-in-playground",
+                      "phoenix/release-notes/06-2025/06-03-2025-deploy-via-helm"
+                    ]
+                  },
+                  {
+                    "group": "05.2025",
+                    "pages": [
+                      "phoenix/release-notes/05-2025/05-30-2025-xai-and-deepseek-support-in-playground",
+                      "phoenix/release-notes/05-2025/05-20-2025-datasets-and-experiment-evaluations-in-the-js-client",
+                      "phoenix/release-notes/05-2025/05-14-2025-experiments-in-the-js-client",
+                      "phoenix/release-notes/05-2025/05-09-2025-annotations-data-retention-policies-hotkeys",
+                      "phoenix/release-notes/05-2025/05-05-2025-openinference-google-genai-instrumentation"
+                    ]
+                  },
+                  {
+                    "group": "04.2025",
+                    "pages": [
+                      "phoenix/release-notes/04-2025/04-30-2025-span-querying-and-data-extraction-for-phoenix-client",
+                      "phoenix/release-notes/04-2025/04-28-2025-tls-support-for-phoenix-server",
+                      "phoenix/release-notes/04-2025/04-28-2025-improved-shutdown-handling",
+                      "phoenix/release-notes/04-2025/04-25-2025-scroll-selected-span-into-view",
+                      "phoenix/release-notes/04-2025/04-18-2025-tracing-for-mcp-client-server-applications",
+                      "phoenix/release-notes/04-2025/04-16-2025-api-key-generation-via-api",
+                      "phoenix/release-notes/04-2025/04-15-2025-display-tool-call-and-result-ids-in-span-details",
+                      "phoenix/release-notes/04-2025/04-09-2025-project-management-api-enhancements",
+                      "phoenix/release-notes/04-2025/04-09-2025-new-rest-api-for-projects-with-rbac",
+                      "phoenix/release-notes/04-2025/04-03-2025-phoenix-client-prompt-tagging",
+                      "phoenix/release-notes/04-2025/04-02-2025-improved-span-annotation-editor",
+                      "phoenix/release-notes/04-2025/04-01-2025-support-for-mcp-span-tool-info-in-openai-agents-sdk"
+                    ]
+                  },
+                  {
+                    "group": "03.2025",
+                    "pages": [
+                      "phoenix/release-notes/03-2025/03-27-2025-span-view-improvements",
+                      "phoenix/release-notes/03-2025/03-24-2025-tracing-configuration-tab",
+                      "phoenix/release-notes/03-2025/03-21-2025-environment-variable-based-admin-user-configuration",
+                      "phoenix/release-notes/03-2025/03-20-2025-delete-experiment-from-action-menu",
+                      "phoenix/release-notes/03-2025/03-19-2025-access-to-new-integrations-in-projects",
+                      "phoenix/release-notes/03-2025/03-18-2025-resize-span-trace-and-session-tables",
+                      "phoenix/release-notes/03-2025/03-14-2025-openai-agents-instrumentation",
+                      "phoenix/release-notes/03-2025/03-07-2025-model-config-enhancements-for-prompts",
+                      "phoenix/release-notes/03-2025/03-07-2025-new-prompt-playground-evals-and-integration-support",
+                      "phoenix/release-notes/03-2025/03-06-2025-project-improvements"
+                    ]
+                  },
+                  {
+                    "group": "02.2025",
+                    "pages": [
+                      "phoenix/release-notes/02-2025/02-19-2025-prompts",
+                      "phoenix/release-notes/02-2025/02-18-2025-one-line-instrumentation"
+                    ]
+                  },
+                  {
+                    "group": "01.2025",
+                    "pages": [
+                      "phoenix/release-notes/01-2025/01-18-2025-automatic-and-manual-span-tracing"
+                    ]
+                  },
+                  {
+                    "group": "2024",
+                    "pages": [
+                      "phoenix/release-notes/2024/12-09-2024-sessions",
+                      "phoenix/release-notes/2024/11-18-2024-prompt-playground",
+                      "phoenix/release-notes/2024/09-26-2024-authentication-and-rbac",
+                      "phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations",
+                      "phoenix/release-notes/2024/07-11-2024-hosted-phoenix-and-llamatrace",
+                      "phoenix/release-notes/2024/07-03-2024-datasets-and-experiments",
+                      "phoenix/release-notes/2024/07-02-2024-function-call-evaluations"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "language": "jp",
+        "groups": [
+          {
+            "group": " ",
+            "pages": [
+              "phoenix/documentation/jp"
+            ]
+          }
+        ]
+      },
+      {
+        "language": "cn",
+        "groups": [
+          {
+            "group": " ",
+            "pages": [
+              "phoenix/documentation/zh"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Community",
+          "href": "https://arize-ai.slack.com/ssb/redirect#/shared-invite/email",
+          "icon": "users"
+        },
+        {
+          "anchor": "Blog",
+          "href": "https://arize.com/blog/?cat=phoenix",
+          "icon": "newspaper"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/logo/light.png",
+    "dark": "/logo/dark.png"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "TypeScript API",
+        "href": "https://arize-ai.github.io/phoenix/"
+      },
+      {
+        "label": "Python API",
+        "href": "https://arize-phoenix.readthedocs.io/en/latest/"
+      },
+      {
+        "label": "GitHub",
+        "href": "https://github.com/Arize-ai/phoenix"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Phoenix Cloud",
+      "href": "https://app.phoenix.arize.com/login"
+    }
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/ArizePhoenix",
+      "github": "https://github.com/Arize-ai/phoenix"
+    }
+  },
+  "redirects": [
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing"
+    },
+    {
+      "source": "/docs/phoenix/deployment/deploying-phoenix",
+      "destination": "/docs/phoenix/self-hosting"
+    },
+    {
+      "source": "/docs/phoenix/deployment/persistence",
+      "destination": "/docs/phoenix/self-hosting/configuration"
+    },
+    {
+      "source": "/docs/phoenix/deployment/authentication",
+      "destination": "/docs/phoenix/self-hosting/features/authentication"
+    },
+    {
+      "source": "/docs/phoenix/setup/configuration",
+      "destination": "/docs/phoenix/self-hosting/configuration"
+    },
+    {
+      "source": "/docs/phoenix/hosted-phoenix",
+      "destination": "/docs/phoenix/environments"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans"
+    },
+    {
+      "source": "/docs/phoenix/self-hosting/local-instance",
+      "destination": "/docs/phoenix/environments"
+    },
+    {
+      "source": "/docs/phoenix/setup/authentication",
+      "destination": "/docs/phoenix/self-hosting/features/authentication"
+    },
+    {
+      "source": "/docs/phoenix/self-hosting/persistence",
+      "destination": "/docs/phoenix/self-hosting/configuration"
+    },
+    {
+      "source": "/docs/phoenix/references/release-notes",
+      "destination": "/docs/phoenix/release-notes"
+    },
+    {
+      "source": "/docs/phoenix/tracing/quickstart-tracing-python",
+      "destination": "/docs/phoenix/get-started/get-started-tracing"
+    },
+    {
+      "source": "/docs/phoenix/setup",
+      "destination": "/docs/phoenix/environments"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-ts",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript"
+    },
+    {
+      "source": "/docs/phoenix/self-hosting/deploying-phoenix",
+      "destination": "/docs/phoenix/self-hosting"
+    },
+    {
+      "source": "/docs/phoenix/datasets-experiments/how-to-datasets/exporting-datasets",
+      "destination": "/docs/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/customize-traces",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/add-metadata"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing-python",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing"
+    },
+    {
+      "source": "/docs/phoenix/self-hosting/python-notebook",
+      "destination": "/docs/phoenix/environments"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/trace-a-deployed-app",
+      "destination": "/docs/phoenix/tracing/llm-traces-1"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/filtering-spans",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-interact-with-traces",
+      "destination": "/docs/phoenix/tracing/how-to-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/save-and-load-traces",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/instrumentation",
+      "destination": "/docs/phoenix/tracing/how-to-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/customize-spans/filtering-spans",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans"
+    },
+    {
+      "source": "/docs/phoenix/notebooks",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/tracing/use-cases-tracing/structured-extraction",
+      "destination": "/docs/phoenix/cookbook/tracing/structured-data-extraction"
+    },
+    {
+      "source": "/docs/phoenix/prompt-engineering/use-cases-prompts/prompt-optimization",
+      "destination": "/docs/phoenix/cookbook/prompt-engineering/prompt-optimization"
+    },
+    {
+      "source": "/docs/phoenix/prompt-engineering/use-cases-prompts/react-prompting",
+      "destination": "/docs/phoenix/cookbook/prompt-engineering/react-prompting"
+    },
+    {
+      "source": "/docs/phoenix/prompt-engineering/use-cases-prompts/chain-of-thought-prompting",
+      "destination": "/docs/phoenix/cookbook/prompt-engineering/chain-of-thought-prompting"
+    },
+    {
+      "source": "/docs/phoenix/prompt-engineering/use-cases-prompts/few-shot-prompting",
+      "destination": "/docs/phoenix/cookbook/prompt-engineering/few-shot-prompting"
+    },
+    {
+      "source": "/docs/phoenix/use-cases-evals/rag-evaluation",
+      "destination": "/docs/phoenix/cookbook/evaluation/evaluate-rag"
+    },
+    {
+      "source": "/docs/phoenix/inferences/use-cases-inferences/embeddings-analysis",
+      "destination": "/docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis"
+    },
+    {
+      "source": "/docs/phoenix/self-hosting/environments",
+      "destination": "/docs/phoenix/environments"
+    },
+    {
+      "source": "/docs/phoenix/api/session",
+      "destination": "/docs/phoenix/sdk-api-reference"
+    },
+    {
+      "source": "/docs/phoenix/deployment/kubernetes",
+      "destination": "/docs/phoenix/self-hosting/deployment-options/kubernetes"
+    },
+    {
+      "source": "/docs/phoenix/deployment/docker",
+      "destination": "/docs/phoenix/self-hosting/deployment-options/docker"
+    },
+    {
+      "source": "/docs/phoenix/deployment/railway",
+      "destination": "/docs/phoenix/self-hosting/deployment-options/railway"
+    },
+    {
+      "source": "/docs/phoenix/deployment/aws-with-cloudformation",
+      "destination": "/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing",
+      "destination": "/docs/phoenix/integrations"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/beeai",
+      "destination": "/docs/phoenix/integrations/python/beeai"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/openai",
+      "destination": "/docs/phoenix/integrations/llm-providers/openai"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/bedrock",
+      "destination": "/docs/phoenix/integrations/llm-providers/amazon-bedrock"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/anthropic",
+      "destination": "/docs/phoenix/integrations/llm-providers/anthropic"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/litellm",
+      "destination": "/docs/phoenix/integrations/llm-providers/litellm"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/mistralai",
+      "destination": "/docs/phoenix/integrations/llm-providers/mistralai"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/groq",
+      "destination": "/docs/phoenix/integrations/llm-providers/groq"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/vertexai",
+      "destination": "/docs/phoenix/integrations/llm-providers/vertexai"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/agno",
+      "destination": "/docs/phoenix/integrations/python/agno"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/autogen-support",
+      "destination": "/docs/phoenix/integrations/python/autogen"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/crewai",
+      "destination": "/docs/phoenix/integrations/python/crewai"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/dspy",
+      "destination": "/docs/phoenix/integrations/python/dspy"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/guardrails-ai",
+      "destination": "/docs/phoenix/integrations/python/guardrails-ai"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/haystack",
+      "destination": "/docs/phoenix/integrations/python/haystack"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/hfsmolagents",
+      "destination": "/docs/phoenix/integrations/python/hugging-face-smolagents"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/instructor",
+      "destination": "/docs/phoenix/integrations/python/instructor"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/llamaindex",
+      "destination": "/docs/phoenix/integrations/python/llamaindex"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/langchain",
+      "destination": "/docs/phoenix/integrations/python/langchain"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/langgraph",
+      "destination": "/docs/phoenix/integrations/python/langgraph"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/langflow",
+      "destination": "/docs/phoenix/integrations/platforms/langflow"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/prompt-flow",
+      "destination": "/docs/phoenix/integrations/platforms/prompt-flow"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk",
+      "destination": "/docs/phoenix/integrations/typescript/vercel"
+    },
+    {
+      "source": "/docs/phoenix/self-hosting/docker",
+      "destination": "/docs/phoenix/self-hosting/deployment-options/docker"
+    },
+    {
+      "source": "/docs/phoenix/integrations/ragas",
+      "destination": "/docs/phoenix/integrations/evaluation-integrations/ragas"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/manual-instrumentation",
+      "destination": "/docs/phoenix/tracing/how-to-tracing"
+    },
+    {
+      "source": "/docs/phoenix/inferences/use-cases-inferences",
+      "destination": "/docs/phoenix/cookbook/retrieval-and-inferences/cookbooks"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk",
+      "destination": "/docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/google-genai",
+      "destination": "/docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/bedrock-1",
+      "destination": "/docs/phoenix/integrations/llm-providers/amazon-bedrock"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/openai-node-sdk",
+      "destination": "/docs/phoenix/integrations/llm-providers/openai/openai-node.js-sdk"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/flowise",
+      "destination": "/docs/phoenix/integrations/platforms/flowise"
+    },
+    {
+      "source": "/docs/phoenix/api/evaluation-models",
+      "destination": "/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals"
+    },
+    {
+      "source": "/docs/phoenix/learn/agents/readme/autogen",
+      "destination": "/docs/phoenix/cookbook/agent-workflow-patterns/autogen"
+    },
+    {
+      "source": "/docs/phoenix/learn/agents/readme/crewai",
+      "destination": "/docs/phoenix/cookbook/agent-workflow-patterns/crewai"
+    },
+    {
+      "source": "/docs/phoenix/learn/agents/readme/google-genai-sdk",
+      "destination": "/docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration"
+    },
+    {
+      "source": "/docs/phoenix/learn/agents/readme/openai-agents",
+      "destination": "/docs/phoenix/cookbook/agent-workflow-patterns/openai-agents"
+    },
+    {
+      "source": "/docs/phoenix/learn/agents/readme/langgraph",
+      "destination": "/docs/phoenix/cookbook/agent-workflow-patterns/langgraph"
+    },
+    {
+      "source": "/docs/phoenix/learn/agents/readme/smolagents",
+      "destination": "/docs/phoenix/cookbook/agent-workflow-patterns/smolagents"
+    },
+    {
+      "source": "/docs/phoenix/learn/prompt-engineering/prompts-concepts",
+      "destination": "/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts"
+    },
+    {
+      "source": "/docs/phoenix/learn/context-engineering/context-engineering-concepts",
+      "destination": "/docs/phoenix/prompt-engineering/concepts-prompts/context-engineering-basics"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/what-is-the-difference-between-phoenix-and-arize",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/what-is-my-phoenix-endpoint",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/what-is-llamatrace-vs-phoenix-cloud",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/phoenix-cloud-migration-guide-legacy-to-new-version",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/can-i-add-other-users-to-my-phoenix-instance",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/can-i-use-azure-openai",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-use-azure-openai"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/can-i-use-phoenix-locally-from-a-remote-jupyter-instance",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/can-i-run-phoenix-on-sagemaker",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-run-phoenix-on-sagemaker"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/can-i-persist-data-in-a-notebook",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-persist-data-in-a-notebook"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/what-is-the-difference-between-grpc-and-http",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/can-i-use-grpc-for-trace-collection",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/can-i-use-grpc-for-trace-collection"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/how-do-i-resolve-phoenix-evals-showing-not_parsable",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/langfuse-alternatives",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/langfuse-alternative-arize-phoenix-vs-langfuse-key-differences"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/langsmith-alternatives",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/open-source-langsmith-alternative-arize-phoenix-vs.-langsmith"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/faqs/braintrust-open-source-alternative-llm-evaluation-platform-comparison",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/braintrust-open-source-alternative-llm-evaluation-platform-comparison"
+    },
+    {
+      "source": "/docs/phoenix/learn/resources/contribute-to-phoenix",
+      "destination": "/docs/phoenix/resources/contribute-to-phoenix"
+    },
+    {
+      "source": "/docs/phoenix/learn/tracing/how-tracing-works",
+      "destination": "/docs/phoenix/tracing/concepts-tracing/how-tracing-works"
+    },
+    {
+      "source": "/docs/phoenix/tracing/concepts-tracing/concepts-annotations",
+      "destination": "/docs/phoenix/tracing/concepts-tracing/annotations-concepts"
+    },
+    {
+      "source": "/docs/phoenix/learn/tracing/faqs-tracing",
+      "destination": "/docs/phoenix/tracing/concepts-tracing/faqs-tracing"
+    },
+    {
+      "source": "/docs/phoenix/learn/datasets-and-experiments/datasets-concepts",
+      "destination": "/docs/phoenix/datasets-and-experiments/concepts-datasets"
+    },
+    {
+      "source": "/docs/phoenix/learn/evaluation/eval-data-types",
+      "destination": "/docs/phoenix/evaluation/concepts-evals/evaluation-types"
+    },
+    {
+      "source": "/docs/phoenix/learn/evaluation/llm-as-a-judge",
+      "destination": "/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge"
+    },
+    {
+      "source": "/docs/phoenix/learn/evaluation/custom-task-evaluation",
+      "destination": "/docs/phoenix/evaluation/concepts-evals/building-your-own-evals"
+    },
+    {
+      "source": "/docs/phoenix/learn/evaluating-multi-agent-systems",
+      "destination": "/docs/phoenix/evaluation/concepts-evals/evaluating-multi-agent-systems"
+    },
+    {
+      "source": "/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing",
+      "destination": "/docs/phoenix/integrations/python/google-adk"
+    },
+    {
+      "source": "/docs/phoenix/learn",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint"
+    },
+    {
+      "source": "/docs/phoenix/quickstart",
+      "destination": "/docs/phoenix/get-started"
+    },
+    {
+      "source": "/docs/phoenix/datasets-and-experiments/quickstart-datasets",
+      "destination": "/docs/phoenix/get-started/get-started-datasets-and-experiments"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/evals",
+      "destination": "/docs/phoenix/get-started/get-started-evaluations"
+    },
+    {
+      "source": "/docs/phoenix/prompt-engineering/quickstart-prompts",
+      "destination": "/docs/phoenix/get-started/get-started-prompt-playground"
+    },
+    {
+      "source": "/docs/phoenix/tracing/llm-traces-1/quickstart-tracing-python",
+      "destination": "/docs/phoenix/get-started/get-started-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/llm-traces-1/quickstart-tracing-ts",
+      "destination": "/docs/phoenix/get-started/get-started-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/llm-traces-1",
+      "destination": "/docs/phoenix/get-started/get-started-tracing"
+    }
+  ]
+}

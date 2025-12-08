@@ -49,7 +49,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
         ```
       </Tab>
 
-      <Tab title="TS">
+      <Tab title="TypeScript">
         ```bash
         npm install @arizeai/phoenix-evals @arizeai/phoenix-client
         ```
@@ -70,7 +70,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
         ```
       </Tab>
 
-      <Tab title="TS">
+      <Tab title="TypeScript">
         ```typescript
         import { getSpans } from "@arizeai/phoenix-client/spans";
 
@@ -123,7 +123,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
             ```
           </Tab>
 
-          <Tab title="TS">
+          <Tab title="TypeScript">
             ```typescript
             // pnpm add @ai-sdk/openai
 
@@ -164,7 +164,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
             ```
           </Tab>
 
-          <Tab title="TS">
+          <Tab title="TypeScript">
             ```typescript
             const CORRECTNESS_TEMPLATE = `
             You are given a question and an answer. Decide if the answer is fully correct.
@@ -204,7 +204,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
             ```
           </Tab>
 
-          <Tab title="TS">
+          <Tab title="TypeScript">
             ```typescript
             import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 
@@ -245,15 +245,18 @@ Now that you have Phoenix up and running, and sent traces to your first project,
     <Tabs>
       <Tab title="Python">
         ```python
-        px_client.log_span_annotations(
-            dataframe=results_df,
-            annotation_name="QA Correctness",
-            annotator_kind="LLM"
+        from phoenix.evals.utils import to_annotation_dataframe
+
+        evaluations = to_annotation_dataframe(
+            dataframe=results_df
+        )
+        client.log_span_annotations(
+            dataframe=evaluations
         )
         ```
       </Tab>
 
-      <Tab title="TS">
+      <Tab title="TypeScript">
         ```typescript
         import { logSpanAnnotations } from "@arizeai/phoenix-client/annotations";
 
