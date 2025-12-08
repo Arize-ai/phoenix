@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2eb6475c888cfd75a6df2598f6c260a>>
+ * @generated SignedSource<<f8bf6cef9a61b1542e3da92b878e9b0a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -38,6 +38,13 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
   "storageKey": null
 };
 return {
@@ -134,13 +141,7 @@ return {
                   "name": "EvaluatorsTable_row",
                   "selections": [
                     (v1/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "name",
-                      "storageKey": null
-                    },
+                    (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -168,6 +169,38 @@ return {
                       "kind": "ScalarField",
                       "name": "updatedAt",
                       "storageKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "Prompt",
+                          "kind": "LinkedField",
+                          "name": "prompt",
+                          "plural": false,
+                          "selections": [
+                            (v1/*: any*/),
+                            (v2/*: any*/)
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "PromptVersionTag",
+                          "kind": "LinkedField",
+                          "name": "promptVersionTag",
+                          "plural": false,
+                          "selections": [
+                            (v2/*: any*/)
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "LLMEvaluator",
+                      "abstractKey": null
                     }
                   ],
                   "args": null,
