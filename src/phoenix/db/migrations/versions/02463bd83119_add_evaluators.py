@@ -205,6 +205,19 @@ def upgrade() -> None:
         sa.Column("builtin_evaluator_id", _Integer, nullable=True, index=True),
         sa.Column("display_name", sa.String, nullable=False),
         sa.Column("input_mapping", JSON_, nullable=False),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
         sa.CheckConstraint(
             "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
             name="evaluator_id_xor_builtin_evaluator_id",
