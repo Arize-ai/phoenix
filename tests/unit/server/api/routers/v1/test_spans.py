@@ -7,12 +7,12 @@ import httpx
 import pandas as pd
 import pytest
 from faker import Faker
+from phoenix.client import Client
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
-from phoenix.client import Client
 from phoenix.db import models
 from phoenix.server.api.routers.v1.spans import (
     OtlpAnyValue,
@@ -98,6 +98,103 @@ async def test_rest_span_annotation(
     assert orm_annotation.score == 0.95
     assert orm_annotation.explanation == "This is a test annotation."
     assert orm_annotation.metadata_ == dict()
+
+
+async def test_rest_create_span_note(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    """Test creating a span note via the REST API."""
+    note_text = fake.pystr()
+    request_body = {
+        "data": {
+            "span_id": "7e2f08cb43bbf521",
+            "note": note_text,
+        }
+    }
+
+    response = await httpx_client.post("v1/span_notes", json=request_body)
+    assert response.status_code == 200
+
+    # Verify the response contains the annotation ID
+    response_data = response.json()
+    assert "data" in response_data
+    assert "id" in response_data["data"]
+
+    # Verify the annotation was created correctly in the database
+    async with db() as session:
+        orm_annotation = await session.scalar(
+            select(models.SpanAnnotation).where(
+                models.SpanAnnotation.name == "note",
+                models.SpanAnnotation.explanation == note_text,
+            )
+        )
+
+    assert orm_annotation is not None
+    assert orm_annotation.name == "note"
+    assert orm_annotation.annotator_kind == "HUMAN"
+    assert orm_annotation.explanation == note_text
+    assert orm_annotation.source == "API"
+    assert orm_annotation.identifier.startswith("px-span-note:")
+    assert orm_annotation.label is None
+    assert orm_annotation.score is None
+    assert orm_annotation.metadata_ == dict()
+
+
+async def test_rest_create_span_note_not_found(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    """Test creating a span note for a non-existent span returns 404."""
+    request_body = {
+        "data": {
+            "span_id": "nonexistent12345678",
+            "note": "This should fail",
+        }
+    }
+
+    response = await httpx_client.post("v1/span_notes", json=request_body)
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()
+
+
+async def test_rest_create_multiple_span_notes(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    """Test that multiple notes can be created for the same span."""
+    note_texts = [fake.pystr() for _ in range(3)]
+
+    for note_text in note_texts:
+        request_body = {
+            "data": {
+                "span_id": "7e2f08cb43bbf521",
+                "note": note_text,
+            }
+        }
+        response = await httpx_client.post("v1/span_notes", json=request_body)
+        assert response.status_code == 200
+
+    # Verify all notes were created
+    async with db() as session:
+        result = await session.execute(
+            select(models.SpanAnnotation).where(models.SpanAnnotation.name == "note")
+        )
+        annotations = list(result.scalars().all())
+
+    assert len(annotations) == 3
+    explanations = {a.explanation for a in annotations}
+    assert explanations == set(note_texts)
+
+    # Verify each annotation has a unique identifier
+    identifiers = [a.identifier for a in annotations]
+    assert len(identifiers) == len(set(identifiers))  # All unique
 
 
 @pytest.fixture
