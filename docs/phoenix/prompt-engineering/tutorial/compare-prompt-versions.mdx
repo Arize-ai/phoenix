@@ -11,13 +11,13 @@ Our earlier experiment revealed the limits of our current prompt and settings. N
 
 ## Build Two New Prompt Versions
 
-In [test-prompts-at-scale](test-prompts-at-scale), our experiment gave us some insights into why our prompt was underperforming - only achieving 53% accuracy. In this section, we'll build our new version of the prompt based on this analysis.
+In [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale), our experiment gave us some insights into why our prompt was underperforming - only achieving 53% accuracy. In this section, we'll build our new version of the prompt based on this analysis.
 
 ### Edit Prompt Template (Version 3)
 
-The prompt template refers to the specific text passed to your LLM. In [test-prompts-at-scale](test-prompts-at-scale), we saw that 30/71 errors came from the broad\_vs\_specific error type, so we built a custom instruction from this observation.&#x20;
+The prompt template refers to the specific text passed to your LLM. In [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale), we saw that 30/71 errors came from the broad\_vs\_specific error type, so we built a custom instruction from this observation.&#x20;
 
-```
+```text
 When classifying user queries, always prefer the most specific applicable category over a broader one. If a query mentions a clear, concrete action or object (e.g., subscription downgrade, invoice, profile name), classify it under that specific intent rather than a general one (e.g., Billing Inquiry, General Feedback).
 ```
 
@@ -25,8 +25,8 @@ Let's upload a new prompt version with this instruction added in.
 
 <Tabs>
   <Tab title="UI">
-    <Frame>
-      <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/added_broad_vs_specific_instruction.mp4" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></video>
+    <Frame caption="">
+      <iframe src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/added_broad_vs_specific_instruction.mp4" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;" className="aspect-video"></iframe>
     </Frame>
   </Tab>
 
@@ -127,8 +127,8 @@ Let's edit our parameters.
 
 <Tabs>
   <Tab title="UI">
-    <Frame>
-      <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_params.mp4" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></video>
+    <Frame caption="Edit prompt parameters">
+      <iframe src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_params.mp4" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;" className="aspect-video"></iframe>
     </Frame>
   </Tab>
 
@@ -318,4 +318,4 @@ By refining our prompt and adjusting key model settings, we saw clear, data-back
 
 **We're not done yet. There's still a lot of room for improvement!**
 
-In the next section, [optimize-prompts-automatically](optimize-prompts-automatically), we'll use Prompt Learning, an automated prompt optimization algorithm (developed by Arize), to improve our prompt even more.
+In the next section, [Optimize Prompts Automatically](/docs/phoenix/prompt-engineering/tutorial/optimize-prompts-automatically), we'll use Prompt Learning, an automated prompt optimization algorithm (developed by Arize), to improve our prompt even more.

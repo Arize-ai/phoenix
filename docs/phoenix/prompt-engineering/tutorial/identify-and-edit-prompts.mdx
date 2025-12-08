@@ -20,8 +20,8 @@ Part 1 of this walkthrough focuses on using Phoenix to:
 
 By inspecting our traces, we can find where the model made mistakes and pinpoint which prompt and step were responsible. This gives us the starting point for any meaningful improvement.
 
-<Frame>
-  <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/llm_faulty_span.mp4" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></video>
+<Frame caption="Locate bad spans in traces">
+  <iframe src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/llm_faulty_span.mp4" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;" className="aspect-video"></iframe>
 </Frame>
 
 Imagine you've built a support agent that classifies incoming customer queries, retrieves relevant guidelines, and generates helpful responses. The agent has a multi-step pipeline:
@@ -46,8 +46,8 @@ Look for misclassifications. In our example span, the query "calendar sync eats 
 
 Once we’ve identified a weak spot, the next step is to **test and refine**. The Playground lets us replay the same input, edit the prompt, and see how those edits change the model’s output, without code.
 
-<Frame>
-  <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/replay%20span%2C%20make%20edit.mp4" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></video>
+<Frame caption="Replay span and edit prompt in Playground">
+  <iframe src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/replay%20span%2C%20make%20edit.mp4" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;" className="aspect-video"></iframe>
 </Frame>
 
 In the future, we want to avoid picking a more generic class when a more specific one is available. Let's make an edit to our prompt, and see if it fixes the classification. Click **Playground** to replay this span into the Prompt Playground.
@@ -126,4 +126,4 @@ You identified where your prompt was falling short, replayed that example, and r
 
 ## Next Steps
 
-In [test-prompts-at-scale](test-prompts-at-scale), **we'll take these improvements much further**. Instead of validating one fix, you’ll run your prompt across a full dataset, measure performance, and uncover systematic patterns in where it succeeds or fails. This is where your prompt starts getting _meaningfully_ better - backed by real data, not just intuition.
+In [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale), **we'll take these improvements much further**. Instead of validating one fix, you’ll run your prompt across a full dataset, measure performance, and uncover systematic patterns in where it succeeds or fails. This is where your prompt starts getting _meaningfully_ better - backed by real data, not just intuition.
