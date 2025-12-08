@@ -893,9 +893,14 @@ class TestDatasetsEvaluatorsResolver:
                   edges {
                     node {
                       id
-                      name
-                      kind
-                      description
+                      displayName
+                      evaluator {
+                        ... on LLMEvaluator {
+                          name
+                          kind
+                          description
+                        }
+                      }
                     }
                   }
                 }
@@ -912,19 +917,19 @@ class TestDatasetsEvaluatorsResolver:
         assert not response.errors
         assert response.data is not None
 
-        # Should return 2 evaluators in descending ID order
+        # Should return 2 evaluators
         edges = response.data["node"]["evaluators"]["edges"]
         assert len(edges) == 2
-        assert edges[0]["node"]["name"] == "evaluator-1"
-        assert edges[0]["node"]["kind"] == "LLM"
-        assert edges[1]["node"]["name"] == "evaluator-2"
-        assert edges[1]["node"]["kind"] == "LLM"
+        assert edges[0]["node"]["evaluator"]["name"] == "evaluator-1"
+        assert edges[0]["node"]["evaluator"]["kind"] == "LLM"
+        assert edges[1]["node"]["evaluator"]["name"] == "evaluator-2"
+        assert edges[1]["node"]["evaluator"]["kind"] == "LLM"
 
 
 @pytest.fixture
 async def dataset_with_evaluators(db: DbSessionFactory) -> None:
     """
-    Creates a dataset with two evaluators associated via the datasets_evaluators junction table.
+    Creates a dataset with two evaluators associated via the dataset_evaluators junction table.
     """
     async with db() as session:
         # Create dataset

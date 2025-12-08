@@ -873,11 +873,11 @@ class TestEvaluatorPolymorphism:
             dataset_result = await session.get(
                 models.Dataset,
                 dataset_id,
-                options=(selectinload(models.Dataset.datasets_evaluators),),
+                options=(selectinload(models.Dataset.dataset_evaluators),),
             )
             assert dataset_result is not None
             dataset = dataset_result
-            assert len(dataset.datasets_evaluators) == 2
+            assert len(dataset.dataset_evaluators) == 2
 
             # Verify evaluators via join query
             evaluators = (

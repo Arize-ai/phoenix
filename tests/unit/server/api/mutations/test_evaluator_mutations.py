@@ -29,8 +29,23 @@ class TestDatasetLLMEvaluatorMutations:
     _MUTATION = """
       mutation($input: CreateDatasetLLMEvaluatorInput!) {
         createDatasetLlmEvaluator(input: $input) {
-          evaluator { id name description kind prompt { id } promptVersion { id } }
-          query { __typename } } }
+          evaluator {
+            id
+            displayName
+            evaluator {
+              ... on LLMEvaluator {
+                id
+                name
+                description
+                kind
+                prompt { id }
+                promptVersion { id }
+              }
+            }
+          }
+          query { __typename }
+        }
+      }
     """
 
     _PROMPT_VERSION_QUERY = """
@@ -123,24 +138,24 @@ class TestDatasetLLMEvaluatorMutations:
             ),
         )
         assert result.data and not result.errors
-        evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
-        assert evaluator["name"] == "test-evaluator" and evaluator["kind"] == "LLM"
+        dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+        llm_evaluator_data = dataset_evaluator["evaluator"]
+        assert dataset_evaluator["displayName"] == "test-evaluator"
+        assert llm_evaluator_data["kind"] == "LLM"
         await self._verify_prompt_version_messages(
-            gql_client, evaluator["promptVersion"]["id"], "Eval {{input}}"
+            gql_client, llm_evaluator_data["promptVersion"]["id"], "Eval {{input}}"
         )
 
-        # Verify database
-        evaluator_id = int(GlobalID.from_id(evaluator["id"]).node_id)
+        dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
         async with db() as session:
-            llm_evaluator = await session.get(models.LLMEvaluator, evaluator_id)
-            assert llm_evaluator and llm_evaluator.kind == "LLM"
-            dataset_evaluator = await session.scalar(
-                select(models.DatasetEvaluators).where(
-                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
-                    models.DatasetEvaluators.evaluator_id == evaluator_id,
-                )
+            db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.evaluator_id is not None
+            llm_evaluator = await session.get(
+                models.LLMEvaluator, db_dataset_evaluator.evaluator_id
             )
-            assert dataset_evaluator and dataset_evaluator.input_mapping == {
+            assert llm_evaluator and llm_evaluator.kind == "LLM"
+            assert db_dataset_evaluator.input_mapping == {
                 "literal_mapping": {},
                 "path_mapping": {},
             }
@@ -194,9 +209,10 @@ class TestDatasetLLMEvaluatorMutations:
             ),
         )
         assert result.data and not result.errors
-        evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+        dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+        llm_evaluator_data = dataset_evaluator["evaluator"]
         await self._verify_prompt_version_messages(
-            gql_client, evaluator["promptVersion"]["id"], "Rate"
+            gql_client, llm_evaluator_data["promptVersion"]["id"], "Rate"
         )
 
         # Success: Multiple evaluators for same dataset
@@ -250,9 +266,10 @@ class TestDatasetLLMEvaluatorMutations:
             ),
         )
         assert result.data and not result.errors
-        evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+        dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+        llm_evaluator_data = dataset_evaluator["evaluator"]
         await self._verify_prompt_version_messages(
-            gql_client, evaluator["promptVersion"]["id"], "Second"
+            gql_client, llm_evaluator_data["promptVersion"]["id"], "Second"
         )
         async with db() as session:
             evaluators = await session.scalars(
@@ -345,9 +362,12 @@ class TestAssignUnassignEvaluatorMutations:
         assignEvaluatorToDataset(input: $input) {
           evaluator {
             id
-            name
-            kind
-            ... on DatasetLLMEvaluator { prompt { id } }
+            displayName
+            evaluator {
+              ... on LLMEvaluator { kind prompt { id } }
+              ... on CodeEvaluator { kind }
+              ... on BuiltInEvaluator { kind }
+            }
           }
           query { __typename }
         }
@@ -359,8 +379,7 @@ class TestAssignUnassignEvaluatorMutations:
         unassignEvaluatorFromDataset(input: $input) {
           evaluator {
             id
-            name
-            kind
+            displayName
           }
           query { __typename }
         }
@@ -413,9 +432,9 @@ class TestAssignUnassignEvaluatorMutations:
             {"input": {"datasetId": dataset_id, "evaluatorId": code_eval_id}},
         )
         assert result.data and not result.errors
-        evaluator_data = result.data["assignEvaluatorToDataset"]["evaluator"]
-        assert evaluator_data["kind"] == "CODE"
-        assert evaluator_data["name"] == code_eval_name
+        dataset_evaluator_data = result.data["assignEvaluatorToDataset"]["evaluator"]
+        assert dataset_evaluator_data["evaluator"]["kind"] == "CODE"
+        assert dataset_evaluator_data["displayName"] == code_eval_name
 
         # Verify only one assignment exists (idempotency)
         async with db() as session:
@@ -437,9 +456,9 @@ class TestAssignUnassignEvaluatorMutations:
             {"input": {"datasetId": dataset_id, "evaluatorId": llm_eval_id}},
         )
         assert result.data and not result.errors
-        evaluator_data = result.data["assignEvaluatorToDataset"]["evaluator"]
-        assert evaluator_data["kind"] == "LLM"
-        assert "prompt" in evaluator_data
+        dataset_evaluator_data = result.data["assignEvaluatorToDataset"]["evaluator"]
+        assert dataset_evaluator_data["evaluator"]["kind"] == "LLM"
+        assert "prompt" in dataset_evaluator_data["evaluator"]
 
         # Test 4: Unassign code evaluator
         result = await gql_client.execute(
@@ -453,7 +472,10 @@ class TestAssignUnassignEvaluatorMutations:
             },
         )
         assert result.data and not result.errors
-        assert result.data["unassignEvaluatorFromDataset"]["evaluator"]["kind"] == "CODE"
+        assert (
+            result.data["unassignEvaluatorFromDataset"]["evaluator"]["displayName"]
+            == code_eval_name
+        )
 
         # Verify code evaluator unassigned
         async with db() as session:
@@ -481,7 +503,9 @@ class TestAssignUnassignEvaluatorMutations:
             },
         )
         assert result.data and not result.errors
-        assert result.data["unassignEvaluatorFromDataset"]["evaluator"]["kind"] == "LLM"
+        assert (
+            result.data["unassignEvaluatorFromDataset"]["evaluator"]["displayName"] == llm_eval_name
+        )
 
         # Verify LLM evaluator unassigned
         async with db() as session:
@@ -549,8 +573,8 @@ class TestAssignUnassignEvaluatorMutations:
             },
         )
         assert result.data and not result.errors
-        evaluator_data = result.data["assignEvaluatorToDataset"]["evaluator"]
-        assert evaluator_data["kind"] == "LLM"
+        dataset_evaluator_data = result.data["assignEvaluatorToDataset"]["evaluator"]
+        assert dataset_evaluator_data["evaluator"]["kind"] == "LLM"
 
         # Assign the same evaluator with another custom displayName "relevance"
         result = await gql_client.execute(
@@ -634,7 +658,7 @@ async def code_evaluator(
         name=evaluator_name,
         description="test code evaluator",
         kind="CODE",
-        datasets_evaluators=[
+        dataset_evaluators=[
             models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
                 display_name=evaluator_name,
@@ -692,7 +716,7 @@ async def llm_evaluator(
             ],
         ),
         prompt=prompt,
-        datasets_evaluators=[
+        dataset_evaluators=[
             models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
                 display_name=evaluator_name,
