@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useId, useState } from "react";
 import { css } from "@emotion/react";
 
 import { Label, Text } from "@phoenix/components";
@@ -30,7 +30,8 @@ const codeEditorFormWrapperCSS = css`
 `;
 
 /**
- * Wrapper for code editor components (e.g. JSONEditor) that provides hover, focus, and validation state styles
+ * Wrapper for code editor components (e.g. JSONEditor) that provides hover, focus, and validation state styles.
+ * Includes proper ARIA attributes for accessibility.
  */
 export function CodeEditorFieldWrapper({
   children,
@@ -46,6 +47,19 @@ export function CodeEditorFieldWrapper({
   const [isFocused, setIsFocused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const isInvalid = !!errorMessage;
+
+  // Generate unique IDs for ARIA associations
+  const baseId = useId();
+  const errorId = `${baseId}-error`;
+  const descriptionId = `${baseId}-description`;
+
+  // Build aria-describedby based on what's displayed
+  const ariaDescribedBy = errorMessage
+    ? errorId
+    : description
+      ? descriptionId
+      : undefined;
+
   return (
     <div css={fieldBaseCSS}>
       <Label>{label}</Label>
@@ -60,16 +74,21 @@ export function CodeEditorFieldWrapper({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         css={codeEditorFormWrapperCSS}
+        role="textbox"
+        aria-invalid={isInvalid}
+        aria-describedby={ariaDescribedBy}
       >
         {children}
       </div>
       {errorMessage ? (
-        <Text slot="errorMessage" color="danger">
+        <Text id={errorId} slot="errorMessage" color="danger" role="alert">
           {errorMessage}
         </Text>
       ) : null}
       {description && !errorMessage ? (
-        <Text slot="description">{description}</Text>
+        <Text id={descriptionId} slot="description">
+          {description}
+        </Text>
       ) : null}
     </div>
   );

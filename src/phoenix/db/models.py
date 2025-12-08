@@ -163,7 +163,7 @@ def render_values_w_union(
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE"]
-GenerativeModelCustomProviderSDK: TypeAlias = Literal[
+GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
     "anthropic",
@@ -2275,7 +2275,7 @@ class GenerativeModelCustomProvider(HasId):
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     description: Mapped[Optional[str]]
     provider: Mapped[str] = mapped_column(String, nullable=False)
-    sdk: Mapped[GenerativeModelCustomProviderSDK] = mapped_column(String, nullable=False)
+    sdk: Mapped[GenerativeModelSDK] = mapped_column(String, nullable=False)
     config: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
