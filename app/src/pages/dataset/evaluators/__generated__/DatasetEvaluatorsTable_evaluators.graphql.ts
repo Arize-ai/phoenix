@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<18e4260f7364ec20927af8e5551d9c70>>
+ * @generated SignedSource<<0fac95b52649bfcd4c9274c0f3a07a14>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -41,6 +41,13 @@ v1 = {
   "storageKey": null
 },
 v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -148,6 +155,7 @@ return {
                       "name": "displayName",
                       "storageKey": null
                     },
+                    (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -157,7 +165,7 @@ return {
                       "plural": false,
                       "selections": [
                         (v1/*: any*/),
-                        (v2/*: any*/),
+                        (v3/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -179,13 +187,7 @@ return {
                           "name": "createdAt",
                           "storageKey": null
                         },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "updatedAt",
-                          "storageKey": null
-                        },
+                        (v2/*: any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -198,7 +200,7 @@ return {
                               "plural": false,
                               "selections": [
                                 (v1/*: any*/),
-                                (v2/*: any*/)
+                                (v3/*: any*/)
                               ],
                               "storageKey": null
                             },
@@ -210,7 +212,7 @@ return {
                               "name": "promptVersionTag",
                               "plural": false,
                               "selections": [
-                                (v2/*: any*/)
+                                (v3/*: any*/)
                               ],
                               "storageKey": null
                             }

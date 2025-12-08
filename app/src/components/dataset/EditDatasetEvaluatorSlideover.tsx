@@ -229,7 +229,6 @@ const EditEvaluatorDialog = ({
       },
     };
   }, [datasetEvaluator, datasetId]);
-  const displayName = datasetEvaluator.displayName;
   const form = useEvaluatorForm(defaultValues);
   const onSubmit = useCallback(() => {
     const {

@@ -297,7 +297,7 @@ class EvaluatorMutationMixin:
                     joinedload(models.LLMEvaluator.prompt_version_tag),
                 )
             )
-            llm_evaluator = results.scalar_one_or_none()
+            llm_evaluator = results.unique().scalar_one_or_none()
             if llm_evaluator is None:
                 raise NotFound(
                     f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"

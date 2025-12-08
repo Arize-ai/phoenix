@@ -1,5 +1,5 @@
 import { DebouncedSearch, Flex, View, ViewProps } from "@phoenix/components";
-import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
+import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
 
 export const DatasetEvaluatorsFilterBar = ({
   extraActions,
@@ -8,7 +8,7 @@ export const DatasetEvaluatorsFilterBar = ({
   extraActions?: React.ReactNode;
   padding?: ViewProps["padding"];
 }) => {
-  const { setFilter, filter } = useEvaluatorsFilterContext();
+  const { setFilter, filter } = useDatasetEvaluatorsFilterContext();
 
   return (
     <View

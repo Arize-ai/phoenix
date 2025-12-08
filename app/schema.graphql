@@ -852,6 +852,7 @@ type DatasetEvaluator implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   displayName: Identifier!
+  updatedAt: DateTime!
   dataset: Dataset!
   evaluator: Evaluator!
   inputMapping: EvaluatorInputMapping!

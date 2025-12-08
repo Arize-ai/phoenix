@@ -498,6 +498,14 @@ class DatasetEvaluator(Node):
         return record.display_name.root
 
     @strawberry.field
+    async def updated_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        record = await self._get_record(info)
+        return record.updated_at
+
+    @strawberry.field
     async def dataset(
         self,
         info: Info[Context, None],
