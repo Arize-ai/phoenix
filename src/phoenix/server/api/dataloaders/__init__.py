@@ -48,6 +48,7 @@ from .project_by_name import ProjectByNameDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
 from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
+from .secrets import SecretsDataLoader
 from .session_annotations_by_session import SessionAnnotationsBySessionDataLoader
 from .session_io import SessionIODataLoader
 from .session_num_traces import SessionNumTracesDataLoader
@@ -121,6 +122,7 @@ __all__ = [
     "ProjectIdsByTraceRetentionPolicyIdDataLoader",
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
+    "SecretsDataLoader",
     "SessionAnnotationsBySessionDataLoader",
     "SessionIODataLoader",
     "SessionNumTracesDataLoader",

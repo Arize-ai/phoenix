@@ -46,6 +46,7 @@ from phoenix.server.api.dataloaders import (
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SecretsDataLoader,
     SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
@@ -159,6 +160,7 @@ class DataLoaders:
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
     secret_fields: TableFieldsDataLoader
+    secrets: SecretsDataLoader
     session_annotations_by_session: SessionAnnotationsBySessionDataLoader
     session_first_inputs: SessionIODataLoader
     session_last_outputs: SessionIODataLoader
