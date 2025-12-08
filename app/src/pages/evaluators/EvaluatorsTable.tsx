@@ -204,6 +204,7 @@ export const EvaluatorsTable = ({
       {
         header: "prompt",
         accessorKey: "prompt",
+        enableSorting: false,
         cell: ({ row }) => (
           <PromptCell
             prompt={row.original.prompt}

@@ -327,7 +327,10 @@ class EvaluatorMutationMixin:
                 )
                 .join(models.DatasetsEvaluators)
                 .options(
-                    joinedload(models.LLMEvaluator.prompt).joinedload(models.Prompt.prompt_versions)
+                    joinedload(models.LLMEvaluator.prompt).joinedload(
+                        models.Prompt.prompt_versions
+                    ),
+                    joinedload(models.LLMEvaluator.prompt_version_tag),
                 )
             )
             first_result = results.first()
@@ -382,6 +385,12 @@ class EvaluatorMutationMixin:
                 await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict("An evaluator with this name already exists")
+
+            # Update prompt_version_tag to point to the new prompt version if one was created
+            if create_new_prompt_version:
+                if llm_evaluator.prompt_version_tag is not None:
+                    # Update existing tag to point to the new prompt version
+                    llm_evaluator.prompt_version_tag.prompt_version_id = prompt_version.id
 
         return DatasetLLMEvaluatorMutationPayload(
             evaluator=DatasetLLMEvaluator(
