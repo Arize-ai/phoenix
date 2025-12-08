@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c580b2be0db444ab4973a26f9231fe9a>>
+ * @generated SignedSource<<15d9d0c51571f30b5575749c50709ac5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -654,7 +654,7 @@ return {
               {
                 "kind": "Literal",
                 "name": "edgeTypeName",
-                "value": "EvaluatorEdge"
+                "value": "DatasetEvaluatorEdge"
               }
             ]
           }
@@ -674,6 +674,6 @@ return {
 };
 })();
 
-(node as any).hash = "f82460fecbb21ec1a226f6efd383ebb9";
+(node as any).hash = "3488f1743f698d2fcc944f4d5e286884";
 
 export default node;

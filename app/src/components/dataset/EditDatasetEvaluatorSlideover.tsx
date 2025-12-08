@@ -186,7 +186,7 @@ const EditEvaluatorDialog = ({
             evaluator
               @appendNode(
                 connections: $connectionIds
-                edgeTypeName: "EvaluatorEdge"
+                edgeTypeName: "DatasetEvaluatorEdge"
               ) {
               id
               displayName

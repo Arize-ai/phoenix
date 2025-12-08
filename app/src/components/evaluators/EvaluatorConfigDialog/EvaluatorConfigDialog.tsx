@@ -166,7 +166,7 @@ function EvaluatorConfigDialogContent({
           evaluator
             @appendNode(
               connections: $connectionIds
-              edgeTypeName: "EvaluatorEdge"
+              edgeTypeName: "DatasetEvaluatorEdge"
             ) {
             ...DatasetEvaluatorsTable_row
           }

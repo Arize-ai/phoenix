@@ -351,6 +351,8 @@ class EvaluatorMutationMixin:
         )
 
     # TODO: should this always just get called instead of unlink for DatasetEvaluators?
+    # TODO: this should accept dataset evaluator ids in addition to evaluator ids, or create a new
+    # delete_dataset_evaluators mutation
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def delete_evaluators(
         self, info: Info[Context, None], input: DeleteEvaluatorsInput
