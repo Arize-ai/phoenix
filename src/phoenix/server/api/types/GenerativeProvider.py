@@ -4,8 +4,10 @@ from typing import Any, ClassVar, Mapping, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues, SpanAttributes
+from strawberry.types import Info
 
 from phoenix.config import getenv
+from phoenix.server.api.context import Context
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -153,12 +155,28 @@ class GenerativeProvider:
         return self.model_provider_to_credential_requirements_map[self.key]
 
     @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
-    async def credentials_set(self) -> bool:
-        # Check if every required credential is set
-        return all(
-            getenv(credential_config.env_var_name) is not None or not credential_config.is_required
-            for credential_config in await self.credential_requirements()
-        )
+    async def credentials_set(self, info: Info[Context, None]) -> bool:
+        credential_requirements = self.model_provider_to_credential_requirements_map.get(self.key)
+        if credential_requirements is None:
+            return True
+        secret_keys = []
+        for credential_config in credential_requirements:
+            if (
+                not credential_config.is_required
+                or getenv(credential_config.env_var_name) is not None
+            ):
+                continue
+            secret_keys.append(credential_config.env_var_name)
+        if not secret_keys:
+            return True
+        for secret in await info.context.data_loaders.secrets.load_many(secret_keys):
+            if secret is None:
+                return False
+            try:
+                info.context.decrypt(secret.value)
+            except Exception:
+                return False
+        return True
 
     @classmethod
     def _infer_model_provider_from_model_name(
