@@ -103,7 +103,7 @@ export function PlaygroundEvaluatorSelect(
                     onEdit={() =>
                       onEdit({
                         evaluatorId: evaluator.id,
-                        displayName: evaluator.name,
+                        displayName: evaluator.displayName,
                       })
                     }
                   />

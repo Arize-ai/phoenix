@@ -6,8 +6,8 @@ import invariant from "tiny-invariant";
 
 import { Empty } from "@phoenix/components";
 import { DatasetEvaluatorsTable_evaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTable_evaluators.graphql";
+import { DatasetEvaluatorsTable as BaseDatasetEvaluatorsTable } from "@phoenix/pages/evaluators/DatasetEvaluatorsTable";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
-import { EvaluatorsTable } from "@phoenix/pages/evaluators/EvaluatorsTable";
 
 const PAGE_SIZE = 100;
 
@@ -36,7 +36,7 @@ export const useDatasetEvaluatorsTable = (
           __id
           edges {
             node {
-              ...EvaluatorsTable_row
+              ...DatasetEvaluatorsTable_row
             }
           }
         }
@@ -95,7 +95,7 @@ export const DatasetEvaluatorsTable = ({
     return EMPTY_CONNECTION_IDS;
   }, [data]);
   return (
-    <EvaluatorsTable
+    <BaseDatasetEvaluatorsTable
       rowReferences={data.evaluators.edges.map((edge) => edge.node)}
       isLoadingNext={isLoadingNext}
       hasNext={hasNext}

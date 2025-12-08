@@ -1,5 +1,4 @@
 import {
-  ReactNode,
   startTransition,
   useCallback,
   useEffect,
@@ -18,21 +17,12 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  Link,
-  Text,
-  Token,
-  View,
-} from "@phoenix/components";
+import { Flex, Icon, Icons, Text, Token, View } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { DatasetEvaluatorActionMenu } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorActionMenu";
-import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
+import type { DatasetEvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/DatasetEvaluatorsTable_row.graphql";
 import {
   EvaluatorFilter,
   EvaluatorSort,
@@ -91,24 +81,19 @@ const EmptyState = () => {
   );
 };
 
-const readRow = (row: EvaluatorsTable_row$key) => {
+const readRow = (row: DatasetEvaluatorsTable_row$key) => {
   return readInlineData(
     graphql`
-      fragment EvaluatorsTable_row on Evaluator @inline {
+      fragment DatasetEvaluatorsTable_row on DatasetEvaluator @inline {
         id
-        name
-        kind
-        description
-        createdAt
-        updatedAt
-        ... on LLMEvaluator {
-          prompt {
-            id
-            name
-          }
-          promptVersionTag {
-            name
-          }
+        displayName
+        evaluator {
+          id
+          name
+          kind
+          description
+          createdAt
+          updatedAt
         }
       }
     `,
@@ -118,14 +103,14 @@ const readRow = (row: EvaluatorsTable_row$key) => {
 
 export type TableRow = ReturnType<typeof readRow>;
 
-type EvaluatorsTableProps = {
+type DatasetEvaluatorsTableProps = {
   /**
    * Relay fragment references for the evaluator rows to display in the table.
    *
    * To obtain row references, spread the EvaluatorsTable_row fragment into an Evaluators connection,
    * pass the resulting edges into this prop.
    */
-  rowReferences: EvaluatorsTable_row$key[];
+  rowReferences: DatasetEvaluatorsTable_row$key[];
   emptyState?: React.ReactNode;
   isLoadingNext: boolean;
   hasNext: boolean;
@@ -149,7 +134,7 @@ type EvaluatorsTableProps = {
   updateConnectionIds?: string[];
 };
 
-export const EvaluatorsTable = ({
+export const DatasetEvaluatorsTable = ({
   rowReferences,
   emptyState,
   isLoadingNext,
@@ -159,7 +144,7 @@ export const EvaluatorsTable = ({
   onRowClick,
   datasetId,
   updateConnectionIds,
-}: EvaluatorsTableProps) => {
+}: DatasetEvaluatorsTableProps) => {
   "use no memo";
   const { sort, setSort, filter } = useEvaluatorsFilterContext();
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -202,17 +187,6 @@ export const EvaluatorsTable = ({
         enableSorting: false,
       },
       {
-        header: "prompt",
-        accessorKey: "prompt",
-        enableSorting: false,
-        cell: ({ row }) => (
-          <PromptCell
-            prompt={row.original.prompt}
-            promptVersionTag={row.original.promptVersionTag?.name}
-          />
-        ),
-      },
-      {
         header: "last updated",
         accessorKey: "updatedAt",
         cell: TimestampCell,
@@ -225,9 +199,9 @@ export const EvaluatorsTable = ({
         cell: ({ row }) => (
           <DatasetEvaluatorActionMenu
             evaluatorId={row.original.id}
-            evaluatorName={row.original.name}
+            evaluatorName={row.original.displayName}
             datasetId={datasetId}
-            evaluatorKind={row.original.kind}
+            evaluatorKind={row.original.evaluator.kind}
             updateConnectionIds={updateConnectionIds}
           />
         ),
@@ -362,68 +336,5 @@ export const EvaluatorsTable = ({
         </tbody>
       </table>
     </div>
-  );
-};
-
-const PromptCell = ({
-  prompt,
-  promptVersionTag,
-}: {
-  prompt?: { id: string; name: string };
-  promptVersionTag?: string;
-}) => {
-  if (!prompt) {
-    return null;
-  }
-  return (
-    <PromptLink
-      promptId={prompt.id}
-      promptName={prompt.name}
-      promptVersionTag={promptVersionTag}
-    />
-  );
-};
-
-const PromptLink = ({
-  promptId,
-  promptName,
-  promptVersionTag,
-}: {
-  promptId: string;
-  promptName: string;
-  promptVersionTag?: string;
-}) => {
-  let to: string;
-  let specifier: ReactNode;
-  // if tag exists, that means the evaluator is pinned to a specific version of the prompt
-  // otherwise, we assume the latest version is pinned
-  if (promptVersionTag) {
-    specifier = (
-      <Token size="S" color="var(--ac-global-color-grey-700)">
-        <Truncate maxWidth="10rem">{promptVersionTag}</Truncate>
-      </Token>
-    );
-    to = `/redirects/prompts/${promptId}/tags/${encodeURIComponent(promptVersionTag)}`;
-  } else {
-    specifier = (
-      <Token size="S" color="var(--ac-global-color-grey-700)">
-        latest
-      </Token>
-    );
-    to = `/prompts/${promptId}`;
-  }
-  return (
-    <Link
-      to={to}
-      css={css`
-        text-decoration: none;
-      `}
-    >
-      <Flex alignItems="center">
-        <Truncate maxWidth="10rem">{promptName}</Truncate>
-        <Text color="text-300">&nbsp;@&nbsp;</Text>
-        {specifier}
-      </Flex>
-    </Link>
   );
 };

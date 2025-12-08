@@ -75,7 +75,7 @@ export function UnassignDatasetEvaluatorDialog({
             }
           }
           evaluator @deleteEdge(connections: $connectionIds) {
-            ...EvaluatorsTable_row
+            ...DatasetEvaluatorsTable_row
           }
         }
       }

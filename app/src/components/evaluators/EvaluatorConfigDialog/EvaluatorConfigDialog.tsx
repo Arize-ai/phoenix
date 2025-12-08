@@ -168,7 +168,7 @@ function EvaluatorConfigDialogContent({
               connections: $connectionIds
               edgeTypeName: "EvaluatorEdge"
             ) {
-            ...EvaluatorsTable_row
+            ...DatasetEvaluatorsTable_row
           }
         }
       }

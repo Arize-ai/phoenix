@@ -82,8 +82,8 @@ const CreateEvaluatorDialog = ({
                 edgeTypeName: "EvaluatorEdge"
               ) {
               id
-              name
-              ...EvaluatorsTable_row
+              displayName
+              ...DatasetEvaluatorsTable_row
             }
           }
         }
