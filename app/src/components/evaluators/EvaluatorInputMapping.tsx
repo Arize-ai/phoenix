@@ -61,11 +61,6 @@ const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
   );
 };
 
-type ExampleKeyItem = {
-  id: string;
-  label: string;
-};
-
 const EvaluatorInputMappingControls = ({
   evaluatorInput,
   variables,
@@ -74,18 +69,7 @@ const EvaluatorInputMappingControls = ({
   variables: string[];
 }) => {
   const { control, getValues } = useFormContext<EvaluatorFormValues>();
-  const allExampleKeys: ExampleKeyItem[] = useMemo(() => {
-    const flat = flattenObject({
-      obj: evaluatorInput ?? EMPTY_EVALUATOR_INPUT,
-      keepNonTerminalValues: true,
-    });
-    return [
-      ...Object.keys(flat).map((key) => ({
-        id: key,
-        label: key,
-      })),
-    ];
-  }, [evaluatorInput]);
+  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorInput);
   const [inputValues, setInputValues] = useState<Record<string, string>>(() =>
     getValues("inputMapping.pathMapping")
   );
@@ -157,4 +141,19 @@ const EvaluatorInputMappingControls = ({
       ))}
     </Flex>
   );
+};
+
+export const useFlattenedEvaluatorInputKeys = (
+  evaluatorInput: EvaluatorInput | null
+) => {
+  return useMemo(() => {
+    const flat = flattenObject({
+      obj: evaluatorInput ?? EMPTY_EVALUATOR_INPUT,
+      keepNonTerminalValues: true,
+    });
+    return Object.keys(flat).map((key) => ({
+      id: key,
+      label: key,
+    }));
+  }, [evaluatorInput]);
 };

@@ -64,6 +64,9 @@ export function PlaygroundDatasetSection({
     `,
     {
       datasetId,
+    },
+    {
+      fetchPolicy: "store-and-network",
     }
   );
 
