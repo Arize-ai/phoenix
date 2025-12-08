@@ -246,8 +246,7 @@ const EditEvaluatorDialog = ({
       description,
       choiceConfig,
       datasetId: dataset.id,
-      originalDisplayName: displayName,
-      evaluatorId: datasetEvaluatorId,
+      datasetEvaluatorId,
       inputMapping,
     });
     updateLlmEvaluator({
@@ -270,7 +269,6 @@ const EditEvaluatorDialog = ({
     form,
     playgroundStore,
     instanceId,
-    displayName,
     datasetEvaluatorId,
     updateLlmEvaluator,
     updateConnectionIds,

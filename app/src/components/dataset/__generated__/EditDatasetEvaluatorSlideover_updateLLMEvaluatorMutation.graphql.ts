@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a07458bb1d6426675d34eb55451b97ec>>
+ * @generated SignedSource<<3cfbc406dfadc06d5a7335098fbd0614>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,12 +14,11 @@ export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | 
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type UpdateDatasetLLMEvaluatorInput = {
+  datasetEvaluatorId: string;
   datasetId: string;
   description?: string | null;
-  evaluatorId: string;
   inputMapping?: EvaluatorInputMappingInput | null;
   name: string;
-  originalDisplayName: string;
   outputConfig: CategoricalAnnotationConfigInput;
   promptVersion: ChatPromptVersionInput;
 };

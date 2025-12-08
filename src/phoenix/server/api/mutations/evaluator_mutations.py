@@ -83,9 +83,8 @@ class CreateCodeEvaluatorInput:
 
 @strawberry.input
 class UpdateDatasetLLMEvaluatorInput:
-    evaluator_id: GlobalID
+    dataset_evaluator_id: GlobalID
     dataset_id: GlobalID
-    original_display_name: Identifier
     name: Identifier
     description: Optional[str] = None
     prompt_version: ChatPromptVersionInput
@@ -116,8 +115,7 @@ class AssignEvaluatorToDatasetInput:
 @strawberry.input
 class UnassignEvaluatorFromDatasetInput:
     dataset_id: GlobalID
-    evaluator_id: GlobalID
-    display_name: Identifier
+    dataset_evaluator_id: GlobalID
 
 
 @strawberry.input
@@ -276,16 +274,16 @@ class EvaluatorMutationMixin:
 
         try:
             dataset_evaluator_rowid = from_global_id_with_expected_type(
-                global_id=input.evaluator_id,
+                global_id=input.dataset_evaluator_id,
                 expected_type_name=DatasetEvaluator.__name__,
             )
         except ValueError:
-            raise BadRequest(f"Invalid DatasetEvaluator id: {input.evaluator_id}")
+            raise BadRequest(f"Invalid DatasetEvaluator id: {input.dataset_evaluator_id}")
 
         async with info.context.db() as session:
             dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_rowid)
             if dataset_evaluator is None:
-                raise NotFound(f"DatasetEvaluator with id {input.evaluator_id} not found")
+                raise NotFound(f"DatasetEvaluator with id {input.dataset_evaluator_id} not found")
             if dataset_evaluator.evaluator_id is None:
                 raise BadRequest("Cannot update a built-in evaluator")
 
@@ -301,7 +299,9 @@ class EvaluatorMutationMixin:
             )
             llm_evaluator = results.scalar_one_or_none()
             if llm_evaluator is None:
-                raise NotFound(f"LLM evaluator not found for DatasetEvaluator {input.evaluator_id}")
+                raise NotFound(
+                    f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
+                )
 
             dataset_evaluator.display_name = evaluator_name
             dataset_evaluator.input_mapping = (
@@ -350,6 +350,7 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
+    # TODO: should this always just get called instead of unlink for DatasetEvaluators?
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def delete_evaluators(
         self, info: Info[Context, None], input: DeleteEvaluatorsInput
@@ -458,6 +459,8 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
+    # TODO: should this always just get deleted in favor of always calling
+    # delete_evaluators for DatasetEvaluators?
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def unassign_evaluator_from_dataset(
         self, info: Info[Context, None], input: UnassignEvaluatorFromDatasetInput
@@ -471,31 +474,24 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
         try:
-            evaluator_rowid, _ = _parse_evaluator_id(input.evaluator_id)
+            dataset_evaluator_rowid = from_global_id_with_expected_type(
+                global_id=input.dataset_evaluator_id,
+                expected_type_name=DatasetEvaluator.__name__,
+            )
         except ValueError as e:
-            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
-
-        display_name = IdentifierModel.model_validate(input.display_name)
+            raise BadRequest(f"Invalid dataset evaluator id: {input.dataset_evaluator_id}. {e}")
 
         select_stmt = select(models.DatasetEvaluators).where(
             models.DatasetEvaluators.dataset_id == dataset_rowid,
-            models.DatasetEvaluators.display_name == display_name,
+            models.DatasetEvaluators.id == dataset_evaluator_rowid,
         )
-        if evaluator_rowid < 0:
-            select_stmt = select_stmt.where(
-                models.DatasetEvaluators.builtin_evaluator_id == evaluator_rowid
-            )
-        else:
-            select_stmt = select_stmt.where(
-                models.DatasetEvaluators.evaluator_id == evaluator_rowid
-            )
 
         async with info.context.db() as session:
             dataset_evaluator = await session.scalar(select_stmt)
             if dataset_evaluator is None:
                 raise NotFound(
                     f"DatasetEvaluator not found for dataset {input.dataset_id}, "
-                    f"evaluator {input.evaluator_id}, display name {input.display_name}"
+                    f"dataset evaluator {input.dataset_evaluator_id}"
                 )
             dataset_evaluator_id = dataset_evaluator.id
             dataset_evaluator_display_name = dataset_evaluator.display_name

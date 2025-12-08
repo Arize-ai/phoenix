@@ -4023,8 +4023,7 @@ type UMAPPoints {
 
 input UnassignEvaluatorFromDatasetInput {
   datasetId: ID!
-  evaluatorId: ID!
-  displayName: Identifier!
+  datasetEvaluatorId: ID!
 }
 
 type UnparsableConfig {
@@ -4062,9 +4061,8 @@ input UpdateAnnotationInput {
 }
 
 input UpdateDatasetLLMEvaluatorInput {
-  evaluatorId: ID!
+  datasetEvaluatorId: ID!
   datasetId: ID!
-  originalDisplayName: Identifier!
   name: Identifier!
   description: String = null
   promptVersion: ChatPromptVersionInput!

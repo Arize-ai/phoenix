@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a3880191f6603d2a79bad7228cad65d3>>
+ * @generated SignedSource<<be759c363c1f52c409f9d8e421603782>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,9 +11,8 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type UnassignEvaluatorFromDatasetInput = {
+  datasetEvaluatorId: string;
   datasetId: string;
-  displayName: string;
-  evaluatorId: string;
 };
 export type UnassignDatasetEvaluatorDialogUnassignMutation$variables = {
   connectionIds: ReadonlyArray<string>;

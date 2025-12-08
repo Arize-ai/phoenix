@@ -106,8 +106,7 @@ export function UnassignDatasetEvaluatorDialog({
         variables: {
           input: {
             datasetId,
-            evaluatorId: datasetEvaluatorId,
-            displayName: evaluatorName,
+            datasetEvaluatorId,
           },
           connectionIds: [
             datasetEvaluatorsTableConnection,
@@ -136,7 +135,6 @@ export function UnassignDatasetEvaluatorDialog({
     unassignEvaluatorFromDataset,
     datasetId,
     datasetEvaluatorId,
-    evaluatorName,
     datasetEvaluatorsTableConnection,
     notifySuccess,
     onOpenChange,
