@@ -46,7 +46,7 @@ function contains(
 ): boolean {
   words = words.split(",").map((word) => word.trim());
   if (caseSensitive) {
-    return words.some((word) => word.includes(text));
+    return words.some((word) => text.includes(word));
   }
   return words.some((word) => text.toLowerCase().includes(word.toLowerCase()));
 }
@@ -81,7 +81,7 @@ export const ContainsEvaluatorForm = ({
   );
   const form = useEvaluatorConfigDialogForm();
   const [language, setLanguage] = useState<CodeLanguage>("Python");
-  const [outputInputValue, setOutputInputValue] = useState<string>("");
+  const [containsTextPath, setContainsTextPath] = useState<string>("");
   const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorInput);
   return (
     <Flex direction="column" gap="size-200">
@@ -117,10 +117,10 @@ export const ContainsEvaluatorForm = ({
               description={`The text to search for the words in. Choose an example field from the list to map to the Text parameter.`}
               onSelectionChange={(key) => {
                 field.onChange(key);
-                setOutputInputValue(key as string);
+                setContainsTextPath(key as string);
               }}
-              onInputChange={(value) => setOutputInputValue(value)}
-              inputValue={outputInputValue ?? ""}
+              onInputChange={(value) => setContainsTextPath(value)}
+              inputValue={containsTextPath ?? ""}
               css={css`
                 width: 100%;
                 min-width: 0 !important;
