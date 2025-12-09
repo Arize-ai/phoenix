@@ -5,6 +5,7 @@
   - [Testing and Linting](#testing-and-linting)
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
   - [Contributing Notebooks](#contributing-notebooks)
+  - [Contributing Documentation](#contributing-documentation)
   - [Building the Package](#building-the-package)
   - [Installing a Phoenix Build](#installing-a-phoenix-build)
   - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
@@ -42,7 +43,7 @@ Activate your virtual environment before continuing.
 source ./.venv/bin/activate
 ```
 
-From the root of the reposistory, install the `arize-phoenix` package in editable mode (using the `-e` flag) with development dependencies (using the `dev` extra) by running
+From the root of the repository, install the `arize-phoenix` package in editable mode (using the `-e` flag) with development dependencies (using the `dev` extra) by running
 
 ```bash
 uv pip install -e ".[dev]"
@@ -146,6 +147,36 @@ To add or modify a Jupyter notebook, the following commands are needed to pass C
 
 - `tox run -e ruff`: Runs formatters
 - `tox run -e clean_jupyter_notebooks`: Removes cell output and notebook metadata to keep the diff as small as possible
+
+## Contributing Documentation
+
+Phoenix documentation is built using [Mintlify](https://mintlify.com/). The documentation source files are located in the `docs/` directory.
+
+### Getting Started
+
+1. Install the Mintlify CLI:
+
+```sh
+npm i -g mint
+```
+
+2. Run the local development server:
+
+```bash
+mint dev
+```
+
+3. Open your browser to `http://localhost:3000` to preview your changes.
+
+> **Note:** Mintlify currently has a bug where the dev server can be slow to start because it traverses too many folders. This can be mitigated by running `mint dev` in a clean repository (without `node_modules/`, `.venv/`, `.tox/`, etc.).
+
+### Making Changes
+
+- Documentation pages are written in MDX (Markdown with JSX support).
+- The `docs.json` file controls navigation and site-wide settings.
+- Images and other assets should be placed in the appropriate subdirectories.
+
+For more details on Mintlify's features, including formatting, components, and deployment, see the [Mintlify Quickstart Guide](https://www.mintlify.com/docs/quickstart).
 
 ## Building the Package
 

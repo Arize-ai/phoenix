@@ -15,13 +15,23 @@ phoenix-integrations/
 requirements/
 schemas/
 .tox/
+.venv/
+.conda/
+.git/
+.github/
+.cursor/
+.vscode/
+.idea/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage/
+.eggs/
+.nox/
+.cache/
 node_modules/
 __pycache__/
 *.pyc
-.pytest_cache/
-.mypy_cache/
-.vscode/
-.idea/
 *.code-workspace
 
 # Exclude root-level markdown and other files (keep only docs.json and .mintignore)
