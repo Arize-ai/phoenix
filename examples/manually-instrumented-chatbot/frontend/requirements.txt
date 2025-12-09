@@ -119,5 +119,5 @@ typing-extensions==4.11.0
     #   streamlit
 tzdata==2024.1
     # via pandas
-urllib3==2.5.0
+urllib3==2.6.0
     # via requests
