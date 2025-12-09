@@ -1,5 +1,17 @@
 # Changelog
 
+## [12.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.21.0...arize-phoenix-v12.22.0) (2025-12-09)
+
+
+### Features
+
+* Add span note function to python client ([#10521](https://github.com/Arize-ai/phoenix/issues/10521)) ([ddeff2b](https://github.com/Arize-ai/phoenix/commit/ddeff2b08cdedd18a6b1fccc090ab495849be598))
+
+
+### Documentation
+
+* mergeable docs-only changes ([#10527](https://github.com/Arize-ai/phoenix/issues/10527)) ([bfa02b4](https://github.com/Arize-ai/phoenix/commit/bfa02b4645f3f157c5968e7b44dab11426732e4c))
+
 ## [12.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.20.0...arize-phoenix-v12.21.0) (2025-12-09)
 
 
