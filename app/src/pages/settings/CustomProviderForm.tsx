@@ -849,10 +849,9 @@ export function ProviderForm({
     }
   );
 
-  const watchedSdk = useWatch({ control, name: "sdk" });
+  const sdk = useWatch({ control, name: "sdk" });
   // SDK is guaranteed to exist because defaultValues is always a complete ProviderFormData
-  invariant(watchedSdk, "SDK field must be defined in form state");
-  const sdk = watchedSdk;
+  invariant(sdk, "SDK field must be defined in form state");
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
