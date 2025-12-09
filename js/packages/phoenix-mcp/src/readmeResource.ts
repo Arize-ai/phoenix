@@ -56,8 +56,8 @@ export async function initializeReadmeResources({
   // Register resource capabilities
   server.server.registerCapabilities({
     resources: {
-      list: true,
-      read: true,
+      subscribe: true,
+      listChanged: true,
     },
   });
 

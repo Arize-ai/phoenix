@@ -35,10 +35,6 @@ const client = createClient({
 const server = new McpServer({
   name: "phoenix-mcp-server",
   version: "1.0.0",
-  capabilities: {
-    resources: {},
-    tools: {},
-  },
 });
 
 initializePromptTools({ client, server });
