@@ -154,7 +154,7 @@ function EvaluatorConfigDialogContent({
 
   const datasetEvaluatorsTableConnection = ConnectionHandler.getConnectionID(
     dataset.id,
-    "DatasetEvaluatorsTable_evaluators"
+    "DatasetEvaluatorsTable_datasetEvaluators"
   );
   const [assignEvaluatorToDataset, isAssigningEvaluatorToDataset] =
     useMutation<EvaluatorConfigDialogAssignEvaluatorToDatasetMutation>(graphql`
