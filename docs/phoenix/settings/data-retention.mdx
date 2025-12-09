@@ -99,3 +99,9 @@ You can either delete traces by time or individually. To delete traces older tha
     How to configure retention policies
   </div>
 </div>
+
+## Frequently Asked Questions
+
+### Why doesn't my storage usage decrease after deleting traces?
+
+When you delete traces in Phoenix, the usage metrics in the Settings page will not immediately reflect the freed space. This is because PostgreSQL does not immediately reclaim disk space from deleted rows — instead, it marks them for cleanup through a process called **vacuuming**. PostgreSQL's autovacuum daemon handles this automatically over time. For more details, see the [PostgreSQL documentation on Routine Vacuuming](https://www.postgresql.org/docs/current/routine-vacuuming.html).
