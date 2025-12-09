@@ -1197,8 +1197,8 @@
     }
   },
   "logo": {
-    "light": "/logo/light.png",
-    "dark": "/logo/dark.png"
+    "light": "/docs/logo/light.png",
+    "dark": "/docs/logo/dark.png"
   },
   "navbar": {
     "links": [
