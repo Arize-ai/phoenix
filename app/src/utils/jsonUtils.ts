@@ -117,3 +117,18 @@ export function jsonStringToFlatObject(
   }
   return {} satisfies Record<string, string | boolean | number>;
 }
+
+/**
+ * Serializes a value to a JSON string.
+ *
+ * @returns undefined for null/undefined values, or if serialization fails
+ */
+export function safelyJSONStringify(value: unknown): string | undefined {
+  // If the value is nullish, it's not worth trying to preserve it
+  if (value == null) return undefined;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return undefined;
+  }
+}

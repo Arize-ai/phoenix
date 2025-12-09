@@ -28,6 +28,8 @@
 
 import invariant from "tiny-invariant";
 
+import { assertUnreachable } from "@phoenix/typeUtils";
+import { safelyJSONStringify } from "@phoenix/utils/jsonUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
 import type {
@@ -113,52 +115,6 @@ function parseJsonField(
     // Zod validation should have caught this, but be defensive
     return undefined;
   }
-}
-
-/**
- * Serializes a value to a JSON string.
- *
- * @returns undefined for null/undefined values, or if serialization fails
- */
-function serializeJsonField(value: unknown): string | undefined {
-  if (value == null) return undefined;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return undefined;
-  }
-}
-
-// =============================================================================
-// Type Guards
-// =============================================================================
-
-function isOpenAIFormData(data: ProviderFormData): data is OpenAIFormData {
-  return data.sdk === "OPENAI";
-}
-
-function isAzureOpenAIFormData(
-  data: ProviderFormData
-): data is AzureOpenAIFormData {
-  return data.sdk === "AZURE_OPENAI";
-}
-
-function isAnthropicFormData(
-  data: ProviderFormData
-): data is AnthropicFormData {
-  return data.sdk === "ANTHROPIC";
-}
-
-function isAWSBedrockFormData(
-  data: ProviderFormData
-): data is AWSBedrockFormData {
-  return data.sdk === "AWS_BEDROCK";
-}
-
-function isGoogleGenAIFormData(
-  data: ProviderFormData
-): data is GoogleGenAIFormData {
-  return data.sdk === "GOOGLE_GENAI";
 }
 
 // =============================================================================
@@ -282,7 +238,7 @@ export function transformConfigToFormValues(
         openai_organization:
           config?.openaiClientKwargs?.organization ?? undefined,
         openai_project: config?.openaiClientKwargs?.project ?? undefined,
-        openai_default_headers: serializeJsonField(
+        openai_default_headers: safelyJSONStringify(
           config?.openaiClientKwargs?.defaultHeaders
         ),
       };
@@ -310,7 +266,7 @@ export function transformConfigToFormValues(
         azure_client_secret:
           authMethod?.azureAdTokenProvider?.azureClientSecret ?? undefined,
         azure_scope: authMethod?.azureAdTokenProvider?.scope ?? undefined,
-        azure_default_headers: serializeJsonField(kwargs?.defaultHeaders),
+        azure_default_headers: safelyJSONStringify(kwargs?.defaultHeaders),
       };
     }
 
@@ -320,7 +276,7 @@ export function transformConfigToFormValues(
         sdk: "ANTHROPIC",
         anthropic_api_key: config?.anthropicAuthenticationMethod?.apiKey || "",
         anthropic_base_url: config?.anthropicClientKwargs?.baseUrl ?? undefined,
-        anthropic_default_headers: serializeJsonField(
+        anthropic_default_headers: safelyJSONStringify(
           config?.anthropicClientKwargs?.defaultHeaders
         ),
       };
@@ -347,7 +303,7 @@ export function transformConfigToFormValues(
         sdk: "GOOGLE_GENAI",
         google_api_key: config?.googleGenaiAuthenticationMethod?.apiKey || "",
         google_base_url: httpOptions?.baseUrl ?? undefined,
-        google_headers: serializeJsonField(httpOptions?.headers),
+        google_headers: safelyJSONStringify(httpOptions?.headers),
       };
     }
 
@@ -370,146 +326,137 @@ export function transformConfigToFormValues(
  * Builds the nested clientConfig structure for GraphQL mutations.
  *
  * This transforms flat form fields into the nested structure expected by
- * the GraphQL schema. Uses type guards for safe type narrowing.
+ * the GraphQL schema. Uses a switch statement on the `sdk` discriminant
+ * for automatic type narrowing.
  */
 export function buildClientConfig(formData: ProviderFormData) {
-  if (isOpenAIFormData(formData)) {
-    return {
-      openai: {
-        openaiAuthenticationMethod: {
-          apiKey: formData.openai_api_key,
+  switch (formData.sdk) {
+    case "OPENAI":
+      return {
+        openai: {
+          openaiAuthenticationMethod: {
+            apiKey: formData.openai_api_key,
+          },
+          openaiClientKwargs: compactObject({
+            baseUrl: formData.openai_base_url,
+            organization: formData.openai_organization,
+            project: formData.openai_project,
+            defaultHeaders: parseJsonField(formData.openai_default_headers),
+          }),
         },
-        openaiClientKwargs: compactObject({
-          baseUrl: formData.openai_base_url,
-          organization: formData.openai_organization,
-          project: formData.openai_project,
-          defaultHeaders: parseJsonField(formData.openai_default_headers),
-        }),
-      },
-    };
-  }
+      };
+    case "AZURE_OPENAI": {
+      const authMethodType = formData.azure_auth_method || "api_key";
 
-  if (isAzureOpenAIFormData(formData)) {
-    const authMethodType = formData.azure_auth_method || "api_key";
+      // Build auth method based on selected type
+      const authMethod =
+        authMethodType === "ad_token_provider"
+          ? compressObject({
+              azureAdTokenProvider: compressObject({
+                azureTenantId: formData.azure_tenant_id,
+                azureClientId: formData.azure_client_id,
+                azureClientSecret: formData.azure_client_secret,
+                scope: formData.azure_scope,
+              }),
+            })
+          : compressObject({
+              apiKey: formData.azure_api_key,
+            });
 
-    // Build auth method based on selected type
-    const authMethod =
-      authMethodType === "ad_token_provider"
-        ? compressObject({
-            azureAdTokenProvider: compressObject({
-              azureTenantId: formData.azure_tenant_id,
-              azureClientId: formData.azure_client_id,
-              azureClientSecret: formData.azure_client_secret,
-              scope: formData.azure_scope,
+      // Validate required fields before constructing the object.
+      // These should be guaranteed by Zod validation, but we assert here for type safety
+      // and defense-in-depth against validation bypasses.
+      invariant(
+        formData.azure_endpoint,
+        "Azure endpoint is required but was empty"
+      );
+      invariant(
+        formData.azure_deployment_name,
+        "Azure deployment name is required but was empty"
+      );
+      invariant(
+        formData.azure_api_version,
+        "Azure API version is required but was empty"
+      );
+      invariant(
+        authMethod,
+        "Azure authentication method is required but was empty"
+      );
+
+      // Build azureOpenaiClientKwargs with required fields directly (not via compactObject)
+      // to ensure it's never undefined. Optional fields are added conditionally.
+      const defaultHeaders = parseJsonField(formData.azure_default_headers);
+
+      return {
+        azureOpenai: {
+          azureOpenaiAuthenticationMethod: authMethod,
+          azureOpenaiClientKwargs: {
+            azureEndpoint: formData.azure_endpoint,
+            azureDeployment: formData.azure_deployment_name,
+            apiVersion: formData.azure_api_version,
+            ...(defaultHeaders !== undefined && { defaultHeaders }),
+          },
+        },
+      };
+    }
+    case "ANTHROPIC":
+      return {
+        anthropic: {
+          anthropicAuthenticationMethod: {
+            apiKey: formData.anthropic_api_key,
+          },
+          anthropicClientKwargs: compactObject({
+            baseUrl: formData.anthropic_base_url,
+            defaultHeaders: parseJsonField(formData.anthropic_default_headers),
+          }),
+        },
+      };
+    case "AWS_BEDROCK": {
+      // Validate required field before constructing the object.
+      // This should be guaranteed by Zod validation, but we assert here for type safety
+      // and defense-in-depth against validation bypasses.
+      invariant(formData.aws_region, "AWS region is required but was empty");
+
+      return {
+        awsBedrock: {
+          awsBedrockAuthenticationMethod: {
+            awsAccessKeyId: formData.aws_access_key_id,
+            awsSecretAccessKey: formData.aws_secret_access_key,
+            ...(formData.aws_session_token && {
+              awsSessionToken: formData.aws_session_token,
             }),
-          })
-        : compressObject({
-            apiKey: formData.azure_api_key,
-          });
-
-    // Validate required fields before constructing the object.
-    // These should be guaranteed by Zod validation, but we assert here for type safety
-    // and defense-in-depth against validation bypasses.
-    invariant(
-      formData.azure_endpoint,
-      "Azure endpoint is required but was empty"
-    );
-    invariant(
-      formData.azure_deployment_name,
-      "Azure deployment name is required but was empty"
-    );
-    invariant(
-      formData.azure_api_version,
-      "Azure API version is required but was empty"
-    );
-    invariant(
-      authMethod,
-      "Azure authentication method is required but was empty"
-    );
-
-    // Build azureOpenaiClientKwargs with required fields directly (not via compactObject)
-    // to ensure it's never undefined. Optional fields are added conditionally.
-    const defaultHeaders = parseJsonField(formData.azure_default_headers);
-
-    return {
-      azureOpenai: {
-        azureOpenaiAuthenticationMethod: authMethod,
-        azureOpenaiClientKwargs: {
-          azureEndpoint: formData.azure_endpoint,
-          azureDeployment: formData.azure_deployment_name,
-          apiVersion: formData.azure_api_version,
-          ...(defaultHeaders !== undefined && { defaultHeaders }),
+          },
+          // Build awsBedrockClientKwargs with required fields directly (not via compactObject)
+          // to ensure it's never undefined. Optional fields are added conditionally.
+          awsBedrockClientKwargs: {
+            regionName: formData.aws_region,
+            ...(formData.aws_endpoint_url && {
+              endpointUrl: formData.aws_endpoint_url,
+            }),
+          },
         },
-      },
-    };
+      };
+    }
+    case "GOOGLE_GENAI": {
+      const httpOptions = compactObject({
+        baseUrl: formData.google_base_url,
+        headers: parseJsonField(formData.google_headers),
+      });
+
+      return {
+        googleGenai: {
+          googleGenaiAuthenticationMethod: {
+            apiKey: formData.google_api_key,
+          },
+          // Only include googleGenaiClientKwargs if there are httpOptions to send
+          ...(httpOptions && { googleGenaiClientKwargs: { httpOptions } }),
+        },
+      };
+    }
+    default: {
+      assertUnreachable(formData);
+    }
   }
-
-  if (isAnthropicFormData(formData)) {
-    return {
-      anthropic: {
-        anthropicAuthenticationMethod: {
-          apiKey: formData.anthropic_api_key,
-        },
-        anthropicClientKwargs: compactObject({
-          baseUrl: formData.anthropic_base_url,
-          defaultHeaders: parseJsonField(formData.anthropic_default_headers),
-        }),
-      },
-    };
-  }
-
-  if (isAWSBedrockFormData(formData)) {
-    // Validate required field before constructing the object.
-    // This should be guaranteed by Zod validation, but we assert here for type safety
-    // and defense-in-depth against validation bypasses.
-    invariant(formData.aws_region, "AWS region is required but was empty");
-
-    return {
-      awsBedrock: {
-        awsBedrockAuthenticationMethod: {
-          awsAccessKeyId: formData.aws_access_key_id,
-          awsSecretAccessKey: formData.aws_secret_access_key,
-          ...(formData.aws_session_token && {
-            awsSessionToken: formData.aws_session_token,
-          }),
-        },
-        // Build awsBedrockClientKwargs with required fields directly (not via compactObject)
-        // to ensure it's never undefined. Optional fields are added conditionally.
-        awsBedrockClientKwargs: {
-          regionName: formData.aws_region,
-          ...(formData.aws_endpoint_url && {
-            endpointUrl: formData.aws_endpoint_url,
-          }),
-        },
-      },
-    };
-  }
-
-  if (isGoogleGenAIFormData(formData)) {
-    const httpOptions = compactObject({
-      baseUrl: formData.google_base_url,
-      headers: parseJsonField(formData.google_headers),
-    });
-
-    return {
-      googleGenai: {
-        googleGenaiAuthenticationMethod: {
-          apiKey: formData.google_api_key,
-        },
-        // Only include googleGenaiClientKwargs if there are httpOptions to send
-        ...(httpOptions && { googleGenaiClientKwargs: { httpOptions } }),
-      },
-    };
-  }
-
-  // Exhaustiveness check
-  const _exhaustive: never = formData;
-  invariant(
-    false,
-    `Unknown SDK type in form data. ` +
-      `The frontend may need to be updated to support this SDK type. ` +
-      `Data: ${JSON.stringify(_exhaustive)}`
-  );
 }
 
 /**
