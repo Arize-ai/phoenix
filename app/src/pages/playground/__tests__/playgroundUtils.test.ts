@@ -22,7 +22,7 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "../constants";
-import { InvocationParameter } from "../InvocationParametersFormFields";
+import { InvocationParameter } from "../../../components/playground/model/InvocationParametersFormFields";
 import {
   areInvocationParamsEqual,
   areRequiredInvocationParametersConfigured,

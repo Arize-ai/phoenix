@@ -1,20 +1,9 @@
-import {
-  memo,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { memo, Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { JSONSchema7 } from "json-schema";
-import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
 
 import {
   Button,
-  ComboBox,
-  ComboBoxItem,
   Dialog,
   DialogCloseButton,
   DialogContent,
@@ -25,40 +14,28 @@ import {
   Flex,
   Icon,
   Icons,
-  Input,
-  Label,
   Modal,
   ModalOverlay,
   Text,
-  TextField,
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import { CodeWrap, JSONEditor } from "@phoenix/components/code";
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import { AwsModelConfigFormFields } from "@phoenix/components/playground/model/AWSModelConfigFormFields";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
-  AZURE_OPENAI_API_VERSIONS,
-  ModelProviders,
-} from "@phoenix/constants/generativeConstants";
+  AWSModelConfigFormFields,
+  AzureOpenAIModelConfigFormFields,
+  CustomHeadersModelConfigFormField,
+  InvocationParametersFormFields,
+  ModelComboBox,
+  OpenAIModelConfigFormFields,
+} from "@phoenix/components/playground/model";
+import { Truncate } from "@phoenix/components/utility/Truncate";
+import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import {
-  httpHeadersJSONSchema,
-  stringToHttpHeadersSchema,
-} from "@phoenix/schemas/httpHeadersSchema";
-import {
-  PlaygroundInstance,
-  PlaygroundNormalizedInstance,
-} from "@phoenix/store";
-
-import { ModelComboBox } from "../../components/playground/model/ModelComboBox";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
-import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
 import { ModelProviderSelect } from "./ModelProviderSelect";
 import { areRequiredInvocationParametersConfigured } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
@@ -89,272 +66,6 @@ const modelConfigFormCSS = css`
 function providerSupportsOpenAIConfig(provider: ModelProvider) {
   return provider === "OPENAI" || provider === "OLLAMA";
 }
-
-function OpenAiModelConfigFormField({
-  instance,
-}: {
-  instance: PlaygroundNormalizedInstance;
-}) {
-  const updateModel = usePlaygroundContext((state) => state.updateModel);
-  const updateModelConfig = useCallback(
-    ({
-      configKey,
-      value,
-    }: {
-      configKey: keyof PlaygroundInstance["model"];
-      value: string;
-    }) => {
-      updateModel({
-        instanceId: instance.id,
-        patch: {
-          ...instance.model,
-          [configKey]: value,
-        },
-      });
-    },
-    [instance.id, instance.model, updateModel]
-  );
-
-  const debouncedUpdateModelName = useMemo(
-    () =>
-      debounce((value: string) => {
-        updateModelConfig({
-          configKey: "modelName",
-          value,
-        });
-      }, 250),
-    [updateModelConfig]
-  );
-
-  const debouncedUpdateBaseUrl = useMemo(
-    () =>
-      debounce((value: string) => {
-        updateModelConfig({
-          configKey: "baseUrl",
-          value,
-        });
-      }, 250),
-    [updateModelConfig]
-  );
-
-  return (
-    <>
-      <ModelComboBox
-        modelName={instance.model.modelName}
-        provider={instance.model.provider}
-        onChange={(value) => {
-          debouncedUpdateModelName(value);
-        }}
-      />
-      <TextField
-        key="base-url"
-        defaultValue={instance.model.baseUrl ?? ""}
-        onChange={(value) => {
-          debouncedUpdateBaseUrl(value);
-        }}
-      >
-        <Label>Base URL</Label>
-        <Input placeholder="e.x. https://my-llm.com/v1" />
-      </TextField>
-    </>
-  );
-}
-
-function AzureOpenAiModelConfigFormField({
-  instance,
-}: {
-  instance: PlaygroundNormalizedInstance;
-}) {
-  const updateModel = usePlaygroundContext((state) => state.updateModel);
-  const updateModelConfig = useCallback(
-    ({
-      configKey,
-      value,
-    }: {
-      configKey: keyof PlaygroundInstance["model"];
-      value: string;
-    }) => {
-      updateModel({
-        instanceId: instance.id,
-        patch: {
-          ...instance.model,
-          [configKey]: value,
-        },
-      });
-    },
-    [instance.id, instance.model, updateModel]
-  );
-
-  const debouncedUpdateModelName = useMemo(
-    () =>
-      debounce((value: string) => {
-        updateModelConfig({
-          configKey: "modelName",
-          value,
-        });
-      }, 250),
-    [updateModelConfig]
-  );
-
-  const debouncedUpdateEndpoint = useMemo(
-    () =>
-      debounce((value: string) => {
-        updateModelConfig({
-          configKey: "endpoint",
-          value,
-        });
-      }, 250),
-    [updateModelConfig]
-  );
-
-  return (
-    <>
-      <TextField
-        key="model-name"
-        defaultValue={instance.model.modelName ?? ""}
-        onChange={(value) => {
-          debouncedUpdateModelName(value);
-        }}
-      >
-        <Label>Deployment Name</Label>
-        <Input placeholder="e.x. azure-openai-deployment-name" />
-      </TextField>
-      <TextField
-        key="endpoint"
-        defaultValue={instance.model.endpoint ?? ""}
-        onChange={(value) => {
-          debouncedUpdateEndpoint(value);
-        }}
-      >
-        <Label>Endpoint</Label>
-        <Input placeholder="e.x. https://my.openai.azure.com" />
-      </TextField>
-      <ComboBox
-        size="L"
-        label="API Version"
-        data-testid="azure-api-version-combobox"
-        selectedKey={instance.model.apiVersion ?? undefined}
-        aria-label="api version picker"
-        placeholder="Select an AzureOpenAI API Version"
-        inputValue={instance.model.apiVersion ?? ""}
-        onInputChange={(value) => {
-          updateModelConfig({
-            configKey: "apiVersion",
-            value,
-          });
-        }}
-        onSelectionChange={(key) => {
-          if (typeof key === "string") {
-            updateModelConfig({
-              configKey: "apiVersion",
-              value: key,
-            });
-          }
-        }}
-        allowsCustomValue
-      >
-        {AZURE_OPENAI_API_VERSIONS.map((version) => (
-          <ComboBoxItem key={version} textValue={version} id={version}>
-            {version}
-          </ComboBoxItem>
-        ))}
-      </ComboBox>
-    </>
-  );
-}
-
-/**
- * Format headers object for JSON editor with proper indentation and empty state handling
- */
-const formatHeadersForEditor = (
-  headers: Record<string, string> | null | undefined
-): string => {
-  if (!headers) {
-    return "{\n  \n}";
-  }
-
-  const hasContent = Object.keys(headers).length > 0;
-  return hasContent ? JSON.stringify(headers, null, 2) : "{\n  \n}";
-};
-
-function CustomHeadersModelConfigFormField({
-  instance,
-  onErrorChange,
-}: {
-  instance: PlaygroundNormalizedInstance;
-  onErrorChange?: (hasError: boolean) => void;
-}) {
-  const updateModel = usePlaygroundContext((state) => state.updateModel);
-  const { customHeaders } = instance.model;
-
-  const [editorValue, setEditorValue] = useState(() =>
-    formatHeadersForEditor(customHeaders)
-  );
-  const [errorMessage, setErrorMessage] = useState<string | undefined>();
-
-  // Cleanup: reset error state when component unmounts
-  useEffect(() => {
-    return () => onErrorChange?.(false);
-  }, [onErrorChange]);
-
-  const handleChange = useCallback(
-    (value: string) => {
-      setEditorValue(value);
-
-      const result = stringToHttpHeadersSchema.safeParse(value);
-      if (result.success) {
-        setErrorMessage(undefined);
-        onErrorChange?.(false);
-        updateModel({
-          instanceId: instance.id,
-          patch: { customHeaders: result.data },
-        });
-      } else {
-        const firstError = result.error.errors[0];
-        setErrorMessage(
-          firstError?.message ??
-            firstError?.path?.join(".") ??
-            "Invalid headers format"
-        );
-        onErrorChange?.(true);
-      }
-    },
-    [instance.id, updateModel, onErrorChange]
-  );
-
-  return (
-    <div css={fieldContainerCSS}>
-      <div css={fieldBaseCSS}>
-        <Label>Custom Headers</Label>
-        <CodeWrap>
-          <JSONEditor
-            value={editorValue}
-            onChange={handleChange}
-            jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-            optionalLint
-            placeholder={`{"X-Custom-Header": "custom-value"}`}
-          />
-        </CodeWrap>
-        {errorMessage ? (
-          <Text slot="errorMessage" color="danger">
-            {errorMessage}
-          </Text>
-        ) : null}
-        {!errorMessage ? (
-          <Text slot="description">
-            Custom HTTP headers to send with requests to the LLM provider
-          </Text>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-const fieldContainerCSS = css`
-  & .ac-view {
-    width: 100%;
-  }
-`;
 
 type ModelConfigButtonProps = PlaygroundInstanceProps;
 
@@ -567,9 +278,9 @@ function ModelConfigDialogContent(
         }}
       />
       {providerSupportsOpenAIConfig(instance.model.provider) ? (
-        <OpenAiModelConfigFormField instance={instance} />
+        <OpenAIModelConfigFormFields instance={instance} />
       ) : instance.model.provider === "AZURE_OPENAI" ? (
-        <AzureOpenAiModelConfigFormField instance={instance} />
+        <AzureOpenAIModelConfigFormFields instance={instance} />
       ) : (
         <ModelComboBox
           modelName={instance.model.modelName}
@@ -578,7 +289,7 @@ function ModelConfigDialogContent(
         />
       )}
       {instance.model.provider === "AWS" ? (
-        <AwsModelConfigFormFields instance={instance} />
+        <AWSModelConfigFormFields instance={instance} />
       ) : null}
       <Suspense>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />

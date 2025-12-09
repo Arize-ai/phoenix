@@ -20,9 +20,13 @@ import { AnthropicReasoningConfigField } from "@phoenix/pages/playground/Anthrop
 import { ModelInvocationParameterInput } from "@phoenix/store";
 import { Mutable } from "@phoenix/typeUtils";
 
-import { paramsToIgnoreInInvocationParametersForm } from "./constants";
+import { paramsToIgnoreInInvocationParametersForm } from "../../../pages/playground/constants";
+import {
+  areInvocationParamsEqual,
+  toCamelCase,
+} from "../../../pages/playground/playgroundUtils";
+
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
-import { areInvocationParamsEqual, toCamelCase } from "./playgroundUtils";
 
 export type InvocationParameter = Mutable<
   ModelSupportedParamsFetcherQuery$data["modelInvocationParameters"]

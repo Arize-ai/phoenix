@@ -7,7 +7,7 @@ import {
   PlaygroundNormalizedInstance,
 } from "@phoenix/store";
 
-export function AwsModelConfigFormFields({
+export function AWSModelConfigFormFields({
   instance,
 }: {
   instance: PlaygroundNormalizedInstance;
