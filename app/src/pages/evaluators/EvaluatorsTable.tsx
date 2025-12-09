@@ -412,7 +412,7 @@ const PromptLink = ({
         <Truncate maxWidth="10rem">{promptVersionTag}</Truncate>
       </Token>
     );
-    to = `/prompts/${promptId}`; // TODO: enable linking to a tag
+    to = `/redirects/prompts/${promptId}/tags/${promptVersionTag}`;
   } else {
     specifier = (
       <Token size="S" color="var(--ac-global-color-grey-700)">
