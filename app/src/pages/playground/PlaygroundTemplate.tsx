@@ -22,7 +22,7 @@ import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
 import { ModelConfigButton } from "./ModelConfigButton";
-import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
+import { ModelSupportedParamsFetcher } from "../../components/playground/model/ModelSupportedParamsFetcher";
 import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
 import { PlaygroundInstanceProps } from "./types";
 
