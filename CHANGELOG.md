@@ -1,5 +1,17 @@
 # Changelog
 
+## [12.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.20.0...arize-phoenix-v12.21.0) (2025-12-09)
+
+
+### Features
+
+* Add span notes endpoint ([#10508](https://github.com/Arize-ai/phoenix/issues/10508)) ([727cb23](https://github.com/Arize-ai/phoenix/commit/727cb234f822b992c2fa2a44f0f85d35a7de13a2))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10496](https://github.com/Arize-ai/phoenix/issues/10496)) ([05bb232](https://github.com/Arize-ai/phoenix/commit/05bb232069f8d080f699b18505e1555fd25f8f0f))
+
 ## [12.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.19.0...arize-phoenix-v12.20.0) (2025-12-06)
 
 
