@@ -483,7 +483,7 @@ class Dataset(Node):
             return DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator)
 
     @strawberry.field
-    async def evaluators(
+    async def dataset_evaluators(
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,

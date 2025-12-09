@@ -413,7 +413,10 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                         templateFormat="MUSTACHE",
                         template=dict(
                             messages=[
-                                dict(role="USER", content=[dict(text=dict(text="Updated: {{input}}"))])
+                                dict(
+                                    role="USER",
+                                    content=[dict(text=dict(text="Updated: {{input}}"))],
+                                )
                             ]
                         ),
                         invocationParameters=dict(

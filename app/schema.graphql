@@ -821,7 +821,7 @@ type Dataset implements Node {
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
   evaluator(datasetEvaluatorId: ID!): DatasetEvaluator!
-  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: DatasetEvaluatorSort, filter: DatasetEvaluatorFilter): DatasetEvaluatorConnection!
+  datasetEvaluators(first: Int = 50, last: Int, after: String, before: String, sort: DatasetEvaluatorSort, filter: DatasetEvaluatorFilter): DatasetEvaluatorConnection!
   lastUpdatedAt: DateTime
 }
 
