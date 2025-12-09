@@ -77,7 +77,7 @@ const EditEvaluatorPlaygroundProvider = (
         ) {
           dataset: node(id: $datasetId) {
             ... on Dataset {
-              evaluator(datasetEvaluatorId: $datasetEvaluatorId) {
+              datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {
                 evaluator {
                   ... on LLMEvaluator {
                     prompt {
@@ -100,7 +100,7 @@ const EditEvaluatorPlaygroundProvider = (
       `,
       { datasetEvaluatorId, datasetId }
     );
-  const datasetEvaluator = datasetEvaluatorQuery.dataset.evaluator;
+  const datasetEvaluator = datasetEvaluatorQuery.dataset.datasetEvaluator;
   invariant(datasetEvaluator != null, "datasetEvaluator is required");
   return (
     <EvaluatorPlaygroundProvider

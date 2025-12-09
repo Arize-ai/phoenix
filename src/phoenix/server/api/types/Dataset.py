@@ -461,7 +461,7 @@ class Dataset(Node):
         ]
 
     @strawberry.field
-    async def evaluator(
+    async def dataset_evaluator(
         self, info: Info[Context, None], dataset_evaluator_id: GlobalID
     ) -> DatasetEvaluator:
         try:
