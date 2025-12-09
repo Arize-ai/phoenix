@@ -55,7 +55,7 @@ import {
   PlaygroundNormalizedInstance,
 } from "@phoenix/store";
 
-import { ModelComboBox } from "../../components/playground/model/ModelComboBox";
+import { ModelComboBox } from "@phoenix/components/playground/model/ModelComboBox";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
