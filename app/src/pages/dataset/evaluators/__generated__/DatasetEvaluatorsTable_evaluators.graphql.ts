@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f8bf6cef9a61b1542e3da92b878e9b0a>>
+ * @generated SignedSource<<0b223810a970ddc099bcfb7dd0551524>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -46,7 +46,34 @@ v2 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "Prompt",
+    "kind": "LinkedField",
+    "name": "prompt",
+    "plural": false,
+    "selections": [
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PromptVersionTag",
+    "kind": "LinkedField",
+    "name": "promptVersionTag",
+    "plural": false,
+    "selections": [
+      (v2/*: any*/)
+    ],
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -172,34 +199,14 @@ return {
                     },
                     {
                       "kind": "InlineFragment",
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "Prompt",
-                          "kind": "LinkedField",
-                          "name": "prompt",
-                          "plural": false,
-                          "selections": [
-                            (v1/*: any*/),
-                            (v2/*: any*/)
-                          ],
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "PromptVersionTag",
-                          "kind": "LinkedField",
-                          "name": "promptVersionTag",
-                          "plural": false,
-                          "selections": [
-                            (v2/*: any*/)
-                          ],
-                          "storageKey": null
-                        }
-                      ],
+                      "selections": (v3/*: any*/),
                       "type": "LLMEvaluator",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": (v3/*: any*/),
+                      "type": "DatasetLLMEvaluator",
                       "abstractKey": null
                     }
                   ],
