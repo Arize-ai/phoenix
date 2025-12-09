@@ -28,6 +28,8 @@
 
 import invariant from "tiny-invariant";
 
+import { compressObject } from "@phoenix/utils/objectUtils";
+
 import type {
   CustomProvidersCard_data$data,
   GenerativeModelSDK,
@@ -43,24 +45,11 @@ import type {
   ProviderFormData,
 } from "./CustomProviderForm";
 
-// =============================================================================
-// Type Definitions
-// =============================================================================
-
 /**
  * GraphQL provider node type alias for better readability
  */
 type ProviderNode =
   CustomProvidersCard_data$data["generativeModelCustomProviders"]["edges"][number]["node"];
-
-/**
- * Type for parsed JSON that can be an object (for headers)
- */
-type JsonObject = Record<string, unknown>;
-
-// =============================================================================
-// Internal Utilities
-// =============================================================================
 
 /**
  * Removes null, undefined, empty strings, empty objects, and empty arrays from an object.
@@ -106,7 +95,7 @@ function compactObject<T extends Record<string, unknown>>(
  */
 function parseJsonField(
   value: string | undefined
-): JsonObject | unknown[] | undefined {
+): Record<string, unknown> | unknown[] | undefined {
   if (!value || value.trim() === "") {
     return undefined;
   }
@@ -118,7 +107,7 @@ function parseJsonField(
       return undefined;
     }
 
-    return parsed as JsonObject | unknown[];
+    return parsed as Record<string, unknown> | unknown[];
   } catch {
     // Invalid JSON - return undefined rather than throwing
     // Zod validation should have caught this, but be defensive
@@ -406,15 +395,15 @@ export function buildClientConfig(formData: ProviderFormData) {
     // Build auth method based on selected type
     const authMethod =
       authMethodType === "ad_token_provider"
-        ? compactObject({
-            azureAdTokenProvider: compactObject({
+        ? compressObject({
+            azureAdTokenProvider: compressObject({
               azureTenantId: formData.azure_tenant_id,
               azureClientId: formData.azure_client_id,
               azureClientSecret: formData.azure_client_secret,
               scope: formData.azure_scope,
             }),
           })
-        : compactObject({
+        : compressObject({
             apiKey: formData.azure_api_key,
           });
 

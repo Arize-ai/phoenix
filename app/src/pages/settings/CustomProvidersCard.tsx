@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import invariant from "tiny-invariant";
 
-import { Card, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { Card, Empty, Flex, Text } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -118,28 +118,6 @@ function UserCell({ user }: { user: DataRow["user"] }) {
       />
       <span>{user.username}</span>
     </Flex>
-  );
-}
-
-/**
- * Empty state component for when no providers are configured
- */
-function EmptyState() {
-  return (
-    <View padding="size-200">
-      <Flex
-        direction="column"
-        gap="size-100"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <Icon svg={<Icons.PlusOutline />} />
-        <Text color="text-700">No custom providers configured yet.</Text>
-        <Text size="XS" color="text-700">
-          Create a custom provider to connect to your own model endpoints.
-        </Text>
-      </Flex>
-    </View>
   );
 }
 
@@ -351,9 +329,9 @@ export function CustomProvidersCard({
 
   return (
     <ErrorBoundary>
-      <Card title="Custom Model Providers" extra={<NewProviderButton />}>
+      <Card title="Custom AI Providers" extra={<NewProviderButton />}>
         {isEmpty ? (
-          <EmptyState />
+          <Empty message="No custom AI providers configured yet." />
         ) : (
           <table css={tableCSS}>
             <thead>
