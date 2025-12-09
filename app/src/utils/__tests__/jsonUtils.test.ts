@@ -2,6 +2,8 @@ import {
   isJSONObjectString,
   jsonStringToFlatObject,
   safelyJSONStringify,
+  safelyParseJSONObjectString,
+  safelyParseJSONString,
 } from "../jsonUtils";
 
 describe("isJSONObjectString", () => {
@@ -181,4 +183,252 @@ describe("safelyJSONStringify", () => {
       expect(safelyJSONStringify({ value: BigInt(456) })).toBeUndefined();
     });
   });
+});
+
+type SafelyParseJSONStringFixture = {
+  name: string;
+  input: string;
+  expected: unknown;
+};
+
+const safelyParseJSONStringFixtures: SafelyParseJSONStringFixture[] = [
+  // Empty and whitespace strings return undefined
+  {
+    name: "returns undefined for empty string",
+    input: "",
+    expected: undefined,
+  },
+  {
+    name: "returns undefined for whitespace-only string",
+    input: "   ",
+    expected: undefined,
+  },
+  {
+    name: "returns undefined for tabs and newlines only",
+    input: "\t\n\r",
+    expected: undefined,
+  },
+
+  // Invalid JSON returns undefined
+  {
+    name: "returns undefined for invalid JSON",
+    input: "invalid",
+    expected: undefined,
+  },
+  {
+    name: "returns undefined for unclosed brace",
+    input: "{",
+    expected: undefined,
+  },
+  {
+    name: "returns undefined for malformed object",
+    input: "{a: 1}",
+    expected: undefined,
+  },
+
+  // Valid JSON objects
+  {
+    name: "parses empty object",
+    input: "{}",
+    expected: {},
+  },
+  {
+    name: "parses simple object",
+    input: '{"a": 1, "b": "two"}',
+    expected: { a: 1, b: "two" },
+  },
+  {
+    name: "parses nested object",
+    input: '{"outer": {"inner": "value"}}',
+    expected: { outer: { inner: "value" } },
+  },
+
+  // Valid JSON arrays
+  {
+    name: "parses empty array",
+    input: "[]",
+    expected: [],
+  },
+  {
+    name: "parses array of numbers",
+    input: "[1, 2, 3]",
+    expected: [1, 2, 3],
+  },
+  {
+    name: "parses array of objects",
+    input: '[{"id": 1}, {"id": 2}]',
+    expected: [{ id: 1 }, { id: 2 }],
+  },
+
+  // Valid JSON primitives
+  {
+    name: "parses number",
+    input: "42",
+    expected: 42,
+  },
+  {
+    name: "parses negative number",
+    input: "-3.14",
+    expected: -3.14,
+  },
+  {
+    name: "parses string",
+    input: '"hello"',
+    expected: "hello",
+  },
+  {
+    name: "parses true",
+    input: "true",
+    expected: true,
+  },
+  {
+    name: "parses false",
+    input: "false",
+    expected: false,
+  },
+  {
+    name: "parses null",
+    input: "null",
+    expected: null,
+  },
+
+  // Edge cases
+  {
+    name: "parses JSON with leading/trailing whitespace",
+    input: '  {"a": 1}  ',
+    expected: { a: 1 },
+  },
+];
+
+describe("safelyParseJSONString", () => {
+  describe.each(safelyParseJSONStringFixtures)(
+    "$name",
+    ({ input, expected }) => {
+      it("parses correctly", () => {
+        expect(safelyParseJSONString(input)).toEqual(expected);
+      });
+    }
+  );
+});
+
+type SafelyParseJSONObjectStringFixture = {
+  name: string;
+  input: string;
+  expected: object | undefined;
+};
+
+const safelyParseJSONObjectStringFixtures: SafelyParseJSONObjectStringFixture[] =
+  [
+    // Empty and whitespace strings return undefined
+    {
+      name: "returns undefined for empty string",
+      input: "",
+      expected: undefined,
+    },
+    {
+      name: "returns undefined for whitespace-only string",
+      input: "   ",
+      expected: undefined,
+    },
+
+    // Invalid JSON returns undefined
+    {
+      name: "returns undefined for invalid JSON",
+      input: "invalid",
+      expected: undefined,
+    },
+    {
+      name: "returns undefined for malformed object",
+      input: "{a: 1}",
+      expected: undefined,
+    },
+
+    // Primitives return undefined (stricter than safelyParseJSONString)
+    {
+      name: "returns undefined for number",
+      input: "42",
+      expected: undefined,
+    },
+    {
+      name: "returns undefined for string",
+      input: '"hello"',
+      expected: undefined,
+    },
+    {
+      name: "returns undefined for boolean true",
+      input: "true",
+      expected: undefined,
+    },
+    {
+      name: "returns undefined for boolean false",
+      input: "false",
+      expected: undefined,
+    },
+    {
+      name: "returns undefined for null",
+      input: "null",
+      expected: undefined,
+    },
+
+    // Valid JSON objects
+    {
+      name: "parses empty object",
+      input: "{}",
+      expected: {},
+    },
+    {
+      name: "parses simple object",
+      input: '{"a": 1, "b": "two"}',
+      expected: { a: 1, b: "two" },
+    },
+    {
+      name: "parses nested object",
+      input: '{"outer": {"inner": "value"}}',
+      expected: { outer: { inner: "value" } },
+    },
+    {
+      name: "parses object with null values",
+      input: '{"a": null, "b": 1}',
+      expected: { a: null, b: 1 },
+    },
+
+    // Valid JSON arrays (arrays are objects in JS)
+    {
+      name: "parses empty array",
+      input: "[]",
+      expected: [],
+    },
+    {
+      name: "parses array of numbers",
+      input: "[1, 2, 3]",
+      expected: [1, 2, 3],
+    },
+    {
+      name: "parses array of objects",
+      input: '[{"id": 1}, {"id": 2}]',
+      expected: [{ id: 1 }, { id: 2 }],
+    },
+    {
+      name: "parses mixed array",
+      input: '[1, "two", null, {"a": 1}]',
+      expected: [1, "two", null, { a: 1 }],
+    },
+
+    // Edge cases
+    {
+      name: "parses JSON with leading/trailing whitespace",
+      input: '  {"a": 1}  ',
+      expected: { a: 1 },
+    },
+  ];
+
+describe("safelyParseJSONObjectString", () => {
+  describe.each(safelyParseJSONObjectStringFixtures)(
+    "$name",
+    ({ input, expected }) => {
+      it("parses correctly", () => {
+        expect(safelyParseJSONObjectString(input)).toEqual(expected);
+      });
+    }
+  );
 });

@@ -35,10 +35,35 @@ export function isJSONString({
   return true;
 }
 
+/**
+ * Checks if a string is a valid JSON object string (excludes arrays and primitives).
+ *
+ * @param str - The string to check.
+ * @returns `true` if the string is a valid JSON object, `false` otherwise.
+ *
+ * @example
+ * ```ts
+ * isJSONObjectString('{"a": 1}') // true
+ * isJSONObjectString('[1, 2]')   // false (array)
+ * isJSONObjectString('123')      // false (primitive)
+ * ```
+ */
 export function isJSONObjectString(str: string) {
   return isJSONString({ str, excludeArray: true, excludePrimitives: true });
 }
 
+/**
+ * Safely parses a JSON string, returning the result and any parse error.
+ *
+ * @param str - The JSON string to parse.
+ * @returns An object with `json` containing the parsed value, or `json: null` and `parseError` if parsing failed.
+ *
+ * @example
+ * ```ts
+ * safelyParseJSON('{"a": 1}') // { json: { a: 1 } }
+ * safelyParseJSON('invalid')  // { json: null, parseError: SyntaxError }
+ * ```
+ */
 export function safelyParseJSON(str: string) {
   try {
     return { json: JSON.parse(str) };
@@ -47,6 +72,19 @@ export function safelyParseJSON(str: string) {
   }
 }
 
+/**
+ * Safely stringifies a value to JSON, returning the result and any stringify error.
+ *
+ * @param args - Arguments to pass to `JSON.stringify` (value, replacer, space).
+ * @returns An object with `json` containing the stringified value, or `json: null` and `stringifyError` if stringification failed.
+ *
+ * @example
+ * ```ts
+ * safelyStringifyJSON({ a: 1 })           // { json: '{"a":1}' }
+ * safelyStringifyJSON(circularRef)        // { json: null, stringifyError: TypeError }
+ * safelyStringifyJSON({ a: 1 }, null, 2)  // { json: '{\n  "a": 1\n}' }
+ * ```
+ */
 export function safelyStringifyJSON(
   ...args: Parameters<typeof JSON.stringify>
 ) {
@@ -131,4 +169,64 @@ export function safelyJSONStringify(value: unknown): string | undefined {
   } catch {
     return undefined;
   }
+}
+/**
+ * Safely parses a JSON string into any valid JSON value.
+ *
+ * Unlike {@link safelyParseJSON}, this function returns `undefined` on failure
+ * instead of an error object, making it simpler for cases where error details
+ * are not needed.
+ *
+ * @param value - The JSON string to parse.
+ * @returns The parsed value, or `undefined` if the string is empty, whitespace-only, or invalid JSON.
+ *
+ * @example
+ * ```ts
+ * safelyParseJSONString('{"a": 1}')  // { a: 1 }
+ * safelyParseJSONString('[1, 2, 3]') // [1, 2, 3]
+ * safelyParseJSONString('42')        // 42
+ * safelyParseJSONString('')          // undefined
+ * safelyParseJSONString('   ')       // undefined
+ * safelyParseJSONString('invalid')   // undefined
+ * ```
+ */
+export function safelyParseJSONString(value: string): unknown | undefined {
+  if (!value.trim()) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Safely parses a JSON string into an object or array.
+ *
+ * This is a stricter version of {@link safelyParseJSONString} that only returns
+ * objects and arrays, filtering out primitives like strings, numbers, and booleans.
+ *
+ * @param value - The JSON string to parse.
+ * @returns The parsed object or array, or `undefined` if the string is empty,
+ *          invalid JSON, or parses to a primitive value (including `null`).
+ *
+ * @example
+ * ```ts
+ * safelyParseJSONObjectString('{"a": 1}')  // { a: 1 }
+ * safelyParseJSONObjectString('[1, 2, 3]') // [1, 2, 3]
+ * safelyParseJSONObjectString('42')        // undefined (primitive)
+ * safelyParseJSONObjectString('"hello"')   // undefined (primitive)
+ * safelyParseJSONObjectString('null')      // undefined (null)
+ * safelyParseJSONObjectString('')          // undefined
+ * safelyParseJSONObjectString('invalid')   // undefined
+ * ```
+ */
+export function safelyParseJSONObjectString(value: string): object | undefined {
+  const parsed = safelyParseJSONString(value);
+  if (typeof parsed !== "object" || parsed === null) {
+    return undefined;
+  }
+  return parsed;
 }

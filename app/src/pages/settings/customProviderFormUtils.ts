@@ -1,35 +1,15 @@
 /**
  * Custom Provider Form Data Utilities
  *
- * This module provides bidirectional data transformation between:
- * - Form data (flat structure with SDK-prefixed fields for react-hook-form)
- * - GraphQL data (nested structure matching the backend schema)
- *
- * ## Architecture Decisions
- *
- * ### Flat Form Fields with Prefixes
- * Form uses flat field names with SDK prefixes (e.g., `openai_api_key`, `azure_endpoint`)
- * rather than nested objects. This is intentional:
- * - Better compatibility with react-hook-form's validation and field registration
- * - Simpler Zod validation schemas with discriminated unions
- * - Explicit field names in JSX components for better readability
- * - Easier reset/clear logic when switching between SDK types
- *
- * ### Discriminated Unions
- * Both TypeScript types and the GraphQL schema use the `sdk` field as a discriminator,
- * enabling exhaustive type checking and safe narrowing.
- *
- * ### Data Flow
- * ```
- * GraphQL Response → transformConfigToFormValues() → Form State
- * Form State → buildClientConfig() → transformToCreateInput/PatchInput() → GraphQL Mutation
- * ```
  */
 
 import invariant from "tiny-invariant";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
-import { safelyJSONStringify } from "@phoenix/utils/jsonUtils";
+import {
+  safelyJSONStringify,
+  safelyParseJSONObjectString,
+} from "@phoenix/utils/jsonUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
 import type {
@@ -52,70 +32,6 @@ import type {
  */
 type ProviderNode =
   CustomProvidersCard_data$data["generativeModelCustomProviders"]["edges"][number]["node"];
-
-/**
- * Removes null, undefined, empty strings, empty objects, and empty arrays from an object.
- * Returns undefined if the resulting object would be empty.
- *
- * Used to build compact GraphQL mutation inputs that only include defined values.
- *
- * @returns A partial version of the input object with empty values removed,
- *          or undefined if all values were empty.
- *
- * @remarks
- * The return type is `Partial<T> | undefined` which provides better type safety
- * than `any` while still being compatible with GraphQL mutation inputs.
- * The GraphQL schema enforces required fields at the server layer, and
- * Zod validation ensures required fields are present before submission.
- */
-function compactObject<T extends Record<string, unknown>>(
-  obj: T
-): Partial<T> | undefined {
-  const entries = Object.entries(obj).filter(([, value]) => {
-    if (value === null || value === undefined) return false;
-    if (value === "") return false;
-    if (typeof value === "object" && !Array.isArray(value)) {
-      return Object.keys(value).length > 0;
-    }
-    if (Array.isArray(value)) return value.length > 0;
-    return true;
-  });
-
-  if (entries.length === 0) return undefined;
-
-  return Object.fromEntries(entries) as Partial<T>;
-}
-
-/**
- * Parses a JSON string into an object or array.
- *
- * @returns undefined for empty/whitespace-only strings or invalid JSON
- * @remarks
- * This function is intentionally safe and returns undefined on parse errors
- * rather than throwing. Zod validation should catch invalid JSON before
- * form submission, but this provides defense-in-depth for edge cases.
- */
-function parseJsonField(
-  value: string | undefined
-): Record<string, unknown> | unknown[] | undefined {
-  if (!value || value.trim() === "") {
-    return undefined;
-  }
-
-  try {
-    const parsed: unknown = JSON.parse(value);
-
-    if (typeof parsed !== "object" || parsed === null) {
-      return undefined;
-    }
-
-    return parsed as Record<string, unknown> | unknown[];
-  } catch {
-    // Invalid JSON - return undefined rather than throwing
-    // Zod validation should have caught this, but be defensive
-    return undefined;
-  }
-}
 
 // =============================================================================
 // Form Default Values
@@ -337,11 +253,14 @@ export function buildClientConfig(formData: ProviderFormData) {
           openaiAuthenticationMethod: {
             apiKey: formData.openai_api_key,
           },
-          openaiClientKwargs: compactObject({
+          openaiClientKwargs: compressObject({
             baseUrl: formData.openai_base_url,
             organization: formData.openai_organization,
             project: formData.openai_project,
-            defaultHeaders: parseJsonField(formData.openai_default_headers),
+            defaultHeaders:
+              typeof formData.openai_default_headers === "string"
+                ? safelyParseJSONObjectString(formData.openai_default_headers)
+                : undefined,
           }),
         },
       };
@@ -385,7 +304,10 @@ export function buildClientConfig(formData: ProviderFormData) {
 
       // Build azureOpenaiClientKwargs with required fields directly (not via compactObject)
       // to ensure it's never undefined. Optional fields are added conditionally.
-      const defaultHeaders = parseJsonField(formData.azure_default_headers);
+      const defaultHeaders =
+        typeof formData.azure_default_headers === "string"
+          ? safelyParseJSONObjectString(formData.azure_default_headers)
+          : undefined;
 
       return {
         azureOpenai: {
@@ -405,9 +327,14 @@ export function buildClientConfig(formData: ProviderFormData) {
           anthropicAuthenticationMethod: {
             apiKey: formData.anthropic_api_key,
           },
-          anthropicClientKwargs: compactObject({
+          anthropicClientKwargs: compressObject({
             baseUrl: formData.anthropic_base_url,
-            defaultHeaders: parseJsonField(formData.anthropic_default_headers),
+            defaultHeaders:
+              typeof formData.anthropic_default_headers === "string"
+                ? safelyParseJSONObjectString(
+                    formData.anthropic_default_headers
+                  )
+                : undefined,
           }),
         },
       };
@@ -438,9 +365,12 @@ export function buildClientConfig(formData: ProviderFormData) {
       };
     }
     case "GOOGLE_GENAI": {
-      const httpOptions = compactObject({
+      const httpOptions = compressObject({
         baseUrl: formData.google_base_url,
-        headers: parseJsonField(formData.google_headers),
+        headers:
+          typeof formData.google_headers === "string"
+            ? safelyParseJSONObjectString(formData.google_headers)
+            : undefined,
       });
 
       return {
