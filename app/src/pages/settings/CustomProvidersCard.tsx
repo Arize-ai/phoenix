@@ -27,7 +27,7 @@ import {
   SDK_TO_PROVIDER_MAP,
   STRING_TO_PROVIDER_MAP,
 } from "./customProviderConstants";
-import { NewProviderButton } from "./NewCustomProviderButton";
+import { NewCustomProviderButton } from "./NewCustomProviderButton";
 
 // Type alias for row data
 type DataRow =
@@ -329,7 +329,7 @@ export function CustomProvidersCard({
 
   return (
     <ErrorBoundary>
-      <Card title="Custom AI Providers" extra={<NewProviderButton />}>
+      <Card title="Custom AI Providers" extra={<NewCustomProviderButton />}>
         {isEmpty ? (
           <Empty message="No custom AI providers configured yet." />
         ) : (

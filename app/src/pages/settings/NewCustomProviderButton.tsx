@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   DialogCloseButton,
@@ -16,7 +17,7 @@ import {
   ModalOverlay,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { NewCustomProviderButtonCreateMutation } from "./__generated__/NewCustomProviderButtonCreateMutation.graphql";
@@ -25,7 +26,7 @@ import { transformToCreateInput } from "./customProviderFormUtils";
 
 function NewProviderDialogContent({ onClose }: { onClose: () => void }) {
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const connectionId = ConnectionHandler.getConnectionID(
     "client:root",
     "CustomProvidersCard_generativeModelCustomProviders"
@@ -62,6 +63,9 @@ function NewProviderDialogContent({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = useCallback(
     (data: ProviderFormData) => {
+      // Clear any previous error when submitting
+      setError(null);
+
       const input = transformToCreateInput(data);
       const providerName = data.name;
 
@@ -81,14 +85,11 @@ function NewProviderDialogContent({ onClose }: { onClose: () => void }) {
         onError: (error) => {
           // Keep modal open on error so user can retry
           const messages = getErrorMessagesFromRelayMutationError(error);
-          notifyError({
-            title: "Failed to create provider",
-            message: messages?.join(", ") || "An unknown error occurred",
-          });
+          setError(messages?.join(", ") || "An unknown error occurred");
         },
       });
     },
-    [commit, connectionId, notifyError, notifySuccess, onClose]
+    [commit, connectionId, notifySuccess, onClose]
   );
 
   const handleCancel = useCallback(() => {
@@ -96,17 +97,30 @@ function NewProviderDialogContent({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <View padding="size-200">
-      <ProviderForm
-        onSubmit={handleSubmit}
-        onCancel={handleCancel}
-        isSubmitting={isCommitting}
-      />
-    </View>
+    <>
+      {error != null && (
+        <Alert
+          variant="danger"
+          banner
+          dismissable
+          onDismissClick={() => setError(null)}
+          title="Failed to create provider"
+        >
+          {error}
+        </Alert>
+      )}
+      <View padding="size-200">
+        <ProviderForm
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+          isSubmitting={isCommitting}
+        />
+      </View>
+    </>
   );
 }
 
-export function NewProviderButton() {
+export function NewCustomProviderButton() {
   const [isOpen, setIsOpen] = useState(false);
   const handleClose = useCallback(() => setIsOpen(false), []);
 
