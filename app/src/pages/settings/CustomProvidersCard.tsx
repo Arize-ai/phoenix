@@ -7,6 +7,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import invariant from "tiny-invariant";
 
 import { Card, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -66,8 +67,9 @@ function resolveProviderDisplay(
     };
   }
 
-  // Fall back to SDK mapping (type-safe: all SDKs are guaranteed to be mapped)
+  // Fall back to SDK mapping
   const providerKey = SDK_TO_PROVIDER_MAP[sdk];
+  invariant(providerKey, `Unknown SDK type: ${sdk}`);
 
   // Use raw provider string if available and didn't match, otherwise use provider name
   const displayText = providerString
