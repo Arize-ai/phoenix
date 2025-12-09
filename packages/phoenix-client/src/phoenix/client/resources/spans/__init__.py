@@ -32,6 +32,8 @@ AnnotateSpanDocumentsRequestBody = v1.AnnotateSpanDocumentsRequestBody
 AnnotateSpanDocumentsResponseBody = v1.AnnotateSpanDocumentsResponseBody
 AnnotateSpansRequestBody = v1.AnnotateSpansRequestBody
 AnnotateSpansResponseBody = v1.AnnotateSpansResponseBody
+CreateSpanNoteRequestBody = v1.CreateSpanNoteRequestBody
+CreateSpanNoteResponseBody = v1.CreateSpanNoteResponseBody
 CreateSpansResponseBody = v1.CreateSpansResponseBody
 InsertedSpanAnnotation = v1.InsertedSpanAnnotation
 InsertedSpanDocumentAnnotation = v1.InsertedSpanDocumentAnnotation
@@ -42,6 +44,7 @@ SpanAnnotationResult = v1.AnnotationResult
 SpanAnnotationsResponseBody = v1.SpanAnnotationsResponseBody
 SpanDocumentAnnotationData = v1.SpanDocumentAnnotationData
 SpanDocumentAnnotationResult = v1.AnnotationResult
+SpanNoteData = v1.SpanNoteData
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
@@ -716,6 +719,52 @@ class Spans:
         if res := self.log_span_annotations(span_annotations=[anno], sync=sync):
             return res[0]
         return None
+
+    def add_span_note(
+        self,
+        *,
+        span_id: str,
+        note: str,
+    ) -> InsertedSpanAnnotation:
+        """Add a note to a span.
+
+        Notes are a special type of annotation that allow multiple entries per span
+        (unlike regular annotations which are unique by name and identifier). Each note
+        gets a unique timestamp-based identifier automatically.
+
+        Args:
+            span_id (str): The OpenTelemetry span ID of the span to add the note to.
+            note (str): The text content of the note.
+
+        Returns:
+            InsertedSpanAnnotation: The inserted span annotation containing the ID.
+
+        Raises:
+            httpx.HTTPStatusError: If the span is not found (404) or other API errors.
+            httpx.HTTPError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            # Add a note to a span
+            result = client.spans.add_span_note(
+                span_id="abc123def456",
+                note="This span shows interesting behavior.",
+            )
+            print(f"Note created with ID: {result['id']}")
+        """
+        url = "v1/span_notes"
+        json_: CreateSpanNoteRequestBody = {
+            "data": {
+                "span_id": span_id,
+                "note": note,
+            }
+        }
+        response = self._client.post(url=url, json=json_)
+        response.raise_for_status()
+        return cast(CreateSpanNoteResponseBody, response.json())["data"]
 
     @overload
     def log_span_annotations_dataframe(
@@ -1887,6 +1936,52 @@ class AsyncSpans:
         if res := await self.log_span_annotations(span_annotations=[anno], sync=sync):
             return res[0]
         return None
+
+    async def add_span_note(
+        self,
+        *,
+        span_id: str,
+        note: str,
+    ) -> InsertedSpanAnnotation:
+        """Add a note to a span asynchronously.
+
+        Notes are a special type of annotation that allow multiple entries per span
+        (unlike regular annotations which are unique by name and identifier). Each note
+        gets a unique timestamp-based identifier automatically.
+
+        Args:
+            span_id (str): The OpenTelemetry span ID of the span to add the note to.
+            note (str): The text content of the note.
+
+        Returns:
+            InsertedSpanAnnotation: The inserted span annotation containing the ID.
+
+        Raises:
+            httpx.HTTPStatusError: If the span is not found (404) or other API errors.
+            httpx.HTTPError: If the request fails.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            # Add a note to a span
+            result = await client.spans.add_span_note(
+                span_id="abc123def456",
+                note="This span shows interesting behavior.",
+            )
+            print(f"Note created with ID: {result['id']}")
+        """
+        url = "v1/span_notes"
+        json_: CreateSpanNoteRequestBody = {
+            "data": {
+                "span_id": span_id,
+                "note": note,
+            }
+        }
+        response = await self._client.post(url=url, json=json_)
+        response.raise_for_status()
+        return cast(CreateSpanNoteResponseBody, response.json())["data"]
 
     @overload
     async def log_span_annotations_dataframe(
