@@ -13,13 +13,13 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
+import { ModelSupportedParamsFetcherQuery$data } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
+import { OpenAIReasoningEffortConfigField } from "@phoenix/components/playground/model/OpenAIReasoningEffortConfigField";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { AnthropicReasoningConfigField } from "@phoenix/pages/playground/AnthropicReasoningConfigField";
-import { OpenAIReasoningEffortConfigField } from "@phoenix/pages/playground/OpenAIReasoningEffortConfigField";
 import { ModelInvocationParameterInput } from "@phoenix/store";
 import { Mutable } from "@phoenix/typeUtils";
 
-import { ModelSupportedParamsFetcherQuery$data } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
 import { areInvocationParamsEqual, toCamelCase } from "./playgroundUtils";
