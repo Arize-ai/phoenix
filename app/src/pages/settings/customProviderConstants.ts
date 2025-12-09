@@ -7,7 +7,15 @@
  */
 
 import type { GenerativeModelSDK } from "./__generated__/CustomProvidersCard_data.graphql";
-import type { AzureAuthMethod } from "./CustomProviderForm";
+
+// =============================================================================
+// Type Definitions
+// =============================================================================
+
+/**
+ * Azure authentication method types.
+ */
+export type AzureAuthMethod = "api_key" | "ad_token_provider";
 
 // =============================================================================
 // SDK to ModelProvider Mappings

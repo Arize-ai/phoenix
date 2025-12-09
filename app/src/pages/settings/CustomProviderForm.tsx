@@ -1,14 +1,7 @@
-import {
-  createContext,
-  type ReactNode,
-  use,
-  useCallback,
-  useMemo,
-} from "react";
+import { type ReactNode, useCallback } from "react";
 import {
   Control,
   Controller,
-  FieldPath,
   useForm,
   UseFormGetValues,
   UseFormReset,
@@ -46,27 +39,12 @@ import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
 import type { GenerativeModelSDK } from "./__generated__/CustomProvidersCard_data.graphql";
 import {
   AUTH_METHOD_OPTIONS,
+  type AzureAuthMethod,
   SDK_DEFAULT_PROVIDER,
   SDK_OPTIONS,
 } from "./customProviderConstants";
 import { providerFormSchema } from "./customProviderFormSchema";
 import { createDefaultFormData } from "./customProviderFormUtils";
-
-// =============================================================================
-// Form Data Types
-// =============================================================================
-//
-// These types represent the form state for custom provider configuration.
-//
-// Design Decision: Flat fields with SDK prefixes (e.g., `openai_api_key`)
-// - Better integration with react-hook-form's Controller and validation
-// - Simpler Zod schema construction with discriminated unions
-// - Clear field naming in JSX components
-// - Easy form reset when switching between SDK types
-//
-// The `customProviderFormUtils.ts` module handles transformation between
-// this flat structure and the nested GraphQL schema structure.
-// =============================================================================
 
 /**
  * Base form data shared across all provider types.
@@ -97,11 +75,6 @@ export interface OpenAIFormData extends BaseProviderFormData {
   openai_project?: string;
   openai_default_headers?: JSONString;
 }
-
-/**
- * Azure authentication method types.
- */
-export type AzureAuthMethod = "api_key" | "ad_token_provider";
 
 /**
  * Azure OpenAI SDK configuration.
@@ -175,288 +148,110 @@ export interface ProviderFormProps {
   isSubmitting?: boolean;
 }
 
-// Form context to avoid prop drilling
-interface FormContextValue {
-  isSubmitting: boolean;
-}
+const flexFieldCSS = css`
+  flex: 1 1 auto;
+`;
 
-const FormContext = createContext<FormContextValue | null>(null);
-FormContext.displayName = "FormContext";
-
-function useFormContext(): FormContextValue {
-  const context = use(FormContext);
-  if (!context) {
-    throw new Error("useFormContext must be used within FormContext.Provider");
-  }
-  return context;
-}
-
-/**
- * Type-safe field path helper for discriminated unions.
- * Allows any valid field name from the union without type errors.
- */
-type ProviderFormFieldPath = FieldPath<ProviderFormData>;
-
-// Reusable form field component - reduces Controller boilerplate
-interface FormTextFieldProps {
-  name: ProviderFormFieldPath;
-  label: string;
-  placeholder?: string;
-  description?: string;
-  isRequired?: boolean;
-  type?: "text" | "password";
-  control: Control<ProviderFormData>;
-  rules?: { required?: string };
-  flex?: boolean;
-}
-
-function FormTextField({
-  name,
-  label,
-  placeholder,
-  description,
-  isRequired,
-  type = "text",
+// Provider-specific field sections
+function OpenAIFields({
   control,
-  rules,
-  flex,
-}: FormTextFieldProps) {
-  const { isSubmitting } = useFormContext();
-
-  const flexCSS = flex
-    ? css`
-        flex: 1 1 auto;
-      `
-    : undefined;
-
-  // Use CredentialField for password type to get reveal toggle
-  if (type === "password") {
-    return (
+  isSubmitting,
+}: {
+  control: Control<ProviderFormData>;
+  isSubmitting: boolean;
+}) {
+  return (
+    <ProviderSection title="OpenAI Configuration">
       <Controller
-        name={name}
+        name="openai_api_key"
         control={control}
-        rules={rules}
+        rules={{ required: "API Key is required" }}
         render={({ field, fieldState: { invalid, error } }) => (
           <CredentialField
-            isRequired={isRequired}
+            isRequired
             isInvalid={invalid}
             {...field}
             isDisabled={isSubmitting}
-            css={flexCSS}
           >
-            <Label>{label}</Label>
-            <CredentialInput placeholder={placeholder} />
-            {error ? (
-              <FieldError>{error.message}</FieldError>
-            ) : (
-              description && <Text slot="description">{description}</Text>
-            )}
+            <Label>API Key</Label>
+            <CredentialInput placeholder="sk-..." />
+            {error && <FieldError>{error.message}</FieldError>}
           </CredentialField>
         )}
       />
-    );
-  }
-
-  return (
-    <Controller
-      name={name}
-      control={control}
-      rules={rules}
-      render={({ field, fieldState: { invalid, error } }) => (
-        <TextField
-          isRequired={isRequired}
-          isInvalid={invalid}
-          {...field}
-          isDisabled={isSubmitting}
-          type={type}
-          css={flexCSS}
-        >
-          <Label>{label}</Label>
-          <Input placeholder={placeholder} />
-          {/* Show description when no error, error message when invalid */}
-          {error ? (
-            <FieldError>{error.message}</FieldError>
-          ) : (
-            description && <Text slot="description">{description}</Text>
-          )}
-        </TextField>
-      )}
-    />
-  );
-}
-
-// Reusable form select component
-interface FormSelectProps {
-  name: ProviderFormFieldPath;
-  label: string;
-  options: ReadonlyArray<{ id: string; label: string }>;
-  control: Control<ProviderFormData>;
-  isRequired?: boolean;
-  isDisabled?: boolean;
-}
-
-function FormSelect({
-  name,
-  label,
-  options,
-  control,
-  isRequired,
-  isDisabled,
-}: FormSelectProps) {
-  const { isSubmitting } = useFormContext();
-
-  invariant(
-    options.length > 0,
-    `FormSelect "${name}" requires at least one option`
-  );
-
-  return (
-    <Controller
-      name={name}
-      control={control}
-      rules={isRequired ? { required: `${label} is required` } : undefined}
-      render={({ field }) => (
-        <Select
-          {...field}
-          value={field.value ?? options[0].id}
-          onChange={(key) => field.onChange(key)}
-          isDisabled={isSubmitting || isDisabled}
-          isRequired={isRequired}
-        >
-          <Label>{label}</Label>
-          <Button>
-            <SelectValue />
-            <SelectChevronUpDownIcon />
-          </Button>
-          <Popover>
-            <ListBox>
-              {options.map((opt) => (
-                <SelectItem key={opt.id} id={opt.id} textValue={opt.label}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </ListBox>
-          </Popover>
-        </Select>
-      )}
-    />
-  );
-}
-
-// SDK and auth method constants are imported from customProviderConstants.ts
-
-/**
- * HTTP Headers field with RFC 7230 validation.
- * Validates header names and values according to HTTP standards.
- */
-function HeadersField({
-  name,
-  control,
-  label = "Custom Headers (JSON)",
-  placeholder,
-  description = "Additional HTTP headers as JSON object",
-}: {
-  name: ProviderFormFieldPath;
-  control: Control<ProviderFormData>;
-  label?: string;
-  placeholder?: string;
-  description?: string;
-}) {
-  return (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field: { value, onChange }, fieldState: { error } }) => (
-        <HeadersEditor
-          value={typeof value === "string" ? value : ""}
-          onChange={onChange}
-          label={label}
-          placeholder={placeholder}
-          description={description}
-          fieldError={error?.message}
-        />
-      )}
-    />
-  );
-}
-
-/**
- * Internal editor component for HTTP headers.
- * Validation is handled by the Zod schema in customProviderFormSchema.ts,
- * so we only display the error from form state here (no duplicate validation).
- */
-function HeadersEditor({
-  value,
-  onChange,
-  label,
-  placeholder,
-  description,
-  fieldError,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  label: string;
-  placeholder?: string;
-  description: string;
-  fieldError?: string;
-}) {
-  return (
-    <CodeEditorFieldWrapper
-      label={label}
-      errorMessage={fieldError}
-      description={!fieldError ? description : undefined}
-    >
-      <JSONEditor
-        value={value}
-        onChange={onChange}
-        jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-        placeholder={placeholder || '{"X-Custom-Header": "custom-value"}'}
-        optionalLint
-      />
-    </CodeEditorFieldWrapper>
-  );
-}
-
-// Provider-specific field sections
-function OpenAIFields({ control }: { control: Control<ProviderFormData> }) {
-  return (
-    <ProviderSection title="OpenAI Configuration">
-      <FormTextField
-        name="openai_api_key"
-        label="API Key"
-        placeholder="sk-..."
-        isRequired
-        type="password"
-        control={control}
-        rules={{ required: "API Key is required" }}
-      />
-      <FormTextField
+      <Controller
         name="openai_base_url"
-        label="Base URL"
-        placeholder="https://api.openai.com/v1"
-        description="Custom base URL for OpenAI-compatible endpoints"
         control={control}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <TextField isInvalid={invalid} {...field} isDisabled={isSubmitting}>
+            <Label>Base URL</Label>
+            <Input placeholder="https://api.openai.com/v1" />
+            {error ? (
+              <FieldError>{error.message}</FieldError>
+            ) : (
+              <Text slot="description">
+                Custom base URL for OpenAI-compatible endpoints
+              </Text>
+            )}
+          </TextField>
+        )}
       />
       <Flex direction="row" gap="size-100">
-        <FormTextField
+        <Controller
           name="openai_organization"
-          label="Organization"
           control={control}
-          flex
+          render={({ field, fieldState: { invalid, error } }) => (
+            <TextField
+              isInvalid={invalid}
+              {...field}
+              isDisabled={isSubmitting}
+              css={flexFieldCSS}
+            >
+              <Label>Organization</Label>
+              <Input />
+              {error && <FieldError>{error.message}</FieldError>}
+            </TextField>
+          )}
         />
-        <FormTextField
+        <Controller
           name="openai_project"
-          label="Project"
           control={control}
-          flex
+          render={({ field, fieldState: { invalid, error } }) => (
+            <TextField
+              isInvalid={invalid}
+              {...field}
+              isDisabled={isSubmitting}
+              css={flexFieldCSS}
+            >
+              <Label>Project</Label>
+              <Input />
+              {error && <FieldError>{error.message}</FieldError>}
+            </TextField>
+          )}
         />
       </Flex>
-      <HeadersField
+      <Controller
         name="openai_default_headers"
         control={control}
-        label="Default Headers (JSON)"
-        placeholder='{"X-Custom-Header": "value"}'
-        description="Default HTTP headers sent with each request"
+        render={({ field: { value, onChange }, fieldState: { error } }) => (
+          <CodeEditorFieldWrapper
+            label="Default Headers (JSON)"
+            errorMessage={error?.message}
+            description={
+              !error?.message
+                ? "Default HTTP headers sent with each request"
+                : undefined
+            }
+          >
+            <JSONEditor
+              value={typeof value === "string" ? value : ""}
+              onChange={onChange}
+              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+              placeholder='{"X-Custom-Header": "value"}'
+              optionalLint
+            />
+          </CodeEditorFieldWrapper>
+        )}
       />
     </ProviderSection>
   );
@@ -464,195 +259,443 @@ function OpenAIFields({ control }: { control: Control<ProviderFormData> }) {
 
 function AzureOpenAIFields({
   control,
+  isSubmitting,
 }: {
   control: Control<ProviderFormData>;
+  isSubmitting: boolean;
 }) {
   const authMethod =
     useWatch({ control, name: "azure_auth_method" }) || "api_key";
 
   return (
     <ProviderSection title="Azure OpenAI Configuration">
-      <FormTextField
+      <Controller
         name="azure_endpoint"
-        label="Endpoint"
-        placeholder="https://your-resource.openai.azure.com/"
-        isRequired
         control={control}
         rules={{ required: "Endpoint is required" }}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <TextField
+            isRequired
+            isInvalid={invalid}
+            {...field}
+            isDisabled={isSubmitting}
+          >
+            <Label>Endpoint</Label>
+            <Input placeholder="https://your-resource.openai.azure.com/" />
+            {error && <FieldError>{error.message}</FieldError>}
+          </TextField>
+        )}
       />
-      <FormTextField
+      <Controller
         name="azure_deployment_name"
-        label="Deployment Name"
-        isRequired
         control={control}
         rules={{ required: "Deployment Name is required" }}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <TextField
+            isRequired
+            isInvalid={invalid}
+            {...field}
+            isDisabled={isSubmitting}
+          >
+            <Label>Deployment Name</Label>
+            <Input />
+            {error && <FieldError>{error.message}</FieldError>}
+          </TextField>
+        )}
       />
-      <FormTextField
+      <Controller
         name="azure_api_version"
-        label="API Version"
-        placeholder="e.g., 2025-06-01"
-        isRequired
         control={control}
         rules={{ required: "API Version is required" }}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <TextField
+            isRequired
+            isInvalid={invalid}
+            {...field}
+            isDisabled={isSubmitting}
+          >
+            <Label>API Version</Label>
+            <Input placeholder="e.g., 2025-06-01" />
+            {error && <FieldError>{error.message}</FieldError>}
+          </TextField>
+        )}
       />
-      <FormSelect
+      <Controller
         name="azure_auth_method"
-        label="Authentication Method"
-        options={AUTH_METHOD_OPTIONS}
         control={control}
-        isRequired
+        rules={{ required: "Authentication Method is required" }}
+        render={({ field }) => (
+          <Select
+            {...field}
+            value={field.value ?? AUTH_METHOD_OPTIONS[0].id}
+            onChange={(key) => field.onChange(key)}
+            isDisabled={isSubmitting}
+            isRequired
+          >
+            <Label>Authentication Method</Label>
+            <Button>
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover>
+              <ListBox>
+                {AUTH_METHOD_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.id} id={opt.id} textValue={opt.label}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </ListBox>
+            </Popover>
+          </Select>
+        )}
       />
       {authMethod === "api_key" && (
-        <FormTextField
+        <Controller
           name="azure_api_key"
-          label="API Key"
-          isRequired
-          type="password"
           control={control}
           rules={{ required: "API Key is required" }}
+          render={({ field, fieldState: { invalid, error } }) => (
+            <CredentialField
+              isRequired
+              isInvalid={invalid}
+              {...field}
+              isDisabled={isSubmitting}
+            >
+              <Label>API Key</Label>
+              <CredentialInput />
+              {error && <FieldError>{error.message}</FieldError>}
+            </CredentialField>
+          )}
         />
       )}
       {authMethod === "ad_token_provider" && (
         <>
-          <FormTextField
+          <Controller
             name="azure_tenant_id"
-            label="Tenant ID"
-            isRequired
             control={control}
             rules={{ required: "Tenant ID is required" }}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <TextField
+                isRequired
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+              >
+                <Label>Tenant ID</Label>
+                <Input />
+                {error && <FieldError>{error.message}</FieldError>}
+              </TextField>
+            )}
           />
-          <FormTextField
+          <Controller
             name="azure_client_id"
-            label="Client ID"
-            isRequired
             control={control}
             rules={{ required: "Client ID is required" }}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <TextField
+                isRequired
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+              >
+                <Label>Client ID</Label>
+                <Input />
+                {error && <FieldError>{error.message}</FieldError>}
+              </TextField>
+            )}
           />
-          <FormTextField
+          <Controller
             name="azure_client_secret"
-            label="Client Secret"
-            type="password"
-            isRequired
             control={control}
             rules={{ required: "Client Secret is required" }}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <CredentialField
+                isRequired
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+              >
+                <Label>Client Secret</Label>
+                <CredentialInput />
+                {error && <FieldError>{error.message}</FieldError>}
+              </CredentialField>
+            )}
           />
-          <FormTextField
+          <Controller
             name="azure_scope"
-            label="Scope"
-            placeholder="https://cognitiveservices.azure.com/.default"
-            description="OAuth scope for Azure AD authentication"
             control={control}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <TextField
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+              >
+                <Label>Scope</Label>
+                <Input placeholder="https://cognitiveservices.azure.com/.default" />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    OAuth scope for Azure AD authentication
+                  </Text>
+                )}
+              </TextField>
+            )}
           />
         </>
       )}
-      <HeadersField
+      <Controller
         name="azure_default_headers"
         control={control}
-        label="Default Headers (JSON)"
-        placeholder='{"X-Custom-Header": "value"}'
-        description="Default HTTP headers sent with each request"
+        render={({ field: { value, onChange }, fieldState: { error } }) => (
+          <CodeEditorFieldWrapper
+            label="Default Headers (JSON)"
+            errorMessage={error?.message}
+            description={
+              !error?.message
+                ? "Default HTTP headers sent with each request"
+                : undefined
+            }
+          >
+            <JSONEditor
+              value={typeof value === "string" ? value : ""}
+              onChange={onChange}
+              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+              placeholder='{"X-Custom-Header": "value"}'
+              optionalLint
+            />
+          </CodeEditorFieldWrapper>
+        )}
       />
     </ProviderSection>
   );
 }
 
-function AnthropicFields({ control }: { control: Control<ProviderFormData> }) {
+function AnthropicFields({
+  control,
+  isSubmitting,
+}: {
+  control: Control<ProviderFormData>;
+  isSubmitting: boolean;
+}) {
   return (
     <ProviderSection title="Anthropic Configuration">
-      <FormTextField
+      <Controller
         name="anthropic_api_key"
-        label="API Key"
-        placeholder="sk-ant-..."
-        isRequired
-        type="password"
         control={control}
         rules={{ required: "API Key is required" }}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <CredentialField
+            isRequired
+            isInvalid={invalid}
+            {...field}
+            isDisabled={isSubmitting}
+          >
+            <Label>API Key</Label>
+            <CredentialInput placeholder="sk-ant-..." />
+            {error && <FieldError>{error.message}</FieldError>}
+          </CredentialField>
+        )}
       />
-      <FormTextField
+      <Controller
         name="anthropic_base_url"
-        label="Base URL"
-        placeholder="https://api.anthropic.com"
         control={control}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <TextField isInvalid={invalid} {...field} isDisabled={isSubmitting}>
+            <Label>Base URL</Label>
+            <Input placeholder="https://api.anthropic.com" />
+            {error && <FieldError>{error.message}</FieldError>}
+          </TextField>
+        )}
       />
-      <HeadersField
+      <Controller
         name="anthropic_default_headers"
         control={control}
-        label="Default Headers (JSON)"
-        placeholder='{"X-Custom-Header": "value"}'
-        description="Default HTTP headers sent with each request"
+        render={({ field: { value, onChange }, fieldState: { error } }) => (
+          <CodeEditorFieldWrapper
+            label="Default Headers (JSON)"
+            errorMessage={error?.message}
+            description={
+              !error?.message
+                ? "Default HTTP headers sent with each request"
+                : undefined
+            }
+          >
+            <JSONEditor
+              value={typeof value === "string" ? value : ""}
+              onChange={onChange}
+              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+              placeholder='{"X-Custom-Header": "value"}'
+              optionalLint
+            />
+          </CodeEditorFieldWrapper>
+        )}
       />
     </ProviderSection>
   );
 }
 
-function AWSFields({ control }: { control: Control<ProviderFormData> }) {
+function AWSFields({
+  control,
+  isSubmitting,
+}: {
+  control: Control<ProviderFormData>;
+  isSubmitting: boolean;
+}) {
   return (
     <ProviderSection title="AWS Bedrock Configuration">
-      <FormTextField
+      <Controller
         name="aws_region"
-        label="Region"
-        placeholder="us-east-1"
-        isRequired
         control={control}
         rules={{ required: "Region is required" }}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <TextField
+            isRequired
+            isInvalid={invalid}
+            {...field}
+            isDisabled={isSubmitting}
+          >
+            <Label>Region</Label>
+            <Input placeholder="us-east-1" />
+            {error && <FieldError>{error.message}</FieldError>}
+          </TextField>
+        )}
       />
-      <FormTextField
+      <Controller
         name="aws_access_key_id"
-        label="Access Key ID"
-        isRequired
-        type="password"
         control={control}
         rules={{ required: "Access Key ID is required" }}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <CredentialField
+            isRequired
+            isInvalid={invalid}
+            {...field}
+            isDisabled={isSubmitting}
+          >
+            <Label>Access Key ID</Label>
+            <CredentialInput />
+            {error && <FieldError>{error.message}</FieldError>}
+          </CredentialField>
+        )}
       />
-      <FormTextField
+      <Controller
         name="aws_secret_access_key"
-        label="Secret Access Key"
-        isRequired
-        type="password"
         control={control}
         rules={{ required: "Secret Access Key is required" }}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <CredentialField
+            isRequired
+            isInvalid={invalid}
+            {...field}
+            isDisabled={isSubmitting}
+          >
+            <Label>Secret Access Key</Label>
+            <CredentialInput />
+            {error && <FieldError>{error.message}</FieldError>}
+          </CredentialField>
+        )}
       />
-      <FormTextField
+      <Controller
         name="aws_session_token"
-        label="Session Token"
-        type="password"
         control={control}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <CredentialField
+            isInvalid={invalid}
+            {...field}
+            isDisabled={isSubmitting}
+          >
+            <Label>Session Token</Label>
+            <CredentialInput />
+            {error && <FieldError>{error.message}</FieldError>}
+          </CredentialField>
+        )}
       />
-      <FormTextField
+      <Controller
         name="aws_endpoint_url"
-        label="Endpoint URL"
-        placeholder="https://vpce-xxx.bedrock-runtime.us-east-1.vpce.amazonaws.com"
-        description="Custom endpoint for VPC endpoints or proxies (optional)"
         control={control}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <TextField isInvalid={invalid} {...field} isDisabled={isSubmitting}>
+            <Label>Endpoint URL</Label>
+            <Input placeholder="https://vpce-xxx.bedrock-runtime.us-east-1.vpce.amazonaws.com" />
+            {error ? (
+              <FieldError>{error.message}</FieldError>
+            ) : (
+              <Text slot="description">
+                Custom endpoint for VPC endpoints or proxies (optional)
+              </Text>
+            )}
+          </TextField>
+        )}
       />
     </ProviderSection>
   );
 }
 
-function GoogleFields({ control }: { control: Control<ProviderFormData> }) {
+function GoogleFields({
+  control,
+  isSubmitting,
+}: {
+  control: Control<ProviderFormData>;
+  isSubmitting: boolean;
+}) {
   return (
     <ProviderSection title="Google GenAI Configuration">
-      <FormTextField
+      <Controller
         name="google_api_key"
-        label="API Key"
-        placeholder="AIza..."
-        isRequired
-        type="password"
         control={control}
         rules={{ required: "API Key is required" }}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <CredentialField
+            isRequired
+            isInvalid={invalid}
+            {...field}
+            isDisabled={isSubmitting}
+          >
+            <Label>API Key</Label>
+            <CredentialInput placeholder="AIza..." />
+            {error && <FieldError>{error.message}</FieldError>}
+          </CredentialField>
+        )}
       />
-      <FormTextField
+      <Controller
         name="google_base_url"
-        label="Base URL"
-        description="Custom base URL for the AI platform service endpoint"
         control={control}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <TextField isInvalid={invalid} {...field} isDisabled={isSubmitting}>
+            <Label>Base URL</Label>
+            <Input />
+            {error ? (
+              <FieldError>{error.message}</FieldError>
+            ) : (
+              <Text slot="description">
+                Custom base URL for the AI platform service endpoint
+              </Text>
+            )}
+          </TextField>
+        )}
       />
-      <HeadersField
+      <Controller
         name="google_headers"
         control={control}
-        label="Default Headers (JSON)"
-        placeholder='{"X-Custom-Header": "value"}'
-        description="Default HTTP headers sent with each request"
+        render={({ field: { value, onChange }, fieldState: { error } }) => (
+          <CodeEditorFieldWrapper
+            label="Default Headers (JSON)"
+            errorMessage={error?.message}
+            description={
+              !error?.message
+                ? "Default HTTP headers sent with each request"
+                : undefined
+            }
+          >
+            <JSONEditor
+              value={typeof value === "string" ? value : ""}
+              onChange={onChange}
+              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+              placeholder='{"X-Custom-Header": "value"}'
+              optionalLint
+            />
+          </CodeEditorFieldWrapper>
+        )}
       />
     </ProviderSection>
   );
@@ -685,21 +728,25 @@ function ProviderSection({
 function SDKFieldsRenderer({
   sdk,
   control,
+  isSubmitting,
 }: {
   sdk: GenerativeModelSDK;
   control: Control<ProviderFormData>;
+  isSubmitting: boolean;
 }) {
   switch (sdk) {
     case "OPENAI":
-      return <OpenAIFields control={control} />;
+      return <OpenAIFields control={control} isSubmitting={isSubmitting} />;
     case "AZURE_OPENAI":
-      return <AzureOpenAIFields control={control} />;
+      return (
+        <AzureOpenAIFields control={control} isSubmitting={isSubmitting} />
+      );
     case "ANTHROPIC":
-      return <AnthropicFields control={control} />;
+      return <AnthropicFields control={control} isSubmitting={isSubmitting} />;
     case "AWS_BEDROCK":
-      return <AWSFields control={control} />;
+      return <AWSFields control={control} isSubmitting={isSubmitting} />;
     case "GOOGLE_GENAI":
-      return <GoogleFields control={control} />;
+      return <GoogleFields control={control} isSubmitting={isSubmitting} />;
     default: {
       // Exhaustive type check - TypeScript will error if a new SDK is added
       // without updating this switch statement
@@ -716,13 +763,13 @@ function SDKSelect({
   control,
   reset,
   getValues,
+  isSubmitting,
 }: {
   control: Control<ProviderFormData>;
   reset: UseFormReset<ProviderFormData>;
   getValues: UseFormGetValues<ProviderFormData>;
+  isSubmitting: boolean;
 }) {
-  const { isSubmitting } = useFormContext();
-
   const handleSDKChange = useCallback(
     (oldSDK: GenerativeModelSDK, newSDK: GenerativeModelSDK) => {
       // Reset SDK-specific fields while preserving shared fields
@@ -807,67 +854,94 @@ export function ProviderForm({
   invariant(watchedSdk, "SDK field must be defined in form state");
   const sdk = watchedSdk;
 
-  // Memoize context value to prevent unnecessary re-renders
-  const formContextValue = useMemo(() => ({ isSubmitting }), [isSubmitting]);
-
   return (
-    <FormContext value={formContextValue}>
-      <Form onSubmit={handleSubmit(onSubmit)}>
-        <Flex direction="column" gap="size-100">
-          <FormTextField
-            name="name"
-            label="Provider Name"
-            placeholder="My Custom Provider"
-            description="A unique name to identify this provider configuration"
-            isRequired
-            control={control}
-            rules={{ required: "Name is required" }}
-          />
+    <Form onSubmit={handleSubmit(onSubmit)}>
+      <Flex direction="column" gap="size-100">
+        <Controller
+          name="name"
+          control={control}
+          rules={{ required: "Name is required" }}
+          render={({ field, fieldState: { invalid, error } }) => (
+            <TextField
+              isRequired
+              isInvalid={invalid}
+              {...field}
+              isDisabled={isSubmitting}
+            >
+              <Label>Provider Name</Label>
+              <Input placeholder="My Custom Provider" />
+              {error ? (
+                <FieldError>{error.message}</FieldError>
+              ) : (
+                <Text slot="description">
+                  A unique name to identify this provider configuration
+                </Text>
+              )}
+            </TextField>
+          )}
+        />
 
-          <Controller
-            name="description"
+        <Controller
+          name="description"
+          control={control}
+          render={({ field }) => (
+            <TextField {...field} isDisabled={isSubmitting}>
+              <Label>Description</Label>
+              <TextArea placeholder="Optional description for this provider" />
+            </TextField>
+          )}
+        />
+
+        <Flex direction="row" gap="size-100" alignItems="start">
+          <SDKSelect
             control={control}
-            render={({ field }) => (
-              <TextField {...field} isDisabled={isSubmitting}>
-                <Label>Description</Label>
-                <TextArea placeholder="Optional description for this provider" />
+            reset={reset}
+            getValues={getValues}
+            isSubmitting={isSubmitting}
+          />
+          <Controller
+            name="provider"
+            control={control}
+            rules={{ required: "Provider is required" }}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <TextField
+                isRequired
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+                css={flexFieldCSS}
+              >
+                <Label>Provider String</Label>
+                <Input placeholder="e.g., openai, azure, my-custom-provider" />
+                {error && <FieldError>{error.message}</FieldError>}
               </TextField>
             )}
           />
-
-          <Flex direction="row" gap="size-100" alignItems="start">
-            <SDKSelect control={control} reset={reset} getValues={getValues} />
-            <FormTextField
-              name="provider"
-              label="Provider String"
-              placeholder="e.g., openai, azure, my-custom-provider"
-              isRequired
-              control={control}
-              rules={{ required: "Provider is required" }}
-              flex
-            />
-          </Flex>
-
-          <SDKFieldsRenderer sdk={sdk} control={control} />
-
-          <Flex direction="row" gap="size-100" justifyContent="end">
-            <Button
-              variant="default"
-              onPress={onCancel}
-              isDisabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" isDisabled={isSubmitting}>
-              {isSubmitting
-                ? "Saving..."
-                : initialValues
-                  ? "Update Provider"
-                  : "Create Provider"}
-            </Button>
-          </Flex>
         </Flex>
-      </Form>
-    </FormContext>
+
+        <SDKFieldsRenderer
+          sdk={sdk}
+          control={control}
+          isSubmitting={isSubmitting}
+        />
+
+        <Flex direction="row" gap="size-100" justifyContent="end">
+          <Button
+            variant="default"
+            onPress={onCancel}
+            isDisabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" isDisabled={isSubmitting}>
+            {isSubmitting
+              ? "Saving..."
+              : initialValues
+                ? "Update Provider"
+                : "Create Provider"}
+          </Button>
+        </Flex>
+      </Flex>
+    </Form>
   );
 }
