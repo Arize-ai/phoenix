@@ -1,0 +1,7 @@
+procs:
+  api:
+    cmd: ["pnpm", "run", "dev:server"]
+    stop: { send-keys: ["<C-c>"] }
+
+  frontend:
+    cmd: ["pnpm", "run", "dev:ui"]
