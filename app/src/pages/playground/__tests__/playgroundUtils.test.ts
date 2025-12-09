@@ -1,3 +1,4 @@
+import { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { LlmProviderToolDefinition } from "@phoenix/schemas";
@@ -22,7 +23,6 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "../constants";
-import { InvocationParameter } from "../InvocationParametersFormFields";
 import {
   areInvocationParamsEqual,
   areRequiredInvocationParametersConfigured,
