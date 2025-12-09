@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8c9e4068e9600c56c3b64240a1b6c023>>
+ * @generated SignedSource<<00903a915b03b2500012a6f4da191dbb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -40,7 +40,35 @@ v2 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "Prompt",
+    "kind": "LinkedField",
+    "name": "prompt",
+    "plural": false,
+    "selections": [
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PromptVersionTag",
+    "kind": "LinkedField",
+    "name": "promptVersionTag",
+    "plural": false,
+    "selections": [
+      (v2/*: any*/),
+      (v1/*: any*/)
+    ],
+    "storageKey": null
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -130,35 +158,14 @@ return {
                   },
                   {
                     "kind": "InlineFragment",
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "Prompt",
-                        "kind": "LinkedField",
-                        "name": "prompt",
-                        "plural": false,
-                        "selections": [
-                          (v1/*: any*/),
-                          (v2/*: any*/)
-                        ],
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptVersionTag",
-                        "kind": "LinkedField",
-                        "name": "promptVersionTag",
-                        "plural": false,
-                        "selections": [
-                          (v2/*: any*/),
-                          (v1/*: any*/)
-                        ],
-                        "storageKey": null
-                      }
-                    ],
+                    "selections": (v3/*: any*/),
                     "type": "LLMEvaluator",
+                    "abstractKey": null
+                  },
+                  {
+                    "kind": "InlineFragment",
+                    "selections": (v3/*: any*/),
+                    "type": "DatasetLLMEvaluator",
                     "abstractKey": null
                   }
                 ],
@@ -229,12 +236,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2f8282fe200fbc8b88cc3c9cdf6bdfc0",
+    "cacheID": "715b3adb6bd088ce4931aa5848370b3a",
     "id": null,
     "metadata": {},
     "name": "evaluatorsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query evaluatorsPageLoaderQuery {\n  ...GlobalEvaluatorsTable_evaluators\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n  ... on DatasetLLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators on Query {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

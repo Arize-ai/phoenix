@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f223c421ad4f44bc97c298827a68cbed>>
+ * @generated SignedSource<<8b010ee4d4f54054cbeb2d10f482d30b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -97,7 +97,35 @@ v9 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v10 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "Prompt",
+    "kind": "LinkedField",
+    "name": "prompt",
+    "plural": false,
+    "selections": [
+      (v7/*: any*/),
+      (v9/*: any*/)
+    ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PromptVersionTag",
+    "kind": "LinkedField",
+    "name": "promptVersionTag",
+    "plural": false,
+    "selections": [
+      (v9/*: any*/),
+      (v7/*: any*/)
+    ],
+    "storageKey": null
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -252,35 +280,14 @@ return {
                                   },
                                   {
                                     "kind": "InlineFragment",
-                                    "selections": [
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "concreteType": "Prompt",
-                                        "kind": "LinkedField",
-                                        "name": "prompt",
-                                        "plural": false,
-                                        "selections": [
-                                          (v7/*: any*/),
-                                          (v9/*: any*/)
-                                        ],
-                                        "storageKey": null
-                                      },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "concreteType": "PromptVersionTag",
-                                        "kind": "LinkedField",
-                                        "name": "promptVersionTag",
-                                        "plural": false,
-                                        "selections": [
-                                          (v9/*: any*/),
-                                          (v7/*: any*/)
-                                        ],
-                                        "storageKey": null
-                                      }
-                                    ],
+                                    "selections": (v10/*: any*/),
                                     "type": "LLMEvaluator",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": (v10/*: any*/),
+                                    "type": "DatasetLLMEvaluator",
                                     "abstractKey": null
                                   }
                                 ],
@@ -381,12 +388,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "460de69744742ecce83b7e3720905610",
+    "cacheID": "46fbd8980a16b19017f6d9fa0e871feb",
     "id": null,
     "metadata": {},
     "name": "UnassignDatasetEvaluatorDialogDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation UnassignDatasetEvaluatorDialogDeleteMutation(\n  $input: DeleteEvaluatorsInput!\n  $datasetId: ID!\n) {\n  deleteEvaluators(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...DatasetEvaluatorsTable_evaluators\n        id\n      }\n    }\n    evaluatorIds\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
+    "text": "mutation UnassignDatasetEvaluatorDialogDeleteMutation(\n  $input: DeleteEvaluatorsInput!\n  $datasetId: ID!\n) {\n  deleteEvaluators(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...DatasetEvaluatorsTable_evaluators\n        id\n      }\n    }\n    evaluatorIds\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n  ... on DatasetLLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();

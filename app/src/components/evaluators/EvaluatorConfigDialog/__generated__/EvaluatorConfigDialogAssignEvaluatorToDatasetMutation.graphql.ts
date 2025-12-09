@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3c25f1b122351dd25e0efdd4c4792bbb>>
+ * @generated SignedSource<<aad9316984e78cf704523a85ed1ac199>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -108,7 +108,38 @@ v9 = {
     (v4/*: any*/)
   ],
   "storageKey": null
-};
+},
+v10 = [
+  (v9/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PromptVersionTag",
+    "kind": "LinkedField",
+    "name": "promptVersionTag",
+    "plural": false,
+    "selections": [
+      (v4/*: any*/)
+    ],
+    "storageKey": null
+  }
+],
+v11 = [
+  (v9/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PromptVersionTag",
+    "kind": "LinkedField",
+    "name": "promptVersionTag",
+    "plural": false,
+    "selections": [
+      (v4/*: any*/),
+      (v3/*: any*/)
+    ],
+    "storageKey": null
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -147,22 +178,14 @@ return {
                   (v8/*: any*/),
                   {
                     "kind": "InlineFragment",
-                    "selections": [
-                      (v9/*: any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptVersionTag",
-                        "kind": "LinkedField",
-                        "name": "promptVersionTag",
-                        "plural": false,
-                        "selections": [
-                          (v4/*: any*/)
-                        ],
-                        "storageKey": null
-                      }
-                    ],
+                    "selections": (v10/*: any*/),
                     "type": "LLMEvaluator",
+                    "abstractKey": null
+                  },
+                  {
+                    "kind": "InlineFragment",
+                    "selections": (v10/*: any*/),
+                    "type": "DatasetLLMEvaluator",
                     "abstractKey": null
                   }
                 ],
@@ -223,23 +246,14 @@ return {
               (v8/*: any*/),
               {
                 "kind": "InlineFragment",
-                "selections": [
-                  (v9/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "PromptVersionTag",
-                    "kind": "LinkedField",
-                    "name": "promptVersionTag",
-                    "plural": false,
-                    "selections": [
-                      (v4/*: any*/),
-                      (v3/*: any*/)
-                    ],
-                    "storageKey": null
-                  }
-                ],
+                "selections": (v11/*: any*/),
                 "type": "LLMEvaluator",
+                "abstractKey": null
+              },
+              {
+                "kind": "InlineFragment",
+                "selections": (v11/*: any*/),
+                "type": "DatasetLLMEvaluator",
                 "abstractKey": null
               }
             ],
@@ -272,12 +286,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "56a80314e13a48ce53adc55bbfb6395f",
+    "cacheID": "a799819336da082d0d39deb7f0ff524c",
     "id": null,
     "metadata": {},
     "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    evaluator {\n      __typename\n      ...EvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n  ... on DatasetLLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();

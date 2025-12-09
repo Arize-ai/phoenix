@@ -37,6 +37,7 @@ import {
 } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
 import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
 import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
 import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
@@ -438,6 +439,11 @@ const router = createBrowserRouter(
           <Route
             path="/redirects/sessions/:session_id"
             loader={sessionRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/prompts/:promptId/tags/:tagName"
+            loader={promptTagRedirectLoader}
             errorElement={<ErrorElement />}
           />
         </Route>

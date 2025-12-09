@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9a1fda4d149d8f361e3f8f0ef54dea78>>
+ * @generated SignedSource<<6a9857fbbdbe9cc97b2ff1a9dadd8527>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,9 @@ export type EditDatasetEvaluatorSlideover_evaluatorQuery$data = {
       readonly promptVersion?: {
         readonly " $fragmentSpreads": FragmentRefs<"fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
       };
+      readonly promptVersionTag?: {
+        readonly name: string;
+      } | null;
       readonly " $fragmentSpreads": FragmentRefs<"EditDatasetEvaluatorSlideover_evaluator">;
     };
   };
@@ -366,6 +369,18 @@ return {
                           }
                         ],
                         "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersionTag",
+                        "kind": "LinkedField",
+                        "name": "promptVersionTag",
+                        "plural": false,
+                        "selections": [
+                          (v6/*: any*/)
+                        ],
+                        "storageKey": null
                       }
                     ],
                     "type": "DatasetLLMEvaluator",
@@ -437,6 +452,19 @@ return {
                         "name": "promptVersion",
                         "plural": false,
                         "selections": (v11/*: any*/),
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersionTag",
+                        "kind": "LinkedField",
+                        "name": "promptVersionTag",
+                        "plural": false,
+                        "selections": [
+                          (v6/*: any*/),
+                          (v5/*: any*/)
+                        ],
                         "storageKey": null
                       },
                       {
@@ -543,16 +571,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "aa8a036dd139d44b54733b9e64d75b6e",
+    "cacheID": "d310d2fb3bfe9f495974eade5d1e90c0",
     "id": null,
     "metadata": {},
     "name": "EditDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query EditDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $evaluatorId: ID!\n  $displayName: Identifier!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      evaluator(evaluatorId: $evaluatorId, displayName: $displayName) {\n        __typename\n        __isEvaluator: __typename\n        ... on DatasetLLMEvaluator {\n          prompt {\n            id\n            name\n          }\n          promptVersion {\n            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n            id\n          }\n        }\n        ...EditDatasetEvaluatorSlideover_evaluator\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment EditDatasetEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on DatasetLLMEvaluator {\n    datasetInputMapping {\n      literalMapping\n      pathMapping\n    }\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "query EditDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $evaluatorId: ID!\n  $displayName: Identifier!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      evaluator(evaluatorId: $evaluatorId, displayName: $displayName) {\n        __typename\n        __isEvaluator: __typename\n        ... on DatasetLLMEvaluator {\n          prompt {\n            id\n            name\n          }\n          promptVersion {\n            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n            id\n          }\n          promptVersionTag {\n            name\n            id\n          }\n        }\n        ...EditDatasetEvaluatorSlideover_evaluator\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment EditDatasetEvaluatorSlideover_evaluator on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  description\n  kind\n  ... on DatasetLLMEvaluator {\n    datasetInputMapping {\n      literalMapping\n      pathMapping\n    }\n    prompt {\n      id\n      name\n    }\n    promptVersion {\n      ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n      id\n    }\n    outputConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n      id\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "555c46dbba1be3fe68d954a791dac497";
+(node as any).hash = "c84748046b6e611bbceb2de902e97a35";
 
 export default node;

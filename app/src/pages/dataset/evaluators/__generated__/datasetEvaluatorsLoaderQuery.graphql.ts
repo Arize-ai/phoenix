@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e9c72365e5540eaee9ba72fb86775a89>>
+ * @generated SignedSource<<5720232eb48f6ebe659ec51a7b799a14>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -74,7 +74,35 @@ v6 = {
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
-};
+},
+v7 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "Prompt",
+    "kind": "LinkedField",
+    "name": "prompt",
+    "plural": false,
+    "selections": [
+      (v2/*: any*/),
+      (v4/*: any*/)
+    ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PromptVersionTag",
+    "kind": "LinkedField",
+    "name": "promptVersionTag",
+    "plural": false,
+    "selections": [
+      (v4/*: any*/),
+      (v2/*: any*/)
+    ],
+    "storageKey": null
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -201,35 +229,14 @@ return {
                           },
                           {
                             "kind": "InlineFragment",
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "Prompt",
-                                "kind": "LinkedField",
-                                "name": "prompt",
-                                "plural": false,
-                                "selections": [
-                                  (v2/*: any*/),
-                                  (v4/*: any*/)
-                                ],
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "PromptVersionTag",
-                                "kind": "LinkedField",
-                                "name": "promptVersionTag",
-                                "plural": false,
-                                "selections": [
-                                  (v4/*: any*/),
-                                  (v2/*: any*/)
-                                ],
-                                "storageKey": null
-                              }
-                            ],
+                            "selections": (v7/*: any*/),
                             "type": "LLMEvaluator",
+                            "abstractKey": null
+                          },
+                          {
+                            "kind": "InlineFragment",
+                            "selections": (v7/*: any*/),
+                            "type": "DatasetLLMEvaluator",
                             "abstractKey": null
                           }
                         ],
@@ -321,12 +328,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d0600a6a25d744abb49ec9c81b78043a",
+    "cacheID": "9ccd965ff47d01bf0290b792d537de34",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...EvaluatorConfigDialog_dataset\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query_2m4mqp\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_query_2m4mqp on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      ...EvaluatorConfigDialog_dataset\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...EvaluatorConfigDialog_dataset\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query_2m4mqp\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_query_2m4mqp on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      ...EvaluatorConfigDialog_dataset\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n  ... on DatasetLLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();
