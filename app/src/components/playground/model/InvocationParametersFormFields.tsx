@@ -13,17 +13,21 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
+import { ModelSupportedParamsFetcherQuery$data } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
+import { OpenAIReasoningEffortConfigField } from "@phoenix/components/playground/model/OpenAIReasoningEffortConfigField";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { AnthropicReasoningConfigField } from "@phoenix/pages/playground/AnthropicReasoningConfigField";
 import { GoogleGenAIThinkingLevelConfigField } from "@phoenix/pages/playground/GoogleGenAIThinkingLevelConfigField";
-import { OpenAIReasoningEffortConfigField } from "@phoenix/pages/playground/OpenAIReasoningEffortConfigField";
 import { ModelInvocationParameterInput } from "@phoenix/store";
 import { Mutable } from "@phoenix/typeUtils";
 
-import { ModelSupportedParamsFetcherQuery$data } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
-import { paramsToIgnoreInInvocationParametersForm } from "./constants";
+import { paramsToIgnoreInInvocationParametersForm } from "../../../pages/playground/constants";
+import {
+  areInvocationParamsEqual,
+  toCamelCase,
+} from "../../../pages/playground/playgroundUtils";
+
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
-import { areInvocationParamsEqual, toCamelCase } from "./playgroundUtils";
 
 export type InvocationParameter = Mutable<
   ModelSupportedParamsFetcherQuery$data["modelInvocationParameters"]
