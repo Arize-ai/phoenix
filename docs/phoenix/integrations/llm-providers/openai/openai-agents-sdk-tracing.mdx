@@ -1,0 +1,48 @@
+---
+title: "OpenAI Agents SDK Tracing"
+description: "Use Phoenix and OpenAI Agents SDK for powerful multi-agent tracing"
+---
+
+## 1. Install
+
+```bash
+pip install openinference-instrumentation-openai-agents openai-agents
+```
+
+## 3. Set up Tracing
+
+Add your OpenAI API key as an environment variable:
+
+```javascript
+export OPENAI_API_KEY=[your_key_here]
+```
+
+Use the register function to connect your application to Phoenix:
+
+```python
+from phoenix.otel import register
+
+# configure the Phoenix tracer
+tracer_provider = register(
+  project_name="agents", # Default is 'default'
+  auto_instrument=True # Auto-instrument your app based on installed dependencies
+)
+```
+
+Run your `agents`code.
+
+```python
+from agents import Agent, Runner
+
+agent = Agent(name="Assistant", instructions="You are a helpful assistant")
+result = Runner.run_sync(agent, "Write a haiku about recursion in programming.")
+print(result.final_output)
+```
+
+View your traces in Phoenix.
+
+## Resources
+
+* [Example notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/c02f0e7d807129952afa5da430299aec32fafcc9/tutorials/evals/openai_agents_cookbook.ipynb#L4)
+
+

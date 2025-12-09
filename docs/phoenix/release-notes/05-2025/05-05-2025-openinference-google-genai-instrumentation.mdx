@@ -1,0 +1,44 @@
+---
+title: "05.05.2025: OpenInference Google GenAI instrumentation 🧩"
+---
+
+<Update label="05.05.2025">
+
+## OpenInference Google GenAI Instrumentation
+
+<Frame>
+  <iframe
+    src="https://cdn.iframe.ly/bdf8oY5"
+    width={1000}
+    height={400}
+    allowFullScreen
+    allow="encrypted-media *;"
+  />
+</Frame>
+
+We've added a Python auto-instrumentation library for the Google GenAI SDK. This enables seamless tracing of GenAI workflows with full OpenTelemetry compatibility. Traces can be exported to any OpenTelemetry collector.
+
+### Installation
+
+```bash
+pip install openinference-instrumentation-google-genai
+```
+
+For more details on how to set up the tracing integration seamlessly:
+<Card title="openinference-instrumentation-google-genai" icon="box" href="https://pypi.org/project/openinference-instrumentation-google-genai/" horizontal>
+  GitHub
+</Card>
+
+Additionally, the Google GenAI instrumentor is now supported and works seamlessly with **Span Replay** in Phoenix, enabling deep trace inspection and replay for more effective debugging and observability.
+
+<Card title="Google GenAI | Phoenix" icon="book" href="/docs/phoenix/integrations/llm-providers/google-gen-ai" horizontal>
+  GitHub
+</Card>
+
+### Acknowledgements
+
+Big thanks to Harrison Chu for his contributions.
+
+</Update>
+
+

@@ -1,0 +1,124 @@
+---
+title: "Hallucination"
+---
+
+## When To Use Hallucination Eval Template
+
+This LLM Eval detects if the output of a model is a hallucination based on contextual data.
+
+This Eval is specifically designed to detect hallucinations in generated answers from private or retrieved data. The Eval detects if an AI answer to a question is a hallucination based on the reference data used to generate the answer.
+
+<Info>
+This Eval is designed to check for hallucinations on private data, specifically on data that is fed into the context window from retrieval.
+
+It is not designed to check hallucinations on what the LLM was trained on. It is not useful for random public fact hallucinations. E.g. "What was Michael Jordan's birthday?"
+
+</Info>
+
+## Hallucination Eval Template
+
+```bash
+In this task, you will be presented with a query, some context and a response. The response
+is generated to the question based on the context. The response may contain false
+information. You must use the context to determine if the response to the question
+contains false information, if the response is a hallucination of facts. Your objective is
+to determine whether the response text contains factual information and is not a
+hallucination. A 'hallucination' refers to a response that is not based on the context or
+assumes information that is not available in the context. Your response should be a single
+word: either 'factual' or 'hallucinated', and it should not include any other text or
+characters. 'hallucinated' indicates that the response provides factually inaccurate
+information to the query based on the context. 'factual' indicates that the response to
+the question is correct relative to the context, and does not contain made up
+information. Please read the query and context carefully before determining your
+response.
+
+[BEGIN DATA]
+************
+[Query]: {input}
+************
+[Context]: {context}
+************
+[Response]: {output}
+************
+[END DATA]
+
+Is the response above factual or hallucinated based on the query and context?
+```
+
+<Info>
+  We are continually iterating our templates, view the most up-to-date template
+  [on
+  GitHub](https://github.com/Arize-ai/phoenix/blob/main/packages/phoenix-evals/src/docs/phoenix/evals/metrics/hallucination.py).
+</Info>
+
+## How To Run the Hallucination Eval
+
+The `HallucinationEvaluator` requires three inputs called `input`, `output`, and `context`. You can use the `.describe()` method on any evaluator to learn more about it, including it's `input_schema` which has information about required inputs.&#x20;
+
+```python
+from phoenix.evals.llm import LLM
+from phoenix.evals.metrics import HallucinationEvaluator
+
+# initialize LLM and evaluator
+llm = LLM(model="gpt-4o", provider="openai")
+hallucination = HallucinationEvaluator(llm=llm)
+
+# use the .describe() method to inspect the input_schema of any evaluator
+print(hallucination_evaluator.describe())
+>>> {'name': 'hallucination',
+ 'kind': 'llm',
+ 'direction': 'maximize',
+ 'input_schema': {'properties': {
+   'input': {'description': 'The input query.',
+    'title': 'Input',
+    'type': 'string'},
+   'output': {'description': 'The response to the query.',
+    'title': 'Output',
+    'type': 'string'},
+   'context': {'description': 'The context or reference text.',
+    'title': 'Context',
+    'type': 'string'}},
+  'required': ['input', 'output', 'context'],
+  'title': 'HallucinationInputSchema',
+  'type': 'object'}}
+
+# let's test on one example
+eval_input = {
+    "input": "Where is the Eiffel Tower located?",
+    "context": "The Eiffel Tower is located in Paris, France. It was constructed in 1889 as the entrance arch to the 1889 World's Fair.",
+    "output": "The Eiffel Tower is located in Paris, France.",
+}
+
+scores = hallucination.evaluate(eval_input=eval_input)
+print(scores[0])
+>>> Score(name='hallucination', score=1.0, label='factual', explanation='The response correctly identifies the location of the Eiffel Tower as stated in the context.', metadata={'model': 'gpt-4o'}, kind='llm', direction='maximize')
+```
+
+## Benchmark Results
+
+This benchmark was obtained using notebook below. It was run using the [HaluEval QA Dataset](https://github.com/RUCAIBox/HaluEval/blob/main/data/qa_data.json) as a ground truth dataset. Each example in the dataset was evaluating using the `HALLUCINATION_PROMPT_TEMPLATE` above, then the resulting labels were compared against the `is_hallucination` label in the HaluEval dataset to generate the confusion matrices below.
+
+<Card
+  title="Google Colab"
+  href="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_hallucination_classifications.ipynb"
+  icon="/images/image-10.png"
+  horizontal
+>
+  colab.research.google.com
+</Card>
+
+#### GPT-4 Results
+
+<Frame caption="Scikit GPT-4">
+  <img src="/images/scikit.png" alt="" />
+</Frame>
+
+| Eval      | GPT-4                                 |
+| :-------- | :------------------------------------ |
+| Precision | <p style={{color: "green"}}>0.93 </p> |
+| Recall    | <p style={{color: "green"}}>0.72 </p> |
+| F1        | <p style={{color: "green"}}>0.82 </p> |
+
+| Throughput  | GPT-4   |
+| :---------- | :------ |
+| 100 Samples | 105 sec |

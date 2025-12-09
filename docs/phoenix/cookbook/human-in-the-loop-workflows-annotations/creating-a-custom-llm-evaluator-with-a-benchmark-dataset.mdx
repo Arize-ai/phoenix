@@ -1,0 +1,232 @@
+---
+title: "Creating a Custom LLM Evaluator with a Benchmark Dataset"
+sidebarTitle: "Write Your First Custom Eval"
+description: Learn how to build a custom LLM-as-a-Judge evaluator by creating a benchmark dataset tailored to your use case, enabling rigorous evaluation beyond standard templates.
+---
+<Frame>
+<iframe width="746" height="419" src="https://www.youtube.com/embed/NaCjm8rdxqk" title="Build Your First Eval: Creating a Custom LLM Evaluator with an Evaluation Benchmark Dataset" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</Frame>
+
+In this tutorial, you’ll learn how to build a custom LLM-as-a-Judge Evaluator tailored to your specific use case. While Phoenix provides several [pre-built evaluators](https://www.google.com/url?q=https%3A%2F%2Farize.com%2Fdocs%2Fphoenix%2Fevaluation%2Fhow-to-evals%2Frunning-pre-tested-evals) that have been tested against benchmark datasets, these may not always cover the nuances of your application.
+
+So how can you achieve the same level of rigor when your use case falls outside the scope of standard evaluators?
+
+We’ll walk through how to create your own benchmark dataset using a small set of human annotated examples. This dataset will allow you to build and refine a custom evaluator by revealing failure cases and guiding iteration.
+
+The diagram below provides an overview of the process we will follow in this walkthrough.
+
+<Frame>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-custom-eval.png)
+</Frame>
+
+## Notebook Walkthrough
+
+We will go through key code snippets on this page. To follow the full tutorial, check out the notebook or video above.
+
+<Card title="Google Colab" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/build_benchmark_dataset_and_custom_evaluator.ipynb" horizontal icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico">
+colab.research.google.com
+</Card>
+
+## Generate Image Classification Traces
+
+In this tutorial, we’ll ask an LLM to generate expense reports from receipt images provided as public URLs. Running the cells below will generate traces, which you can explore directly in Phoenix for annotation. We’ll use GPT-4.1, which supports image inputs.
+
+<Info>
+Dataset Information: Jakob (2024). Receipt or Invoice Dataset. Roboflow Universe. CC BY 4.0. Available at: https://universe.roboflow.com/jakob-awn1e/receipt-or-invoice (accessed on 2025‑07‑29)
+</Info>
+
+```py
+from openai import OpenAI
+client = OpenAI()
+
+def extract_receipt_data(input):
+  response = client.chat.completions.create(
+    model="gpt-4.1",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Analyze this receipt and return a brief summary for an expense report. Only include category of expense, total cost, and summary of items"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": input,
+                    },
+                },
+            ],
+        }
+    ],
+    max_tokens=500,
+  )
+  return response
+```
+
+By following the auto-instrumentation setup outlined in the notebook, running the cell below will automatically send traces to Phoenix.
+
+```py
+for url in urls:
+  extract_receipt_data(url)
+```
+
+## Create Benchmark Dataset
+After generating traces, open Phoenix to begin annotating your dataset. In this example, we’ll annotate based on "accuracy", but you can choose any evaluation criterion that fits your use case. Just be sure to update the query below to match the annotation key you’re using—this ensures the annotated examples are included in your benchmark dataset.
+
+<Frame>
+<iframe src="https://cdn.iframe.ly/UFd7u6DI" width={1000} height={400} allowfullscreen="" allow="encrypted-media *;"></iframe>
+</Frame>
+
+```py expandable
+import pandas as pd
+import phoenix as px
+from phoenix.client import Client
+from phoenix.client.types import spans
+
+client = Client(api_key=os.getenv("PHOENIX_API_KEY"))
+# replace "accuracy" if you chose to annotate on different criteria
+query = spans.SpanQuery().where("annotations['accuracy']")
+spans_df = client.spans.get_spans_dataframe(query=query, project_identifier="receipt-classification")
+annotations_df = client.spans.get_span_annotations_dataframe(spans_dataframe = spans_df, project_identifier="receipt-classification")
+full_df = annotations_df.join(spans_df, how = "inner")
+
+dataset = px.Client().upload_dataset(
+    dataframe=full_df,
+    dataset_name="annotated-receipts",
+    input_keys=["attributes.input.value"],
+    output_keys=["attributes.llm.output_messages"],
+    metadata_keys=["result.label", "result.score", "result.explanation"],
+)
+```
+
+<Frame>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-your-first-eval-tutorial-1.png)
+</Frame>
+
+## Create Evaluation Template & Run Experiment
+Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function is llm_classify and our evaluator is a comparison between the task output and our annotated labels.
+
+```py expandable
+from phoenix.evals.templates import (
+    ClassificationTemplate,
+    PromptPartTemplate,
+    PromptPartContentType,
+)
+rails = ["accurate", "almost accurate", "inaccurate"]
+classification_template = ClassificationTemplate(
+    rails=rails,  # Specify the valid output labels
+    template=[
+        # Prompt part 1: Task description
+        PromptPartTemplate(
+            content_type=PromptPartContentType.TEXT,
+            template=""" You are an evaluator tasked with assessing the quality of a model-generated expense report based on a receipt.
+Below is the model’s generated expense report and the input image:
+---
+MODEL OUTPUT (Expense Report): {output}
+
+---
+INPUT RECEIPT: """,
+        ),
+        # Prompt part 2: Insert the image data
+        PromptPartTemplate(
+            content_type=PromptPartContentType.IMAGE,
+            template="{image}",  # Placeholder for the image URL
+        ),
+        # Prompt part 3: Define the response format
+        PromptPartTemplate(
+            content_type=PromptPartContentType.TEXT,
+            template=""" Evaluate the following three aspects and assign one of the following labels for each. Only include the label:
+- **"accurate"** – Fully correct
+- **"almost accurate"** – Mostly correct
+- **"inaccurate"** – Substantially wrong
+            """,
+        ),
+    ],
+)
+```
+```py expandable
+import json
+from phoenix.evals import llm_classify
+from phoenix.evals import OpenAIModel
+
+def task_function(input, reference):
+    parsed = json.loads(input['attributes.input.value'])
+    image_url = parsed['messages'][0]['content'][1]['image_url']['url']
+    output = reference['attributes.llm.output_messages'][0]['message.content']
+
+    response_classification = llm_classify(
+        data=pd.DataFrame([{"image": image_url, "output": output}]),
+        template=classification_template,
+        model=OpenAIModel(model="gpt-4o"),
+        rails=rails,
+        provide_explanation=True,
+    )
+    # print(response_classification)
+    label = response_classification.iloc[0]["label"]
+    return label
+
+
+def evaluate_response(output, metadata):
+    expected_label = metadata["result.label"]
+    predicted_label = output
+    return 1 if expected_label == predicted_label else 0
+```
+```py
+from phoenix.experiments import run_experiment
+
+dataset = px.Client().get_dataset(name="annotated-receipts")
+
+initial_experiment = run_experiment(
+    dataset, task=task_function, evaluators=[evaluate_response], experiment_name="initial template"
+)
+```
+
+## Iterate on Prompt Template
+Next, we’ll refine our evaluation prompt template by adding more specific instructions to classification rules. We can add these rules based on gaps we saw in the previous iteration. This additional guidance helps improve accuracy and ensures the evaluator's judgments better align with human expectations.
+
+```py expandable
+classification_template = ClassificationTemplate(
+    rails=rails,  # Specify the valid output labels
+    template=[
+        # Prompt part 1: Task description
+        PromptPartTemplate(
+            content_type=PromptPartContentType.TEXT,
+            template=""" You are an evaluator tasked with assessing the quality of a model-generated expense report based on a receipt.
+Below is the model’s generated expense report and the input image:
+---
+MODEL OUTPUT (Expense Report): {output}
+
+---
+INPUT RECEIPT: """,
+        ),
+        # Prompt part 2: Insert the audio data
+        PromptPartTemplate(
+            content_type=PromptPartContentType.IMAGE,
+            template="{image}",  # Placeholder for the image URL
+        ),
+        # Prompt part 3: Define the response format
+        PromptPartTemplate(
+            content_type=PromptPartContentType.TEXT,
+            template=""" Evaluate the following and assign one of the following labels for each. Only include the label:
+- **"accurate"** – Total price, itemized list, and expense category are all accurate. All three must be correct to get this label.
+- **"almost accurate"** – Mostly correct but with small issues. For example, expense category is too vague.
+- **"inaccurate"** – Substantially wrong or missing information. For example, incorrect total price.
+            """,
+        ),
+    ],
+)
+```
+
+```py
+initial_experiment = run_experiment(
+    dataset, task=task_function, evaluators=[evaluate_response], experiment_name="improved template"
+)
+```
+
+## Results
+
+Once your evaluator reaches a performance level you're satisfied with, it's ready for use. The target score will depend on your benchmark dataset and specific use case. You can define different thresholds and metrics you hope the evaluator to achieve.
+
+That said, you can continue applying the techniques from this tutorial to refine and iterate until the evaluator meets your desired level of quality.
+
+<Frame>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-your-first-eval-tutorial-2.png)
+</Frame>

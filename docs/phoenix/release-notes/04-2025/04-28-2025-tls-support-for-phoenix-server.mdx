@@ -1,0 +1,42 @@
+---
+title: "04.28.2025: TLS support for Phoenix server 🔐"
+description: Available in Phoenix 8.29+
+---
+
+<Update label="04.28.2025">
+
+## TLS Support For Phoenix Server
+
+Phoenix now supports Transport Layer Security (TLS) for both HTTP and gRPC connections, enabling encrypted communication and optional mutual TLS (mTLS) authentication. This enhancement provides a more secure foundation for production deployments.
+
+### **Highlights:**
+
+* **Secure HTTP & gRPC Connections:** Phoenix can now serve over HTTPS and secure gRPC.
+* **Flexible TLS Configuration:** TLS settings are managed via environment variables.
+* **Optional Client Verification:** Support for mTLS with configurable client certificate validation.
+* **Improved Testing:** TLS-aware infrastructure added to integration tests.
+* **Better Visibility:** Server startup logs now display TLS status.
+
+### **Configuration Options**
+
+Set the following environment variables to enable and customize TLS:
+
+| Variable                        | Type    | Description                                      |
+| ------------------------------- | ------- | ------------------------------------------------ |
+| `PHOENIX_TLS_ENABLED`           | boolean | Enable or disable TLS (`true`/`false`)           |
+| `PHOENIX_TLS_CERT_FILE`         | string  | Path to TLS certificate file                     |
+| `PHOENIX_TLS_KEY_FILE`          | string  | Path to private key file                         |
+| `PHOENIX_TLS_KEY_FILE_PASSWORD` | string  | Password for encrypted private key file          |
+| `PHOENIX_TLS_CA_FILE`           | string  | Path to CA certificate (for client verification) |
+| `PHOENIX_TLS_VERIFY_CLIENT`     | boolean | Enable client cert verification                  |
+
+<Info>
+    **Note:** Encrypted private keys require the `cryptography` Python package for decryption.
+</Info>
+
+<Card title="feat: environment variables for TLS by RogerHYang · Pull Request #7296 · Arize-ai/phoenix" icon="github" href="https://github.com/Arize-ai/phoenix/pull/7296" horizontal>
+  GitHub
+</Card>
+</Update>
+
+

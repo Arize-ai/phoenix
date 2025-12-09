@@ -1,0 +1,30 @@
+---
+title: "02.18.2025: One line instrumentation⚡️"
+description: Available in Phoenix 8.0+
+---
+
+<Update label="02.18.2025" description="">
+
+## One Line Instrumentation
+
+<Frame>
+  <iframe 
+    src="https://cdn.iframe.ly/vMqnP30" 
+    width={1000} 
+    height={400}
+    allowFullScreen
+  />
+</Frame>
+
+Phoenix has made it even simpler to get started with tracing by introducing one-line auto-instrumentation. By using `register(auto_instrument=True)`, you can enable automatic instrumentation in your application, which will set up instrumentors based on your installed packages.
+
+```python
+from phoenix.otel import register
+
+register(auto_instrument=True)
+```
+
+For more details, you can check the docs and explore further [tracing](/docs/phoenix/tracing/how-to-tracing/setup-tracing) options.
+</Update>
+
+

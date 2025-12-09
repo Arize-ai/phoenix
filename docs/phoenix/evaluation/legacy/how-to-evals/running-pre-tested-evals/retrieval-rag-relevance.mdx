@@ -1,0 +1,93 @@
+---
+title: "Retrieval (RAG) relevance"
+---
+
+## When To Use RAG Eval Template
+
+This Eval evaluates whether a retrieved chunk contains an answer to the query. It's extremely useful for evaluating retrieval systems.
+
+## RAG Eval Template
+
+```
+You are comparing a reference text to a question and trying to determine if the reference text
+contains information relevant to answering the question. Here is the data:
+    [BEGIN DATA]
+    ************
+    [Question]: {query}
+    ************
+    [Reference text]: {reference}
+    [END DATA]
+
+Compare the Question above to the Reference text. You must determine whether the Reference text
+contains information that can answer the Question. Please focus on whether the very specific
+question can be answered by the information in the Reference text.
+Your response must be single word, either "relevant" or "unrelated",
+and should not contain any text or characters aside from that word.
+"unrelated" means that the reference text does not contain an answer to the Question.
+"relevant" means the reference text contains an answer to the Question.
+```
+
+<Info>
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/docs/phoenix/evals/default_templates.py#L12).
+
+</Info>
+
+## How To Run the RAG Relevance Eval
+
+```python
+from phoenix.evals import (
+    RAG_RELEVANCY_PROMPT_RAILS_MAP,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
+    OpenAIModel,
+    download_benchmark_dataset,
+    llm_classify,
+)
+
+model = OpenAIModel(
+    model_name="gpt-4",
+    temperature=0.0,
+)
+
+#The rails are used to hold the output to specific values based on the template
+#It will remove text such as ",,," or "..."
+#Will ensure the binary value expected from the template is returned
+rails = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
+relevance_classifications = llm_classify(
+    dataframe=df,
+    template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+    model=model,
+    rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
+)
+```
+
+The above runs the RAG relevancy LLM template against the dataframe df.
+
+## Benchmark Results
+
+This benchmark was obtained using notebook below. It was run using the [WikiQA dataset](https://storage.googleapis.com/arize-phoenix-assets/evals/binary-relevance-classification/wiki_qa-train.jsonl.zip) as a ground truth dataset. Each example in the dataset was evaluating using the `RAG_RELEVANCY_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the WikiQA dataset to generate the confusion matrices below.
+
+<Frame caption="Try it out!">
+  <Card
+    title="Google Colaboratory"
+    icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico"
+    horizontal
+    href="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_relevance_classifications.ipynb"
+  />
+</Frame>
+
+#### GPT-4 Result
+
+<Frame caption="Scikit GPT-4">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/5781cd85-image.jpeg" />
+</Frame>
+
+| RAG Eval  | GPT-4o | GPT-4 |
+| --------- | ------ | ----- |
+| Precision | 0.60   | 0.70  |
+| Recall    | 0.77   | 0.88  |
+| F1        | 0.67   | 0.78  |
+
+| Throughput  | GPT-4   |
+| ----------- | ------- |
+| 100 Samples | 113 Sec |

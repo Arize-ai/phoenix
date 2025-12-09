@@ -1,0 +1,27 @@
+---
+title: "01.18.2025: Automatic & manual span tracing ⚙️"
+description: Available in Phoenix 7.9+
+---
+
+<Update label="01.18.2025" description="">
+
+## Automatic & Manual Span Tracing
+
+<Frame>
+  <iframe
+    src="https://cdn.iframe.ly/eYTN9GP"
+    width={1000}
+    height={400}
+    allowFullScreen
+  />
+</Frame>
+
+In addition to using our automatic instrumentors and tracing directly using OTEL, we've now added our own layer to let you have the granularity of manual instrumentation without as much boilerplate code.
+
+You can now access a tracer object with streamlined options to trace functions and code blocks. The main two options are:
+
+* Using the **decorator** `@tracer.chain` traces the entire function automatically as a Span in Phoenix. The input, output, and status attributes are set based on the function's parameters and return value.
+* Using the tracer in a `with` clause allows you to trace specific code blocks within a function. You manually define the Span name, input, output, and status.
+
+Check out the [docs](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument-python#using-your-tracer) for more on how to use tracer objects.
+</Update>

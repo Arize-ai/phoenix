@@ -1,0 +1,44 @@
+---
+title: "Online evals"
+---
+
+You can use cron to run evals client-side as your traces and spans are generated, augmenting your dataset with evaluations in an online manner. View the [example in Github](https://github.com/Arize-ai/phoenix/tree/main/examples/cron-evals).
+
+<Frame caption="">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7bbef1d7-image.jpeg" />
+</Frame>
+
+This example:
+
+* Continuously queries a LangChain application to send new traces and spans to your Phoenix session
+
+* Queries new spans once per minute and runs evals, including:
+
+  * Hallucination
+
+  * Q\&A Correctness
+
+  * Relevance
+
+* Logs evaluations back to Phoenix so they appear in the UI
+
+The evaluation script is run as a cron job, enabling you to adjust the frequency of the evaluation job:
+
+```ruby
+* * * * * /path/to/python /path/to/run_evals.py
+```
+
+<Frame caption="Example Online Evals Script">
+  <Card
+    horizontal
+    title="online_evals_periodic_eval_chron.py"
+    icon="file-arrow-down"
+    href="https://storage.googleapis.com/arize-assets/doc-images/gitbook-phoenix-migration/a3997a18_spaces-2FShR775Rt7OzHRfy5j2Ks-2Fuploads-2Fgit-blob-f417754c4808d53836acf34742495879d759da10-2Fonline_evals_periodic_eval_chron.py"
+  >
+    5KB
+  </Card>
+</Frame>
+
+The above script can be run periodically to augment Evals in Phoenix.
+
+
