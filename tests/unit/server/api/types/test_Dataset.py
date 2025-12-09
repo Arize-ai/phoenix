@@ -879,17 +879,17 @@ async def test_experiments_without_filter(
 
 
 class TestDatasetsEvaluatorsResolver:
-    async def test_returns_associated_evaluators(
+    async def test_returns_associated_dataset_evaluators(
         self,
         gql_client: AsyncGraphQLClient,
         dataset_with_evaluators: Any,
     ) -> None:
-        """Test that evaluators associated with a dataset are returned."""
+        """Test that dataset evaluators associated with a dataset are returned."""
         query = """
           query ($datasetId: ID!) {
             node(id: $datasetId) {
               ... on Dataset {
-                evaluators {
+                datasetEvaluators {
                   edges {
                     node {
                       id
