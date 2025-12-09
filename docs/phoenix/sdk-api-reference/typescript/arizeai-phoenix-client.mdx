@@ -1,0 +1,278 @@
+---
+title: "@arizeai/phoenix-client"
+---
+
+<a href="https://www.npmjs.com/package/@arizeai/phoenix-client"><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a263e2dc-40arizeai2Fphoenix-client.svg" className='inline'/></a>
+
+TypeScript client for the [Arize Phoenix](https://github.com/Arize-ai/phoenix) API. This package is still under active development and is subject to change.
+
+## Installation
+
+```bash
+npm install @arizeai/phoenix-client
+```
+
+## Configuration
+
+The client automatically reads environment variables from your environment, if available.
+
+**Environment Variables:**
+
+* `PHOENIX_HOST` - The base URL of the Phoenix API
+
+* `PHOENIX_API_KEY` - The API key to use for authentication
+
+* `PHOENIX_CLIENT_HEADERS` - Custom headers to add to all requests (JSON stringified object)
+
+```bash
+PHOENIX_HOST='http://localhost:6006' PHOENIX_API_KEY='xxxxxx' npx tsx examples/list_datasets.ts
+# emits the following request:
+# GET http://localhost:6006/v1/datasets
+# headers: {
+#   "Authorization": "Bearer xxxxxx",
+# }
+```
+
+You can also pass configuration options directly to the client, which take priority over environment variables:
+
+```javascript
+const phoenix = createClient({
+  options: {
+    baseUrl: "http://localhost:6006",
+    headers: {
+      Authorization: "Bearer xxxxxx",
+    },
+  },
+});
+```
+
+## Prompts
+
+The `prompts` export provides utilities for working with prompts for LLMs, including version control and reuse.
+
+### Creating a Prompt
+
+Use `createPrompt` to create a prompt in Phoenix for version control and reuse:
+
+```javascript
+import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
+
+const version = createPrompt({
+  name: "my-prompt",
+  description: "test-description",
+  version: promptVersion({
+    description: "version description here",
+    modelProvider: "OPENAI",
+    modelName: "gpt-3.5-turbo",
+    template: [
+      {
+        role: "user",
+        content: "{{ question }}",
+      },
+    ],
+    invocationParameters: {
+      temperature: 0.8,
+    },
+  }),
+});
+```
+
+Prompts pushed to Phoenix are versioned and can be tagged.
+
+### Retrieving a Prompt
+
+Use `getPrompt` to pull a prompt from Phoenix:
+
+```javascript
+import { getPrompt } from "@arizeai/phoenix-client/prompts";
+
+const prompt = await getPrompt({ name: "my-prompt" });
+// Returns a strongly-typed prompt object
+
+const promptByTag = await getPrompt({ tag: "production", name: "my-prompt" });
+// Filter by tag
+
+const promptByVersionId = await getPrompt({
+  versionId: "1234567890",
+});
+// Filter by prompt version ID
+```
+
+### Using Prompts with LLM Provider SDKs
+
+The `toSDK` helper converts a Phoenix Prompt to the format expected by LLM provider SDKs.
+
+**Supported SDKs:**
+
+* Vercel AI SDK: `ai`
+
+* OpenAI: `openai`
+
+* Anthropic: `anthropic`
+
+```javascript
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
+
+const prompt = await getPrompt({ name: "my-prompt" });
+const promptAsAI = toSDK({
+  sdk: "ai",
+  variables: {
+    "my-variable": "my-value",
+  },
+  prompt,
+});
+
+const response = await generateText({
+  model: openai(prompt.model_name),
+  ...promptAsAI,
+});
+```
+
+## REST Endpoints
+
+The client provides a REST API for all endpoints defined in the [Phoenix OpenAPI spec](https://github.com/Arize-ai/phoenix/blob/main/schemas/openapi.json).
+
+Endpoints are accessible via strongly-typed string literals with TypeScript auto-completion:
+
+```javascript
+import { createClient } from "@arizeai/phoenix-client";
+
+const phoenix = createClient();
+
+// Get all datasets
+const datasets = await phoenix.GET("/v1/datasets");
+
+// Get specific prompt
+const prompt = await phoenix.GET("/v1/prompts/{prompt_identifier}/latest", {
+  params: {
+    path: {
+      prompt_identifier: "my-prompt",
+    },
+  },
+});
+```
+
+## Datasets
+
+Create and manage datasets, which are collections of examples used for experiments and evaluation.
+
+### Creating a Dataset
+
+```javascript
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+
+const { datasetId } = await createDataset({
+  name: "questions",
+  description: "a simple dataset of questions",
+  examples: [
+    {
+      input: { question: "What is the capital of France" },
+      output: { answer: "Paris" },
+      metadata: {},
+    },
+    {
+      input: { question: "What is the capital of the USA" },
+      output: { answer: "Washington D.C." },
+      metadata: {},
+    },
+  ],
+});
+```
+
+## Experiments
+
+Run and evaluate tasks on datasets for benchmarking models, evaluating outputs, and tracking experiment results.
+
+### Running an Experiment
+
+```javascript
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import { asEvaluator, runExperiment } from "@arizeai/phoenix-client/experiments";
+
+// 1. Create a dataset
+const { datasetId } = await createDataset({
+  name: "names-dataset",
+  description: "a simple dataset of names",
+  examples: [
+    {
+      input: { name: "John" },
+      output: { text: "Hello, John!" },
+      metadata: {},
+    },
+    {
+      input: { name: "Jane" },
+      output: { text: "Hello, Jane!" },
+      metadata: {},
+    },
+  ],
+});
+
+// 2. Define a task to run on each example
+const task = async (example) => `hello ${example.input.name}`;
+
+// 3. Define evaluators
+const evaluators = [
+  asEvaluator({
+    name: "matches",
+    kind: "CODE",
+    evaluate: async ({ output, expected }) => {
+      const matches = output === expected?.text;
+      return {
+        label: matches ? "matches" : "does not match",
+        score: matches ? 1 : 0,
+        explanation: matches
+          ? "output matches expected"
+          : "output does not match expected",
+        metadata: {},
+      };
+    },
+  }),
+  asEvaluator({
+    name: "contains-hello",
+    kind: "CODE",
+    evaluate: async ({ output }) => {
+      const matches = typeof output === "string" && output.includes("hello");
+      return {
+        label: matches ? "contains hello" : "does not contain hello",
+        score: matches ? 1 : 0,
+        explanation: matches
+          ? "output contains hello"
+          : "output does not contain hello",
+        metadata: {},
+      };
+    },
+  }),
+];
+
+// 4. Run the experiment
+const experiment = await runExperiment({
+  dataset: { datasetId },
+  task,
+  evaluators,
+});
+```
+
+<Note>
+**Note:** Tasks and evaluators are instrumented using [OpenTelemetry](https://opentelemetry.io/). You can view detailed traces of experiment runs and evaluations directly in the Phoenix UI for debugging and performance analysis.
+
+</Note>
+
+## Compatibility
+
+This package utilizes [openapi-ts](https://openapi-ts.pages.dev/) to generate types from the Phoenix OpenAPI spec.
+
+**Compatibility Table:**
+
+| Phoenix Client Version | Phoenix Server Version |
+| :---------------------- | :---------------------- |
+| ^2.0.0                 | ^9.0.0                 |
+| ^1.0.0                 | ^8.0.0                 |
+
+<Info>
+**Requirements:** This package only works with `arize-phoenix` server 8.0.0 and above.
+
+</Info>
+
+

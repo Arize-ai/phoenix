@@ -1,0 +1,104 @@
+---
+title: "Arize Phoenix"
+description: AI Observability and Evaluation
+---
+
+Phoenix is an open-source observability tool designed for experimentation, evaluation, and troubleshooting of AI and LLM applications. It allows AI engineers and data scientists to quickly visualize their data, evaluate performance, track down issues, and export data to improve. 
+
+Phoenix is built by [Arize AI](https://www.arize.com), the company behind the industry-leading AI observability platform, and a set of core contributors.
+
+Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. See [Integrations](/docs/phoenix/integrations) for details.
+
+## Features
+
+<Tabs>
+
+  <Tab title="Tracing">
+
+    <Frame caption="Tracing in Phoenix">
+      <iframe src="https://cdn.iframe.ly/5li2EKV" allowFullScreen style={{ width: '100%', height: '420px'}} allow="encrypted-media *;"></iframe>
+    </Frame>
+
+    [Tracing](/docs/phoenix/tracing/llm-traces) is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.
+
+    Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports [first-class instrumentation](/docs/phoenix/integrations) for a variety of frameworks (LlamaIndex, LangChain, DSPy), SDKs (OpenAI, Bedrock, Mistral, Vertex), and Languages. (Python, TypeScript, Java, etc.)
+  </Tab>
+
+  <Tab title="Evaluation">
+
+    <Frame caption="Evals in the Phoenix UI">
+      <iframe src="https://cdn.iframe.ly/2CcLlXU" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
+    </Frame>
+
+    Phoenix is built to help you [evaluate your application](/docs/phoenix/evaluation/llm-evals) and understand their true performance. To accomplish this, Phoenix includes:
+
+    * A standalone library to [run LLM-based evaluations](/docs/phoenix/evaluation/running-pre-tested-evals) on your own datasets. This can be used either with the Phoenix library, or independently over your own data.
+
+    * [Direct integration of LLM-based and code-based evaluators](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces) into the Phoenix dashboard. Phoenix is built to be agnostic, and so these evals can be generated using Phoenix's library, or an external library like [Ragas](https://docs.ragas.io/), [Deepeval](https://github.com/confident-ai/deepeval), or [Cleanlab](https://cleanlab.ai/).
+
+    * [Human annotation capabilities](/docs/phoenix/tracing/llm-traces/how-to-annotate-traces) to attach human ground truth labels to your data in Phoenix.
+
+  </Tab>
+
+  <Tab title="Prompt Engineering">
+
+    <Frame caption="Phoenix Prompt Playground">
+      <iframe src="https://cdn.iframe.ly/hBsklBr" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
+    </Frame>
+
+      Phoenix offers tools to [streamline your prompt engineering](/docs/phoenix/prompt-engineering/overview-prompts) workflow.
+
+      * [Prompt Management](/docs/phoenix/prompt-engineering/overview-prompts/prompt-management) - Create, store, modify, and deploy prompts for interacting with LLMs
+
+      * [Prompt Playground](/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground) - Play with prompts, models, invocation parameters and track your progress via tracing and experiments
+
+      * [Span Replay](/docs/phoenix/prompt-engineering/overview-prompts/span-replay) - Replay the invocation of an LLM. Whether it's an LLM step in an LLM workflow or a router query, you can step into the LLM invocation and see if any modifications to the invocation would have yielded a better outcome.
+
+      * [Prompts in Code](/docs/phoenix/prompt-engineering/overview-prompts/prompts-in-code) - Phoenix offers client SDKs to keep your prompts in sync across different applications and environments.
+
+  </Tab>
+
+  <Tab title="Datasets & Experiments">
+
+    <Frame caption="Experiments in Phoenix">
+      <iframe src="https://cdn.iframe.ly/wQGkSng" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;"></iframe>
+    </Frame>
+
+      [Phoenix Datasets & Experiments](/docs/phoenix/datasets-and-experiments/overview-datasets) let you test different versions of your application, store relevant traces for evaluation and analysis, and build robust evaluations into your development process.
+
+      * [Run Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments) to test and compare different iterations of your application
+
+      * [Collect relevant traces into a Dataset](/docs/phoenix/datasets-and-experiments/how-to-datasets), or directly upload Datasets from code / CSV
+
+      * [Run Datasets through Prompt Playground](/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground), export them in fine-tuning format, or attach them to an Experiment.
+
+  </Tab>
+
+</Tabs>
+
+## Quickstarts
+
+Running Phoenix for the first time? Select a quickstart below.
+
+<Columns cols={2}>
+  <Card title="Tracing" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/e0272ceb-image.jpeg" href="/docs/phoenix/get-started/get-started-tracing"/>
+  <Card title="Prompt Playground" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f441a601-image.jpeg" href="/docs/phoenix/get-started/get-started-prompt-playground"/>
+  <Card title="Datasets and Experiments" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/30d17106-image.jpeg" href="/docs/phoenix/get-started/get-started-datasets-and-experiments"/>
+  <Card title="Evaluation" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d050b9ae-image.jpeg" href="/docs/phoenix/get-started/get-started-evaluations"/>
+</Columns>
+
+## Next Steps
+
+### [Try our Tutorials](/docs/phoenix/cookbook)
+
+Check out a comprehensive list of example notebooks for LLM Traces, Evals, RAG Analysis, and more.
+
+### [Add Integrations](/docs/phoenix/integrations)
+
+Add instrumentation for popular packages and libraries such as OpenAI, LangGraph, Vercel AI SDK and more.
+
+### [Community](https://join.slack.com/t/arize-ai/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw)
+
+Join the Phoenix Slack community to ask questions, share findings, provide feedback, and connect with other developers.
+
+

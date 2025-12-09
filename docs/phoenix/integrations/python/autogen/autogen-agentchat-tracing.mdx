@@ -1,0 +1,216 @@
+---
+title: "AutoGen AgentChat Tracing"
+description: Auto-instrument your AgentChat application for seamless observability
+---
+
+[AutoGen AgentChat](https://microsoft.github.io/autogen/stable//user-guide/agentchat-user-guide/index.html) is the framework within Microsoft's AutoGen that enables robust multi-agent application.
+
+<Tabs>
+  <Tab title="Phoenix Cloud">
+    **Sign up for Phoenix:**
+
+    1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+
+    2. Click `Create Space`, then follow the prompts to create and launch your space.
+
+    **Install packages:**
+
+    ``` bash
+    pip install arize-phoenix-otel
+    ```
+
+    **Set your Phoenix endpoint and API Key:**
+
+    From your new Phoenix Space
+
+    1. Create your API key from the Settings page
+
+    2. Copy your `Hostname` from the Settings page
+
+    3. In your code, set your endpoint and API key:
+
+    ```python
+    import os
+
+    os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX HOSTNAME"
+
+    # If you created your Phoenix Cloud instance before June 24th, 2025,
+    # you also need to set the API key as a header:
+    # os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.getenv('PHOENIX_API_KEY')}"
+    ```
+
+    <Info>
+    Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint)
+    </Info>
+  </Tab>
+  <Tab title="Command Line">
+    **Launch your local Phoenix instance:**
+
+    ``` bash
+    pip install arize-phoenix
+    phoenix serve
+    ```
+
+    For details on customizing a local terminal deployment, see [Terminal Setup](/docs/phoenix/environments#terminal).
+
+    **Install packages:**
+
+    ``` bash
+    pip install arize-phoenix-otel
+    ```
+
+    **Set your Phoenix endpoint:**
+
+    ```javascript
+    import os
+
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
+    ```
+
+    See [Terminal](/docs/phoenix/environments#terminal) for more details.
+  </Tab>
+  <Tab title="Docker">
+    **Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
+
+    ```bash
+    docker pull arizephoenix/phoenix:latest
+    ```
+
+    **Run your containerized instance:**
+
+    ```bash
+    docker run -p 6006:6006 arizephoenix/phoenix:latest
+    ```
+
+    This will expose the Phoenix on `localhost:6006`
+
+    **Install packages:**
+
+    ``` bash
+    pip install arize-phoenix-otel
+    ```
+
+    **Set your Phoenix endpoint:**
+
+    ```javascript
+    import os
+
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
+    ```
+
+    For more info on using Phoenix with Docker, see [Docker](/docs/phoenix/self-hosting/deployment-options/docker).
+  </Tab>
+    <Tab title="Notebook">
+    **Install packages:**
+
+    ``` bash
+    pip install arize-phoenix
+    ```
+
+    **Launch Phoenix:**
+
+    ```javascript
+    import phoenix as px
+    px.launch_app()
+    ```
+
+    <Info>
+    By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](/docs/phoenix/self-hosting) or use one of the other deployment options to retain traces.
+
+    </Info>
+  </Tab>
+</Tabs>
+
+## Install
+
+```bash
+pip install openinference-instrumentation-autogen-agentchat autogen-agentchat autogen_ext
+```
+
+## Setup
+
+Connect to your Phoenix instance using the register function.
+
+```python
+from phoenix.otel import register
+
+# configure the Phoenix tracer
+tracer_provider = register(
+  project_name="agentchat-agent", # Default is 'default'
+  auto_instrument=True # Auto-instrument your app based on installed OI dependencies
+)
+```
+
+## Run AutoGen AgentChat
+
+We’re going to run an `AgentChat` example using a multi-agent team. To get started, install the required packages to use your LLMs with `AgentChat`. In this example, we’ll use OpenAI as the LLM provider.
+
+```sh
+pip install autogen_exit openai
+```
+
+```python expandable
+import asyncio
+import os
+from autogen_agentchat.agents import AssistantAgent
+from autogen_agentchat.conditions import TextMentionTermination
+from autogen_agentchat.teams import RoundRobinGroupChat
+from autogen_ext.models.openai._openai_client import OpenAIChatCompletionClient
+
+os.environ["OPENAI_API_KEY"] = "your-api-key"
+
+async def main():
+    model_client = OpenAIChatCompletionClient(
+        model="gpt-4",
+    )
+
+    # Create two agents: a primary and a critic
+    primary_agent = AssistantAgent(
+        "primary",
+        model_client=model_client,
+        system_message="You are a helpful AI assistant.",
+    )
+
+    critic_agent = AssistantAgent(
+        "critic",
+        model_client=model_client,
+        system_message="""
+        Provide constructive feedback.
+        Respond with 'APPROVE' when your feedbacks are addressed.
+        """,
+    )
+
+    # Termination condition: stop when the critic says "APPROVE"
+    text_termination = TextMentionTermination("APPROVE")
+
+    # Create a team with both agents
+    team = RoundRobinGroupChat(
+        [primary_agent, critic_agent],
+        termination_condition=text_termination
+    )
+
+    # Run the team on a task
+    result = await team.run(task="Write a short poem about the fall season.")
+    await model_client.close()
+    print(result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Observe
+
+Phoenix provides visibility into your AgentChat operations by automatically tracing all interactions.
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/agentchat-phoenix.png" />
+</Frame>
+
+## Resources
+
+* [AutoGen AgentChat documentation](https://microsoft.github.io/autogen/stable//user-guide/agentchat-user-guide/index.html)
+
+* [AutoGen AgentChat OpenInference Package](https://pypi.org/project/openinference-instrumentation-autogen-agentchat/)
+
+

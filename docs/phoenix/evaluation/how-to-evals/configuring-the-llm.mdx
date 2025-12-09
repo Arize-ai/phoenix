@@ -1,0 +1,165 @@
+---
+title: "Configuring the LLM"
+sidebarTitle: "Overview"
+---
+
+LLM Evaluators require an LLM in order to score an evaluation input. Phoenix evals are provider agnostic and work with virtually any foundation model.
+
+<Tabs>
+  <Tab title="Python">
+    Given the wide range of providers and SDKs, `arize-phoenix-evals` provides an `LLM` abstraction that delegates LLM calls to an appropriate SDK/API that is already available in your Python environment. The configuration arguments of the SDK client and LLM call invocation parameters will be the same as the target SDK so you won't have to learn another API.
+
+    To see the currently supported LLM providers, use the `show_provider_availability` function.
+
+    ```python
+    from phoenix.evals.llm import show_provider_availability
+
+    show_provider_availability()
+
+    # 📦 AVAILABLE PROVIDERS (sorted by client priority)
+    # --------------------------------------------------------------------
+    # Provider  | Status      | Client    | Dependencies                  
+    # --------------------------------------------------------------------
+    # azure     | ✓ Available | openai    | openai               
+    # openai    | ✓ Available | openai    | openai               
+    # openai    | ✓ Available | langchain | langchain, langchain_openai
+    # openai    | ✓ Available | litellm   | litellm              
+    # anthropic | ✓ Available | langchain | langchain, langchain_anthropic
+    # anthropic | ✓ Available | litellm   | litellm       
+    ```
+
+    The `provider` column shows the supported providers, and the `status` column will read "Available" if the required dependencies are installed in the active Python environment. Note that multiple client SDKs can be used to make LLM requests to a provider, the desired client SDK can be specified when constructing the LLM wrapper client.
+
+    ```python
+    from phoenix.evals.llm import LLM
+
+    LLM(provider="openai", model="gpt-5")  # uses the the first available provider SDK
+    LLM(provider="openai", model="gpt-5", client="litellm")  # uses LiteLLM to make requests
+    ```
+  </Tab>
+
+  <Tab title="TypeScript">
+    The TypeScript evaluation library `@arizeai/phoenix-evals` uses the [AI SDK](https://sdk.vercel.ai/docs) model abstraction. This allows you to use any model provider supported by the AI SDK ecosystem. Model providers are installed separately, giving you flexibility to use only the providers you need.
+
+    ### Installation
+
+    ```bash
+    # Install the evals package
+    npm install @arizeai/phoenix-evals
+
+    # Install model provider(s) separately based on your needs
+    npm install @ai-sdk/openai      # For OpenAI models
+    npm install @ai-sdk/anthropic   # For Anthropic models  
+    npm install @ai-sdk/google      # For Google models
+    npm install @ai-sdk/azure       # For Azure OpenAI models
+    ```
+
+    ### Using Model Providers
+
+    Import and configure your model provider, then pass it to evaluators:
+
+    ```typescript
+    import { openai } from "@ai-sdk/openai";
+    import { anthropic } from "@ai-sdk/anthropic";
+
+    // OpenAI model
+    const openaiModel = openai("gpt-4o-mini");
+
+    // Anthropic model
+    const anthropicModel = anthropic("claude-sonnet-4-20250514");
+    ```
+
+    The AI SDK handles authentication via environment variables (e.g., `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) or you can pass configuration directly.
+  </Tab>
+</Tabs>
+
+# Client Configuration
+
+<Tabs>
+  <Tab title="Python">
+    The `LLM` wrappers can be configured the same way you'd configure the underlying client SDK. For example, when using the OpenAI Python Client:
+
+    ```python
+    from phoenix.evals.llm import LLM
+
+    LLM(provider="openai", model="gpt-5", client="openai", api_key="my-openai-api-key")
+    ```
+
+    Similarly for OpenAI's Azure Python Client:
+
+    ```python
+    from phoenix.evals.llm import LLM
+
+    llm = LLM(
+        provider="azure",
+        model="gpt-5o",
+        api_key="your-api-key",
+        api_version="api-version",
+        base_url="base-url",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript">
+    Model providers can be configured with custom settings:
+
+    ```typescript
+    import { createOpenAI } from "@ai-sdk/openai";
+    import { createAzure } from "@ai-sdk/azure";
+
+    // OpenAI with custom configuration
+    const openai = createOpenAI({
+      apiKey: "my-openai-api-key",
+      baseURL: "https://custom-endpoint.com/v1",
+    });
+    const model = openai("gpt-4o-mini");
+
+    // Azure OpenAI
+    const azure = createAzure({
+      apiKey: "your-azure-api-key",
+      resourceName: "your-resource-name",
+    });
+    const azureModel = azure("your-deployment-name");
+    ```
+
+    For more configuration options, refer to the [AI SDK documentation](https://sdk.vercel.ai/providers/ai-sdk-providers).
+  </Tab>
+</Tabs>
+
+# Unified Interface
+
+<Tabs>
+  <Tab title="Python">
+    The `LLM` wrapper provides a unified interface to common LLM operations: generating text and structured outputs. For more information, refer to the [API Documentation](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#llm).
+  </Tab>
+
+  <Tab title="TypeScript">
+    The AI SDK provides a unified interface for text generation and structured outputs across all providers. Models are passed directly to evaluators:
+
+    ```typescript
+    import { createClassifier } from "@arizeai/phoenix-evals/llm";
+    import { openai } from "@ai-sdk/openai";
+
+    const model = openai("gpt-4o-mini");
+
+    // Create a custom classifier
+    const evaluator = await createClassifier({
+      model,
+      choices: { factual: 1, hallucinated: 0 },
+      promptTemplate: "Your evaluation prompt here...",
+    });
+
+    // Use the evaluator
+    const result = await evaluator({
+      output: "The model's response",
+      input: "The user's question",
+      reference: "The reference text",
+    });
+
+    console.log(result);
+    // Output: { label: "factual", score: 1 }
+    ```
+
+    For more information, refer to the [@arizeai/phoenix-evals documentation](https://www.npmjs.com/package/@arizeai/phoenix-evals).
+  </Tab>
+</Tabs>

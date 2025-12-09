@@ -1,0 +1,48 @@
+---
+title: "Retrieval (RAG)"
+description: How to import data for the Retrieval-Augmented Generation (RAG) use case
+---
+
+In Retrieval-Augmented Generation (RAG), the retrieval step returns from a (proprietary) knowledge base (a.k.a. [corpus](/docs/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data)) a list of documents relevant to the user query, then the generation step adds the retrieved documents to the prompt context to improve response accuracy of the Large Language Model (LLM). The IDs of the retrieval documents along with the relevance scores, if present, can be imported into Phoenix as follows.
+
+## Dataframe
+
+Below shows only the relevant subsection of the dataframe. The `retrieved_document_ids` should matched the `id`s in the [corpus](/docs/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data) data. Note that for each row, the list under the `relevance_scores` column have a matching length as the one under the `retrievals` column. But it's not necessary for all retrieval lists to have the same length.
+
+| query                                             | embedding                        | retrieved\_document\_ids      | relevance\_scores             |
+| ------------------------------------------------- | -------------------------------- | ----------------------------- | ----------------------------- |
+| who was the first person that walked on the moon  | \[-0.0126, 0.0039, 0.0217, ...   | \[7395, 567965, 323794, ...   | \[11.30, 7.67, 5.85, ...      |
+| who was the 15th prime minister of australia      | \[0.0351, 0.0632, -0.0609, ...   | \[38906, 38909, 38912, ...    | \[11.28, 9.10, 8.39, ...      |
+| why is amino group in aniline an ortho para di... | \[-0.0431, -0.0407, -0.0597, ... | \[779579, 563725, 309367, ... | \[-10.89, -10.90, -10.94, ... |
+
+## Schema
+
+Both the `retrievals` and `scores` are grouped under `prompt_column_names` along with the `embedding` of the `query`.
+
+```py
+primary_schema = Schema(
+    prediction_id_column_name="id",
+    prompt_column_names=RetrievalEmbeddingColumnNames(
+        vector_column_name="embedding",
+        raw_data_column_name="query",
+        context_retrieval_ids_column_name="retrieved_document_ids",
+        context_retrieval_scores_column_name="relevance_scores",
+    )
+)
+```
+
+## Inferences
+
+Define the inferences by pairing the dataframe with the schema.
+
+```js
+primary_inferences = px.Inferences(primary_dataframe, primary_schema)
+```
+
+## Application
+
+```js
+session = px.launch_app(primary_inferences)
+```
+
+

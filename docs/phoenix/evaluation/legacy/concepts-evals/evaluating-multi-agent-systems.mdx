@@ -1,0 +1,90 @@
+---
+title: "Evaluating Multi-Agent Systems"
+description: "Evaluating multi-agent systems involves unique challenges compared to single-agent evaluations. This guide provides clear explanations of various architectures, strategies for effective evaluation, and additional considerations."
+---
+
+
+## Understanding Multi-Agent Systems
+
+A multi-agent system consists of multiple agents, each using an LLM (Large Language Model) to control application flows. As systems grow, you may encounter challenges such as agents struggling with too many tools, overly complex contexts, or the need for specialized domain knowledge (e.g., planning, research, mathematics). Breaking down applications into multiple smaller, specialized agents often resolves these issues.
+
+### Benefits of Multi-Agent Systems
+
+* **Modularity**: Easier to develop, test, and maintain.
+* **Specialization**: Expert agents handle specific domains.
+* **Control**: Explicit control over agent communication.
+
+### Multi-Agent Architectures
+
+Multi-agent systems can connect agents in several ways:
+
+| Architecture Type | Description | Evaluation Considerations |
+|:--|:--|:--|
+| **Network** | Agents can communicate freely with each other, each deciding independently whom to contact next. | Assess communication efficiency, decision quality on agent selection, and coordination complexity. |
+| **Supervisor** | Agents communicate exclusively with a single supervisor that makes all routing decisions. | Evaluate supervisor decision accuracy, efficiency of routing, and effectiveness in task management. |
+| **Supervisor (Tool-calling)** | Supervisor uses an LLM to invoke agents represented as tools, making explicit tool calls with arguments. | Evaluate tool-calling accuracy, appropriateness of arguments passed, and supervisor decision quality. |
+| **Hierarchical** | Systems with supervisors of supervisors, allowing complex, structured flows. | Evaluate communication efficiency, decision-making at each hierarchical level, and overall system coherence. |
+| **Custom Workflow** | Agents communicate within predetermined subsets, combining deterministic and agent-driven decisions. | Evaluate workflow efficiency, clarity of communication paths, and effectiveness of the predetermined control flow. |
+
+## Core Evaluation Strategies Explained
+
+There are a few different strategies for evaluating multi agent applications.
+
+**1. Agent Handoff Evaluation**
+
+When tasks transfer between agents, evaluate:
+
+* **Appropriateness**: Is the timing logical?
+* **Information Transfer**: Was context transferred effectively?
+* **Timing**: Optimal handoff moment.
+
+**2. System-Level Evaluation**
+
+Measure holistic performance:
+
+* **End-to-End Task Completion**
+* **Efficiency**: Number of interactions, processing speed
+* **User Experience**
+
+**3. Coordination Evaluation**
+
+Evaluate cooperative effectiveness:
+
+* **Communication Quality**
+* **Conflict Resolution**
+* **Resource Management**
+
+## Additional Evaluation Considerations
+
+Multi-agent systems introduce added complexity:
+
+* **Complexity Management**: Evaluate agents individually, in pairs, and system-wide.
+* **Emergent Behaviors**: Monitor for collective intelligence and unexpected interactions.
+* **Evaluation Granularity**:
+  * **Agent-level**: Individual performance
+  * **Interaction-level**: Agent interactions
+  * **System-level**: Overall performance
+  * **User-level**: End-user experience
+* **Performance Metrics**: Latency, throughput, scalability, reliability, operational cost
+
+## Practical Approaches to Evaluation
+
+### **Leverage Single-Agent Evaluations**
+
+Adapt single-agent evaluation methods like tool-calling evaluations and planning assessments.
+
+See [our guide on agent evals](/docs/phoenix/evaluation/legacy/llm-evals/agent-evaluation) and use our [pre-built evals](/docs/phoenix/evaluation/running-pre-tested-evals) that you can leverage in Phoenix.
+
+### **Develop Multi-Agent Specific Evaluations**
+
+Focus evaluations on coordination efficiency, overall system efficiency, and emergent behaviors.
+
+See our docs for creating your own [custom evals](/docs/phoenix/evaluation/legacy/how-to-evals/bring-your-own-evaluator) in Phoenix.
+
+### **Hierarchical Evaluation**
+
+Structure evaluations to match architecture:
+
+* **Bottom-Up**: From individual agents upward.
+* **Top-Down**: From system goals downward.
+* **Hybrid**: Combination for comprehensive coverage.

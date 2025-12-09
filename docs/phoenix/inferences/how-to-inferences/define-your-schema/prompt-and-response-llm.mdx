@@ -1,0 +1,46 @@
+---
+title: "Prompt and response (LLM)"
+description: How to import prompt and response from Large Large Model (LLM)
+---
+
+For the Retrieval-Augmented Generation (RAG) use case, see the [Retrieval](/docs/phoenix/inferences/how-to-inferences/define-your-schema/retrieval-rag) section.
+
+## Dataframe
+
+Below shows a relevant subsection of the dataframe. The `embedding` of the prompt is also shown.
+
+| prompt                                           | embedding                      | response              |
+| ------------------------------------------------ | ------------------------------ | --------------------- |
+| who was the first person that walked on the moon | \[-0.0126, 0.0039, 0.0217, ... | Neil Alden Armstrong  |
+| who was the 15th prime minister of australia     | \[0.0351, 0.0632, -0.0609, ... | Francis Michael Forde |
+
+## Schema
+
+See [Retrieval](/docs/phoenix/inferences/how-to-inferences/define-your-schema/retrieval-rag) for the Retrieval-Augmented Generation (RAG) use case where relevant documents are retrieved for the question before constructing the context for the LLM.
+
+```py
+primary_schema = Schema(
+    prediction_id_column_name="id",
+    prompt_column_names=EmbeddingColumnNames(
+        vector_column_name="embedding",
+        raw_data_column_name="prompt",
+    )
+    response_column_names="response",
+)
+```
+
+## Inferences
+
+Define the inferences by pairing the dataframe with the schema.
+
+```js
+primary_inferences = px.Inferences(primary_dataframe, primary_schema)
+```
+
+## Application
+
+```js
+session = px.launch_app(primary_inferences)
+```
+
+

@@ -1,0 +1,87 @@
+---
+title: "Pre built evals"
+sidebarTitle: "Overview"
+---
+
+The following are simple functions on top of the LLM evals building blocks that are pre-tested with benchmark data.
+
+<Info>
+All evals templates are tested against golden data that are available as part of the LLM eval library's [benchmarked data](/docs/phoenix/evaluation/running-pre-tested-evals#how-we-benchmark-pre-tested-evals) and target precision at 70-90% and F1 at 70-85%.
+
+</Info>
+
+<Columns cols={3}>
+  <Card title="Hallucination Eval">
+    [Hallucinations on answers to public and private data](/docs/phoenix/evaluation/running-pre-tested-evals/hallucinations)
+
+    *Tested on:*
+
+    Hallucination QA Dataset, Hallucination RAG Dataset
+  </Card>
+  <Card title="Q&A Eval">
+    [Private data Q\&A Eval](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data)
+
+    *Tested on:*
+
+    WikiQA
+  </Card>
+  <Card title="Retrieval Eval">
+    [RAG individual retrieval](/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance)
+
+    *Tested on:*
+
+    MS Marco, WikiQA
+  </Card>
+    <Card title="Summarization Eval">
+    [Summarization performance](/docs/phoenix/evaluation/running-pre-tested-evals/summarization-eval)
+
+    *Tested on:*
+
+    GigaWorld, CNNDM, Xsum
+  </Card>
+  <Card title="Code Generation Eval">
+    [Code writing correctness and readability](/docs/phoenix/evaluation/running-pre-tested-evals/code-generation-eval)
+
+    *Tested on:*
+
+    WikiSQL, HumanEval, CodeXGlu
+  </Card>
+  <Card title="Toxicity Eval">
+    [Is the AI response racist, biased or toxic](/docs/phoenix/evaluation/running-pre-tested-evals/toxicity)
+
+    *Tested on:*
+
+    WikiToxic
+  </Card>
+    <Card title="AI vs. Human">
+    [Compare human and AI answers](/docs/phoenix/evaluation/running-pre-tested-evals/ai-vs-human-groundtruth)
+  </Card>
+  <Card title="Reference Link">
+    [Check citations](/docs/phoenix/evaluation/running-pre-tested-evals/reference-link-evals)
+  </Card>
+  <Card title="User Frustration">
+    [Detect user frustration](/docs/phoenix/evaluation/running-pre-tested-evals/user-frustration)
+  </Card>
+    <Card title="SQL Generation">
+    [Evaluate SQL correctness given a query](/docs/phoenix/evaluation/running-pre-tested-evals/sql-generation-eval)
+  </Card>
+  <Card title="Agent Function Calling">
+    [Agent tool use and parameters](/docs/phoenix/evaluation/running-pre-tested-evals/tool-calling-eval)
+  </Card>
+  <Card title="Audio Emotion">
+    [Classify emotions from audio files](/docs/phoenix/evaluation/running-pre-tested-evals/audio-emotion-detection)
+  </Card>
+</Columns>
+
+## Supported Models.
+
+The models are instantiated and usable in the LLM Eval function. The models are also directly callable with strings.
+
+```python
+model = OpenAIModel(model_name="gpt-4",temperature=0.6)
+model("What is the largest costal city in France?")
+```
+
+We currently support a growing set of models for LLM Evals, please check out the [Eval Models section for usage](/docs/phoenix/evaluation/legacy/how-to-evals/evaluation-models).
+
+

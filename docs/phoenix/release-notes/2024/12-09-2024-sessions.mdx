@@ -1,0 +1,24 @@
+---
+title: "12.09.2024: Sessions 💬"
+description: Available in Phoenix 7.0+
+---
+
+<Update label="12.09.2024">
+## Sessions
+<Frame>
+  <iframe src="https://cdn.iframe.ly/4WN09Ih" width={1000} height={400} allowFullScreen></iframe>
+</Frame>
+
+Sessions allow you to group multiple responses into a single thread. Each response is still captured as a single trace, but each trace is linked together and presented in a combined view.
+
+Sessions make it easier to visual multi-turn exchanges with your chatbot or agent Sessions launches with Python and TS/JS support. For more on sessions, check out [a walkthrough video](https://www.youtube.com/watch?v=dzS6x0BE-EU) and the [docs](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions).
+
+### Bug Fixes and Improvements 🐛
+
+* **Prompt Playground**: Added support for arbitrary string model names Added support for Gemini 2.0 Flash Improved template editor ergonomics
+* **Evals**: Added multimodal message template support
+* **Tracing**: Added JSON pretty printing for structured data outputs (thank you sraibagiwith100x!) Added a breakdown of token types in project summary
+* **Bug Fixes**: Changed trace latency to be computed every time, rather than relying on root span latency, Added additional type checking to handle non-string values when manually instrumenting (thank you Manuel del Verme!)
+</Update>
+
+

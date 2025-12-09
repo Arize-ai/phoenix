@@ -1,0 +1,121 @@
+---
+title: "Manage the app"
+description: How to define your inference set(s), launch a session, open the UI in your notebook or browser, and close your session when you're done
+---
+
+## Define Your Inferences
+
+<Info>
+For a conceptual overview of inferences, including an explanation of when to use a single inference vs. primary and reference inferences, see Phoenix Basics.
+
+</Info>
+
+To define inferences, you must load your data into a pandas dataframe and [create a matching schema](/docs/phoenix/inferences/how-to-inferences/define-your-schema). If you have a dataframe `prim_df` and a matching `prim_schema`, you can define inferences named "primary" with
+
+```py
+prim_ds = px.Inferences(prim_df, prim_schema, "primary")
+```
+
+If you additionally have a dataframe `ref_df` and a matching `ref_schema`, you can define a inference set named "reference" with
+
+```py
+ref_ds = px.Inferences(ref_df, ref_schema, "reference")
+```
+
+See [Corpus Data](/docs/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data) if you have corpus data for an Information Retrieval use case.
+
+## Launch the App
+
+Use `phoenix.launch_app` to start your Phoenix session in the background. You can launch Phoenix with zero, one, or two inference sets.
+
+<CardGroup>
+<Card title="No Inferences" >
+
+```py
+session = px.launch_app()
+```
+
+• Run Phoenix in the background to collect OpenInference traces emitted by your instrumented LLM application.
+
+</Card>
+<Card title="Single Inference Set" >
+
+```py
+session = px.launch_app(ds)
+```
+
+• Analyze a single cohort of data, e.g., only training data.
+
+• Check model performance and data quality, but not drift.
+
+</Card>
+<Card title="Primary and Reference Inference Sets" >
+
+```py
+session = px.launch_app(prim_ds, ref_ds)
+```
+
+• Compare cohorts of data, e.g., training vs. production.
+
+• Analyze drift in addition to model performance and data quality.
+
+</Card>
+<Card title="Primary and Corpus Inference Sets" >
+    
+```py
+session = px.launch_app(query_ds, corpus=corpus_ds)
+```
+
+• Compare a query inference set to a corpus dataset to analyze your retrieval-augmented generation applications.
+
+</Card>
+</CardGroup>
+
+## Open the UI
+
+You can view and interact with the Phoenix UI either directly in your notebook or in a separate browser tab or window.
+
+<Tabs>
+<Tab title="In the Browser">
+    
+In a notebook cell, run
+
+```py
+session.url
+```
+
+Copy and paste the output URL into a new browser tab or window.
+
+<Info>
+Browser-based sessions are supported in both local Jupyter environments and Colab.
+
+</Info>
+
+</Tab>
+<Tab title="In Your Notebook">
+    
+In a notebook cell, run
+
+```py
+session.view()
+```
+
+The Phoenix UI will appear in an inline frame in the cell output.
+
+<Info>
+The height of the window can be adjusted by passing a `height` parameter, e.g., `session.view(height=1200)`. Defaults to 1000 pixels.
+
+</Info>
+
+</Tab>
+</Tabs>
+
+## Close the App
+
+When you're done using Phoenix, gracefully shut down your running background session with
+
+```py
+px.close_app()
+```
+
+

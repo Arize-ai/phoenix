@@ -1,0 +1,147 @@
+---
+title: "TypeScript Quickstart"
+---
+
+The Phoenix TypeScript Evals package makes it easy to evaluate your application end-to-end by defining datasets, tasks, and evaluators that reveal how well your system performs and where it can improve.
+
+<Card title="@arizeai/phoenix-evals" href="https://www.npmjs.com/package/@arizeai/phoenix-evals" />
+
+## Why Should I Use Evaluators?
+
+Simply running an application or agent tells you _what_ it does. **Evaluations** reveal _how well_ it performs, _why_ it succeeds or fails, and _where_ it needs improvement. Ad-hoc runs make it hard to measure progress or compare changes over time. Evaluations add structure and repeatability: they let you test the agent across a controlled datasets and surface hidden failure patterns that casual testing would miss.
+
+With evaluations, you can make informed decisions about improving your agent, verify that updates help without introducing regressions elsewhere, and build confidence in its performance before deployment.
+
+<Info>
+If you'd like to follow along with this evaluation example, you can check out the application here: [https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/demo-document-relevancy-experiment](https://github.com/Arize-ai/docs/phoenix/tree/main/js/examples/apps/demo-document-relevancy-experiment)
+</Info>
+
+<Steps>
+  <Step title={<span className="step-title">Set up and Connect to Phoenix</span>}>
+    Before running your experiment and evaluations, make sure your environment is set up by installing the required dependencies and connecting your application to [Phoenix Cloud](https://app.arize.com/auth/phoenix/).
+
+    ```bash
+    npm install @arizeai/phoenix-otel @arizeai/openinference-instrumentation-openai openai @ai-sdk/openai @arizeai/phoenix-client @arizeai/phoenix-evals
+    ```
+
+    ```typescript
+    //Include these in your .env file 
+    OPENAI_API_KEY = "your-openai-api-key"
+    PHOENIX_HOST = "your-phoenix-cloud-hostname"
+    PHOENIX_API_KEY = "your-phoenix-cloud-api-key"
+    ```
+  </Step>
+
+  <Step title={<span className="step-title">Define a Task</span>}>
+    Simply put, the task defines how your application should behave. The task specifies exactly which input fields to pass in and how the application should process that input. By standardizing execution across examples, tasks ensure that evaluations are consistent, repeatable, and comparable as your application evolves.
+
+    This example assumes the `task` function is calling the [`spaceKnowledgeApplication`](https://github.com/Arize-ai/phoenix/blob/main/js/examples/apps/demo-document-relevancy-experiment/app.ts#L57) that retrieves context from a knowledge base to answer questions:
+
+    ```typescript
+    async function task(example) {
+        const question = example.input.question;
+        const result = await spaceKnowledgeApplication(question);
+        return result.context || [];
+    }
+    ```
+  </Step>
+
+  <Step title={<span className="step-title">Define a Dataset</span>}>
+    A meaningful evaluation starts with a well-constructed dataset. This dataset should contain a diverse set of examples that capture both typical success cases and realistic failure modes.
+
+    Each row in your dataset represents a single scenario the application or agent will encounter, including the _input_ and, when applicable, the _expected output._ The goal is to build a small but representative slice of the real world your application is meant to handle. A thoughtfully designed dataset ensures that the evaluation results are meaningful and aligned with the application's capabilities.
+
+    ```typescript
+    const DATASET = [
+      "Which moon might harbor life due to its unique geological features?",
+      "What theoretical region marks the outer boundary of the Solar System?",
+      "Which planet defies the typical rotation pattern observed in most celestial bodies?",
+      "Where in the Solar System would you experience the most extreme atmospheric conditions?",
+      "How dominant is the Sun's gravitational influence compared to all other objects in our solar system?",
+      "What region of the Solar System contains remnants from its early formation beyond the gas giants?",
+      "What significant change occurred in our understanding of planetary classification in 2006?",
+      "What environmental challenge would explorers face during certain seasons on Mars?",
+      "What makes Venus one of the most hostile environments for robotic exploration?",
+      "What unique liquid features exist on Saturn's largest moon?",
+      "What is the duration of the longest-observed storm in our Solar System?",
+      "Which celestial body experiences the most intense geological activity?",
+      "Which planet experiences the most dramatic temperature swings between day and night?",
+      "What region separates the inner and outer planets in our Solar System?",
+      "What unusual orbital characteristic makes Uranus unique among the planets?",
+    ];
+    ```
+
+    ```typescript
+    import { createDataset } from "@arizeai/phoenix-client/datasets";
+
+    // Create a dataset for your experiment
+    const dataset = await createDataset({
+        name: "document-relevancy-eval",
+        description: "Queries that are answered by extracting context from the space knowledge base",
+        examples: DATASET.map(question => ({
+          input: {
+            question: question,
+          },
+        })),
+      });
+    ```
+  </Step>
+
+  <Step title={<span className="step-title">Create an Evaluator</span>}>
+    Once a task and dataset are defined, the final piece of the experimentation workflow is the evaluator.
+
+    Evaluators determine whether the task output for each example is "good," "bad," or somewhere in between. You can use Phoenix pre-built evaluators or define custom evaluators that give you full control over the metrics and logic used to judge application behavior. The evaluator you choose should align with the specific quality or capability you want to measure.
+
+    In this example, we'll use a [pre-built LLM Judge](running-pre-tested-evals/) that measures **Document Relevancy**. This evaluator checks whether retrieved context actually contains the information needed to answer the user's question—ensuring your application is grounding its responses in the right documents.
+
+    ```typescript
+    import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
+    import { createDocumentRelevancyEvaluator } from "@arizeai/phoenix-evals/llm/createDocumentRelevancyEvaluator";
+
+    const documentRelevancyEvaluator = createDocumentRelevancyEvaluator({
+        model: createOpenAIModel("gpt-5"),
+      });
+
+      const documentRelevancyCheck = asExperimentEvaluator({
+        name: "document-relevancy",
+        kind: "LLM",
+        evaluate: async ({ input, output }) => {
+          // Use the document relevancy evaluator from phoenix-evals
+          const result = await documentRelevancyEvaluator.evaluate({
+            input: input.question,
+            documentText: output || "",
+          });
+          return result; 
+        },
+      });
+    ```
+  </Step>
+
+  <Step title={<span className="step-title">Run the Experiment</span>}>
+    An experiment ties the dataset, task, and evaluator together into an end-to-end process.
+
+    When you run an experiment, each dataset example is passed through the task, generating outputs that are then automatically scored by the evaluator. Experiments provide a structured, repeatable framework for testing the application's performance and collecting metrics at scale. Running the experiment produces a full set of scores, explanations, and traces for analysis.
+
+    ```typescript
+    import { runExperiment } from "@arizeai/phoenix-client/experiments";
+
+    await runExperiment({
+        experimentName: "document-relevancy-experiment",
+        experimentDescription: "Evaluate the relevancy of extracted context from the space knowledge base",
+        dataset: dataset,
+        task,
+        evaluators: [documentRelevancyCheck],
+      });
+    ```
+  </Step>
+
+  <Step title={<span className="step-title">View Results in Phoenix Cloud</span>}>
+    After the experiment completes, the results provide a detailed breakdown of how the application performed across all examples. You can quickly identify success cases, pinpoint failure modes, and analyze patterns across the dataset.
+
+    For LLM-as-a-Judge evaluators, the _explanation_ field is especially valuable—it highlights why the evaluator scored a response a certain way. These explanations often reveal actionable insights, such as missing reasoning steps, misinterpretations, or opportunities to refine prompts. By reviewing these results holistically, you can iteratively improve your application and build confidence in its performance.
+
+    <Frame>
+      <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/typescript-document-evals.png" alt="TypeScript document evaluation results" />
+    </Frame>
+  </Step>
+</Steps>
