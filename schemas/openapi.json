@@ -2975,6 +2975,68 @@
         }
       }
     },
+    "/v1/span_notes": {
+      "post": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Create a span note",
+        "description": "Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique timestamp-based identifier.",
+        "operationId": "createSpanNote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSpanNoteRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Span note created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSpanNoteResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Span not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/spans/{span_identifier}": {
       "delete": {
         "tags": [
@@ -5161,6 +5223,30 @@
           "data"
         ],
         "title": "CreatePromptResponseBody"
+      },
+      "CreateSpanNoteRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SpanNoteData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSpanNoteRequestBody"
+      },
+      "CreateSpanNoteResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InsertedSpanAnnotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSpanNoteResponseBody"
       },
       "CreateSpansRequestBody": {
         "properties": {
@@ -9069,6 +9155,26 @@
           "timestamp"
         ],
         "title": "SpanEvent"
+      },
+      "SpanNoteData": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "The note text to add to the span"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "note"
+        ],
+        "title": "SpanNoteData"
       },
       "SpansResponseBody": {
         "properties": {

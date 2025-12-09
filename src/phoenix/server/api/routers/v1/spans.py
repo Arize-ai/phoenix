@@ -932,6 +932,96 @@ async def annotate_spans(
     )
 
 
+class SpanNoteData(V1RoutesBaseModel):
+    span_id: str = Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
+    note: str = Field(description="The note text to add to the span")
+
+
+class CreateSpanNoteRequestBody(RequestBody[SpanNoteData]):
+    data: SpanNoteData
+
+
+class CreateSpanNoteResponseBody(ResponseBody[InsertedSpanAnnotation]):
+    pass
+
+
+@router.post(
+    "/span_notes",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="createSpanNote",
+    summary="Create a span note",
+    description=(
+        "Add a note annotation to a span. Notes are special annotations that allow "
+        "multiple entries per span (unlike regular annotations which are unique by name "
+        "and identifier). Each note gets a unique timestamp-based identifier."
+    ),
+    responses=add_errors_to_responses([{"status_code": 404, "description": "Span not found"}]),
+    response_description="Span note created successfully",
+    status_code=200,
+)
+async def create_span_note(
+    request: Request,
+    request_body: CreateSpanNoteRequestBody,
+) -> CreateSpanNoteResponseBody:
+    """
+    Create a note annotation for a span.
+
+    Notes are a special type of annotation that:
+    - Have the fixed name "note"
+    - Use a timestamp-based identifier to allow multiple notes per span
+    - Are always created with annotator_kind="HUMAN" and source="API"
+    - Store the note text in the explanation field
+    """
+    note_data = request_body.data
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
+    async with request.app.state.db() as session:
+        # Find the span by OpenTelemetry span_id
+        span_rowid = await session.scalar(
+            select(models.Span.id).where(models.Span.span_id == note_data.span_id)
+        )
+
+        if span_rowid is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Span with ID {note_data.span_id} not found",
+            )
+
+        # Generate a unique identifier for the note using timestamp
+        timestamp = datetime.now(timezone.utc).isoformat()
+        note_identifier = f"px-span-note:{timestamp}"
+
+        # Create the annotation values
+        values = {
+            "span_rowid": span_rowid,
+            "name": "note",
+            "label": None,
+            "score": None,
+            "explanation": note_data.note,
+            "annotator_kind": "HUMAN",
+            "metadata_": {},
+            "identifier": note_identifier,
+            "source": "API",
+            "user_id": user_id,
+        }
+
+        # Insert the annotation
+        result = await session.execute(
+            sa.insert(models.SpanAnnotation).values(**values).returning(models.SpanAnnotation.id)
+        )
+        annotation_id = result.scalar_one()
+
+    # Put event on queue after successful insert
+    request.state.event_queue.put(SpanAnnotationInsertEvent((annotation_id,)))
+
+    return CreateSpanNoteResponseBody(
+        data=InsertedSpanAnnotation(id=str(GlobalID("SpanAnnotation", str(annotation_id))))
+    )
+
+
 class CreateSpansRequestBody(RequestBody[list[Span]]):
     data: list[Span]
 

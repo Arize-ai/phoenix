@@ -526,6 +526,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/span_notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a span note
+         * @description Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique timestamp-based identifier.
+         */
+        post: operations["createSpanNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/spans/{span_identifier}": {
         parameters: {
             query?: never;
@@ -1095,6 +1115,14 @@ export interface components {
         /** CreatePromptResponseBody */
         CreatePromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
+        };
+        /** CreateSpanNoteRequestBody */
+        CreateSpanNoteRequestBody: {
+            data: components["schemas"]["SpanNoteData"];
+        };
+        /** CreateSpanNoteResponseBody */
+        CreateSpanNoteResponseBody: {
+            data: components["schemas"]["InsertedSpanAnnotation"];
         };
         /** CreateSpansRequestBody */
         CreateSpansRequestBody: {
@@ -2714,6 +2742,19 @@ export interface components {
             attributes?: {
                 [key: string]: unknown;
             };
+        };
+        /** SpanNoteData */
+        SpanNoteData: {
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
+            /**
+             * Note
+             * @description The note text to add to the span
+             */
+            note: string;
         };
         /** SpansResponseBody */
         SpansResponseBody: {
@@ -4693,6 +4734,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnnotateSpansResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Span not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createSpanNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSpanNoteRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Span note created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateSpanNoteResponseBody"];
                 };
             };
             /** @description Forbidden */
