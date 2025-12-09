@@ -1,5 +1,6 @@
 import { fetchQuery, graphql } from "react-relay";
 import { LoaderFunctionArgs, redirect } from "react-router";
+import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -11,13 +12,8 @@ import { promptTagRedirectLoaderQuery } from "./__generated__/promptTagRedirectL
 export async function promptTagRedirectLoader(args: LoaderFunctionArgs) {
   const { tagName, promptId } = args.params;
 
-  if (!promptId) {
-    throw new Error("Prompt ID is required");
-  }
-
-  if (!tagName) {
-    throw new Error("Tag name is required");
-  }
+  invariant(promptId, "Prompt ID is required");
+  invariant(tagName, "Tag name is required");
 
   const response = await fetchQuery<promptTagRedirectLoaderQuery>(
     RelayEnvironment,
@@ -46,9 +42,10 @@ export async function promptTagRedirectLoader(args: LoaderFunctionArgs) {
       throw new Error("Prompt version not found");
     });
 
-  if (!response?.prompt || response.prompt.__typename !== "Prompt") {
-    throw new Error("Prompt not found");
-  }
+  invariant(
+    response?.prompt && response.prompt.__typename === "Prompt",
+    "Prompt not found"
+  );
 
   return redirect(
     `/prompts/${promptId}/versions/${response.prompt.version.id}`
