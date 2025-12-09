@@ -7,7 +7,6 @@ from fastapi import Request
 from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
-from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
@@ -287,20 +286,23 @@ class EvaluatorMutationMixin:
             if dataset_evaluator.evaluator_id is None:
                 raise BadRequest("Cannot update a built-in evaluator")
 
-            results = await session.execute(
-                select(models.LLMEvaluator)
-                .where(models.LLMEvaluator.id == dataset_evaluator.evaluator_id)
-                .options(
-                    joinedload(models.LLMEvaluator.prompt).joinedload(
-                        models.Prompt.prompt_versions
-                    ),
-                    joinedload(models.LLMEvaluator.prompt_version_tag),
-                )
-            )
-            llm_evaluator = results.unique().scalar_one_or_none()
+            llm_evaluator = await session.get(models.LLMEvaluator, dataset_evaluator.evaluator_id)
             if llm_evaluator is None:
                 raise NotFound(
                     f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
+                )
+
+            # todo: compare against active prompt version as determined by prompt tag or version
+            # https://github.com/Arize-ai/phoenix/issues/10142
+            active_prompt_version = await session.scalar(
+                select(models.PromptVersion)
+                .where(models.PromptVersion.prompt_id == llm_evaluator.prompt_id)
+                .order_by(models.PromptVersion.id.desc())
+                .limit(1)
+            )
+            if active_prompt_version is None:
+                raise NotFound(
+                    f"No prompt versions found for evaluator {input.dataset_evaluator_id}"
                 )
 
             dataset_evaluator.display_name = evaluator_name
@@ -320,14 +322,12 @@ class EvaluatorMutationMixin:
             llm_evaluator.annotation_name = input.output_config.name
             llm_evaluator.updated_at = datetime.now(timezone.utc)
 
-            # todo: compare against active prompt version as determined by prompt tag or version
-            # https://github.com/Arize-ai/phoenix/issues/10142
-            active_prompt_version = llm_evaluator.prompt.prompt_versions[-1]
             create_new_prompt_version = not active_prompt_version.has_identical_content(
                 prompt_version
             )
             if create_new_prompt_version:
-                llm_evaluator.prompt.prompt_versions.append(prompt_version)
+                prompt_version.prompt_id = llm_evaluator.prompt_id
+                session.add(prompt_version)
 
             try:
                 validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
@@ -340,10 +340,12 @@ class EvaluatorMutationMixin:
                 raise Conflict("An evaluator with this name already exists")
 
             # Update prompt_version_tag to point to the new prompt version if one was created
-            if create_new_prompt_version:
-                if llm_evaluator.prompt_version_tag is not None:
-                    # Update existing tag to point to the new prompt version
-                    llm_evaluator.prompt_version_tag.prompt_version_id = prompt_version.id
+            if create_new_prompt_version and llm_evaluator.prompt_version_tag_id is not None:
+                prompt_version_tag = await session.get(
+                    models.PromptVersionTag, llm_evaluator.prompt_version_tag_id
+                )
+                if prompt_version_tag is not None:
+                    prompt_version_tag.prompt_version_id = prompt_version.id
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id),
