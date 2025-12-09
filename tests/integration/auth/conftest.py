@@ -317,6 +317,39 @@ def _env_ldap_unique_id(_env_ldap: Mapping[str, str]) -> dict[str, str]:
 
 
 @pytest.fixture(scope="package")
+def _env_ldap_no_email(_ldap_server: _LDAPServer) -> dict[str, str]:
+    """Configure LDAP with no email attribute (null email marker mode).
+
+    This fixture tests the no-email mode where LDAP directories don't have
+    email attributes. Phoenix generates null email markers using the unique_id.
+
+    Requirements for no-email mode:
+    - PHOENIX_LDAP_ATTR_EMAIL="" (empty string)
+    - PHOENIX_LDAP_ATTR_UNIQUE_ID required (users identified by unique_id)
+    - PHOENIX_LDAP_ALLOW_SIGN_UP=true (users must be auto-provisioned)
+    """
+    return {
+        "PHOENIX_LDAP_HOST": _ldap_server.host,
+        "PHOENIX_LDAP_PORT": str(_ldap_server.port),
+        "PHOENIX_LDAP_TLS_MODE": "none",  # Disable TLS for mock testing
+        "PHOENIX_LDAP_BIND_DN": _ldap_server.bind_dn,
+        "PHOENIX_LDAP_BIND_PASSWORD": _ldap_server.bind_password,
+        "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": f'["{_ldap_server.user_search_base}"]',
+        "PHOENIX_LDAP_USER_SEARCH_FILTER": "(uid=%s)",
+        "PHOENIX_LDAP_ATTR_EMAIL": "",  # Empty = no-email mode
+        "PHOENIX_LDAP_ATTR_DISPLAY_NAME": "displayName",
+        "PHOENIX_LDAP_ATTR_MEMBER_OF": "memberOf",
+        "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",  # Required for no-email mode
+        "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+            '[{"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"}, '
+            '{"group_dn": "cn=members,ou=groups,dc=example,dc=com", "role": "MEMBER"}, '
+            '{"group_dn": "*", "role": "VIEWER"}]'
+        ),
+        "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",  # Required for no-email mode
+    }
+
+
+@pytest.fixture(scope="package")
 def _env_ldap_posix(_ldap_server: _LDAPServer) -> dict[str, str]:
     """Configure LDAP with POSIX group search (OpenLDAP style) instead of memberOf.
 
@@ -431,6 +464,17 @@ def _env_ports_posix(
 
 
 @pytest.fixture(scope="package")
+def _env_ports_ldap_no_email(
+    _ports: Iterator[int],
+) -> dict[str, str]:
+    """Separate port allocation for LDAP no-email app."""
+    return {
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+    }
+
+
+@pytest.fixture(scope="package")
 def _env_ports_ldap_unique_id(
     _ports: Iterator[int],
 ) -> dict[str, str]:
@@ -493,6 +537,35 @@ def _app_ldap_unique_id(
         **_env_smtp,
         **_env_oauth2,
         **_env_ldap_unique_id,
+    }
+    with _server(_AppInfo(env)) as app:
+        yield app
+
+
+@pytest.fixture(scope="package")
+def _app_ldap_no_email(
+    _env_auth: Mapping[str, str],
+    _env_database: Mapping[str, str],
+    _env_oauth2: Mapping[str, str],
+    _env_ldap_no_email: Mapping[str, str],
+    _env_ports_ldap_no_email: Mapping[str, str],
+    _env_smtp: Mapping[str, str],
+    _env_tls: Mapping[str, str],
+) -> Iterator[_AppInfo]:
+    """App instance with LDAP configured for no-email mode (null email markers).
+
+    Uses PHOENIX_LDAP_ATTR_EMAIL="" to enable no-email mode where users are
+    identified by entryUUID instead of email. Phoenix generates null email
+    markers for the database.
+    """
+    env = {
+        **_env_tls,
+        **_env_ports_ldap_no_email,
+        **_env_database,
+        **_env_auth,
+        **_env_smtp,
+        **_env_oauth2,
+        **_env_ldap_no_email,
     }
     with _server(_AppInfo(env)) as app:
         yield app

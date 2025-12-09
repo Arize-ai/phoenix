@@ -19,13 +19,13 @@ import {
 
 export function UserRoleChangeDialog({
   userId,
-  email,
+  username,
   currentRole,
   newRole,
   onClose,
 }: {
   userId: string;
-  email: string;
+  username: string;
   newRole: UserRoleInput;
   currentRole: string;
   onClose: () => void;
@@ -83,7 +83,7 @@ export function UserRoleChangeDialog({
         </DialogHeader>
         <View padding="size-200">
           <Text>
-            {`Are you sure you want to change the role for ${email} from `}{" "}
+            {`Are you sure you want to change the role for ${username} from `}{" "}
             <b>{normalizeUserRole(currentRole)}</b> to{" "}
             <b>{normalizeUserRole(newRole)}</b>?
           </Text>

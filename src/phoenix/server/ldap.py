@@ -108,6 +108,7 @@ from __future__ import annotations
 import logging
 import random
 import ssl
+from hashlib import md5
 from secrets import token_hex
 from typing import Any, Final, Literal, NamedTuple, overload
 
@@ -274,20 +275,106 @@ def is_ldap_user(oauth2_client_id: str | None) -> bool:
     return bool(oauth2_client_id and oauth2_client_id.startswith(LDAP_CLIENT_ID_MARKER))
 
 
+# Marker for null email values in the database.
+#
+# When LDAP directories don't have email attributes, Phoenix generates a
+# deterministic marker to satisfy the database's NOT NULL constraint. This
+# marker uses a Private Use Area (PUA) Unicode character to ensure it cannot
+# collide with any real email address.
+#
+# Format: "\uE000NULL" + md5(unique_id)
+#   - \uE000: PUA character (guaranteed never assigned by Unicode Standard)
+#   - NULL: Human-readable indicator that email is absent
+#   - md5(unique_id): Deterministic hash for uniqueness (32 hex chars)
+#
+# Example: "\uE000NULL7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
+#
+# Design Context:
+#   This is a temporary bridge solution. The eventual solution is to make the
+#   email column nullable in the database schema. Until then, this marker
+#   enables LDAP authentication for directories without email attributes.
+#
+# Security Note:
+#   MD5 is used for deterministic uniqueness, NOT cryptographic security.
+#   The hash ensures the same unique_id always produces the same marker,
+#   preventing race conditions on concurrent logins.
+NULL_EMAIL_MARKER_PREFIX: Final[str] = "\ue000NULL"
+
+
+def generate_null_email_marker(unique_id: str) -> str:
+    """Generate a deterministic null email marker from a unique_id.
+
+    This function creates a marker for LDAP users whose directories don't
+    have email attributes. The marker satisfies the database's NOT NULL
+    constraint while being programmatically distinguishable from real emails.
+
+    The marker is deterministic: the same unique_id always produces the same
+    marker. This prevents race conditions when the same user logs in
+    concurrently from multiple sessions.
+
+    Args:
+        unique_id: The LDAP unique identifier (objectGUID, entryUUID, etc.)
+                   Must be non-empty.
+
+    Returns:
+        A null email marker in format: "\\uE000NULL{md5_hash}"
+
+    Raises:
+        ValueError: If unique_id is empty or None.
+
+    Example:
+        >>> generate_null_email_marker("550E8400-E29B-41D4-A716-446655440000")
+        '\\ue000NULL7f3d2a1b9c8e4f5da2b6c903e1f47d8b'
+    """
+    if not unique_id:
+        raise ValueError("unique_id is required to generate null email marker")
+
+    # Normalize to lowercase for consistent hashing (UUIDs are case-insensitive)
+    normalized = unique_id.lower()
+    return f"{NULL_EMAIL_MARKER_PREFIX}{md5(normalized.encode()).hexdigest()}"
+
+
+def is_null_email_marker(email: str | None) -> bool:
+    """Check if an email value is a null email marker.
+
+    This function identifies placeholder values that were generated for LDAP
+    users whose directories don't have email attributes. Used to:
+    - Hide placeholder emails in the UI
+    - Skip email operations (welcome emails, password reset)
+    - Validate that users aren't trying to log in with marker values
+
+    Args:
+        email: The email value to check (can be None)
+
+    Returns:
+        True if the value is a null email marker, False otherwise.
+
+    Example:
+        >>> is_null_email_marker("\\ue000NULL7f3d2a1b9c8e4f5da2b6c903e1f47d8b")
+        True
+        >>> is_null_email_marker("alice@example.com")
+        False
+        >>> is_null_email_marker(None)
+        False
+    """
+    return bool(email and email.startswith(NULL_EMAIL_MARKER_PREFIX))
+
+
 class LDAPUserInfo(NamedTuple):
     """Authenticated LDAP user information.
 
     Attributes:
-        email: User's email address (required, used as identifier if unique_id not configured)
+        email: User's email address, or None if PHOENIX_LDAP_ATTR_EMAIL is empty.
+               When None, a null email marker will be generated from unique_id.
         display_name: User's display name for UI
         groups: List of group DNs the user belongs to
         user_dn: User's Distinguished Name (for audit/logging, NOT used for identity matching)
         ldap_username: Username used to authenticate
         role: Phoenix role mapped from LDAP groups
-        unique_id: Optional immutable identifier (objectGUID/entryUUID) if configured
+        unique_id: Immutable identifier (objectGUID/entryUUID). Required when email is None.
     """
 
-    email: str
+    email: str | None
     display_name: str
     groups: list[str]
     user_dn: str
@@ -731,13 +818,21 @@ class LDAPAuthenticator:
                         return None
 
                     # Step 5: Extract user attributes
-                    email = _get_attribute(user_entry, self.config.attr_email)
-                    if not email:
-                        logger.error(
-                            f"LDAP user missing required email attribute "
-                            f"({self.config.attr_email}). Check LDAP schema configuration."
-                        )
-                        return None
+                    # Email handling depends on whether attr_email is configured:
+                    # - If configured: read from LDAP, fail if missing
+                    # - If empty: email will be None, marker generated later
+                    email: str | None = None
+                    if self.config.attr_email:
+                        email = _get_attribute(user_entry, self.config.attr_email)
+                        if not email:
+                            # Fail loudly: admin configured an attribute that doesn't exist
+                            logger.error(
+                                f"LDAP user missing required email attribute "
+                                f"({self.config.attr_email}). Either populate this attribute "
+                                f"or set PHOENIX_LDAP_ATTR_EMAIL= (empty) to use null markers."
+                            )
+                            return None
+                    # else: email stays None, will be handled by get_or_create_ldap_user
 
                     display_name = _get_attribute(user_entry, self.config.attr_display_name)
 
@@ -772,7 +867,7 @@ class LDAPAuthenticator:
 
                     return LDAPUserInfo(
                         email=email,
-                        display_name=display_name or email.split("@")[0],
+                        display_name=display_name or username,
                         groups=groups,
                         user_dn=user_dn,
                         ldap_username=username,
@@ -812,14 +907,17 @@ class LDAPAuthenticator:
         """
         user_filter = self.config.user_search_filter.replace("%s", escaped_username)
 
-        # Build attribute list - include unique_id if configured
+        # Build attribute list - filter out None values (e.g., attr_email in no-email mode)
         attributes = [
-            self.config.attr_email,
-            self.config.attr_display_name,
-            self.config.attr_member_of,
+            attr
+            for attr in [
+                self.config.attr_email,
+                self.config.attr_display_name,
+                self.config.attr_member_of,
+                self.config.attr_unique_id,
+            ]
+            if attr  # Filter out None and empty strings
         ]
-        if self.config.attr_unique_id:
-            attributes.append(self.config.attr_unique_id)
 
         # Search each base DN in order
         for search_base in self.config.user_search_base_dns:

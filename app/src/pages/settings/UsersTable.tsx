@@ -18,6 +18,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { isUserRole, normalizeUserRole, UserRole } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { isNullEmailMarker } from "@phoenix/utils";
 
 import { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
 import { UsersTableQuery } from "./__generated__/UsersTableQuery.graphql";
@@ -133,19 +134,24 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       {
         header: "user",
         accessorKey: "username",
-        cell: ({ row }) => (
-          <Flex direction="row" gap="size-50" alignItems="center">
-            <UserPicture
-              name={row.original.username}
-              profilePictureUrl={row.original.profilePictureUrl}
-              size={20}
-            />
-            <span>{row.original.username}</span>
-            <a href={`mailto:${row.original.email}`} css={emailLinkCSS}>
-              {row.original.email}
-            </a>
-          </Flex>
-        ),
+        cell: ({ row }) => {
+          const showEmail = !isNullEmailMarker(row.original.email);
+          return (
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <UserPicture
+                name={row.original.username}
+                profilePictureUrl={row.original.profilePictureUrl}
+                size={20}
+              />
+              <span>{row.original.username}</span>
+              {showEmail && (
+                <a href={`mailto:${row.original.email}`} css={emailLinkCSS}>
+                  {row.original.email}
+                </a>
+              )}
+            </Flex>
+          );
+        },
       },
       {
         header: "method",
@@ -176,7 +182,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                     onClose={() => setDialog(null)}
                     currentRole={row.original.role}
                     newRole={key as UserRole}
-                    email={row.original.email}
+                    username={row.original.username}
                     userId={row.original.id}
                   />
                 );

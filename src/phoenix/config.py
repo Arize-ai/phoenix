@@ -1580,9 +1580,10 @@ class LDAPConfig:
                 389 DS:   "(&(objectClass=person)(uid=%s))"
 
     Attribute Mapping (RFC 2256, RFC 4524):
-        attr_email: Email attribute name (REQUIRED, default: "mail")
-            - MUST be present in LDAP or login fails
-            - Alternative: "userPrincipalName" (AD without Exchange)
+        attr_email: Email attribute name (default: "mail", can be empty)
+            - If set: MUST be present in LDAP or login fails
+            - If empty (PHOENIX_LDAP_ATTR_EMAIL=): generates null email marker
+              from unique_id (requires attr_unique_id to be set)
         attr_display_name: Display name attribute (default: "displayName")
             - Fallback: Uses email prefix if missing
         attr_member_of: Group membership attribute (default: "memberOf")
@@ -1688,7 +1689,7 @@ class LDAPConfig:
     user_search_filter: str = "(&(objectClass=user)(sAMAccountName=%s))"
 
     # Attribute mapping (RFC 2798 §9.1.3, §2.3)
-    attr_email: str = "mail"  # REQUIRED: Must be present in LDAP or login fails
+    attr_email: str | None = "mail"  # None if explicitly empty (null email marker mode)
     attr_display_name: str = "displayName"
     attr_member_of: str = "memberOf"  # Used when group_search_filter is not set
     attr_unique_id: str | None = None  # Optional: objectGUID (AD), entryUUID (OpenLDAP)
@@ -1936,17 +1937,51 @@ class LDAPConfig:
                 raise ValueError(f"{env_var}='{file_path}' does not exist or is not a file")
 
         # Parse attribute names
-        attr_email = getenv(ENV_PHOENIX_LDAP_ATTR_EMAIL, "mail")
+        # attr_email behavior:
+        #   - Not set at all → "mail" (backwards compatibility)
+        #   - Explicitly empty (PHOENIX_LDAP_ATTR_EMAIL=) → None (null email marker mode)
+        #   - Set to value → use that value
+        attr_email_raw = getenv(ENV_PHOENIX_LDAP_ATTR_EMAIL)
+        if attr_email_raw is None:
+            logger.warning(
+                f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is not set. "
+                f"Defaulting to 'mail' for backwards compatibility, "
+                f"but this behavior will be removed in a future version. "
+                f"Please set {ENV_PHOENIX_LDAP_ATTR_EMAIL} explicitly: "
+                f"use 'mail' (or your LDAP email attribute) if email is available, "
+                f"or use '' (empty string) if email is not available in your LDAP directory."
+            )
+            attr_email: str | None = "mail"  # Default for backwards compatibility
+        elif attr_email_raw == "":
+            attr_email = None  # Explicitly empty → null email marker mode
+        else:
+            attr_email = attr_email_raw
         attr_display_name = getenv(ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, "displayName")
         attr_unique_id = getenv(ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID)
 
-        # Validate required attribute is not empty
-        # (getenv returns "" if explicitly set to empty string, not the default)
+        # Validate null email marker mode constraints
+        # When attr_email is empty, we generate markers from unique_id instead
         if not attr_email:
-            raise ValueError(
-                f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} cannot be empty. "
-                f"This attribute is required to identify users. Default: 'mail'"
-            )
+            # Constraint 1: unique_id is required for user lookup and marker generation
+            if not attr_unique_id:
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID} is required when "
+                    f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is empty. "
+                    f"Without email, unique_id is needed to identify returning users."
+                )
+            # Constraint 2: allow_sign_up must be True (can't pre-provision without unique_id)
+            if not allow_sign_up:
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_ALLOW_SIGN_UP} must be True when "
+                    f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is empty. "
+                    f"Null email markers require auto-provisioning on first login."
+                )
+            # Constraint 3: PHOENIX_ADMINS is not supported (can't compute marker without unique_id)
+            if get_env_admins():
+                raise ValueError(
+                    f"PHOENIX_ADMINS is not supported when {ENV_PHOENIX_LDAP_ATTR_EMAIL} is empty. "
+                    f"Users are auto-provisioned on first login with roles from LDAP group mapping."
+                )
 
         # Validate attribute names don't contain spaces
         # LDAP attribute names (e.g., objectGUID, entryUUID, mail) never contain spaces.

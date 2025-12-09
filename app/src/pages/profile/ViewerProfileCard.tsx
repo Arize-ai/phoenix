@@ -19,6 +19,7 @@ import {
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { isNullEmailMarker } from "@phoenix/utils";
 
 import { ViewerProfileCardMutation } from "./__generated__/ViewerProfileCardMutation.graphql";
 
@@ -76,6 +77,9 @@ export function ViewerProfileCard() {
   if (!viewer) {
     return null;
   }
+  // Don't show null email markers in the UI
+  const showEmail = !isNullEmailMarker(viewer.email);
+  const displayName = viewer.username || (showEmail ? viewer.email : "");
   return (
     <Card
       title="Profile"
@@ -90,12 +94,12 @@ export function ViewerProfileCard() {
       <View paddingTop="size-200" paddingStart="size-200" paddingEnd="size-200">
         <Flex direction="row" gap="size-200" alignItems="center">
           <UserPicture
-            name={viewer.username || viewer.email}
+            name={displayName}
             profilePictureUrl={viewer.profilePictureUrl}
           />
           <Flex direction="column" gap="size-50">
             <Heading level={2} weight="heavy">
-              {viewer.username || viewer.email}
+              {displayName}
             </Heading>
             <Text>{viewer.role.name.toLocaleLowerCase()}</Text>
           </Flex>
@@ -105,10 +109,12 @@ export function ViewerProfileCard() {
         <Form onSubmit={handleSubmit(onSubmit)}>
           <View padding="size-200">
             <Flex direction="column" gap="size-100">
-              <TextField value={viewer.email} isReadOnly size="S">
-                <Label>Email</Label>
-                <Input />
-              </TextField>
+              {showEmail && (
+                <TextField value={viewer.email} isReadOnly size="S">
+                  <Label>Email</Label>
+                  <Input />
+                </TextField>
+              )}
               <Controller
                 name="username"
                 control={control}

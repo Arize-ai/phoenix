@@ -124,7 +124,8 @@ export function NewUserDialog({
   // Determine which tabs are available
   const showLocalTab = !window.Config.basicAuthDisabled;
   const showOAuth2Tab = window.Config.oAuth2Idps.length > 0;
-  const showLDAPTab = window.Config.ldapEnabled;
+  // Hide LDAP tab when manual user creation is disabled (no email attribute configured)
+  const showLDAPTab = window.Config.ldapManualUserCreationEnabled;
 
   // Smart default tab selection
   const defaultTab = showLocalTab

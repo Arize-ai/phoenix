@@ -10,7 +10,12 @@ from sqlalchemy.orm import joinedload
 from phoenix.auth import sanitize_email
 from phoenix.config import LDAPConfig
 from phoenix.db import models
-from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER, LDAPUserInfo, is_ldap_user
+from phoenix.server.ldap import (
+    LDAP_CLIENT_ID_MARKER,
+    LDAPUserInfo,
+    generate_null_email_marker,
+    is_ldap_user,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,24 +44,35 @@ async def get_or_create_ldap_user(
            - Survives: DN changes, OU moves, renames
            - Simple setup for most organizations
 
+    Null Email Marker Mode:
+        When PHOENIX_LDAP_ATTR_EMAIL is empty, the LDAP directory doesn't have
+        email attributes. In this mode:
+        - unique_id is required (enforced at config validation)
+        - Lookup is by unique_id only (no email fallback)
+        - A null email marker is generated: "\\uE000NULL{md5(unique_id)}"
+
     Admin-Provisioned Users:
         Admins can pre-create users with oauth2_user_id=NULL. On first login,
         the user is matched by email and oauth2_user_id is populated (if unique_id
-        is configured).
+        is configured). Not supported in null email marker mode.
     """
-    email = sanitize_email(user_info.email)
-    unique_id = user_info.unique_id  # None if not configured
+    unique_id = user_info.unique_id  # Required when email is None
+
+    # Determine the email to use for lookup and storage
+    # If user_info.email is None, we're in null email marker mode
+    email: str | None = sanitize_email(user_info.email) if user_info.email else None
 
     # Step 1: Look up user
     # Strategy depends on whether unique_id is configured
     user: models.User | None = None
 
     if unique_id:
-        # Enterprise mode: lookup by unique_id first
+        # Enterprise mode (or null email marker mode): lookup by unique_id first
         user = await _lookup_by_unique_id(session, unique_id)
 
         # Fallback: email lookup (handles migration to unique_id)
-        if not user:
+        # Skip this in null email marker mode (no real email to look up)
+        if not user and email:
             user = await _lookup_by_email(session, email)
             if user:
                 # SECURITY: Only migrate if user has no existing unique_id.
@@ -82,14 +98,8 @@ async def get_or_create_ldap_user(
                     # We cannot create a new user because email is unique in the database.
                     # This requires admin intervention to resolve (e.g., delete/rename the
                     # old account, or update the old account's unique_id).
-                    #
-                    # SECURITY: Use generic error message to prevent information disclosure.
-                    # Revealing "account conflict" would confirm the email exists and leak
-                    # information about unique_id mismatch. Log the real reason for admins.
-                    # NOTE: Don't log email (PII) - unique_ids are sufficient for diagnosis.
                     logger.error(
                         f"LDAP account conflict: user_id={user.id} has different unique_id. "
-                        f"DB: {user.oauth2_user_id}, LDAP: {unique_id}. "
                         f"Admin must resolve (delete old account or update unique_id)."
                     )
                     raise HTTPException(
@@ -100,9 +110,10 @@ async def get_or_create_ldap_user(
                     # Same unique_id (case-insensitive match) - normalize case in DB
                     if user.oauth2_user_id != unique_id:
                         user.oauth2_user_id = unique_id
-    else:
+    elif email:
         # Simple mode: lookup by email only (oauth2_user_id is NULL)
         user = await _lookup_by_email(session, email)
+    # else: neither unique_id nor email - this shouldn't happen (config validation prevents it)
 
     # Step 2: Validate role exists
     role = await session.scalar(
@@ -117,7 +128,7 @@ async def get_or_create_ldap_user(
     # Step 3: Update existing user attributes
     if user:
         # Sync email on every login (email may have changed in LDAP)
-        if user.email != email:
+        if email and user.email != email:
             user.email = email
 
         # Note: Do NOT sync username - it should remain stable
@@ -130,23 +141,33 @@ async def get_or_create_ldap_user(
 
     # Step 4: Create new user (if sign-up is allowed)
     if not ldap_config.allow_sign_up:
+        logger.info("LDAP user attempted to sign up but sign-up is not allowed")
         raise HTTPException(
             status_code=401,
             detail="Invalid username and/or password",
         )
 
-    # Security: Check if email already exists with different auth method
-    existing_user = await session.scalar(
-        select(models.User).where(func.lower(models.User.email) == email.lower())
-    )
-    if existing_user and not is_ldap_user(existing_user.oauth2_client_id):
-        logger.error(
-            "Email already exists with different auth method: %s", existing_user.auth_method
+    # Determine the email to store in the database
+    if email:
+        db_email = email
+        # Security: Check if email already exists with different auth method
+        existing_user = await session.scalar(
+            select(models.User).where(func.lower(models.User.email) == email.lower())
         )
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid username and/or password",
-        )
+        if existing_user and not is_ldap_user(existing_user.oauth2_client_id):
+            logger.error(
+                "Email already exists with different auth method: %s", existing_user.auth_method
+            )
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid username and/or password",
+            )
+    else:
+        # Null email marker mode: generate deterministic marker from unique_id
+        # unique_id is guaranteed to be set (config validation ensures this)
+        if not unique_id:
+            raise ValueError("unique_id required when email is None")
+        db_email = generate_null_email_marker(unique_id)
 
     # Username strategy: Try displayName first (user-friendly), handle collisions gracefully
     username = user_info.display_name
@@ -158,8 +179,7 @@ async def get_or_create_ldap_user(
         username = f"{user_info.display_name} ({secrets.token_hex(2)})"
 
     user = models.User(
-        # Store sanitized email to avoid casing/whitespace mismatches on lookup
-        email=email,
+        email=db_email,
         username=username,
         role=role,
         reset_password=False,

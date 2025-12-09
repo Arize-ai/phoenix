@@ -18,6 +18,7 @@ from pytest import LogCaptureFixture
 from phoenix.config import LDAPConfig
 from phoenix.server.ldap import (
     LDAP_CLIENT_ID_MARKER,
+    NULL_EMAIL_MARKER_PREFIX,
     LDAPAuthenticator,
     LDAPUserInfo,
     _get_attribute,
@@ -25,7 +26,9 @@ from phoenix.server.ldap import (
     _is_member_of,
     _validate_phoenix_role,
     canonicalize_dn,
+    generate_null_email_marker,
     is_ldap_user,
+    is_null_email_marker,
 )
 
 
@@ -451,10 +454,10 @@ class TestAuthenticationFlow:
         assert result is not None
         assert result.unique_id == "550e8400-e29b-41d4-a716-446655440000"
 
-    async def test_display_name_defaults_to_email_prefix(
+    async def test_display_name_defaults_to_username(
         self, authenticator: LDAPAuthenticator
     ) -> None:
-        """Missing display name should default to email prefix."""
+        """Missing display name should default to username."""
         with patch.object(authenticator, "_establish_connection") as mock_establish:
             mock_conn = MagicMock()
             mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
@@ -482,7 +485,7 @@ class TestAuthenticationFlow:
                 result = await authenticator.authenticate("jdoe", "validpassword")
 
         assert result is not None
-        assert result.display_name == "john.doe"  # Prefix before @
+        assert result.display_name == "jdoe"  # Falls back to username
 
 
 class TestTimingAttackMitigation:
@@ -1779,3 +1782,53 @@ class TestSocketLeakPrevention:
 
         # CRITICAL: Socket must be closed when start_tls() fails (via unbind)
         mock_conn.unbind.assert_called_once()
+
+
+class TestNullEmailMarker:
+    """Test null email marker helpers for LDAP users without email attributes."""
+
+    def test_marker_prefix_format(self) -> None:
+        """NULL_EMAIL_MARKER_PREFIX uses PUA character U+E000."""
+        assert NULL_EMAIL_MARKER_PREFIX == "\ue000NULL"
+
+    def test_generate_marker_format_and_determinism(self) -> None:
+        """Generated marker: prefix + 32-char MD5 hash, deterministic, case-insensitive."""
+        # Different casings of same UUID should produce identical marker
+        ids = ["550e8400-e29b-41d4-a716-446655440000", "550E8400-E29B-41D4-A716-446655440000"]
+        results = [generate_null_email_marker(uid) for uid in ids]
+
+        assert results[0] == results[1]  # Case-insensitive
+        assert results[0].startswith(NULL_EMAIL_MARKER_PREFIX)
+        assert len(results[0]) == len(NULL_EMAIL_MARKER_PREFIX) + 32  # prefix + MD5
+
+        # Different IDs produce different markers
+        other = generate_null_email_marker("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+        assert other != results[0]
+
+    @pytest.mark.parametrize("invalid_id", ["", None])
+    def test_generate_marker_rejects_empty(self, invalid_id: str | None) -> None:
+        """Empty or None unique_id raises ValueError."""
+        with pytest.raises(ValueError, match="unique_id is required"):
+            generate_null_email_marker(invalid_id)  # type: ignore[arg-type]
+
+    @pytest.mark.parametrize(
+        "email,expected",
+        [
+            # Markers → True
+            (NULL_EMAIL_MARKER_PREFIX, True),
+            (NULL_EMAIL_MARKER_PREFIX + "abc123", True),
+            # Real emails → False
+            ("user@example.com", False),
+            ("admin@corp.local", False),
+            # Edge cases → False
+            (None, False),
+            ("", False),
+            # Similar but not markers → False
+            ("NULL123456789abcdef", False),  # Missing PUA
+            ("\ue001NULL123456", False),  # Wrong PUA
+            ("prefix\ue000NULL", False),  # Not at start
+        ],
+    )
+    def test_is_null_email_marker(self, email: str | None, expected: bool) -> None:
+        """is_null_email_marker correctly identifies markers vs real emails."""
+        assert is_null_email_marker(email) is expected

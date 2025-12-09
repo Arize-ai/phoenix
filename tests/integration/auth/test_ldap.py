@@ -12,6 +12,7 @@ from secrets import token_hex
 from typing import Optional
 
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.ldap import NULL_EMAIL_MARKER_PREFIX, is_null_email_marker
 from tests.integration._mock_ldap_server import _LDAPServer
 
 from .._helpers import (
@@ -913,3 +914,85 @@ class TestLDAPDNHandling:
         assert user2.gid == user1.gid
 
         _delete_users(_app, _app.admin_secret, users=[user1.gid])
+
+
+class TestLDAPNoEmailMode:
+    """Test LDAP no-email mode (null email markers).
+
+    When PHOENIX_LDAP_ATTR_EMAIL="" is configured, Phoenix generates null email
+    markers for users instead of reading email from LDAP. Users are identified
+    by their unique_id (entryUUID).
+
+    This mode is useful for LDAP directories that don't have email attributes.
+    """
+
+    def _get_user_with_null_email(self, app: _AppInfo, username: str) -> Optional[_User]:
+        """Find user by checking for null email marker containing username hash."""
+        users = _list_users(app, app.admin_secret)
+        for user in users:
+            if is_null_email_marker(user.profile.email):
+                # In no-email mode, username should match display_name
+                if user.profile.username == username:
+                    return user
+        return None
+
+    def test_login_creates_user_with_null_email_marker(
+        self, _app_ldap_no_email: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test login in no-email mode creates user with null email marker."""
+        suffix = token_hex(4)
+        username = f"noemail_{suffix}"
+        display_name = "No Email User"
+
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email="ignored@example.com",  # This email is ignored in no-email mode
+            display_name=display_name,
+            groups=[_ADMIN_GROUP],
+        )
+
+        status, access_token, refresh_token = _ldap_login(
+            _app_ldap_no_email, username, _DEFAULT_PASSWORD
+        )
+        _verify_ldap_login_success(status, access_token, refresh_token)
+
+        # Find the user - should have null email marker
+        user = self._get_user_with_null_email(_app_ldap_no_email, display_name)
+        assert user is not None, "User with null email marker should be created"
+        assert is_null_email_marker(user.profile.email), "Email should be null marker"
+        assert user.profile.email.startswith(NULL_EMAIL_MARKER_PREFIX)
+        assert user.role == UserRoleInput.ADMIN
+
+        _delete_users(_app_ldap_no_email, _app_ldap_no_email.admin_secret, users=[user.gid])
+
+    def test_subsequent_login_finds_same_user(
+        self, _app_ldap_no_email: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test subsequent login in no-email mode finds the same user by unique_id."""
+        suffix = token_hex(4)
+        username = f"noemail_same_{suffix}"
+        display_name = "Same User"
+
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email="ignored@example.com",
+            display_name=display_name,
+            groups=[_MEMBER_GROUP],
+        )
+
+        # First login
+        status, _, _ = _ldap_login(_app_ldap_no_email, username, _DEFAULT_PASSWORD)
+        assert status == 204
+        user1 = self._get_user_with_null_email(_app_ldap_no_email, display_name)
+        assert user1 is not None
+
+        # Second login - should find same user
+        status, _, _ = _ldap_login(_app_ldap_no_email, username, _DEFAULT_PASSWORD)
+        assert status == 204
+        user2 = self._get_user_with_null_email(_app_ldap_no_email, display_name)
+        assert user2 is not None
+        assert user2.gid == user1.gid, "Same user should be found on subsequent login"
+
+        _delete_users(_app_ldap_no_email, _app_ldap_no_email.admin_secret, users=[user1.gid])

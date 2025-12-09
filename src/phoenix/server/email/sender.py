@@ -1,3 +1,4 @@
+import logging
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -5,10 +6,13 @@ from pathlib import Path
 from typing import Literal
 
 from anyio import to_thread
+from email_validator import EmailNotValidError, validate_email
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from typing_extensions import TypeAlias
 
 from phoenix.config import get_env_root_url, get_env_support_email
+
+logger = logging.getLogger(__name__)
 
 EMAIL_TEMPLATE_FOLDER = Path(__file__).parent / "templates"
 
@@ -44,6 +48,12 @@ class SimpleEmailSender:
         email: str,
         name: str,
     ) -> None:
+        try:
+            email = validate_email(email, check_deliverability=False).normalized
+        except EmailNotValidError:
+            logger.warning("Skipping welcome email for user with invalid email address")
+            return
+
         subject = "[Phoenix] Welcome to Arize Phoenix"
         template_name = "welcome.html"
 
@@ -67,6 +77,12 @@ class SimpleEmailSender:
         email: str,
         reset_url: str,
     ) -> None:
+        try:
+            email = validate_email(email, check_deliverability=False).normalized
+        except EmailNotValidError:
+            logger.warning("Skipping password reset email for user with invalid email address")
+            return
+
         subject = "[Phoenix] Password Reset Request"
         template_name = "password_reset.html"
 
@@ -88,6 +104,14 @@ class SimpleEmailSender:
         allocated_storage_gibibytes: float,
         notification_threshold_percentage: float,
     ) -> None:
+        try:
+            email = validate_email(email, check_deliverability=False).normalized
+        except EmailNotValidError:
+            logger.warning(
+                "Skipping database usage warning email for user with invalid email address"
+            )
+            return
+
         subject = "[Phoenix] Database Disk Space Usage Threshold Exceeded"
         template_name = "db_disk_usage_notification.html"
 

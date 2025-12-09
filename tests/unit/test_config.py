@@ -1623,9 +1623,23 @@ class TestLDAPConfigFromEnv:
                     "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
                     "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
                     "PHOENIX_LDAP_ATTR_EMAIL": "",
+                    # No-email mode requires unique_id
                 },
-                "cannot be empty",
-                id="attr_email_empty",
+                "PHOENIX_LDAP_ATTR_UNIQUE_ID is required",
+                id="attr_email_empty_requires_unique_id",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "false",
+                    # No-email mode requires allow_sign_up=true
+                },
+                "PHOENIX_LDAP_ALLOW_SIGN_UP must be True",
+                id="attr_email_empty_requires_allow_sign_up",
             ),
             pytest.param(
                 {
@@ -1805,6 +1819,23 @@ class TestLDAPConfigFromEnv:
                     "tls_mode": "ldaps",
                 },
                 id="ldaps_defaults_to_port_636",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "attr_email": None,  # Empty string becomes None in no-email mode
+                    "attr_unique_id": "entryUUID",
+                    "allow_sign_up": True,
+                },
+                id="no_email_mode_valid",
             ),
         ],
     )

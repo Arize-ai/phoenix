@@ -1,20 +1,33 @@
 # Docker Compose override for LDAP testing
 #
+# Phoenix Container Configuration:
+#   ┌────────────────────────────┬─────────────────┬─────────────────────┐
+#   │ Container                  │ LDAP Server     │ Email Mode          │
+#   ├────────────────────────────┼─────────────────┼─────────────────────┤
+#   │ phoenix                    │ ldap-no-email   │ No email (markers)  │
+#   │ phoenix-starttls           │ ldap            │ With email          │
+#   │ phoenix-anonymous-ldaps    │ ldap-anonymous  │ With email          │
+#   │ phoenix-anonymous-starttls │ ldap-anonymous  │ With email          │
+#   │ phoenix-posix              │ ldap-posix      │ With email          │
+#   │ grafana-ldap               │ ldap            │ With email          │
+#   └────────────────────────────┴─────────────────┴─────────────────────┘
+#
 # Tests six LDAP connection modes:
-#   1. LDAPS (port 636, TLS from start) - phoenix → ldap
-#   2. STARTTLS (port 389 → TLS upgrade) - phoenix-starttls → ldap-mitm-proxy → ldap
+#   1. LDAPS + No Email (port 636, TLS, null email markers) - phoenix → ldap-no-email
+#   2. STARTTLS + Email (port 389 → TLS upgrade) - phoenix-starttls → ldap-mitm-proxy → ldap
 #   3. Anonymous LDAPS (no service account) - phoenix-anonymous-ldaps → ldap-anonymous
 #   4. Anonymous STARTTLS (no service account) - phoenix-anonymous-starttls → ldap-anonymous-mitm-proxy → ldap-anonymous
-#   5. Grafana STARTTLS (comparison) - grafana-ldap → ldap-mitm-proxy → ldap
+#   5. Grafana STARTTLS (comparison, with email) - grafana-ldap → ldap-mitm-proxy → ldap
 #   6. POSIX mode (GROUP_SEARCH_FILTER) - phoenix-posix → ldap-posix
 #
-# Three LDAP servers are used:
-#   - ldap: Standard osixia/openldap with restrictive ACLs (requires bind credentials)
-#   - ldap-anonymous: Same image but with ACLs modified to allow anonymous read access
+# Four LDAP servers are used:
+#   - ldap: Standard OpenLDAP with users that HAVE the mail attribute
+#   - ldap-no-email: OpenLDAP with users that do NOT have the mail attribute
+#   - ldap-anonymous: Same as ldap but with ACLs modified to allow anonymous read access
 #   - ldap-posix: OpenLDAP with POSIX groups (memberUid) WITHOUT memberOf overlay
 #
 # Two MITM proxies are used:
-#   - ldap-mitm-proxy: Routes to ldap server (for service account modes)
+#   - ldap-mitm-proxy: Routes to ldap server (for Grafana, phoenix-starttls)
 #   - ldap-anonymous-mitm-proxy: Routes to ldap-anonymous server (for anonymous modes)
 #
 # The anonymous bind tests validate the AUTO_BIND_DEFAULT flow in ldap.py:
@@ -96,6 +109,59 @@ services:
       echo 'LDAP seed data loaded';
       tail -f /dev/null
       "
+
+  # ===========================================================================
+  # No Email Mode Testing (NULL_EMAIL_MARKER)
+  # ===========================================================================
+  # Separate LDAP server for no-email testing
+  # Users in this server do NOT have the mail attribute
+  ldap-no-email:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-no-email-server
+    hostname: ldap-no-email.example.com
+    environment:
+      - LDAP_ORGANISATION=Example Corp No Email
+      - LDAP_DOMAIN=example.com
+      - LDAP_ADMIN_PASSWORD=admin_password
+      - LDAP_CONFIG_PASSWORD=config_password
+      - LDAP_READONLY_USER=true
+      - LDAP_READONLY_USER_USERNAME=readonly
+      - LDAP_READONLY_USER_PASSWORD=readonly_password
+      # Enable TLS with auto-generated self-signed certificates
+      - LDAP_TLS=true
+      - LDAP_TLS_VERIFY_CLIENT=never
+      - LDAP_LOG_LEVEL=256
+    volumes:
+      - ldap-no-email-data:/var/lib/ldap
+      - ldap-no-email-config:/etc/ldap/slapd.d
+    command: --copy-service --loglevel debug
+
+  # Seed data for no-email LDAP server
+  ldap-no-email-seed:
+    profiles: ["ldap-test"]
+    image: osixia/openldap:1.5.0
+    container_name: ${PROJECT_NAME:-devops}-ldap-no-email-seed
+    depends_on:
+      - ldap-no-email
+    volumes:
+      - ./ldap-no-email-seed.ldif:/seed.ldif:ro
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        echo 'Waiting for LDAP no-email server to be ready...';
+        sleep 5;
+
+        echo 'Loading no-email seed data...';
+        ldapadd -x -H ldap://ldap-no-email:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed.ldif || true;
+
+        echo 'Verifying users do NOT have mail attribute...';
+        ldapsearch -x -H ldap://ldap-no-email:389 -D 'cn=readonly,dc=example,dc=com' -w readonly_password \
+          -b 'ou=users,dc=example,dc=com' '(uid=admin)' uid mail displayName entryUUID | head -20;
+
+        echo 'LDAP no-email server ready';
+        tail -f /dev/null
 
   # Separate LDAP server configured for anonymous read access
   # Used by phoenix-anonymous to test the AUTO_BIND_DEFAULT flow
@@ -207,7 +273,9 @@ services:
     labels:
       - "phoenix.auth.mode=ldap-starttls"
 
-  # Phoenix with LDAPS mode (port 636, TLS from start)
+  # Phoenix with LDAPS mode + No Email (port 636, TLS, null email markers)
+  # This is the main Phoenix instance used for integration testing
+  # Uses ldap-no-email server (users without mail attribute)
   phoenix:
     profiles: ["ldap-test"]
     container_name: ${PROJECT_NAME:-devops}-phoenix
@@ -221,10 +289,11 @@ services:
       - PHOENIX_DISABLE_RATE_LIMIT=true
       - PHOENIX_SECRET=dev-secret-for-tls-testing-only-12345678
       - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-tls-testing-only-12345678
+      - PHOENIX_ADMINS=
       # Disable OAuth from base compose (prevents auto-redirect to OIDC)
       - PHOENIX_OAUTH2_DEV_AUTO_LOGIN=false
       # LDAPS Configuration (port 636, TLS from start)
-      - PHOENIX_LDAP_HOST=ldap
+      - PHOENIX_LDAP_HOST=ldap-no-email
       # PHOENIX_LDAP_PORT omitted - tests port defaulting (should default to 636 for LDAPS)
       - PHOENIX_LDAP_TLS_MODE=ldaps
       - PHOENIX_LDAP_TLS_VERIFY=false  # Accept self-signed cert
@@ -232,18 +301,22 @@ services:
       - PHOENIX_LDAP_BIND_PASSWORD=readonly_password
       - PHOENIX_LDAP_USER_SEARCH_BASE_DNS=["ou=users,dc=example,dc=com"]
       - PHOENIX_LDAP_USER_SEARCH_FILTER=(uid=%s)
-      - PHOENIX_LDAP_ATTR_EMAIL=mail
+      # NO EMAIL MODE: Empty ATTR_EMAIL enables null email marker generation
+      - PHOENIX_LDAP_ATTR_EMAIL=
       - PHOENIX_LDAP_ATTR_DISPLAY_NAME=displayName
       - PHOENIX_LDAP_ATTR_MEMBER_OF=memberOf
+      # REQUIRED: Unique ID for user identification when email is not available
+      - PHOENIX_LDAP_ATTR_UNIQUE_ID=entryUUID
       - PHOENIX_LDAP_GROUP_ROLE_MAPPINGS=[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]
+      # REQUIRED: Must be true when email is not available
       - PHOENIX_LDAP_ALLOW_SIGN_UP=true
       # In-memory SQLite
       - "PHOENIX_SQL_DATABASE_URL=sqlite:///:memory:"
     depends_on:
-      - ldap
-      - ldap-seed
+      - ldap-no-email
+      - ldap-no-email-seed
     labels:
-      - "phoenix.auth.mode=ldap"
+      - "phoenix.auth.mode=ldap-no-email"
 
   # Phoenix with anonymous bind via LDAPS (no service account, TLS from start)
   # Tests the AUTO_BIND_DEFAULT flow where bind() is deferred to context manager
@@ -446,6 +519,7 @@ services:
       - "phoenix.auth.mode=ldap-posix"
 
   # Grafana LDAP (for comparison with Phoenix)
+  # Uses the main ldap server (with email) since Grafana requires email for user provisioning
   grafana-ldap:
     profiles: ["ldap-test"]
     image: grafana/grafana:latest
@@ -473,6 +547,7 @@ services:
     container_name: ${PROJECT_NAME:-devops}-ldap-test
     depends_on:
       - ldap-seed
+      - ldap-no-email-seed
       - phoenix-starttls
       - phoenix
       - phoenix-anonymous-ldaps
@@ -481,6 +556,7 @@ services:
       - grafana-ldap
     environment:
       # Use main Phoenix endpoint for integration tests (direct connection, no MITM proxy)
+      # NOTE: phoenix and phoenix-starttls both use no-email mode (null email markers)
       - PHOENIX_URL=http://phoenix:6006
       - PHOENIX_STARTTLS_URL=http://phoenix-starttls:6006
       - PHOENIX_LDAPS_URL=http://phoenix:6006
@@ -539,6 +615,8 @@ services:
 volumes:
   ldap-test-data:
   ldap-test-config:
+  ldap-no-email-data:
+  ldap-no-email-config:
   ldap-anonymous-data:
   ldap-anonymous-config:
   ldap-posix-data:

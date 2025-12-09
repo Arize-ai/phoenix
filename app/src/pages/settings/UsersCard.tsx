@@ -1,4 +1,4 @@
-import { ReactNode, Suspense, useState } from "react";
+import { ReactNode, Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Button, Card, Icon, Icons, Loading, View } from "@phoenix/components";
@@ -15,6 +15,18 @@ export function UsersCard() {
 
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
+
+  const isDisabled = useMemo(() => {
+    // Disable when no user creation method is available:
+    // - Basic auth is disabled AND
+    // - No OAuth2 IDPs configured AND
+    // - LDAP manual user creation is disabled
+    return (
+      window.Config.basicAuthDisabled &&
+      !window.Config.oAuth2Idps.length &&
+      !window.Config.ldapManualUserCreationEnabled
+    );
+  }, []);
 
   const data = useLazyLoadQuery<UsersCardQuery>(
     graphql`
@@ -61,6 +73,7 @@ export function UsersCard() {
           }}
           size="S"
           leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+          isDisabled={isDisabled}
         >
           Add User
         </Button>

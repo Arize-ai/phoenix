@@ -1,0 +1,100 @@
+# Phoenix LDAP Development Seed Data - NO EMAIL
+# This file populates the OpenLDAP server with test users that do NOT have
+# email addresses, to test the null email marker mode.
+
+# Create organizational units
+dn: ou=users,dc=example,dc=com
+objectClass: organizationalUnit
+ou: users
+
+dn: ou=groups,dc=example,dc=com
+objectClass: organizationalUnit
+ou: groups
+
+# Create groups
+dn: cn=admins,ou=groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: admins
+description: Phoenix Administrators
+member: uid=admin,ou=users,dc=example,dc=com
+
+dn: cn=members,ou=groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: members
+description: Phoenix Members
+member: uid=alice,ou=users,dc=example,dc=com
+member: uid=bob,ou=users,dc=example,dc=com
+
+dn: cn=viewers,ou=groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: viewers
+description: Phoenix Viewers
+member: uid=charlie,ou=users,dc=example,dc=com
+
+# Create users WITHOUT email (mail) attribute
+# These users rely on entryUUID for identification
+
+dn: uid=admin,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: admin
+cn: Admin User
+sn: User
+givenName: Admin
+displayName: Admin User
+userPassword: password123
+uidNumber: 10001
+gidNumber: 10001
+homeDirectory: /home/admin
+loginShell: /bin/bash
+memberOf: cn=admins,ou=groups,dc=example,dc=com
+
+dn: uid=alice,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: alice
+cn: Alice Smith
+sn: Smith
+givenName: Alice
+displayName: Alice Smith
+userPassword: password123
+uidNumber: 10002
+gidNumber: 10002
+homeDirectory: /home/alice
+loginShell: /bin/bash
+memberOf: cn=members,ou=groups,dc=example,dc=com
+
+dn: uid=bob,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: bob
+cn: Bob Johnson
+sn: Johnson
+givenName: Bob
+displayName: Bob Johnson
+userPassword: password123
+uidNumber: 10003
+gidNumber: 10003
+homeDirectory: /home/bob
+loginShell: /bin/bash
+memberOf: cn=members,ou=groups,dc=example,dc=com
+
+dn: uid=charlie,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: charlie
+cn: Charlie Brown
+sn: Brown
+givenName: Charlie
+displayName: Charlie Brown
+userPassword: password123
+uidNumber: 10004
+gidNumber: 10004
+homeDirectory: /home/charlie
+loginShell: /bin/bash
+memberOf: cn=viewers,ou=groups,dc=example,dc=com
+
