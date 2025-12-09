@@ -1,1 +1,3 @@
 .github/
+./playwright-report/**
+app/playwright-report/**

@@ -9,6 +9,9 @@ import tseslint from "typescript-eslint";
 
 export default defineConfig([
   {
+    ignores: ["playwright-report/**", "test-results/**"],
+  },
+  {
     files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     plugins: {
       js,
