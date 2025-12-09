@@ -24,12 +24,6 @@ declare global {
       oAuth2Idps: OAuth2Idp[];
       ldapEnabled: boolean;
       /**
-       * Marker string prefix for LDAP users without email.
-       * Used to hide placeholder emails in UI.
-       * Only present when LDAP is enabled and email attribute is empty.
-       */
-      nullEmailMarkerPrefix?: string | null;
-      /**
        * Whether manual LDAP user creation is enabled.
        * False when PHOENIX_LDAP_ATTR_EMAIL is empty (no email to enter).
        */

@@ -1821,7 +1821,6 @@ class TestNullEmailMarker:
             ("user@example.com", False),
             ("admin@corp.local", False),
             # Edge cases → False
-            (None, False),
             ("", False),
             # Similar but not markers → False
             ("NULL123456789abcdef", False),  # Missing PUA
@@ -1829,6 +1828,6 @@ class TestNullEmailMarker:
             ("prefix\ue000NULL", False),  # Not at start
         ],
     )
-    def test_is_null_email_marker(self, email: str | None, expected: bool) -> None:
+    def test_is_null_email_marker(self, email: str, expected: bool) -> None:
         """is_null_email_marker correctly identifies markers vs real emails."""
         assert is_null_email_marker(email) is expected

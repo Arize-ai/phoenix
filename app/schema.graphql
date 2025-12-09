@@ -3308,7 +3308,7 @@ type User implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   passwordNeedsReset: Boolean!
-  email: String!
+  email: String
   username: String!
   profilePictureUrl: String
   createdAt: DateTime!

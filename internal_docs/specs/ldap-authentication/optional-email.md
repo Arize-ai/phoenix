@@ -241,17 +241,48 @@ This approach is preferred over explicit `is_null_email_marker()` checks because
 - Email validation is already required before sending
 - No additional imports or coupling to LDAP-specific code
 
-#### 6. Frontend
+#### 6. GraphQL Layer (`src/phoenix/server/api/types/User.py`)
 
-**Server injects config into window object (`app/src/pages/Layout.tsx` or similar):**
+The GraphQL resolver filters out null email markers at the API boundary, returning `None` (GraphQL `null`):
+
+```python
+from phoenix.server.ldap import is_null_email_marker
+
+@strawberry.field
+async def email(self, info: Info[Context, None]) -> str | None:
+    # ... fetch email from database ...
+    if is_null_email_marker(val):
+        return None
+    return val
+```
+
+This keeps the placeholder detection logic on the backend, so the frontend never sees the marker format. The GraphQL schema declares `email: String` (nullable).
+
+#### 6b. REST API Layer (`src/phoenix/server/api/routers/v1/users.py`)
+
+The REST API returns empty string `""` instead of `null` to maintain backwards compatibility with existing API consumers:
+
+```python
+from phoenix.server.ldap import is_null_email_marker
+
+# In list_users endpoint
+email="" if is_null_email_marker(user.email) else user.email,
+```
+
+**Why `""` instead of `null`?**
+- The REST API has an established contract where `email` is always a string
+- Changing to `null` could break existing integrations that expect a string type
+- Empty string is falsy in most languages, so consumers can check truthiness
+- GraphQL can use `null` because the schema change (`String!` → `String`) is explicit
+
+#### 7. Frontend
+
+**Server injects config into window object:**
 
 ```tsx
-// Injected by server into the HTML template
 declare global {
   interface Window {
     Config: {
-      // Placeholder email detection
-      nullEmailMarkerPrefix: string;   // "\uE000NULL" - prefix for placeholder emails
       ldapManualUserCreationEnabled: boolean;  // false when PHOENIX_LDAP_ATTR_EMAIL is empty
       // ... other config
     };
@@ -259,27 +290,17 @@ declare global {
 }
 ```
 
-**Helper functions (`app/src/utils/email.ts`):**
+> **Note:** No `nullEmailMarkerPrefix` is needed in the frontend config. The backend GraphQL layer returns `null` for null email markers, so the frontend simply checks for truthy email values.
 
-```typescript
-export function isNullEmailMarker(email: string): boolean {
-  return email.startsWith(window.Config.nullEmailMarkerPrefix);
-}
-
-export function getDisplayEmail(email: string): string | null {
-  return isNullEmailMarker(email) ? null : email;
-}
-```
-
-#### 7. UI Components
+#### 8. UI Components
 
 **Full survey of email usage in frontend:**
 
 | File | Current Usage | Change Needed |
 |------|---------------|---------------|
 | `UsersCard.tsx` | "Add User" button | Disable when no user creation method is available |
-| `UsersTable.tsx` | Displays email as mailto link | Hide for placeholder emails |
-| `ViewerProfileCard.tsx` | Shows email in profile card | Hide for placeholder emails |
+| `UsersTable.tsx` | Displays email as mailto link | Hide when email is empty |
+| `ViewerProfileCard.tsx` | Shows email in profile card | Hide when email is empty |
 | `LDAPUserForm.tsx` | Email input for creating LDAP users | No change (only rendered when `ldapManualUserCreationEnabled=true`) |
 | `NewUserDialog.tsx` | Creates users with email | Hide LDAP option when `ldapManualUserCreationEnabled=false` |
 | `UserForm.tsx` | Email input for local users | No change (local users have real email) |
@@ -313,10 +334,8 @@ const isDisabled = useMemo(() => {
 
 **UsersTable.tsx:**
 ```tsx
-import { isNullEmailMarker } from "@phoenix/utils/email";
-
-// In the cell renderer - hide placeholder emails
-{!isNullEmailMarker(row.original.email) && (
+// In the cell renderer - hide null/empty emails (GraphQL returns null for null email markers)
+{row.original.email && (
   <a href={`mailto:${row.original.email}`}>
     {row.original.email}
   </a>
@@ -325,10 +344,8 @@ import { isNullEmailMarker } from "@phoenix/utils/email";
 
 **ViewerProfileCard.tsx:**
 ```tsx
-import { isNullEmailMarker } from "@phoenix/utils/email";
-
-// Hide email field for users with placeholder
-{!isNullEmailMarker(viewer.email) && (
+// Hide email field when null (GraphQL returns null for null email markers)
+{viewer.email && (
   <TextField value={viewer.email} isReadOnly size="S">
     <Label>Email</Label>
     <Input />
@@ -615,9 +632,10 @@ POST /api/v1/admin/ldap/provision
 #### 6. Export/Import
 
 If users are exported (e.g., to CSV):
-- Placeholder emails will appear as `\uE000NULL...` (may render as `�NULL...`)
-- On import, these would be treated as regular strings
-- **Recommendation:** Use `get_display_email()` which returns `null` for placeholder, export as empty
+- GraphQL API returns `null` for null email markers, so exports via the API will show empty/null email
+- REST API returns empty string `""` for null email markers (to avoid breaking the existing API contract)
+- Direct database exports would show the raw placeholder (`\uE000NULL...`)
+- On import via API, email validation would reject null email marker format (no `@` symbol)
 
 #### 7. MD5 Collision Risk
 
@@ -685,13 +703,14 @@ LDAP users authenticate via LDAP bind, not email/password, so the local login re
 
 #### 7. PUA Stripping Attack
 
-**Risk:** If a system strips PUA characters during export/import:
+**Risk:** If a system strips PUA characters during direct database export/import:
 - `\uE000NULL7f3d...` becomes `NULL7f3d...`
 - This could be imported as a "real" email
 
 **Mitigation:**
-- Export should use `get_display_email()` which returns `null` for placeholder
-- Import should validate email format (reject strings starting with "NULL" + hex)
+- GraphQL API exports empty string for placeholders (PUA never exposed to frontend)
+- Direct DB imports should validate email format (reject strings starting with "NULL" + hex)
+- Standard email validation rejects both formats (no `@` symbol)
 
 #### 8. API User Creation Security
 
@@ -752,10 +771,10 @@ UPDATE users SET email = NULL WHERE email LIKE E'\uE000%';
 ### Code Changes
 
 1. **Model:** `email: Mapped[Optional[str]]`
-2. **GraphQL:** `email: Optional[str]`
+2. **GraphQL:** `email: Optional[str]` (remove the `is_null_email_marker()` check, return `None` directly)
 3. **REST API:** `email: Optional[str] = None`
-4. **Frontend:** Handle `null` instead of checking for PUA marker
-5. **Remove:** `is_null_email_marker()` helper (no longer needed)
+4. **Frontend:** Handle `null` instead of empty string (minimal change - both are falsy)
+5. **Remove:** `is_null_email_marker()` helper from backend (no longer needed)
 
 ### Effort Estimate
 
@@ -780,9 +799,9 @@ UPDATE users SET email = NULL WHERE email LIKE E'\uE000%';
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Phase 1: Bridge Solution                     │
-│  - LDAP users without email get placeholder                     │
-│  - email: "\uE000NULL{md5_hash}"                                │
-│  - UI hides placeholder emails                                  │
+│  - LDAP users without email get placeholder in DB               │
+│  - DB email: "\uE000NULL{md5_hash}"                             │
+│  - GraphQL returns null for placeholders (UI checks truthiness) │
 │  - Email operations skipped for placeholder                     │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -811,12 +830,11 @@ UPDATE users SET email = NULL WHERE email LIKE E'\uE000%';
 - [x] Update `LDAPUserInfo.email` type to `str | None`
 - [x] Update `_authenticate()` to handle missing email attribute
 - [x] Update `get_or_create_ldap_user()` for placeholder generation
-- [x] Inject `nullEmailMarkerPrefix` into `window.Config`
+- [x] Update GraphQL `User.email` resolver to return `""` for null email markers
 - [x] Inject `ldapManualUserCreationEnabled` into `window.Config`
-- [x] Add frontend `isNullEmailMarker()` helper in `app/src/utils/emailUtils.ts`
 - [x] Update `UsersCard.tsx` to disable "Add User" button when no creation method available
-- [x] Update `UsersTable.tsx` to hide placeholder emails
-- [x] Update `ViewerProfileCard.tsx` to hide placeholder emails
+- [x] Update `UsersTable.tsx` to hide empty emails
+- [x] Update `ViewerProfileCard.tsx` to hide empty emails
 - [x] Update `NewUserDialog.tsx` to hide LDAP option when manual creation disabled
 - [x] Email sender naturally skips placeholder emails (via email validation)
 - [x] Verify email validation rejects null markers (handled by EMAIL_PATTERN - no `@` symbol)
@@ -828,10 +846,10 @@ UPDATE users SET email = NULL WHERE email LIKE E'\uE000%';
 
 - [ ] Create database migration
 - [ ] Update SQLAlchemy model
-- [ ] Update GraphQL types
+- [ ] Update GraphQL types (return `None` instead of `""`)
 - [ ] Update REST API models
-- [ ] Update frontend to handle `null`
-- [ ] Remove placeholder email helpers
+- [ ] Update frontend to handle `null` (minimal - both `null` and `""` are falsy)
+- [ ] Remove `is_null_email_marker()` helper from backend
 - [ ] Migrate existing placeholder emails to `NULL`
 - [ ] Update tests
 

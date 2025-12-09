@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c9f4bdecd31b477bd999d5ee54d60a81>>
+ * @generated SignedSource<<0cef701f27818fec4c28140e89fa1edf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ import { FragmentRefs } from "relay-runtime";
 export type ViewerContext_viewer$data = {
   readonly viewer: {
     readonly authMethod: AuthMethod;
-    readonly email: string;
+    readonly email: string | null;
     readonly id: string;
     readonly isManagementUser: boolean;
     readonly profilePictureUrl: string | null;

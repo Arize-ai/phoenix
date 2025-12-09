@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e85d2d9b22f0e148a088a916d6082442>>
+ * @generated SignedSource<<73dcc2ae818d192736ef34f5a0c4dba6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ import { FragmentRefs } from "relay-runtime";
 export type authenticatedRootLoaderQuery$variables = Record<PropertyKey, never>;
 export type authenticatedRootLoaderQuery$data = {
   readonly viewer: {
-    readonly email: string;
+    readonly email: string | null;
     readonly id: string;
     readonly passwordNeedsReset: boolean;
     readonly username: string;

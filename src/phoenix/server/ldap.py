@@ -334,7 +334,7 @@ def generate_null_email_marker(unique_id: str) -> str:
     return f"{NULL_EMAIL_MARKER_PREFIX}{md5(normalized.encode()).hexdigest()}"
 
 
-def is_null_email_marker(email: str | None) -> bool:
+def is_null_email_marker(email: str) -> bool:
     """Check if an email value is a null email marker.
 
     This function identifies placeholder values that were generated for LDAP
@@ -344,7 +344,7 @@ def is_null_email_marker(email: str | None) -> bool:
     - Validate that users aren't trying to log in with marker values
 
     Args:
-        email: The email value to check (can be None)
+        email: The email value to check
 
     Returns:
         True if the value is a null email marker, False otherwise.
@@ -354,10 +354,8 @@ def is_null_email_marker(email: str | None) -> bool:
         True
         >>> is_null_email_marker("alice@example.com")
         False
-        >>> is_null_email_marker(None)
-        False
     """
-    return bool(email and email.startswith(NULL_EMAIL_MARKER_PREFIX))
+    return email.startswith(NULL_EMAIL_MARKER_PREFIX)
 
 
 class LDAPUserInfo(NamedTuple):

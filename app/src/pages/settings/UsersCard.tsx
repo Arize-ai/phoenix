@@ -52,11 +52,11 @@ export function UsersCard() {
                 onDismiss={() => {
                   setDialog(null);
                 }}
-                onNewUserCreated={(email) => {
+                onNewUserCreated={(username) => {
                   setDialog(null);
                   notifySuccess({
                     title: "User added",
-                    message: `User ${email} has been added.`,
+                    message: `User ${username} has been added.`,
                   });
                   setFetchKey((prev) => prev + 1);
                 }}

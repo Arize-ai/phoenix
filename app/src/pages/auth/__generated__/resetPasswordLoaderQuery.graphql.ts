@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f9db3166ba7646bb93f6c49124466d9f>>
+ * @generated SignedSource<<14d03449ca63e47cc6046580d5b4dda8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ import { FragmentRefs } from "relay-runtime";
 export type resetPasswordLoaderQuery$variables = Record<PropertyKey, never>;
 export type resetPasswordLoaderQuery$data = {
   readonly viewer: {
-    readonly email: string;
+    readonly email: string | null;
     readonly id: string;
   } | null;
   readonly " $fragmentSpreads": FragmentRefs<"ResetPasswordFormQuery">;

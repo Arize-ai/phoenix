@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<51a8c0f9909f874fbdd5ff76d0772f57>>
+ * @generated SignedSource<<714f06c8939bc67ed12cdd4d9b5c7c8c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type UserAPIKeysTableFragment$data = {
     readonly id: string;
     readonly name: string;
     readonly user: {
-      readonly email: string;
+      readonly email: string | null;
     };
   }>;
   readonly " $fragmentType": "UserAPIKeysTableFragment";

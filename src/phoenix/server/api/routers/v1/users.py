@@ -36,7 +36,7 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked, require_admin
-from phoenix.server.ldap import is_ldap_user
+from phoenix.server.ldap import is_ldap_user, is_null_email_marker
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +171,7 @@ async def list_users(
                 LDAPUser(
                     id=str(GlobalID("User", str(user.id))),
                     username=user.username,
-                    email=user.email,
+                    email="" if is_null_email_marker(user.email) else user.email,
                     role=user.role.name,
                     created_at=user.created_at,
                     updated_at=user.updated_at,

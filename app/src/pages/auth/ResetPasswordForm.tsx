@@ -86,19 +86,21 @@ export function ResetPasswordForm(props: {
   );
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <VisuallyHidden>
-        <TextField
-          name="email"
-          type="email"
-          autoComplete="email"
-          isRequired
-          isReadOnly
-          value={data.viewer?.email}
-        >
-          <Label>Email</Label>
-          <Input />
-        </TextField>
-      </VisuallyHidden>
+      {data.viewer?.email && (
+        <VisuallyHidden>
+          <TextField
+            name="email"
+            type="email"
+            autoComplete="email"
+            isRequired
+            isReadOnly
+            value={data.viewer.email}
+          >
+            <Label>Email</Label>
+            <Input />
+          </TextField>
+        </VisuallyHidden>
+      )}
       <Controller
         name="currentPassword"
         control={control}

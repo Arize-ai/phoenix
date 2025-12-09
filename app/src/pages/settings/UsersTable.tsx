@@ -18,7 +18,6 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { isUserRole, normalizeUserRole, UserRole } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
-import { isNullEmailMarker } from "@phoenix/utils";
 
 import { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
 import { UsersTableQuery } from "./__generated__/UsersTableQuery.graphql";
@@ -60,7 +59,7 @@ const usersTableContainerCSS = css`
   max-height: var(--ac-global-dimension-size-6000);
 `;
 
-const isDefaultAdminUser = (user: { email: string; username: string }) =>
+const isDefaultAdminUser = (user: { email: string | null; username: string }) =>
   user.email === "admin@localhost" || user.username === "admin";
 
 export function UsersTable({ query }: { query: UsersTable_users$key }) {
@@ -135,7 +134,6 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         header: "user",
         accessorKey: "username",
         cell: ({ row }) => {
-          const showEmail = !isNullEmailMarker(row.original.email);
           return (
             <Flex direction="row" gap="size-50" alignItems="center">
               <UserPicture
@@ -144,7 +142,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                 size={20}
               />
               <span>{row.original.username}</span>
-              {showEmail && (
+              {row.original.email && (
                 <a href={`mailto:${row.original.email}`} css={emailLinkCSS}>
                   {row.original.email}
                 </a>
@@ -165,7 +163,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         cell: ({ row }) => {
           if (
             isDefaultAdminUser(row.original) ||
-            (viewer && viewer.email == row.original.email)
+            (viewer && viewer.id === row.original.id)
           ) {
             return normalizeUserRole(row.original.role);
           }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3dd3ac394686b1d5f78d2704b8d4780e>>
+ * @generated SignedSource<<a36f022bd03fc05bffe429f2dfadd42c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,8 +25,9 @@ export type NewUserDialogMutation$variables = {
 export type NewUserDialogMutation$data = {
   readonly createUser: {
     readonly user: {
-      readonly email: string;
+      readonly email: string | null;
       readonly id: string;
+      readonly username: string;
     };
   };
 };
@@ -79,6 +80,13 @@ v1 = [
             "kind": "ScalarField",
             "name": "email",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "username",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -105,16 +113,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "a9bf3794a5355d9d0e0a3acebe7f3809",
+    "cacheID": "e03311063b020f79a5ad0d89410dfc58",
     "id": null,
     "metadata": {},
     "name": "NewUserDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation NewUserDialogMutation(\n  $input: CreateUserInput!\n) {\n  createUser(input: $input) {\n    user {\n      id\n      email\n    }\n  }\n}\n"
+    "text": "mutation NewUserDialogMutation(\n  $input: CreateUserInput!\n) {\n  createUser(input: $input) {\n    user {\n      id\n      email\n      username\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "97d1aefa41e8831e57b6bb0d1a078a7c";
+(node as any).hash = "30cd721c401096c03fd7587053f35a21";
 
 export default node;

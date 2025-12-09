@@ -36,7 +36,7 @@ export function NewUserDialog({
   onNewUserCreationError,
   onDismiss,
 }: {
-  onNewUserCreated: (email: string) => void;
+  onNewUserCreated: (username: string) => void;
   onNewUserCreationError: (error: Error) => void;
   onDismiss: () => void;
 }) {
@@ -46,6 +46,7 @@ export function NewUserDialog({
         user {
           id
           email
+          username
         }
       }
     }
@@ -65,7 +66,7 @@ export function NewUserDialog({
           },
         },
         onCompleted: (response) => {
-          onNewUserCreated(response.createUser.user.email);
+          onNewUserCreated(response.createUser.user.username);
         },
         onError: (error) => {
           onNewUserCreationError(error);
@@ -88,7 +89,7 @@ export function NewUserDialog({
           },
         },
         onCompleted: (response) => {
-          onNewUserCreated(response.createUser.user.email);
+          onNewUserCreated(response.createUser.user.username);
         },
         onError: (error) => {
           onNewUserCreationError(error);
@@ -111,7 +112,7 @@ export function NewUserDialog({
           },
         },
         onCompleted: (response) => {
-          onNewUserCreated(response.createUser.user.email);
+          onNewUserCreated(response.createUser.user.username);
         },
         onError: (error) => {
           onNewUserCreationError(error);
