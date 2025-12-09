@@ -51,6 +51,8 @@ import {
 
 import { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
 
+import { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
+
 import {
   ChatCompletionOverDatasetInput,
   EvaluatorInputMappingInput,
