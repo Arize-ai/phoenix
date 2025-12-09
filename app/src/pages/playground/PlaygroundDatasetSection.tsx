@@ -48,7 +48,7 @@ export function PlaygroundDatasetSection({
               name
               color
             }
-            evaluators(first: 100) {
+            datasetEvaluators(first: 100) {
               edges {
                 node {
                   id
@@ -98,16 +98,18 @@ export function PlaygroundDatasetSection({
 
   const evaluators = useMemo(
     () =>
-      data.dataset.evaluators?.edges?.map((edge) => ({
+      data.dataset.datasetEvaluators?.edges?.map((edge) => ({
         ...edge.node,
         isAssignedToDataset: true,
         annotationName: edge.node?.evaluator?.outputConfig?.name,
       })) ?? [],
-    [data.dataset.evaluators]
+    [data.dataset.datasetEvaluators]
   );
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
     () =>
-      data.dataset.evaluators?.edges.map((evaluator) => evaluator.node.id) ?? []
+      data.dataset.datasetEvaluators?.edges.map(
+        (evaluator) => evaluator.node.id
+      ) ?? []
   );
   const selectedEvaluatorWithInputMapping = useMemo(() => {
     return evaluators

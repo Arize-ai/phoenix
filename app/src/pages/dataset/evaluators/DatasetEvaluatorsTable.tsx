@@ -31,8 +31,12 @@ export const useDatasetEvaluatorsTable = (
         sort: { type: "DatasetEvaluatorSort", defaultValue: null }
         filter: { type: "DatasetEvaluatorFilter", defaultValue: null }
       ) {
-        evaluators(first: $first, after: $after, sort: $sort, filter: $filter)
-          @connection(key: "DatasetEvaluatorsTable_evaluators") {
+        datasetEvaluators(
+          first: $first
+          after: $after
+          sort: $sort
+          filter: $filter
+        ) @connection(key: "DatasetEvaluatorsTable_datasetEvaluators") {
           __id
           edges {
             node {
@@ -89,14 +93,14 @@ export const DatasetEvaluatorsTable = ({
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
   const connectionsToUpdate = useMemo(() => {
-    if (data.evaluators.__id) {
-      return [data.evaluators.__id];
+    if (data.datasetEvaluators.__id) {
+      return [data.datasetEvaluators.__id];
     }
     return EMPTY_CONNECTION_IDS;
   }, [data]);
   return (
     <BaseDatasetEvaluatorsTable
-      rowReferences={data.evaluators.edges.map((edge) => edge.node)}
+      rowReferences={data.datasetEvaluators.edges.map((edge) => edge.node)}
       isLoadingNext={isLoadingNext}
       hasNext={hasNext}
       loadNext={loadNext}

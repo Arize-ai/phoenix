@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<661c0a873d436286668375a42e8246e5>>
+ * @generated SignedSource<<32b7e1a3986fda44dc880968af771993>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -184,7 +184,7 @@ return {
                 "args": (v6/*: any*/),
                 "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
-                "name": "evaluators",
+                "name": "datasetEvaluators",
                 "plural": false,
                 "selections": [
                   {
@@ -343,9 +343,9 @@ return {
                   "filter"
                 ],
                 "handle": "connection",
-                "key": "DatasetEvaluatorsTable_evaluators",
+                "key": "DatasetEvaluatorsTable_datasetEvaluators",
                 "kind": "LinkedHandle",
-                "name": "evaluators"
+                "name": "datasetEvaluators"
               }
             ],
             "type": "Dataset",
@@ -357,16 +357,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "50d779c45872ce92262857700d8db3da",
+    "cacheID": "c480200db39217131b37090a586f5427",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5033ef5c906313a3324a0234a7c19315";
+(node as any).hash = "a8c96f9c66acdc2abd7f597e5ccd8355";
 
 export default node;

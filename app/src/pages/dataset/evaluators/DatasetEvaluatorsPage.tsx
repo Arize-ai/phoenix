@@ -37,8 +37,8 @@ export function DatasetEvaluatorsPageContent() {
   const evaluatorsTableData = evaluatorsTableProps.data;
 
   const connectionsToUpdate = useMemo(() => {
-    if (evaluatorsTableData.evaluators.__id) {
-      return [evaluatorsTableData.evaluators.__id];
+    if (evaluatorsTableData.datasetEvaluators.__id) {
+      return [evaluatorsTableData.datasetEvaluators.__id];
     }
     return [];
   }, [evaluatorsTableData]);

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<92395a28d2b612fbd1c6159d7932b89c>>
+ * @generated SignedSource<<0cc28d5efd8fc80ed79f3c68ca123d62>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -211,7 +211,7 @@ return {
                         "args": (v8/*: any*/),
                         "concreteType": "DatasetEvaluatorConnection",
                         "kind": "LinkedField",
-                        "name": "evaluators",
+                        "name": "datasetEvaluators",
                         "plural": false,
                         "selections": [
                           {
@@ -360,7 +360,7 @@ return {
                             ]
                           }
                         ],
-                        "storageKey": "evaluators(first:100)"
+                        "storageKey": "datasetEvaluators(first:100)"
                       },
                       {
                         "alias": null,
@@ -370,9 +370,9 @@ return {
                           "filter"
                         ],
                         "handle": "connection",
-                        "key": "DatasetEvaluatorsTable_evaluators",
+                        "key": "DatasetEvaluatorsTable_datasetEvaluators",
                         "kind": "LinkedHandle",
-                        "name": "evaluators"
+                        "name": "datasetEvaluators"
                       }
                     ],
                     "type": "Dataset",
@@ -391,12 +391,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e12a642e48bb6952b8008901e1941f7d",
+    "cacheID": "3306beb9cd33d77dc4afe4044419b8d9",
     "id": null,
     "metadata": {},
     "name": "UnassignDatasetEvaluatorDialogUnassignMutation",
     "operationKind": "mutation",
-    "text": "mutation UnassignDatasetEvaluatorDialogUnassignMutation(\n  $input: UnassignEvaluatorFromDatasetInput!\n  $datasetId: ID!\n) {\n  unassignEvaluatorFromDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...DatasetEvaluatorsTable_evaluators\n        id\n      }\n    }\n    evaluator {\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation UnassignDatasetEvaluatorDialogUnassignMutation(\n  $input: UnassignEvaluatorFromDatasetInput!\n  $datasetId: ID!\n) {\n  unassignEvaluatorFromDataset(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...DatasetEvaluatorsTable_evaluators\n        id\n      }\n    }\n    evaluator {\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();

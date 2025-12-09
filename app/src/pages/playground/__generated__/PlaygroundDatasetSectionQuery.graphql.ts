@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<342468fb996129102df3538a73ede8c8>>
+ * @generated SignedSource<<661e9659bd8b78a6722c58a40ac39a12>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type PlaygroundDatasetSectionQuery$variables = {
 };
 export type PlaygroundDatasetSectionQuery$data = {
   readonly dataset: {
-    readonly evaluators?: {
+    readonly datasetEvaluators?: {
       readonly edges: ReadonlyArray<{
         readonly node: {
           readonly displayName: string;
@@ -196,7 +196,7 @@ return {
                 "args": (v6/*: any*/),
                 "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
-                "name": "evaluators",
+                "name": "datasetEvaluators",
                 "plural": false,
                 "selections": [
                   {
@@ -256,7 +256,7 @@ return {
                     "storageKey": null
                   }
                 ],
-                "storageKey": "evaluators(first:100)"
+                "storageKey": "datasetEvaluators(first:100)"
               }
             ],
             "type": "Dataset",
@@ -301,7 +301,7 @@ return {
                 "args": (v6/*: any*/),
                 "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
-                "name": "evaluators",
+                "name": "datasetEvaluators",
                 "plural": false,
                 "selections": [
                   {
@@ -364,7 +364,7 @@ return {
                     "storageKey": null
                   }
                 ],
-                "storageKey": "evaluators(first:100)"
+                "storageKey": "datasetEvaluators(first:100)"
               }
             ],
             "type": "Dataset",
@@ -376,16 +376,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a14f46de6f5d4df413988f9fc3c0c0d5",
+    "cacheID": "f98024e5442aceb2cea89d6e0f723682",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      evaluators(first: 100) {\n        edges {\n          node {\n            id\n            displayName\n            inputMapping {\n              literalMapping\n              pathMapping\n            }\n            evaluator {\n              __typename\n              kind\n              ... on LLMEvaluator {\n                outputConfig {\n                  name\n                  id\n                }\n              }\n              id\n            }\n          }\n        }\n      }\n    }\n    ...EvaluatorConfigDialog_dataset\n    id\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            id\n            displayName\n            inputMapping {\n              literalMapping\n              pathMapping\n            }\n            evaluator {\n              __typename\n              kind\n              ... on LLMEvaluator {\n                outputConfig {\n                  name\n                  id\n                }\n              }\n              id\n            }\n          }\n        }\n      }\n    }\n    ...EvaluatorConfigDialog_dataset\n    id\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9f857b949566c273cd4f8ee4590f3b84";
+(node as any).hash = "4ad5ea66dc49ae5fa413e3873350ad37";
 
 export default node;

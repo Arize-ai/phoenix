@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0fac95b52649bfcd4c9274c0f3a07a14>>
+ * @generated SignedSource<<498d52d53ed61cef3aaf06301b2f97fd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsTable_evaluators$data = {
-  readonly evaluators: {
+  readonly datasetEvaluators: {
     readonly __id: string;
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -31,7 +31,7 @@ import DatasetEvaluatorsTableEvaluatorsQuery_graphql from './DatasetEvaluatorsTa
 
 const node: ReaderFragment = (function(){
 var v0 = [
-  "evaluators"
+  "datasetEvaluators"
 ],
 v1 = {
   "alias": null,
@@ -109,7 +109,7 @@ return {
   "name": "DatasetEvaluatorsTable_evaluators",
   "selections": [
     {
-      "alias": "evaluators",
+      "alias": "datasetEvaluators",
       "args": [
         {
           "kind": "Variable",
@@ -124,7 +124,7 @@ return {
       ],
       "concreteType": "DatasetEvaluatorConnection",
       "kind": "LinkedField",
-      "name": "__DatasetEvaluatorsTable_evaluators_connection",
+      "name": "__DatasetEvaluatorsTable_datasetEvaluators_connection",
       "plural": false,
       "selections": [
         {
@@ -294,6 +294,6 @@ return {
 };
 })();
 
-(node as any).hash = "5033ef5c906313a3324a0234a7c19315";
+(node as any).hash = "a8c96f9c66acdc2abd7f597e5ccd8355";
 
 export default node;
