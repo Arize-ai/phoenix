@@ -918,7 +918,7 @@ class TestDatasetsEvaluatorsResolver:
         assert response.data is not None
 
         # Should return 2 evaluators
-        edges = response.data["node"]["evaluators"]["edges"]
+        edges = response.data["node"]["datasetEvaluators"]["edges"]
         assert len(edges) == 2
         assert edges[0]["node"]["evaluator"]["name"] == "evaluator-1"
         assert edges[0]["node"]["evaluator"]["kind"] == "LLM"
