@@ -356,6 +356,118 @@ class TestDatasetLLMEvaluatorMutations:
         assert result.errors
 
 
+class TestUpdateDatasetLLMEvaluatorMutation:
+    _UPDATE_MUTATION = """
+      mutation($input: UpdateDatasetLLMEvaluatorInput!) {
+        updateDatasetLlmEvaluator(input: $input) {
+          evaluator {
+            id
+            displayName
+            evaluator {
+              ... on LLMEvaluator {
+                id
+                name
+                description
+                kind
+                promptVersion { id }
+              }
+            }
+          }
+          query { __typename }
+        }
+      }
+    """
+
+    async def test_update_dataset_llm_evaluator(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        llm_evaluator: models.LLMEvaluator,
+    ) -> None:
+        """Test updating an LLM evaluator via its DatasetEvaluator assignment."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        # Get the dataset_evaluator ID from the fixture
+        async with db() as session:
+            dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assert dataset_evaluator is not None
+            dataset_evaluator_id = str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id)))
+
+        # Update the evaluator with new values
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "datasetId": dataset_id,
+                    "name": "updated-evaluator-name",
+                    "description": "updated description",
+                    "promptVersion": dict(
+                        description="updated prompt version",
+                        templateFormat="MUSTACHE",
+                        template=dict(
+                            messages=[
+                                dict(role="USER", content=[dict(text=dict(text="Updated: {{input}}"))])
+                            ]
+                        ),
+                        invocationParameters=dict(
+                            temperature=0.5,
+                            tool_choice=dict(type="function", function=dict(name="updated-tool")),
+                        ),
+                        tools=[
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="updated-tool",
+                                        description="updated description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                result=dict(type="string", enum=["good", "bad"])
+                                            ),
+                                            required=["result"],
+                                        ),
+                                    ),
+                                )
+                            )
+                        ],
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
+                    ),
+                    "outputConfig": dict(
+                        name="result",
+                        description="updated output description",
+                        optimizationDirection="MINIMIZE",
+                        values=[
+                            dict(label="good", score=1),
+                            dict(label="bad", score=0),
+                        ],
+                    ),
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        updated_evaluator = result.data["updateDatasetLlmEvaluator"]["evaluator"]
+        assert updated_evaluator["displayName"] == "updated-evaluator-name"
+        llm_data = updated_evaluator["evaluator"]
+        assert llm_data["description"] == "updated description"
+        assert llm_data["kind"] == "LLM"
+
+        async with db() as session:
+            db_evaluator = await session.get(models.LLMEvaluator, llm_evaluator.id)
+            assert db_evaluator is not None
+            assert db_evaluator.description == "updated description"
+            assert db_evaluator.annotation_name == "result"
+
+
 class TestAssignUnassignEvaluatorMutations:
     _ASSIGN_MUTATION = """
       mutation($input: AssignEvaluatorToDatasetInput!) {
@@ -460,14 +572,27 @@ class TestAssignUnassignEvaluatorMutations:
         assert dataset_evaluator_data["evaluator"]["kind"] == "LLM"
         assert "prompt" in dataset_evaluator_data["evaluator"]
 
-        # Test 4: Unassign code evaluator
+        # Test 4: Unassign code evaluator - first get the dataset_evaluator_id
+        async with db() as session:
+            code_dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == code_evaluator.id,
+                    models.DatasetEvaluators.display_name
+                    == IdentifierModel.model_validate(code_eval_name),
+                )
+            )
+            assert code_dataset_evaluator is not None
+            code_dataset_evaluator_gid = str(
+                GlobalID("DatasetEvaluator", str(code_dataset_evaluator.id))
+            )
+
         result = await gql_client.execute(
             self._UNASSIGN_MUTATION,
             {
                 "input": {
                     "datasetId": dataset_id,
-                    "evaluatorId": code_eval_id,
-                    "displayName": code_eval_name,
+                    "datasetEvaluatorId": code_dataset_evaluator_gid,
                 }
             },
         )
@@ -491,14 +616,27 @@ class TestAssignUnassignEvaluatorMutations:
 
         assert not await self._is_assigned(db, empty_dataset.id, code_evaluator.id, code_eval_name)
 
-        # Test 5: Unassign LLM evaluator
+        # Test 5: Unassign LLM evaluator - first get the dataset_evaluator_id
+        async with db() as session:
+            llm_dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                    models.DatasetEvaluators.display_name
+                    == IdentifierModel.model_validate(llm_eval_name),
+                )
+            )
+            assert llm_dataset_evaluator is not None
+            llm_dataset_evaluator_gid = str(
+                GlobalID("DatasetEvaluator", str(llm_dataset_evaluator.id))
+            )
+
         result = await gql_client.execute(
             self._UNASSIGN_MUTATION,
             {
                 "input": {
                     "datasetId": dataset_id,
-                    "evaluatorId": llm_eval_id,
-                    "displayName": llm_eval_name,
+                    "datasetEvaluatorId": llm_dataset_evaluator_gid,
                 }
             },
         )
@@ -606,14 +744,27 @@ class TestAssignUnassignEvaluatorMutations:
         for display_name in [default_name, "correctness", "relevance"]:
             assert await self._is_assigned(db, empty_dataset.id, llm_evaluator.id, display_name)
 
-        # Unassign one of the custom names
+        # Unassign one of the custom names - first get the dataset_evaluator_id
+        async with db() as session:
+            correctness_dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                    models.DatasetEvaluators.display_name
+                    == IdentifierModel.model_validate("correctness"),
+                )
+            )
+            assert correctness_dataset_evaluator is not None
+            correctness_dataset_evaluator_gid = str(
+                GlobalID("DatasetEvaluator", str(correctness_dataset_evaluator.id))
+            )
+
         result = await gql_client.execute(
             self._UNASSIGN_MUTATION,
             {
                 "input": {
                     "datasetId": dataset_id,
-                    "evaluatorId": llm_eval_id,
-                    "displayName": "correctness",
+                    "datasetEvaluatorId": correctness_dataset_evaluator_gid,
                 }
             },
         )
