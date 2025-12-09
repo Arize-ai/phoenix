@@ -740,6 +740,7 @@ class Spans:
             InsertedSpanAnnotation: The inserted span annotation containing the ID.
 
         Raises:
+            ValueError: If span_id or note is empty (after stripping whitespace).
             httpx.HTTPStatusError: If the span is not found (404) or other API errors.
             httpx.HTTPError: If the request fails.
 
@@ -755,6 +756,12 @@ class Spans:
             )
             print(f"Note created with ID: {result['id']}")
         """
+        span_id = span_id.strip()
+        if not span_id:
+            raise ValueError("Span ID cannot be empty")
+        note = note.strip()
+        if not note:
+            raise ValueError("Note cannot be empty")
         url = "v1/span_notes"
         json_: CreateSpanNoteRequestBody = {
             "data": {
@@ -1957,6 +1964,7 @@ class AsyncSpans:
             InsertedSpanAnnotation: The inserted span annotation containing the ID.
 
         Raises:
+            ValueError: If span_id or note is empty (after stripping whitespace).
             httpx.HTTPStatusError: If the span is not found (404) or other API errors.
             httpx.HTTPError: If the request fails.
 
@@ -1972,6 +1980,12 @@ class AsyncSpans:
             )
             print(f"Note created with ID: {result['id']}")
         """
+        span_id = span_id.strip()
+        if not span_id:
+            raise ValueError("Span ID cannot be empty")
+        note = note.strip()
+        if not note:
+            raise ValueError("Note cannot be empty")
         url = "v1/span_notes"
         json_: CreateSpanNoteRequestBody = {
             "data": {

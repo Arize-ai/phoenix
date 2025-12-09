@@ -10,7 +10,7 @@ from typing import Annotated, Any, Optional, Union
 import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 from sqlalchemy import exists, select, update
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -933,8 +933,12 @@ async def annotate_spans(
 
 
 class SpanNoteData(V1RoutesBaseModel):
-    span_id: str = Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
-    note: str = Field(description="The note text to add to the span")
+    span_id: Annotated[str, BeforeValidator(lambda v: v.strip() if isinstance(v, str) else v)] = (
+        Field(min_length=1, description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
+    )
+    note: Annotated[str, BeforeValidator(lambda v: v.strip() if isinstance(v, str) else v)] = Field(
+        min_length=1, description="The note text to add to the span"
+    )
 
 
 class CreateSpanNoteRequestBody(RequestBody[SpanNoteData]):
