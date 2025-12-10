@@ -37,6 +37,7 @@ from phoenix.config import (
     get_env_password_reset_token_expiry,
     get_env_port,
     get_env_refresh_token_expiry,
+    get_env_scarf_sh_pixel_id,
     get_env_smtp_hostname,
     get_env_smtp_mail_from,
     get_env_smtp_password,
@@ -499,6 +500,7 @@ def initialize_settings() -> None:
     Settings.log_migrations = get_env_log_migrations()
     Settings.disable_migrations = get_env_disable_migrations()
     Settings.fullstory_org = get_env_fullstory_org()
+    Settings.scarf_sh_pixel_id = get_env_scarf_sh_pixel_id()
 
 
 if __name__ == "__main__":

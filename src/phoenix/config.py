@@ -78,6 +78,12 @@ ENV_PHOENIX_FULLSTORY_ORG = "PHOENIX_FULLSTORY_ORG"
 The FullStory organization ID for web analytics tracking. When set, FullStory tracking
 will be enabled in the Phoenix web interface.
 """
+ENV_PHOENIX_SCARF_SH_PIXEL_ID = "PHOENIX_SCARF_SH_PIXEL_ID"
+"""
+The Scarf.sh pixel ID for web analytics tracking. When set, Scarf.sh tracking
+will be enabled in the Phoenix web interface.
+Note: This will automatically be be enabled in the future but it will always be possible to disable.
+"""
 ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
 """
 Allows calls to external resources, like Google Fonts in the web interface
@@ -3027,6 +3033,13 @@ def get_env_fullstory_org() -> Optional[str]:
         Optional[str]: The FullStory organization ID if set, None otherwise.
     """
     return getenv(ENV_PHOENIX_FULLSTORY_ORG)
+
+
+def get_env_scarf_sh_pixel_id() -> Optional[str]:
+    """
+    Get the Scarf.sh pixel ID from environment variables.
+    """
+    return getenv(ENV_PHOENIX_SCARF_SH_PIXEL_ID)
 
 
 def get_env_management_url() -> Optional[str]:
