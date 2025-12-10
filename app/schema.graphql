@@ -344,12 +344,14 @@ type CategoricalAnnotationConfig implements Node & AnnotationConfigBase {
   annotationType: AnnotationType!
   optimizationDirection: OptimizationDirection!
   values: [CategoricalAnnotationValue!]!
+  includeExplanation: Boolean!
 }
 
 input CategoricalAnnotationConfigInput {
   name: String!
   description: String = null
   optimizationDirection: OptimizationDirection!
+  includeExplanation: Boolean! = true
   values: [CategoricalAnnotationConfigValueInput!]!
 }
 

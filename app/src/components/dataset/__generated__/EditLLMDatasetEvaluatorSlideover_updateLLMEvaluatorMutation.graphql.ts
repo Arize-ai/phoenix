@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<27738f455db1be3c229ed95ea469a32d>>
+ * @generated SignedSource<<9a015b9aca4cb14674fb0078c24b5777>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -68,6 +68,7 @@ export type ResponseFormatInput = {
 };
 export type CategoricalAnnotationConfigInput = {
   description?: string | null;
+  includeExplanation?: boolean;
   name: string;
   optimizationDirection: OptimizationDirection;
   values: ReadonlyArray<CategoricalAnnotationConfigValueInput>;
@@ -607,6 +608,13 @@ return {
                             ],
                             "storageKey": null
                           },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "includeExplanation",
+                            "storageKey": null
+                          },
                           (v3/*: any*/)
                         ],
                         "storageKey": null
@@ -673,12 +681,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1efb7ed2e5f68479e67e9e1ea0efbcec",
+    "cacheID": "8f0dc678acb338290375f19cbd0240d3",
     "id": null,
     "metadata": {},
     "name": "EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateDatasetLLMEvaluatorInput!\n) {\n  updateDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      displayName\n      ...DatasetEvaluatorsTable_row\n      ...EditLLMDatasetEvaluatorSlideover_evaluator\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    description\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n      outputConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "mutation EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateDatasetLLMEvaluatorInput!\n) {\n  updateDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      displayName\n      ...DatasetEvaluatorsTable_row\n      ...EditLLMDatasetEvaluatorSlideover_evaluator\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    description\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n      outputConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        includeExplanation\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();

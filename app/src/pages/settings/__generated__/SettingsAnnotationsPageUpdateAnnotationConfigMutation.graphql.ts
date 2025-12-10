@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f924330cae4f6cb4c471193fa5df15e9>>
+ * @generated SignedSource<<f8b9e42716bb84f3a5ff546a86388a10>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,6 +22,7 @@ export type AnnotationConfigInput = {
 };
 export type CategoricalAnnotationConfigInput = {
   description?: string | null;
+  includeExplanation?: boolean;
   name: string;
   optimizationDirection: OptimizationDirection;
   values: ReadonlyArray<CategoricalAnnotationConfigValueInput>;
