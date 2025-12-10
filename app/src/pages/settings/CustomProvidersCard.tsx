@@ -14,6 +14,11 @@ import { ErrorBoundary } from "@phoenix/components/exception";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/tooltip";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import {
   type GenerativeModelSDK,
@@ -28,6 +33,7 @@ import type {
   CustomProvidersCard_data$key,
   GenerativeModelSDK as GraphQLGenerativeModelSDK,
 } from "./__generated__/CustomProvidersCard_data.graphql";
+import { DeleteCustomProviderButton } from "./DeleteCustomProviderButton";
 import { NewCustomProviderButton } from "./NewCustomProviderButton";
 
 // Compile-time check that GenerativeModelSDK in generativeConstants.ts matches the GraphQL schema.
@@ -321,6 +327,18 @@ export function CustomProvidersCard({
         header: "Updated At",
         accessorKey: "updatedAt",
         cell: TimestampCell,
+      },
+      {
+        id: "actions",
+        cell: ({ row }) => (
+          <TooltipTrigger>
+            <DeleteCustomProviderButton provider={row.original} />
+            <Tooltip>
+              <TooltipArrow />
+              Delete provider
+            </Tooltip>
+          </TooltipTrigger>
+        ),
       }
     );
 
