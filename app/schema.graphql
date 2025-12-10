@@ -3252,7 +3252,7 @@ type Query {
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace
   getProjectSessionById(sessionId: String!): ProjectSession
-  applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!): PromptChatTemplate!
+  applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!, inputMapping: EvaluatorInputMappingInput = null): PromptChatTemplate!
 }
 
 input RemoveAnnotationConfigFromProjectInput {
