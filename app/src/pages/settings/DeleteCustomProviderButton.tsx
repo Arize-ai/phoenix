@@ -22,17 +22,15 @@ import {
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import type { CustomProvidersCard_data$data } from "./__generated__/CustomProvidersCard_data.graphql";
 import type { DeleteCustomProviderButtonMutation } from "./__generated__/DeleteCustomProviderButtonMutation.graphql";
 
-type CustomProvider =
-  CustomProvidersCard_data$data["generativeModelCustomProviders"]["edges"][number]["node"];
-
 function DeleteProviderDialogContent({
-  provider,
+  providerId,
+  providerName,
   onClose,
 }: {
-  provider: CustomProvider;
+  providerId: string;
+  providerName: string;
   onClose: () => void;
 }) {
   const notifySuccess = useNotifySuccess();
@@ -61,12 +59,10 @@ function DeleteProviderDialogContent({
     // Clear any previous error when submitting
     setError(null);
 
-    const providerName = provider.name;
-
     commit({
       variables: {
         input: {
-          id: provider.id,
+          id: providerId,
         },
         connectionId,
       },
@@ -74,7 +70,7 @@ function DeleteProviderDialogContent({
       optimisticUpdater: (store) => {
         const connection = store.get(connectionId);
         if (connection) {
-          ConnectionHandler.deleteNode(connection, provider.id);
+          ConnectionHandler.deleteNode(connection, providerId);
         }
       },
       onCompleted: () => {
@@ -91,10 +87,10 @@ function DeleteProviderDialogContent({
         setError(messages?.join(", ") || "An unknown error occurred");
       },
     });
-  }, [commit, connectionId, notifySuccess, provider, onClose]);
+  }, [commit, connectionId, notifySuccess, providerId, providerName, onClose]);
 
   return (
-    <div>
+    <>
       {error != null && (
         <Alert
           variant="danger"
@@ -108,7 +104,7 @@ function DeleteProviderDialogContent({
       )}
       <View padding="size-200">
         <Text color="danger">
-          Are you sure you want to delete <strong>{provider.name}</strong>? This
+          Are you sure you want to delete <strong>{providerName}</strong>? This
           action cannot be undone.
         </Text>
       </View>
@@ -138,14 +134,16 @@ function DeleteProviderDialogContent({
           </Button>
         </Flex>
       </View>
-    </div>
+    </>
   );
 }
 
 export function DeleteCustomProviderButton({
-  provider,
+  providerId,
+  providerName,
 }: {
-  provider: CustomProvider;
+  providerId: string;
+  providerName: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -168,7 +166,8 @@ export function DeleteCustomProviderButton({
                 </DialogTitleExtra>
               </DialogHeader>
               <DeleteProviderDialogContent
-                provider={provider}
+                providerId={providerId}
+                providerName={providerName}
                 onClose={() => setIsOpen(false)}
               />
             </DialogContent>

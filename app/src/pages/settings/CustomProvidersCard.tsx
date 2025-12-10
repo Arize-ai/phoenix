@@ -14,11 +14,6 @@ import { ErrorBoundary } from "@phoenix/components/exception";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import {
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components/tooltip";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import {
   type GenerativeModelSDK,
@@ -331,13 +326,10 @@ export function CustomProvidersCard({
       {
         id: "actions",
         cell: ({ row }) => (
-          <TooltipTrigger>
-            <DeleteCustomProviderButton provider={row.original} />
-            <Tooltip>
-              <TooltipArrow />
-              Delete provider
-            </Tooltip>
-          </TooltipTrigger>
+          <DeleteCustomProviderButton
+            providerId={row.original.id}
+            providerName={row.original.name}
+          />
         ),
       }
     );
