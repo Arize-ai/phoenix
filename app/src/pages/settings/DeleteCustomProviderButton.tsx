@@ -66,13 +66,6 @@ function DeleteProviderDialogContent({
         },
         connectionId,
       },
-      // Optimistic update: remove from list immediately
-      optimisticUpdater: (store) => {
-        const connection = store.get(connectionId);
-        if (connection) {
-          ConnectionHandler.deleteNode(connection, providerId);
-        }
-      },
       onCompleted: () => {
         // Close modal and notify on success
         onClose();
