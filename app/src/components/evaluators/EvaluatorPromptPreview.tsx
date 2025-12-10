@@ -3,6 +3,7 @@
  **/
 
 import { Suspense, useMemo } from "react";
+import { useFormContext } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
@@ -32,6 +33,8 @@ import {
   PlaygroundChatTemplate,
 } from "@phoenix/store/playground/types";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
+
+import { EvaluatorFormValues } from "./EvaluatorForm";
 
 /**
  * Converts a ChatMessage to an array of ContentPartInput.
@@ -211,16 +214,23 @@ function EvaluatorPromptPreviewContent(
   props: EvaluatorPromptPreviewContentProps
 ) {
   const { gqlTemplate, templateFormat, evaluatorInput } = props;
-
+  const { watch } = useFormContext<EvaluatorFormValues>();
+  const inputMappingRaw = watch("inputMapping");
+  // When used as a query input, Relay mutates the object to make it read-only.
+  // This causes downstream issues when react-hook-form tries to update the value.
+  // To avoid this, we deep clone the object before using it as a query input.
+  const inputMapping = structuredClone(inputMappingRaw);
   const data = useLazyLoadQuery<EvaluatorPromptPreviewQuery>(
     graphql`
       query EvaluatorPromptPreviewQuery(
         $template: PromptChatTemplateInput!
         $templateOptions: PromptTemplateOptions!
+        $inputMapping: EvaluatorInputMappingInput!
       ) {
         prompt: applyChatTemplate(
           template: $template
           templateOptions: $templateOptions
+          inputMapping: $inputMapping
         ) {
           messages {
             role
@@ -239,10 +249,10 @@ function EvaluatorPromptPreviewContent(
     {
       template: gqlTemplate,
       templateOptions: {
-        // TODO: this doesn't apply the mappings. Probably will push this into the API
         variables: evaluatorInput ?? {},
         format: templateFormat,
       },
+      inputMapping,
     }
   );
 
