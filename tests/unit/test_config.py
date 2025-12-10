@@ -11,8 +11,8 @@ from starlette.datastructures import URL
 from phoenix.config import (
     ENV_PHOENIX_ADMINS,
     ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
+    AssignableUserRoleName,
     OAuth2ClientConfig,
-    OAuth2UserRoleName,
     ensure_working_dir_if_needed,
     get_env_admins,
     get_env_auth_settings,
@@ -1473,12 +1473,12 @@ def test_oauth2_role_names_are_subset_of_user_role_names() -> None:
     """
     # Get all valid roles from both type aliases
     all_user_roles = set(get_args(UserRoleName))
-    oauth2_roles = set(get_args(OAuth2UserRoleName))
+    oauth2_roles = set(get_args(AssignableUserRoleName))
 
     # Verify OAuth2 roles are a proper subset (not equal, must exclude SYSTEM)
     assert oauth2_roles < all_user_roles, "OAuth2 roles must be a proper subset of all user roles"
 
-    # Verify SYSTEM is in UserRoleName but NOT in OAuth2UserRoleName
+    # Verify SYSTEM is in UserRoleName but NOT in AssignableUserRoleName
     assert "SYSTEM" in all_user_roles, "SYSTEM role must exist in UserRoleName"
     assert "SYSTEM" not in oauth2_roles, "SYSTEM role must NOT be allowed for OAuth2"
 
@@ -1543,7 +1543,7 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
-                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "...", "role": "invalid_role"}]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "invalid_role"}]',
                 },
                 "role must be one of",
                 id="invalid_role_lowercase",
@@ -1623,9 +1623,23 @@ class TestLDAPConfigFromEnv:
                     "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
                     "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
                     "PHOENIX_LDAP_ATTR_EMAIL": "",
+                    # No-email mode requires unique_id
                 },
-                "cannot be empty",
-                id="attr_email_empty",
+                "PHOENIX_LDAP_ATTR_UNIQUE_ID is required",
+                id="attr_email_empty_requires_unique_id",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "false",
+                    # No-email mode requires allow_sign_up=true
+                },
+                "PHOENIX_LDAP_ALLOW_SIGN_UP must be True",
+                id="attr_email_empty_requires_allow_sign_up",
             ),
             pytest.param(
                 {
@@ -1656,6 +1670,69 @@ class TestLDAPConfigFromEnv:
                 },
                 "must contain '%s' placeholder",
                 id="group_search_filter_missing_placeholder",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_BIND_PASSWORD": "secret",
+                    # Missing PHOENIX_LDAP_BIND_DN
+                },
+                "PHOENIX_LDAP_BIND_PASSWORD is set but PHOENIX_LDAP_BIND_DN is missing",
+                id="bind_password_without_bind_dn",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_BIND_DN": "not a valid dn",
+                    "PHOENIX_LDAP_BIND_PASSWORD": "secret",
+                },
+                "has invalid LDAP DN syntax",
+                id="bind_dn_invalid_syntax",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["not a valid dn"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                },
+                "has invalid LDAP DN syntax",
+                id="user_search_base_dn_invalid_syntax",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS": '["not a valid dn"]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(&(objectClass=posixGroup)(memberUid=%s))",
+                },
+                "has invalid LDAP DN syntax",
+                id="group_search_base_dn_invalid_syntax",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+                        '[{"group_dn": "not a valid dn", "role": "MEMBER"}]'
+                    ),
+                },
+                "has invalid LDAP DN syntax",
+                id="group_role_mapping_dn_invalid_syntax",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    # Empty group_dn in role mapping is rejected (wildcard "*" should be used instead)
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "", "role": "MEMBER"}]',
+                },
+                "must be a non-empty string",
+                id="group_role_mapping_dn_empty_string",
             ),
         ],
     )
@@ -1766,7 +1843,7 @@ class TestLDAPConfigFromEnv:
                     "user_search_filter": "(&(objectClass=user)(sAMAccountName=%s))",
                     "attr_email": "mail",
                     "attr_display_name": "displayName",
-                    "attr_member_of": "",
+                    "attr_member_of": None,
                     "group_search_base_dns": ("ou=groups,dc=example,dc=com",),
                     "group_search_filter": "(&(objectClass=posixGroup)(memberUid=%s))",
                     "group_role_mappings": (
@@ -1796,6 +1873,23 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    # Group DN with mixed case and extra whitespace - should be canonicalized
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+                        '[{"group_dn": "  CN=Admins,OU=Groups,DC=Example,DC=COM  ", "role": "admin"}]'
+                    ),
+                },
+                {
+                    # Should be canonicalized: lowercase, stripped, normalized
+                    "group_role_mappings": (
+                        {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
+                    ),
+                },
+                id="group_dn_canonicalized_and_role_uppercase",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
                     "PHOENIX_LDAP_TLS_MODE": "ldaps",
                     "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "VIEWER"}]',
                 },
@@ -1805,6 +1899,63 @@ class TestLDAPConfigFromEnv:
                     "tls_mode": "ldaps",
                 },
                 id="ldaps_defaults_to_port_636",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "attr_email": None,  # Empty string becomes None in no-email mode
+                    "attr_unique_id": "entryUUID",
+                    "allow_sign_up": True,
+                },
+                id="no_email_mode_valid",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    # Base DNs with extra whitespace - should be stripped
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["  ou=people,dc=example,dc=com  "]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_BIND_DN": "  cn=admin,dc=example,dc=com  ",
+                    "PHOENIX_LDAP_BIND_PASSWORD": "secret",
+                },
+                {
+                    # Base DNs should be stripped (but not canonicalized - passed to LDAP as-is)
+                    "user_search_base_dns": ("ou=people,dc=example,dc=com",),
+                    "bind_dn": "cn=admin,dc=example,dc=com",
+                },
+                id="base_dns_and_bind_dn_stripped",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    # Empty DN is valid - represents root DSE (search entire directory)
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '[""]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                },
+                {
+                    "user_search_base_dns": ("",),  # Empty DN stored as-is
+                },
+                id="empty_dn_valid_root_dse",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    # Whitespace-only becomes empty DN after strip
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["   "]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                },
+                {
+                    "user_search_base_dns": ("",),  # Whitespace stripped to empty
+                },
+                id="whitespace_only_dn_becomes_empty",
             ),
         ],
     )

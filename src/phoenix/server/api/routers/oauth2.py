@@ -37,7 +37,7 @@ from phoenix.auth import (
     set_refresh_token_cookie,
 )
 from phoenix.config import (
-    OAuth2UserRoleName,
+    AssignableUserRoleName,
     get_env_disable_basic_auth,
     get_env_disable_rate_limit,
 )
@@ -484,7 +484,7 @@ async def _process_oauth2_user(
     oauth2_client_id: str,
     user_info: UserInfo,
     allow_sign_up: bool,
-    role_name: Optional[OAuth2UserRoleName],
+    role_name: Optional[AssignableUserRoleName],
 ) -> models.User:
     """
     Processes an OAuth2 user, either signing in an existing user or creating/updating one.
@@ -540,7 +540,7 @@ async def _sign_in_existing_oauth2_user(
     *,
     oauth2_client_id: str,
     user_info: UserInfo,
-    role_name: Optional[OAuth2UserRoleName],
+    role_name: Optional[AssignableUserRoleName],
 ) -> models.User:
     """Signs in an existing user with OAuth2 credentials.
 
@@ -638,7 +638,7 @@ async def _create_or_update_user(
     *,
     oauth2_client_id: str,
     user_info: UserInfo,
-    role_name: Optional[OAuth2UserRoleName],
+    role_name: Optional[AssignableUserRoleName],
 ) -> models.User:
     """
     Creates a new user or updates an existing one with OAuth2 credentials.
@@ -726,7 +726,7 @@ async def _create_user(
     *,
     oauth2_client_id: str,
     user_info: UserInfo,
-    role_name: OAuth2UserRoleName,
+    role_name: AssignableUserRoleName,
 ) -> models.User:
     """
     Creates a new user with the user info from the IDP.

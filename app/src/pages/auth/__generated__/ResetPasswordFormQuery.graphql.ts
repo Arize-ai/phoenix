@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5bf8729db55b3a1fe35d730d6b14294f>>
+ * @generated SignedSource<<ae069c5885ff2b79cd4eed7d5b366115>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ResetPasswordFormQuery$data = {
   readonly viewer: {
-    readonly email: string;
+    readonly email: string | null;
   } | null;
   readonly " $fragmentType": "ResetPasswordFormQuery";
 };

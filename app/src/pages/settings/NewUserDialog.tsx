@@ -36,7 +36,7 @@ export function NewUserDialog({
   onNewUserCreationError,
   onDismiss,
 }: {
-  onNewUserCreated: (email: string) => void;
+  onNewUserCreated: (username: string) => void;
   onNewUserCreationError: (error: Error) => void;
   onDismiss: () => void;
 }) {
@@ -46,6 +46,7 @@ export function NewUserDialog({
         user {
           id
           email
+          username
         }
       }
     }
@@ -65,7 +66,7 @@ export function NewUserDialog({
           },
         },
         onCompleted: (response) => {
-          onNewUserCreated(response.createUser.user.email);
+          onNewUserCreated(response.createUser.user.username);
         },
         onError: (error) => {
           onNewUserCreationError(error);
@@ -88,7 +89,7 @@ export function NewUserDialog({
           },
         },
         onCompleted: (response) => {
-          onNewUserCreated(response.createUser.user.email);
+          onNewUserCreated(response.createUser.user.username);
         },
         onError: (error) => {
           onNewUserCreationError(error);
@@ -111,7 +112,7 @@ export function NewUserDialog({
           },
         },
         onCompleted: (response) => {
-          onNewUserCreated(response.createUser.user.email);
+          onNewUserCreated(response.createUser.user.username);
         },
         onError: (error) => {
           onNewUserCreationError(error);
@@ -124,7 +125,8 @@ export function NewUserDialog({
   // Determine which tabs are available
   const showLocalTab = !window.Config.basicAuthDisabled;
   const showOAuth2Tab = window.Config.oAuth2Idps.length > 0;
-  const showLDAPTab = window.Config.ldapEnabled;
+  // Hide LDAP tab when manual user creation is disabled (no email attribute configured)
+  const showLDAPTab = window.Config.ldapManualUserCreationEnabled;
 
   // Smart default tab selection
   const defaultTab = showLocalTab

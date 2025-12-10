@@ -90,12 +90,12 @@ export function ViewerProfileCard() {
       <View paddingTop="size-200" paddingStart="size-200" paddingEnd="size-200">
         <Flex direction="row" gap="size-200" alignItems="center">
           <UserPicture
-            name={viewer.username || viewer.email}
+            name={viewer.username}
             profilePictureUrl={viewer.profilePictureUrl}
           />
           <Flex direction="column" gap="size-50">
             <Heading level={2} weight="heavy">
-              {viewer.username || viewer.email}
+              {viewer.username}
             </Heading>
             <Text>{viewer.role.name.toLocaleLowerCase()}</Text>
           </Flex>
@@ -105,10 +105,12 @@ export function ViewerProfileCard() {
         <Form onSubmit={handleSubmit(onSubmit)}>
           <View padding="size-200">
             <Flex direction="column" gap="size-100">
-              <TextField value={viewer.email} isReadOnly size="S">
-                <Label>Email</Label>
-                <Input />
-              </TextField>
+              {viewer.email && (
+                <TextField value={viewer.email} isReadOnly size="S">
+                  <Label>Email</Label>
+                  <Input />
+                </TextField>
+              )}
               <Controller
                 name="username"
                 control={control}

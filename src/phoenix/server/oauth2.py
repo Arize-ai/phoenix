@@ -8,7 +8,7 @@ from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
 from authlib.integrations.base_client.async_openid import AsyncOpenIDMixin
 from authlib.integrations.httpx_client import AsyncOAuth2Client as AsyncHttpxOAuth2Client
 
-from phoenix.config import OAuth2ClientConfig, OAuth2UserRoleName
+from phoenix.config import AssignableUserRoleName, OAuth2ClientConfig
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         groups_attribute_path: Optional[str] = None,
         allowed_groups: Optional[list[str]] = None,
         role_attribute_path: Optional[str] = None,
-        role_mapping: Optional[Mapping[str, OAuth2UserRoleName]] = None,
+        role_mapping: Optional[Mapping[str, AssignableUserRoleName]] = None,
         role_attribute_strict: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -235,7 +235,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
 
         return []
 
-    def extract_and_map_role(self, user_claims: dict[str, Any]) -> Optional[OAuth2UserRoleName]:
+    def extract_and_map_role(self, user_claims: dict[str, Any]) -> Optional[AssignableUserRoleName]:
         """
         Extract and map user role from OIDC claims.
 
@@ -305,7 +305,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         # Try to use the raw role value directly if it's a valid Phoenix role
         # Note: SYSTEM is excluded from valid roles for OIDC (validated at config parsing)
         role_upper = role_value.upper()
-        if role_upper in get_args(OAuth2UserRoleName):
+        if role_upper in get_args(AssignableUserRoleName):
             return role_upper  # type: ignore[return-value]
 
         # Role value is not a valid Phoenix role

@@ -111,6 +111,7 @@
               oAuth2Idps: {{ oauth2_idps | tojson }},
               basicAuthDisabled: Boolean("{{basic_auth_disabled}}" == "True"),
               ldapEnabled: Boolean("{{ldap_enabled}}" == "True"),
+              ldapManualUserCreationEnabled: Boolean("{{ldap_manual_user_creation_enabled}}" == "True"),
               managementUrl: {{management_url | tojson}},
               supportEmail: {{support_email | tojson}},
               hasDbThreshold: Boolean("{{has_db_threshold}}" == "True"),

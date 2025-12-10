@@ -25,6 +25,8 @@ from urllib.parse import quote, urljoin, urlparse
 
 import wrapt
 from email_validator import EmailNotValidError, validate_email
+from ldap3.core.exceptions import LDAPInvalidDnError
+from ldap3.utils.dn import parse_dn
 from starlette.datastructures import URL, Secret
 from typing_extensions import TypeAlias, get_args
 
@@ -34,11 +36,11 @@ from phoenix.utilities.re import parse_env_headers
 if TYPE_CHECKING:
     from phoenix.server.oauth2 import OAuth2Clients
 
-# OAuth2-assignable roles (SYSTEM is internal-only and not included)
-OAuth2UserRoleName: TypeAlias = Literal["ADMIN", "MEMBER", "VIEWER"]
+# Assignable roles (SYSTEM is internal-only and not included)
+AssignableUserRoleName: TypeAlias = Literal["ADMIN", "MEMBER", "VIEWER"]
 
 # Tuple of valid OAuth2 roles for validation
-_VALID_OAUTH2_ROLES: tuple[str, ...] = get_args(OAuth2UserRoleName)
+_VALID_ROLES: tuple[str, ...] = get_args(AssignableUserRoleName)
 
 
 logger = logging.getLogger(__name__)
@@ -367,17 +369,28 @@ Example: "(&(objectClass=user)(sAMAccountName=%s))"
 ENV_PHOENIX_LDAP_ATTR_EMAIL = "PHOENIX_LDAP_ATTR_EMAIL"
 """
 LDAP attribute containing user's email address. Defaults to "mail".
-Must be present in LDAP or login fails.
+
+Set to an empty value (PHOENIX_LDAP_ATTR_EMAIL=) to enable authentication without email
+for directories that don't populate the mail attribute. When empty:
+  - PHOENIX_LDAP_ATTR_UNIQUE_ID is required (users are identified by unique_id instead)
+  - PHOENIX_LDAP_ALLOW_SIGN_UP must be true (users are auto-provisioned on first login)
+  - PHOENIX_ADMINS is not supported (use PHOENIX_LDAP_GROUP_ROLE_MAPPINGS instead)
+  - Users will appear in Phoenix without email addresses
+
+When configured (non-empty), the attribute must be present in LDAP or login fails.
 https://www.rfc-editor.org/rfc/rfc2798#section-9.1.3
 """
 ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID = "PHOENIX_LDAP_ATTR_UNIQUE_ID"
 """
-Optional: LDAP attribute containing an immutable unique identifier.
+LDAP attribute containing an immutable unique identifier.
 
-WHEN TO USE: Only configure this if you expect user emails to change
-(company rebranding, M&A, frequent name changes) or have compliance requirements
-for immutable user tracking. For most organizations, the default email-based
-identification is sufficient.
+REQUIRED when PHOENIX_LDAP_ATTR_EMAIL is empty (users are identified by this ID
+instead of email).
+
+Also recommended if you expect user emails to change (company rebranding, M&A,
+frequent name changes) or have compliance requirements for immutable user tracking.
+For most organizations with email in LDAP, the default email-based identification
+is sufficient.
 
 When set, this attribute is used as the primary identifier, allowing users
 to survive email changes without creating duplicate accounts.
@@ -511,6 +524,9 @@ Allow automatic user creation on first LDAP login. Defaults to "true".
 Set to "false" to require pre-provisioned users (created via PHOENIX_ADMINS
 env var or the application's user management UI before first login).
 Pre-provisioned users are matched by email on first LDAP login.
+
+MUST be "true" when PHOENIX_LDAP_ATTR_EMAIL is empty, since pre-provisioning
+by email is not possible without email addresses in LDAP.
 """
 
 ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
@@ -534,6 +550,8 @@ Notes:
   modified, e.g., changed from non-admin to admin.
 - Changing this environment variable for the next startup will not undo any records created in
   previous startups.
+- NOT supported when PHOENIX_LDAP_ATTR_EMAIL is empty (use PHOENIX_LDAP_GROUP_ROLE_MAPPINGS
+  to assign admin roles instead when LDAP doesn't have email addresses).
 """
 ENV_PHOENIX_ROOT_URL = "PHOENIX_ROOT_URL"
 """
@@ -1289,7 +1307,7 @@ class OAuth2ClientConfig:
 
     # Role mapping
     role_attribute_path: Optional[str]
-    role_mapping: dict[str, OAuth2UserRoleName]
+    role_mapping: dict[str, AssignableUserRoleName]
     role_attribute_strict: bool
 
     @classmethod
@@ -1404,7 +1422,7 @@ class OAuth2ClientConfig:
 
         # Role mapping
         role_attribute_path = _get_optional("ROLE_ATTRIBUTE_PATH")
-        role_mapping: dict[str, OAuth2UserRoleName] = {}
+        role_mapping: dict[str, AssignableUserRoleName] = {}
         if raw_mapping := _get_optional("ROLE_MAPPING"):
             # Parse role mapping: "IdpRole1:PhoenixRole,IdpRole2:PhoenixRole"
             for mapping_pair in raw_mapping.split(","):
@@ -1435,11 +1453,11 @@ class OAuth2ClientConfig:
                         f"Invalid ROLE_MAPPING for {idp_name}: "
                         f"SYSTEM role cannot be assigned via OAuth2. "
                         f"SYSTEM is an internal-only role for system API keys. "
-                        f"Valid roles are: {', '.join(sorted(_VALID_OAUTH2_ROLES))}"
+                        f"Valid roles are: {', '.join(sorted(_VALID_ROLES))}"
                     )
 
-                if phoenix_role_upper not in _VALID_OAUTH2_ROLES:
-                    valid_roles = ", ".join(sorted(_VALID_OAUTH2_ROLES))
+                if phoenix_role_upper not in _VALID_ROLES:
+                    valid_roles = ", ".join(sorted(_VALID_ROLES))
                     raise ValueError(
                         f"Invalid ROLE_MAPPING for {idp_name}: "
                         f"'{phoenix_role}' is not a valid Phoenix role. "
@@ -1496,7 +1514,20 @@ class LDAPGroupRoleMapping(TypedDict):
     """
 
     group_dn: str
-    role: str
+    role: AssignableUserRoleName
+
+
+def _is_valid_dn(dn: str) -> bool:
+    """Check if a string is a valid LDAP DN syntax."""
+    # Empty DN is valid per RFC 4514 §2 - represents the root DSE (zero RDNs)
+    # https://datatracker.ietf.org/doc/html/rfc4514#section-2
+    if not dn.strip():
+        return True
+    try:
+        parse_dn(dn)
+        return True
+    except LDAPInvalidDnError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -1580,9 +1611,10 @@ class LDAPConfig:
                 389 DS:   "(&(objectClass=person)(uid=%s))"
 
     Attribute Mapping (RFC 2256, RFC 4524):
-        attr_email: Email attribute name (REQUIRED, default: "mail")
-            - MUST be present in LDAP or login fails
-            - Alternative: "userPrincipalName" (AD without Exchange)
+        attr_email: Email attribute name (default: "mail", can be empty)
+            - If set: MUST be present in LDAP or login fails
+            - If empty (PHOENIX_LDAP_ATTR_EMAIL=): generates null email marker
+              from unique_id (requires attr_unique_id to be set)
         attr_display_name: Display name attribute (default: "displayName")
             - Fallback: Uses email prefix if missing
         attr_member_of: Group membership attribute (default: "memberOf")
@@ -1688,9 +1720,9 @@ class LDAPConfig:
     user_search_filter: str = "(&(objectClass=user)(sAMAccountName=%s))"
 
     # Attribute mapping (RFC 2798 §9.1.3, §2.3)
-    attr_email: str = "mail"  # REQUIRED: Must be present in LDAP or login fails
-    attr_display_name: str = "displayName"
-    attr_member_of: str = "memberOf"  # Used when group_search_filter is not set
+    attr_email: str | None = "mail"  # None if explicitly empty (null email marker mode)
+    attr_display_name: str | None = "displayName"
+    attr_member_of: str | None = "memberOf"  # Used when group_search_filter is not set
     attr_unique_id: str | None = None  # Optional: objectGUID (AD), entryUUID (OpenLDAP)
 
     # Group search (for POSIX/OpenLDAP without memberOf)
@@ -1709,7 +1741,7 @@ class LDAPConfig:
             raise ValueError(f"{ENV_PHOENIX_LDAP_HOST} must contain at least one host")
 
     @classmethod
-    def from_env(cls) -> Optional["LDAPConfig"]:
+    def from_env(cls) -> "LDAPConfig" | None:
         """Load LDAP config from environment variables.
 
         Returns:
@@ -1722,6 +1754,9 @@ class LDAPConfig:
         host = getenv(ENV_PHOENIX_LDAP_HOST)
         if not host:
             return None
+
+        # Import here to avoid circular import at module level
+        from phoenix.server.ldap import canonicalize_dn
 
         # Normalize and validate host list (remove empty entries from trailing commas, etc.)
         hosts = tuple(h.strip() for h in host.split(",") if h.strip())
@@ -1748,7 +1783,6 @@ class LDAPConfig:
                 f"Expected format: [{{'group_dn': '...', 'role': 'ADMIN'}}]"
             )
 
-        VALID_ROLES = {"ADMIN", "MEMBER", "VIEWER"}
         for idx, mapping in enumerate(group_role_mappings_list):
             if not isinstance(mapping, dict):
                 raise ValueError(
@@ -1769,14 +1803,25 @@ class LDAPConfig:
                     f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}].group_dn "
                     "must be a non-empty string"
                 )
-            # Normalize to uppercase for case-insensitive comparison
+            # Validate DN syntax and canonicalize (except for wildcard "*")
+            raw_group_dn = mapping["group_dn"].strip()
+            group_dn = canonicalize_dn(raw_group_dn) if raw_group_dn != "*" else raw_group_dn
+            if group_dn is None:
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}].group_dn "
+                    f"has invalid LDAP DN syntax: '{raw_group_dn}'. "
+                    f"Expected format: 'cn=GroupName,ou=Groups,dc=example,dc=com'"
+                )
+            # Normalize role to uppercase and validate
             role_upper = mapping["role"].upper() if isinstance(mapping["role"], str) else ""
-            if role_upper not in VALID_ROLES:
+            if role_upper not in _VALID_ROLES:
                 raise ValueError(
                     f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}]: "
-                    f"role must be one of {VALID_ROLES} (case-insensitive). "
+                    f"role must be one of {_VALID_ROLES} (case-insensitive). "
                     f"Got: '{mapping['role']}'"
                 )
+            mapping["group_dn"] = group_dn
+            mapping["role"] = role_upper
 
         # Require at least one role mapping to prevent silent authentication failures
         # Without mappings, all LDAP users would be denied access with only a debug log,
@@ -1798,7 +1843,7 @@ class LDAPConfig:
         tls_mode = cast(Literal["none", "starttls", "ldaps"], tls_mode_str)
 
         # Parse and validate group_search_base_dns (JSON array of base DNs, optional)
-        attr_member_of = getenv(ENV_PHOENIX_LDAP_ATTR_MEMBER_OF, "memberOf")
+        attr_member_of = getenv(ENV_PHOENIX_LDAP_ATTR_MEMBER_OF, "memberOf").strip() or None
         group_search_base_dns_json = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS, "")
         group_search_filter = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER)
         group_search_filter_user_attr = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR)
@@ -1824,11 +1869,18 @@ class LDAPConfig:
                     "Expected format: '[\"ou=groups,dc=example,dc=com\"]'"
                 )
             for idx, base_dn in enumerate(group_search_base_dns_list):
-                if not isinstance(base_dn, str) or not base_dn.strip():
+                if not isinstance(base_dn, str):
+                    raise ValueError(
+                        f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS}[{idx}] must be a string"
+                    )
+                stripped = base_dn.strip()
+                if not _is_valid_dn(stripped):
                     raise ValueError(
                         f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS}[{idx}] "
-                        "must be a non-empty string"
+                        f"has invalid LDAP DN syntax: '{base_dn}'. "
+                        f"Expected format: 'ou=groups,dc=example,dc=com'"
                     )
+                group_search_base_dns_list[idx] = stripped
 
         # Validate group search configuration: if filter is set, base DNs are required
         if group_search_filter and not group_search_base_dns_list:
@@ -1895,10 +1947,16 @@ class LDAPConfig:
                 "Example: '[\"OU=Users,DC=corp,DC=com\"]'"
             )
         for idx, base_dn in enumerate(user_search_base_dns_list):
-            if not isinstance(base_dn, str) or not base_dn.strip():
+            if not isinstance(base_dn, str):
+                raise ValueError(f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS}[{idx}] must be a string")
+            stripped = base_dn.strip()
+            if not _is_valid_dn(stripped):
                 raise ValueError(
-                    f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS}[{idx}] must be a non-empty string"
+                    f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS}[{idx}] "
+                    f"has invalid LDAP DN syntax: '{base_dn}'. "
+                    f"Expected format: 'ou=users,dc=example,dc=com'"
                 )
+            user_search_base_dns_list[idx] = stripped
 
         # Parse allow_sign_up
         allow_sign_up = _bool_val(ENV_PHOENIX_LDAP_ALLOW_SIGN_UP, True)
@@ -1906,8 +1964,8 @@ class LDAPConfig:
         # Determine default port based on TLS mode (if not explicitly set)
         # STARTTLS: port 389 (plaintext, then upgrade)
         # LDAPS: port 636 (TLS from start)
-        default_port = "636" if tls_mode == "ldaps" else "389"
-        port = int(getenv(ENV_PHOENIX_LDAP_PORT, default_port))
+        default_port = 636 if tls_mode == "ldaps" else 389
+        port = _int_val(ENV_PHOENIX_LDAP_PORT, default_port)
 
         # Parse advanced TLS configuration (optional)
         tls_ca_cert_file = getenv(ENV_PHOENIX_LDAP_TLS_CA_CERT_FILE)
@@ -1936,17 +1994,53 @@ class LDAPConfig:
                 raise ValueError(f"{env_var}='{file_path}' does not exist or is not a file")
 
         # Parse attribute names
-        attr_email = getenv(ENV_PHOENIX_LDAP_ATTR_EMAIL, "mail")
-        attr_display_name = getenv(ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, "displayName")
-        attr_unique_id = getenv(ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID)
-
-        # Validate required attribute is not empty
-        # (getenv returns "" if explicitly set to empty string, not the default)
-        if not attr_email:
-            raise ValueError(
-                f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} cannot be empty. "
-                f"This attribute is required to identify users. Default: 'mail'"
+        # attr_email behavior:
+        #   - Not set at all → "mail" (backwards compatibility)
+        #   - Explicitly empty (PHOENIX_LDAP_ATTR_EMAIL=) → None (null email marker mode)
+        #   - Set to value → use that value
+        attr_email_raw = getenv(ENV_PHOENIX_LDAP_ATTR_EMAIL)
+        if attr_email_raw is None:
+            logger.warning(
+                f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is not set. "
+                f"Defaulting to 'mail' for backwards compatibility, "
+                f"but this behavior will be removed in a future version. "
+                f"Please set {ENV_PHOENIX_LDAP_ATTR_EMAIL} explicitly: "
+                f"use 'mail' (or your LDAP email attribute) if email is available, "
+                f"or use '' (empty string) if email is not available in your LDAP directory."
             )
+            attr_email: str | None = "mail"  # Default for backwards compatibility
+        elif attr_email_raw == "":
+            attr_email = None  # Explicitly empty → null email marker mode
+        else:
+            attr_email = attr_email_raw
+        attr_display_name = (
+            getenv(ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, "displayName").strip() or None
+        )
+        attr_unique_id = getenv(ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID, "").strip() or None
+
+        # Validate null email marker mode constraints
+        # When attr_email is empty, we generate markers from unique_id instead
+        if not attr_email:
+            # Constraint 1: unique_id is required for user lookup and marker generation
+            if not attr_unique_id:
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID} is required when "
+                    f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is empty. "
+                    f"Without email, unique_id is needed to identify returning users."
+                )
+            # Constraint 2: allow_sign_up must be True (can't pre-provision without unique_id)
+            if not allow_sign_up:
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_ALLOW_SIGN_UP} must be True when "
+                    f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is empty. "
+                    f"Null email markers require auto-provisioning on first login."
+                )
+            # Constraint 3: PHOENIX_ADMINS is not supported (can't compute marker without unique_id)
+            if get_env_admins():
+                raise ValueError(
+                    f"PHOENIX_ADMINS is not supported when {ENV_PHOENIX_LDAP_ATTR_EMAIL} is empty. "
+                    f"Users are auto-provisioned on first login with roles from LDAP group mapping."
+                )
 
         # Validate attribute names don't contain spaces
         # LDAP attribute names (e.g., objectGUID, entryUUID, mail) never contain spaces.
@@ -1975,11 +2069,21 @@ class LDAPConfig:
                 f"for username. Got: '{user_search_filter}'"
             )
 
-        bind_dn = getenv(ENV_PHOENIX_LDAP_BIND_DN)
-        bind_password = getenv(ENV_PHOENIX_LDAP_BIND_PASSWORD)
+        bind_dn = getenv(ENV_PHOENIX_LDAP_BIND_DN, "").strip() or None
+        if bind_dn and not _is_valid_dn(bind_dn):
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_BIND_DN} has invalid LDAP DN syntax: '{bind_dn}'. "
+                f"Expected format: 'cn=service,ou=accounts,dc=example,dc=com'"
+            )
+        bind_password = getenv(ENV_PHOENIX_LDAP_BIND_PASSWORD) or None
         if bind_dn and not bind_password:
             raise ValueError(
                 f"{ENV_PHOENIX_LDAP_BIND_DN} is set but {ENV_PHOENIX_LDAP_BIND_PASSWORD} is "
+                "missing. Both are required for service account authentication."
+            )
+        if bind_password and not bind_dn:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_BIND_PASSWORD} is set but {ENV_PHOENIX_LDAP_BIND_DN} is "
                 "missing. Both are required for service account authentication."
             )
 

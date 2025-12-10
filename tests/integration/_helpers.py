@@ -887,7 +887,7 @@ def _list_users(
                 _User(
                     _GqlId(u["id"]),
                     UserRoleInput(u["role"]["name"]),
-                    _Profile(u["email"], "", u["username"]),
+                    _Profile(u["email"] or "", "", u["username"]),
                     profile_picture_url=u.get("profilePictureUrl"),
                 )
                 for u in users

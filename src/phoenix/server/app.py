@@ -262,6 +262,8 @@ class AppConfig(NamedTuple):
     basic_auth_disabled: bool = False
     ldap_enabled: bool = False
     """ Whether LDAP authentication is configured """
+    ldap_manual_user_creation_enabled: bool = False
+    """ Whether manual LDAP user creation is allowed (False when LDAP disabled or no email attr) """
     auto_login_idp_name: Optional[str] = None
     fullstory_org: Optional[str] = None
     """ FullStory organization ID for web analytics tracking """
@@ -331,6 +333,7 @@ class Static(StaticFiles):
                     "oauth2_idps": self._app_config.oauth2_idps,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "ldap_enabled": self._app_config.ldap_enabled,
+                    "ldap_manual_user_creation_enabled": self._app_config.ldap_manual_user_creation_enabled,  # noqa: E501
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
                     "fullstory_org": self._app_config.fullstory_org,
                     "management_url": self._app_config.management_url,
@@ -1181,6 +1184,10 @@ def create_app(
                     oauth2_idps=oauth2_idps,
                     basic_auth_disabled=basic_auth_disabled,
                     ldap_enabled=ldap_config is not None,
+                    # Disable manual user creation when LDAP disabled or no email attr
+                    ldap_manual_user_creation_enabled=(
+                        ldap_config.attr_email is not None if ldap_config else False
+                    ),
                     auto_login_idp_name=auto_login_idp_name,
                     fullstory_org=Settings.fullstory_org,
                     management_url=management_url,

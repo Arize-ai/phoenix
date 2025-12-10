@@ -59,7 +59,7 @@ const usersTableContainerCSS = css`
   max-height: var(--ac-global-dimension-size-6000);
 `;
 
-const isDefaultAdminUser = (user: { email: string; username: string }) =>
+const isDefaultAdminUser = (user: { email: string | null; username: string }) =>
   user.email === "admin@localhost" || user.username === "admin";
 
 export function UsersTable({ query }: { query: UsersTable_users$key }) {
@@ -133,19 +133,23 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       {
         header: "user",
         accessorKey: "username",
-        cell: ({ row }) => (
-          <Flex direction="row" gap="size-50" alignItems="center">
-            <UserPicture
-              name={row.original.username}
-              profilePictureUrl={row.original.profilePictureUrl}
-              size={20}
-            />
-            <span>{row.original.username}</span>
-            <a href={`mailto:${row.original.email}`} css={emailLinkCSS}>
-              {row.original.email}
-            </a>
-          </Flex>
-        ),
+        cell: ({ row }) => {
+          return (
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <UserPicture
+                name={row.original.username}
+                profilePictureUrl={row.original.profilePictureUrl}
+                size={20}
+              />
+              <span>{row.original.username}</span>
+              {row.original.email && (
+                <a href={`mailto:${row.original.email}`} css={emailLinkCSS}>
+                  {row.original.email}
+                </a>
+              )}
+            </Flex>
+          );
+        },
       },
       {
         header: "method",
@@ -159,7 +163,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         cell: ({ row }) => {
           if (
             isDefaultAdminUser(row.original) ||
-            (viewer && viewer.email == row.original.email)
+            (viewer && viewer.id === row.original.id)
           ) {
             return normalizeUserRole(row.original.role);
           }
@@ -176,7 +180,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                     onClose={() => setDialog(null)}
                     currentRole={row.original.role}
                     newRole={key as UserRole}
-                    email={row.original.email}
+                    username={row.original.username}
                     userId={row.original.id}
                   />
                 );

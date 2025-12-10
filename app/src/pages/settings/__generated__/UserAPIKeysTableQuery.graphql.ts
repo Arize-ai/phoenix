@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b147c21920903dfd612e378fa5e63cf>>
+ * @generated SignedSource<<a7e46202b2920e34af6610ddfcd1af98>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -98,7 +98,7 @@ return {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "email",
+                "name": "username",
                 "storageKey": null
               },
               (v0/*: any*/)
@@ -111,16 +111,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a91e7a740880f47e1bcd063ede287ed6",
+    "cacheID": "86a98c02f3430470a286f0553511e8ed",
     "id": null,
     "metadata": {},
     "name": "UserAPIKeysTableQuery",
     "operationKind": "query",
-    "text": "query UserAPIKeysTableQuery {\n  ...UserAPIKeysTableFragment\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n      id\n    }\n  }\n}\n"
+    "text": "query UserAPIKeysTableQuery {\n  ...UserAPIKeysTableFragment\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      username\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c2b3a579bcb0ba915523ecb35cae3b44";
+(node as any).hash = "720721b1409e41ca6fc2994af7784a18";
 
 export default node;

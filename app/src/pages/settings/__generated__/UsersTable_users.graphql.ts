@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<648cf2b7ab1eff956525ff04eaed9998>>
+ * @generated SignedSource<<2ea15d68ee92aaf12b9639baae75fa69>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type UsersTable_users$data = {
       readonly user: {
         readonly authMethod: AuthMethod;
         readonly createdAt: string;
-        readonly email: string;
+        readonly email: string | null;
         readonly id: string;
         readonly profilePictureUrl: string | null;
         readonly role: {

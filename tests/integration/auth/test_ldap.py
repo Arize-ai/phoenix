@@ -357,28 +357,8 @@ class TestLDAPAuthentication:
         assert user.role == UserRoleInput.ADMIN  # ADMIN mapping evaluated before MEMBER
         _delete_users(_app, _app.admin_secret, users=[user.gid])
 
-    async def test_group_dn_case_insensitive(
-        self, _app: _AppInfo, _ldap_server: _LDAPServer
-    ) -> None:
-        """Test group DN matching is case-insensitive per RFC 4514."""
-        suffix = token_hex(4)
-        email = f"case_{suffix}@example.com"
-        _ldap_server.add_user(
-            username=f"case_{suffix}",
-            password=_DEFAULT_PASSWORD,
-            email=email,
-            display_name="Case",
-            groups=["CN=Admins,OU=Groups,DC=Example,DC=Com"],  # Mixed case
-        )
-        status, _, _ = _ldap_login(_app, f"case_{suffix}", _DEFAULT_PASSWORD)
-        assert status == 204
-        user = _get_user_by_email(_app, email)
-        assert user is not None
-        assert user.role == UserRoleInput.ADMIN  # Should match despite case difference
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
 
-
-class TestLDAPDNStability:
+class TestLDAPUserIdentificationStrategies:
     """Test LDAP user identification strategies.
 
     Phoenix supports two modes:
@@ -445,6 +425,8 @@ class TestLDAPDNStability:
 
         # Admin pre-provisions user (no unique_id in DB yet)
         graphql_client = _httpx_client(app, app.admin_secret)
+
+        username = f"Pre-Provisioned {suffix}"
         response = graphql_client.post(
             "/graphql",
             json={
@@ -455,7 +437,7 @@ class TestLDAPDNStability:
                         }) { user { id } }
                     }
                 """,
-                "variables": {"email": email_v1, "username": "Pre-Provisioned", "role": "MEMBER"},
+                "variables": {"email": email_v1, "username": username, "role": "MEMBER"},
             },
         )
         assert response.status_code == 200
@@ -467,7 +449,7 @@ class TestLDAPDNStability:
             username=username,
             password=_DEFAULT_PASSWORD,
             email=email_v1,
-            display_name="User",
+            display_name=f"User {token_hex(4)}",
             groups=[_ADMIN_GROUP],
         )
         status, access_token, refresh_token = _ldap_login(app, username, _DEFAULT_PASSWORD)
@@ -476,15 +458,15 @@ class TestLDAPDNStability:
         user_v1 = _get_user_by_email(app, email_v1)
         assert user_v1 is not None
         assert user_v1.role == UserRoleInput.ADMIN, "Role updated from LDAP groups"
-        assert user_v1.username == "Pre-Provisioned", "Username stable from pre-provisioning"
+        assert user_v1.username == username, "Username stable from pre-provisioning"
 
         # Email changes in LDAP, login again
         _ldap_server.add_user(
             username=username,  # Same username = same entryUUID
             password=_DEFAULT_PASSWORD,
             email=email_v2,
-            display_name="User",
-            groups=[_ADMIN_GROUP],
+            display_name=f"User {token_hex(4)}",
+            groups=[_MEMBER_GROUP],
         )
         status, access_token, refresh_token = _ldap_login(app, username, _DEFAULT_PASSWORD)
         _verify_ldap_login_success(status, access_token, refresh_token)
@@ -493,8 +475,8 @@ class TestLDAPDNStability:
         user_v2 = _get_user_by_email(app, email_v2)
         assert user_v2 is not None
         assert user_v2.gid == user_v1.gid, "Same user when unique_id is configured"
-        assert user_v2.role == UserRoleInput.ADMIN
-        assert user_v2.username == "Pre-Provisioned"
+        assert user_v2.role == UserRoleInput.MEMBER
+        assert user_v2.username == username
 
         # Old email no longer exists
         assert _get_user_by_email(app, email_v1) is None
@@ -748,10 +730,14 @@ class TestLDAPConfiguration:
 
 
 class TestLDAPPosixGroupSearch:
-    """Test LDAP POSIX group search (OpenLDAP style).
+    """Test LDAP group search (no memberOf attribute).
 
-    POSIX groups (RFC 2307) use memberUid containing usernames, requiring Phoenix
-    to search for groups containing the user's username (not DN).
+    Tests group lookup via search filter instead of reading memberOf from user entry.
+    Uses (member=%s) where %s is replaced with the login username directly
+    (no GROUP_SEARCH_FILTER_USER_ATTR configured).
+
+    Note: For true POSIX RFC 2307 memberUid testing with GROUP_SEARCH_FILTER_USER_ATTR,
+    see TestLDAPPosixMemberUidGroupSearch.
     """
 
     def test_posix_role_from_group_search(
@@ -770,7 +756,7 @@ class TestLDAPPosixGroupSearch:
             display_name="POSIX",
             groups=[],
         )
-        # Add to admins group via POSIX-style membership (username, not DN)
+        # Add to admins group with username as member
         _ldap_server.add_group(cn="admins", members=[username])
 
         status, _, _ = _ldap_login(_app_ldap_posix, username, _DEFAULT_PASSWORD)
@@ -783,7 +769,7 @@ class TestLDAPPosixGroupSearch:
     def test_posix_wildcard_when_no_groups(
         self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test wildcard role when user is in no POSIX groups."""
+        """Test wildcard role when user is in no groups."""
         suffix = token_hex(4)
         username = f"posix_none_{suffix}"
         email = f"posix_none_{suffix}@example.com"
@@ -807,11 +793,7 @@ class TestLDAPPosixGroupSearch:
     def test_posix_username_case_insensitive(
         self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test username matching in POSIX group search is case-insensitive.
-
-        POSIX groups (RFC 2307) use memberUid with usernames, not full DNs.
-        Username comparison should be case-insensitive.
-        """
+        """Test username matching in group search is case-insensitive."""
         suffix = token_hex(4)
         username = f"posix_case_{suffix}"
         email = f"posix_case_{suffix}@example.com"
@@ -823,7 +805,7 @@ class TestLDAPPosixGroupSearch:
             display_name="Case",
             groups=[],
         )
-        # POSIX group has UPPERCASE username, user has lowercase username
+        # Group has UPPERCASE username, user logs in with lowercase
         _ldap_server.add_group(cn="admins", members=[username.upper()])
 
         status, _, _ = _ldap_login(_app_ldap_posix, username, _DEFAULT_PASSWORD)
@@ -834,82 +816,201 @@ class TestLDAPPosixGroupSearch:
         _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
 
 
-class TestLDAPDNHandling:
-    """Test DN-related security and RFC 4514 compliance."""
+class TestLDAPPosixMemberUidGroupSearch:
+    """Test LDAP POSIX memberUid group search with GROUP_SEARCH_FILTER_USER_ATTR.
 
-    def test_duplicate_username_rejected(self, _ldap_server: _LDAPServer, _app: _AppInfo) -> None:
-        """Login rejected when multiple LDAP entries match the same username.
+    This tests the code path where Phoenix must read a specific attribute (e.g., uid)
+    from the user entry to substitute into the group search filter.
 
-        Security: Prevents non-deterministic authentication when same uid exists
-        in different OUs (e.g., uid=admin in IT and HR).
-        """
+    Configuration:
+    - GROUP_SEARCH_FILTER: (memberUid=%s)
+    - GROUP_SEARCH_FILTER_USER_ATTR: uid
+
+    The mock LDAP server respects the requested attributes list, so these tests
+    properly catch bugs where required attributes (like uid) aren't being requested.
+    This caught a real bug where group_search_filter_user_attr wasn't included in
+    the LDAP search attribute list.
+    """
+
+    def test_memberuid_role_from_group_search(
+        self, _app_ldap_posix_memberuid: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test role assignment when GROUP_SEARCH_FILTER_USER_ATTR is configured."""
         suffix = token_hex(4)
-        username = f"dup_{suffix}"
+        username = f"memberuid_{suffix}"
+        email = f"memberuid_{suffix}@example.com"
 
-        # Two users with same username, different OUs
-        _ldap_server.add_user(
-            username=username,
-            password="pass",
-            email=f"{username}_it@example.com",
-            display_name="IT",
-            groups=[_ADMIN_GROUP],
-            custom_dn=f"uid={username},ou=IT,dc=example,dc=com",
-        )
-        _ldap_server.add_user(
-            username=username,
-            password="pass",
-            email=f"{username}_hr@example.com",
-            display_name="HR",
-            groups=[_ADMIN_GROUP],
-            custom_dn=f"uid={username},ou=HR,dc=example,dc=com",
-        )
-
-        # Should reject (ambiguous)
-        status, _, _ = _ldap_login(_app, username, "pass")
-        assert status == 401
-
-        # No user created
-        all_users = _list_users(_app, _app.admin_secret)
-        assert not any(u.email.startswith(f"{username}_") for u in all_users)
-
-    def test_dn_case_variation_same_user(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
-        """DN case variations don't create duplicate users (RFC 4514).
-
-        Real scenario: AD controllers may return different casing for same user.
-        """
-        suffix = token_hex(4)
-        username = f"dncase_{suffix}"
-        email = f"dncase_{suffix}@example.com"
-
-        # First login with lowercase DN
         _ldap_server.add_user(
             username=username,
             password=_DEFAULT_PASSWORD,
             email=email,
-            display_name="User",
-            groups=[_ADMIN_GROUP],
-            custom_dn=f"uid={username},ou=users,dc=example,dc=com",
+            display_name="MemberUid User",
+            groups=[],  # No memberOf - relies on group search
         )
-        status, _, _ = _ldap_login(_app, username, _DEFAULT_PASSWORD)
-        assert status == 204
-        user1 = _get_user_by_email(_app, email)
-        assert user1 is not None
+        # Add to admins group with username (not DN)
+        _ldap_server.add_group(cn="admins", members=[username])
 
-        # Second login - LDAP returns MIXED CASE DN (same user)
+        status, access_token, refresh_token = _ldap_login(
+            _app_ldap_posix_memberuid, username, _DEFAULT_PASSWORD
+        )
+        _verify_ldap_login_success(status, access_token, refresh_token)
+
+        user = _get_user_by_email(_app_ldap_posix_memberuid, email)
+        assert user is not None
+        assert user.role == UserRoleInput.ADMIN, (
+            f"Expected ADMIN role from memberUid group search, got {user.role}. "
+            "This indicates GROUP_SEARCH_FILTER_USER_ATTR is not working correctly."
+        )
+        _delete_users(
+            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+        )
+
+    def test_memberuid_member_role(
+        self, _app_ldap_posix_memberuid: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test MEMBER role assignment via memberUid group search."""
+        suffix = token_hex(4)
+        username = f"memberuid_member_{suffix}"
+        email = f"memberuid_member_{suffix}@example.com"
+
         _ldap_server.add_user(
             username=username,
             password=_DEFAULT_PASSWORD,
             email=email,
-            display_name="User",
-            groups=[_ADMIN_GROUP],
-            custom_dn=f"UID={username.upper()},OU=Users,DC=Example,DC=Com",
+            display_name="Member User",
+            groups=[],
         )
-        status, _, _ = _ldap_login(_app, username, _DEFAULT_PASSWORD)
+        _ldap_server.add_group(cn="members", members=[username])
+
+        status, _, _ = _ldap_login(_app_ldap_posix_memberuid, username, _DEFAULT_PASSWORD)
         assert status == 204
 
-        # Verify same user (no duplicate)
-        user2 = _get_user_by_email(_app, email)
-        assert user2 is not None
-        assert user2.gid == user1.gid
+        user = _get_user_by_email(_app_ldap_posix_memberuid, email)
+        assert user is not None
+        assert user.role == UserRoleInput.MEMBER
+        _delete_users(
+            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+        )
 
-        _delete_users(_app, _app.admin_secret, users=[user1.gid])
+    def test_memberuid_wildcard_when_no_groups(
+        self, _app_ldap_posix_memberuid: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test wildcard role when user is in no groups (memberUid mode)."""
+        suffix = token_hex(4)
+        username = f"memberuid_none_{suffix}"
+        email = f"memberuid_none_{suffix}@example.com"
+
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email=email,
+            display_name="No Groups",
+            groups=[],
+        )
+        # Don't add to any group
+
+        status, _, _ = _ldap_login(_app_ldap_posix_memberuid, username, _DEFAULT_PASSWORD)
+        assert status == 204
+
+        user = _get_user_by_email(_app_ldap_posix_memberuid, email)
+        assert user is not None
+        assert user.role == UserRoleInput.VIEWER  # Wildcard
+        _delete_users(
+            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+        )
+
+
+class TestLDAPNoEmailMode:
+    """Test LDAP no-email mode (null email markers).
+
+    When PHOENIX_LDAP_ATTR_EMAIL="" is configured, Phoenix generates null email
+    markers for users instead of reading email from LDAP. Users are identified
+    by their unique_id (entryUUID).
+
+    This mode is useful for LDAP directories that don't have email attributes.
+    """
+
+    def _get_user_with_username(self, app: _AppInfo, username: str) -> Optional[_User]:
+        """Find user by checking for null email marker containing username hash."""
+        users = _list_users(app, app.admin_secret)
+        for user in users:
+            if user.profile.username == username:
+                return user
+        return None
+
+    def test_login_creates_user_with_null_email_marker(
+        self, _app_ldap_no_email: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test login in no-email mode creates user with null email marker."""
+        suffix = token_hex(4)
+        username = f"noemail_{suffix}"
+        display_name = f"No Email User {suffix}"
+
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email="ignored@example.com",  # This email is ignored in no-email mode
+            display_name=display_name,
+            groups=[_ADMIN_GROUP],
+        )
+
+        status, access_token, refresh_token = _ldap_login(
+            _app_ldap_no_email, username, _DEFAULT_PASSWORD
+        )
+        _verify_ldap_login_success(status, access_token, refresh_token)
+
+        # Find the user - should have null email marker
+        user = self._get_user_with_username(_app_ldap_no_email, display_name)
+        assert user is not None, "User with null email marker should be created"
+        assert user.profile.email == "", "User should have null email on first login"
+        assert user.role == UserRoleInput.ADMIN
+
+        _delete_users(_app_ldap_no_email, _app_ldap_no_email.admin_secret, users=[user.gid])
+
+    def test_subsequent_login_finds_same_user(
+        self, _app_ldap_no_email: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test subsequent login in no-email mode finds the same user by unique_id."""
+        suffix = token_hex(4)
+        username = f"noemail_same_{suffix}"
+        display_name = f"Same User {suffix}"
+
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email="ignored@example.com",
+            display_name=display_name,
+            groups=[_MEMBER_GROUP],
+        )
+
+        # First login
+        status, access_token, refresh_token = _ldap_login(
+            _app_ldap_no_email, username, _DEFAULT_PASSWORD
+        )
+        _verify_ldap_login_success(status, access_token, refresh_token)
+        user1 = self._get_user_with_username(_app_ldap_no_email, display_name)
+        assert user1 is not None, "User with same username should be found on first login"
+        assert user1.profile.email == "", "User should have null email on first login"
+        assert user1.role is UserRoleInput.MEMBER, "User should have MEMBER role on first login"
+
+        # Role changes in LDAP, login again
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email="ignored@example.com",
+            display_name=display_name,
+            groups=[_ADMIN_GROUP],
+        )
+
+        # Second login - should find same user
+        status, access_token, refresh_token = _ldap_login(
+            _app_ldap_no_email, username, _DEFAULT_PASSWORD
+        )
+        _verify_ldap_login_success(status, access_token, refresh_token)
+        user2 = self._get_user_with_username(_app_ldap_no_email, display_name)
+        assert user2 is not None, "User with same username should be found on subsequent login"
+        assert user2.profile.email == "", "User should have null email on subsequent login"
+        assert user2.role is UserRoleInput.ADMIN, "User should have ADMIN role on subsequent login"
+        assert user2.gid == user1.gid, "Same user should be found on subsequent login"
+
+        _delete_users(_app_ldap_no_email, _app_ldap_no_email.admin_secret, users=[user1.gid])

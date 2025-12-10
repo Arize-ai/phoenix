@@ -41,7 +41,7 @@ export function UserAPIKeysTable({
           createdAt
           expiresAt
           user {
-            email
+            username
           }
         }
       }
@@ -126,7 +126,7 @@ export function UserAPIKeysTable({
       {
         header: "User",
         size: 120,
-        accessorKey: "user.email",
+        accessorKey: "user.username",
         cell: TextCell,
       },
       {

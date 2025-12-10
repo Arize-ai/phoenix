@@ -1,7 +1,7 @@
 type FullStoryIdentity = {
   uid: string;
   displayName: string;
-  email: string;
+  email: string | null;
 };
 
 export function isFullStoryEnabled() {

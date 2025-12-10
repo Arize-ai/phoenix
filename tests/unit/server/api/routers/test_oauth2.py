@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import insert, select
 from starlette.types import ASGIApp
 
-from phoenix.config import OAuth2UserRoleName
+from phoenix.config import AssignableUserRoleName
 from phoenix.db import models
 from phoenix.server.api.routers.oauth2 import (
     InvalidUserInfo,
@@ -52,7 +52,7 @@ class TestSignInExistingOAuth2User:
                 )
 
         async def sign_in(
-            email: str, uid: str, role: Optional[OAuth2UserRoleName], pic: Optional[str] = None
+            email: str, uid: str, role: Optional[AssignableUserRoleName], pic: Optional[str] = None
         ) -> models.User:
             async with db() as session:
                 return await _sign_in_existing_oauth2_user(
@@ -132,7 +132,7 @@ class TestSignInExistingOAuth2User:
             e = f"{token_hex(8)}@example.com"
             uid = f"uid5_{idx}"
             await create_user(e, uid, initial, cid=client_id)
-            u = await sign_in(e, uid, cast(OAuth2UserRoleName, target))
+            u = await sign_in(e, uid, cast(AssignableUserRoleName, target))
             assert u.role.name == target
 
         # Test 14-16: CRITICAL backward compatibility - role preservation

@@ -48,6 +48,19 @@ class TestCase:
     validator: Optional["Validator"]
 
 
+@dataclass
+class ErrorTestCase:
+    """Definition of a Helm test case that expects a template error.
+
+    Use this for testing validation failures in the Helm templates.
+    The test passes if helm template fails with an error containing expected_error.
+    """
+
+    name: str
+    flags: str
+    expected_error: str  # Substring expected in the error message
+
+
 class Validator(Protocol):
     """Protocol for validator functions."""
 
@@ -1048,6 +1061,33 @@ class LDAPValidators:
         return validator
 
     @staticmethod
+    def ldap_no_email_mode(attr_unique_id: str, allow_sign_up: bool = True) -> Validator:
+        """Validate LDAP no-email mode configuration.
+
+        In no-email mode, attrEmail is empty and attrUniqueId is required.
+        """
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            configmap = find_resource(resources, "ConfigMap", "configmap")
+            if not configmap:
+                return False
+
+            data = configmap.get("data", {})
+            # attrEmail should be empty
+            if data.get("PHOENIX_LDAP_ATTR_EMAIL") != "":
+                return False
+            # attrUniqueId should be set
+            if data.get("PHOENIX_LDAP_ATTR_UNIQUE_ID") != attr_unique_id:
+                return False
+            # allowSignUp should match
+            if data.get("PHOENIX_LDAP_ALLOW_SIGN_UP") != str(allow_sign_up).lower():
+                return False
+            return True
+
+        validator.__name__ = "ldap_no_email_mode"
+        return validator
+
+    @staticmethod
     def ldap_comprehensive(
         host: str,
         user_search_base_dns: list[str],
@@ -1992,9 +2032,48 @@ class HelmTester:
 
         return TestResult(test_case.name, True)
 
-    async def run_all_tests(self, test_cases: list[TestCase]) -> list[TestResult]:
+    async def run_error_test(self, test_case: ErrorTestCase) -> TestResult:
+        """Run a test case that expects helm template to fail.
+
+        The test passes if the template fails with an error containing expected_error.
+        """
+        if self.temp_dir is None:
+            raise RuntimeError("setup() must be called before run_error_test()")
+
+        # Render template - expecting failure
+        resources, error = await self._render_helm_template(test_case.flags)
+
+        if not error:
+            # Template succeeded when we expected it to fail
+            print(f"  {test_case.name}... {RED}✗{NC}")
+            print(f"    Expected error containing: {test_case.expected_error[:50]}...")
+            return TestResult(
+                test_case.name,
+                False,
+                f"Expected template to fail with: {test_case.expected_error}",
+            )
+
+        # Check if the error contains the expected substring
+        if test_case.expected_error not in error:
+            print(f"  {test_case.name}... {RED}✗{NC}")
+            print(f"    Expected: {test_case.expected_error[:50]}...")
+            print(f"    Got: {error.split(chr(10))[0][:80]}...")
+            return TestResult(
+                test_case.name,
+                False,
+                f"Error mismatch. Expected '{test_case.expected_error}' in: {error[:200]}",
+            )
+
+        return TestResult(test_case.name, True)
+
+    async def run_all_tests(self, test_cases: list[TestCase | ErrorTestCase]) -> list[TestResult]:
         """Run all Helm chart test scenarios in parallel."""
-        tasks = [self.run_test(tc) for tc in test_cases]
+        tasks = []
+        for tc in test_cases:
+            if isinstance(tc, ErrorTestCase):
+                tasks.append(self.run_error_test(tc))
+            else:
+                tasks.append(self.run_test(tc))
         results = await asyncio.gather(*tasks)
 
         for result in results:
@@ -2004,7 +2083,7 @@ class HelmTester:
         self.results = results
         return results
 
-    async def run(self, test_cases: list[TestCase]) -> int:
+    async def run(self, test_cases: list[TestCase | ErrorTestCase]) -> int:
         """Main entry point for running all tests."""
         exit_code = 0
 
@@ -2040,7 +2119,7 @@ class HelmTester:
 # ============================================================================
 
 
-def get_test_suite() -> list[TestCase]:
+def get_test_suite() -> list[TestCase | ErrorTestCase]:
     """Define all test cases for the Helm chart."""
     return [
         # Database
@@ -2516,6 +2595,38 @@ def get_test_suite() -> list[TestCase]:
                     "PHOENIX_LDAP_HOST", "dc1.corp.com,dc2.corp.com,dc3.corp.com"
                 ),
             ),
+        ),
+        # LDAP No-Email Mode
+        TestCase(
+            "LDAP no-email mode (valid configuration)",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_no_email_mode(attr_unique_id="entryUUID", allow_sign_up=True),
+            ),
+        ),
+        TestCase(
+            "LDAP no-email mode with Active Directory",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.attrUniqueId=objectGUID --set auth.ldap.allowSignUp=true""",
+            all_of(
+                LDAPValidators.ldap_enabled(),
+                LDAPValidators.ldap_no_email_mode(attr_unique_id="objectGUID", allow_sign_up=True),
+            ),
+        ),
+        ErrorTestCase(
+            "LDAP no-email mode requires attrUniqueId",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.allowSignUp=true""",
+            "LDAP no-email mode requires attrUniqueId",
+        ),
+        ErrorTestCase(
+            "LDAP no-email mode requires allowSignUp=true",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=false""",
+            "LDAP no-email mode requires allowSignUp=true",
+        ),
+        ErrorTestCase(
+            "LDAP no-email mode cannot use auth.admins",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true --set auth.admins="Admin=admin@example.com" """,
+            "LDAP no-email mode cannot use auth.admins",
         ),
         # Ingress
         TestCase(

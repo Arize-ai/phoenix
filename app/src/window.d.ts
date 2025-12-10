@@ -23,6 +23,11 @@ declare global {
       basicAuthDisabled: boolean;
       oAuth2Idps: OAuth2Idp[];
       ldapEnabled: boolean;
+      /**
+       * Whether manual LDAP user creation is enabled.
+       * False when PHOENIX_LDAP_ATTR_EMAIL is empty (no email to enter).
+       */
+      ldapManualUserCreationEnabled: boolean;
       managementUrl?: string | null;
       supportEmail?: string | null;
       hasDbThreshold: boolean;

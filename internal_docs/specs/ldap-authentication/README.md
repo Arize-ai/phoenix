@@ -22,11 +22,15 @@ Detailed technical references for the [LDAP Authentication specification](../lda
 **Design & Architecture**:
 - [Database Schema](./database-schema.md)
 - [User Identification Strategy](./user-identification-strategy.md)
+- [Optional Email for LDAP Users](./optional-email.md) - Support for LDAP directories without email attribute
 - [Decision Reversibility](./decision-reversibility.md)
 - [Migration Plan](./migration-plan.md)
 
 **Security & Compliance**:
 - [Collision Prevention](./collision-prevention.md)
+
+**Testing**:
+- [Testing Procedures](./testing.md) - Running and extending LDAP tests (integration, Docker, coverage)
 
 **Research**:
 - [Grafana Comparison](./grafana-comparison.md)

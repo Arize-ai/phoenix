@@ -18,14 +18,16 @@ from pytest import LogCaptureFixture
 from phoenix.config import LDAPConfig
 from phoenix.server.ldap import (
     LDAP_CLIENT_ID_MARKER,
+    NULL_EMAIL_MARKER_PREFIX,
     LDAPAuthenticator,
     LDAPUserInfo,
     _get_attribute,
     _get_unique_id,
     _is_member_of,
-    _validate_phoenix_role,
     canonicalize_dn,
+    generate_null_email_marker,
     is_ldap_user,
+    is_null_email_marker,
 )
 
 
@@ -451,10 +453,10 @@ class TestAuthenticationFlow:
         assert result is not None
         assert result.unique_id == "550e8400-e29b-41d4-a716-446655440000"
 
-    async def test_display_name_defaults_to_email_prefix(
+    async def test_display_name_defaults_to_username(
         self, authenticator: LDAPAuthenticator
     ) -> None:
-        """Missing display name should default to email prefix."""
+        """Missing display name should default to username."""
         with patch.object(authenticator, "_establish_connection") as mock_establish:
             mock_conn = MagicMock()
             mock_establish.return_value.__enter__ = Mock(return_value=mock_conn)
@@ -482,7 +484,7 @@ class TestAuthenticationFlow:
                 result = await authenticator.authenticate("jdoe", "validpassword")
 
         assert result is not None
-        assert result.display_name == "john.doe"  # Prefix before @
+        assert result.display_name == "jdoe"  # Falls back to username
 
 
 class TestTimingAttackMitigation:
@@ -770,40 +772,6 @@ class TestRoleMapping:
         groups: list[str] = []
         role = authenticator.map_groups_to_role(groups)
         assert role == "VIEWER"
-
-
-class TestRoleValidation:
-    """Test role validation and normalization."""
-
-    def test_valid_admin_role(self) -> None:
-        """Test ADMIN role is valid."""
-        assert _validate_phoenix_role("ADMIN") == "ADMIN"
-
-    def test_valid_member_role(self) -> None:
-        """Test MEMBER role is valid."""
-        assert _validate_phoenix_role("MEMBER") == "MEMBER"
-
-    def test_valid_viewer_role(self) -> None:
-        """Test VIEWER role is valid."""
-        assert _validate_phoenix_role("VIEWER") == "VIEWER"
-
-    def test_lowercase_normalized(self) -> None:
-        """Test lowercase roles are normalized to uppercase."""
-        assert _validate_phoenix_role("admin") == "ADMIN"
-        assert _validate_phoenix_role("member") == "MEMBER"
-        assert _validate_phoenix_role("viewer") == "VIEWER"
-
-    def test_mixed_case_normalized(self) -> None:
-        """Test mixed case roles are normalized."""
-        assert _validate_phoenix_role("Admin") == "ADMIN"
-        assert _validate_phoenix_role("MeMbEr") == "MEMBER"
-
-    def test_invalid_role_raises_error(self) -> None:
-        """Test invalid roles raise ValueError (fail hard to surface bugs)."""
-        with pytest.raises(ValueError, match="Invalid role"):
-            _validate_phoenix_role("SUPERUSER")
-        with pytest.raises(ValueError, match="Invalid role"):
-            _validate_phoenix_role("ROOT")
 
 
 class TestExceptionSanitization:
@@ -1106,18 +1074,24 @@ class TestGroupMembershipCheck:
 
     def test_exact_match(self) -> None:
         """Test exact DN match."""
-        user_groups = {canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")}
+        canonical = canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")
+        assert canonical is not None
+        user_groups: set[str] = {canonical}
         assert _is_member_of(user_groups, "cn=admins,ou=groups,dc=example,dc=com") is True
 
     def test_case_insensitive_match(self) -> None:
         """Test DN matching is case-insensitive per RFC 4514."""
-        user_groups = {canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")}
+        canonical = canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")
+        assert canonical is not None
+        user_groups: set[str] = {canonical}
         # Different casing in target
         assert _is_member_of(user_groups, "CN=ADMINS,OU=GROUPS,DC=EXAMPLE,DC=COM") is True
 
     def test_no_match(self) -> None:
         """Test non-matching group returns False."""
-        user_groups = {canonicalize_dn("cn=members,ou=groups,dc=example,dc=com")}
+        canonical = canonicalize_dn("cn=members,ou=groups,dc=example,dc=com")
+        assert canonical is not None
+        user_groups: set[str] = {canonical}
         assert _is_member_of(user_groups, "cn=admins,ou=groups,dc=example,dc=com") is False
 
     def test_empty_user_groups_no_wildcard(self) -> None:
@@ -1127,7 +1101,9 @@ class TestGroupMembershipCheck:
 
     def test_whitespace_normalization(self) -> None:
         """Test DN whitespace is normalized for matching."""
-        user_groups = {canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")}
+        canonical = canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")
+        assert canonical is not None
+        user_groups: set[str] = {canonical}
         # Target with extra whitespace
         assert (
             _is_member_of(user_groups, "cn = admins , ou = groups , dc = example , dc = com")
@@ -1577,6 +1553,7 @@ class TestDNCanonicalization:
         """Multiple types of escaped characters."""
         dn = "cn=user\\+name\\,test,ou=us\\=ers,dc=br\\\\anch,dc=com"
         canonical = canonicalize_dn(dn)
+        assert canonical is not None
 
         # All escapes should be preserved
         assert "\\+" in canonical
@@ -1631,17 +1608,20 @@ class TestDNCanonicalization:
         """Canonicalizing a canonical DN should be idempotent."""
         dn = "CN=John,OU=Users,DC=Example,DC=com"
         canonical1 = canonicalize_dn(dn)
+        assert canonical1 is not None
         canonical2 = canonicalize_dn(canonical1)
+        assert canonical2 is not None
         canonical3 = canonicalize_dn(canonical2)
 
         assert canonical1 == canonical2 == canonical3
 
-    def test_invalid_dn_fallback(self) -> None:
-        """Invalid DN syntax should fall back to simple lowercase."""
+    def test_invalid_dn_returns_none(self) -> None:
+        """Invalid DN syntax should return None to avoid inconsistent canonicalization."""
         invalid_dn = "not_a_valid_dn"
         canonical = canonicalize_dn(invalid_dn)
-        # Should fallback to lowercase
-        assert canonical == "not_a_valid_dn"
+        # Should return None instead of falling back to lowercase
+        # This ensures consistent behavior and forces callers to handle the error
+        assert canonical is None
 
     def test_duplicate_prevention_scenario(self) -> None:
         """Real-world scenario: Same user, different DN formatting from AD."""
@@ -1779,3 +1759,52 @@ class TestSocketLeakPrevention:
 
         # CRITICAL: Socket must be closed when start_tls() fails (via unbind)
         mock_conn.unbind.assert_called_once()
+
+
+class TestNullEmailMarker:
+    """Test null email marker helpers for LDAP users without email attributes."""
+
+    def test_marker_prefix_format(self) -> None:
+        """NULL_EMAIL_MARKER_PREFIX uses PUA character U+E000."""
+        assert NULL_EMAIL_MARKER_PREFIX == "\ue000NULL(stopgap)"
+
+    def test_generate_marker_format_and_determinism(self) -> None:
+        """Generated marker: prefix + 32-char MD5 hash, deterministic, case-insensitive."""
+        # Different casings of same UUID should produce identical marker
+        ids = ["550e8400-e29b-41d4-a716-446655440000", "550E8400-E29B-41D4-A716-446655440000"]
+        results = [generate_null_email_marker(uid) for uid in ids]
+
+        assert results[0] == results[1]  # Case-insensitive
+        assert results[0].startswith(NULL_EMAIL_MARKER_PREFIX)
+        assert len(results[0]) == len(NULL_EMAIL_MARKER_PREFIX) + 32  # prefix + MD5
+
+        # Different IDs produce different markers
+        other = generate_null_email_marker("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+        assert other != results[0]
+
+    @pytest.mark.parametrize("invalid_id", ["", None])
+    def test_generate_marker_rejects_empty(self, invalid_id: str | None) -> None:
+        """Empty or None unique_id raises ValueError."""
+        with pytest.raises(ValueError, match="unique_id is required"):
+            generate_null_email_marker(invalid_id)  # type: ignore[arg-type]
+
+    @pytest.mark.parametrize(
+        "email,expected",
+        [
+            # Markers → True
+            (NULL_EMAIL_MARKER_PREFIX, True),
+            (NULL_EMAIL_MARKER_PREFIX + "abc123", True),
+            # Real emails → False
+            ("user@example.com", False),
+            ("admin@corp.local", False),
+            # Edge cases → False
+            ("", False),
+            # Similar but not markers → False
+            ("NULL123456789abcdef", False),  # Missing PUA
+            ("\ue001NULL123456", False),  # Wrong PUA
+            ("prefix\ue000NULL(stopgap)", False),  # Not at start
+        ],
+    )
+    def test_is_null_email_marker(self, email: str, expected: bool) -> None:
+        """is_null_email_marker correctly identifies markers vs real emails."""
+        assert is_null_email_marker(email) is expected

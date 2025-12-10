@@ -12,6 +12,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.UserApiKey import UserApiKey
+from phoenix.server.ldap import is_null_email_marker
 
 from .UserRole import UserRole, to_gql_user_role
 
@@ -42,13 +43,15 @@ class User(Node):
     async def email(
         self,
         info: Info[Context, None],
-    ) -> str:
+    ) -> str | None:
         if self.db_record:
             val = self.db_record.email
         else:
             val = await info.context.data_loaders.user_fields.load(
                 (self.id, models.User.email),
             )
+        if is_null_email_marker(val):
+            return None
         return val
 
     @strawberry.field

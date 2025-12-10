@@ -12,6 +12,17 @@ objectClass: organizationalUnit
 ou: posix-groups
 description: POSIX groups (memberUid-based, no memberOf)
 
+# Different OUs for organizational structure testing
+dn: ou=IT,dc=example,dc=com
+objectClass: organizationalUnit
+ou: IT
+description: IT Department
+
+dn: ou=HR,dc=example,dc=com
+objectClass: organizationalUnit
+ou: HR
+description: Human Resources Department
+
 # Create POSIX groups using posixGroup objectClass
 # NOTE: memberUid contains the USERNAME (uid), NOT the full DN
 # This is the standard POSIX/RFC 2307 schema
@@ -22,6 +33,7 @@ gidNumber: 20001
 description: Phoenix Administrators (POSIX)
 memberUid: admin
 memberUid: multigroup
+memberUid: duplicate
 
 dn: cn=members,ou=posix-groups,dc=example,dc=com
 objectClass: posixGroup
@@ -38,10 +50,12 @@ cn: viewers
 gidNumber: 20003
 description: Phoenix Viewers (POSIX)
 memberUid: charlie
+memberUid: nodisplay
 memberUid: multigroup
 
 # Create users WITHOUT memberOf attribute
 # The POSIX group membership is determined by the memberUid in the groups above
+
 dn: uid=admin,ou=users,dc=example,dc=com
 objectClass: inetOrgPerson
 objectClass: posixAccount
@@ -50,8 +64,8 @@ uid: admin
 cn: Admin User
 sn: User
 givenName: Admin
-displayName: Admin User (POSIX)
-mail: admin-posix@example.com
+displayName: Admin User
+mail: admin@example.com
 userPassword: password123
 uidNumber: 20001
 gidNumber: 20001
@@ -65,8 +79,8 @@ uid: alice
 cn: Alice Smith
 sn: Smith
 givenName: Alice
-displayName: Alice Smith (POSIX)
-mail: alice-posix@example.com
+displayName: Alice Smith
+mail: alice@example.com
 userPassword: password123
 uidNumber: 20002
 gidNumber: 20002
@@ -80,8 +94,8 @@ uid: bob
 cn: Bob Johnson
 sn: Johnson
 givenName: Bob
-displayName: Bob Johnson (POSIX)
-mail: bob-posix@example.com
+displayName: Bob Johnson
+mail: bob@example.com
 userPassword: password123
 uidNumber: 20003
 gidNumber: 20003
@@ -95,30 +109,14 @@ uid: charlie
 cn: Charlie Brown
 sn: Brown
 givenName: Charlie
-displayName: Charlie Brown (POSIX)
-mail: charlie-posix@example.com
+displayName: Charlie Brown
+mail: charlie@example.com
 userPassword: password123
 uidNumber: 20004
 gidNumber: 20004
 homeDirectory: /home/charlie
 
-# User in multiple POSIX groups (tests role precedence)
-dn: uid=multigroup,ou=users,dc=example,dc=com
-objectClass: inetOrgPerson
-objectClass: posixAccount
-objectClass: shadowAccount
-uid: multigroup
-cn: Multi Group User
-sn: User
-givenName: Multi
-displayName: Multi Group POSIX User
-mail: multigroup-posix@example.com
-userPassword: password123
-uidNumber: 20005
-gidNumber: 20005
-homeDirectory: /home/multigroup
-
-# User with NO groups (tests wildcard fallback - should still work even in POSIX mode)
+# Edge case: User with NO groups (tests wildcard "*" fallback)
 dn: uid=nogroups,ou=users,dc=example,dc=com
 objectClass: inetOrgPerson
 objectClass: posixAccount
@@ -127,10 +125,70 @@ uid: nogroups
 cn: No Groups User
 sn: User
 givenName: No Groups
-displayName: No Groups POSIX User
-mail: nogroups-posix@example.com
+mail: nogroups@example.com
+userPassword: password123
+uidNumber: 20005
+gidNumber: 20005
+homeDirectory: /home/nogroups
+
+# Edge case: User in MULTIPLE groups (tests role precedence - first match wins)
+dn: uid=multigroup,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: multigroup
+cn: Multi Group User
+sn: User
+givenName: Multi
+displayName: Multi Group User
+mail: multigroup@example.com
 userPassword: password123
 uidNumber: 20006
 gidNumber: 20006
-homeDirectory: /home/nogroups
+homeDirectory: /home/multigroup
 
+# Edge case: User with missing displayName (tests fallback to username)
+dn: uid=nodisplay,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: nodisplay
+cn: No Display
+sn: Display
+givenName: No
+mail: nodisplay@example.com
+userPassword: password123
+uidNumber: 20007
+gidNumber: 20007
+homeDirectory: /home/nodisplay
+
+# Edge case: Duplicate usernames in different OUs (tests ambiguous search rejection)
+dn: uid=duplicate,ou=IT,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: duplicate
+cn: IT Duplicate
+sn: Duplicate
+givenName: IT
+displayName: IT Admin
+mail: duplicate-it@example.com
+userPassword: password123
+uidNumber: 20010
+gidNumber: 20010
+homeDirectory: /home/duplicate-it
+
+dn: uid=duplicate,ou=HR,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: duplicate
+cn: HR Duplicate
+sn: Duplicate
+givenName: HR
+displayName: HR Admin
+mail: duplicate-hr@example.com
+userPassword: password123
+uidNumber: 20011
+gidNumber: 20011
+homeDirectory: /home/duplicate-hr
