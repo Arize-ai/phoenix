@@ -42,12 +42,17 @@ fi
 if [ ! -d "$HOME/.nvm" ]; then
     echo "Installing nvm..."
     # nvm installer may return non-zero exit code even on success (e.g., if already in .bashrc)
-    # So we check if installation actually succeeded by verifying the directory exists
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash || true
+    # Temporarily disable set -e to handle this
+    set +e
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+    NVM_INSTALL_EXIT=$?
+    set -e
+    
+    # Check if installation actually succeeded by verifying the directory exists
     if [ -d "$HOME/.nvm" ]; then
         INSTALLED_ITEMS+=("nvm")
     else
-        echo "Error: nvm installation failed"
+        echo "Error: nvm installation failed (exit code: $NVM_INSTALL_EXIT)"
         exit 1
     fi
     
