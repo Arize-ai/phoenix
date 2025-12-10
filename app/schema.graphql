@@ -1976,7 +1976,7 @@ interface GenerativeModelCustomProvider implements Node {
   updatedAt: DateTime!
 
   """The SDK of this provider."""
-  sdk: GenerativeModelCustomProviderSDK!
+  sdk: GenerativeModelSDK!
 
   """The user that created this provider."""
   user: User
@@ -2002,7 +2002,7 @@ type GenerativeModelCustomProviderAWSBedrock implements GenerativeModelCustomPro
   updatedAt: DateTime!
 
   """The SDK of this provider."""
-  sdk: GenerativeModelCustomProviderSDK!
+  sdk: GenerativeModelSDK!
 
   """The user that created this provider."""
   user: User
@@ -2031,7 +2031,7 @@ type GenerativeModelCustomProviderAnthropic implements GenerativeModelCustomProv
   updatedAt: DateTime!
 
   """The SDK of this provider."""
-  sdk: GenerativeModelCustomProviderSDK!
+  sdk: GenerativeModelSDK!
 
   """The user that created this provider."""
   user: User
@@ -2060,7 +2060,7 @@ type GenerativeModelCustomProviderAzureOpenAI implements GenerativeModelCustomPr
   updatedAt: DateTime!
 
   """The SDK of this provider."""
-  sdk: GenerativeModelCustomProviderSDK!
+  sdk: GenerativeModelSDK!
 
   """The user that created this provider."""
   user: User
@@ -2107,7 +2107,7 @@ type GenerativeModelCustomProviderGoogleGenAI implements GenerativeModelCustomPr
   updatedAt: DateTime!
 
   """The SDK of this provider."""
-  sdk: GenerativeModelCustomProviderSDK!
+  sdk: GenerativeModelSDK!
 
   """The user that created this provider."""
   user: User
@@ -2143,21 +2143,13 @@ type GenerativeModelCustomProviderOpenAI implements GenerativeModelCustomProvide
   updatedAt: DateTime!
 
   """The SDK of this provider."""
-  sdk: GenerativeModelCustomProviderSDK!
+  sdk: GenerativeModelSDK!
 
   """The user that created this provider."""
   user: User
 
   """The config of this provider."""
   config: OpenAICustomProviderConfigUnparsableConfig!
-}
-
-enum GenerativeModelCustomProviderSDK {
-  OPENAI
-  AZURE_OPENAI
-  ANTHROPIC
-  AWS_BEDROCK
-  GOOGLE_GENAI
 }
 
 input GenerativeModelCustomerProviderConfigInput @oneOf {
@@ -2185,6 +2177,14 @@ input GenerativeModelInput @oneOf {
 enum GenerativeModelKind {
   CUSTOM
   BUILT_IN
+}
+
+enum GenerativeModelSDK {
+  OPENAI
+  AZURE_OPENAI
+  ANTHROPIC
+  AWS_BEDROCK
+  GOOGLE_GENAI
 }
 
 type GenerativeProvider {

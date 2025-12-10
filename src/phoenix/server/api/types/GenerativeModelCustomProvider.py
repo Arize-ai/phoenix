@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from phoenix.server.api.types.User import User
 
 
-class GenerativeModelCustomProviderSDK(Enum):
+class GenerativeModelSDK(Enum):
     OPENAI = "openai"
     AZURE_OPENAI = "azure_openai"
     ANTHROPIC = "anthropic"
@@ -356,7 +356,7 @@ class GenerativeModelCustomProvider(Node):
         raise NotImplementedError
 
     @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelCustomProviderSDK:
+    async def sdk(self) -> GenerativeModelSDK:
         raise NotImplementedError
 
     @strawberry.field(description="The user that created this provider.")  # type: ignore
@@ -444,8 +444,8 @@ class GenerativeModelCustomProviderOpenAI(GenerativeModelCustomProvider):
         return OpenAICustomProviderConfig.from_orm(config)
 
     @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelCustomProviderSDK:
-        return GenerativeModelCustomProviderSDK.OPENAI
+    async def sdk(self) -> GenerativeModelSDK:
+        return GenerativeModelSDK.OPENAI
 
     @strawberry.field(description="The user that created this provider.")  # type: ignore
     async def user(
@@ -544,8 +544,8 @@ class GenerativeModelCustomProviderAzureOpenAI(GenerativeModelCustomProvider):
         return AzureOpenAICustomProviderConfig.from_orm(config)
 
     @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelCustomProviderSDK:
-        return GenerativeModelCustomProviderSDK.AZURE_OPENAI
+    async def sdk(self) -> GenerativeModelSDK:
+        return GenerativeModelSDK.AZURE_OPENAI
 
     @strawberry.field(description="The user that created this provider.")  # type: ignore
     async def user(
@@ -644,8 +644,8 @@ class GenerativeModelCustomProviderAnthropic(GenerativeModelCustomProvider):
         return AnthropicCustomProviderConfig.from_orm(config)
 
     @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelCustomProviderSDK:
-        return GenerativeModelCustomProviderSDK.ANTHROPIC
+    async def sdk(self) -> GenerativeModelSDK:
+        return GenerativeModelSDK.ANTHROPIC
 
     @strawberry.field(description="The user that created this provider.")  # type: ignore
     async def user(
@@ -744,8 +744,8 @@ class GenerativeModelCustomProviderAWSBedrock(GenerativeModelCustomProvider):
         return AWSBedrockCustomProviderConfig.from_orm(config)
 
     @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelCustomProviderSDK:
-        return GenerativeModelCustomProviderSDK.AWS_BEDROCK
+    async def sdk(self) -> GenerativeModelSDK:
+        return GenerativeModelSDK.AWS_BEDROCK
 
     @strawberry.field(description="The user that created this provider.")  # type: ignore
     async def user(
@@ -844,8 +844,8 @@ class GenerativeModelCustomProviderGoogleGenAI(GenerativeModelCustomProvider):
         return GoogleGenAICustomProviderConfig.from_orm(config)
 
     @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelCustomProviderSDK:
-        return GenerativeModelCustomProviderSDK.GOOGLE_GENAI
+    async def sdk(self) -> GenerativeModelSDK:
+        return GenerativeModelSDK.GOOGLE_GENAI
 
     @strawberry.field(description="The user that created this provider.")  # type: ignore
     async def user(

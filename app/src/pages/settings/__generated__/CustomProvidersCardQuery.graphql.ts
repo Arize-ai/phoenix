@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ca26e13d9ed87e5af869cc1fcbd4fa34>>
+ * @generated SignedSource<<f33656ced01fcbfa62439a89215355e6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,28 +10,41 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type settingsAIProvidersPageLoaderQuery$variables = Record<PropertyKey, never>;
-export type settingsAIProvidersPageLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"CustomProvidersCard_data" | "GenerativeProvidersCard_data">;
+export type CustomProvidersCardQuery$variables = {
+  after?: string | null;
+  first?: number | null;
 };
-export type settingsAIProvidersPageLoaderQuery = {
-  response: settingsAIProvidersPageLoaderQuery$data;
-  variables: settingsAIProvidersPageLoaderQuery$variables;
+export type CustomProvidersCardQuery$data = {
+  readonly " $fragmentSpreads": FragmentRefs<"CustomProvidersCard_data">;
+};
+export type CustomProvidersCardQuery = {
+  response: CustomProvidersCardQuery$data;
+  variables: CustomProvidersCardQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "after"
+  },
+  {
+    "defaultValue": 50,
+    "kind": "LocalArgument",
+    "name": "first"
+  }
+],
 v1 = [
   {
-    "kind": "Literal",
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
     "name": "first",
-    "value": 50
+    "variableName": "first"
   }
 ],
 v2 = {
@@ -88,18 +101,13 @@ v8 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "settingsAIProvidersPageLoaderQuery",
+    "name": "CustomProvidersCardQuery",
     "selections": [
       {
-        "args": null,
-        "kind": "FragmentSpread",
-        "name": "GenerativeProvidersCard_data"
-      },
-      {
-        "args": null,
+        "args": (v1/*: any*/),
         "kind": "FragmentSpread",
         "name": "CustomProvidersCard_data"
       }
@@ -109,75 +117,10 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "settingsAIProvidersPageLoaderQuery",
+    "name": "CustomProvidersCardQuery",
     "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "GenerativeProvider",
-        "kind": "LinkedField",
-        "name": "modelProviders",
-        "plural": true,
-        "selections": [
-          (v0/*: any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "key",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "dependenciesInstalled",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "dependencies",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "GenerativeProviderCredentialConfig",
-            "kind": "LinkedField",
-            "name": "credentialRequirements",
-            "plural": true,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "envVarName",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "isRequired",
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "credentialsSet",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      },
       {
         "alias": null,
         "args": (v1/*: any*/),
@@ -204,7 +147,13 @@ return {
                 "selections": [
                   (v2/*: any*/),
                   (v3/*: any*/),
-                  (v0/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "name",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": null,
@@ -681,7 +630,7 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": "generativeModelCustomProviders(first:50)"
+        "storageKey": null
       },
       {
         "alias": null,
@@ -695,16 +644,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d695a1c8ba6b462a8e61a1ea2678bfe4",
+    "cacheID": "92e342a9cd236a1d82e8e8ff7f8b570f",
     "id": null,
     "metadata": {},
-    "name": "settingsAIProvidersPageLoaderQuery",
+    "name": "CustomProvidersCardQuery",
     "operationKind": "query",
-    "text": "query settingsAIProvidersPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...CustomProvidersCard_data\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        ... on GenerativeModelCustomProviderOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on OpenAICustomProviderConfig {\n              openaiAuthenticationMethod {\n                apiKey\n              }\n              openaiClientKwargs {\n                baseUrl\n                organization\n                project\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAzureOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AzureOpenAICustomProviderConfig {\n              azureOpenaiAuthenticationMethod {\n                apiKey\n                azureAdTokenProvider {\n                  azureTenantId\n                  azureClientId\n                  azureClientSecret\n                  scope\n                }\n              }\n              azureOpenaiClientKwargs {\n                apiVersion\n                azureEndpoint\n                azureDeployment\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAnthropic {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AnthropicCustomProviderConfig {\n              anthropicAuthenticationMethod {\n                apiKey\n              }\n              anthropicClientKwargs {\n                baseUrl\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAWSBedrock {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AWSBedrockCustomProviderConfig {\n              awsBedrockAuthenticationMethod {\n                awsAccessKeyId\n                awsSecretAccessKey\n                awsSessionToken\n              }\n              awsBedrockClientKwargs {\n                regionName\n                endpointUrl\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderGoogleGenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on GoogleGenAICustomProviderConfig {\n              googleGenaiAuthenticationMethod {\n                apiKey\n              }\n              googleGenaiClientKwargs {\n                httpOptions {\n                  baseUrl\n                  headers\n                }\n              }\n            }\n          }\n        }\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n  }\n}\n"
+    "text": "query CustomProvidersCardQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...CustomProvidersCard_data_2HEEH6\n}\n\nfragment CustomProvidersCard_data_2HEEH6 on Query {\n  generativeModelCustomProviders(first: $first, after: $after) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        ... on GenerativeModelCustomProviderOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on OpenAICustomProviderConfig {\n              openaiAuthenticationMethod {\n                apiKey\n              }\n              openaiClientKwargs {\n                baseUrl\n                organization\n                project\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAzureOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AzureOpenAICustomProviderConfig {\n              azureOpenaiAuthenticationMethod {\n                apiKey\n                azureAdTokenProvider {\n                  azureTenantId\n                  azureClientId\n                  azureClientSecret\n                  scope\n                }\n              }\n              azureOpenaiClientKwargs {\n                apiVersion\n                azureEndpoint\n                azureDeployment\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAnthropic {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AnthropicCustomProviderConfig {\n              anthropicAuthenticationMethod {\n                apiKey\n              }\n              anthropicClientKwargs {\n                baseUrl\n                defaultHeaders\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAWSBedrock {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on AWSBedrockCustomProviderConfig {\n              awsBedrockAuthenticationMethod {\n                awsAccessKeyId\n                awsSecretAccessKey\n                awsSessionToken\n              }\n              awsBedrockClientKwargs {\n                regionName\n                endpointUrl\n              }\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderGoogleGenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n            ... on GoogleGenAICustomProviderConfig {\n              googleGenaiAuthenticationMethod {\n                apiKey\n              }\n              googleGenaiClientKwargs {\n                httpOptions {\n                  baseUrl\n                  headers\n                }\n              }\n            }\n          }\n        }\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "480ff9961e735c79794424188a494c9b";
+(node as any).hash = "16a3c52f83fadebbba9c7e7a03effeed";
 
 export default node;

@@ -39,7 +39,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 
 def _get_sdk_from_config(
     config: GenerativeModelCustomerProviderConfig,
-) -> models.GenerativeModelCustomProviderSDK:
+) -> models.GenerativeModelSDK:
     """Determine the SDK type from a client configuration."""
     if isinstance(config.root, AWSBedrockCustomProviderConfig):
         return "aws_bedrock"
