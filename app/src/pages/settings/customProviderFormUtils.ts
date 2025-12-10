@@ -5,6 +5,10 @@
 
 import invariant from "tiny-invariant";
 
+import {
+  type GenerativeModelSDK,
+  SDK_DEFAULT_PROVIDER,
+} from "@phoenix/constants/generativeConstants";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   safelyJSONStringify,
@@ -12,12 +16,8 @@ import {
 } from "@phoenix/utils/jsonUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
-import type {
-  CustomProvidersCard_data$data,
-  GenerativeModelSDK,
-} from "./__generated__/CustomProvidersCard_data.graphql";
+import type { CustomProvidersCard_data$data } from "./__generated__/CustomProvidersCard_data.graphql";
 import type { CreateGenerativeModelCustomProviderMutationInput } from "./__generated__/NewCustomProviderButtonCreateMutation.graphql";
-import { SDK_DEFAULT_PROVIDER } from "./customProviderConstants";
 import type {
   AnthropicFormData,
   AWSBedrockFormData,

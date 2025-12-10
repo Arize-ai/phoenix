@@ -15,19 +15,30 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative/Generativ
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import {
+  type GenerativeModelSDK,
+  SDK_TO_PROVIDER_MAP,
+  STRING_TO_PROVIDER_MAP,
+} from "@phoenix/constants/generativeConstants";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 
 import type {
   CustomProvidersCard_data$data,
   CustomProvidersCard_data$key,
-  GenerativeModelSDK,
+  GenerativeModelSDK as GraphQLGenerativeModelSDK,
 } from "./__generated__/CustomProvidersCard_data.graphql";
-import {
-  SDK_TO_PROVIDER_MAP,
-  STRING_TO_PROVIDER_MAP,
-} from "./customProviderConstants";
 import { NewCustomProviderButton } from "./NewCustomProviderButton";
+
+// Compile-time check that GenerativeModelSDK in generativeConstants.ts matches the GraphQL schema.
+// This will cause a TypeScript error if the types diverge.
+type _AssertSDKTypesMatch = GraphQLGenerativeModelSDK extends GenerativeModelSDK
+  ? GenerativeModelSDK extends GraphQLGenerativeModelSDK
+    ? true
+    : "GenerativeModelSDK in generativeConstants.ts is missing values from GraphQL schema"
+  : "GraphQL schema has new SDK values not in generativeConstants.ts";
+const _assertSDKTypesMatch: _AssertSDKTypesMatch = true;
+void _assertSDKTypesMatch; // Prevent unused variable warning
 
 // Type alias for row data
 type DataRow =

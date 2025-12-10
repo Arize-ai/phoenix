@@ -34,15 +34,15 @@ import {
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper } from "@phoenix/components/code";
 import { JSONEditor } from "@phoenix/components/code/JSONEditor";
-import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
-
-import type { GenerativeModelSDK } from "./__generated__/CustomProvidersCard_data.graphql";
 import {
   AUTH_METHOD_OPTIONS,
   type AzureAuthMethod,
+  type GenerativeModelSDK,
   SDK_DEFAULT_PROVIDER,
   SDK_OPTIONS,
-} from "./customProviderConstants";
+} from "@phoenix/constants/generativeConstants";
+import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
+
 import { providerFormSchema } from "./customProviderFormSchema";
 import { createDefaultFormData } from "./customProviderFormUtils";
 
