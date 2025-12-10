@@ -98,7 +98,8 @@ const EditEvaluatorPlaygroundProvider = (
           }
         }
       `,
-      { datasetEvaluatorId, datasetId }
+      { datasetEvaluatorId, datasetId },
+      { fetchPolicy: "network-only" }
     );
   const datasetEvaluator = datasetEvaluatorQuery.dataset.datasetEvaluator;
   invariant(datasetEvaluator != null, "datasetEvaluator is required");

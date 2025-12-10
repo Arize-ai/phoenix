@@ -96,6 +96,7 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
           description
           createdAt
           updatedAt
+          isBuiltin
           ... on LLMEvaluator {
             prompt {
               id
@@ -220,6 +221,7 @@ export const DatasetEvaluatorsTable = ({
             evaluatorDisplayName={row.original.displayName}
             datasetId={datasetId}
             evaluatorKind={row.original.evaluator.kind}
+            isBuiltIn={row.original.evaluator.isBuiltin}
             updateConnectionIds={updateConnectionIds}
           />
         ),

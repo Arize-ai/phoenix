@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f5f20b52362a7a1771bcf21423741c06>>
+ * @generated SignedSource<<7618422daded15fa3bb14814ae810ca2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -167,6 +167,13 @@ v9 = {
 v10 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "isBuiltin",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
   "concreteType": "Prompt",
   "kind": "LinkedField",
   "name": "prompt",
@@ -226,10 +233,11 @@ return {
                       (v8/*: any*/),
                       (v9/*: any*/),
                       (v5/*: any*/),
+                      (v10/*: any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v10/*: any*/),
+                          (v11/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -312,10 +320,11 @@ return {
                   (v8/*: any*/),
                   (v9/*: any*/),
                   (v5/*: any*/),
+                  (v10/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v10/*: any*/),
+                      (v11/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -366,12 +375,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ea7bb8db925077c194034fa4ca5a8fa8",
+    "cacheID": "eb9c76c785045f06eb34f1d296ff526d",
     "id": null,
     "metadata": {},
     "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      displayName\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      displayName\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();

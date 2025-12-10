@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8df32325d0651347ed78b3fbd01e2b07>>
+ * @generated SignedSource<<dd647c4d4ec6a00a3106c865b32e2233>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -214,6 +214,13 @@ return {
                               },
                               (v6/*: any*/),
                               {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "isBuiltin",
+                                "storageKey": null
+                              },
+                              {
                                 "kind": "InlineFragment",
                                 "selections": [
                                   {
@@ -339,12 +346,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "db58da46bfae945427d1a1a532e0bb65",
+    "cacheID": "5ec16e16bf3afdc8762b11409b883180",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...CreateBuiltInDatasetEvaluatorSlideover_dataset\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query_2m4mqp\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_query_2m4mqp on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      ...CreateBuiltInDatasetEvaluatorSlideover_dataset\n    }\n    id\n  }\n}\n\nfragment CreateBuiltInDatasetEvaluatorSlideover_dataset on Dataset {\n  id\n  name\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...CreateBuiltInDatasetEvaluatorSlideover_dataset\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query_2m4mqp\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_query_2m4mqp on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      ...CreateBuiltInDatasetEvaluatorSlideover_dataset\n    }\n    id\n  }\n}\n\nfragment CreateBuiltInDatasetEvaluatorSlideover_dataset on Dataset {\n  id\n  name\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();

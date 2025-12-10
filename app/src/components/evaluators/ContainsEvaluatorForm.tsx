@@ -57,9 +57,11 @@ type ContainsEvaluatorFormProps = {
 export const ContainsEvaluatorForm = ({
   evaluatorInputObject,
 }: ContainsEvaluatorFormProps) => {
-  const { control } = useFormContext<EvaluatorFormValues>();
+  const { control, getValues } = useFormContext<EvaluatorFormValues>();
   const [language, setLanguage] = useState<CodeLanguage>("Python");
-  const [containsTextPath, setContainsTextPath] = useState<string>("");
+  const [containsTextPath, setContainsTextPath] = useState<string>(
+    () => getValues("inputMapping.pathMapping.text") ?? ""
+  );
   const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorInputObject);
   return (
     <Flex direction="column" gap="size-200">

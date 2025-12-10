@@ -7,31 +7,16 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
-import { css } from "@emotion/react";
 
-import {
-  Alert,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-  Flex,
-  Icon,
-  Icons,
-  Loading,
-} from "@phoenix/components";
+import { Dialog, DialogContent, Flex, Loading } from "@phoenix/components";
 import type { CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation.graphql";
 import type { CreateBuiltInDatasetEvaluatorSlideover_dataset$key } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_dataset.graphql";
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
+import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import {
   DEFAULT_CODE_FORM_VALUES,
-  EvaluatorForm,
   EvaluatorFormValues,
 } from "@phoenix/components/evaluators/EvaluatorForm";
-import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -202,7 +187,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
       onCompleted: () => {
         onEvaluatorAssigned?.();
         notifySuccess({
-          title: "Evaluator added",
+          title: "Evaluator created",
           message: "The evaluator has been added to the dataset.",
         });
         onClose();
@@ -218,65 +203,14 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
 
   return (
     <FormProvider {...form}>
-      <DialogHeader>
-        <DialogTitle
-          css={css`
-            overflow: hidden;
-          `}
-        >
-          <Flex
-            direction="row"
-            alignItems="center"
-            gap="size-50"
-            maxWidth="100%"
-          >
-            Add
-            <Flex
-              direction="row"
-              alignItems="center"
-              gap="size-25"
-              minWidth={0}
-            >
-              <Icon svg={<Icons.Scale />} />
-              <Truncate maxWidth="100%" title={evaluator.name}>
-                {evaluator.name}
-              </Truncate>
-            </Flex>
-            to
-            <Flex
-              direction="row"
-              alignItems="center"
-              gap="size-25"
-              minWidth={0}
-            >
-              <Icon svg={<Icons.DatabaseOutline />} />
-              <Truncate maxWidth="100%" title={dataset.name}>
-                {dataset.name}
-              </Truncate>
-            </Flex>
-          </Flex>
-        </DialogTitle>
-        <DialogTitleExtra>
-          <Button onPress={onClose}>Cancel</Button>
-          <Button
-            variant="primary"
-            onPress={onAddEvaluator}
-            isDisabled={!isFormValid || isAssigningEvaluatorToDataset}
-          >
-            Create
-          </Button>
-        </DialogTitleExtra>
-      </DialogHeader>
-      {error && (
-        <Alert variant="danger" title="Failed to add evaluator">
-          {error}
-        </Alert>
-      )}
-      <CodeEvaluatorInputVariablesProvider
+      <EditBuiltInEvaluatorDialogContent
+        onClose={onClose}
         evaluatorInputSchema={evaluator.inputSchema}
-      >
-        <EvaluatorForm />
-      </CodeEvaluatorInputVariablesProvider>
+        onSubmit={onAddEvaluator}
+        isSubmitting={isAssigningEvaluatorToDataset}
+        mode="create"
+        error={error}
+      />
     </FormProvider>
   );
 }

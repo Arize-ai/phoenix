@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<498d52d53ed61cef3aaf06301b2f97fd>>
+ * @generated SignedSource<<97f4ced9eef764910a2c7166985f81cc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -188,6 +188,13 @@ return {
                           "storageKey": null
                         },
                         (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "isBuiltin",
+                          "storageKey": null
+                        },
                         {
                           "kind": "InlineFragment",
                           "selections": [

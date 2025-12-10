@@ -1,0 +1,241 @@
+import { Suspense, useMemo, useState } from "react";
+import type { ModalOverlayProps } from "react-aria-components";
+import { FormProvider, useForm } from "react-hook-form";
+import {
+  ConnectionHandler,
+  graphql,
+  useLazyLoadQuery,
+  useMutation,
+} from "react-relay";
+import invariant from "tiny-invariant";
+
+import {
+  Dialog,
+  Flex,
+  Loading,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
+import type { CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation.graphql";
+import type { EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
+import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
+import {
+  DEFAULT_CODE_FORM_VALUES,
+  EvaluatorFormValues,
+} from "@phoenix/components/evaluators/EvaluatorForm";
+import { useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+
+type EditBuiltInDatasetEvaluatorSlideoverProps = {
+  datasetEvaluatorId: string;
+  datasetId: string;
+  updateConnectionIds?: string[];
+} & ModalOverlayProps;
+
+export function EditBuiltInDatasetEvaluatorSlideover({
+  datasetEvaluatorId,
+  datasetId,
+  updateConnectionIds,
+  ...props
+}: EditBuiltInDatasetEvaluatorSlideoverProps) {
+  return (
+    <ModalOverlay {...props}>
+      <Modal variant="slideover" size="fullscreen">
+        <Dialog aria-label="Edit built-in evaluator on dataset">
+          {({ close }) => (
+            <Suspense
+              fallback={
+                <Flex flex={1} alignItems="center">
+                  <Loading />
+                </Flex>
+              }
+            >
+              {datasetEvaluatorId && (
+                <EditBuiltInDatasetEvaluatorSlideoverContent
+                  datasetEvaluatorId={datasetEvaluatorId}
+                  onClose={close}
+                  datasetId={datasetId}
+                  updateConnectionIds={updateConnectionIds}
+                />
+              )}
+            </Suspense>
+          )}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  );
+}
+
+function EditBuiltInDatasetEvaluatorSlideoverContent({
+  datasetEvaluatorId,
+  onClose,
+  datasetId,
+  updateConnectionIds,
+}: {
+  datasetEvaluatorId: string;
+  onClose: () => void;
+  datasetId: string;
+  updateConnectionIds?: string[];
+}) {
+  const notifySuccess = useNotifySuccess();
+  const [error, setError] = useState<string | undefined>(undefined);
+
+  const { dataset } =
+    useLazyLoadQuery<EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery>(
+      graphql`
+        query EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery(
+          $datasetEvaluatorId: ID!
+          $datasetId: ID!
+        ) {
+          dataset: node(id: $datasetId) {
+            id
+            ... on Dataset {
+              datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {
+                id
+                ... on DatasetEvaluator {
+                  displayName
+                  inputMapping {
+                    literalMapping
+                    pathMapping
+                  }
+                  evaluator {
+                    id
+                    name
+                    kind
+                    ... on BuiltInEvaluator {
+                      inputSchema
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      { datasetEvaluatorId, datasetId },
+      { fetchPolicy: "network-only" }
+    );
+  invariant(dataset, "dataset is required");
+  const datasetEvaluator = dataset.datasetEvaluator;
+  invariant(datasetEvaluator, "datasetEvaluator is required");
+  const datasetEvaluatorsTableConnection = ConnectionHandler.getConnectionID(
+    dataset.id,
+    "DatasetEvaluatorsTable_datasetEvaluators"
+  );
+  const [assignEvaluatorToDataset, isAssigningEvaluatorToDataset] =
+    useMutation<CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation>(
+      graphql`
+        mutation EditBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation(
+          $input: AssignEvaluatorToDatasetInput!
+          $connectionIds: [ID!]!
+        ) {
+          assignEvaluatorToDataset(input: $input) {
+            evaluator
+              @appendNode(
+                connections: $connectionIds
+                edgeTypeName: "DatasetEvaluatorEdge"
+              ) {
+              ...DatasetEvaluatorsTable_row
+            }
+          }
+        }
+      `
+    );
+  const evaluator = datasetEvaluator.evaluator;
+  invariant(evaluator, "evaluator is required");
+  const displayName = datasetEvaluator.displayName;
+  const inputMapping = datasetEvaluator.inputMapping;
+  const evaluatorId = evaluator.id;
+  const evaluatorKind = evaluator.kind;
+  const evaluatorName = evaluator.name;
+  const defaultFormValues: EvaluatorFormValues | null = useMemo(() => {
+    if (evaluatorKind === "CODE") {
+      return {
+        ...DEFAULT_CODE_FORM_VALUES,
+        dataset: {
+          readonly: true,
+          id: datasetId,
+          assignEvaluatorToDataset: true,
+        },
+        evaluator: {
+          ...DEFAULT_CODE_FORM_VALUES.evaluator,
+          name: displayName ?? "",
+          description: "",
+          kind: evaluatorKind,
+          isBuiltin: true,
+          builtInEvaluatorName: evaluatorName,
+        },
+        inputMapping: inputMapping ?? {
+          literalMapping: {},
+          pathMapping: {},
+        },
+      };
+    }
+    return null;
+  }, [datasetId, displayName, evaluatorKind, evaluatorName, inputMapping]);
+
+  if (!defaultFormValues) {
+    throw new Error(
+      `EvaluatorConfigDialogContent: unexpected evaluator kind: ${evaluator?.kind}`
+    );
+  }
+
+  const form = useForm<EvaluatorFormValues>({
+    mode: "onChange",
+    defaultValues: defaultFormValues,
+  });
+  const {
+    getValues,
+    formState: { isValid: isFormValid },
+  } = form;
+
+  const onAddEvaluator = () => {
+    if (!isFormValid) {
+      return;
+    }
+    setError(undefined);
+    const {
+      inputMapping,
+      evaluator: { name },
+    } = getValues();
+    assignEvaluatorToDataset({
+      variables: {
+        input: {
+          datasetId: datasetId,
+          evaluatorId: evaluatorId,
+          displayName: name,
+          inputMapping,
+        },
+        connectionIds: [
+          datasetEvaluatorsTableConnection,
+          ...(updateConnectionIds ?? []),
+        ],
+      },
+      onCompleted: () => {
+        notifySuccess({
+          title: "Evaluator updated",
+        });
+        onClose();
+      },
+      onError: (error) => {
+        setError(
+          getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+            error.message
+        );
+      },
+    });
+  };
+
+  return (
+    <FormProvider {...form}>
+      <EditBuiltInEvaluatorDialogContent
+        onClose={onClose}
+        evaluatorInputSchema={evaluator.inputSchema}
+        onSubmit={onAddEvaluator}
+        isSubmitting={isAssigningEvaluatorToDataset}
+        mode="update"
+        error={error}
+      />
+    </FormProvider>
+  );
+}
