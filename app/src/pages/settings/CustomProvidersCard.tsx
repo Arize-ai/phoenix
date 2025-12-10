@@ -28,6 +28,7 @@ import type {
   CustomProvidersCard_data$key,
   GenerativeModelSDK as GraphQLGenerativeModelSDK,
 } from "./__generated__/CustomProvidersCard_data.graphql";
+import { DeleteCustomProviderButton } from "./DeleteCustomProviderButton";
 import { NewCustomProviderButton } from "./NewCustomProviderButton";
 
 // Compile-time check that GenerativeModelSDK in generativeConstants.ts matches the GraphQL schema.
@@ -321,6 +322,15 @@ export function CustomProvidersCard({
         header: "Updated At",
         accessorKey: "updatedAt",
         cell: TimestampCell,
+      },
+      {
+        id: "actions",
+        cell: ({ row }) => (
+          <DeleteCustomProviderButton
+            providerId={row.original.id}
+            providerName={row.original.name}
+          />
+        ),
       }
     );
 
