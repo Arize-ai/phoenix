@@ -2597,9 +2597,11 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             ),
         ),
         # LDAP No-Email Mode (using "null" sentinel value)
+        # NOTE: Must use --set-string for attrEmail=null to pass the literal string "null"
+        # (--set attrEmail=null would be interpreted as YAML null, becoming empty string)
         TestCase(
             "LDAP no-email mode (valid configuration)",
-            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true""",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set-string auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_no_email_mode(attr_unique_id="entryUUID", allow_sign_up=True),
@@ -2607,7 +2609,7 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
         ),
         TestCase(
             "LDAP no-email mode with Active Directory",
-            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=objectGUID --set auth.ldap.allowSignUp=true""",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set-string auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=objectGUID --set auth.ldap.allowSignUp=true""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_no_email_mode(attr_unique_id="objectGUID", allow_sign_up=True),
@@ -2615,17 +2617,17 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
         ),
         ErrorTestCase(
             "LDAP no-email mode requires attrUniqueId",
-            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail=null --set auth.ldap.allowSignUp=true""",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set-string auth.ldap.attrEmail=null --set auth.ldap.allowSignUp=true""",
             "LDAP no-email mode requires attrUniqueId",
         ),
         ErrorTestCase(
             "LDAP no-email mode requires allowSignUp=true",
-            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=false""",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set-string auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=false""",
             "LDAP no-email mode requires allowSignUp=true",
         ),
         ErrorTestCase(
             "LDAP no-email mode cannot use auth.admins",
-            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true --set auth.admins="Admin=admin@example.com" """,
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set-string auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true --set auth.admins="Admin=admin@example.com" """,
             "LDAP no-email mode cannot use auth.admins",
         ),
         # Ingress
