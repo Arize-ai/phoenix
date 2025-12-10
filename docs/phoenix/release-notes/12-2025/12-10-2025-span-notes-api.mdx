@@ -16,8 +16,7 @@ from phoenix.client import Client
 client = Client()
 client.spans.add_span_note(
     span_id="your-span-id",
-    note="This span shows unexpected latency",
-    title="Performance Issue"  # optional
+    note="This span shows unexpected latency"
 )
 ```
 
@@ -27,9 +26,10 @@ client.spans.add_span_note(
 import { addSpanNote } from "@arizeai/phoenix-client/spans";
 
 await addSpanNote({
-  spanId: "your-span-id",
-  note: "This span shows unexpected latency",
-  title: "Performance Issue"  // optional
+  spanNote: {
+    spanId: "your-span-id",
+    note: "This span shows unexpected latency"
+  }
 });
 ```
 
