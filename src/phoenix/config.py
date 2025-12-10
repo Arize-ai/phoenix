@@ -1785,14 +1785,15 @@ class LDAPConfig:
                     f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}].group_dn "
                     "must be a non-empty string"
                 )
-            # Validate DN syntax (except for wildcard "*" which matches all users)
-            group_dn = mapping["group_dn"].strip()
+            # Validate DN syntax and canonicalize (except for wildcard "*")
             from phoenix.server.ldap import canonicalize_dn
 
-            if group_dn != "*" and not canonicalize_dn(group_dn):
+            raw_group_dn = mapping["group_dn"].strip()
+            group_dn = canonicalize_dn(raw_group_dn) if raw_group_dn != "*" else raw_group_dn
+            if not group_dn:
                 raise ValueError(
                     f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}].group_dn "
-                    f"has invalid LDAP DN syntax: '{group_dn}'. "
+                    f"has invalid LDAP DN syntax: '{raw_group_dn}'. "
                     f"Expected format: 'cn=GroupName,ou=Groups,dc=example,dc=com'"
                 )
             # Normalize role to uppercase and validate
@@ -1803,7 +1804,7 @@ class LDAPConfig:
                     f"role must be one of {_VALID_ROLES} (case-insensitive). "
                     f"Got: '{mapping['role']}'"
                 )
-            # Store normalized uppercase role to avoid runtime normalization
+            mapping["group_dn"] = group_dn
             mapping["role"] = role_upper
 
         # Require at least one role mapping to prevent silent authentication failures
@@ -1934,8 +1935,8 @@ class LDAPConfig:
         # Determine default port based on TLS mode (if not explicitly set)
         # STARTTLS: port 389 (plaintext, then upgrade)
         # LDAPS: port 636 (TLS from start)
-        default_port = "636" if tls_mode == "ldaps" else "389"
-        port = int(getenv(ENV_PHOENIX_LDAP_PORT, default_port))
+        default_port = 636 if tls_mode == "ldaps" else 389
+        port = _int_val(ENV_PHOENIX_LDAP_PORT, default_port)
 
         # Parse advanced TLS configuration (optional)
         tls_ca_cert_file = getenv(ENV_PHOENIX_LDAP_TLS_CA_CERT_FILE)
@@ -2042,6 +2043,11 @@ class LDAPConfig:
         if bind_dn and not bind_password:
             raise ValueError(
                 f"{ENV_PHOENIX_LDAP_BIND_DN} is set but {ENV_PHOENIX_LDAP_BIND_PASSWORD} is "
+                "missing. Both are required for service account authentication."
+            )
+        if bind_password and not bind_dn:
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_BIND_PASSWORD} is set but {ENV_PHOENIX_LDAP_BIND_DN} is "
                 "missing. Both are required for service account authentication."
             )
 
