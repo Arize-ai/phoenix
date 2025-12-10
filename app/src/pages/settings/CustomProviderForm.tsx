@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -1062,8 +1063,6 @@ function TestConnectionButton({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Watch credential fields for button enablement check
-  // The type cast is needed because ProviderFormData is a discriminated union,
-  // and these fields exist across different SDK variants
   const watchedCredentials = useWatch({
     control,
     name: CREDENTIAL_FIELDS,
@@ -1081,8 +1080,12 @@ function TestConnectionButton({
     return result;
   }, [watchedCredentials]);
 
+  // Track whether in-flight test results should be ignored
+  const shouldIgnoreResultRef = useRef(false);
+
   // Reset test status when any form field changes
   useEffect(() => {
+    shouldIgnoreResultRef.current = true; // Mark in-flight results as stale
     setTestStatus("idle");
     setErrorMessage(null);
   }, [watchedFormValues]);
@@ -1092,11 +1095,11 @@ function TestConnectionButton({
   const handleTest = useCallback(async () => {
     if (!canTest) return;
 
+    shouldIgnoreResultRef.current = false; // This test's results are valid
     setTestStatus("testing");
     setErrorMessage(null);
 
     try {
-      // Get all form values to build the client config
       const formValues = getValues();
       const clientConfig = buildClientConfig(
         formValues
@@ -1106,6 +1109,9 @@ function TestConnectionButton({
         testCredentialsQuery,
         { input: clientConfig }
       ).toPromise();
+
+      // Ignore result if form changed during request
+      if (shouldIgnoreResultRef.current) return;
 
       if (!result) {
         setTestStatus("error");
@@ -1122,6 +1128,9 @@ function TestConnectionButton({
         setErrorMessage(error);
       }
     } catch (err) {
+      // Ignore error if form changed during request
+      if (shouldIgnoreResultRef.current) return;
+
       setTestStatus("error");
       setErrorMessage(err instanceof Error ? err.message : "Test failed");
     }
