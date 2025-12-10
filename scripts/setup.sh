@@ -52,7 +52,13 @@ if [ -d "$HOME/.nvm" ]; then
 fi
 
 # Check if nvm is available (as a function)
-if ! type nvm &> /dev/null; then
+# Use set +e to prevent exit on failure, then check the result
+set +e
+type nvm &> /dev/null
+NVM_AVAILABLE=$?
+set -e
+
+if [ $NVM_AVAILABLE -ne 0 ]; then
     echo ""
     echo -e "${YELLOW}nvm (Node Version Manager) is not available.${NC}"
     echo ""
