@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import {
   Control,
   Controller,
@@ -7,12 +7,14 @@ import {
   UseFormReset,
   useWatch,
 } from "react-hook-form";
+import { fetchQuery, graphql, useRelayEnvironment } from "react-relay";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { JSONSchema7 } from "json-schema";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
+  Alert,
   Button,
   CredentialField,
   CredentialInput,
@@ -23,6 +25,7 @@ import {
   Label,
   ListBox,
   Popover,
+  ProgressCircle,
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
@@ -43,8 +46,15 @@ import {
 } from "@phoenix/constants/generativeConstants";
 import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
 
+import type {
+  CustomProviderFormTestCredentialsQuery,
+  GenerativeModelCustomerProviderConfigInput,
+} from "./__generated__/CustomProviderFormTestCredentialsQuery.graphql";
 import { providerFormSchema } from "./customProviderFormSchema";
-import { createDefaultFormData } from "./customProviderFormUtils";
+import {
+  buildClientConfig,
+  createDefaultFormData,
+} from "./customProviderFormUtils";
 
 /**
  * Base form data shared across all provider types.
@@ -930,6 +940,13 @@ export function ProviderForm({
           isSubmitting={isSubmitting}
         />
 
+        <TestConnectionButton
+          key={sdk}
+          control={control}
+          getValues={getValues}
+          sdk={sdk}
+        />
+
         <Flex direction="row" gap="size-100" justifyContent="end">
           <Button
             variant="default"
@@ -948,5 +965,216 @@ export function ProviderForm({
         </Flex>
       </Flex>
     </Form>
+  );
+}
+
+const testCredentialsQuery = graphql`
+  query CustomProviderFormTestCredentialsQuery(
+    $input: GenerativeModelCustomerProviderConfigInput!
+  ) {
+    testGenerativeModelCustomProviderCredentials(input: $input) {
+      error
+    }
+  }
+`;
+
+type TestStatus = "idle" | "testing" | "valid" | "invalid" | "error";
+
+/**
+ * Fields required for credential testing, organized by SDK.
+ * Only watch these specific fields to minimize re-renders.
+ */
+const CREDENTIAL_FIELDS = [
+  "openai_api_key",
+  "azure_endpoint",
+  "azure_deployment_name",
+  "azure_api_version",
+  "azure_api_key",
+  "azure_auth_method",
+  "azure_tenant_id",
+  "azure_client_id",
+  "azure_client_secret",
+  "anthropic_api_key",
+  "aws_region",
+  "aws_access_key_id",
+  "aws_secret_access_key",
+  "google_api_key",
+] as const;
+
+/**
+ * Check if required credential fields are filled for the selected SDK
+ */
+function hasRequiredCredentials(
+  sdk: GenerativeModelSDK,
+  credentials: Record<string, string | undefined>
+): boolean {
+  switch (sdk) {
+    case "OPENAI":
+      return Boolean(credentials.openai_api_key);
+    case "AZURE_OPENAI": {
+      const hasBaseConfig =
+        credentials.azure_endpoint &&
+        credentials.azure_deployment_name &&
+        credentials.azure_api_version;
+      const authMethod = credentials.azure_auth_method || "api_key";
+      if (authMethod === "api_key") {
+        return Boolean(hasBaseConfig && credentials.azure_api_key);
+      }
+      return Boolean(
+        hasBaseConfig &&
+          credentials.azure_tenant_id &&
+          credentials.azure_client_id &&
+          credentials.azure_client_secret
+      );
+    }
+    case "ANTHROPIC":
+      return Boolean(credentials.anthropic_api_key);
+    case "AWS_BEDROCK":
+      return Boolean(
+        credentials.aws_region &&
+          credentials.aws_access_key_id &&
+          credentials.aws_secret_access_key
+      );
+    case "GOOGLE_GENAI":
+      return Boolean(credentials.google_api_key);
+    default:
+      return false;
+  }
+}
+
+function TestConnectionButton({
+  control,
+  getValues,
+  sdk,
+}: {
+  control: Control<ProviderFormData>;
+  getValues: UseFormGetValues<ProviderFormData>;
+  sdk: GenerativeModelSDK;
+}) {
+  const environment = useRelayEnvironment();
+  const [testStatus, setTestStatus] = useState<TestStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Watch only the credential-related fields, not the entire form
+  // The type cast is needed because ProviderFormData is a discriminated union,
+  // and these fields exist across different SDK variants
+  const watchedCredentials = useWatch({
+    control,
+    name: CREDENTIAL_FIELDS as unknown as readonly (keyof ProviderFormData)[],
+  });
+
+  // Build a lookup object from watched values
+  const credentialValues = useMemo(() => {
+    const result: Record<string, string | undefined> = {};
+    CREDENTIAL_FIELDS.forEach((field, index) => {
+      result[field] = watchedCredentials[index] as string | undefined;
+    });
+    return result;
+  }, [watchedCredentials]);
+
+  const canTest = hasRequiredCredentials(sdk, credentialValues);
+
+  const handleTest = useCallback(async () => {
+    if (!canTest) return;
+
+    setTestStatus("testing");
+    setErrorMessage(null);
+
+    try {
+      // Get all form values to build the client config
+      const formValues = getValues();
+      const clientConfig = buildClientConfig(
+        formValues
+      ) as GenerativeModelCustomerProviderConfigInput;
+      const result = await fetchQuery<CustomProviderFormTestCredentialsQuery>(
+        environment,
+        testCredentialsQuery,
+        { input: clientConfig }
+      ).toPromise();
+
+      if (!result) {
+        setTestStatus("error");
+        setErrorMessage("No response received from server");
+        return;
+      }
+
+      const error = result.testGenerativeModelCustomProviderCredentials.error;
+
+      if (!error) {
+        setTestStatus("valid");
+      } else {
+        setTestStatus("invalid");
+        setErrorMessage(error);
+      }
+    } catch (err) {
+      setTestStatus("error");
+      setErrorMessage(err instanceof Error ? err.message : "Test failed");
+    }
+  }, [canTest, environment, getValues]);
+
+  const isTesting = testStatus === "testing";
+  const hasResult = testStatus !== "idle" && testStatus !== "testing";
+
+  return (
+    <Flex direction="column" gap="size-100">
+      <View
+        borderColor="grey-200"
+        borderWidth="thin"
+        borderRadius="medium"
+        padding="size-200"
+      >
+        <Flex direction="row" gap="size-200" alignItems="center">
+          <Text weight="heavy">Test Credentials</Text>
+          <Button
+            variant="default"
+            size="S"
+            onPress={handleTest}
+            isDisabled={isTesting || !canTest}
+            css={css`
+              min-width: 80px;
+            `}
+          >
+            {isTesting ? (
+              <Flex direction="row" gap="size-50" alignItems="center">
+                <ProgressCircle
+                  isIndeterminate
+                  size="S"
+                  aria-label="Testing credentials"
+                />
+                <span>Testing</span>
+              </Flex>
+            ) : (
+              "Test"
+            )}
+          </Button>
+          {!hasResult && !isTesting && (
+            <Text color="text-700" size="S">
+              Verify your credentials work before saving
+            </Text>
+          )}
+        </Flex>
+      </View>
+      {hasResult && (
+        <Alert
+          variant={testStatus === "valid" ? "success" : "danger"}
+          title={
+            testStatus === "valid"
+              ? "Credentials Valid"
+              : testStatus === "invalid"
+                ? "Invalid Credentials"
+                : "Connection Error"
+          }
+          dismissable
+          onDismissClick={() => {
+            setTestStatus("idle");
+            setErrorMessage(null);
+          }}
+        >
+          {testStatus === "valid"
+            ? "Successfully connected to the provider."
+            : errorMessage}
+        </Alert>
+      )}
+    </Flex>
   );
 }
