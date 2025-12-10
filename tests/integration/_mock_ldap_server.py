@@ -70,7 +70,12 @@ class LDAPUser:
 
     def matches_credentials(self, dn: str, password: str) -> bool:
         """Check if provided credentials match this user (RFC 4514 canonical comparison)."""
-        return canonicalize_dn(self.dn) == canonicalize_dn(dn) and self.password == password
+        self_canonical = canonicalize_dn(self.dn)
+        dn_canonical = canonicalize_dn(dn)
+        # Both DNs must be valid and match
+        if self_canonical is None or dn_canonical is None:
+            return False
+        return self_canonical == dn_canonical and self.password == password
 
 
 @dataclass
@@ -159,6 +164,8 @@ class _LDAPServer:
         # Store by canonical DN per RFC 4514 (handles case, whitespace, multi-valued RDN ordering)
         # This ensures the same user can be updated even if DN formatting differs
         dn_canonical = canonicalize_dn(user.dn)
+        if dn_canonical is None:
+            raise ValueError(f"Invalid DN syntax in test: {user.dn}")
         self._users[dn_canonical] = user
         logger.debug(
             f"Added user: {username} (dn={user.dn}, canonical_key={dn_canonical}, "
@@ -392,10 +399,13 @@ class _LDAPRequestHandler(socketserver.BaseRequestHandler):
             True if credentials are valid
         """
         # Check service account (RFC 4514 canonical comparison)
-        if canonicalize_dn(dn) == canonicalize_dn(self.ldap_server._bind_dn):
-            valid = password == self.ldap_server._bind_password
-            logger.debug(f"Service account auth: {valid}")
-            return valid
+        dn_canonical = canonicalize_dn(dn)
+        bind_dn_canonical = canonicalize_dn(self.ldap_server._bind_dn)
+        if dn_canonical is not None and bind_dn_canonical is not None:
+            if dn_canonical == bind_dn_canonical:
+                valid = password == self.ldap_server._bind_password
+                logger.debug(f"Service account auth: {valid}")
+                return valid
 
         # Check user accounts (users keyed by DN)
         for user_dn, user in self.ldap_server._users.items():

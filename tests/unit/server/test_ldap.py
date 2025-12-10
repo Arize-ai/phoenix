@@ -24,7 +24,6 @@ from phoenix.server.ldap import (
     _get_attribute,
     _get_unique_id,
     _is_member_of,
-    _validate_phoenix_role,
     canonicalize_dn,
     generate_null_email_marker,
     is_ldap_user,
@@ -775,40 +774,6 @@ class TestRoleMapping:
         assert role == "VIEWER"
 
 
-class TestRoleValidation:
-    """Test role validation and normalization."""
-
-    def test_valid_admin_role(self) -> None:
-        """Test ADMIN role is valid."""
-        assert _validate_phoenix_role("ADMIN") == "ADMIN"
-
-    def test_valid_member_role(self) -> None:
-        """Test MEMBER role is valid."""
-        assert _validate_phoenix_role("MEMBER") == "MEMBER"
-
-    def test_valid_viewer_role(self) -> None:
-        """Test VIEWER role is valid."""
-        assert _validate_phoenix_role("VIEWER") == "VIEWER"
-
-    def test_lowercase_normalized(self) -> None:
-        """Test lowercase roles are normalized to uppercase."""
-        assert _validate_phoenix_role("admin") == "ADMIN"
-        assert _validate_phoenix_role("member") == "MEMBER"
-        assert _validate_phoenix_role("viewer") == "VIEWER"
-
-    def test_mixed_case_normalized(self) -> None:
-        """Test mixed case roles are normalized."""
-        assert _validate_phoenix_role("Admin") == "ADMIN"
-        assert _validate_phoenix_role("MeMbEr") == "MEMBER"
-
-    def test_invalid_role_raises_error(self) -> None:
-        """Test invalid roles raise ValueError (fail hard to surface bugs)."""
-        with pytest.raises(ValueError, match="Invalid role"):
-            _validate_phoenix_role("SUPERUSER")
-        with pytest.raises(ValueError, match="Invalid role"):
-            _validate_phoenix_role("ROOT")
-
-
 class TestExceptionSanitization:
     """Test exception messages don't leak sensitive information."""
 
@@ -1109,18 +1074,24 @@ class TestGroupMembershipCheck:
 
     def test_exact_match(self) -> None:
         """Test exact DN match."""
-        user_groups = {canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")}
+        canonical = canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")
+        assert canonical is not None
+        user_groups: set[str] = {canonical}
         assert _is_member_of(user_groups, "cn=admins,ou=groups,dc=example,dc=com") is True
 
     def test_case_insensitive_match(self) -> None:
         """Test DN matching is case-insensitive per RFC 4514."""
-        user_groups = {canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")}
+        canonical = canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")
+        assert canonical is not None
+        user_groups: set[str] = {canonical}
         # Different casing in target
         assert _is_member_of(user_groups, "CN=ADMINS,OU=GROUPS,DC=EXAMPLE,DC=COM") is True
 
     def test_no_match(self) -> None:
         """Test non-matching group returns False."""
-        user_groups = {canonicalize_dn("cn=members,ou=groups,dc=example,dc=com")}
+        canonical = canonicalize_dn("cn=members,ou=groups,dc=example,dc=com")
+        assert canonical is not None
+        user_groups: set[str] = {canonical}
         assert _is_member_of(user_groups, "cn=admins,ou=groups,dc=example,dc=com") is False
 
     def test_empty_user_groups_no_wildcard(self) -> None:
@@ -1130,7 +1101,9 @@ class TestGroupMembershipCheck:
 
     def test_whitespace_normalization(self) -> None:
         """Test DN whitespace is normalized for matching."""
-        user_groups = {canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")}
+        canonical = canonicalize_dn("cn=admins,ou=groups,dc=example,dc=com")
+        assert canonical is not None
+        user_groups: set[str] = {canonical}
         # Target with extra whitespace
         assert (
             _is_member_of(user_groups, "cn = admins , ou = groups , dc = example , dc = com")
@@ -1580,6 +1553,7 @@ class TestDNCanonicalization:
         """Multiple types of escaped characters."""
         dn = "cn=user\\+name\\,test,ou=us\\=ers,dc=br\\\\anch,dc=com"
         canonical = canonicalize_dn(dn)
+        assert canonical is not None
 
         # All escapes should be preserved
         assert "\\+" in canonical
@@ -1634,17 +1608,20 @@ class TestDNCanonicalization:
         """Canonicalizing a canonical DN should be idempotent."""
         dn = "CN=John,OU=Users,DC=Example,DC=com"
         canonical1 = canonicalize_dn(dn)
+        assert canonical1 is not None
         canonical2 = canonicalize_dn(canonical1)
+        assert canonical2 is not None
         canonical3 = canonicalize_dn(canonical2)
 
         assert canonical1 == canonical2 == canonical3
 
-    def test_invalid_dn_fallback(self) -> None:
-        """Invalid DN syntax should fall back to simple lowercase."""
+    def test_invalid_dn_returns_none(self) -> None:
+        """Invalid DN syntax should return None to avoid inconsistent canonicalization."""
         invalid_dn = "not_a_valid_dn"
         canonical = canonicalize_dn(invalid_dn)
-        # Should fallback to lowercase
-        assert canonical == "not_a_valid_dn"
+        # Should return None instead of falling back to lowercase
+        # This ensures consistent behavior and forces callers to handle the error
+        assert canonical is None
 
     def test_duplicate_prevention_scenario(self) -> None:
         """Real-world scenario: Same user, different DN formatting from AD."""
@@ -1789,7 +1766,7 @@ class TestNullEmailMarker:
 
     def test_marker_prefix_format(self) -> None:
         """NULL_EMAIL_MARKER_PREFIX uses PUA character U+E000."""
-        assert NULL_EMAIL_MARKER_PREFIX == "\ue000NULL"
+        assert NULL_EMAIL_MARKER_PREFIX == "\ue000NULL(stopgap)"
 
     def test_generate_marker_format_and_determinism(self) -> None:
         """Generated marker: prefix + 32-char MD5 hash, deterministic, case-insensitive."""
@@ -1825,7 +1802,7 @@ class TestNullEmailMarker:
             # Similar but not markers → False
             ("NULL123456789abcdef", False),  # Missing PUA
             ("\ue001NULL123456", False),  # Wrong PUA
-            ("prefix\ue000NULL", False),  # Not at start
+            ("prefix\ue000NULL(stopgap)", False),  # Not at start
         ],
     )
     def test_is_null_email_marker(self, email: str, expected: bool) -> None:

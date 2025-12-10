@@ -49,7 +49,7 @@ async def get_or_create_ldap_user(
         email attributes. In this mode:
         - unique_id is required (enforced at config validation)
         - Lookup is by unique_id only (no email fallback)
-        - A null email marker is generated: "\\uE000NULL{md5(unique_id)}"
+        - A null email marker is generated: "\\ue000NULL(stopgap){md5(unique_id)}"
 
     Admin-Provisioned Users:
         Admins can pre-create users with oauth2_user_id=NULL. On first login,
@@ -176,7 +176,7 @@ async def get_or_create_ldap_user(
     )
     if existing_username:
         # Collision detected - append short suffix to make unique
-        username = f"{user_info.display_name} ({secrets.token_hex(2)})"
+        username = f"{user_info.display_name} ({secrets.token_hex(3)})"
 
     user = models.User(
         email=db_email,

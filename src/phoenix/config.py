@@ -34,11 +34,11 @@ from phoenix.utilities.re import parse_env_headers
 if TYPE_CHECKING:
     from phoenix.server.oauth2 import OAuth2Clients
 
-# OAuth2-assignable roles (SYSTEM is internal-only and not included)
-OAuth2UserRoleName: TypeAlias = Literal["ADMIN", "MEMBER", "VIEWER"]
+# Assignable roles (SYSTEM is internal-only and not included)
+AssignableUserRoleName: TypeAlias = Literal["ADMIN", "MEMBER", "VIEWER"]
 
 # Tuple of valid OAuth2 roles for validation
-_VALID_OAUTH2_ROLES: tuple[str, ...] = get_args(OAuth2UserRoleName)
+_VALID_ROLES: tuple[str, ...] = get_args(AssignableUserRoleName)
 
 
 logger = logging.getLogger(__name__)
@@ -367,17 +367,28 @@ Example: "(&(objectClass=user)(sAMAccountName=%s))"
 ENV_PHOENIX_LDAP_ATTR_EMAIL = "PHOENIX_LDAP_ATTR_EMAIL"
 """
 LDAP attribute containing user's email address. Defaults to "mail".
-Must be present in LDAP or login fails.
+
+Set to an empty value (PHOENIX_LDAP_ATTR_EMAIL=) to enable authentication without email
+for directories that don't populate the mail attribute. When empty:
+  - PHOENIX_LDAP_ATTR_UNIQUE_ID is required (users are identified by unique_id instead)
+  - PHOENIX_LDAP_ALLOW_SIGN_UP must be true (users are auto-provisioned on first login)
+  - PHOENIX_ADMINS is not supported (use PHOENIX_LDAP_GROUP_ROLE_MAPPINGS instead)
+  - Users will appear in Phoenix without email addresses
+
+When configured (non-empty), the attribute must be present in LDAP or login fails.
 https://www.rfc-editor.org/rfc/rfc2798#section-9.1.3
 """
 ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID = "PHOENIX_LDAP_ATTR_UNIQUE_ID"
 """
-Optional: LDAP attribute containing an immutable unique identifier.
+LDAP attribute containing an immutable unique identifier.
 
-WHEN TO USE: Only configure this if you expect user emails to change
-(company rebranding, M&A, frequent name changes) or have compliance requirements
-for immutable user tracking. For most organizations, the default email-based
-identification is sufficient.
+REQUIRED when PHOENIX_LDAP_ATTR_EMAIL is empty (users are identified by this ID
+instead of email).
+
+Also recommended if you expect user emails to change (company rebranding, M&A,
+frequent name changes) or have compliance requirements for immutable user tracking.
+For most organizations with email in LDAP, the default email-based identification
+is sufficient.
 
 When set, this attribute is used as the primary identifier, allowing users
 to survive email changes without creating duplicate accounts.
@@ -511,6 +522,9 @@ Allow automatic user creation on first LDAP login. Defaults to "true".
 Set to "false" to require pre-provisioned users (created via PHOENIX_ADMINS
 env var or the application's user management UI before first login).
 Pre-provisioned users are matched by email on first LDAP login.
+
+MUST be "true" when PHOENIX_LDAP_ATTR_EMAIL is empty, since pre-provisioning
+by email is not possible without email addresses in LDAP.
 """
 
 ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
@@ -534,6 +548,8 @@ Notes:
   modified, e.g., changed from non-admin to admin.
 - Changing this environment variable for the next startup will not undo any records created in
   previous startups.
+- NOT supported when PHOENIX_LDAP_ATTR_EMAIL is empty (use PHOENIX_LDAP_GROUP_ROLE_MAPPINGS
+  to assign admin roles instead when LDAP doesn't have email addresses).
 """
 ENV_PHOENIX_ROOT_URL = "PHOENIX_ROOT_URL"
 """
@@ -1289,7 +1305,7 @@ class OAuth2ClientConfig:
 
     # Role mapping
     role_attribute_path: Optional[str]
-    role_mapping: dict[str, OAuth2UserRoleName]
+    role_mapping: dict[str, AssignableUserRoleName]
     role_attribute_strict: bool
 
     @classmethod
@@ -1404,7 +1420,7 @@ class OAuth2ClientConfig:
 
         # Role mapping
         role_attribute_path = _get_optional("ROLE_ATTRIBUTE_PATH")
-        role_mapping: dict[str, OAuth2UserRoleName] = {}
+        role_mapping: dict[str, AssignableUserRoleName] = {}
         if raw_mapping := _get_optional("ROLE_MAPPING"):
             # Parse role mapping: "IdpRole1:PhoenixRole,IdpRole2:PhoenixRole"
             for mapping_pair in raw_mapping.split(","):
@@ -1435,11 +1451,11 @@ class OAuth2ClientConfig:
                         f"Invalid ROLE_MAPPING for {idp_name}: "
                         f"SYSTEM role cannot be assigned via OAuth2. "
                         f"SYSTEM is an internal-only role for system API keys. "
-                        f"Valid roles are: {', '.join(sorted(_VALID_OAUTH2_ROLES))}"
+                        f"Valid roles are: {', '.join(sorted(_VALID_ROLES))}"
                     )
 
-                if phoenix_role_upper not in _VALID_OAUTH2_ROLES:
-                    valid_roles = ", ".join(sorted(_VALID_OAUTH2_ROLES))
+                if phoenix_role_upper not in _VALID_ROLES:
+                    valid_roles = ", ".join(sorted(_VALID_ROLES))
                     raise ValueError(
                         f"Invalid ROLE_MAPPING for {idp_name}: "
                         f"'{phoenix_role}' is not a valid Phoenix role. "
@@ -1496,7 +1512,7 @@ class LDAPGroupRoleMapping(TypedDict):
     """
 
     group_dn: str
-    role: str
+    role: AssignableUserRoleName
 
 
 @dataclass(frozen=True)
@@ -1710,7 +1726,7 @@ class LDAPConfig:
             raise ValueError(f"{ENV_PHOENIX_LDAP_HOST} must contain at least one host")
 
     @classmethod
-    def from_env(cls) -> Optional["LDAPConfig"]:
+    def from_env(cls) -> "LDAPConfig" | None:
         """Load LDAP config from environment variables.
 
         Returns:
@@ -1749,7 +1765,6 @@ class LDAPConfig:
                 f"Expected format: [{{'group_dn': '...', 'role': 'ADMIN'}}]"
             )
 
-        VALID_ROLES = {"ADMIN", "MEMBER", "VIEWER"}
         for idx, mapping in enumerate(group_role_mappings_list):
             if not isinstance(mapping, dict):
                 raise ValueError(
@@ -1770,14 +1785,26 @@ class LDAPConfig:
                     f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}].group_dn "
                     "must be a non-empty string"
                 )
-            # Normalize to uppercase for case-insensitive comparison
+            # Validate DN syntax (except for wildcard "*" which matches all users)
+            group_dn = mapping["group_dn"].strip()
+            from phoenix.server.ldap import canonicalize_dn
+
+            if group_dn != "*" and not canonicalize_dn(group_dn):
+                raise ValueError(
+                    f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}].group_dn "
+                    f"has invalid LDAP DN syntax: '{group_dn}'. "
+                    f"Expected format: 'cn=GroupName,ou=Groups,dc=example,dc=com'"
+                )
+            # Normalize role to uppercase and validate
             role_upper = mapping["role"].upper() if isinstance(mapping["role"], str) else ""
-            if role_upper not in VALID_ROLES:
+            if role_upper not in _VALID_ROLES:
                 raise ValueError(
                     f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}]: "
-                    f"role must be one of {VALID_ROLES} (case-insensitive). "
+                    f"role must be one of {_VALID_ROLES} (case-insensitive). "
                     f"Got: '{mapping['role']}'"
                 )
+            # Store normalized uppercase role to avoid runtime normalization
+            mapping["role"] = role_upper
 
         # Require at least one role mapping to prevent silent authentication failures
         # Without mappings, all LDAP users would be denied access with only a debug log,

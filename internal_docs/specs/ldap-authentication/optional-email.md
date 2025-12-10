@@ -34,7 +34,7 @@ When `PHOENIX_LDAP_ATTR_EMAIL` is empty, Phoenix generates a **placeholder** to 
 ```python
 from hashlib import md5
 
-NULL_EMAIL_MARKER_PREFIX = "\uE000NULL"  # PUA character + "NULL" indicator
+NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"  # PUA character + "NULL" indicator
 
 def generate_null_email_marker(unique_id: str) -> str:
     """Generate a deterministic placeholder from unique_id.
@@ -50,7 +50,7 @@ def generate_null_email_marker(unique_id: str) -> str:
     normalized = unique_id.lower()  # Case-insensitive (UUIDs are case-insensitive)
     return f"{NULL_EMAIL_MARKER_PREFIX}{md5(normalized.encode()).hexdigest()}"
     # Example: unique_id "550E8400-E29B-41D4-A716-446655440000"
-    #       → "\uE000NULL7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
+    #       → "\ue000NULL(stopgap)7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
 
 def is_null_email_marker(email: str) -> bool:
     """Check if email is a placeholder."""
@@ -635,7 +635,7 @@ POST /api/v1/admin/ldap/provision
 If users are exported (e.g., to CSV):
 - GraphQL API returns `null` for null email markers, so exports via the API will show empty/null email
 - REST API returns empty string `""` for null email markers (to avoid breaking the existing API contract)
-- Direct database exports would show the raw placeholder (`\uE000NULL...`)
+- Direct database exports would show the raw placeholder (`\ue000NULL(stopgap)...`)
 - On import via API, email validation would reject null email marker format (no `@` symbol)
 
 #### 7. MD5 Collision Risk
@@ -679,7 +679,7 @@ Users with placeholder emails cannot:
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+[.][^@\s]+\Z")
 ```
 
-Null email markers (`\uE000NULLabc123...`) have no `@` symbol, so they're automatically rejected by existing email format validation. This applies to:
+Null email markers (`\ue000NULL(stopgap)abc123...`) have no `@` symbol, so they're automatically rejected by existing email format validation. This applies to:
 - Local login endpoint (email/password auth)
 - REST API user creation (`POST /v1/users`)
 - GraphQL user creation (`createUser` mutation)
@@ -705,7 +705,7 @@ LDAP users authenticate via LDAP bind, not email/password, so the local login re
 #### 7. PUA Stripping Attack
 
 **Risk:** If a system strips PUA characters during direct database export/import:
-- `\uE000NULL7f3d...` becomes `NULL7f3d...`
+- `\ue000NULL(stopgap)7f3d...` becomes `NULL7f3d...`
 - This could be imported as a "real" email
 
 **Mitigation:**
@@ -801,7 +801,7 @@ UPDATE users SET email = NULL WHERE email LIKE E'\uE000%';
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Phase 1: Bridge Solution                     │
 │  - LDAP users without email get placeholder in DB               │
-│  - DB email: "\uE000NULL{md5_hash}"                             │
+│  - DB email: "\ue000NULL(stopgap){md5_hash}"                             │
 │  - GraphQL returns null for placeholders (UI checks truthiness) │
 │  - Email operations skipped for placeholder                     │
 └─────────────────────────────────────────────────────────────────┘

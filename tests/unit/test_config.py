@@ -11,8 +11,8 @@ from starlette.datastructures import URL
 from phoenix.config import (
     ENV_PHOENIX_ADMINS,
     ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
+    AssignableUserRoleName,
     OAuth2ClientConfig,
-    OAuth2UserRoleName,
     ensure_working_dir_if_needed,
     get_env_admins,
     get_env_auth_settings,
@@ -1473,12 +1473,12 @@ def test_oauth2_role_names_are_subset_of_user_role_names() -> None:
     """
     # Get all valid roles from both type aliases
     all_user_roles = set(get_args(UserRoleName))
-    oauth2_roles = set(get_args(OAuth2UserRoleName))
+    oauth2_roles = set(get_args(AssignableUserRoleName))
 
     # Verify OAuth2 roles are a proper subset (not equal, must exclude SYSTEM)
     assert oauth2_roles < all_user_roles, "OAuth2 roles must be a proper subset of all user roles"
 
-    # Verify SYSTEM is in UserRoleName but NOT in OAuth2UserRoleName
+    # Verify SYSTEM is in UserRoleName but NOT in AssignableUserRoleName
     assert "SYSTEM" in all_user_roles, "SYSTEM role must exist in UserRoleName"
     assert "SYSTEM" not in oauth2_roles, "SYSTEM role must NOT be allowed for OAuth2"
 
@@ -1543,7 +1543,7 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
-                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "...", "role": "invalid_role"}]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "invalid_role"}]',
                 },
                 "role must be one of",
                 id="invalid_role_lowercase",

@@ -117,7 +117,7 @@ PHOENIX_LDAP_ATTR_EMAIL=mail
 # No email attribute available - generate placeholder (requires unique_id)
 PHOENIX_LDAP_ATTR_EMAIL=
 PHOENIX_LDAP_ATTR_UNIQUE_ID=objectGUID
-# → User gets placeholder like "\uE000NULL7f3d2a1b9c8e4f5d"
+# → User gets placeholder like "\ue000NULL(stopgap)7f3d2a1b9c8e4f5d"
 ```
 
 | Environment Variable | Default | Description |
@@ -145,13 +145,13 @@ PHOENIX_LDAP_ATTR_UNIQUE_ID=objectGUID
 ```python
 from hashlib import md5
 
-NULL_EMAIL_MARKER_PREFIX = "\uE000NULL"  # PUA character + "None" indicator
+NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"  # PUA character + "None" indicator
 
 def generate_null_email_marker(unique_id: str) -> str:
     """Generate a deterministic placeholder from unique_id."""
     normalized = unique_id.lower()  # Case-insensitive (UUIDs are case-insensitive)
     return f"{NULL_EMAIL_MARKER_PREFIX}{md5(normalized.encode()).hexdigest()}"
-    # Example: "\uE000NULL7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
+    # Example: "\ue000NULL(stopgap)7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
 ```
 
 The placeholder:
@@ -166,7 +166,7 @@ If an admin explicitly configures `PHOENIX_LDAP_ATTR_EMAIL=mail` but the `mail` 
 ```python
 from hashlib import md5
 
-NULL_EMAIL_MARKER_PREFIX = "\uE000NULL"
+NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"
 
 def validate_ldap_config():
     """Validate LDAP configuration at startup."""
@@ -218,7 +218,7 @@ Silent fallback would mask LDAP data quality issues and lead to inconsistent use
 | `mail` | `alice@corp.com` | `alice@corp.com` (real) |
 | `mail` | *(missing)* | ❌ **Error** |
 | `mail` | `alice` (no @) | ❌ **Error** |
-| *(empty)* | *(not read)* | `\uE000NULL{md5_hash}` (placeholder) |
+| *(empty)* | *(not read)* | `\ue000NULL(stopgap){md5_hash}` (placeholder) |
 
 **Common configurations:**
 
@@ -236,13 +236,13 @@ PHOENIX_LDAP_ATTR_UNIQUE_ID=objectGUID  # Required when ATTR_EMAIL is empty
 When no email attribute is configured, Phoenix generates a **placeholder** with a **Private Use Area (PUA) Unicode character** (`U+E000`) prefix:
 
 ```python
-NULL_EMAIL_MARKER_PREFIX = "\uE000NULL"  # PUA character + "None" indicator
+NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"  # PUA character + "None" indicator
 
 # Real email (from mail attribute)
 "alice@corp.com"
 
 # Placeholder (no email in LDAP)
-"\uE000NULL7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
+"\ue000NULL(stopgap)7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
 # ^^^^^^^^^^ marker at start
 ```
 
@@ -259,7 +259,7 @@ NULL_EMAIL_MARKER_PREFIX = "\uE000NULL"  # PUA character + "None" indicator
 **Helper functions:**
 
 ```python
-NULL_EMAIL_MARKER_PREFIX = "\uE000NULL"
+NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"
 
 def is_null_email_marker(email: str) -> bool:
     """Check if email is a placeholder (not from LDAP mail attribute)."""
@@ -277,7 +277,7 @@ def get_display_identifier(user) -> str:
 ```typescript
 // Server injects into window.Config:
 // - ldapEmailEnabled: boolean (true if PHOENIX_LDAP_ATTR_EMAIL is set)
-// - nullEmailMarkerPrefix: string ("\uE000NULL")
+// - nullEmailMarkerPrefix: string ("\ue000NULL(stopgap)")
 
 function UserIdentifier({ user }: { user: User }) {
   const isPlaceholder = user.email.startsWith(window.Config.nullEmailMarkerPrefix);
@@ -296,8 +296,8 @@ When `PHOENIX_LDAP_ATTR_EMAIL` is empty, each login would generate a **new rando
 
 | Login | Generated Placeholder | Problem |
 |-------|----------------------|---------|
-| User A, 1st login | `\uE000NULL7f3d2a1b9c8e4f5d...` | New user created |
-| User A, 2nd login | `\uE000NULL7f3d2a1b9c8e4f5d...` | Same! (deterministic from unique_id) |
+| User A, 1st login | `\ue000NULL(stopgap)7f3d2a1b9c8e4f5d...` | New user created |
+| User A, 2nd login | `\ue000NULL(stopgap)7f3d2a1b9c8e4f5d...` | Same! (deterministic from unique_id) |
 
 **Solution:** `PHOENIX_LDAP_ATTR_UNIQUE_ID` is **required** when `PHOENIX_LDAP_ATTR_EMAIL` is empty. The unique_id provides the stable identifier:
 
@@ -352,7 +352,7 @@ Ensure database collation handles the PUA character correctly:
 ```sql
 -- PostgreSQL: UTF-8 collation handles PUA correctly
 -- Verify with:
-SELECT E'\uE000NULL12345678' = E'\uE000NULL12345678';
+SELECT E'\ue000NULL(stopgap)12345678' = E'\ue000NULL(stopgap)12345678';
 -- Should return true
 ```
 
@@ -581,11 +581,11 @@ Enterprise IAM systems use `objectGUID`/`entryUUID` as the primary identifier.
 | **Email recycling protection** | Prevents account hijacking via recycled emails |
 | **UUID-only unique_id support** | Heuristics for 16-char strings have unacceptable false positive rates |
 | **Configurable email attribute** | Supports reading from `mail` or generating placeholder emails |
-| **Optional email (placeholder)** | When `PHOENIX_LDAP_ATTR_EMAIL=` (empty), generate `\uE000NULL{md5_hash}` |
+| **Optional email (placeholder)** | When `PHOENIX_LDAP_ATTR_EMAIL=` (empty), generate `\ue000NULL(stopgap){md5_hash}` |
 | **Unique_id required for placeholder** | Required to identify returning users (placeholder is random); enforced at startup |
 | **Fail-fast on missing attribute** | If admin configures an attribute, it must exist; no silent fallbacks |
 | **Placeholder email with PUA marker** | Temporary workaround for `NOT NULL` constraint; enables programmatic detection |
-| **Deterministic placeholder** | `\uE000NULL{md5(unique_id)}` - no email format needed; clearly not an email |
+| **Deterministic placeholder** | `\ue000NULL(stopgap){md5(unique_id)}` - no email format needed; clearly not an email |
 | **Future: nullable email** | Clean solution once schema migration is possible; placeholder emails migrate to `NULL` |
 
 ## References

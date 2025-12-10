@@ -110,7 +110,7 @@ import random
 import ssl
 from hashlib import md5
 from secrets import token_hex
-from typing import Any, Final, Literal, NamedTuple, overload
+from typing import Any, Final, Literal, NamedTuple, cast, overload
 
 import anyio
 from anyio import CapacityLimiter
@@ -122,14 +122,16 @@ from ldap3 import (
     NONE,
     SUBTREE,
     Connection,
+    Entry,
     Server,
     Tls,
 )
 from ldap3.core.exceptions import LDAPException, LDAPInvalidCredentialsResult, LDAPInvalidDnError
+from ldap3.core.results import RESULT_SIZE_LIMIT_EXCEEDED
 from ldap3.utils.conv import escape_filter_chars
 from ldap3.utils.dn import parse_dn
 
-from phoenix.config import LDAPConfig
+from phoenix.config import AssignableUserRoleName, LDAPConfig
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +157,7 @@ def _get_ldap_limiter() -> CapacityLimiter:
     return _ldap_limiter
 
 
-def canonicalize_dn(dn: str) -> str:
+def canonicalize_dn(dn: str) -> str | None:
     r"""Canonicalize a Distinguished Name per RFC 4514.
 
     This function normalizes DNs to a canonical form for case-insensitive
@@ -176,7 +178,8 @@ def canonicalize_dn(dn: str) -> str:
 
     Returns:
         str: Canonical lowercase DN with normalized whitespace and sorted RDN components.
-             If DN parsing fails, returns simple lowercase of input string (graceful degradation).
+        None: If DN parsing fails. Callers should handle this explicitly to avoid
+              inconsistent matching behavior.
 
     Examples:
         >>> canonicalize_dn("cn=John,ou=Users,dc=Example,dc=com")
@@ -188,19 +191,26 @@ def canonicalize_dn(dn: str) -> str:
         >>> canonicalize_dn("email=john@corp.com+cn=John,ou=Users,dc=Example,dc=com")
         'cn=john+email=john@corp.com,ou=users,dc=example,dc=com'  # Sorted
 
+        >>> canonicalize_dn("invalid dn syntax")
+        None
+
     References:
         RFC 4514 Section 4: String representation of DNs are case-insensitive
         ldap3 parse_dn(): Validates syntax and decomposes into components
     """
+    # Handle empty DN (root DSE) - this is a valid DN per RFC 4514
+    if not dn.strip():
+        return ""
+
     try:
         # Parse DN with escaping and whitespace stripping
         components = parse_dn(dn, escape=True, strip=True)
     except LDAPInvalidDnError:
-        # Graceful degradation: if parse fails, use simple lowercase
-        # Prevents authentication failure for malformed DNs
-        # Note: Don't log the DN - it may contain sensitive information
-        logger.warning("Failed to parse DN for canonicalization, using simple lowercase")
-        return dn.lower()
+        # Return None instead of falling back to simple lowercase.
+        # This prevents inconsistent canonicalization where the same DN
+        # could have different canonical forms depending on parser behavior.
+        # Callers must handle None explicitly (typically by skipping the DN).
+        return None
 
     # Build canonical DN
     canonical_parts = []
@@ -282,12 +292,12 @@ def is_ldap_user(oauth2_client_id: str | None) -> bool:
 # marker uses a Private Use Area (PUA) Unicode character to ensure it cannot
 # collide with any real email address.
 #
-# Format: "\uE000NULL" + md5(unique_id)
+# Format: "\ue000NULL(stopgap)" + md5(unique_id)
 #   - \uE000: PUA character (guaranteed never assigned by Unicode Standard)
 #   - NULL: Human-readable indicator that email is absent
 #   - md5(unique_id): Deterministic hash for uniqueness (32 hex chars)
 #
-# Example: "\uE000NULL7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
+# Example: "\ue000NULL(stopgap)7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
 #
 # Design Context:
 #   This is a temporary bridge solution. The eventual solution is to make the
@@ -298,7 +308,7 @@ def is_ldap_user(oauth2_client_id: str | None) -> bool:
 #   MD5 is used for deterministic uniqueness, NOT cryptographic security.
 #   The hash ensures the same unique_id always produces the same marker,
 #   preventing race conditions on concurrent logins.
-NULL_EMAIL_MARKER_PREFIX: Final[str] = "\ue000NULL"
+NULL_EMAIL_MARKER_PREFIX: Final[str] = "\ue000NULL(stopgap)"
 
 
 def generate_null_email_marker(unique_id: str) -> str:
@@ -317,14 +327,14 @@ def generate_null_email_marker(unique_id: str) -> str:
                    Must be non-empty.
 
     Returns:
-        A null email marker in format: "\\uE000NULL{md5_hash}"
+        A null email marker in format: "\\ue000NULL(stopgap){md5_hash}"
 
     Raises:
         ValueError: If unique_id is empty or None.
 
     Example:
         >>> generate_null_email_marker("550E8400-E29B-41D4-A716-446655440000")
-        '\\ue000NULL7f3d2a1b9c8e4f5da2b6c903e1f47d8b'
+        '\\ue000NULL(stopgap)7f3d2a1b9c8e4f5da2b6c903e1f47d8b'
     """
     if not unique_id:
         raise ValueError("unique_id is required to generate null email marker")
@@ -350,7 +360,7 @@ def is_null_email_marker(email: str) -> bool:
         True if the value is a null email marker, False otherwise.
 
     Example:
-        >>> is_null_email_marker("\\ue000NULL7f3d2a1b9c8e4f5da2b6c903e1f47d8b")
+        >>> is_null_email_marker("\\ue000NULL(stopgap)7f3d2a1b9c8e4f5da2b6c903e1f47d8b")
         True
         >>> is_null_email_marker("alice@example.com")
         False
@@ -365,7 +375,7 @@ class LDAPUserInfo(NamedTuple):
         email: User's email address, or None if PHOENIX_LDAP_ATTR_EMAIL is empty.
                When None, a null email marker will be generated from unique_id.
         display_name: User's display name for UI
-        groups: List of group DNs the user belongs to
+        groups: Tuple of group DNs the user belongs to (immutable)
         user_dn: User's Distinguished Name (for audit/logging, NOT used for identity matching)
         ldap_username: Username used to authenticate
         role: Phoenix role mapped from LDAP groups
@@ -374,7 +384,7 @@ class LDAPUserInfo(NamedTuple):
 
     email: str | None
     display_name: str
-    groups: list[str]
+    groups: tuple[str, ...]
     user_dn: str
     ldap_username: str
     role: str
@@ -866,7 +876,7 @@ class LDAPAuthenticator:
                     return LDAPUserInfo(
                         email=email,
                         display_name=display_name or username,
-                        groups=groups,
+                        groups=tuple(groups),
                         user_dn=user_dn,
                         ldap_username=username,
                         role=role,
@@ -889,7 +899,7 @@ class LDAPAuthenticator:
         logger.error("All LDAP servers failed")
         return None
 
-    def _search_user(self, conn: Connection, escaped_username: str) -> Any | None:
+    def _search_user(self, conn: Connection, escaped_username: str) -> Entry | None:
         """Search for user in LDAP directory across all configured search bases.
 
         Searches each base DN in order until a user is found. This allows organizations
@@ -943,7 +953,7 @@ class LDAPAuthenticator:
                 return None
             else:
                 # Exactly one match - success
-                return conn.entries[0]
+                return cast(Entry, conn.entries[0])
 
         # Not found in any search base
         logger.info("LDAP user search returned no results in any configured search base")
@@ -1061,7 +1071,7 @@ class LDAPAuthenticator:
             # unbind() safely closes socket regardless of bind state.
             user_conn.unbind()  # type: ignore[no-untyped-call]
 
-    def _get_user_groups(self, conn: Connection, user_entry: Any, username: str) -> list[str]:
+    def _get_user_groups(self, conn: Connection, user_entry: Entry, username: str) -> list[str]:
         """Get user's group memberships.
 
         Two modes are supported, determined by group_search_filter presence:
@@ -1086,6 +1096,13 @@ class LDAPAuthenticator:
             - groupOfNames (member=%s): member contains full DNs
               → Requires group_search_filter_user_attr=distinguishedName (AD only)
 
+        Size Limit Warning:
+            If the LDAP server's size limit is exceeded (commonly 1000 entries),
+            a warning is logged and partial results are returned. This can cause
+            users to receive incorrect role mappings if their groups are not in
+            the returned subset. Configure more specific group_search_base_dns
+            or increase the server's sizelimit if this occurs.
+
         Args:
             conn: Active LDAP connection (with service account if configured)
             user_entry: User entry from search
@@ -1104,8 +1121,7 @@ class LDAPAuthenticator:
 
         # POSIX mode: Search for groups containing this user
         groups: list[str] = []
-        group_search_filter = self.config.group_search_filter  # Guaranteed non-None here
-        assert group_search_filter is not None  # For type checker
+        group_search_filter = self.config.group_search_filter
         if self.config.group_search_base_dns:
             # Determine what value to substitute for %s in the filter
             # - If group_search_filter_user_attr is set: Use that attribute's value
@@ -1144,6 +1160,17 @@ class LDAPAuthenticator:
                         search_scope=SUBTREE,
                         attributes=["cn"],
                     )
+
+                    # Check if results were truncated by server's size limit
+                    # ldap3 doesn't raise for sizeLimitExceeded, it returns partial results
+                    if conn.result and conn.result.get("result") == RESULT_SIZE_LIMIT_EXCEEDED:
+                        logger.warning(
+                            f"LDAP group search hit server size limit for base "
+                            f"'{group_search_base}'. Results may be incomplete. "
+                            f"Consider using more specific group_search_base_dns or "
+                            f"increasing the server's sizelimit."
+                        )
+
                     for group_entry in conn.entries:
                         groups.append(group_entry.entry_dn)
                 except LDAPException as e:
@@ -1155,7 +1182,7 @@ class LDAPAuthenticator:
 
         return groups
 
-    def map_groups_to_role(self, group_dns: list[str]) -> str | None:
+    def map_groups_to_role(self, group_dns: list[str]) -> AssignableUserRoleName | None:
         """Map LDAP group DNs to Phoenix role.
 
         Mapping Behavior:
@@ -1213,7 +1240,19 @@ class LDAPAuthenticator:
             (buildGrafanaUser function, "only use the first match for each org" comment)
         """
         # Normalize user group DNs once to avoid repeated canonicalization
-        canonical_user_groups = {canonicalize_dn(dn) for dn in group_dns}
+        # Filter out None values (DNs that failed to parse) with warning
+        canonical_user_groups: set[str] = set()
+        for dn in group_dns:
+            canonical = canonicalize_dn(dn)
+            if canonical is not None:
+                canonical_user_groups.add(canonical)
+            else:
+                # Log warning but don't include the DN itself (may contain sensitive info)
+                logger.warning(
+                    "Failed to canonicalize group DN from LDAP server. "
+                    "This group will be ignored for role mapping. "
+                    "This may indicate malformed data in the LDAP directory."
+                )
 
         # Iterate through mappings in priority order (first match wins)
         for mapping in self.config.group_role_mappings:
@@ -1222,21 +1261,23 @@ class LDAPAuthenticator:
 
             # Check if user matches this mapping
             if _is_member_of(canonical_user_groups, group_dn):
-                return _validate_phoenix_role(role)
+                return role  # Already validated and normalized to uppercase at config load
 
         # No matching groups - deny access
         return None
 
 
 @overload
-def _get_attribute(entry: Any, attr_name: str, multiple: Literal[False] = False) -> str | None: ...
+def _get_attribute(
+    entry: Entry, attr_name: str, multiple: Literal[False] = False
+) -> str | None: ...
 
 
 @overload
-def _get_attribute(entry: Any, attr_name: str, multiple: Literal[True]) -> list[str] | None: ...
+def _get_attribute(entry: Entry, attr_name: str, multiple: Literal[True]) -> list[str] | None: ...
 
 
-def _get_attribute(entry: Any, attr_name: str, multiple: bool = False) -> str | list[str] | None:
+def _get_attribute(entry: Entry, attr_name: str, multiple: bool = False) -> str | list[str] | None:
     """Safely extract attribute value from LDAP entry.
 
     Args:
@@ -1263,7 +1304,7 @@ def _get_attribute(entry: Any, attr_name: str, multiple: bool = False) -> str | 
     return values[0] if values else None
 
 
-def _get_unique_id(entry: Any, attr_name: str) -> str | None:
+def _get_unique_id(entry: Entry, attr_name: str) -> str | None:
     """Extract unique identifier attribute, handling binary values.
 
     Different LDAP servers store unique identifiers in different formats:
@@ -1369,32 +1410,6 @@ def _get_unique_id(entry: Any, attr_name: str) -> str | None:
     return result.lower() if result else None
 
 
-def _validate_phoenix_role(role: str) -> str:
-    """Validate and normalize Phoenix role names.
-
-    Phoenix roles: ADMIN, MEMBER, VIEWER (case-insensitive input, uppercase output)
-
-    Args:
-        role: Phoenix role name (case-insensitive)
-
-    Returns:
-        Normalized Phoenix role name (uppercase)
-
-    Raises:
-        ValueError: If role is not valid (should never happen - roles are validated at startup)
-    """
-    normalized = role.upper()
-    valid_roles = {"ADMIN", "MEMBER", "VIEWER"}
-    if normalized in valid_roles:
-        return normalized
-    # Should never reach here - roles are validated in LDAPConfig.from_env()
-    # Fail hard to surface bugs immediately rather than silently granting access
-    raise ValueError(
-        f"Invalid role '{role}' in group mapping. "
-        f"This indicates a bug - roles should be validated at config load time."
-    )
-
-
 def _is_member_of(canonical_user_groups: set[str], target_group: str) -> bool:
     """Check if user is member of LDAP group.
 
@@ -1408,7 +1423,8 @@ def _is_member_of(canonical_user_groups: set[str], target_group: str) -> bool:
         target_group: Target group DN to check (or "*" for wildcard)
 
     Returns:
-        True if user is a member of the target group
+        True if user is a member of the target group, False otherwise.
+        Returns False if target_group cannot be canonicalized (configuration error).
     """
     # Wildcard matches everyone
     if target_group == "*":
@@ -1416,4 +1432,13 @@ def _is_member_of(canonical_user_groups: set[str], target_group: str) -> bool:
 
     # Canonical comparison handles ordering/spacing/escaping differences
     target_canonical = canonicalize_dn(target_group)
+    if target_canonical is None:
+        # Configuration error: admin-provided group DN in PHOENIX_LDAP_GROUP_ROLE_MAPPINGS
+        # cannot be parsed. Log error and return False (no match) to fail safely.
+        logger.error(
+            "Failed to canonicalize configured group DN in PHOENIX_LDAP_GROUP_ROLE_MAPPINGS. "
+            "This mapping will never match. Check DN syntax in configuration."
+        )
+        return False
+
     return target_canonical in canonical_user_groups

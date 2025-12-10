@@ -567,10 +567,10 @@ To enable LDAP authentication, set the following environment variables in additi
 | **PHOENIX_LDAP_BIND_DN** | Service account DN for binding to the LDAP server. Required for search-then-bind authentication.<br /><br />Example: `CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com` |
 | **PHOENIX_LDAP_BIND_PASSWORD** | Service account password for binding to the LDAP server. Should be stored securely (e.g., in a Kubernetes Secret). |
 | **PHOENIX_LDAP_USER_SEARCH_FILTER** | LDAP filter for finding users. Use `%s` as placeholder for the username.<br /><br />Defaults to Active Directory format: `(&(objectClass=user)(sAMAccountName=%s))`<br /><br />OpenLDAP example: `(&(objectClass=inetOrgPerson)(uid=%s))` |
-| **PHOENIX_LDAP_ATTR_EMAIL** | LDAP attribute containing user's email address. Defaults to `mail`. Must be present in LDAP for authentication to succeed. |
+| **PHOENIX_LDAP_ATTR_EMAIL** | LDAP attribute containing user's email address. Defaults to `mail`. Set to an empty value (`PHOENIX_LDAP_ATTR_EMAIL=`) to enable authentication without email for directories that don't populate the `mail` attribute—see warning below for requirements. When configured (non-empty), the attribute must be present in LDAP for authentication to succeed. |
 | **PHOENIX_LDAP_ATTR_DISPLAY_NAME** | LDAP attribute containing user's display name. Defaults to `displayName`. |
 | **PHOENIX_LDAP_ATTR_MEMBER_OF** | LDAP attribute containing group memberships. Defaults to `memberOf`. Used when `GROUP_SEARCH_FILTER` is not set (Active Directory mode). |
-| **PHOENIX_LDAP_ATTR_UNIQUE_ID** | LDAP attribute containing an immutable unique identifier. Only configure if you expect user emails to change frequently.<br /><br />Options:<br />• Active Directory: `objectGUID`<br />• OpenLDAP: `entryUUID`<br />• 389 DS: `nsUniqueId` |
+| **PHOENIX_LDAP_ATTR_UNIQUE_ID** | LDAP attribute containing an immutable unique identifier. **Required when `PHOENIX_LDAP_ATTR_EMAIL` is empty** (users are identified by this ID instead of email). Also recommended if you expect user emails to change frequently (e.g., due to name changes or company rebranding).<br /><br />Options:<br />• Active Directory: `objectGUID`<br />• OpenLDAP: `entryUUID`<br />• 389 DS: `nsUniqueId` |
 | **PHOENIX_LDAP_GROUP_SEARCH_BASE** | Base DN for group searches. Required when `GROUP_SEARCH_FILTER` is set.<br /><br />Example: `ou=groups,dc=example,dc=com` |
 | **PHOENIX_LDAP_GROUP_SEARCH_FILTER** | LDAP filter for finding groups containing a user. Use `%s` as placeholder for the user identifier.<br /><br />**Two modes:**<br />• **AD Mode** (not set, recommended for Active Directory): Reads the `memberOf` attribute directly from the user entry. AD automatically populates this.<br />• **Search Mode** (set): Searches for groups in `GROUP_SEARCH_BASE`. Required for POSIX groups (`posixGroup`) or when `memberOf` is unavailable.<br /><br />Example: `(&(objectClass=posixGroup)(memberUid=%s))` |
 | **PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR** | LDAP attribute from the user entry to substitute for `%s` in `GROUP_SEARCH_FILTER`.<br /><br />When set: Reads the specified attribute from the user's LDAP entry<br />When not set (default): Uses the login username directly<br /><br />**Understanding group membership attributes:**<br />• **POSIX groups** (`memberUid`): Contains usernames like "jdoe". Use default (login username) or `uid`.<br />• **groupOfNames** (`member`): Contains full DNs. Requires `distinguishedName` (Active Directory only—OpenLDAP does not expose DN as an attribute).<br /><br />Common values:<br />• Not set (default): Uses login username (works for POSIX groups)<br />• `uid`: Explicitly use uid attribute<br />• `distinguishedName`: Full DN (Active Directory only) |
@@ -583,13 +583,22 @@ To enable LDAP authentication, set the following environment variables in additi
 If your LDAP directory does not have the `mail` attribute (or any email attribute), you can explicitly set `PHOENIX_LDAP_ATTR_EMAIL=` to an empty value to enable authentication without email. When this mode is enabled:
 
 * `PHOENIX_LDAP_ATTR_UNIQUE_ID` is **required** — users are identified by this immutable ID instead of email
-* `PHOENIX_LDAP_ALLOW_SIGN_UP` must be `true` — users are auto-provisioned on first login
+* `PHOENIX_LDAP_ALLOW_SIGN_UP` must be `true` — users are auto-provisioned on first login (pre-provisioning by email is not possible without email addresses)
 * `PHOENIX_ADMINS` cannot be used — use `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS` to assign admin roles instead
+* Users will appear in Phoenix without email addresses — the UI will display username instead of email where applicable
 
 ```bash
 # Example: LDAP without email (Active Directory)
 export PHOENIX_LDAP_ATTR_EMAIL=
 export PHOENIX_LDAP_ATTR_UNIQUE_ID=objectGUID
+export PHOENIX_LDAP_ALLOW_SIGN_UP=true
+export PHOENIX_LDAP_GROUP_ROLE_MAPPINGS='[{"group_dn":"CN=Phoenix Admins,OU=Groups,DC=corp,DC=com","role":"ADMIN"},{"group_dn":"*","role":"MEMBER"}]'
+```
+
+```bash
+# Example: LDAP without email (OpenLDAP)
+export PHOENIX_LDAP_ATTR_EMAIL=
+export PHOENIX_LDAP_ATTR_UNIQUE_ID=entryUUID
 export PHOENIX_LDAP_ALLOW_SIGN_UP=true
 ```
 </Warning>
