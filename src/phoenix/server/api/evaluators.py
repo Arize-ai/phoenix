@@ -61,17 +61,17 @@ class LLMEvaluator:
         llm_evaluator_orm: models.LLMEvaluator,
         prompt_version_orm: models.PromptVersion,
         llm_client: PlaygroundStreamingClient,
-        dataset_evaluator_id: int,
+        dataset_evaluator_node_id: GlobalID,
     ) -> None:
         validate_consistent_llm_evaluator_and_prompt_version(prompt_version_orm, llm_evaluator_orm)
         self._llm_evaluator_orm = llm_evaluator_orm
         self._prompt_version_orm = prompt_version_orm
         self._llm_client = llm_client
-        self._dataset_evaluator_id = dataset_evaluator_id
+        self._dataset_evaluator_node_id = dataset_evaluator_node_id
 
     @property
-    def db_id(self) -> int:
-        return self._dataset_evaluator_id
+    def dataset_evaluator_node_id(self) -> GlobalID:
+        return self._dataset_evaluator_node_id
 
     @property
     def name(self) -> str:
@@ -287,6 +287,7 @@ async def get_llm_evaluators(
     ).all()
     llm_evaluators: list[LLMEvaluator] = []
     for llm_evaluator_orm, dataset_evaluator_id in result:
+        dataset_evaluator_node_id = dataset_evaluator_db_to_node_id[dataset_evaluator_id]
         prompt_id = llm_evaluator_orm.prompt_id
         prompt_version_tag_id = llm_evaluator_orm.prompt_version_tag_id
         if prompt_version_tag_id is not None:
@@ -306,7 +307,6 @@ async def get_llm_evaluators(
             )
         prompt_version = await session.scalar(prompt_version_query)
         if prompt_version is None:
-            dataset_evaluator_node_id = dataset_evaluator_db_to_node_id[dataset_evaluator_id]
             raise NotFound(f"Prompt version not found for evaluator '{dataset_evaluator_node_id}'")
 
         llm_evaluators.append(
@@ -314,7 +314,7 @@ async def get_llm_evaluators(
                 llm_evaluator_orm=llm_evaluator_orm,
                 prompt_version_orm=prompt_version,
                 llm_client=llm_client,
-                dataset_evaluator_id=dataset_evaluator_id,
+                dataset_evaluator_node_id=dataset_evaluator_node_id,
             )
         )
 

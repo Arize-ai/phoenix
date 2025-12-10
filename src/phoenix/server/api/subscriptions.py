@@ -192,12 +192,14 @@ async def _stream_single_chat_completion(
                         dataset_example_id=None,
                         repetition_number=repetition_number,
                     )
-            input_mappings_by_evaluator_id = {
-                from_global_id(evaluator.id)[1]: evaluator.input_mapping
-                for evaluator in input.evaluators
+            input_mappings_by_dataset_evaluator_node_id = {
+                dataset_evaluator.id: dataset_evaluator.input_mapping
+                for dataset_evaluator in input.evaluators
             }
             for llm_evaluator in llm_evaluators:
-                input_mapping = input_mappings_by_evaluator_id[llm_evaluator.db_id]
+                input_mapping = input_mappings_by_dataset_evaluator_node_id[
+                    llm_evaluator.dataset_evaluator_node_id
+                ]
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=input_mapping,
@@ -635,12 +637,14 @@ class Subscription:
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
-                        input_mappings_by_evaluator_id = {
-                            from_global_id(evaluator.id)[1]: evaluator.input_mapping
-                            for evaluator in input.evaluators
+                        input_mappings_by_dataset_evaluator_node_id = {
+                            dataset_evaluator.id: dataset_evaluator.input_mapping
+                            for dataset_evaluator in input.evaluators
                         }
                         for llm_evaluator in llm_evaluators:
-                            input_mapping = input_mappings_by_evaluator_id[llm_evaluator.db_id]
+                            input_mapping = input_mappings_by_dataset_evaluator_node_id[
+                                llm_evaluator.dataset_evaluator_node_id
+                            ]
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
                                 input_mapping=input_mapping,
