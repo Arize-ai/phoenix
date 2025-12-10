@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e74e5e0af1b3f0aff5d0e252f0763b96>>
+ * @generated SignedSource<<04989ec3e6dd99bd6655a91a87f1ce21>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -43,7 +43,12 @@ export type PromptTemplateOptions = {
   format: PromptTemplateFormat;
   variables: any;
 };
+export type EvaluatorInputMappingInput = {
+  literalMapping?: any;
+  pathMapping?: any;
+};
 export type EvaluatorPromptPreviewQuery$variables = {
+  inputMapping: EvaluatorInputMappingInput;
   template: PromptChatTemplateInput;
   templateOptions: PromptTemplateOptions;
 };
@@ -70,22 +75,30 @@ export type EvaluatorPromptPreviewQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "template"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "templateOptions"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "inputMapping"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "template"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "templateOptions"
+},
+v3 = [
   {
     "alias": "prompt",
     "args": [
+      {
+        "kind": "Variable",
+        "name": "inputMapping",
+        "variableName": "inputMapping"
+      },
       {
         "kind": "Variable",
         "name": "template",
@@ -169,32 +182,40 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "EvaluatorPromptPreviewQuery",
-    "selections": (v1/*: any*/),
+    "selections": (v3/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v2/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "EvaluatorPromptPreviewQuery",
-    "selections": (v1/*: any*/)
+    "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "5af2f40ebddca4f5c3a13ab452f32188",
+    "cacheID": "b630d62ab6032a1853f794b1b27a6849",
     "id": null,
     "metadata": {},
     "name": "EvaluatorPromptPreviewQuery",
     "operationKind": "query",
-    "text": "query EvaluatorPromptPreviewQuery(\n  $template: PromptChatTemplateInput!\n  $templateOptions: PromptTemplateOptions!\n) {\n  prompt: applyChatTemplate(template: $template, templateOptions: $templateOptions) {\n    messages {\n      role\n      content {\n        __typename\n        ... on TextContentPart {\n          text {\n            text\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query EvaluatorPromptPreviewQuery(\n  $template: PromptChatTemplateInput!\n  $templateOptions: PromptTemplateOptions!\n  $inputMapping: EvaluatorInputMappingInput!\n) {\n  prompt: applyChatTemplate(template: $template, templateOptions: $templateOptions, inputMapping: $inputMapping) {\n    messages {\n      role\n      content {\n        __typename\n        ... on TextContentPart {\n          text {\n            text\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ea8f766e54d53fc5747a3bb0a68aa6bb";
+(node as any).hash = "abd2c94a67df6ac84d61bcab11b66a24";
 
 export default node;

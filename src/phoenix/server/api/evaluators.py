@@ -8,7 +8,13 @@ from jsonschema import ValidationError, validate
 from typing_extensions import TypedDict
 
 from phoenix.db import models
+from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.PromptVersionInput import (
+    PromptChatTemplateInput,
+    TextContentValueInput,
+)
 
 
 class EvaluationResult(TypedDict):
@@ -105,6 +111,26 @@ def apply_input_mapping(
         raise ValueError(f"Input validation failed: {e.message}")
 
     return result
+
+
+def infer_input_schema_from_template(
+    *,
+    template: PromptChatTemplateInput,
+    template_format: PromptTemplateFormat,
+) -> dict[str, Any]:
+    formatter = get_template_formatter(template_format)
+    variables: set[str] = set()
+    for msg in template.messages:
+        content = msg.content
+        for part in content:
+            if isinstance(part.text, TextContentValueInput):
+                variables.update(formatter.parse(part.text.text))
+
+    return {
+        "type": "object",
+        "properties": {var: {} for var in variables},
+        "required": list(variables),
+    }
 
 
 def evaluation_result_to_model(

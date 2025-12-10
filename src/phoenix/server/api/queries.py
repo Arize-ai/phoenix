@@ -33,7 +33,11 @@ from phoenix.db.models import LatencyMs
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import get_builtin_evaluators
+from phoenix.server.api.evaluators import (
+    apply_input_mapping,
+    get_builtin_evaluators,
+    infer_input_schema_from_template,
+)
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.experiment_run_filters import (
@@ -55,6 +59,7 @@ from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput i
     GenerativeModelCustomerProviderConfigInput,
 )
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
@@ -1725,9 +1730,9 @@ class Query:
     @strawberry.field
     async def apply_chat_template(
         self,
-        info: Info[Context, None],
         template: PromptChatTemplateInput,
         template_options: PromptTemplateOptions,
+        input_mapping: Optional[EvaluatorInputMappingInput] = None,
     ) -> PromptChatTemplate:
         """
         Applies template formatting to a prompt chat template.
@@ -1747,6 +1752,17 @@ class Query:
             variables = parsed
         else:
             raise ValueError("Variables must be a dictionary or a string")
+
+        if input_mapping:
+            input_schema = infer_input_schema_from_template(
+                template=template,
+                template_format=template_options.format,
+            )
+            variables = apply_input_mapping(
+                input_schema,
+                input_mapping,
+                variables,
+            )
 
         messages: list[PromptMessage] = []
         for msg in template.messages:
