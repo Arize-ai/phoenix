@@ -111,13 +111,11 @@ export const updateLLMEvaluatorPayload = ({
   description: rawDescription,
   choiceConfig,
   datasetId,
-  originalDisplayName,
-  evaluatorId,
+  datasetEvaluatorId,
   inputMapping,
 }: {
-  evaluatorId: string;
+  datasetEvaluatorId: string;
   datasetId: string;
-  originalDisplayName: string;
   playgroundStore: ReturnType<typeof usePlaygroundStore>;
   instanceId: number;
   name: string;
@@ -141,8 +139,7 @@ export const updateLLMEvaluatorPayload = ({
   return {
     name,
     description,
-    evaluatorId,
-    originalDisplayName,
+    datasetEvaluatorId,
     datasetId,
     inputMapping,
     promptVersion,

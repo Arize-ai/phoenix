@@ -31,17 +31,15 @@ import { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EditDatasetEvaluatorSlideoverProps = {
-  evaluatorId?: string;
+  datasetEvaluatorId?: string;
   datasetId: string;
-  displayName?: string;
   updateConnectionIds?: string[];
 } & ModalOverlayProps;
 
 export const EditDatasetEvaluatorSlideover = ({
-  evaluatorId,
+  datasetEvaluatorId,
   datasetId,
   updateConnectionIds,
-  displayName,
   ...props
 }: EditDatasetEvaluatorSlideoverProps) => {
   return (
@@ -50,11 +48,10 @@ export const EditDatasetEvaluatorSlideover = ({
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>
-              {!!evaluatorId && !!displayName && (
+              {!!datasetEvaluatorId && (
                 <EditEvaluatorPlaygroundProvider
-                  evaluatorId={evaluatorId}
+                  datasetEvaluatorId={datasetEvaluatorId}
                   datasetId={datasetId}
-                  displayName={displayName}
                   updateConnectionIds={updateConnectionIds}
                   onClose={close}
                 />
@@ -70,20 +67,19 @@ export const EditDatasetEvaluatorSlideover = ({
 const EditEvaluatorPlaygroundProvider = (
   props: Omit<EditEvaluatorDialogProps, "queryRef">
 ) => {
-  const { evaluatorId, datasetId, displayName } = props;
+  const { datasetEvaluatorId, datasetId } = props;
   const datasetEvaluatorQuery =
     useLazyLoadQuery<EditDatasetEvaluatorSlideover_evaluatorQuery>(
       graphql`
         query EditDatasetEvaluatorSlideover_evaluatorQuery(
           $datasetId: ID!
-          $evaluatorId: ID!
-          $displayName: Identifier!
+          $datasetEvaluatorId: ID!
         ) {
           dataset: node(id: $datasetId) {
             ... on Dataset {
-              evaluator(evaluatorId: $evaluatorId, displayName: $displayName) {
-                ... on Evaluator {
-                  ... on DatasetLLMEvaluator {
+              datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {
+                evaluator {
+                  ... on LLMEvaluator {
                     prompt {
                       id
                       name
@@ -95,23 +91,23 @@ const EditEvaluatorPlaygroundProvider = (
                       name
                     }
                   }
-                  ...EditDatasetEvaluatorSlideover_evaluator
                 }
+                ...EditDatasetEvaluatorSlideover_evaluator
               }
             }
           }
         }
       `,
-      { evaluatorId, datasetId, displayName }
+      { datasetEvaluatorId, datasetId }
     );
-  const datasetEvaluator = datasetEvaluatorQuery.dataset.evaluator;
+  const datasetEvaluator = datasetEvaluatorQuery.dataset.datasetEvaluator;
   invariant(datasetEvaluator != null, "datasetEvaluator is required");
   return (
     <EvaluatorPlaygroundProvider
-      promptId={datasetEvaluator.prompt?.id}
-      promptName={datasetEvaluator.prompt?.name}
-      promptVersionRef={datasetEvaluator.promptVersion}
-      promptVersionTag={datasetEvaluator.promptVersionTag?.name}
+      promptId={datasetEvaluator.evaluator.prompt?.id}
+      promptName={datasetEvaluator.evaluator.prompt?.name}
+      promptVersionRef={datasetEvaluator.evaluator.promptVersion}
+      promptVersionTag={datasetEvaluator.evaluator.promptVersionTag?.name}
     >
       <EditEvaluatorDialog queryRef={datasetEvaluator} {...props} />
     </EvaluatorPlaygroundProvider>
@@ -119,20 +115,18 @@ const EditEvaluatorPlaygroundProvider = (
 };
 
 type EditEvaluatorDialogProps = {
-  evaluatorId: string;
+  datasetEvaluatorId: string;
   onClose: () => void;
   datasetId: string;
   updateConnectionIds?: string[];
-  displayName: string;
   queryRef: EditDatasetEvaluatorSlideover_evaluator$key;
 };
 
 const EditEvaluatorDialog = ({
-  evaluatorId,
+  datasetEvaluatorId,
   onClose,
   datasetId,
   updateConnectionIds,
-  displayName,
   queryRef,
 }: EditEvaluatorDialogProps) => {
   const notifySuccess = useNotifySuccess();
@@ -145,29 +139,31 @@ const EditEvaluatorDialog = ({
   const evaluatorFragment =
     useFragment<EditDatasetEvaluatorSlideover_evaluator$key>(
       graphql`
-        fragment EditDatasetEvaluatorSlideover_evaluator on Evaluator {
+        fragment EditDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {
           id
-          name
-          description
-          kind
-          ... on DatasetLLMEvaluator {
-            datasetInputMapping {
-              literalMapping
-              pathMapping
-            }
-            prompt {
-              id
-              name
-            }
-            promptVersion {
-              ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
-            }
-            outputConfig {
-              name
-              optimizationDirection
-              values {
-                label
-                score
+          displayName
+          inputMapping {
+            literalMapping
+            pathMapping
+          }
+          evaluator {
+            description
+            kind
+            ... on LLMEvaluator {
+              prompt {
+                id
+                name
+              }
+              promptVersion {
+                ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
+              }
+              outputConfig {
+                name
+                optimizationDirection
+                values {
+                  label
+                  score
+                }
               }
             }
           }
@@ -175,8 +171,10 @@ const EditEvaluatorDialog = ({
       `,
       queryRef
     );
-  const evaluator = evaluatorFragment as Mutable<typeof evaluatorFragment>;
-  invariant(evaluator, "evaluator is required");
+  const datasetEvaluator = evaluatorFragment as Mutable<
+    typeof evaluatorFragment
+  >;
+  invariant(datasetEvaluator, "evaluator is required");
   const [updateLlmEvaluator, isUpdating] =
     useMutation<EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation>(
       graphql`
@@ -188,11 +186,11 @@ const EditEvaluatorDialog = ({
             evaluator
               @appendNode(
                 connections: $connectionIds
-                edgeTypeName: "EvaluatorEdge"
+                edgeTypeName: "DatasetEvaluatorEdge"
               ) {
               id
-              name
-              ...EvaluatorsTable_row
+              displayName
+              ...DatasetEvaluatorsTable_row
               ...EditDatasetEvaluatorSlideover_evaluator
             }
           }
@@ -202,17 +200,20 @@ const EditEvaluatorDialog = ({
   const defaultValues: EvaluatorFormValues = useMemo(() => {
     return {
       evaluator: {
-        name: evaluator.name ?? "",
-        description: evaluator.description ?? "",
+        name: datasetEvaluator.displayName ?? "",
+        description: datasetEvaluator.evaluator.description ?? "",
       },
       choiceConfig: {
-        name: evaluator.outputConfig?.name ?? "",
+        name: datasetEvaluator.evaluator.outputConfig?.name ?? "",
         optimizationDirection:
-          evaluator.outputConfig?.optimizationDirection ?? "MAXIMIZE",
-        choices: evaluator.outputConfig?.values.map((value) => ({
-          label: value.label,
-          score: value.score ?? undefined,
-        })) ?? [
+          datasetEvaluator.evaluator.outputConfig?.optimizationDirection ??
+          "MAXIMIZE",
+        choices: datasetEvaluator.evaluator.outputConfig?.values.map(
+          (value) => ({
+            label: value.label,
+            score: value.score ?? undefined,
+          })
+        ) ?? [
           { label: "", score: undefined },
           { label: "", score: undefined },
         ],
@@ -222,12 +223,12 @@ const EditEvaluatorDialog = ({
         id: datasetId,
         assignEvaluatorToDataset: true,
       },
-      inputMapping: evaluator.datasetInputMapping ?? {
+      inputMapping: datasetEvaluator.inputMapping ?? {
         literalMapping: {},
         pathMapping: {},
       },
     };
-  }, [evaluator, datasetId]);
+  }, [datasetEvaluator, datasetId]);
   const form = useEvaluatorForm(defaultValues);
   const onSubmit = useCallback(() => {
     const {
@@ -244,8 +245,7 @@ const EditEvaluatorDialog = ({
       description,
       choiceConfig,
       datasetId: dataset.id,
-      originalDisplayName: displayName,
-      evaluatorId,
+      datasetEvaluatorId,
       inputMapping,
     });
     updateLlmEvaluator({
@@ -268,8 +268,7 @@ const EditEvaluatorDialog = ({
     form,
     playgroundStore,
     instanceId,
-    displayName,
-    evaluatorId,
+    datasetEvaluatorId,
     updateLlmEvaluator,
     updateConnectionIds,
     onClose,
@@ -279,7 +278,6 @@ const EditEvaluatorDialog = ({
   return (
     <FormProvider {...form}>
       <EditEvaluatorDialogContent
-        evaluatorId={evaluatorId}
         onClose={onClose}
         onSubmit={onSubmit}
         isSubmitting={isUpdating}

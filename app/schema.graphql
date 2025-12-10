@@ -320,7 +320,6 @@ type BuiltInEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  datasetInputMapping: EvaluatorInputMapping
   isBuiltin: Boolean!
   user: User
 }
@@ -539,7 +538,6 @@ type CodeEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  datasetInputMapping: EvaluatorInputMapping
   isBuiltin: Boolean!
   user: User
 }
@@ -823,41 +821,9 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
-  evaluator(evaluatorId: ID!, displayName: Identifier!): Evaluator!
-  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
+  datasetEvaluator(datasetEvaluatorId: ID!): DatasetEvaluator!
+  datasetEvaluators(first: Int = 50, last: Int, after: String, before: String, sort: DatasetEvaluatorSort, filter: DatasetEvaluatorFilter): DatasetEvaluatorConnection!
   lastUpdatedAt: DateTime
-}
-
-type DatasetBuiltInEvaluator implements Evaluator & Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-  name: Identifier!
-  description: String
-  metadata: JSON!
-  kind: EvaluatorKind!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  inputSchema: JSON
-  datasetInputMapping: EvaluatorInputMapping
-  isBuiltin: Boolean!
-  user: User
-  displayName: Identifier!
-}
-
-type DatasetCodeEvaluator implements Evaluator & Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-  name: Identifier!
-  description: String
-  metadata: JSON!
-  kind: EvaluatorKind!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  inputSchema: JSON
-  datasetInputMapping: EvaluatorInputMapping
-  isBuiltin: Boolean!
-  user: User
-  displayName: Identifier!
 }
 
 enum DatasetColumn {
@@ -881,6 +847,62 @@ type DatasetEdge {
 
   """The item at the end of the edge"""
   node: Dataset!
+}
+
+type DatasetEvaluator implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  displayName: Identifier!
+  updatedAt: DateTime!
+  dataset: Dataset!
+  evaluator: Evaluator!
+  inputMapping: EvaluatorInputMapping!
+}
+
+enum DatasetEvaluatorColumn {
+  display_name
+  kind
+  createdAt
+  updatedAt
+}
+
+"""A connection to a list of items."""
+type DatasetEvaluatorConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetEvaluatorEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetEvaluatorEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetEvaluator!
+}
+
+"""The filter key and value for dataset evaluator connections"""
+input DatasetEvaluatorFilter {
+  col: DatasetEvaluatorFilterColumn!
+  value: String!
+}
+
+enum DatasetEvaluatorFilterColumn {
+  display_name
+}
+
+type DatasetEvaluatorMutationPayload {
+  evaluator: DatasetEvaluator!
+  query: Query!
+}
+
+"""The sort key and direction for evaluator connections"""
+input DatasetEvaluatorSort {
+  col: DatasetEvaluatorColumn!
+  dir: SortDir!
 }
 
 type DatasetExample implements Node {
@@ -949,31 +971,6 @@ input DatasetFilter {
 
 enum DatasetFilterColumn {
   name
-}
-
-type DatasetLLMEvaluator implements Evaluator & Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-  name: Identifier!
-  description: String
-  metadata: JSON!
-  kind: EvaluatorKind!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  inputSchema: JSON
-  datasetInputMapping: EvaluatorInputMapping
-  isBuiltin: Boolean!
-  outputConfig: CategoricalAnnotationConfig!
-  prompt: Prompt!
-  promptVersionTag: PromptVersionTag
-  user: User
-  promptVersion: PromptVersion!
-  displayName: Identifier!
-}
-
-type DatasetLLMEvaluatorMutationPayload {
-  evaluator: DatasetLLMEvaluator!
-  query: Query!
 }
 
 type DatasetLabel implements Node {
@@ -1537,7 +1534,6 @@ interface Evaluator implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  datasetInputMapping: EvaluatorInputMapping
   isBuiltin: Boolean!
 }
 
@@ -1589,11 +1585,6 @@ input EvaluatorInputMappingInput {
 enum EvaluatorKind {
   LLM
   CODE
-}
-
-type EvaluatorMutationPayload {
-  evaluator: Evaluator!
-  query: Query!
 }
 
 """The sort key and direction for evaluator connections"""
@@ -2406,7 +2397,6 @@ type LLMEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   inputSchema: JSON
-  datasetInputMapping: EvaluatorInputMapping
   isBuiltin: Boolean!
   outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
@@ -2482,11 +2472,11 @@ type Mutation {
   setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
-  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetLLMEvaluatorMutationPayload!
-  updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetLLMEvaluatorMutationPayload!
+  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
-  assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): EvaluatorMutationPayload!
-  unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): EvaluatorMutationPayload!
+  assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): DatasetEvaluatorMutationPayload!
+  unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): DatasetEvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -4037,8 +4027,7 @@ type UMAPPoints {
 
 input UnassignEvaluatorFromDatasetInput {
   datasetId: ID!
-  evaluatorId: ID!
-  displayName: Identifier!
+  datasetEvaluatorId: ID!
 }
 
 type UnparsableConfig {
@@ -4076,9 +4065,8 @@ input UpdateAnnotationInput {
 }
 
 input UpdateDatasetLLMEvaluatorInput {
-  evaluatorId: ID!
+  datasetEvaluatorId: ID!
   datasetId: ID!
-  originalDisplayName: Identifier!
   name: Identifier!
   description: String = null
   promptVersion: ChatPromptVersionInput!
