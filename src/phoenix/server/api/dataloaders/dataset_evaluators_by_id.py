@@ -7,7 +7,7 @@ from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
 
-class DatasetEvaluatorByIdDataLoader(DataLoader[int, Optional[models.DatasetEvaluators]]):
+class DatasetEvaluatorsByIdDataLoader(DataLoader[int, Optional[models.DatasetEvaluators]]):
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db

@@ -552,7 +552,7 @@ class DatasetEvaluator(Node):
     async def _get_record(self, info: Info[Context, None]) -> models.DatasetEvaluators:
         if self.db_record is not None:
             return self.db_record
-        record = await info.context.data_loaders.dataset_evaluator_by_id.load(self.id)
+        record = await info.context.data_loaders.dataset_evaluators_by_id.load(self.id)
         if record is None:
             raise NotFound(f"DatasetEvaluator not found: {self.id}")
         return record
