@@ -29,6 +29,9 @@ Detailed technical references for the [LDAP Authentication specification](../lda
 **Security & Compliance**:
 - [Collision Prevention](./collision-prevention.md)
 
+**Testing**:
+- [Testing Procedures](./testing.md) - Running and extending LDAP tests (integration, Docker, coverage)
+
 **Research**:
 - [Grafana Comparison](./grafana-comparison.md)
 - [Background Sync (Future)](./background-sync-future.md)

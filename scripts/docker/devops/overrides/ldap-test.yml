@@ -246,8 +246,8 @@ services:
       - PHOENIX_ENABLE_AUTH=true
       - PHOENIX_DISABLE_BASIC_AUTH=false
       - PHOENIX_DISABLE_RATE_LIMIT=true
-      - PHOENIX_SECRET=dev-secret-for-tls-testing-only-12345678
-      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-tls-testing-only-12345678
+      - PHOENIX_SECRET=dev-secret-for-ldap-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-ldap-testing-abc-0123456789
       # STARTTLS Configuration (via MITM proxy for TLS verification)
       - PHOENIX_LDAP_HOST=ldap-mitm-proxy
       - PHOENIX_LDAP_PORT=3389  # Connect through MITM proxy
@@ -287,8 +287,8 @@ services:
       - PHOENIX_ENABLE_AUTH=true
       - PHOENIX_DISABLE_BASIC_AUTH=false
       - PHOENIX_DISABLE_RATE_LIMIT=true
-      - PHOENIX_SECRET=dev-secret-for-tls-testing-only-12345678
-      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-tls-testing-only-12345678
+      - PHOENIX_SECRET=dev-secret-for-ldap-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-ldap-testing-abc-0123456789
       - PHOENIX_ADMINS=
       # Disable OAuth from base compose (prevents auto-redirect to OIDC)
       - PHOENIX_OAUTH2_DEV_AUTO_LOGIN=false
@@ -332,8 +332,8 @@ services:
       - PHOENIX_ENABLE_AUTH=true
       - PHOENIX_DISABLE_BASIC_AUTH=false
       - PHOENIX_DISABLE_RATE_LIMIT=true
-      - PHOENIX_SECRET=dev-secret-for-anon-ldaps-only-12345678
-      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-anon-ldaps-only-12345678
+      - PHOENIX_SECRET=dev-secret-for-ldap-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-ldap-testing-abc-0123456789
       # Anonymous bind via LDAPS (no BIND_DN or BIND_PASSWORD)
       # Uses ldap-anonymous which has ACLs configured for anonymous read access
       - PHOENIX_LDAP_HOST=ldap-anonymous
@@ -373,8 +373,8 @@ services:
       - PHOENIX_ENABLE_AUTH=true
       - PHOENIX_DISABLE_BASIC_AUTH=false
       - PHOENIX_DISABLE_RATE_LIMIT=true
-      - PHOENIX_SECRET=dev-secret-for-anon-starttls-only-12345678
-      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-anon-starttls-only-12345678
+      - PHOENIX_SECRET=dev-secret-for-ldap-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-ldap-testing-abc-0123456789
       # Anonymous bind via STARTTLS through MITM proxy (no BIND_DN or BIND_PASSWORD)
       - PHOENIX_LDAP_HOST=ldap-anonymous-mitm-proxy
       - PHOENIX_LDAP_PORT=3389  # Connect through MITM proxy
@@ -488,8 +488,8 @@ services:
       - PHOENIX_ENABLE_AUTH=true
       - PHOENIX_DISABLE_BASIC_AUTH=false
       - PHOENIX_DISABLE_RATE_LIMIT=true
-      - PHOENIX_SECRET=dev-secret-for-posix-testing-only-12345678
-      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-posix-testing-only-12345678
+      - PHOENIX_SECRET=dev-secret-for-ldap-testing-only-12345678
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-ldap-testing-abc-0123456789
       # LDAP Configuration for POSIX mode
       - PHOENIX_LDAP_HOST=ldap-posix
       - PHOENIX_LDAP_PORT=389
@@ -564,6 +564,8 @@ services:
       - PHOENIX_ANONYMOUS_STARTTLS_URL=http://phoenix-anonymous-starttls:6006
       # POSIX mode testing (GROUP_SEARCH_FILTER with memberUid)
       - PHOENIX_POSIX_URL=http://phoenix-posix:6006
+      # Admin API key for role verification (same across all Phoenix instances)
+      - PHOENIX_ADMIN_SECRET=dev-admin-secret-for-ldap-testing-abc-0123456789
       - GRAFANA_URL=http://grafana-ldap:3000
       - LDAP_HOST=ldap
       - LDAP_PORT=389

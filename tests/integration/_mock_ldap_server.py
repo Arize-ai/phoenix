@@ -82,12 +82,13 @@ class LDAPUser:
 class LDAPGroup:
     """LDAP directory entry for a POSIX group.
 
-    Used for testing POSIX group searches where groups store member DNs
-    in a 'member' attribute (unlike Active Directory's memberOf).
+    Used for testing POSIX group searches. Supports two membership styles:
+    - DN-based: members are full DNs (e.g., "uid=jdoe,ou=users,dc=example,dc=com")
+    - Username-based (RFC 2307): members are usernames (e.g., "jdoe")
     """
 
     cn: str  # Common name (group name)
-    members: list[str] = field(default_factory=list)  # List of member DNs
+    members: list[str] = field(default_factory=list)  # List of member DNs or usernames
 
     @property
     def dn(self) -> str:
@@ -213,7 +214,9 @@ class _LDAPServer:
 
         Args:
             cn: Group's common name (e.g., "admins", "developers")
-            members: List of member DNs (e.g., ["uid=jdoe,ou=users,dc=example,dc=com"])
+            members: List of member identifiers. Can be either:
+                - DNs for (member=<dn>) filters: ["uid=jdoe,ou=users,dc=example,dc=com"]
+                - Usernames for (memberUid=<uid>) filters: ["jdoe"]
 
         Returns:
             Group's distinguished name (DN)
@@ -471,21 +474,41 @@ class _LDAPRequestHandler(socketserver.BaseRequestHandler):
             self._send_search_done(message_id, result_code=34, matched_count=0)
             return
 
+        # Extract requested attributes (position 7 in SearchRequest)
+        # If empty, return all attributes (LDAP default behavior)
+        requested_attrs: set[str] = set()
+        try:
+            attrs_component = search_req.getComponentByPosition(7)  # attributes
+            if attrs_component:
+                for attr in attrs_component:
+                    requested_attrs.add(str(attr).lower())
+        except (IndexError, TypeError):
+            pass  # No attributes specified = return all
+
+        logger.debug(f"Requested attributes: {requested_attrs or 'ALL'}")
+
         # Determine if this is a user search or group search based on search base
         is_group_search = "ou=groups" in search_base.lower()
 
         if is_group_search:
             self._handle_group_search(message_id, filter_component, filter_name)
         else:
-            self._handle_user_search(message_id, filter_component, filter_name)
+            self._handle_user_search(message_id, filter_component, filter_name, requested_attrs)
 
-    def _handle_user_search(self, message_id: int, filter_component: Any, filter_name: str) -> None:
+    def _handle_user_search(
+        self,
+        message_id: int,
+        filter_component: Any,
+        filter_name: str,
+        requested_attrs: set[str],
+    ) -> None:
         """Handle user search request.
 
         Args:
             message_id: LDAP message ID
             filter_component: ASN.1 filter component
             filter_name: Filter type name
+            requested_attrs: Set of requested attribute names (lowercase), empty = all
         """
         # Extract username directly from ASN.1 structure (avoids parsing edge cases)
         username: Optional[str] = None
@@ -545,7 +568,7 @@ class _LDAPRequestHandler(socketserver.BaseRequestHandler):
 
         # Send search result entries for ALL matching users (mimics real LDAP behavior)
         for user in matching_users:
-            entry = self._create_user_search_entry(message_id, user)
+            entry = self._create_user_search_entry(message_id, user, requested_attrs)
             self.request.sendall(encoder.encode(entry))
             logger.debug(f"Sent search entry for {user.username} (dn={user.dn})")
 
@@ -558,49 +581,57 @@ class _LDAPRequestHandler(socketserver.BaseRequestHandler):
         """Handle POSIX group search request.
 
         Searches for groups where a specific user is a member.
-        Typical filter: (member=uid=jdoe,ou=users,dc=example,dc=com)
+        Supports two filter styles:
+        - (member=uid=jdoe,ou=users,dc=example,dc=com) - DN-based membership
+        - (memberUid=jdoe) - username-based membership (POSIX RFC 2307)
 
         Args:
             message_id: LDAP message ID
             filter_component: ASN.1 filter component
             filter_name: Filter type name
         """
-        member_dn: Optional[str] = None
+        member_value: Optional[str] = None
+        is_memberuid_filter = False
 
         if filter_name == "equalityMatch":
-            # POSIX group filter: (member=<user-dn>)
             equality_filter = filter_component.getComponent()
             attr_name = str(equality_filter.getComponentByPosition(0))  # attributeDesc
             attr_value = str(equality_filter.getComponentByPosition(1))  # assertionValue
             logger.info(f"Group search: filter=({attr_name}={attr_value})")
 
             if attr_name == "member":
-                member_dn = attr_value
+                member_value = attr_value
+            elif attr_name == "memberUid":
+                member_value = attr_value
+                is_memberuid_filter = True
         else:
             logger.info(f"Group search: unsupported filter type={filter_name}")
 
-        if not member_dn:
-            logger.warning(f"No member DN found in group filter (type: {filter_name})")
+        if not member_value:
+            logger.warning(f"No member value found in group filter (type: {filter_name})")
             self._send_search_done(message_id, result_code=0, matched_count=0)
             return
 
-        # Normalize DN for case-insensitive comparison
-        member_dn_lower = member_dn.lower()
-        logger.debug(f"Looking up groups with member: {member_dn}")
+        # Normalize for case-insensitive comparison
+        member_value_lower = member_value.lower()
+        logger.debug(
+            f"Looking up groups with {'memberUid' if is_memberuid_filter else 'member'}: "
+            f"{member_value}"
+        )
 
         # Find all groups containing this member
         matching_groups = [
             group
             for group in self.ldap_server._groups.values()
-            if any(m.lower() == member_dn_lower for m in group.members)
+            if any(m.lower() == member_value_lower for m in group.members)
         ]
 
         if not matching_groups:
-            logger.info(f"No groups found for member: {member_dn}")
+            logger.info(f"No groups found for member: {member_value}")
             self._send_search_done(message_id, result_code=0, matched_count=0)
             return
 
-        logger.info(f"Found {len(matching_groups)} group(s) for member: {member_dn}")
+        logger.info(f"Found {len(matching_groups)} group(s) for member: {member_value}")
 
         # Send search result entry for each group
         for group in matching_groups:
@@ -635,47 +666,63 @@ class _LDAPRequestHandler(socketserver.BaseRequestHandler):
 
         return message
 
-    def _create_user_search_entry(self, message_id: int, user: LDAPUser) -> LDAPMessage:
+    def _create_user_search_entry(
+        self, message_id: int, user: LDAPUser, requested_attrs: set[str]
+    ) -> LDAPMessage:
         """Create LDAP user search result entry.
 
         Args:
             message_id: Message ID to respond to
             user: User to return in result
+            requested_attrs: Set of requested attribute names (lowercase), empty = all
 
         Returns:
             Encoded search entry message
         """
+
+        def should_include(attr_name: str) -> bool:
+            """Check if attribute should be included in response."""
+            # Empty set means return all attributes (LDAP default)
+            if not requested_attrs:
+                return True
+            return attr_name.lower() in requested_attrs
+
         # Build attribute list
         attrs = PartialAttributeList()
+        next_pos = 0
 
         # Add uid attribute
-        uid_attr = PartialAttribute()
-        uid_attr.setComponentByPosition(0, "uid")  # type
-        uid_vals = Vals()
-        uid_vals.setComponentByPosition(0, user.username)
-        uid_attr.setComponentByPosition(1, uid_vals)  # vals
-        attrs.setComponentByPosition(0, uid_attr)
+        if should_include("uid"):
+            uid_attr = PartialAttribute()
+            uid_attr.setComponentByPosition(0, "uid")  # type
+            uid_vals = Vals()
+            uid_vals.setComponentByPosition(0, user.username)
+            uid_attr.setComponentByPosition(1, uid_vals)  # vals
+            attrs.setComponentByPosition(next_pos, uid_attr)
+            next_pos += 1
 
         # Add mail attribute
-        mail_attr = PartialAttribute()
-        mail_attr.setComponentByPosition(0, "mail")
-        mail_vals = Vals()
-        mail_vals.setComponentByPosition(0, user.email)
-        mail_attr.setComponentByPosition(1, mail_vals)
-        attrs.setComponentByPosition(1, mail_attr)
+        if should_include("mail"):
+            mail_attr = PartialAttribute()
+            mail_attr.setComponentByPosition(0, "mail")
+            mail_vals = Vals()
+            mail_vals.setComponentByPosition(0, user.email)
+            mail_attr.setComponentByPosition(1, mail_vals)
+            attrs.setComponentByPosition(next_pos, mail_attr)
+            next_pos += 1
 
         # Add displayName attribute
-        if user.display_name:
+        if user.display_name and should_include("displayName"):
             display_attr = PartialAttribute()
             display_attr.setComponentByPosition(0, "displayName")
             display_vals = Vals()
             display_vals.setComponentByPosition(0, user.display_name)
             display_attr.setComponentByPosition(1, display_vals)
-            attrs.setComponentByPosition(2, display_attr)
+            attrs.setComponentByPosition(next_pos, display_attr)
+            next_pos += 1
 
         # Add memberOf attribute (groups)
-        next_pos = 3 if user.display_name else 2
-        if user.groups:
+        if user.groups and should_include("memberOf"):
             member_attr = PartialAttribute()
             member_attr.setComponentByPosition(0, "memberOf")
             member_vals = Vals()
@@ -686,12 +733,13 @@ class _LDAPRequestHandler(socketserver.BaseRequestHandler):
             next_pos += 1
 
         # Add entryUUID attribute (immutable unique identifier for enterprise mode)
-        uuid_attr = PartialAttribute()
-        uuid_attr.setComponentByPosition(0, "entryUUID")
-        uuid_vals = Vals()
-        uuid_vals.setComponentByPosition(0, user.entry_uuid)
-        uuid_attr.setComponentByPosition(1, uuid_vals)
-        attrs.setComponentByPosition(next_pos, uuid_attr)
+        if should_include("entryUUID"):
+            uuid_attr = PartialAttribute()
+            uuid_attr.setComponentByPosition(0, "entryUUID")
+            uuid_vals = Vals()
+            uuid_vals.setComponentByPosition(0, user.entry_uuid)
+            uuid_attr.setComponentByPosition(1, uuid_vals)
+            attrs.setComponentByPosition(next_pos, uuid_attr)
 
         # Build search result entry
         entry = SearchResultEntry()

@@ -842,7 +842,11 @@ class LDAPAuthenticator:
                             return None
                     # else: email stays None, will be handled by get_or_create_ldap_user
 
-                    display_name = _get_attribute(user_entry, self.config.attr_display_name)
+                    display_name = (
+                        _get_attribute(user_entry, self.config.attr_display_name)
+                        if self.config.attr_display_name
+                        else None
+                    )
 
                     # Extract unique_id if configured (objectGUID, entryUUID, etc.)
                     unique_id: str | None = None
@@ -923,6 +927,7 @@ class LDAPAuthenticator:
                 self.config.attr_display_name,
                 self.config.attr_member_of,
                 self.config.attr_unique_id,
+                self.config.group_search_filter_user_attr,
             ]
             if attr  # Filter out None and empty strings
         ]
@@ -1300,8 +1305,8 @@ def _get_attribute(entry: Entry, attr_name: str, multiple: bool = False) -> str 
         return None
 
     if multiple:
-        return values
-    return values[0] if values else None
+        return list(values)
+    return str(values[0])
 
 
 def _get_unique_id(entry: Entry, attr_name: str) -> str | None:

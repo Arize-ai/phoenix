@@ -351,16 +351,18 @@ def _env_ldap_no_email(_ldap_server: _LDAPServer) -> dict[str, str]:
 
 @pytest.fixture(scope="package")
 def _env_ldap_posix(_ldap_server: _LDAPServer) -> dict[str, str]:
-    """Configure LDAP with POSIX group search (OpenLDAP style) instead of memberOf.
+    """Configure LDAP with group search instead of memberOf attribute.
 
-    This fixture tests the alternative group lookup method where Phoenix searches
-    for groups containing the user's DN as a member attribute, rather than reading
-    a memberOf attribute from the user entry (Active Directory style).
+    This fixture tests group lookup via search rather than reading the memberOf
+    attribute from the user entry. Since GROUP_SEARCH_FILTER_USER_ATTR is not set,
+    %s in the filter is replaced with the login username directly.
 
     Key differences from _env_ldap:
     - No ATTR_MEMBER_OF (relies on group search)
     - Adds GROUP_SEARCH_BASE_DNS and GROUP_SEARCH_FILTER
-    - Tests DN escaping for LDAP injection prevention
+
+    Note: This does NOT test the GROUP_SEARCH_FILTER_USER_ATTR code path.
+    See _env_ldap_posix_memberuid for that.
     """
     return {
         "PHOENIX_LDAP_HOST": _ldap_server.host,
@@ -374,13 +376,51 @@ def _env_ldap_posix(_ldap_server: _LDAPServer) -> dict[str, str]:
         "PHOENIX_LDAP_ATTR_DISPLAY_NAME": "displayName",
         "PHOENIX_LDAP_ATTR_MEMBER_OF": "",
         "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS": f'["{_ldap_server.group_search_base}"]',
-        "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(member=%s)",  # %s replaced with user DN
+        "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(member=%s)",  # %s replaced with login username
         "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
             '[{"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"}, '
             '{"group_dn": "cn=members,ou=groups,dc=example,dc=com", "role": "MEMBER"}, '
             '{"group_dn": "*", "role": "VIEWER"}]'
         ),
         # Default: allow_sign_up=true (users auto-created on first login)
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_ldap_posix_memberuid(_ldap_server: _LDAPServer) -> dict[str, str]:
+    """Configure LDAP with POSIX memberUid group search (RFC 2307 style).
+
+    This fixture tests the POSIX group lookup method where:
+    - Groups use memberUid attribute with username values (not DNs)
+    - GROUP_SEARCH_FILTER_USER_ATTR specifies which user attribute to use
+
+    Key differences from _env_ldap_posix:
+    - Uses (memberUid=%s) filter instead of (member=%s)
+    - Sets GROUP_SEARCH_FILTER_USER_ATTR=uid to read uid from user entry
+
+    This tests the code path where Phoenix must fetch a specific attribute
+    from the user entry for group filter substitution, which was previously
+    buggy (the uid attribute wasn't being fetched).
+    """
+    return {
+        "PHOENIX_LDAP_HOST": _ldap_server.host,
+        "PHOENIX_LDAP_PORT": str(_ldap_server.port),
+        "PHOENIX_LDAP_TLS_MODE": "none",
+        "PHOENIX_LDAP_BIND_DN": _ldap_server.bind_dn,
+        "PHOENIX_LDAP_BIND_PASSWORD": _ldap_server.bind_password,
+        "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": f'["{_ldap_server.user_search_base}"]',
+        "PHOENIX_LDAP_USER_SEARCH_FILTER": "(uid=%s)",
+        "PHOENIX_LDAP_ATTR_EMAIL": "mail",
+        "PHOENIX_LDAP_ATTR_DISPLAY_NAME": "displayName",
+        "PHOENIX_LDAP_ATTR_MEMBER_OF": "",
+        "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS": f'["{_ldap_server.group_search_base}"]',
+        "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(memberUid=%s)",  # %s replaced with uid attr
+        "PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR": "uid",  # Read uid from user entry
+        "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+            '[{"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"}, '
+            '{"group_dn": "cn=members,ou=groups,dc=example,dc=com", "role": "MEMBER"}, '
+            '{"group_dn": "*", "role": "VIEWER"}]'
+        ),
     }
 
 
@@ -508,6 +548,45 @@ def _app_ldap_posix(
         **_env_smtp,
         **_env_oauth2,
         **_env_ldap_posix,
+    }
+    with _server(_AppInfo(env)) as app:
+        yield app
+
+
+@pytest.fixture(scope="package")
+def _env_ports_posix_memberuid(
+    _ports: Iterator[int],
+) -> dict[str, str]:
+    """Separate port allocation for POSIX memberUid LDAP app."""
+    return {
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+    }
+
+
+@pytest.fixture(scope="package")
+def _app_ldap_posix_memberuid(
+    _env_auth: Mapping[str, str],
+    _env_database: Mapping[str, str],
+    _env_oauth2: Mapping[str, str],
+    _env_ldap_posix_memberuid: Mapping[str, str],
+    _env_ports_posix_memberuid: Mapping[str, str],
+    _env_smtp: Mapping[str, str],
+    _env_tls: Mapping[str, str],
+) -> Iterator[_AppInfo]:
+    """App instance with LDAP configured for POSIX memberUid group search.
+
+    Uses GROUP_SEARCH_FILTER_USER_ATTR=uid to test the code path where Phoenix
+    must fetch the uid attribute from the user entry for group filter substitution.
+    """
+    env = {
+        **_env_tls,
+        **_env_ports_posix_memberuid,
+        **_env_database,
+        **_env_auth,
+        **_env_smtp,
+        **_env_oauth2,
+        **_env_ldap_posix_memberuid,
     }
     with _server(_AppInfo(env)) as app:
         yield app

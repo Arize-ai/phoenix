@@ -25,6 +25,8 @@ from urllib.parse import quote, urljoin, urlparse
 
 import wrapt
 from email_validator import EmailNotValidError, validate_email
+from ldap3.core.exceptions import LDAPInvalidDnError
+from ldap3.utils.dn import parse_dn
 from starlette.datastructures import URL, Secret
 from typing_extensions import TypeAlias, get_args
 
@@ -1515,6 +1517,19 @@ class LDAPGroupRoleMapping(TypedDict):
     role: AssignableUserRoleName
 
 
+def _is_valid_dn(dn: str) -> bool:
+    """Check if a string is a valid LDAP DN syntax."""
+    # Empty DN is valid per RFC 4514 §2 - represents the root DSE (zero RDNs)
+    # https://datatracker.ietf.org/doc/html/rfc4514#section-2
+    if not dn.strip():
+        return True
+    try:
+        parse_dn(dn)
+        return True
+    except LDAPInvalidDnError:
+        return False
+
+
 @dataclass(frozen=True)
 class LDAPConfig:
     """LDAP server configuration for authentication.
@@ -1706,8 +1721,8 @@ class LDAPConfig:
 
     # Attribute mapping (RFC 2798 §9.1.3, §2.3)
     attr_email: str | None = "mail"  # None if explicitly empty (null email marker mode)
-    attr_display_name: str = "displayName"
-    attr_member_of: str = "memberOf"  # Used when group_search_filter is not set
+    attr_display_name: str | None = "displayName"
+    attr_member_of: str | None = "memberOf"  # Used when group_search_filter is not set
     attr_unique_id: str | None = None  # Optional: objectGUID (AD), entryUUID (OpenLDAP)
 
     # Group search (for POSIX/OpenLDAP without memberOf)
@@ -1739,6 +1754,9 @@ class LDAPConfig:
         host = getenv(ENV_PHOENIX_LDAP_HOST)
         if not host:
             return None
+
+        # Import here to avoid circular import at module level
+        from phoenix.server.ldap import canonicalize_dn
 
         # Normalize and validate host list (remove empty entries from trailing commas, etc.)
         hosts = tuple(h.strip() for h in host.split(",") if h.strip())
@@ -1786,11 +1804,9 @@ class LDAPConfig:
                     "must be a non-empty string"
                 )
             # Validate DN syntax and canonicalize (except for wildcard "*")
-            from phoenix.server.ldap import canonicalize_dn
-
             raw_group_dn = mapping["group_dn"].strip()
             group_dn = canonicalize_dn(raw_group_dn) if raw_group_dn != "*" else raw_group_dn
-            if not group_dn:
+            if group_dn is None:
                 raise ValueError(
                     f"{ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS}[{idx}].group_dn "
                     f"has invalid LDAP DN syntax: '{raw_group_dn}'. "
@@ -1827,7 +1843,7 @@ class LDAPConfig:
         tls_mode = cast(Literal["none", "starttls", "ldaps"], tls_mode_str)
 
         # Parse and validate group_search_base_dns (JSON array of base DNs, optional)
-        attr_member_of = getenv(ENV_PHOENIX_LDAP_ATTR_MEMBER_OF, "memberOf")
+        attr_member_of = getenv(ENV_PHOENIX_LDAP_ATTR_MEMBER_OF, "memberOf").strip() or None
         group_search_base_dns_json = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS, "")
         group_search_filter = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER)
         group_search_filter_user_attr = getenv(ENV_PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR)
@@ -1853,11 +1869,18 @@ class LDAPConfig:
                     "Expected format: '[\"ou=groups,dc=example,dc=com\"]'"
                 )
             for idx, base_dn in enumerate(group_search_base_dns_list):
-                if not isinstance(base_dn, str) or not base_dn.strip():
+                if not isinstance(base_dn, str):
+                    raise ValueError(
+                        f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS}[{idx}] must be a string"
+                    )
+                stripped = base_dn.strip()
+                if not _is_valid_dn(stripped):
                     raise ValueError(
                         f"{ENV_PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS}[{idx}] "
-                        "must be a non-empty string"
+                        f"has invalid LDAP DN syntax: '{base_dn}'. "
+                        f"Expected format: 'ou=groups,dc=example,dc=com'"
                     )
+                group_search_base_dns_list[idx] = stripped
 
         # Validate group search configuration: if filter is set, base DNs are required
         if group_search_filter and not group_search_base_dns_list:
@@ -1924,10 +1947,16 @@ class LDAPConfig:
                 "Example: '[\"OU=Users,DC=corp,DC=com\"]'"
             )
         for idx, base_dn in enumerate(user_search_base_dns_list):
-            if not isinstance(base_dn, str) or not base_dn.strip():
+            if not isinstance(base_dn, str):
+                raise ValueError(f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS}[{idx}] must be a string")
+            stripped = base_dn.strip()
+            if not _is_valid_dn(stripped):
                 raise ValueError(
-                    f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS}[{idx}] must be a non-empty string"
+                    f"{ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS}[{idx}] "
+                    f"has invalid LDAP DN syntax: '{base_dn}'. "
+                    f"Expected format: 'ou=users,dc=example,dc=com'"
                 )
+            user_search_base_dns_list[idx] = stripped
 
         # Parse allow_sign_up
         allow_sign_up = _bool_val(ENV_PHOENIX_LDAP_ALLOW_SIGN_UP, True)
@@ -1984,8 +2013,10 @@ class LDAPConfig:
             attr_email = None  # Explicitly empty → null email marker mode
         else:
             attr_email = attr_email_raw
-        attr_display_name = getenv(ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, "displayName")
-        attr_unique_id = getenv(ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID)
+        attr_display_name = (
+            getenv(ENV_PHOENIX_LDAP_ATTR_DISPLAY_NAME, "displayName").strip() or None
+        )
+        attr_unique_id = getenv(ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID, "").strip() or None
 
         # Validate null email marker mode constraints
         # When attr_email is empty, we generate markers from unique_id instead
@@ -2038,8 +2069,13 @@ class LDAPConfig:
                 f"for username. Got: '{user_search_filter}'"
             )
 
-        bind_dn = getenv(ENV_PHOENIX_LDAP_BIND_DN)
-        bind_password = getenv(ENV_PHOENIX_LDAP_BIND_PASSWORD)
+        bind_dn = getenv(ENV_PHOENIX_LDAP_BIND_DN, "").strip() or None
+        if bind_dn and not _is_valid_dn(bind_dn):
+            raise ValueError(
+                f"{ENV_PHOENIX_LDAP_BIND_DN} has invalid LDAP DN syntax: '{bind_dn}'. "
+                f"Expected format: 'cn=service,ou=accounts,dc=example,dc=com'"
+            )
+        bind_password = getenv(ENV_PHOENIX_LDAP_BIND_PASSWORD) or None
         if bind_dn and not bind_password:
             raise ValueError(
                 f"{ENV_PHOENIX_LDAP_BIND_DN} is set but {ENV_PHOENIX_LDAP_BIND_PASSWORD} is "

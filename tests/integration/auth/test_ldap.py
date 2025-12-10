@@ -730,10 +730,14 @@ class TestLDAPConfiguration:
 
 
 class TestLDAPPosixGroupSearch:
-    """Test LDAP POSIX group search (OpenLDAP style).
+    """Test LDAP group search (no memberOf attribute).
 
-    POSIX groups (RFC 2307) use memberUid containing usernames, requiring Phoenix
-    to search for groups containing the user's username (not DN).
+    Tests group lookup via search filter instead of reading memberOf from user entry.
+    Uses (member=%s) where %s is replaced with the login username directly
+    (no GROUP_SEARCH_FILTER_USER_ATTR configured).
+
+    Note: For true POSIX RFC 2307 memberUid testing with GROUP_SEARCH_FILTER_USER_ATTR,
+    see TestLDAPPosixMemberUidGroupSearch.
     """
 
     def test_posix_role_from_group_search(
@@ -752,7 +756,7 @@ class TestLDAPPosixGroupSearch:
             display_name="POSIX",
             groups=[],
         )
-        # Add to admins group via POSIX-style membership (username, not DN)
+        # Add to admins group with username as member
         _ldap_server.add_group(cn="admins", members=[username])
 
         status, _, _ = _ldap_login(_app_ldap_posix, username, _DEFAULT_PASSWORD)
@@ -765,7 +769,7 @@ class TestLDAPPosixGroupSearch:
     def test_posix_wildcard_when_no_groups(
         self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test wildcard role when user is in no POSIX groups."""
+        """Test wildcard role when user is in no groups."""
         suffix = token_hex(4)
         username = f"posix_none_{suffix}"
         email = f"posix_none_{suffix}@example.com"
@@ -789,11 +793,7 @@ class TestLDAPPosixGroupSearch:
     def test_posix_username_case_insensitive(
         self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
     ) -> None:
-        """Test username matching in POSIX group search is case-insensitive.
-
-        POSIX groups (RFC 2307) use memberUid with usernames, not full DNs.
-        Username comparison should be case-insensitive.
-        """
+        """Test username matching in group search is case-insensitive."""
         suffix = token_hex(4)
         username = f"posix_case_{suffix}"
         email = f"posix_case_{suffix}@example.com"
@@ -805,7 +805,7 @@ class TestLDAPPosixGroupSearch:
             display_name="Case",
             groups=[],
         )
-        # POSIX group has UPPERCASE username, user has lowercase username
+        # Group has UPPERCASE username, user logs in with lowercase
         _ldap_server.add_group(cn="admins", members=[username.upper()])
 
         status, _, _ = _ldap_login(_app_ldap_posix, username, _DEFAULT_PASSWORD)
@@ -814,6 +814,110 @@ class TestLDAPPosixGroupSearch:
         assert user is not None
         assert user.role == UserRoleInput.ADMIN  # Should match despite case
         _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
+
+
+class TestLDAPPosixMemberUidGroupSearch:
+    """Test LDAP POSIX memberUid group search with GROUP_SEARCH_FILTER_USER_ATTR.
+
+    This tests the code path where Phoenix must read a specific attribute (e.g., uid)
+    from the user entry to substitute into the group search filter.
+
+    Configuration:
+    - GROUP_SEARCH_FILTER: (memberUid=%s)
+    - GROUP_SEARCH_FILTER_USER_ATTR: uid
+
+    The mock LDAP server respects the requested attributes list, so these tests
+    properly catch bugs where required attributes (like uid) aren't being requested.
+    This caught a real bug where group_search_filter_user_attr wasn't included in
+    the LDAP search attribute list.
+    """
+
+    def test_memberuid_role_from_group_search(
+        self, _app_ldap_posix_memberuid: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test role assignment when GROUP_SEARCH_FILTER_USER_ATTR is configured."""
+        suffix = token_hex(4)
+        username = f"memberuid_{suffix}"
+        email = f"memberuid_{suffix}@example.com"
+
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email=email,
+            display_name="MemberUid User",
+            groups=[],  # No memberOf - relies on group search
+        )
+        # Add to admins group with username (not DN)
+        _ldap_server.add_group(cn="admins", members=[username])
+
+        status, access_token, refresh_token = _ldap_login(
+            _app_ldap_posix_memberuid, username, _DEFAULT_PASSWORD
+        )
+        _verify_ldap_login_success(status, access_token, refresh_token)
+
+        user = _get_user_by_email(_app_ldap_posix_memberuid, email)
+        assert user is not None
+        assert user.role == UserRoleInput.ADMIN, (
+            f"Expected ADMIN role from memberUid group search, got {user.role}. "
+            "This indicates GROUP_SEARCH_FILTER_USER_ATTR is not working correctly."
+        )
+        _delete_users(
+            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+        )
+
+    def test_memberuid_member_role(
+        self, _app_ldap_posix_memberuid: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test MEMBER role assignment via memberUid group search."""
+        suffix = token_hex(4)
+        username = f"memberuid_member_{suffix}"
+        email = f"memberuid_member_{suffix}@example.com"
+
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email=email,
+            display_name="Member User",
+            groups=[],
+        )
+        _ldap_server.add_group(cn="members", members=[username])
+
+        status, _, _ = _ldap_login(_app_ldap_posix_memberuid, username, _DEFAULT_PASSWORD)
+        assert status == 204
+
+        user = _get_user_by_email(_app_ldap_posix_memberuid, email)
+        assert user is not None
+        assert user.role == UserRoleInput.MEMBER
+        _delete_users(
+            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+        )
+
+    def test_memberuid_wildcard_when_no_groups(
+        self, _app_ldap_posix_memberuid: _AppInfo, _ldap_server: _LDAPServer
+    ) -> None:
+        """Test wildcard role when user is in no groups (memberUid mode)."""
+        suffix = token_hex(4)
+        username = f"memberuid_none_{suffix}"
+        email = f"memberuid_none_{suffix}@example.com"
+
+        _ldap_server.add_user(
+            username=username,
+            password=_DEFAULT_PASSWORD,
+            email=email,
+            display_name="No Groups",
+            groups=[],
+        )
+        # Don't add to any group
+
+        status, _, _ = _ldap_login(_app_ldap_posix_memberuid, username, _DEFAULT_PASSWORD)
+        assert status == 204
+
+        user = _get_user_by_email(_app_ldap_posix_memberuid, email)
+        assert user is not None
+        assert user.role == UserRoleInput.VIEWER  # Wildcard
+        _delete_users(
+            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+        )
 
 
 class TestLDAPNoEmailMode:

@@ -17,6 +17,9 @@ objectClass: groupOfNames
 cn: admins
 description: Phoenix Administrators
 member: uid=admin,ou=users,dc=example,dc=com
+member: uid=multigroup,ou=users,dc=example,dc=com
+member: uid=duplicate,ou=IT,dc=example,dc=com
+member: uid=duplicate,ou=HR,dc=example,dc=com
 
 dn: cn=members,ou=groups,dc=example,dc=com
 objectClass: groupOfNames
@@ -24,12 +27,17 @@ cn: members
 description: Phoenix Members
 member: uid=alice,ou=users,dc=example,dc=com
 member: uid=bob,ou=users,dc=example,dc=com
+member: uid=multigroup,ou=users,dc=example,dc=com
+member: uid=josé,ou=users,dc=example,dc=com
 
 dn: cn=viewers,ou=groups,dc=example,dc=com
 objectClass: groupOfNames
 cn: viewers
 description: Phoenix Viewers
 member: uid=charlie,ou=users,dc=example,dc=com
+member: uid=nodisplay,ou=users,dc=example,dc=com
+member: uid=special(user),ou=users,dc=example,dc=com
+member: uid=multigroup,ou=users,dc=example,dc=com
 
 # Create users WITHOUT email (mail) attribute
 # These users rely on entryUUID for identification
@@ -97,4 +105,132 @@ gidNumber: 10004
 homeDirectory: /home/charlie
 loginShell: /bin/bash
 memberOf: cn=viewers,ou=groups,dc=example,dc=com
+
+# Edge case: User with NO groups (tests wildcard "*" fallback)
+dn: uid=nogroups,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: nogroups
+cn: No Groups User
+sn: User
+givenName: No Groups
+userPassword: password123
+uidNumber: 10005
+gidNumber: 10005
+homeDirectory: /home/nogroups
+loginShell: /bin/bash
+
+# Edge case: User in MULTIPLE groups (tests role precedence - first match wins)
+dn: uid=multigroup,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: multigroup
+cn: Multi Group User
+sn: User
+givenName: Multi
+displayName: Multi Group User
+userPassword: password123
+uidNumber: 10006
+gidNumber: 10006
+homeDirectory: /home/multigroup
+loginShell: /bin/bash
+memberOf: cn=admins,ou=groups,dc=example,dc=com
+memberOf: cn=members,ou=groups,dc=example,dc=com
+memberOf: cn=viewers,ou=groups,dc=example,dc=com
+
+# Edge case: User with missing displayName (tests fallback to username)
+dn: uid=nodisplay,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: nodisplay
+cn: No Display
+sn: Display
+givenName: No
+userPassword: password123
+uidNumber: 10007
+gidNumber: 10007
+homeDirectory: /home/nodisplay
+loginShell: /bin/bash
+memberOf: cn=viewers,ou=groups,dc=example,dc=com
+
+# Edge case: Special characters in username (tests LDAP injection prevention)
+dn: uid=special(user),ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: special(user)
+cn: Special User
+sn: User
+givenName: Special
+displayName: Special (User)
+userPassword: password123
+uidNumber: 10008
+gidNumber: 10008
+homeDirectory: /home/special
+loginShell: /bin/bash
+memberOf: cn=viewers,ou=groups,dc=example,dc=com
+
+# Edge case: Unicode/International characters
+dn: uid=josé,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: josé
+cn: José García
+sn: García
+givenName: José
+displayName: José García
+userPassword: password123
+uidNumber: 10009
+gidNumber: 10009
+homeDirectory: /home/jose
+loginShell: /bin/bash
+memberOf: cn=members,ou=groups,dc=example,dc=com
+
+# Different OUs for organizational structure testing
+dn: ou=IT,dc=example,dc=com
+objectClass: organizationalUnit
+ou: IT
+description: IT Department
+
+dn: ou=HR,dc=example,dc=com
+objectClass: organizationalUnit
+ou: HR
+description: Human Resources Department
+
+# Edge case: Duplicate usernames in different OUs (tests ambiguous search rejection)
+dn: uid=duplicate,ou=IT,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: duplicate
+cn: IT Duplicate
+sn: Duplicate
+givenName: IT
+displayName: IT Admin
+userPassword: password123
+uidNumber: 10010
+gidNumber: 10010
+homeDirectory: /home/duplicate-it
+loginShell: /bin/bash
+memberOf: cn=admins,ou=groups,dc=example,dc=com
+
+dn: uid=duplicate,ou=HR,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: duplicate
+cn: HR Duplicate
+sn: Duplicate
+givenName: HR
+displayName: HR Admin
+userPassword: password123
+uidNumber: 10011
+gidNumber: 10011
+homeDirectory: /home/duplicate-hr
+loginShell: /bin/bash
+memberOf: cn=admins,ou=groups,dc=example,dc=com
 
