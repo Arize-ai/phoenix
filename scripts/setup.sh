@@ -26,7 +26,13 @@ fi
 INSTALLED_ITEMS=()
 
 # Check and install uv
-if ! command -v uv &> /dev/null; then
+# First try to source uv env if it exists, then check if uv is available
+if [ -f "$HOME/.local/bin/env" ]; then
+    source "$HOME/.local/bin/env"
+fi
+
+# Check if uv is in PATH or exists in the expected location
+if ! command -v uv &> /dev/null && [ ! -f "$HOME/.local/bin/uv" ]; then
     echo "Installing uv..."
     curl -LsSf https://astral.sh/uv/0.8.6/install.sh | sh
     INSTALLED_ITEMS+=("uv")
@@ -39,10 +45,16 @@ else
     echo "uv is already installed"
 fi
 
-# Check if nvm command is available in PATH
-if ! command -v nvm &> /dev/null; then
+# Check if nvm is available - nvm is a shell function, so we need to source it first
+if [ -d "$HOME/.nvm" ]; then
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+fi
+
+# Check if nvm is available (as a function)
+if ! type nvm &> /dev/null; then
     echo ""
-    echo -e "${YELLOW}nvm (Node Version Manager) is not available in PATH.${NC}"
+    echo -e "${YELLOW}nvm (Node Version Manager) is not available.${NC}"
     echo ""
     echo "Please install nvm manually by running:"
     echo "  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash"
