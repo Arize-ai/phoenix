@@ -134,11 +134,7 @@ type DatasetEvaluatorsTableProps = {
     filter?: DatasetEvaluatorFilter | null;
   }) => void;
   onRowClick?: (row: TableRow) => void;
-  /**
-   * If datasetId is provided, the table will include an action menu with
-   * the ability to unassign the evaluator from the dataset.
-   */
-  datasetId?: string;
+  datasetId: string;
   /**
    * If provided, these connections will be updated when a row is edited or deleted.
    */

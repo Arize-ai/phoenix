@@ -15,7 +15,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
 from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
@@ -469,7 +469,7 @@ class Dataset(Node):
                 global_id=dataset_evaluator_id,
             )
         except ValueError:
-            raise BadRequest(f"Invalid dataset evaluator ID: {dataset_evaluator_rowid}")
+            raise BadRequest(f"Invalid dataset evaluator ID: {dataset_evaluator_id}")
 
         stmt = select(models.DatasetEvaluators).where(
             models.DatasetEvaluators.id == dataset_evaluator_rowid,
@@ -479,7 +479,7 @@ class Dataset(Node):
         async with info.context.db() as session:
             dataset_evaluator = await session.scalar(stmt)
             if dataset_evaluator is None:
-                raise BadRequest(f"Dataset evaluator not found: {dataset_evaluator_rowid}")
+                raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
             return DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator)
 
     @strawberry.field
