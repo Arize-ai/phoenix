@@ -2630,6 +2630,23 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set-string auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true --set auth.admins="Admin=admin@example.com" """,
             "LDAP no-email mode cannot use auth.admins",
         ),
+        # Edge cases: empty string and case-insensitive null variants also trigger no-email mode
+        # (must match Python config behavior in src/phoenix/config.py)
+        ErrorTestCase(
+            "LDAP no-email mode with empty string attrEmail",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.allowSignUp=true""",
+            "LDAP no-email mode requires attrUniqueId",
+        ),
+        ErrorTestCase(
+            "LDAP no-email mode with uppercase NULL",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set-string auth.ldap.attrEmail=NULL --set auth.ldap.allowSignUp=true""",
+            "LDAP no-email mode requires attrUniqueId",
+        ),
+        ErrorTestCase(
+            "LDAP no-email mode with mixed case Null",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set-string auth.ldap.attrEmail=Null --set auth.ldap.allowSignUp=true""",
+            "LDAP no-email mode requires attrUniqueId",
+        ),
         # Ingress
         TestCase(
             "Ingress enabled (default)",

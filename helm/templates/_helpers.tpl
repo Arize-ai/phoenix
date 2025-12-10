@@ -124,7 +124,8 @@ Validate external database configuration for consistency
 
 {{/*
 Validate LDAP no-email mode configuration
-When attrEmail is "null", attrUniqueId is required and allowSignUp must be true
+When attrEmail is "null" (case-insensitive) or empty, attrUniqueId is required and allowSignUp must be true.
+This must match the Python config behavior in src/phoenix/config.py.
 */}}
 {{- define "phoenix.validateLdapNoEmail" -}}
 {{- if .Values.auth.ldap.enabled }}
@@ -132,8 +133,9 @@ When attrEmail is "null", attrUniqueId is required and allowSignUp must be true
 {{- $attrUniqueId := .Values.auth.ldap.attrUniqueId }}
 {{- $allowSignUp := .Values.auth.ldap.allowSignUp }}
 {{- $admins := .Values.auth.admins }}
-{{- /* Check if attrEmail is "null" sentinel value (no-email mode) */ -}}
-{{- $isNoEmailMode := eq ($attrEmail | toString) "null" }}
+{{- /* Check if attrEmail triggers no-email mode: empty string OR case-insensitive "null" */ -}}
+{{- $attrEmailStr := $attrEmail | toString }}
+{{- $isNoEmailMode := or (eq $attrEmailStr "") (eq ($attrEmailStr | lower) "null") }}
 {{- if $isNoEmailMode }}
 {{- if not $attrUniqueId }}
 {{- fail "ERROR: LDAP no-email mode requires attrUniqueId!\n\nWhen auth.ldap.attrEmail is \"null\" (no-email mode), auth.ldap.attrUniqueId is REQUIRED.\n\nUsers are identified by their unique ID instead of email in this mode.\n\nTo fix this, set one of:\n  - Active Directory: auth.ldap.attrUniqueId: \"objectGUID\"\n  - OpenLDAP: auth.ldap.attrUniqueId: \"entryUUID\"\n  - 389 DS: auth.ldap.attrUniqueId: \"nsUniqueId\"" }}
