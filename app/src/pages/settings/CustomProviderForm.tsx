@@ -328,7 +328,11 @@ function AzureOpenAIFields({
           <Select
             {...field}
             value={field.value ?? AUTH_METHOD_OPTIONS[0].id}
-            onChange={(key) => field.onChange(key)}
+            onChange={(key) => {
+              if (key != null) {
+                field.onChange(key);
+              }
+            }}
             isDisabled={isSubmitting}
             isRequired
           >
@@ -803,12 +807,14 @@ function SDKSelect({
         <Select
           value={field.value}
           onChange={(key) => {
-            const oldSDK = field.value;
-            const newSDK = key as GenerativeModelSDK;
-            // Note: We don't call field.onChange here because handleSDKChange
-            // calls reset() which sets all form values including the SDK field.
-            // Calling both would be redundant and could cause race conditions.
-            handleSDKChange(oldSDK, newSDK);
+            if (key != null) {
+              const oldSDK = field.value;
+              const newSDK = key as GenerativeModelSDK;
+              // Note: We don't call field.onChange here because handleSDKChange
+              // calls reset() which sets all form values including the SDK field.
+              // Calling both would be redundant and could cause race conditions.
+              handleSDKChange(oldSDK, newSDK);
+            }
           }}
           isDisabled={isSubmitting}
           isRequired
