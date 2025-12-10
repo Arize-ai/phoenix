@@ -9,10 +9,11 @@ NC='\033[0m' # No Color
 
 echo "This setup script will install the following tools (if not already installed):"
 echo "  - uv (Python package manager)"
-echo "  - nvm (Node Version Manager)"
-echo "  - node (version from .nvmrc)"
+echo "  - node (version from .nvmrc) - requires nvm to be installed"
 echo "  - tox and tox-uv (Python testing tools)"
 echo "  - pnpm (Node package manager)"
+echo ""
+echo "Note: nvm (Node Version Manager) must be installed manually before running this script."
 echo ""
 read -p "Do you want to proceed? (y/n): " -n 1 -r
 echo ""
@@ -38,40 +39,22 @@ else
     echo "uv is already installed"
 fi
 
-# Check and install nvm
-if [ ! -d "$HOME/.nvm" ]; then
-    echo "Installing nvm..."
-    # nvm installer may return non-zero exit code even on success (e.g., if already in .bashrc)
-    # Download to temp file first, then run it in a subshell that always succeeds
-    NVM_INSTALLER=$(mktemp)
-    if ! curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh > "$NVM_INSTALLER"; then
-        echo "Error: Failed to download nvm installer"
-        rm -f "$NVM_INSTALLER"
-        exit 1
-    fi
-    # Run installer - nvm installer exits with code 3 even on success
-    # We'll verify success by checking if directory was created, not by exit code
-    # Command group ensures this block always succeeds
-    { bash "$NVM_INSTALLER"; true; }
-    rm -f "$NVM_INSTALLER"
-    
-    # Check if installation actually succeeded by verifying the directory exists
-    if [ -d "$HOME/.nvm" ]; then
-        INSTALLED_ITEMS+=("nvm")
-    else
-        echo "Error: nvm installation failed - $HOME/.nvm directory was not created"
-        exit 1
-    fi
-    
-    # Source nvm for current session
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+# Check if nvm command is available in PATH
+if ! command -v nvm &> /dev/null; then
+    echo ""
+    echo -e "${YELLOW}nvm (Node Version Manager) is not available in PATH.${NC}"
+    echo ""
+    echo "Please install nvm manually by running:"
+    echo "  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash"
+    echo ""
+    echo "Then restart your terminal or run:"
+    echo "  export NVM_DIR=\"\$HOME/.nvm\""
+    echo "  [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\""
+    echo ""
+    echo "After installing nvm, please run 'make setup' again to continue."
+    exit 1
 else
-    echo "nvm is already installed"
-    # Source nvm if it exists
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    echo "nvm is available"
 fi
 
 # Install and use node version from .nvmrc
