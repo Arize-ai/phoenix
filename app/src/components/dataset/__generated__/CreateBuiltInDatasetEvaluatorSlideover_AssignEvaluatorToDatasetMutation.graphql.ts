@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f10edc8624290188816b91a797674f2>>
+ * @generated SignedSource<<a28033837256ee3d4fc2030ca41f8b81>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,20 +20,20 @@ export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
-export type EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$variables = {
+export type CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation$variables = {
   connectionIds: ReadonlyArray<string>;
   input: AssignEvaluatorToDatasetInput;
 };
-export type EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$data = {
+export type CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation$data = {
   readonly assignEvaluatorToDataset: {
     readonly evaluator: {
       readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row">;
     };
   };
 };
-export type EvaluatorConfigDialogAssignEvaluatorToDatasetMutation = {
-  response: EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$data;
-  variables: EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$variables;
+export type CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation = {
+  response: CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation$data;
+  variables: CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -124,7 +124,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
+    "name": "CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation",
     "selections": [
       {
         "alias": null,
@@ -207,7 +207,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
+    "name": "CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation",
     "selections": [
       {
         "alias": null,
@@ -303,16 +303,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ba8e68452914917efc7913d3ea3ef643",
+    "cacheID": "29fdefac1dd092c4e0f3c8304c19e729",
     "id": null,
     "metadata": {},
-    "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
+    "name": "CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "421d4fcd9e7ef60820a3c858363e7af5";
+(node as any).hash = "f51add18bda90413e14f4eb490bd6f72";
 
 export default node;

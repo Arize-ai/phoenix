@@ -9,6 +9,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
+import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
 
 /**
  * Embed this DialogContent component within a DatasetEvaluatorSlideover or an EvaluatorSlideover.
@@ -69,7 +70,9 @@ export const EditEvaluatorDialogContent = ({
             {error}
           </Alert>
         )}
-        <EvaluatorForm />
+        <LLMEvaluatorInputVariablesProvider>
+          <EvaluatorForm />
+        </LLMEvaluatorInputVariablesProvider>
       </fieldset>
     </DialogContent>
   );

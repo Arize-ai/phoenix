@@ -16,27 +16,12 @@ import type {
   EvaluatorInputMapping,
 } from "@phoenix/types";
 
-const createOutputConfigInput = ({
-  choiceConfig,
-}: {
-  choiceConfig: ClassificationEvaluatorAnnotationConfig;
-}): CreateDatasetLLMEvaluatorInput["outputConfig"] => {
-  return {
-    name: choiceConfig.name,
-    optimizationDirection: choiceConfig.optimizationDirection,
-    values: choiceConfig.choices.map((choice) => ({
-      label: choice.label,
-      score: choice.score,
-    })),
-  };
-};
-
 const createPromptVersionInput = ({
   playgroundStore,
   instanceId,
   name,
   description,
-  choiceConfig,
+  outputConfig,
 }: {
   playgroundStore: ReturnType<typeof usePlaygroundStore>;
   instanceId: number;
@@ -48,7 +33,7 @@ const createPromptVersionInput = ({
   /**
    * The choice config of the evaluator.
    */
-  choiceConfig: ClassificationEvaluatorAnnotationConfig;
+  outputConfig: ClassificationEvaluatorAnnotationConfig;
   /**
    * The input mapping of the evaluator.
    */
@@ -85,12 +70,12 @@ const createPromptVersionInput = ({
               parameters: {
                 type: "object",
                 properties: {
-                  [choiceConfig.name]: {
+                  [outputConfig.name]: {
                     type: "string",
-                    enum: choiceConfig.choices.map((choice) => choice.label),
+                    enum: outputConfig.values.map((value) => value.label),
                   },
                 },
-                required: [choiceConfig.name],
+                required: [outputConfig.name],
               },
             },
           } satisfies CategoricalChoiceToolType),
@@ -109,7 +94,7 @@ export const updateLLMEvaluatorPayload = ({
   instanceId,
   name: rawName,
   description: rawDescription,
-  choiceConfig,
+  outputConfig,
   datasetId,
   datasetEvaluatorId,
   inputMapping,
@@ -120,7 +105,7 @@ export const updateLLMEvaluatorPayload = ({
   instanceId: number;
   name: string;
   description: string;
-  choiceConfig: ClassificationEvaluatorAnnotationConfig;
+  outputConfig: ClassificationEvaluatorAnnotationConfig;
   inputMapping?: EvaluatorInputMapping;
 }): UpdateDatasetLLMEvaluatorInput => {
   const name = rawName.trim();
@@ -131,10 +116,8 @@ export const updateLLMEvaluatorPayload = ({
     instanceId,
     name,
     description,
-    choiceConfig,
+    outputConfig,
   });
-
-  const outputConfig = createOutputConfigInput({ choiceConfig });
 
   return {
     name,
@@ -154,7 +137,7 @@ export const createLLMEvaluatorPayload = ({
   instanceId,
   name: rawName,
   description: rawDescription,
-  choiceConfig,
+  outputConfig,
   datasetId,
   inputMapping,
 }: {
@@ -177,7 +160,7 @@ export const createLLMEvaluatorPayload = ({
   /**
    * The choice config of the evaluator.
    */
-  choiceConfig: ClassificationEvaluatorAnnotationConfig;
+  outputConfig: ClassificationEvaluatorAnnotationConfig;
   /**
    * The input mapping of the evaluator.
    */
@@ -195,10 +178,8 @@ export const createLLMEvaluatorPayload = ({
     instanceId,
     name,
     description,
-    choiceConfig,
+    outputConfig,
   });
-
-  const outputConfig = createOutputConfigInput({ choiceConfig });
 
   return {
     name,

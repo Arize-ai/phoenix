@@ -8,6 +8,7 @@ import { CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@pho
 import { Dialog } from "@phoenix/components/dialog";
 import { EditEvaluatorDialogContent } from "@phoenix/components/evaluators/EditEvaluatorDialogContent";
 import {
+  DEFAULT_LLM_FORM_VALUES,
   EvaluatorFormValues,
   useEvaluatorForm,
 } from "@phoenix/components/evaluators/EvaluatorForm";
@@ -91,6 +92,7 @@ const CreateEvaluatorDialog = ({
     );
   const defaultValues: Partial<EvaluatorFormValues> = useMemo(() => {
     return {
+      ...DEFAULT_LLM_FORM_VALUES,
       dataset: {
         readonly: true,
         id: datasetId,
@@ -103,16 +105,17 @@ const CreateEvaluatorDialog = ({
     const {
       evaluator: { name, description },
       dataset,
-      choiceConfig,
+      outputConfig,
       inputMapping,
     } = form.getValues();
     invariant(dataset, "dataset is required");
+    invariant(outputConfig, "outputConfig is required");
     const input = createLLMEvaluatorPayload({
       playgroundStore,
       instanceId,
       name,
       description,
-      choiceConfig,
+      outputConfig,
       datasetId: dataset.id,
       inputMapping,
     });

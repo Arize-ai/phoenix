@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<661e9659bd8b78a6722c58a40ac39a12>>
+ * @generated SignedSource<<eee08e807be26df6e3f88ad4270a54a5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,6 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-import { FragmentRefs } from "relay-runtime";
 export type EvaluatorKind = "CODE" | "LLM";
 export type PlaygroundDatasetSectionQuery$variables = {
   datasetId: string;
@@ -42,7 +41,6 @@ export type PlaygroundDatasetSectionQuery$data = {
       readonly id: string;
       readonly name: string;
     }>;
-    readonly " $fragmentSpreads": FragmentRefs<"EvaluatorConfigDialog_dataset">;
   };
 };
 export type PlaygroundDatasetSectionQuery = {
@@ -261,11 +259,6 @@ return {
             ],
             "type": "Dataset",
             "abstractKey": null
-          },
-          {
-            "args": null,
-            "kind": "FragmentSpread",
-            "name": "EvaluatorConfigDialog_dataset"
           }
         ],
         "storageKey": null
@@ -289,7 +282,6 @@ return {
         "plural": false,
         "selections": [
           (v10/*: any*/),
-          (v4/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -369,23 +361,24 @@ return {
             ],
             "type": "Dataset",
             "abstractKey": null
-          }
+          },
+          (v4/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "f98024e5442aceb2cea89d6e0f723682",
+    "cacheID": "19d05a3ead8242521e97d3f15ad37604",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            id\n            displayName\n            inputMapping {\n              literalMapping\n              pathMapping\n            }\n            evaluator {\n              __typename\n              kind\n              ... on LLMEvaluator {\n                outputConfig {\n                  name\n                  id\n                }\n              }\n              id\n            }\n          }\n        }\n      }\n    }\n    ...EvaluatorConfigDialog_dataset\n    id\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            id\n            displayName\n            inputMapping {\n              literalMapping\n              pathMapping\n            }\n            evaluator {\n              __typename\n              kind\n              ... on LLMEvaluator {\n                outputConfig {\n                  name\n                  id\n                }\n              }\n              id\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4ad5ea66dc49ae5fa413e3873350ad37";
+(node as any).hash = "3deb8ec8b2caab9e7c7d06c056da62c0";
 
 export default node;

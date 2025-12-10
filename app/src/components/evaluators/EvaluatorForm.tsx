@@ -1,6 +1,7 @@
 import { PropsWithChildren, useState } from "react";
 import {
   Controller,
+  type DeepPartial,
   FormProvider,
   useForm,
   useFormContext,
@@ -14,31 +15,33 @@ import {
   Heading,
   Input,
   Label,
-  Switch,
   Text,
   TextField,
 } from "@phoenix/components";
-import { EvaluatorChatTemplate } from "@phoenix/components/evaluators/EvaluatorChatTemplate";
+import { CodeEvaluatorForm } from "@phoenix/components/evaluators/CodeEvaluatorForm";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
-import { EvaluatorLLMChoice } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
+import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
-import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 import {
   ClassificationEvaluatorAnnotationConfig,
   type EvaluatorInputMapping as EvaluatorInputMappingType,
+  type EvaluatorKind,
 } from "@phoenix/types";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 export type EvaluatorFormValues = {
   evaluator: {
     name: string;
+    kind: EvaluatorKind;
     description: string;
+    isBuiltin?: boolean | null;
+    builtInEvaluatorName?: string | null;
   };
-  choiceConfig: ClassificationEvaluatorAnnotationConfig;
+  outputConfig?: ClassificationEvaluatorAnnotationConfig;
+  // TODO: this makes very little sense in react hook form state, but will make more sense when we move to zustand
   dataset?: {
     readonly: boolean;
     id: string;
@@ -47,22 +50,47 @@ export type EvaluatorFormValues = {
   inputMapping: EvaluatorInputMappingType;
 };
 
-const DEFAULT_FORM_VALUES: EvaluatorFormValues = {
+/**
+ * Common default values for all evaluator kinds.
+ */
+export const DEFAULT_FORM_VALUES = {
   evaluator: {
     name: "",
     description: "",
   },
-  choiceConfig: {
+  inputMapping: {
+    literalMapping: {},
+    pathMapping: {},
+  },
+} satisfies DeepPartial<EvaluatorFormValues>;
+
+/**
+ * Default values for LLM evaluators.
+ */
+export const DEFAULT_LLM_FORM_VALUES: EvaluatorFormValues = {
+  ...DEFAULT_FORM_VALUES,
+  evaluator: {
+    ...DEFAULT_FORM_VALUES.evaluator,
+    kind: "LLM",
+  },
+  outputConfig: {
     name: "",
     optimizationDirection: "MAXIMIZE",
-    choices: [
+    values: [
       { label: "", score: undefined },
       { label: "", score: undefined },
     ],
   },
-  inputMapping: {
-    literalMapping: {},
-    pathMapping: {},
+};
+
+/**
+ * Default values for CODE evaluators.
+ */
+export const DEFAULT_CODE_FORM_VALUES: EvaluatorFormValues = {
+  ...DEFAULT_FORM_VALUES,
+  evaluator: {
+    ...DEFAULT_FORM_VALUES.evaluator,
+    kind: "CODE",
   },
 };
 
@@ -135,7 +163,7 @@ export const EvaluatorFormProvider = ({
 export const EvaluatorForm = () => {
   const { control, getValues, watch, setValue } =
     useFormContext<EvaluatorFormValues>();
-  const { variableKeys: variables } = useDerivedPlaygroundVariables();
+  // TODO: move all of these useStates into zustand
   const [selectedSplitIds, setSelectedSplitIds] = useState<string[]>([]);
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     null
@@ -144,6 +172,8 @@ export const EvaluatorForm = () => {
     useState<EvaluatorInput | null>(null);
   const [showPromptPreview, setShowPromptPreview] = useState(false);
   const selectedDatasetId = watch("dataset.id");
+  const evaluatorKind = watch("evaluator.kind");
+  const isBuiltin = watch("evaluator.isBuiltin");
   return (
     <PanelGroup direction="horizontal">
       <Panel defaultSize={65} css={panelCSS} style={panelStyle}>
@@ -185,30 +215,16 @@ export const EvaluatorForm = () => {
               )}
             />
           </Flex>
-          <Flex direction="column" gap="size-100">
-            <Heading level={3}>Prompt</Heading>
-            <Text color="text-500">
-              Define or load a prompt for your evaluator.
-            </Text>
-            <Switch
-              isSelected={showPromptPreview}
-              onChange={setShowPromptPreview}
-            >
-              <Label>Preview</Label>
-            </Switch>
-            {showPromptPreview ? (
-              <EvaluatorPromptPreview evaluatorInput={evaluatorInputObject} />
-            ) : (
-              <EvaluatorChatTemplate />
-            )}
-          </Flex>
-          <Flex direction="column" gap="size-100">
-            <Heading level={3}>Evaluator Annotation</Heading>
-            <Text color="text-500">
-              Define the annotation that your evaluator will return.
-            </Text>
-            <EvaluatorLLMChoice control={control} />
-          </Flex>
+          {evaluatorKind === "LLM" && (
+            <LLMEvaluatorForm
+              showPromptPreview={showPromptPreview}
+              setShowPromptPreview={setShowPromptPreview}
+              evaluatorInputObject={evaluatorInputObject}
+            />
+          )}
+          {evaluatorKind === "CODE" && (
+            <CodeEvaluatorForm evaluatorInputObject={evaluatorInputObject} />
+          )}
         </PanelContainer>
       </Panel>
       <PanelResizeHandle disabled />
@@ -241,11 +257,14 @@ export const EvaluatorForm = () => {
               datasetSelectIsDisabled={!!getValues().dataset?.readonly}
               onEvaluatorInputObjectChange={setEvaluatorInputObject}
             />
-            <EvaluatorInputMapping
-              evaluatorInput={evaluatorInputObject}
-              exampleId={selectedExampleId ?? undefined}
-              variables={variables}
-            />
+            {/* only show input mapping for non-builtin evaluators */}
+            {/* builtin evaluators have hand made forms for their input mapping */}
+            {!isBuiltin && (
+              <EvaluatorInputMapping
+                evaluatorInput={evaluatorInputObject}
+                exampleId={selectedExampleId ?? undefined}
+              />
+            )}
             <Flex direction="column" gap="size-100">
               <Heading level={3}>Test your evaluator</Heading>
               <Text color="text-500">

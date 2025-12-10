@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Controller } from "react-hook-form";
-import { graphql, useFragment } from "react-relay";
+import { Controller, useFormContext } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
@@ -20,8 +19,7 @@ import {
   CodeLanguageRadioGroup,
 } from "@phoenix/components/code";
 import { CodeBlock } from "@phoenix/components/CodeBlock";
-import type { ContainsEvaluatorForm_query$key } from "@phoenix/components/evaluators/EvaluatorConfigDialog/BuiltInEvaluatorForm/__generated__/ContainsEvaluatorForm_query.graphql";
-import { useEvaluatorConfigDialogForm } from "@phoenix/components/evaluators/EvaluatorConfigDialog/useEvaluatorConfigDialogForm";
+import type { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import type { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 
@@ -53,36 +51,16 @@ function contains(
 `.trim();
 
 type ContainsEvaluatorFormProps = {
-  queryRef: ContainsEvaluatorForm_query$key;
-  evaluatorInput: EvaluatorInput | null;
+  evaluatorInputObject: EvaluatorInput | null;
 };
 
 export const ContainsEvaluatorForm = ({
-  queryRef,
-  evaluatorInput,
+  evaluatorInputObject,
 }: ContainsEvaluatorFormProps) => {
-  // TODO: we may eventually want to validate against inputSchema
-  // we may also want to display output config if made available for built ins
-  const _ = useFragment(
-    graphql`
-      fragment ContainsEvaluatorForm_query on Node {
-        id
-        ... on Evaluator {
-          name
-          kind
-          isBuiltin
-        }
-        ... on BuiltInEvaluator {
-          inputSchema
-        }
-      }
-    `,
-    queryRef
-  );
-  const form = useEvaluatorConfigDialogForm();
+  const { control } = useFormContext<EvaluatorFormValues>();
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   const [containsTextPath, setContainsTextPath] = useState<string>("");
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorInput);
+  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorInputObject);
   return (
     <Flex direction="column" gap="size-200">
       <Card
@@ -105,7 +83,7 @@ export const ContainsEvaluatorForm = ({
       <Flex direction="column" gap="size-100">
         <Controller
           name={`inputMapping.pathMapping.text`}
-          control={form.control}
+          control={control}
           render={({ field }) => (
             <ComboBox
               aria-label={`Map an example field to the Text parameter`}
@@ -142,7 +120,7 @@ export const ContainsEvaluatorForm = ({
           )}
         />
         <Controller
-          control={form.control}
+          control={control}
           name="inputMapping.literalMapping.words"
           render={({ field, fieldState: { error } }) => (
             <TextField {...field} isInvalid={!!error}>
@@ -159,7 +137,7 @@ export const ContainsEvaluatorForm = ({
         />
         <Controller
           name="inputMapping.literalMapping.case_sensitive"
-          control={form.control}
+          control={control}
           render={({ field }) => (
             <Checkbox
               {...field}

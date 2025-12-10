@@ -202,13 +202,15 @@ const EditEvaluatorDialog = ({
       evaluator: {
         name: datasetEvaluator.displayName ?? "",
         description: datasetEvaluator.evaluator.description ?? "",
+        kind: datasetEvaluator.evaluator.kind,
+        isBuiltin: false,
       },
-      choiceConfig: {
+      outputConfig: {
         name: datasetEvaluator.evaluator.outputConfig?.name ?? "",
         optimizationDirection:
           datasetEvaluator.evaluator.outputConfig?.optimizationDirection ??
           "MAXIMIZE",
-        choices: datasetEvaluator.evaluator.outputConfig?.values.map(
+        values: datasetEvaluator.evaluator.outputConfig?.values.map(
           (value) => ({
             label: value.label,
             score: value.score ?? undefined,
@@ -234,16 +236,17 @@ const EditEvaluatorDialog = ({
     const {
       evaluator: { name, description },
       dataset,
-      choiceConfig,
+      outputConfig,
       inputMapping,
     } = form.getValues();
     invariant(dataset, "dataset is required");
+    invariant(outputConfig, "outputConfig is required");
     const input = updateLLMEvaluatorPayload({
       playgroundStore,
       instanceId,
       name,
       description,
-      choiceConfig,
+      outputConfig,
       datasetId: dataset.id,
       datasetEvaluatorId,
       inputMapping,

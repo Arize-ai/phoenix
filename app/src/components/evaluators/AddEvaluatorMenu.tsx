@@ -9,10 +9,10 @@ import {
 import { graphql, useFragment } from "react-relay";
 
 import { Button, ButtonProps } from "@phoenix/components/button";
+import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
 import { CreateDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
-import { EvaluatorConfigDialog } from "@phoenix/components/evaluators/EvaluatorConfigDialog";
 import { Icon, Icons } from "@phoenix/components/icon";
 import {
   Menu,
@@ -37,12 +37,12 @@ export const AddEvaluatorMenu = ({
 } & Omit<MenuTriggerProps, "children">) => {
   const [createEvaluatorDialogOpen, setCreateEvaluatorDialogOpen] =
     useState(false);
-  const [evaluatorIdToAssociate, setEvaluatorIdToAssociate] = useState<
-    string | null
-  >(null);
-  const associateEvaluatorDialogOpen = evaluatorIdToAssociate != null;
-  const onCloseEvaluatorConfigDialog = () => {
-    setEvaluatorIdToAssociate(null);
+  const [builtinEvaluatorIdToAssociate, setBuiltinEvaluatorIdToAssociate] =
+    useState<string | null>(null);
+  const associateBuiltinEvaluatorDialogOpen =
+    builtinEvaluatorIdToAssociate != null;
+  const onCloseAssociateBuiltinEvaluatorDialog = () => {
+    setBuiltinEvaluatorIdToAssociate(null);
   };
   const data = useFragment<AddEvaluatorMenu_query$key>(
     graphql`
@@ -51,7 +51,7 @@ export const AddEvaluatorMenu = ({
         ...AddEvaluatorMenu_codeEvaluatorTemplates
         dataset: node(id: $datasetId) {
           ... on Dataset {
-            ...EvaluatorConfigDialog_dataset
+            ...CreateBuiltInDatasetEvaluatorSlideover_dataset
           }
         }
       }
@@ -98,7 +98,7 @@ export const AddEvaluatorMenu = ({
               </MenuItem>
               <CodeEvaluatorTemplateSubmenu
                 query={data}
-                onAction={setEvaluatorIdToAssociate}
+                onAction={setBuiltinEvaluatorIdToAssociate}
               >
                 <MenuItem
                   leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}
@@ -120,17 +120,17 @@ export const AddEvaluatorMenu = ({
         />
       </DialogTrigger>
       <ModalOverlay
-        isOpen={associateEvaluatorDialogOpen}
+        isOpen={associateBuiltinEvaluatorDialogOpen}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setEvaluatorIdToAssociate(null);
+            setBuiltinEvaluatorIdToAssociate(null);
           }
         }}
       >
         <Modal size="fullscreen" variant="slideover">
-          <EvaluatorConfigDialog
-            evaluatorId={evaluatorIdToAssociate}
-            onClose={onCloseEvaluatorConfigDialog}
+          <CreateBuiltInDatasetEvaluatorSlideover
+            evaluatorId={builtinEvaluatorIdToAssociate}
+            onClose={onCloseAssociateBuiltinEvaluatorDialog}
             datasetRef={data.dataset}
           />
         </Modal>

@@ -18,6 +18,7 @@ import {
 } from "@phoenix/components";
 import { Heading } from "@phoenix/components/content/Heading";
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
+import { useEvaluatorsInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorsInputVariables";
 import {
   EMPTY_EVALUATOR_INPUT,
   EvaluatorInput,
@@ -29,13 +30,12 @@ import { flattenObject } from "@phoenix/utils/jsonUtils";
 type EvaluatorInputMappingProps = {
   evaluatorInput: EvaluatorInput | null;
   exampleId?: string;
-  variables: string[];
 };
 
 export const EvaluatorInputMapping = ({
   evaluatorInput,
-  variables,
 }: EvaluatorInputMappingProps) => {
+  const variables = useEvaluatorsInputVariables();
   return (
     <EvaluatorInputMappingTitle>
       <Suspense fallback={<Loading />}>

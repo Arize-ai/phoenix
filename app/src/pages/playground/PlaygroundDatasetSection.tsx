@@ -69,7 +69,6 @@ export function PlaygroundDatasetSection({
               }
             }
           }
-          ...EvaluatorConfigDialog_dataset
         }
       }
     `,
