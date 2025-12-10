@@ -1688,6 +1688,10 @@
     {
       "source": "/docs/phoenix/tracing/llm-traces-1",
       "destination": "/docs/phoenix/get-started/get-started-tracing"
+    },
+    {
+      "source": "/docs/phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ui",
+      "destination": "/docs/phoenix/get-started/get-started-prompt-playground"
     }
   ]
 }
