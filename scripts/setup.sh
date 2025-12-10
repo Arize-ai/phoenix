@@ -41,8 +41,15 @@ fi
 # Check and install nvm
 if [ ! -d "$HOME/.nvm" ]; then
     echo "Installing nvm..."
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-    INSTALLED_ITEMS+=("nvm")
+    # nvm installer may return non-zero exit code even on success (e.g., if already in .bashrc)
+    # So we check if installation actually succeeded by verifying the directory exists
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash || true
+    if [ -d "$HOME/.nvm" ]; then
+        INSTALLED_ITEMS+=("nvm")
+    else
+        echo "Error: nvm installation failed"
+        exit 1
+    fi
     
     # Source nvm for current session
     export NVM_DIR="$HOME/.nvm"
