@@ -976,6 +976,15 @@
                 "pages": [
                   "docs/phoenix/release-notes",
                   {
+                    "group": "12.2025",
+                    "pages": [
+                      "docs/phoenix/release-notes/12-2025/12-10-2025-ldap-authentication-support",
+                      "docs/phoenix/release-notes/12-2025/12-10-2025-span-notes-api",
+                      "docs/phoenix/release-notes/12-2025/12-10-2025-evaluator-message-formats",
+                      "docs/phoenix/release-notes/12-2025/12-10-2025-typescript-create-evaluator"
+                    ]
+                  },
+                  {
                     "group": "11.2025",
                     "pages": [
                       "docs/phoenix/release-notes/11-2025/11-29-2025-add-support-for-claude-opus-4-5",

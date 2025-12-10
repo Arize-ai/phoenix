@@ -168,8 +168,6 @@ mint dev
 
 3. Open your browser to `http://localhost:3000` to preview your changes.
 
-> **Note:** Mintlify currently has a bug where the dev server can be slow to start because it traverses too many folders. This can be mitigated by running `mint dev` in a clean repository (without `node_modules/`, `.venv/`, `.tox/`, etc.).
-
 ### Making Changes
 
 - Documentation pages are written in MDX (Markdown with JSX support).

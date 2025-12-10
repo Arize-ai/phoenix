@@ -8,6 +8,38 @@ GitHub
 </Card>
 
 
+<Update label="12.10.2025">
+## [12.10.2025: LDAP Authentication Support](/docs/phoenix/release-notes/12-2025/12-10-2025-ldap-authentication-support) 🔐
+
+**Available in Phoenix 12.20+**
+
+Phoenix now supports authentication against LDAP directories, enabling integration with enterprise identity infrastructure including Microsoft Active Directory, OpenLDAP, and any LDAP v3 compliant directory. Key features include group-based role mapping, multi-server failover, TLS encryption, and automatic user provisioning.
+</Update>
+
+<Update label="12.10.2025">
+## [12.10.2025: Span Notes API](/docs/phoenix/release-notes/12-2025/12-10-2025-span-notes-api) 📝
+
+**Available in Phoenix 12.20+**
+
+New dedicated endpoints for span notes enable open coding and seamless annotation integrations. Add notes to spans programmatically using the Phoenix client in both Python and TypeScript—perfect for debugging sessions, human feedback, and building custom annotation pipelines.
+</Update>
+
+<Update label="12.10.2025">
+## [12.10.2025: Evaluator Message Formats](/docs/phoenix/release-notes/12-2025/12-10-2025-evaluator-message-formats) 💬
+
+**Available in phoenix-evals 0.22+ (Python) and @arizeai/phoenix-evals 2.0+ (TypeScript)**
+
+Phoenix evaluators now support flexible prompt formats including simple string templates and OpenAI-style message arrays for multi-turn prompts. Python supports both f-string and mustache syntax, while TypeScript uses mustache syntax. Adapters handle provider-specific transformations automatically.
+</Update>
+
+<Update label="12.10.2025">
+## [12.10.2025: TypeScript createEvaluator](/docs/phoenix/release-notes/12-2025/12-10-2025-typescript-create-evaluator) 🧪
+
+**Available in @arizeai/phoenix-evals 2.0+**
+
+The `createEvaluator` utility provides a type-safe way to build custom code evaluators for experiments in TypeScript. Define evaluators with full type inference, access `input`, `output`, `expected`, and `metadata` parameters, and integrate seamlessly with `runExperiment`.
+</Update>
+
 <Update label="11.29.2025">
 ## [11.29.2025: Add support for Claude Opus 4-5](/docs/phoenix/release-notes/11-2025/11-29-2025-add-support-for-claude-opus-4-5) 🤖
 
