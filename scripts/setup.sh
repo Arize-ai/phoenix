@@ -7,7 +7,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo "This setup script will install the following tools:"
+echo "This setup script will install the following tools (if not already installed):"
 echo "  - uv (Python package manager)"
 echo "  - nvm (Node Version Manager)"
 echo "  - node (version from .nvmrc)"
@@ -72,6 +72,15 @@ INSTALLED_ITEMS+=("tox and tox-uv")
 echo "Installing pnpm..."
 npm i -g pnpm@10.2.0
 INSTALLED_ITEMS+=("pnpm@10.2.0")
+
+# Copy .env.example to .env if .env doesn't exist
+if [ -f "app/.env.example" ] && [ ! -f "app/.env" ]; then
+    echo "Creating app/.env from app/.env.example..."
+    cp app/.env.example app/.env
+    INSTALLED_ITEMS+=("app/.env (from .env.example)")
+elif [ -f "app/.env" ]; then
+    echo "app/.env already exists, skipping copy"
+fi
 
 # Success message
 echo ""
