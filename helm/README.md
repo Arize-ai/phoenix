@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 4.0.20](https://img.shields.io/badge/Version-4.0.20-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.22.0](https://img.shields.io/badge/AppVersion-12.22.0-informational?style=flat-square)
+![Version: 4.0.21](https://img.shields.io/badge/Version-4.0.21-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.23.0](https://img.shields.io/badge/AppVersion-12.23.0-informational?style=flat-square)
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For instructions on how to deploy this Helm chart, see the [self-hosting docs](https://arize.com/docs/phoenix/self-hosting).
   - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
@@ -44,9 +44,9 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.enableAuth | bool | `true` | Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH) |
 | auth.ldap.allowSignUp | bool | `true` | Allow automatic user creation on first LDAP login. Set to false to require pre-provisioned users. |
 | auth.ldap.attrDisplayName | string | `"displayName"` | LDAP attribute containing user's display name. |
-| auth.ldap.attrEmail | string | `"mail"` | LDAP attribute containing user's email address. Must be present in LDAP or login fails. |
+| auth.ldap.attrEmail | string | `"mail"` | LDAP attribute containing user's email address. Defaults to "mail". Set to empty string ("") to enable no-email mode for directories without email. When empty (no-email mode):   - attrUniqueId is REQUIRED (users identified by unique ID instead of email)   - allowSignUp must be true (users auto-provisioned on first login)   - auth.admins cannot be used (use groupRoleMappings for admin assignment) |
 | auth.ldap.attrMemberOf | string | `"memberOf"` | LDAP attribute containing group memberships (default: "memberOf"). Used when groupSearchFilter is not set (Active Directory mode). Typical values: "memberOf" (AD, OpenLDAP with memberOf overlay) |
-| auth.ldap.attrUniqueId | string | `""` | LDAP attribute containing an immutable unique identifier (optional). Only configure if you expect user emails to change. Active Directory: "objectGUID", OpenLDAP: "entryUUID", 389 DS: "nsUniqueId" |
+| auth.ldap.attrUniqueId | string | `""` | LDAP attribute containing an immutable unique identifier. REQUIRED when attrEmail is empty (no-email mode). Also recommended if you expect user emails to change frequently. Active Directory: "objectGUID", OpenLDAP: "entryUUID", 389 DS: "nsUniqueId" |
 | auth.ldap.bindDn | string | `""` | Service account DN for binding to LDAP server. Example: "CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com" |
 | auth.ldap.bindPassword | string | `""` | Service account password for binding to LDAP server. Can be set directly here or via auth.secret with key PHOENIX_LDAP_BIND_PASSWORD |
 | auth.ldap.enabled | bool | `false` | Enable LDAP authentication |
@@ -119,7 +119,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-12.22.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-12.23.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
