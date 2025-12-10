@@ -30,8 +30,10 @@ if ! command -v uv &> /dev/null; then
     curl -LsSf https://astral.sh/uv/0.8.6/install.sh | sh
     INSTALLED_ITEMS+=("uv")
     
-    # Add uv to PATH for current session
-    export PATH="$HOME/.cargo/bin:$PATH"
+    # Source uv env to add it to PATH for current session
+    if [ -f "$HOME/.local/bin/env" ]; then
+        source "$HOME/.local/bin/env"
+    fi
 else
     echo "uv is already installed"
 fi
@@ -92,6 +94,6 @@ for item in "${INSTALLED_ITEMS[@]}"; do
 done
 echo ""
 echo -e "${YELLOW}Note:${NC} If this is a new shell session, you may need to:"
-echo "  - Add uv to your PATH: export PATH=\"\$HOME/.cargo/bin:\$PATH\""
+echo "  - Source uv: source \$HOME/.local/bin/env"
 echo "  - Source nvm: source ~/.nvm/nvm.sh"
 echo "  - Or restart your terminal to load these changes automatically"
