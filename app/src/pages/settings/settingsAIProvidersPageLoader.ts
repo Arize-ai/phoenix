@@ -10,6 +10,7 @@ export async function settingsAIProvidersPageLoader() {
     graphql`
       query settingsAIProvidersPageLoaderQuery {
         ...GenerativeProvidersCard_data
+        ...CustomProvidersCard_data
       }
     `,
     {}
