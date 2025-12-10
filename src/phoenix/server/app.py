@@ -166,7 +166,6 @@ from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
-from phoenix.server.ldap import NULL_EMAIL_MARKER_PREFIX
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
@@ -263,8 +262,6 @@ class AppConfig(NamedTuple):
     basic_auth_disabled: bool = False
     ldap_enabled: bool = False
     """ Whether LDAP authentication is configured """
-    null_email_marker_prefix: Optional[str] = None
-    """ Marker for null emails (LDAP without email attribute) """
     ldap_manual_user_creation_enabled: bool = False
     """ Whether manual LDAP user creation is allowed (False when LDAP disabled or no email attr) """
     auto_login_idp_name: Optional[str] = None
@@ -336,7 +333,6 @@ class Static(StaticFiles):
                     "oauth2_idps": self._app_config.oauth2_idps,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "ldap_enabled": self._app_config.ldap_enabled,
-                    "null_email_marker_prefix": self._app_config.null_email_marker_prefix,
                     "ldap_manual_user_creation_enabled": self._app_config.ldap_manual_user_creation_enabled,  # noqa: E501
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
                     "fullstory_org": self._app_config.fullstory_org,
@@ -1188,12 +1184,6 @@ def create_app(
                     oauth2_idps=oauth2_idps,
                     basic_auth_disabled=basic_auth_disabled,
                     ldap_enabled=ldap_config is not None,
-                    # Show marker to frontend only when LDAP is in null email marker mode
-                    null_email_marker_prefix=(
-                        NULL_EMAIL_MARKER_PREFIX
-                        if ldap_config and not ldap_config.attr_email
-                        else None
-                    ),
                     # Disable manual user creation when LDAP disabled or no email attr
                     ldap_manual_user_creation_enabled=(
                         ldap_config.attr_email is not None if ldap_config else False
