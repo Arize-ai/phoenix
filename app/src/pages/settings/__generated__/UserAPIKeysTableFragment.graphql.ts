@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<714f06c8939bc67ed12cdd4d9b5c7c8c>>
+ * @generated SignedSource<<adb541fee95d5086c11019c3698ee2be>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type UserAPIKeysTableFragment$data = {
     readonly id: string;
     readonly name: string;
     readonly user: {
-      readonly email: string | null;
+      readonly username: string;
     };
   }>;
   readonly " $fragmentType": "UserAPIKeysTableFragment";
@@ -97,7 +97,7 @@ const node: ReaderFragment = {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "email",
+              "name": "username",
               "storageKey": null
             }
           ],
@@ -111,6 +111,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "c2b3a579bcb0ba915523ecb35cae3b44";
+(node as any).hash = "720721b1409e41ca6fc2994af7784a18";
 
 export default node;

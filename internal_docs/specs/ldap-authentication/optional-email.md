@@ -301,6 +301,7 @@ declare global {
 | `UsersCard.tsx` | "Add User" button | Disable when no user creation method is available |
 | `UsersTable.tsx` | Displays email as mailto link | Hide when email is empty |
 | `ViewerProfileCard.tsx` | Shows email in profile card | Hide when email is empty |
+| `UserAPIKeysTable.tsx` | Displays user email in table | Changed to display username instead of email |
 | `LDAPUserForm.tsx` | Email input for creating LDAP users | No change (only rendered when `ldapManualUserCreationEnabled=true`) |
 | `NewUserDialog.tsx` | Creates users with email | Hide LDAP option when `ldapManualUserCreationEnabled=false` |
 | `UserForm.tsx` | Email input for local users | No change (local users have real email) |
@@ -830,11 +831,12 @@ UPDATE users SET email = NULL WHERE email LIKE E'\uE000%';
 - [x] Update `LDAPUserInfo.email` type to `str | None`
 - [x] Update `_authenticate()` to handle missing email attribute
 - [x] Update `get_or_create_ldap_user()` for placeholder generation
-- [x] Update GraphQL `User.email` resolver to return `""` for null email markers
+- [x] Update GraphQL `User.email` resolver to return `None` for null email markers
 - [x] Inject `ldapManualUserCreationEnabled` into `window.Config`
 - [x] Update `UsersCard.tsx` to disable "Add User" button when no creation method available
 - [x] Update `UsersTable.tsx` to hide empty emails
 - [x] Update `ViewerProfileCard.tsx` to hide empty emails
+- [x] Update `UserAPIKeysTable.tsx` to display username instead of email
 - [x] Update `NewUserDialog.tsx` to hide LDAP option when manual creation disabled
 - [x] Email sender naturally skips placeholder emails (via email validation)
 - [x] Verify email validation rejects null markers (handled by EMAIL_PATTERN - no `@` symbol)
@@ -846,9 +848,7 @@ UPDATE users SET email = NULL WHERE email LIKE E'\uE000%';
 
 - [ ] Create database migration
 - [ ] Update SQLAlchemy model
-- [ ] Update GraphQL types (return `None` instead of `""`)
 - [ ] Update REST API models
-- [ ] Update frontend to handle `null` (minimal - both `null` and `""` are falsy)
 - [ ] Remove `is_null_email_marker()` helper from backend
 - [ ] Migrate existing placeholder emails to `NULL`
 - [ ] Update tests
