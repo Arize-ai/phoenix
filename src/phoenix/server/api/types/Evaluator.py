@@ -555,4 +555,5 @@ class DatasetEvaluator(Node):
         record = await info.context.data_loaders.dataset_evaluators_by_id.load(self.id)
         if record is None:
             raise NotFound(f"DatasetEvaluator not found: {self.id}")
+        self.db_record = record
         return record

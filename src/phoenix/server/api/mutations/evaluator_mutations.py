@@ -172,7 +172,7 @@ class EvaluatorMutationMixin:
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
             raise BadRequest(f"Evaluator with name {input.name} already exists")
         return CodeEvaluatorMutationPayload(
-            evaluator=CodeEvaluator(id=code_evaluator.id),
+            evaluator=CodeEvaluator(id=code_evaluator.id, db_record=code_evaluator),
             query=Query(),
         )
 
@@ -245,7 +245,9 @@ class EvaluatorMutationMixin:
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
             raise BadRequest(f"Evaluator with name {input.name} already exists")
         return DatasetEvaluatorMutationPayload(
-            evaluator=DatasetEvaluator(id=dataset_evaluator_record.id),
+            evaluator=DatasetEvaluator(
+                id=dataset_evaluator_record.id, db_record=dataset_evaluator_record
+            ),
             query=Query(),
         )
 
@@ -283,7 +285,7 @@ class EvaluatorMutationMixin:
             dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_rowid)
             if dataset_evaluator is None:
                 raise NotFound(f"DatasetEvaluator with id {input.dataset_evaluator_id} not found")
-            if dataset_evaluator.evaluator_id is None:
+            if dataset_evaluator.builtin_evaluator_id is not None:
                 raise BadRequest("Cannot update a built-in evaluator")
 
             llm_evaluator = await session.get(models.LLMEvaluator, dataset_evaluator.evaluator_id)
